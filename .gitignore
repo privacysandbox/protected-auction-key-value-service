@@ -1,0 +1,16 @@
+# Bazel symlinks
+/bazel-*
+
+# IDEs
+/.vscode/
+/*.code-workspace
+/.idea/
+/.clwb/
+
+#Backup files
+*~
+
+*.tar
+*.eif
+/dist/
+__pycache__/

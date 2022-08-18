@@ -1,0 +1,26 @@
+// Call flatc -c data_loading.fbs to generate c++ file
+
+namespace fledge.kv_server;
+
+enum DeltaMutationType:byte { Update = 0,  Delete = 1 }
+
+table DeltaFileRecord {
+  // Required. For updates, the value will overwrite the previous value, if any.
+  mutation_type: DeltaMutationType;
+
+  // Required. Used to represent the commit time of the record. In cases where 2
+  // records of the same key are compared, the one with a larger logical time
+  // is considered newer. There is no constraints as of 2022 Q3 on what format
+  // the time must be other than that a larger number represents a newer
+  // timestamp.
+  logical_commit_time:int64;
+
+  // Required.
+  key:string;
+
+  // Optional. If unset, the value will be the default value for the key.
+  subkey:string;
+
+  // Required.
+  value:string;
+}

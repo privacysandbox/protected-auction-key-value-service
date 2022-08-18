@@ -1,0 +1,88 @@
+#!/bin/bash
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -o pipefail
+set -o errexit
+
+DEBUG=0
+BUILD_AMI=0
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --with-ami                    Build the AMI. Default: false
+    --debug                       Emit debug build info. Default: false
+USAGE
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --with-ami)
+      BUILD_AMI=1
+      shift
+      ;;
+    --debug)
+      DEBUG=1
+      shift
+      ;;
+    -h | --help)
+      usage 0
+      break
+      ;;
+    *)
+      usage
+      break
+      ;;
+  esac
+done
+
+
+BAZEL_ARGS="-c opt"
+if [[ ${DEBUG} -eq 1 ]]; then
+  BAZEL_ARGS="${BAZEL_ARGS} --sandbox_debug --verbose_failures"
+fi
+
+# build and test server image
+bazel test ${BAZEL_ARGS} //production/packaging/aws/data_server/...
+
+printf "==== build and test everything including container builders =====\n"
+bazel test ${BAZEL_ARGS} //... //builders/...
+
+printf "==== build AWS Nitro image =====\n"
+bazel build ${BAZEL_ARGS} //production/packaging/aws/data_server:server_enclave_image
+bazel build ${BAZEL_ARGS} //components/aws/proxy/source:proxy
+bazel build ${BAZEL_ARGS} //components/aws:sqs_lambda.tar
+
+WORKSPACE=$(bazel info workspace)
+
+DIST=${WORKSPACE}/dist
+mkdir -p ${DIST}
+chmod 770 ${DIST}
+
+cp -p bazel-bin/production/packaging/aws/data_server/*.{eif,json} ${DIST}
+cp -p bazel-bin/components/aws/proxy/source/proxy ${DIST}
+cp components/aws/push_sqs ${DIST}
+chmod 644 ${DIST}/server_enclave_image.{eif,json} ${DIST}/proxy
+chmod 755 ${DIST}/push_sqs
+
+printf "To push a newer version of SQS lambda, run ${DIST}/push_sqs\n"
+
+if [[ ${BUILD_AMI} -eq 1 ]]; then
+  printf "==== build AWS AMI =====\n"
+  packer build -var=distribution_dir=${DIST} -var=workspace=${WORKSPACE} ${WORKSPACE}/production/packaging/aws/data_server/ami/image.pkr.hcl
+fi

@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# helper script to build and execute the gh CLI tool.
+# Read the gh manual at https://cli.github.com/manual.
+
+set -o errexit
+
+readonly WORKSPACE=$(bazel info workspace)
+readonly IMAGE_TAGGED=builders/release:release_image
+
+# as needed, build release container image and load it into the local docker client
+if ! docker image inspect bazel/${IMAGE_TAGGED} >/dev/null 2>&1; then
+  bazel run //${IMAGE_TAGGED}
+fi
+
+readonly GH_TOKEN_FILE="$HOME/.gh_token"
+if [[ -z "${GH_TOKEN}" ]]; then
+  GH_TOKEN=$(cat "${GH_TOKEN_FILE}")
+fi
+
+if [[ -z ${GH_TOKEN} ]]; then
+  printf "github token must be specified in the GH_TOKEN environment variable or in [%s]\n" "${GH_TOKEN_FILE}"
+  exit 1
+fi
+
+docker run -it --rm \
+  --entrypoint=gh \
+  -v "${WORKSPACE}:/src/workspace" \
+  --env GH_TOKEN="${GH_TOKEN}" \
+  -w /src/workspace \
+  bazel/${IMAGE_TAGGED} "$@"

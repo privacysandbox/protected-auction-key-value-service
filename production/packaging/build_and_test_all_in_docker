@@ -1,0 +1,71 @@
+#!/bin/bash
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+set -o pipefail
+set -o errexit
+
+CLEAN=0
+BUILD_AND_TEST_ALL_ARGS=
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --with-ami                Build the AMI. Default: false
+    --clean                   Optionally clean build cache before running build
+    --debug                   Emit debug build info. Default: false
+USAGE
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --with-ami | --debug)
+      BUILD_AND_TEST_ALL_ARGS="${BUILD_AND_TEST_ALL_ARGS} $1"
+      shift
+      ;;
+    --clean)
+      CLEAN=1
+      shift
+      ;;
+    -h | --help)
+      usage 0
+      break
+      ;;
+    *)
+      usage
+      break
+      ;;
+  esac
+done
+
+WORKSPACE=$(bazel info workspace)
+
+CBUILD="${WORKSPACE}/builders/bazel/cbuild"
+
+if [[ $CLEAN -eq 1 ]]; then
+  ${CBUILD} -c "bazel clean"
+fi
+
+# TODO(b/242876887): Let user own the artifacts
+mkdir -p ${WORKSPACE}/dist
+${CBUILD} production/packaging/build_and_test_all ${BUILD_AND_TEST_ALL_ARGS}
+
+cat << OUTPUT
+location of the output:
+$(ls -lh ${WORKSPACE}/dist)
+OUTPUT

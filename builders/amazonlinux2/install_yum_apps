@@ -1,0 +1,104 @@
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+set -o xtrace
+
+INSTALL_CLANG=0
+INSTALL_GOLANG=0
+INSTALL_GCC=0
+VERBOSE=0
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --with-clang                  Install clang. Default: false
+    --with-golang                 Install golang. Default: false
+    --with-gcc                    Install gcc. Default: false
+    --verbose                     Emit verbose info. Default: false
+USAGE
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --with-clang)
+      INSTALL_CLANG=1
+      shift
+      ;;
+    --with-golang)
+      INSTALL_GOLANG=1
+      shift
+      ;;
+    --with-gcc)
+      INSTALL_GCC=1
+      shift
+      ;;
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -h | --help)
+      usage 0
+      break
+      ;;
+    *)
+      usage
+      break
+      ;;
+  esac
+done
+
+CURL="curl -fsSL"
+
+function yum_update() {
+  yum -y update
+}
+
+function install_misc() {
+  amazon-linux-extras install -y aws-nitro-enclaves-cli
+  yum install -y aws-nitro-enclaves-cli-devel tar
+}
+
+function install_gcc() {
+  # install gcc, which is required to build socat
+  yum install -y gcc
+}
+
+function install_golang() {
+  local VERSION=1.19
+  local FNAME=gobin.tar.gz
+  ${CURL} -o ${FNAME} https://go.dev/dl/go${VERSION}.linux-amd64.tar.gz
+  echo "464b6b66591f6cf055bc5df90a9750bf5fbc9d038722bb84a9d56a2bea974be6 ${FNAME}" | sha256sum -c
+  tar --directory /usr/local -xzf ${FNAME}
+  rm -f ${FNAME}
+  update-alternatives --install /usr/bin/go go /usr/local/go/bin/go 100
+
+  go version
+}
+
+function install_clang() {
+  # Note: installs an unspecified (default) version of clang
+  yum install -y clang
+
+  clang --version
+}
+
+if [[ ${VERBOSE} -eq 1 ]]; then
+  printf "=== SHELL ENVIRONMENT ===\n"
+  env
+fi
+
+yum_update
+install_misc
+if [[ ${INSTALL_CLANG} -eq 1 ]]; then
+  install_clang
+fi
+if [[ ${INSTALL_GOLANG} -eq 1 ]]; then
+  install_golang
+fi
+if [[ ${INSTALL_GCC} -eq 1 ]]; then
+  install_gcc
+fi

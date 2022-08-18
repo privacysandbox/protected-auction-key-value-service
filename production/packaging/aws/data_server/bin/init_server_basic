@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -o errexit
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --server-port <port>  [required] the port on which the server should bind
+USAGE
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --server-port)
+      if [[ $2 -lt 128 ]]; then
+        printf "Invalid port: $2\n" >&2
+        usage
+      fi
+      SERVER_PORT=$2
+      shift 2
+      ;;
+    -h | --help)
+      usage 0
+      break
+      ;;
+    *)
+      usage
+      break
+      ;;
+  esac
+done
+
+if [[ -z "$SERVER_PORT" ]]; then
+  usage
+fi
+
+# Start the server first.
+/server/bin/proxify /server/bin/server --port=${SERVER_PORT} &
+
+# Start Envoy proxy
+/usr/local/bin/envoy --config-path /etc/envoy/envoy.yaml -l warn

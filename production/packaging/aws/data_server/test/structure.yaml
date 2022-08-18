@@ -1,0 +1,65 @@
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# refer to docs at https://github.com/GoogleContainerTools/container-structure-test
+
+schemaVersion: 2.0.0
+
+fileExistenceTests:
+  - name: config
+    path: /etc/envoy/envoy.yaml
+    shouldExist: true
+    permissions: "-r--r--r--"
+
+  - name: proto descriptor
+    path: /etc/envoy/config/get_values_descriptor_set.pb
+    shouldExist: true
+    permissions: "-r--r--r--"
+
+  - name: envoy
+    path: /usr/local/bin/envoy
+    shouldExist: true
+    isExecutableBy: any
+
+  - name: init_server_enclave.sh
+    path: /server/bin/init_server_enclave
+    shouldExist: true
+    isExecutableBy: any
+
+  - name: init_server_basic.sh
+    path: /server/bin/init_server_basic
+    shouldExist: true
+    isExecutableBy: any
+
+  - name: proxify
+    path: /server/bin/proxify
+    shouldExist: true
+    isExecutableBy: any
+
+  - name: proxy preload
+    path: /server/bin/libproxy_preload.so
+    shouldExist: true
+
+  - name: server
+    path: /server/bin/server
+    shouldExist: true
+    isExecutableBy: any
+
+  - name: resolv_conf
+    path: /etc/resolv.conf
+    shouldExist: true
+    permissions: "-r--r--r--"
+
+licenseTests:
+  - debian: true

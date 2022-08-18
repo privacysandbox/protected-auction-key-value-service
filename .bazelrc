@@ -1,0 +1,5 @@
+build --verbose_failures
+build --client_env=CC=clang
+build --cxxopt=-std=c++17
+build --copt=-Werror=return-type
+build --copt=-Werror=unused-result

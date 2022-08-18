@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Envoy port must match the port specified in components/envoy_proxy/envoy.yaml
+# and production/packaging/aws/data_server/bin/init_server_enclave
+readonly ENVOY_PORT=51052
+
+# Make sure nitro enclave allocator service is stopped
+systemctl stop nitro-enclaves-allocator.service
+
+# Allocate resources available to enclave
+export ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
+export MEM_KEY=memory_mib
+export DEFAULT_MEM=${enclave_memory_mib}
+sed -r "s/^(\s*$${MEM_KEY}\s*:\s*).*/\1$${DEFAULT_MEM}/" -i "$${ALLOCATOR_YAML}"
+export CPU_KEY=cpu_count
+export DEFAULT_CPU=${enclave_cpu_count}
+sed -r "s/^(\s*$${CPU_KEY}\s*:\s*).*/\1$${DEFAULT_CPU}/" -i "$${ALLOCATOR_YAML}"
+
+# Start nitro enclave service
+systemctl start nitro-enclaves-allocator.service
+systemctl enable nitro-enclaves-allocator.service
+
+# Start the SCP nitro proxy service
+systemctl start vsockproxy.service
+systemctl enable vsockproxy.service
+
+# Start nitro enclave (server)
+nitro-cli run-enclave \
+  --cpu-count ${enclave_cpu_count} \
+  --memory ${enclave_memory_mib} \
+  --eif-path /opt/privacysandbox/server_enclave_image.eif \
+  --debug-mode --enclave-cid 16
+
+# Run socat - Envoy proxy is listening on 51052 inside enclave
+socat TCP4-LISTEN:${server_port},reuseaddr,fork VSOCK-CONNECT:16:$${ENVOY_PORT} &

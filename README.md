@@ -2,7 +2,7 @@
 
 # Background
 
-FLEDGE API is a proposal to serve remarketing ads without third-party cookies. FLEDGE executes the ad auction between the buyers (DSP) and the sellers (SSP) locally, and receives real-time signals from the FLEDGE K/V servers. To learn more about
+FLEDGE API is a proposal to serve remarketing and other custom-audience ads without third-party cookies. FLEDGE executes the ad auction between the buyers (DSP) and the sellers (SSP) locally, and receives real-time signals from the FLEDGE K/V servers. To learn more about
 
 * FLEDGE for the Web: [explainer](https://developer.chrome.com/en/docs/privacy-sandbox/fledge/) and the [developer guide](https://developer.chrome.com/blog/fledge-api/).
 * FLEDGE on Android: [design proposal](https://developer.android.com/design-for-safety/privacy-sandbox/fledge) and the [developer guide](https://developer.android.com/design-for-safety/privacy-sandbox/guides/fledge).
@@ -11,11 +11,11 @@ When the auction is executed, separate [FLEDGE K/V servers](https://github.com/W
 
 # State of the project
 
-The current codebase represents the initial implementation and setup of the server. It can be integrated with Chrome and Android with the [Privacy Sandbox unified origin trial](https://developer.chrome.com/blog/expanding-privacy-sandbox-testing/) and [Privacy Sandbox on Android Developer Preview](https://developer.android.com/design-for-safety/privacy-sandbox/program-overview).  Our goal is to present the foundation of the project in a publicly visible way for early feedback. This feedback will help us shape the future versions.
+The current codebase represents the initial implementation and setup of the Key/Value server. It can be integrated with Chrome and Android with the [Privacy Sandbox unified origin trial](https://developer.chrome.com/blog/expanding-privacy-sandbox-testing/) and [Privacy Sandbox on Android Developer Preview](https://developer.android.com/design-for-safety/privacy-sandbox/program-overview).  Our goal is to present the foundation of the project in a publicly visible way for early feedback. This feedback will help us shape the future versions.
 
 The implementation, and in particular the APIs, are in rapid development and may change as new versions are released. The query API conforms to the [API explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md). At the moment, to load data, instead of calling the mutation API, you would place the data as files into a location that can be directly read by the server. See more details in the [data loading guide](/docs/loading_data.md).
 
-The query API only supports the newer version of response format (accompanied by response header ```X-fledge-bidding-signals-format-version: 2```) as described in the [FLEDGE main explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE.md#31-fetching-real-time-data-from-a-trusted-server). The Chrome’s support of this format is expected to be available in Chrome version 105.
+The query API only supports the newer version of response format (accompanied by response header ```X-fledge-bidding-signals-format-version: 2```) as described in the [FLEDGE main explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE.md#31-fetching-real-time-data-from-a-trusted-server). Chrome’s support of this format is expected to be available in Chrome version 105.
 
 Currently, this service can be deployed to 1 region of your choice with more regions to be added soon. Monitoring and alerts are currently unavailable.
 

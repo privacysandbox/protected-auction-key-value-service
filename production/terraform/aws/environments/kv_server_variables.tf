@@ -59,11 +59,6 @@ variable "autoscaling_min_size" {
   type = number
 }
 
-variable "instance_ssh_key_name" {
-  description = "SSH key pair for ssh'ing into instances."
-  type        = string
-}
-
 variable "certificate_arn" {
   description = "ARN for a certificate to be attached to the ALB listener."
   type        = string
@@ -143,4 +138,9 @@ variable "healthcheck_healthy_threshold" {
 variable "healthcheck_unhealthy_threshold" {
   description = "Consecutive health check failures required to be considered unhealthy."
   type        = number
+}
+
+variable "ssh_source_cidr_blocks" {
+  description = "Source ips allowed to send ssh traffic to the ssh instance."
+  type        = set(string)
 }

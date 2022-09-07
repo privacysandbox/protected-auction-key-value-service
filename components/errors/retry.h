@@ -28,40 +28,61 @@ namespace fledge::kv_server {
 absl::Duration ExponentialBackoffForRetry(uint32_t retries);
 
 // You shouldn't need to instantiate this class.
-// Use `RetryUntilOk` which creates one for you.
+// Use `RetryWithMax/RetryUntilOk` which creates one for you.
 template <typename Func>
-class RetryableUntilOk {
+class RetryableWithMax {
  public:
-  RetryableUntilOk(Func&& f, std::string task_name)
-      : func_(std::forward<Func>(f)), task_name_(std::move(task_name)) {}
+  // Special retry value to denote unlimited retries. Made public for better
+  // documentation purposes at call sites.
+  static constexpr int kUnlimitedRetry = -1;
 
-  // absl::StatusOr<T> has a typedef `value_type`
-  typename std::invoke_result_t<Func>::value_type operator()() {
-    uint32_t retries = 0;
-    while (true) {
-      if (const auto s = func_(); s.ok()) {
-        return s.value();
+  // If max_attempts <= 0, will retry until OK.
+  RetryableWithMax(Func&& f, std::string task_name, int max_attempts)
+      : func_(std::forward<Func>(f)),
+        task_name_(std::move(task_name)),
+        max_attempts_(max_attempts <= 0 ? kUnlimitedRetry : max_attempts) {}
+
+  typename std::invoke_result_t<Func> operator()() {
+    std::invoke_result_t<Func> status_or;
+    for (int i = 1; max_attempts_ == kUnlimitedRetry || i <= max_attempts_;
+         ++i) {
+      status_or = func_();
+      if (status_or.ok()) {
+        return status_or;
+      } else {
+        LOG(WARNING) << task_name_ << " failed with " << status_or.status()
+                     << " for Attempt " << i;
       }
-      const absl::Duration backoff = ExponentialBackoffForRetry(retries);
-      ++retries;
-      LOG(WARNING) << "Retrying task: " << task_name_ << "; Attempt number "
-                   << retries;
+      const absl::Duration backoff = ExponentialBackoffForRetry(i);
       // TODO(b/235082948): Inject a clock and mock for tests.
       absl::SleepFor(backoff);
     }
+    return status_or;
   }
 
  private:
   Func func_;
   std::string task_name_;
+  int max_attempts_;
 };
 
 // Retries functors that return an absl::StatusOr<T> until they are `ok`.
 // The value of type T is returned by this function.
 template <typename Func>
-typename std::invoke_result_t<RetryableUntilOk<Func>> RetryUntilOk(
+typename std::invoke_result_t<RetryableWithMax<Func>>::value_type RetryUntilOk(
     Func&& f, std::string task_name) {
-  return RetryableUntilOk(std::forward<Func>(f), std::move(task_name))();
+  return RetryableWithMax(std::forward<Func>(f), std::move(task_name),
+                          RetryableWithMax<Func>::kUnlimitedRetry)()
+      .value();
+}
+
+// Retries functors that return an absl::StatusOr<T> until they are `ok` or
+// max_attempts is reached. Retry starts at 1.
+template <typename Func>
+typename std::invoke_result_t<RetryableWithMax<Func>> RetryWithMax(
+    Func&& f, std::string task_name, int max_attempts) {
+  return RetryableWithMax(std::forward<Func>(f), std::move(task_name),
+                          max_attempts)();
 }
 
 }  // namespace fledge::kv_server

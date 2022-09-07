@@ -23,11 +23,6 @@ commandTests:
     args: ["--version"]
     exitCode: 0
 
-  - name: release-please help
-    command: "release-please"
-    args: ["--help"]
-    exitCode: 0
-
   - name: commit-and-tag-version help
     command: "commit-and-tag-version"
     args: ["--help"]

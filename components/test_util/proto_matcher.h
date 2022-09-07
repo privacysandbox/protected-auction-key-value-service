@@ -18,6 +18,7 @@
 #define COMPONENTS_TEST_UTIL_PROTO_MATCHER_H_
 
 #include <string_view>
+#include <utility>
 
 #include "gmock/gmock.h"
 #include "google/protobuf/util/message_differencer.h"

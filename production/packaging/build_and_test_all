@@ -15,9 +15,12 @@
 
 set -o pipefail
 set -o errexit
+set -o xtrace
+export PS4='+\t ' # xtrace prompt
 
-DEBUG=0
 BUILD_AMI=0
+REMOVE_OUTPUT_BASE=0
+PRESUBMIT=0
 
 usage() {
   local exitval=${1-1}
@@ -25,7 +28,11 @@ usage() {
 usage:
   $0 <options>
     --with-ami                    Build the AMI. Default: false
-    --debug                       Emit debug build info. Default: false
+    --remove-output-base         Remove the bazel output-base dir after building
+
+environment variables (all optional):
+    BAZEL_STARTUP_ARGS           Additional startup arguments to pass to bazel invocations
+    BAZEL_EXTRA_ARGS             Additional command arguments to pass to bazel invocations
 USAGE
   exit ${exitval}
 }
@@ -36,8 +43,12 @@ while [[ $# -gt 0 ]]; do
       BUILD_AMI=1
       shift
       ;;
-    --debug)
-      DEBUG=1
+    --remove-output-base)
+      REMOVE_OUTPUT_BASE=1
+      shift
+      ;;
+    --presubmit)
+      PRESUBMIT=1
       shift
       ;;
     -h | --help)
@@ -51,24 +62,41 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+BAZEL_CMD="bazel ${BAZEL_STARTUP_ARGS}"
 
-BAZEL_ARGS="-c opt"
-if [[ ${DEBUG} -eq 1 ]]; then
-  BAZEL_ARGS="${BAZEL_ARGS} --sandbox_debug --verbose_failures"
+declare -a TEST_TARGETS
+TEST_TARGETS+=(//components/... //public/...)
+if [[ ${PRESUBMIT} -eq 0 ]]; then
+  TEST_TARGETS+=(//builders/...)
 fi
 
-# build and test server image
-bazel test ${BAZEL_ARGS} //production/packaging/aws/data_server/...
+function __remove_output_base() {
+  OUTPUT_BASE=$(${BAZEL_CMD} info output_base)
+  rm -rf ${OUTPUT_BASE}
+}
 
-printf "==== build and test everything including container builders =====\n"
-bazel test ${BAZEL_ARGS} //... //builders/...
+if [[ ${REMOVE_OUTPUT_BASE} -eq 1 ]]; then
+  trap __remove_output_base EXIT
+fi
+
+printf "==== build and test specified targets ====\n"
+${BAZEL_CMD} test ${BAZEL_EXTRA_ARGS} "${TEST_TARGETS[@]}"
+
+if [[ ${PRESUBMIT} -eq 1 ]]; then
+  if [[ ${BUILD_AMI} -eq 1 ]]; then
+    printf "warning: --with-ami specified with --presubmit. No AMI artifacts will be generated\n"
+  fi
+  printf "in presubmit mode, exiting prior to building all artifacts\n"
+  exit 0
+fi
 
 printf "==== build AWS Nitro image =====\n"
-bazel build ${BAZEL_ARGS} //production/packaging/aws/data_server:server_enclave_image
-bazel build ${BAZEL_ARGS} //components/aws/proxy/source:proxy
-bazel build ${BAZEL_ARGS} //components/aws:sqs_lambda.tar
+AWS_TARGETS="//production/packaging/aws/data_server:server_enclave_image //components/aws/proxy/source:proxy //components/aws:sqs_lambda.tar"
+if [[ -n ${AWS_TARGETS} ]]; then
+  ${BAZEL_CMD} build ${BAZEL_EXTRA_ARGS} ${AWS_TARGETS}
+fi
 
-WORKSPACE=$(bazel info workspace)
+WORKSPACE=$(${BAZEL_CMD} info workspace)
 
 DIST=${WORKSPACE}/dist
 mkdir -p ${DIST}

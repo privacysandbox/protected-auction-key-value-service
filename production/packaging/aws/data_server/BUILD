@@ -1,4 +1,3 @@
-load("//builders/amazonlinux2:nitro.bzl", "nitro_enclave_image")
 load(
     "@io_bazel_rules_docker//container:container.bzl",
     "container_image",
@@ -11,6 +10,7 @@ load(
     "pkg_files",
 )
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("//builders/amazonlinux2:nitro.bzl", "nitro_enclave_image")
 
 pkg_files(
     name = "server_executables",

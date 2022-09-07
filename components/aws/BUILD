@@ -4,6 +4,7 @@ load(
     "container_layer",
     "container_push",
 )
+load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
 py_library(
     name = "sqs_cleanup_manager",

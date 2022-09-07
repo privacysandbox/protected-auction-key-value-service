@@ -14,7 +14,12 @@
 
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
-exclude: ^bazel-.*$
+exclude: (?x)^(
+             bazel-(bin|out|testlogs|workspace)/.*|
+             .bazel_output/.*|
+             version.txt
+         )$
+
 fail_fast: true
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -23,13 +28,25 @@ repos:
   - id: end-of-file-fixer
   - id: fix-byte-order-marker
   - id: mixed-line-ending
-  - id: detect-private-key
   - id: trailing-whitespace
   - id: check-case-conflict
   - id: check-merge-conflict
-  - id: check-toml
+  - id: check-yaml
+  - id: check-json
   - id: check-symlinks
   - id: check-added-large-files
+  - id: check-vcs-permalinks
+  - id: check-executables-have-shebangs
+  - id: detect-private-key
+
+- repo: https://github.com/jumanjihouse/pre-commit-hooks
+  rev: 3.0.0
+  hooks:
+  - id: git-check
+  - id: script-must-not-have-extension
+    exclude: '^google_internal/.*/kokoro_(presubmit|continuous).sh$'
+  - id: script-must-have-extension
+  - id: require-ascii
 
 - repo: https://github.com/pre-commit/mirrors-clang-format
   rev: v14.0.6
@@ -41,25 +58,12 @@ repos:
 
 - repo: local
   hooks:
-  - id: addlicense-check
-    name: addlicense check
-    language: golang
-    additional_dependencies:
-    - github.com/google/addlicense@v1.0.0
-    always_run: true
-    pass_filenames: true
-    entry: addlicense -check
-    types_or:
-    - c++
-    - c
-    - terraform
-
   - id: addlicense
     name: addlicense
     language: golang
     additional_dependencies:
     - github.com/google/addlicense@v1.0.0
-    always_run: true
+    always_run: false
     pass_filenames: true
     entry: addlicense -v
     types_or:
@@ -67,8 +71,29 @@ repos:
     - c
     - terraform
 
+  - id: addlicense-check
+    name: addlicense check
+    language: golang
+    additional_dependencies:
+    - github.com/google/addlicense@v1.0.0
+    always_run: false
+    pass_filenames: true
+    entry: addlicense -check
+    types_or:
+    - c++
+    - c
+    - terraform
+
+  - id: terraform-fmt
+    name: terraform fmt
+    language: script
+    pass_filenames: false
+    entry: tools/terraform fmt -write=true -recursive
+    types_or:
+    - terraform
+
 - repo: https://github.com/pre-commit/mirrors-prettier
-  rev: "v3.0.0-alpha.0" # Use the sha or tag you want to point at
+  rev: v2.7.1
   hooks:
   - id: prettier
     name: prettier markdown
@@ -81,3 +106,37 @@ repos:
   - id: markdownlint-cli2
     name: lint markdown
 
+- repo: local
+  hooks:
+  - id: buildifier
+    name: buildifier
+    description: Format bazel WORKSPACE, BUILD and .bzl files with a standard convention.
+    language: golang
+    additional_dependencies:
+      - github.com/bazelbuild/buildtools/buildifier@5.1.0
+    always_run: true
+    pass_filenames: true
+    types_or:
+    - bazel
+    entry: buildifier
+    args:
+    - -lint=fix
+    - -mode=fix
+    - -warnings=all
+
+- repo: https://github.com/cpplint/cpplint
+  rev: 1.6.1
+  hooks:
+  - id: cpplint
+    types_or:
+    - c++
+    - c
+    args:
+    - --filter=-build/c++11,+build/c++17,-build/header_guard,-build/include_order,+build/include_what_you_use,-build/include_subdir,-readability/casting,-readability/todo,-runtime/references
+    - --quiet
+
+- repo: https://github.com/psf/black
+  rev: 22.8.0
+  hooks:
+  - id: black
+    name: black python formatter

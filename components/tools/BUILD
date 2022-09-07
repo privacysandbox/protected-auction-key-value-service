@@ -3,6 +3,7 @@ load(
     "container_image",
     "container_layer",
 )
+load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 pkg_tar(

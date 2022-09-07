@@ -25,3 +25,7 @@ output "s3_bucket_parameter_arn" {
 output "bucket_update_sns_arn_parameter_arn" {
   value = aws_ssm_parameter.bucket_update_sns_arn_parameter.arn
 }
+
+output "launch_hook_parameter_arn" {
+  value = aws_ssm_parameter.launch_hook_parameter.arn
+}

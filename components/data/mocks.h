@@ -15,6 +15,10 @@
 #ifndef COMPONENTS_DATA_MOCKS_H_
 #define COMPONENTS_DATA_MOCKS_H_
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "components/data/blob_storage_client.h"
 #include "components/data/delta_file_notifier.h"
 #include "components/data/riegeli_stream_io.h"

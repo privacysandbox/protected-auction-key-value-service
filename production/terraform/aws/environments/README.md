@@ -1,7 +1,7 @@
 # Demo Environment
 
 An existing demo environment exists for the KV server and can be used as a reference for creating
-your own environment (e.g. “dev” and “prod”).
+your own environment (e.g. "dev" and "prod").
 
 ## Synopsis
 
@@ -17,6 +17,6 @@ terraform apply --var-file=demo/us-east-1.tfvars
 
 The files which should be modified for your purposes for each environment that you create are:
 
-- [us-east-1.tfvars](demo/us-east-1.tfvars) - an example configuration file for the KV server.
-- [us-east-1.backend.conf](demo/us-east-1.backend.conf) - contains terraform state bucket
+-   [us-east-1.tfvars](demo/us-east-1.tfvars) - an example configuration file for the KV server.
+-   [us-east-1.backend.conf](demo/us-east-1.backend.conf) - contains terraform state bucket
     location - should be edited to point to a state bucket you control.

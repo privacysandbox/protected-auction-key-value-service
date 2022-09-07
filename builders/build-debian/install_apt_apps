@@ -1,0 +1,167 @@
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+set -o xtrace
+
+INSTALL_DOCKER=0
+INSTALL_PACKER=0
+INSTALL_CLANG=0
+INSTALL_GOLANG=0
+INSTALL_GCC=0
+VERBOSE=0
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --with-clang                  Install clang. Default: false
+    --with-golang                 Install golang. Default: false
+    --with-gcc                    Install gcc. Default: false
+    --with-docker                 Install docker. Default: false
+    --with-packer                 Install packer. Default: false
+    --verbose                     Emit verbose info. Default: false
+USAGE
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --with-clang)
+      INSTALL_CLANG=1
+      shift
+      ;;
+    --with-golang)
+      INSTALL_GOLANG=1
+      shift
+      ;;
+    --with-gcc)
+      INSTALL_GCC=1
+      shift
+      ;;
+    --with-docker)
+      INSTALL_DOCKER=1
+      shift
+      ;;
+    --with-packer)
+      INSTALL_PACKER=1
+      shift
+      ;;
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -h | --help)
+      usage 0
+      break
+      ;;
+    *)
+      usage
+      break
+      ;;
+  esac
+done
+
+CURL="curl -fsSL"
+
+function apt_update() {
+  apt-get --quiet -o 'Acquire::https::No-Cache=True' -o 'Acquire::http::No-Cache=True' update
+}
+
+function install_python() {
+  apt-get --quiet install -y python3.8-venv="3.8.10-0ubuntu1~20.04.5"
+}
+
+function install_misc() {
+  DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC \
+    apt-get --quiet install -y lsb-release apt-transport-https ca-certificates wget curl gnupg software-properties-common unzip
+}
+
+function install_gcc() {
+  # Set up gcc-9
+  VERSION=9
+  add-apt-repository 'ppa:ubuntu-toolchain-r/test'
+  apt_update
+  apt-get --quiet install -y gcc-${VERSION} g++-${VERSION}
+  update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${VERSION} 100 --slave /usr/bin/g++ g++ /usr/bin/g++-${VERSION}
+  update-alternatives --set gcc "/usr/bin/gcc-${VERSION}"
+
+  gcc --version
+  g++ --version
+}
+
+function install_golang() {
+  local VERSION=1.19
+  local FNAME=gobin.tar.gz
+  ${CURL} -o ${FNAME} https://go.dev/dl/go${VERSION}.linux-amd64.tar.gz
+  echo "464b6b66591f6cf055bc5df90a9750bf5fbc9d038722bb84a9d56a2bea974be6 ${FNAME}" | sha256sum -c
+  tar --directory /usr/local -xzf ${FNAME}
+  rm -f ${FNAME}
+  update-alternatives --install /usr/bin/go go /usr/local/go/bin/go 100
+
+  go version
+}
+
+function install_clang() {
+  local VERSION="11"
+  ${CURL} -O https://apt.llvm.org/llvm.sh
+  chmod +x llvm.sh
+  apt-get --quiet install -y libc++-${VERSION}-dev
+  ./llvm.sh ${VERSION}
+  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${VERSION} 100
+  rm -f llvm.sh
+
+  clang --version
+}
+
+# Install Docker (https://docs.docker.com/engine/install/debian/)
+function install_docker() {
+  apt-get --quiet remove docker docker.io containerd runc
+  mkdir -p /etc/apt/keyrings
+  DIST=debian
+  DIST=ubuntu
+  ${CURL} https://download.docker.com/linux/${DIST}/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${DIST} $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list
+  apt_update
+  apt-get --quiet install -y docker-ce docker-ce-cli containerd.io
+
+  # cannot necessarily connect to docker daemon at this point ie. if building a container image
+  #docker version
+}
+
+# Install Packer (https://learn.hashicorp.com/tutorials/packer/get-started-install-cli)
+function install_packer() {
+  ${CURL} https://apt.releases.hashicorp.com/gpg | apt-key add -
+  apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+  apt_update
+  apt-get --quiet install packer
+
+  packer version
+}
+
+if [[ ${VERBOSE} -eq 1 ]]; then
+  printf "=== SHELL ENVIRONMENT ===\n"
+  env
+fi
+
+apt_update
+install_python
+install_misc
+if [[ ${INSTALL_CLANG} -eq 1 ]]; then
+  install_clang
+fi
+if [[ ${INSTALL_GOLANG} -eq 1 ]]; then
+  install_golang
+fi
+if [[ ${INSTALL_GCC} -eq 1 ]]; then
+  install_gcc
+fi
+if [[ ${INSTALL_DOCKER} -eq 1 ]]; then
+  install_docker
+fi
+if [[ ${INSTALL_PACKER} -eq 1 ]]; then
+  install_packer
+fi
+
+apt-get --quiet autoremove -y

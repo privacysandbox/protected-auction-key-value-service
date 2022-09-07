@@ -18,6 +18,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <memory>
@@ -101,7 +102,7 @@ bool Socks5State::Proceed() {
       if (greeting[0] != 0x05 || greeting[1] == 0) {
         std::cerr << "Malformed client greeting: ";
         char s[32] = {0};
-        sprintf(s, "%#04x %#04x\n", greeting[0], greeting[1]);
+        snprintf(s, sizeof(s), "%#04x %#04x\n", greeting[0], greeting[1]);
         std::cerr << s;
         state_ = Socks5State::kFail;
         break;

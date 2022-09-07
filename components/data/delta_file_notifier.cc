@@ -15,6 +15,8 @@
 #include "components/data/delta_file_notifier.h"
 
 #include <thread>
+#include <utility>
+#include <vector>
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
@@ -22,7 +24,6 @@
 #include "public/constants.h"
 
 namespace fledge::kv_server {
-
 namespace {
 
 // TODO(b/242344219): Move to flag
@@ -30,7 +31,7 @@ constexpr absl::Duration kPollFrequency = absl::Minutes(5);
 
 class DeltaFileNotifierImpl : public DeltaFileNotifier {
  public:
-  DeltaFileNotifierImpl(BlobStorageClient& client) : client_(client) {}
+  explicit DeltaFileNotifierImpl(BlobStorageClient& client) : client_(client) {}
 
   ~DeltaFileNotifierImpl() {
     if (!IsRunning()) return;

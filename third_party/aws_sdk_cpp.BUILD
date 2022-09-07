@@ -1,6 +1,8 @@
 # Description:
 #   AWS C++ SDK
 
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
 package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
@@ -229,6 +231,24 @@ cc_library(
     ]),
     includes = [
         "aws-cpp-sdk-kinesis/include",
+    ],
+    deps = [
+        ":core",
+    ],
+)
+
+cc_library(
+    name = "autoscaling",
+    srcs = glob([
+        "aws-cpp-sdk-autoscaling/source/*.cpp",  # AWS_AUTOSCALING_SOURCE
+        "aws-cpp-sdk-autoscaling/source/model/*.cpp",  # AWS_AUTOSCALING_MODEL_SOURCE
+    ]),
+    hdrs = glob([
+        "aws-cpp-sdk-autoscaling/include/aws/autoscaling/*.h",  # AWS_AUTOSCALING_HEADERS
+        "aws-cpp-sdk-autoscaling/include/aws/autoscaling/model/*.h",  # AWS_AUTOSCALING_MODEL_HEADERS
+    ]),
+    includes = [
+        "aws-cpp-sdk-autoscaling/include",
     ],
     deps = [
         ":core",

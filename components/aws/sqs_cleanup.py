@@ -17,26 +17,27 @@ import sqs_cleanup_manager
 
 
 def find_and_cleanup(topic, prefix, timeout_secs):
-  sns = boto3.resource('sns')
-  sqs = boto3.resource('sqs')
-  manager = sqs_cleanup_manager.SqsCleanupManager(sns, sqs)
-  return manager.find_and_cleanup(topic, prefix, timeout_secs)
+    sns = boto3.resource("sns")
+    sqs = boto3.resource("sqs")
+    manager = sqs_cleanup_manager.SqsCleanupManager(sns, sqs)
+    return manager.find_and_cleanup(topic, prefix, timeout_secs)
 
 
 def handler(event, context):
-  """AWS Lambda hook."""
-  sns_topic = event.get('sns_topic')
-  queue_prefix = event.get('queue_prefix')
-  timeout_secs = event.get('timeout_secs')
-  if queue_prefix is None:
-    raise Exception('no prefix')
-  if sns_topic is None:
-    raise Exception('no topic')
-  if timeout_secs is None:
-    raise Exception('no timeout')
-  deleted_queues, deleted_subscriptions = find_and_cleanup(
-      sns_topic, queue_prefix, int(timeout_secs))
-  return {
-      'deleted_queues': deleted_queues,
-      'deleted_subscriptions': deleted_subscriptions
-  }
+    """AWS Lambda hook."""
+    sns_topic = event.get("sns_topic")
+    queue_prefix = event.get("queue_prefix")
+    timeout_secs = event.get("timeout_secs")
+    if queue_prefix is None:
+        raise Exception("no prefix")
+    if sns_topic is None:
+        raise Exception("no topic")
+    if timeout_secs is None:
+        raise Exception("no timeout")
+    deleted_queues, deleted_subscriptions = find_and_cleanup(
+        sns_topic, queue_prefix, int(timeout_secs)
+    )
+    return {
+        "deleted_queues": deleted_queues,
+        "deleted_subscriptions": deleted_subscriptions,
+    }

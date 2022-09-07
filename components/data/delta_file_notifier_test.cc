@@ -23,8 +23,15 @@
 #include "gtest/gtest.h"
 #include "public/data_loading/filename_utils.h"
 
-using namespace fledge::kv_server;
-using namespace testing;
+using fledge::kv_server::BlobStorageClient;
+using fledge::kv_server::DeltaFileNotifier;
+using fledge::kv_server::MockBlobStorageChangeNotifier;
+using fledge::kv_server::MockBlobStorageClient;
+using fledge::kv_server::ToDeltaFileName;
+using testing::_;
+using testing::Field;
+using testing::Return;
+
 namespace {
 
 class DeltaFileNotifierTest : public ::testing::Test {

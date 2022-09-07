@@ -15,9 +15,12 @@
 #include "components/data_server/data_loading/data_orchestrator.h"
 
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/synchronization/notification.h"
 #include "components/data/mocks.h"
+#include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
 #include "components/test_util/proto_matcher.h"
 #include "glog/logging.h"
@@ -28,12 +31,36 @@
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
 
-using namespace fledge::kv_server;
-using namespace testing;
+using fledge::kv_server::BlobStorageChangeNotifier;
+using fledge::kv_server::BlobStorageClient;
+using fledge::kv_server::DataOrchestrator;
+using fledge::kv_server::DeltaFileRecordStruct;
+using fledge::kv_server::DeltaMutationType;
+using fledge::kv_server::FilePrefix;
+using fledge::kv_server::FileType;
+using fledge::kv_server::FullKeyEq;
+using fledge::kv_server::KeyNamespace;
+using fledge::kv_server::KVFileMetadata;
+using fledge::kv_server::MockBlobReader;
+using fledge::kv_server::MockBlobStorageChangeNotifier;
+using fledge::kv_server::MockBlobStorageClient;
+using fledge::kv_server::MockCache;
+using fledge::kv_server::MockDeltaFileNotifier;
+using fledge::kv_server::MockShardedCache;
+using fledge::kv_server::MockStreamRecordReader;
+using fledge::kv_server::MockStreamRecordReaderFactory;
+using fledge::kv_server::ToDeltaFileName;
+using fledge::kv_server::ToStringView;
+using testing::_;
+using testing::AllOf;
+using testing::ByMove;
+using testing::Field;
+using testing::Return;
+using testing::ReturnRef;
 
 namespace {
 
-using google::protobuf::TextFormat;
+// using google::protobuf::TextFormat;
 
 BlobStorageClient::DataLocation GetTestLocation(
     const std::string& basename = "") {
@@ -76,7 +103,7 @@ TEST_F(DataOrchestratorTest, InitCacheListRetriesOnFailure) {
   EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
 }
 
-TEST_F(DataOrchestratorTest, InitCacheGetBlobFailure) {
+TEST_F(DataOrchestratorTest, InitCacheGetBlobFailsThreeTimes) {
   EXPECT_CALL(
       blob_client_,
       ListBlobs(GetTestLocation(),
@@ -87,7 +114,8 @@ TEST_F(DataOrchestratorTest, InitCacheGetBlobFailure) {
 
   EXPECT_CALL(blob_client_,
               GetBlob(GetTestLocation(ToDeltaFileName(1).value())))
-      .WillOnce(Return(ByMove(absl::UnknownError(""))));
+      .Times(3)
+      .WillRepeatedly([]() { return absl::UnknownError(""); });
 
   EXPECT_FALSE(DataOrchestrator::TryCreate(options_).ok());
 }
@@ -181,9 +209,9 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
   EXPECT_CALL(sharded_cache_, GetMutableCacheShard(KeyNamespace::KEYS))
       .Times(2)
       .WillRepeatedly(ReturnRef(cache_));
-  EXPECT_CALL(cache_, UpdateKeyValue(CacheKeyEq("bar", "subkey"), "bar value"))
+  EXPECT_CALL(cache_, UpdateKeyValue(FullKeyEq("bar", "subkey"), "bar value"))
       .Times(1);
-  EXPECT_CALL(cache_, DeleteKey(CacheKeyEq("bar", "subkey2"))).Times(1);
+  EXPECT_CALL(cache_, DeleteKey(FullKeyEq("bar", "subkey2"))).Times(1);
 
   auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
   ASSERT_TRUE(maybe_orchestrator.ok());
@@ -272,9 +300,9 @@ TEST_F(DataOrchestratorTest, StartLoading) {
   EXPECT_CALL(sharded_cache_, GetMutableCacheShard(KeyNamespace::KEYS))
       .Times(2)
       .WillRepeatedly(ReturnRef(cache_));
-  EXPECT_CALL(cache_, UpdateKeyValue(CacheKeyEq("bar", "subkey"), "bar value"))
+  EXPECT_CALL(cache_, UpdateKeyValue(FullKeyEq("bar", "subkey"), "bar value"))
       .Times(1);
-  EXPECT_CALL(cache_, DeleteKey(CacheKeyEq("bar", "subkey2"))).Times(1);
+  EXPECT_CALL(cache_, DeleteKey(FullKeyEq("bar", "subkey2"))).Times(1);
 
   EXPECT_TRUE(orchestrator->Start().ok());
   LOG(INFO) << "Created ContinuouslyLoadNewData";

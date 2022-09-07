@@ -63,7 +63,7 @@ generateBid(interestGroup, auctionSignals, perBuyerSignals, trustedBiddingSignal
   const {key1, key2} = trustedBiddingSignals['keys'];
 
   return {
-    // …
+    // ...
    };
 }
 ```
@@ -111,7 +111,7 @@ CustomAudience customAudience = return new CustomAudience.Builder()
     .setOwnerPackageName(Context.getApplicationContext().getPackageName())
     .setBuyer("buyer")
     .setName("name")
-    // …
+    // ...
     .setTrustedBiddingData(
         new TrustedBiddingData.Builder()
             .setTrustedBiddingUri("https://dsp.example/kv/v1/getvalues")
@@ -180,9 +180,9 @@ Bidding & Auction services is a way to allow FLEDGE computation to take place on
 trusted execution environment, rather than running locally on a user's device. Bidding & Auction
 system include:
 
-- BuyerFrontEnd service and Bidding service operated by Buyer / DSP. BuyerFrontend service will
+-   BuyerFrontEnd service and Bidding service operated by Buyer / DSP. BuyerFrontend service will
     send RPC to DSP Key/Value service to fetch real-time bidding signals.
-- SellerFrontEnd service and Auction service operated by Seller / SSP. SellerFrontend service will
+-   SellerFrontEnd service and Auction service operated by Seller / SSP. SellerFrontend service will
     send RPC to SSPKey/Value service to fetch real-time scoring signals.
 
 ## Key-Value API

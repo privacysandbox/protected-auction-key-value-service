@@ -4,11 +4,9 @@
 
 The data server provides the read API for the KV service.
 
-### How to Run
+### Prereqs
 
-#### Prereqs
-
-- Install Bazelisk is the recommended way to
+-   Install Bazelisk is the recommended way to
     [install Bazel](https://docs.bazel.build/versions/5.0.0/install-bazelisk.html) or refer to
     Bazelisk's
     [installation instructions](https://github.com/bazelbuild/bazelisk/blob/master/README.md#installation).
@@ -23,10 +21,10 @@ The data server provides the read API for the KV service.
     If installing bazel directly rather than using bazelisk, refer to the `.bazeliskrc` file for the
     matching bazel version.
 
-- Optional steps:
+-   Optional steps:
 
-  - Install [Docker](https://docs.docker.com/get-docker/)
-  - Install
+    -   Install [Docker](https://docs.docker.com/get-docker/)
+    -   Install
         [grpc_cli](https://github.com/grpc/grpc/blob/master/doc/server_reflection_tutorial.md#test-services-using-server-reflection)
         , if you do not already have it
 
@@ -35,7 +33,7 @@ bazel build @com_github_grpc_grpc//test/cpp/util:grpc_cli
 cp "$(bazel info bazel-bin)/external/com_github_grpc_grpc/test/cpp/util/grpc_cli" /bin/opt/grpc_cli
 ```
 
-#### Running the server locally
+### Running the server locally
 
 For example:
 
@@ -43,22 +41,74 @@ For example:
 bazel run //components/data_server/server:server --//:parameters=local --//:platform=aws -- --environment="dev"
 ```
 
-> Attention: The server can run locally while specifying `aws` as platform, in which case it will contact AWS based on the local AWS credentials. However, this requires the AWS environment to be set up first following the [AWS deployment guide](/docs/deploying_on_aws.md).
+> Attention: The server can run locally while specifying `aws` as platform, in which case it will
+> contact AWS based on the local AWS credentials. However, this requires the AWS environment to be
+> set up first following the [AWS deployment guide](/docs/deploying_on_aws.md).
 
 We are currently developing this server for local testing and for use on AWS Nitro instances
 (similar to the
 [Aggregation Service](https://github.com/google/trusted-execution-aggregation-service). We
 anticipate supporting additional cloud providers in the future.
 
-#### Interacting with the server
+### Running the server docker image locally
 
-Use `grpc_cli` to interact with your local instance. You might have to pass
-`--channel_creds_type=insecure`.
+1. Build the image
+
+    1. Go into the build environment
+
+        ```sh
+        ./builders/tools/cbuild
+        ```
+
+    1. Build the target image
+
+        ```sh
+        bazel build -c opt //production/packaging/aws/data_server:server_docker_image.tar --//:parameters=local --//:platform=aws
+        ```
+
+    1. The image needs to be copied over to `dist/`. The actual directory may be different. It will
+       be shown at the end of the build log.
+
+        ```sh
+        cp bazel-out/k8-opt-ST-4a519fd6d3e4/bin/production/packaging/aws/data_server/server_docker_image.tar dist/
+        ```
+
+    1. Leave the build container
+
+    1. These commands can be combined into one:
+
+        ```sh
+        ./builders/tools/cbuild 'bazel build -c opt //production/packaging/aws/data_server:server_docker_image.tar --//:parameters=local --//:platform=aws cp bazel-out/k8-opt-ST-4a519fd6d3e4/bin/production/packaging/aws/data_server/server_docker_image.tar dist/'
+        ```
+
+1. Load the image
+
+    ```sh
+    docker load -i dist/server_docker_image.tar
+    ```
+
+1. Run the container. Port 50051 can be used to query the server directly through gRPC. Port 51052
+   can be used to query with HTTP which is served through Envoy to the server.
+
+    ```sh
+    docker run -it --rm --entrypoint=/server/bin/init_server_basic --env AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} --env AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} -p 127.0.0.1:50051:50051 -p 127.0.0.1:51052:51052 bazel/production/packaging/aws/data_server:server_docker_image --server-port 50051
+    ```
+
+### Interacting with the server
+
+-   Use `grpc_cli` to interact with your local instance. You might have to pass
+    `--channel_creds_type=insecure`.
 
 Example:
 
 ```sh
 grpc_cli call localhost:50051 GetValues "kv_internal: 'hi'" --channel_creds_type=insecure
+```
+
+-   For HTTP queries:
+
+```sh
+curl http://localhost:51052/v1/getvalues?kv_internal=hi
 ```
 
 ## Develop and run the server inside AWS enclave
@@ -122,10 +172,10 @@ cc_library(
 
 Available conditions are:
 
-- //:aws_platform
-- //:local_platform
+-   //:aws_platform
+-   //:local_platform
 
 Parameters can be configured separately to be read from specific platforms.
 
-- //:aws_parameters
-- //:local_parameters
+-   //:aws_parameters
+-   //:local_parameters

@@ -22,7 +22,8 @@
 #include "components/data/blob_storage_change_notifier.h"
 
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
-using namespace fledge::kv_server;
+
+using fledge::kv_server::BlobStorageChangeNotifier;
 
 int main(int argc, char** argv) {
   // TODO: use cc/cpio/cloud_providers to initialize cloud.

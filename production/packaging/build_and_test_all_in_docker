@@ -16,25 +16,67 @@
 
 set -o pipefail
 set -o errexit
+set -o xtrace
+export PS4='+\t ' # xtrace prompt
+
+START=$(date +%s)
+
+trap _print_runtime EXIT
+
+function _print_runtime() {
+  local END=$(date +%s)
+  env LC_ALL=en_US.UTF-8 printf "\nbuild_and_test_all_in_docker runtime: %'ds\n" $((END - START)) > /dev/stderr
+}
 
 CLEAN=0
 BUILD_AND_TEST_ALL_ARGS=
+PRESUBMIT=0
+PRECOMMIT_ONLY=0
+WITH_SHARED_CACHE=1
+WITH_DOCKER_SOCK=1
+readonly IMAGE_TAGGED=privacysandbox/builders/build-debian:bazel_build_image
 
 usage() {
   local exitval=${1-1}
   cat >&2 << USAGE
 usage:
   $0 <options>
-    --with-ami                Build the AMI. Default: false
-    --clean                   Optionally clean build cache before running build
-    --debug                   Emit debug build info. Default: false
+    --without-shared-cache       Use a container-local cache
+    --without-embedded-docker    Enable docker client within container
+    --precommit-only             Run precommit then exit
+    --with-ami                   Build the AMI
+    --remove-output-base         Remove the bazel output-base dir after building
+    --clean                      Optionally clean build cache before running build
+
+environment variables (all optional):
+    WORKSPACE                    Set the path to the workspace (repo root)
+    BAZEL_STARTUP_ARGS           Additional startup arguments to pass to bazel invocations
+    BAZEL_EXTRA_ARGS             Additional command arguments to pass to bazel invocations
+    EXTRA_DOCKER_RUN_ARGS        Additional arguments to pass to docker run invocations
 USAGE
   exit ${exitval}
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --with-ami | --debug)
+    --precommit-only)
+      PRECOMMIT_ONLY=1
+      shift
+      ;;
+    --without-shared-cache)
+      WITH_SHARED_CACHE=0
+      shift
+      ;;
+    --without-embedded-docker)
+      WITH_DOCKER_SOCK=0
+      shift
+      ;;
+    --presubmit)
+      BUILD_AND_TEST_ALL_ARGS="${BUILD_AND_TEST_ALL_ARGS} $1"
+      PRESUBMIT=1
+      shift
+      ;;
+    --with-ami | --remove-output-base)
       BUILD_AND_TEST_ALL_ARGS="${BUILD_AND_TEST_ALL_ARGS} $1"
       shift
       ;;
@@ -53,19 +95,74 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-WORKSPACE=$(bazel info workspace)
+function cbuild() {
+  declare -a EXTRA_DOCKER_ARGS
 
-CBUILD="${WORKSPACE}/builders/bazel/cbuild"
+  # build container image and load it into the local docker client
+  if ! docker image inspect ${IMAGE_TAGGED} >/dev/null 2>&1; then
+    tar --create --dereference --gzip --directory=${WORKSPACE}/builders/build-debian . |
+    docker build - --tag ${IMAGE_TAGGED}
+  fi
+  if [[ ${WITH_DOCKER_SOCK} -eq 1 ]]; then
+    EXTRA_DOCKER_ARGS+=(
+      -v /var/run/docker.sock:/var/run/docker.sock
+    )
+  fi
+  if [[ ${WITH_SHARED_CACHE} -eq 1 ]]; then
+    EXTRA_DOCKER_ARGS+=(
+      -v "${HOME}/.cache/bazel:/root/.cache/bazel"
+    )
+  fi
+  if [[ -n ${AWS_ACCESS_KEY_ID} ]]; then
+    EXTRA_DOCKER_ARGS+=(
+      --env AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      --env AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    )
+  fi
+  if [[ -n ${BAZEL_EXTRA_ARGS} ]]; then
+    EXTRA_DOCKER_ARGS+=(
+      --env BAZEL_EXTRA_ARGS
+    )
+  fi
+  if [[ -n ${BAZEL_STARTUP_ARGS} ]]; then
+    EXTRA_DOCKER_ARGS+=(
+      --env BAZEL_STARTUP_ARGS
+    )
+  fi
 
-if [[ $CLEAN -eq 1 ]]; then
-  ${CBUILD} -c "bazel clean"
+  if ! [[ -t 1 ]]; then
+    TTY_OUTPUT='| tail -f'
+  fi
+  docker run --rm \
+    --entrypoint=/bin/bash \
+    -v "${WORKSPACE}:/src/workspace" \
+    -w /src/workspace \
+    "${EXTRA_DOCKER_ARGS[@]}" \
+    ${EXTRA_DOCKER_RUN_ARGS} \
+    ${IMAGE_TAGGED} \
+    -c "$@ ${TTY_OUTPUT}"
+}
+
+WORKSPACE=${WORKSPACE-$(bazel info workspace)}
+
+if [[ ${CLEAN} -eq 1 ]]; then
+  cbuild "bazel clean --expunge_async ${BAZEL_ARGS}"
+  exit
 fi
 
-# TODO(b/242876887): Let user own the artifacts
-mkdir -p ${WORKSPACE}/dist
-${CBUILD} production/packaging/build_and_test_all ${BUILD_AND_TEST_ALL_ARGS}
+${WORKSPACE}/tools/pre-commit
+if [[ ${PRECOMMIT_ONLY} -eq 1 ]]; then
+  exit 0
+fi
 
-cat << OUTPUT
-location of the output:
-$(ls -lh ${WORKSPACE}/dist)
-OUTPUT
+cbuild "production/packaging/build_and_test_all ${BUILD_AND_TEST_ALL_ARGS}"
+
+if [[ ${PRESUBMIT} -eq 0 ]]; then
+  if [[ -d ${WORKSPACE}/dist ]]; then
+    cbuild "chgrp --recursive $(id -g) dist/ && chown --recursive $(id -u) dist/"
+    printf "location of the build artifacts:\n"
+    ls -lh ${WORKSPACE}/dist
+  else
+    printf "${WORKSPACE}/dist dir not found\n"
+  fi
+fi

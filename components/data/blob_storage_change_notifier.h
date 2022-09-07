@@ -17,7 +17,9 @@
 #ifndef COMPONENTS_DATA_BLOB_STORAGE_CHANGE_NOTIFIER_H_
 #define COMPONENTS_DATA_BLOB_STORAGE_CHANGE_NOTIFIER_H_
 
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"

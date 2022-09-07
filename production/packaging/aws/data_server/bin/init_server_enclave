@@ -32,4 +32,4 @@ socat VSOCK-LISTEN:${ENVOY_PORT},reuseaddr,fork TCP:0.0.0.0:${ENVOY_PORT} &
 # Forward incoming connections from the vsock to Envoy proxy admin on 0.0.0.0:${ENVOY_ADMIN_PORT}.
 socat VSOCK-LISTEN:${ENVOY_ADMIN_PORT},reuseaddr,fork TCP:0.0.0.0:${ENVOY_ADMIN_PORT} &
 
-/server/bin/init_server_basic --server-port ${SERVER_PORT}
+/server/bin/init_server_basic --server-port ${SERVER_PORT} --with-proxify

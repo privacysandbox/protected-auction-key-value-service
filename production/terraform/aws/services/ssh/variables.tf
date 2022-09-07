@@ -24,11 +24,6 @@ variable "environment" {
   type        = string
 }
 
-variable "instance_ssh_key_name" {
-  description = "SSH key pair for ssh'ing into instances."
-  type        = string
-}
-
 variable "ssh_instance_subnet_ids" {
   description = "A list of subnet ids to launch the SSH instance in."
   type        = list(string)
@@ -36,5 +31,10 @@ variable "ssh_instance_subnet_ids" {
 
 variable "instance_sg_id" {
   description = "Security group to attach to the SSH instance."
+  type        = string
+}
+
+variable "instance_profile_name" {
+  description = "IAM profile to attach to the ssh instance."
   type        = string
 }

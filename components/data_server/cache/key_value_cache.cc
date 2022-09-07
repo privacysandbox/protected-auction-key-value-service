@@ -40,32 +40,32 @@ using KeyContentMap = absl::flat_hash_map<std::string, KeyContent>;
 
 class KeyValueCache : public Cache {
  public:
-  std::vector<std::pair<Cache::Key, std::string>> GetKeyValuePairs(
-      const std::vector<Cache::Key>& cache_key_list) const override {
-    std::vector<std::pair<Cache::Key, std::string>> kv_pairs;
+  std::vector<std::pair<FullyQualifiedKey, std::string>> GetKeyValuePairs(
+      const std::vector<Cache::FullyQualifiedKey>& full_key_list)
+      const override {
+    std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs;
 
     absl::ReaderMutexLock lock(&mutex_);
-    for (const auto& cache_key : cache_key_list) {
-      auto key_iter = map_.find(cache_key.key);
+    for (const auto& full_key : full_key_list) {
+      auto key_iter = map_.find(full_key.key);
       if (key_iter == map_.end()) {
         continue;
       }
       if (auto subkey_iter =
-              key_iter->second.subkey_values.find(cache_key.subkey);
+              key_iter->second.subkey_values.find(full_key.subkey);
           subkey_iter != key_iter->second.subkey_values.end()) {
-        kv_pairs.emplace_back(cache_key, subkey_iter->second);
+        kv_pairs.emplace_back(full_key, subkey_iter->second);
       } else if (ABSL_PREDICT_TRUE(
                      key_iter->second.default_value.has_value())) {
         // Fall back to use the default value
-        kv_pairs.emplace_back(cache_key,
-                              key_iter->second.default_value.value());
+        kv_pairs.emplace_back(full_key, key_iter->second.default_value.value());
       }
     }
     return kv_pairs;
   }
 
   // Replaces the current key-value entry with the new key-value entry.
-  void UpdateKeyValue(Key full_key, std::string value) override {
+  void UpdateKeyValue(FullyQualifiedKey full_key, std::string value) override {
     const bool no_subkey = full_key.subkey.empty();
 
     absl::MutexLock lock(&mutex_);
@@ -78,7 +78,7 @@ class KeyValueCache : public Cache {
     }
   }
 
-  void DeleteKey(Key full_key) override {
+  void DeleteKey(FullyQualifiedKey full_key) override {
     absl::MutexLock lock(&mutex_);
     if (auto key_iter = map_.find(full_key.key); key_iter != map_.end()) {
       if (full_key.subkey.empty()) {

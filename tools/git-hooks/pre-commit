@@ -1,8 +1,8 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-TOP_LEVEL_DIR=$(git rev-parse --show-toplevel)
+TOP_LEVEL_DIR="$(git rev-parse --show-toplevel)"
 GIT_HOOKS_DIR="${TOP_LEVEL_DIR}/$(git rev-parse --git-dir)/hooks"
-ARGS=(
+declare -a ARGS=(
   hook-impl
   "--hook-type=pre-commit"
   --hook-dir "${GIT_HOOKS_DIR}"

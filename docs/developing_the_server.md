@@ -38,12 +38,20 @@ cp "$(bazel info bazel-bin)/external/com_github_grpc_grpc/test/cpp/util/grpc_cli
 For example:
 
 ```sh
-bazel run //components/data_server/server:server --//:parameters=local --//:platform=aws -- --environment="dev"
+bazel run //components/data_server/server:server --//:instance=local --//:platform=aws -- --environment="dev"
 ```
 
 > Attention: The server can run locally while specifying `aws` as platform, in which case it will
 > contact AWS based on the local AWS credentials. However, this requires the AWS environment to be
-> set up first following the [AWS deployment guide](/docs/deploying_on_aws.md).
+> set up first following the [AWS deployment guide](/docs/deploying_on_aws.md). You might need to
+> set up the following parameters in the AWS System Manager:
+>
+> | Parameter Name                 | Value                                                          |
+> | ------------------------------ | -------------------------------------------------------------- |
+> | kv-server-local-data-bucket-id | Name of the delta file S3 bucket                               |
+> | kv-server-local-bucket-sns-arn | ARN of the Simple Notification Service (SNS) for the S3 bucket |
+> | kv-server-local-launch-hook    | Any value, this won't be needed for                            |
+> | kv-server-local-mode           | "DSP" or "SSP"                                                 |
 
 We are currently developing this server for local testing and for use on AWS Nitro instances
 (similar to the
@@ -63,7 +71,7 @@ anticipate supporting additional cloud providers in the future.
     1. Build the target image
 
         ```sh
-        bazel build -c opt //production/packaging/aws/data_server:server_docker_image.tar --//:parameters=local --//:platform=aws
+        bazel build -c opt //production/packaging/aws/data_server:server_docker_image.tar --//:instance=local --//:platform=aws
         ```
 
     1. The image needs to be copied over to `dist/`. The actual directory may be different. It will
@@ -78,7 +86,7 @@ anticipate supporting additional cloud providers in the future.
     1. These commands can be combined into one:
 
         ```sh
-        ./builders/tools/cbuild 'bazel build -c opt //production/packaging/aws/data_server:server_docker_image.tar --//:parameters=local --//:platform=aws cp bazel-out/k8-opt-ST-4a519fd6d3e4/bin/production/packaging/aws/data_server/server_docker_image.tar dist/'
+        ./builders/tools/cbuild --image build-debian --env 'BAZEL_OUT_DIR=k8-opt-ST-4a519fd6d3e4' --cmd 'bazel build -c opt //production/packaging/aws/data_server:server_docker_image.tar --//:instance=local --//:platform=aws; cp bazel-out/${BAZEL_OUT_DIR}/bin/production/packaging/aws/data_server/server_docker_image.tar dist/'
         ```
 
 1. Load the image
@@ -175,7 +183,7 @@ Available conditions are:
 -   //:aws_platform
 -   //:local_platform
 
-Parameters can be configured separately to be read from specific platforms.
+Depending on which platform the server is being run on, you will want to specify the platform.
 
--   //:aws_parameters
--   //:local_parameters
+-   //:aws_instance
+-   //:local_instance

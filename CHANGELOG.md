@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.3.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.2.0...release-0.3.0) (2022-09-14)
+
+
+### Features
+
+* Add --env flag to cbuild (1d85a36)
+* Update release image to node v18 (7fb4a33)
+
+
+### Bug Fixes
+
+* Bump to latest version of bazelisk (82441c3)
+* Consolidate bazel/ dir into third_party/ dir (7c703d2)
+* Ensure appropriate ownership of modified files (950324f)
+* fix local docker run command (587a556)
+* Improve shell string quoting (53e5940)
+* Invoke bash via /usr/bin/env (c098fff)
+* Propagate SKIP env var into pre-commit container (cf5a5b5)
+
 ## [0.2.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.1.0...release-0.2.0) (2022-09-07)
 
 

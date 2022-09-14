@@ -33,7 +33,7 @@ config_setting(
 )
 
 string_flag(
-    name = "parameters",
+    name = "instance",
     build_setting_default = "aws",
     values = [
         "aws",
@@ -42,17 +42,17 @@ string_flag(
 )
 
 config_setting(
-    name = "aws_parameters",
+    name = "aws_instance",
     flag_values = {
-        ":parameters": "aws",
+        ":instance": "aws",
     },
     visibility = ["//visibility:private"],
 )
 
 config_setting(
-    name = "local_parameters",
+    name = "local_instance",
     flag_values = {
-        ":parameters": "local",
+        ":instance": "local",
     },
     visibility = ["//visibility:private"],
 )

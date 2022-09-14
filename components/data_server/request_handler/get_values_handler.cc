@@ -14,6 +14,10 @@
 
 #include "components/data_server/request_handler/get_values_handler.h"
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include <grpcpp/grpcpp.h>
 
 #include "absl/strings/str_split.h"
@@ -69,14 +73,14 @@ grpc::Status ValidateSSPRequest(const GetValuesRequest& request) {
 
 void AddNamespaceKeys(const RepeatedPtrField<std::string>& keys,
                       std::string_view subkey,
-                      std::vector<Cache::Key>& cache_key_list) {
+                      std::vector<Cache::FullyQualifiedKey>& full_key_list) {
   for (const auto& key : keys) {
     for (absl::string_view individual_key :
          absl::StrSplit(key, kQueryArgDelimiter)) {
-      Cache::Key cache_key;
-      cache_key.key = individual_key;
-      cache_key.subkey = subkey;
-      cache_key_list.emplace_back(cache_key);
+      Cache::FullyQualifiedKey full_key;
+      full_key.key = individual_key;
+      full_key.subkey = subkey;
+      full_key_list.emplace_back(full_key);
     }
   }
 }
@@ -85,10 +89,10 @@ void ProcessNamespace(const RepeatedPtrField<std::string>& keys,
                       std::string_view subkey, const Cache& cache,
                       Struct& result_struct) {
   if (keys.empty()) return;
-  std::vector<Cache::Key> cache_key_list;
-  AddNamespaceKeys(keys, subkey, cache_key_list);
+  std::vector<Cache::FullyQualifiedKey> full_key_list;
+  AddNamespaceKeys(keys, subkey, full_key_list);
 
-  auto kv_pairs = cache.GetKeyValuePairs(cache_key_list);
+  auto kv_pairs = cache.GetKeyValuePairs(full_key_list);
 
   for (auto&& [k, v] : std::move(kv_pairs)) {
     (*result_struct.mutable_fields())[std::move(k.key)].set_string_value(

@@ -48,7 +48,7 @@ resource "aws_s3_bucket_public_access_block" "bucket_public_access" {
 
 # Subscribe to data updates using SNS.
 resource "aws_s3_bucket_notification" "bucket_notification" {
-  bucket = aws_s3_bucket.bucket.id
+  bucket     = aws_s3_bucket.bucket.id
   depends_on = [var.bucket_notification_dependency]
 
   topic {

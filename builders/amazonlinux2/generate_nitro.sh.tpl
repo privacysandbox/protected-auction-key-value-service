@@ -51,10 +51,9 @@ nitro-cli build-enclave --docker-uri %{source_image_tagged} --output-file /tmp/e
 SCRIPT
 
     # run the above "commands" script inside the aws image docker container
-    container_id=$($DOCKER run -d --entrypoint=/bin/bash %{docker_run_flags} %{aws_image_tagged} -xc "{ cat << SCRIPT > /run.sh
+    container_id=$($DOCKER run -d --entrypoint=/bin/bash %{docker_run_flags} %{aws_image_tagged} -xc "
 $(cat %{commands})
-SCRIPT
-} && chmod 700 /run.sh && /run.sh")
+")
     retcode=$($DOCKER wait $container_id)
     if [[ $retcode -ne 0 ]]; then
         $DOCKER logs $container_id && false

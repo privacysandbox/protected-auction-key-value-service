@@ -16,6 +16,6 @@
 
 output "allow_sqs_cleanup_execution_as_dependency" {
   // Dummy output to allow others to depend on allow_sqs_cleanup_execution
-  value = {}
+  value      = {}
   depends_on = [aws_lambda_permission.allow_sqs_cleanup_execution]
 }

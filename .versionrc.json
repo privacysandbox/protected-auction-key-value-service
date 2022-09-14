@@ -4,6 +4,7 @@
     {"type": "fix", "section": "Bug Fixes"},
     {"type": "build", "section": "Build System"},
     {"type": "docs", "section": "Documentation"},
+    {"type": "internal", "hidden": true},
     {"type": "chore", "hidden": true},
     {"type": "test", "hidden": true},
     {"type": "refactor", "hidden": true}
@@ -24,4 +25,3 @@
     }
   ]
 }
-

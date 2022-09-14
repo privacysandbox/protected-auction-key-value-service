@@ -54,6 +54,31 @@ resource "aws_iam_instance_profile" "instance_profile" {
 }
 
 ####################################################
+# Create SSH role for using EC2 instance connect.
+####################################################
+resource "aws_iam_role" "ssh_instance_role" {
+  name               = format("%s-%s-sshInstanceRole", var.service, var.environment)
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
+
+  tags = {
+    Name        = format("%s-%s-sshInstanceRole", var.service, var.environment)
+    service     = var.service
+    environment = var.environment
+  }
+}
+
+resource "aws_iam_instance_profile" "ssh_instance_profile" {
+  name = format("%s-%s-sshInstanceProfile", var.service, var.environment)
+  role = aws_iam_role.ssh_instance_role.name
+
+  tags = {
+    Name        = format("%s-%s-sshInstanceProfile", var.service, var.environment)
+    service     = var.service
+    environment = var.environment
+  }
+}
+
+####################################################
 # Create Lambda role required for SQS cleanup.
 ####################################################
 data "aws_iam_policy_document" "lambda_assume_role_policy" {

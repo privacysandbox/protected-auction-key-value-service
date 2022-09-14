@@ -34,3 +34,10 @@ resource "aws_ssm_parameter" "bucket_update_sns_arn_parameter" {
   value     = var.bucket_update_sns_arn_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "launch_hook_parameter" {
+  name      = "${var.service}-${var.environment}-launch-hook"
+  type      = "String"
+  value     = var.launch_hook_parameter_value
+  overwrite = true
+}

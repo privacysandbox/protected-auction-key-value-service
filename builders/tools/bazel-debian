@@ -1,6 +1,5 @@
-#!/bin/bash
-# Copyright 2022 Google LLC
-#
+#!/usr/bin/env bash
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -13,21 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -o pipefail
 set -o errexit
 
-WORKSPACE=$(bazel info workspace)
-IMAGE_TAGGED=builders/release:release_image
+SCRIPT_NAME=$(basename "$0")
+CBUILD="$(dirname "$(readlink -f $0)")/cbuild"
+IMAGE="build-${SCRIPT_NAME/bazel-}"
 
-# as needed, build release container image and load it into the local docker client
-if ! docker image inspect bazel/${IMAGE_TAGGED} >/dev/null 2>&1; then
-  bazel run //${IMAGE_TAGGED}
-fi
-
-GLOBAL_OPTS=
-
-docker run -it --rm \
-  --entrypoint=/bin/bash \
-  -v "${WORKSPACE}:/src/workspace" \
-  -w /src/workspace \
-  bazel/${IMAGE_TAGGED} \
-  -c "commit-and-tag-version ${GLOBAL_OPTS} $*"
+"${CBUILD}" --image "${IMAGE}" --cmd "bazel $*"

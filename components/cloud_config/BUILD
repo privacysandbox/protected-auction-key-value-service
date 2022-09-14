@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
 package(default_visibility = [
     "//components:__subpackages__",
 ])
@@ -25,16 +27,17 @@ cc_library(
 )
 
 cc_library(
-    name = "environment_client",
+    name = "instance_client",
     srcs = select({
-        "//:aws_parameters": ["aws_environment_client.cc"],
-        "//:local_parameters": ["local_environment_client.cc"],
+        "//:aws_parameters": ["aws_instance_client.cc"],
+        "//:local_parameters": ["local_instance_client.cc"],
     }),
     hdrs = [
-        "environment_client.h",
+        "instance_client.h",
     ],
     deps = select({
         "//:aws_parameters": [
+            "@aws_sdk_cpp//:autoscaling",
             "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:ec2",
             "//components/errors:aws_error_util",

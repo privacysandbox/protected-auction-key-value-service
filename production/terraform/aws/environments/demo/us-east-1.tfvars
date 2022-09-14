@@ -25,9 +25,8 @@ root_domain_zone_id = "zone-id"
 certificate_arn     = "cert-arn"
 
 # Variables related to EC2 instances.
-instance_type         = "m5.xlarge"
-instance_ssh_key_name = "ssh-key"
-instance_ami_id       = "ami-0000000"
+instance_type   = "m5.xlarge"
+instance_ami_id = "ami-0000000"
 
 # Variables related to server configuration.
 mode               = "DSP"
@@ -53,10 +52,14 @@ vpc_interface_endpoint_services = [
   "ec2",
   "ssm",
   "sns",
-  "sqs"
+  "sqs",
+  "autoscaling"
 ]
 
 # Variables related to health checks.
 healthcheck_healthy_threshold   = 3
 healthcheck_interval_sec        = 30
 healthcheck_unhealthy_threshold = 3
+
+# Variables related to SSH.
+ssh_source_cidr_blocks = ["0.0.0.0/0"]

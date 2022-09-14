@@ -33,3 +33,15 @@ output "lambda_role_arn" {
 output "lambda_role_name" {
   value = aws_iam_role.lambda_role.name
 }
+
+output "ssh_instance_role_arn" {
+  value = aws_iam_role.ssh_instance_role.arn
+}
+
+output "ssh_instance_role_name" {
+  value = aws_iam_role.ssh_instance_role.name
+}
+
+output "ssh_instance_profile_name" {
+  value = aws_iam_instance_profile.ssh_instance_profile.name
+}

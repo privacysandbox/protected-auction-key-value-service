@@ -34,7 +34,7 @@ namespace fledge::kv_server {
 // ShardedCache should be used for multiple key namespaces. See below.
 class Cache {
  public:
-  struct Key {
+  struct FullyQualifiedKey {
     std::string_view key;
     std::string_view subkey;
   };
@@ -42,14 +42,16 @@ class Cache {
   virtual ~Cache() = default;
 
   // Looks up and returns key-value pairs for the given keys.
-  virtual std::vector<std::pair<Key, std::string>> GetKeyValuePairs(
-      const std::vector<Key>& cache_key_list) const = 0;
+  virtual std::vector<std::pair<FullyQualifiedKey, std::string>>
+  GetKeyValuePairs(
+      const std::vector<FullyQualifiedKey>& full_key_list) const = 0;
 
   // Inserts or updates the key, subkey with the new value.
-  virtual void UpdateKeyValue(Key full_key, std::string value) = 0;
+  virtual void UpdateKeyValue(FullyQualifiedKey full_key,
+                              std::string value) = 0;
 
   // Deletes a particular (key, subkey) tuple.
-  virtual void DeleteKey(Key full_key) = 0;
+  virtual void DeleteKey(FullyQualifiedKey full_key) = 0;
 
   static std::unique_ptr<Cache> Create();
 };
@@ -67,7 +69,8 @@ class ShardedCache {
       KeyNamespace::Enum key_namespace) const = 0;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const Cache::Key& full_key) {
+inline std::ostream& operator<<(std::ostream& os,
+                                const Cache::FullyQualifiedKey& full_key) {
   os << full_key.key << ":" << full_key.subkey;
   return os;
 }

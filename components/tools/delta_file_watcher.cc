@@ -25,7 +25,9 @@
 ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 
-using namespace fledge::kv_server;
+using fledge::kv_server::BlobStorageChangeNotifier;
+using fledge::kv_server::BlobStorageClient;
+using fledge::kv_server::DeltaFileNotifier;
 
 int main(int argc, char** argv) {
   // TODO: use cc/cpio/cloud_providers to initialize cloud.
@@ -35,7 +37,7 @@ int main(int argc, char** argv) {
 
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
   const std::string bucket = absl::GetFlag(FLAGS_bucket);
-  if (!bucket.size()) {
+  if (bucket.empty()) {
     std::cerr << "Must specify bucket" << std::endl;
     return -1;
   }

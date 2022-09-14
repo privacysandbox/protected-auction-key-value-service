@@ -38,3 +38,8 @@ variable "bucket_update_sns_arn_parameter_value" {
   description = "Value for data bucket update SNS ARN parameter."
   type        = string
 }
+
+variable "launch_hook_parameter_value" {
+  description = "Value for lifecycle hook parameter."
+  type        = string
+}

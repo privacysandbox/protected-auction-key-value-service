@@ -17,6 +17,9 @@
 #ifndef COMPONENTS_DATA_DELTA_FILE_NOTIFIER_H_
 #define COMPONENTS_DATA_DELTA_FILE_NOTIFIER_H_
 
+#include <memory>
+#include <string>
+
 #include "components/data/blob_storage_change_notifier.h"
 #include "components/data/blob_storage_client.h"
 

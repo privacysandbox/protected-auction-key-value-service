@@ -62,11 +62,6 @@ variable "target_group_arns" {
   type = list(string)
 }
 
-variable "instance_ssh_key_name" {
-  description = "SSH key pair for ssh'ing into instances."
-  type        = string
-}
-
 variable "enclave_memory_mib" {
   description = "Amount of memory to allocate to the enclave."
   type        = number

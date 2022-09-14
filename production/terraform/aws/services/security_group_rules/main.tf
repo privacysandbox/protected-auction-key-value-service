@@ -21,9 +21,7 @@ resource "aws_security_group_rule" "allow_all_elb_ingress" {
   security_group_id = var.elb_security_group_id
   to_port           = 443
   type              = "ingress"
-  cidr_blocks = [
-    "0.0.0.0/0"
-  ]
+  cidr_blocks       = ["0.0.0.0/0"]
 }
 
 resource "aws_security_group_rule" "allow_elb_to_ec2_egress" {
@@ -42,9 +40,7 @@ resource "aws_security_group_rule" "allow_all_ssh_ingress" {
   security_group_id = var.ssh_security_group_id
   to_port           = 22
   type              = "ingress"
-  cidr_blocks = [
-    "0.0.0.0/0"
-  ]
+  cidr_blocks       = var.ssh_source_cidr_blocks
 }
 
 resource "aws_security_group_rule" "allow_ssh_to_ec2_egress" {
@@ -54,6 +50,15 @@ resource "aws_security_group_rule" "allow_ssh_to_ec2_egress" {
   to_port                  = 22
   type                     = "egress"
   source_security_group_id = var.instances_security_group_id
+}
+
+resource "aws_security_group_rule" "allow_ssh_secure_tcp_egress" {
+  from_port         = 443
+  protocol          = "TCP"
+  security_group_id = var.ssh_security_group_id
+  to_port           = 443
+  type              = "egress"
+  cidr_blocks       = ["0.0.0.0/0"]
 }
 
 # Ingress and egress rules for server ec2 instances.
@@ -93,6 +98,20 @@ resource "aws_security_group_rule" "allow_ec2_to_vpc_ge_egress" {
   prefix_list_ids   = [for id in var.gateway_endpoints_prefix_list_ids : id]
 }
 
+data "aws_ip_ranges" "ec2_instance_connect_ip_ranges" {
+  regions  = [var.region]
+  services = ["ec2_instance_connect"]
+}
+
+resource "aws_security_group_rule" "allow_ec2_instance_connect_ingress" {
+  from_port         = 22
+  protocol          = "TCP"
+  security_group_id = var.instances_security_group_id
+  to_port           = 22
+  type              = "ingress"
+  cidr_blocks       = data.aws_ip_ranges.ec2_instance_connect_ip_ranges.cidr_blocks
+}
+
 # Ingress and egress rules for backend vpc interface endpoints.
 resource "aws_security_group_rule" "allow_ec2_to_vpce_ingress" {
   from_port                = 443
@@ -101,4 +120,13 @@ resource "aws_security_group_rule" "allow_ec2_to_vpce_ingress" {
   to_port                  = 443
   type                     = "ingress"
   source_security_group_id = var.instances_security_group_id
+}
+
+resource "aws_security_group_rule" "allow_ssh_instance_to_vpce_ingress" {
+  from_port                = 443
+  protocol                 = "TCP"
+  security_group_id        = var.vpce_security_group_id
+  to_port                  = 443
+  type                     = "ingress"
+  source_security_group_id = var.ssh_security_group_id
 }

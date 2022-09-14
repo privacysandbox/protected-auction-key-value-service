@@ -17,6 +17,7 @@
 #ifndef COMPONENTS_DATA_RIEGELI_STREAM_IO_H_
 #define COMPONENTS_DATA_RIEGELI_STREAM_IO_H_
 
+#include <memory>
 #include <utility>
 
 #include "absl/cleanup/cleanup.h"

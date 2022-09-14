@@ -23,7 +23,6 @@ for the nitro-cli build-enclave:
 https://docs.aws.amazon.com/enclaves/latest/user/cmd-nitro-build-enclave.html
 """
 
-load("@io_bazel_rules_docker//docker/util:run.bzl", "container_run_and_extract", "extract")
 load("@io_bazel_rules_docker//skylib:docker.bzl", "docker_path")
 
 _nitro_enclave_image_attrs = {
@@ -33,6 +32,15 @@ _nitro_enclave_image_attrs = {
         mandatory = True,
         allow_single_file = True,
         cfg = "target",
+    ),
+    "docker_run_flags": attr.string_list(
+        doc = "Extra flags to pass to the docker run command.",
+        mandatory = False,
+    ),
+    "extra_deps": attr.label_list(
+        doc = "Extra dependencies to be passed as inputs",
+        mandatory = False,
+        allow_files = True,
     ),
     "source_image": attr.label(
         executable = True,
@@ -45,18 +53,9 @@ _nitro_enclave_image_attrs = {
         doc = "Base filename for the generated EIF image.",
         mandatory = True,
     ),
-    "docker_run_flags": attr.string_list(
-        doc = "Extra flags to pass to the docker run command.",
-        mandatory = False,
-    ),
-    "extra_deps": attr.label_list(
-        doc = "Extra dependencies to be passed as inputs",
-        mandatory = False,
-        allow_files = True,
-    ),
     "_extract_image_id": attr.label(
         default = Label("@io_bazel_rules_docker//contrib:extract_image_id"),
-        cfg = "host",
+        cfg = "exec",
         executable = True,
         allow_files = True,
     ),
@@ -102,17 +101,17 @@ def _nitro_enclave_image_impl(
         template = ctx.file._extract_tpl,
         output = build_script,
         substitutions = {
+            "%{aws_image_tagged}": aws_image_tagged,
+            "%{aws_nitro_image_tar}": aws_nitro_image.path,
+            "%{commands}": commands_script.path,
             "%{docker_flags}": " ".join(toolchain_info.docker_flags),
             "%{docker_run_flags}": " ".join(basic_docker_run_flags + docker_run_flags),
             "%{docker_tool_path}": docker_path(toolchain_info),
             "%{image_id_extractor_path}": ctx.executable._extract_image_id.path,
-            "%{aws_nitro_image_tar}": aws_nitro_image.path,
-            "%{aws_image_tagged}": aws_image_tagged,
-            "%{source_image_tar}": source_image.path,
-            "%{source_image_tagged}": source_image_tagged,
-            "%{out_eif}": out_eif.path,
             "%{out_eif_json}": out_eif_json.path,
-            "%{commands}": commands_script.path,
+            "%{out_eif}": out_eif.path,
+            "%{source_image_tagged}": source_image_tagged,
+            "%{source_image_tar}": source_image.path,
         },
         is_executable = True,
     )
@@ -134,10 +133,10 @@ def _nitro_enclave_image_impl(
     return []
 
 _extract_outputs = {
-    "out_eif": "%{target_eif_basename}.eif",
-    "out_eif_json": "%{target_eif_basename}.json",
     "build_script": "%{name}.build",
     "commands_script": "%{name}.run.sh",
+    "out_eif": "%{target_eif_basename}.eif",
+    "out_eif_json": "%{target_eif_basename}.json",
 }
 
 nitro_enclave_image = rule(

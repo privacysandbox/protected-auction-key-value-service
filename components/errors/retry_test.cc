@@ -18,26 +18,57 @@
 #include <utility>
 
 #include "absl/status/statusor.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace fledge::kv_server {
 namespace {
 
-TEST(RetryTest, Retry) {
-  int num_retries = 2;
-  int expected = 0;
-  int v = RetryUntilOk(
-      [&num_retries, &expected]() -> absl::StatusOr<int> {
-        if (num_retries != 0) {
-          expected++;
-          num_retries--;
-          return absl::InvalidArgumentError("whatever");
-        }
-        return expected;
-      },
-      "TestFunc");
-  ASSERT_EQ(v, expected);
+TEST(RetryTest, RetryUntilOk) {
+  testing::MockFunction<absl::StatusOr<int>()> func;
+  EXPECT_CALL(func, Call)
+      .Times(2)
+      .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
+      .WillOnce([] { return 1; });
+
+  absl::StatusOr<int> v = RetryUntilOk(func.AsStdFunction(), "TestFunc");
+  EXPECT_TRUE(v.ok());
+  EXPECT_EQ(v.value(), 1);
 }
 
+TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
+  testing::MockFunction<absl::StatusOr<int>()> func;
+  EXPECT_CALL(func, Call).Times(2).WillRepeatedly([] {
+    return absl::InvalidArgumentError("whatever");
+  });
+
+  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2);
+  EXPECT_FALSE(v.ok());
+  EXPECT_EQ(v.status(), absl::InvalidArgumentError("whatever"));
+}
+
+TEST(RetryTest, RetryWithMaxSucceedsOnMax) {
+  testing::MockFunction<absl::StatusOr<int>()> func;
+  EXPECT_CALL(func, Call)
+      .Times(2)
+      .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
+      .WillOnce([] { return 1; });
+
+  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2);
+  EXPECT_TRUE(v.ok());
+  EXPECT_EQ(v.value(), 1);
+}
+
+TEST(RetryTest, RetryWithMaxSucceedsEarly) {
+  testing::MockFunction<absl::StatusOr<int>()> func;
+  EXPECT_CALL(func, Call)
+      .Times(2)
+      .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
+      .WillOnce([] { return 1; });
+
+  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 300);
+  EXPECT_TRUE(v.ok());
+  EXPECT_EQ(v.value(), 1);
+}
 }  // namespace
 }  // namespace fledge::kv_server

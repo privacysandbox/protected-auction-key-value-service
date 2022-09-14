@@ -49,7 +49,7 @@ Config GetConfig(int argc, char* argv[]) {
     { "tcp", no_argument, 0, 't'},
     { "port", required_argument, 0, 'p'},
     { "buffer_size", required_argument, 0, 'b'},
-    {0,0,0,0}
+    { 0, 0, 0, 0},
   };
   // clang-format on
   while (true) {

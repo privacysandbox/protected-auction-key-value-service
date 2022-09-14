@@ -14,6 +14,8 @@
 
 #include "components/data_server/data_loading/data_orchestrator.h"
 
+#include <deque>
+#include <utility>
 #include <vector>
 
 #include "absl/functional/bind_front.h"
@@ -27,12 +29,17 @@
 namespace fledge::kv_server {
 namespace {
 
+constexpr int kGetDeltaFileMaxAttempts = 3;
+
 // Reads the file from `location` and updates the cache based on the delta read.
 absl::Status LoadCacheWithDataFromFile(BlobStorageClient::DataLocation location,
                                        DataOrchestrator::Options options) {
   LOG(INFO) << "Loading " << location;
-  absl::StatusOr<std::unique_ptr<BlobReader>> maybe_blob =
-      options.blob_client.GetBlob(std::move(location));
+  absl::StatusOr<std::unique_ptr<BlobReader>> maybe_blob = RetryWithMax(
+      [&options, &location]() -> absl::StatusOr<std::unique_ptr<BlobReader>> {
+        return options.blob_client.GetBlob(location);
+      },
+      "GetBlob", kGetDeltaFileMaxAttempts);
   if (!maybe_blob.ok()) {
     return maybe_blob.status();
   }
@@ -133,6 +140,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
           !s.ok()) {
         return s;
       }
+      LOG(INFO) << "Done loading " << last_basename;
     }
     return last_basename;
   }

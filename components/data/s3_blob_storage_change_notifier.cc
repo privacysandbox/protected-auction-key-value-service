@@ -48,7 +48,7 @@ constexpr char kLastUpdatedTag[] = "last_updated";
 
 class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
-  S3BlobStorageChangeNotifier(std::string sns_arn)
+  explicit S3BlobStorageChangeNotifier(std::string sns_arn)
       : queue_manager_("BlobNotifier_", sns_arn),
         sns_arn_(std::move(sns_arn)) {}
 

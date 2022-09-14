@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
 # Description:
 #   curl is a tool for talking to web servers.
 licenses(["notice"])  # MIT/X derivative license

@@ -39,14 +39,27 @@ data "aws_ami" "amazon_linux" {
 
 # Create an instance that we can use to SSH into KV server instances.
 resource "aws_instance" "ssh_instance" {
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = "t2.micro"
-  key_name      = var.instance_ssh_key_name
-  subnet_id     = var.ssh_instance_subnet_ids[0]
+  ami                  = data.aws_ami.amazon_linux.id
+  instance_type        = "t2.micro"
+  subnet_id            = var.ssh_instance_subnet_ids[0]
+  iam_instance_profile = var.instance_profile_name
 
   vpc_security_group_ids = [
     var.instance_sg_id
   ]
+
+  # Enforce IMDSv2.
+  metadata_options {
+    http_endpoint          = "enabled"
+    http_tokens            = "required"
+    instance_metadata_tags = "enabled"
+  }
+
+  user_data = <<EOF
+    #!/bin/bash
+
+    pip3 install ec2instanceconnectcli
+  EOF
 
   tags = {
     Name        = "${var.service}-${var.environment}-ssh-instance"

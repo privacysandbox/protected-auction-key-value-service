@@ -38,8 +38,12 @@ ABSL_FLAG(int, value_size, 100, "Specify the size of value for the key");
 ABSL_FLAG(std::string, output_dir, "", "Output file directory");
 ABSL_FLAG(int, num_records, 5, "Number of records to generate");
 
-using namespace fledge::kv_server;
-using google::protobuf::TextFormat;
+using fledge::kv_server::DeltaFileRecordStruct;
+using fledge::kv_server::DeltaMutationType;
+using fledge::kv_server::KeyNamespace;
+using fledge::kv_server::KVFileMetadata;
+using fledge::kv_server::ToDeltaFileName;
+using fledge::kv_server::ToStringView;
 
 void WriteRecords(std::string_view key_namespace, std::string_view key,
                   std::string_view subkey, int value_size,

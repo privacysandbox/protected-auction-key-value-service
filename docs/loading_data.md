@@ -4,10 +4,10 @@ The FLEDGE Key/Value server is used to send real-time signals to the buyers and 
 FLEDGE auction. The server reads files from a cloud file storage service. This doc explains the
 expected file format, and processes to perform the common data loading operations:
 
-- For simple testing, you can use the sample data generator provided.
-- To actually integrate with your own data source, you will need to write C++ code. Use the sample
+-   For simple testing, you can use the sample data generator provided.
+-   To actually integrate with your own data source, you will need to write C++ code. Use the sample
     data generator as an example reference.
-- The data generation part is a general process that applies to all cloud providers, but the
+-   The data generation part is a general process that applies to all cloud providers, but the
     uploading instructions are for AWS only.
 
 # Data file
@@ -16,7 +16,7 @@ Data is consumed as delta. Newer data read will overwrite the key-value pair, if
 
 # Delta file name format
 
-Delta file name must conform to the regular expression “DELTA\_\d{16}”. See public/constants.h for
+Delta file name must conform to the regular expression "DELTA\_\d{16}". See public/constants.h for
 the most up-to-date format.
 
 # Experimenting with sample data

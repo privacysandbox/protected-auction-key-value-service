@@ -15,37 +15,44 @@
 #ifndef COMPONENTS_DATA_SERVER_CACHE_MOCKS_H_
 #define COMPONENTS_DATA_SERVER_CACHE_MOCKS_H_
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "components/data_server/cache/cache.h"
 #include "gmock/gmock.h"
 
 namespace fledge::kv_server {
 
-MATCHER_P2(CacheKeyEq, key, subkey, "") {
+MATCHER_P2(FullKeyEq, key, subkey, "") {
   return testing::ExplainMatchResult(
-      testing::AllOf(testing::Field(&Cache::Key::subkey, subkey),
-                     testing::Field(&Cache::Key::key, key)),
+      testing::AllOf(testing::Field(&Cache::FullyQualifiedKey::subkey, subkey),
+                     testing::Field(&Cache::FullyQualifiedKey::key, key)),
       arg, result_listener);
 }
 
-MATCHER_P(CacheKeyEq, cache_key, "") {
+MATCHER_P(FullKeyEq, full_key, "") {
   return testing::ExplainMatchResult(
-      testing::AllOf(testing::Field(&Cache::Key::subkey, cache_key.subkey),
-                     testing::Field(&Cache::Key::key, cache_key.key)),
+      testing::AllOf(
+          testing::Field(&Cache::FullyQualifiedKey::subkey, full_key.subkey),
+          testing::Field(&Cache::FullyQualifiedKey::key, full_key.key)),
       arg, result_listener);
 }
 
-MATCHER_P2(KVPairEq, cache_key, value, "") {
-  return testing::ExplainMatchResult(
-      testing::Pair(CacheKeyEq(cache_key), value), arg, result_listener);
+MATCHER_P2(KVPairEq, full_key, value, "") {
+  return testing::ExplainMatchResult(testing::Pair(FullKeyEq(full_key), value),
+                                     arg, result_listener);
 }
 
 class MockCache : public Cache {
  public:
-  MOCK_METHOD((std::vector<std::pair<Key, std::string>>), GetKeyValuePairs,
-              (const std::vector<Key>& cache_key_list), (const, override));
-  MOCK_METHOD(void, UpdateKeyValue, (Key full_key, std::string value),
-              (override));
-  MOCK_METHOD(void, DeleteKey, (Key full_key), (override));
+  MOCK_METHOD((std::vector<std::pair<FullyQualifiedKey, std::string>>),
+              GetKeyValuePairs,
+              (const std::vector<FullyQualifiedKey>& full_key_list),
+              (const, override));
+  MOCK_METHOD(void, UpdateKeyValue,
+              (FullyQualifiedKey full_key, std::string value), (override));
+  MOCK_METHOD(void, DeleteKey, (FullyQualifiedKey full_key), (override));
 };
 
 class MockShardedCache : public ShardedCache {

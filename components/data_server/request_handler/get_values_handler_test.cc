@@ -15,6 +15,9 @@
 #include "components/data_server/request_handler/get_values_handler.h"
 
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include <grpcpp/grpcpp.h>
 
@@ -41,11 +44,12 @@ TEST(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
   EXPECT_CALL(sharded_cache, GetCacheShard(KeyNamespace::KEYS))
       .Times(2)
       .WillRepeatedly(ReturnRef(mock_cache));
-  EXPECT_CALL(mock_cache, GetKeyValuePairs(UnorderedElementsAre(
-                              CacheKeyEq(Cache::Key{.key = "my_key"}))))
+  EXPECT_CALL(mock_cache, GetKeyValuePairs(UnorderedElementsAre(FullKeyEq(
+                              Cache::FullyQualifiedKey{.key = "my_key"}))))
       .Times(2)
-      .WillRepeatedly(Return(std::vector<std::pair<Cache::Key, std::string>>{
-          {{.key = "my_key"}, "my_value"}}));
+      .WillRepeatedly(
+          Return(std::vector<std::pair<Cache::FullyQualifiedKey, std::string>>{
+              {{.key = "my_key"}, "my_value"}}));
 
   GetValuesRequest request;
   request.add_keys("my_key");
@@ -73,13 +77,15 @@ TEST(GetValuesHandlerTest, RepeatedKeys) {
   EXPECT_CALL(sharded_cache, GetCacheShard(KeyNamespace::KEYS))
       .Times(1)
       .WillRepeatedly(ReturnRef(mock_cache));
-  EXPECT_CALL(mock_cache, GetKeyValuePairs(UnorderedElementsAre(
-                              CacheKeyEq(Cache::Key{.key = "key1"}),
-                              CacheKeyEq(Cache::Key{.key = "key2"}),
-                              CacheKeyEq(Cache::Key{.key = "key3"}))))
+  EXPECT_CALL(mock_cache,
+              GetKeyValuePairs(UnorderedElementsAre(
+                  FullKeyEq(Cache::FullyQualifiedKey{.key = "key1"}),
+                  FullKeyEq(Cache::FullyQualifiedKey{.key = "key2"}),
+                  FullKeyEq(Cache::FullyQualifiedKey{.key = "key3"}))))
       .Times(1)
-      .WillRepeatedly(Return(std::vector<std::pair<Cache::Key, std::string>>{
-          {{.key = "key1"}, "value1"}}));
+      .WillRepeatedly(
+          Return(std::vector<std::pair<Cache::FullyQualifiedKey, std::string>>{
+              {{.key = "key1"}, "value1"}}));
 
   GetValuesRequest request;
   request.add_keys("key1,key2,key3");
@@ -104,12 +110,14 @@ TEST(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   EXPECT_CALL(sharded_cache, GetCacheShard(KeyNamespace::KEYS))
       .Times(1)
       .WillOnce(ReturnRef(mock_cache));
-  EXPECT_CALL(mock_cache, GetKeyValuePairs(UnorderedElementsAre(
-                              CacheKeyEq(Cache::Key{.key = "key1"}),
-                              CacheKeyEq(Cache::Key{.key = "key2"}))))
+  EXPECT_CALL(mock_cache,
+              GetKeyValuePairs(UnorderedElementsAre(
+                  FullKeyEq(Cache::FullyQualifiedKey{.key = "key1"}),
+                  FullKeyEq(Cache::FullyQualifiedKey{.key = "key2"}))))
       .Times(1)
-      .WillOnce(Return(std::vector<std::pair<Cache::Key, std::string>>{
-          {{.key = "key1"}, "value1"}, {{.key = "key2"}, "value2"}}));
+      .WillOnce(
+          Return(std::vector<std::pair<Cache::FullyQualifiedKey, std::string>>{
+              {{.key = "key1"}, "value1"}, {{.key = "key2"}, "value2"}}));
 
   GetValuesRequest request;
   request.add_keys("key1");
@@ -139,21 +147,25 @@ TEST(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
   EXPECT_CALL(sharded_cache, GetCacheShard(KeyNamespace::RENDER_URLS))
       .Times(1)
       .WillOnce(ReturnRef(render_urls_cache));
-  EXPECT_CALL(render_urls_cache, GetKeyValuePairs(UnorderedElementsAre(
-                                     CacheKeyEq(Cache::Key{.key = "key1"}))))
+  EXPECT_CALL(render_urls_cache,
+              GetKeyValuePairs(UnorderedElementsAre(
+                  FullKeyEq(Cache::FullyQualifiedKey{.key = "key1"}))))
       .Times(1)
-      .WillOnce(Return(std::vector<std::pair<Cache::Key, std::string>>{
-          {{.key = "key1"}, "value1"}}));
+      .WillOnce(
+          Return(std::vector<std::pair<Cache::FullyQualifiedKey, std::string>>{
+              {{.key = "key1"}, "value1"}}));
   MockCache component_url_cache;
   EXPECT_CALL(sharded_cache,
               GetCacheShard(KeyNamespace::AD_COMPONENT_RENDER_URLS))
       .Times(1)
       .WillOnce(ReturnRef(component_url_cache));
-  EXPECT_CALL(component_url_cache, GetKeyValuePairs(UnorderedElementsAre(
-                                       CacheKeyEq(Cache::Key{.key = "key2"}))))
+  EXPECT_CALL(component_url_cache,
+              GetKeyValuePairs(UnorderedElementsAre(
+                  FullKeyEq(Cache::FullyQualifiedKey{.key = "key2"}))))
       .Times(1)
-      .WillOnce(Return(std::vector<std::pair<Cache::Key, std::string>>{
-          {{.key = "key2"}, "value2"}}));
+      .WillOnce(
+          Return(std::vector<std::pair<Cache::FullyQualifiedKey, std::string>>{
+              {{.key = "key2"}, "value2"}}));
 
   GetValuesRequest request;
   request.add_render_urls("key1");

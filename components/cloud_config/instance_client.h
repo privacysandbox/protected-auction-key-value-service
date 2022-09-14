@@ -11,8 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifndef COMPONENTS_CLOUD_CONFIG_ENVIRONMENT_CLIENT_H_
-#define COMPONENTS_CLOUD_CONFIG_ENVIRONMENT_CLIENT_H_
+#ifndef COMPONENTS_CLOUD_CONFIG_INSTANCE_CLIENT_H_
+#define COMPONENTS_CLOUD_CONFIG_INSTANCE_CLIENT_H_
+
+#include <memory>
 #include <string>
 
 #include "absl/status/statusor.h"
@@ -20,16 +22,21 @@
 // TODO: Replace config cpio client once ready
 namespace fledge::kv_server {
 
-// Client to retrieve instance environment.
-class EnvironmentClient {
+// Client to perform instance-specific operations.
+class InstanceClient {
  public:
-  static std::unique_ptr<EnvironmentClient> Create();
-  virtual ~EnvironmentClient() = default;
+  static std::unique_ptr<InstanceClient> Create();
+  virtual ~InstanceClient() = default;
 
   // Retrieves all tags for the current instance and returns the tag with the
   // key "environment".
   virtual absl::StatusOr<std::string> GetEnvironmentTag() const = 0;
+
+  // Calls to complete the instance lifecycle with CONTINUE action.
+  virtual absl::Status CompleteLifecycle(
+      std::string_view lifecycle_hook_name) const = 0;
 };
+
 }  // namespace fledge::kv_server
 
-#endif  // COMPONENTS_CLOUD_CONFIG_ENVIRONMENT_CLIENT_H_
+#endif  // COMPONENTS_CLOUD_CONFIG_INSTANCE_CLIENT_H_

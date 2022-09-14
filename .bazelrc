@@ -3,3 +3,7 @@ build --client_env=CC=clang
 build --cxxopt=-std=c++17
 build --copt=-Werror=return-type
 build --copt=-Werror=unused-result
+build -c opt
+build --color=yes
+
+test --test_output=errors

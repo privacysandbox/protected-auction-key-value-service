@@ -48,13 +48,15 @@ static int (*libc_setsockopt)(int sockfd, int level, int optname,
 static int (*libc_getsockopt)(int sockfd, int level, int optname,
                               void* __restrict optval,
                               socklen_t* __restrict optlen);
-static int (*libc_ioctl)(int fd, unsigned long request, ...);
+// clang-format off
+static int (*libc_ioctl)(int fd, unsigned long request, ...);  // NOLINT(*)
+// clang-format on
 // The ioctl() syscall signature contains variadic arguments for historical
 // reasons (i.e. allowing different types without forced casting). However, a
 // real syscall cannot have variadic arguments at all. The real internal
 // signature is really just an argument with char* or void* type.
 // ref: https://static.lwn.net/images/pdf/LDD3/ch06.pdf
-int ioctl(int fd, unsigned long request, void* argp);
+int ioctl(int fd, unsigned long request, void* argp);  // NOLINT(runtime/int)
 }
 
 static const char kParentCidEnv[] = "PROXY_PARENT_CID";

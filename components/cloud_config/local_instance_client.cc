@@ -19,24 +19,29 @@
 #include "absl/flags/flag.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "components/cloud_config/environment_client.h"
+#include "components/cloud_config/instance_client.h"
 
 ABSL_FLAG(std::string, environment, "local", "Environment name.");
 
 namespace fledge::kv_server {
 namespace {
 
-class LocalEnvironmentClient : public EnvironmentClient {
+class LocalInstanceClient : public InstanceClient {
  public:
   absl::StatusOr<std::string> GetEnvironmentTag() const override {
     return absl::GetFlag(FLAGS_environment);
+  }
+
+  absl::Status CompleteLifecycle(
+      std::string_view lifecycle_hook_name) const override {
+    return absl::OkStatus();
   }
 };
 
 }  // namespace
 
-std::unique_ptr<EnvironmentClient> EnvironmentClient::Create() {
-  return std::make_unique<LocalEnvironmentClient>();
+std::unique_ptr<InstanceClient> InstanceClient::Create() {
+  return std::make_unique<LocalInstanceClient>();
 }
 
 }  // namespace fledge::kv_server

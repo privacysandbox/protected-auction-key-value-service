@@ -1,3 +1,5 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+
 cc_library(
     name = "key_value_service_impl",
     srcs = [
@@ -20,7 +22,7 @@ cc_binary(
     visibility = ["//production/packaging:__subpackages__"],
     deps = [
         ":key_value_service_impl",
-        "//components/cloud_config:environment_client",
+        "//components/cloud_config:instance_client",
         "//components/cloud_config:parameter_client",
         "//components/data:blob_storage_client",
         "//components/data:delta_file_notifier",

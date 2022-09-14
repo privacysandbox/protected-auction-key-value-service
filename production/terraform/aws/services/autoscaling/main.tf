@@ -18,7 +18,6 @@ resource "aws_launch_template" "instance_launch_template" {
   name          = "${var.service}-${var.environment}-instance-lt"
   image_id      = var.instance_ami_id
   instance_type = var.instance_type
-  key_name      = var.instance_ssh_key_name
 
   iam_instance_profile {
     arn = var.instance_profile_arn
@@ -76,4 +75,13 @@ resource "aws_autoscaling_group" "instance_asg" {
   instance_refresh {
     strategy = "Rolling"
   }
+}
+
+resource "aws_autoscaling_lifecycle_hook" "launch_hook" {
+  name                   = "${var.service}-${var.environment}-launch-hook"
+  autoscaling_group_name = aws_autoscaling_group.instance_asg.name
+  default_result         = "ABANDON"
+  // TODO(b/235502114): Shorten timeout
+  heartbeat_timeout      = 3600
+  lifecycle_transition   = "autoscaling:EC2_INSTANCE_LAUNCHING"
 }

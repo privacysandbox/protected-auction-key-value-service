@@ -1,0 +1,90 @@
+#!/bin/bash
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -o pipefail
+set -o errexit
+
+function __exit_msg() {
+  local MSG="$1"
+  printf "%s. Exiting\n" "${MSG}" &>/dev/stderr
+  exit 1
+}
+
+function install_git_hooks() {
+  git rev-parse --is-inside-work-tree >/dev/null || __exit_msg "Not in a git repository"
+  TOP_LEVEL_DIR="$(git rev-parse --show-toplevel)"
+  GIT_HOOKS_SRC_DIR="${TOP_LEVEL_DIR}/tools/git-hooks"
+  GIT_HOOKS_DIR="$(git rev-parse --git-dir)/hooks"
+  chmod +x "${GIT_HOOKS_SRC_DIR}"
+  cp -p "${GIT_HOOKS_SRC_DIR}"/* "${GIT_HOOKS_DIR}"
+  printf "installed git hooks\n"
+}
+
+readonly IMAGE_TAGGED=privacysandbox/builders/build-debian:bazel_build_image
+WORKSPACE=${WORKSPACE-"$(bazel info workspace)"}
+
+# build container image and load it into the local docker client
+if ! docker image inspect ${IMAGE_TAGGED} >/dev/null 2>&1; then
+  tar --create --dereference --gzip --directory="${WORKSPACE}"/builders/build-debian . |
+  docker build - --tag ${IMAGE_TAGGED}
+fi
+
+# TODO: run bazel //:precommit-hooks rather than just the pre-commit tool
+if [[ $# -gt 0 ]]; then
+  case "$1" in
+    install)
+      install_git_hooks
+      ;;
+    autoupdate|hook-impl)
+      PRECOMMIT_CMD="$1"
+      shift
+      docker run --rm \
+        --entrypoint=/usr/pre-commit-venv/bin/pre-commit \
+        --volume "${WORKSPACE}:/src/workspace" \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        --workdir /src/workspace \
+        ${IMAGE_TAGGED} \
+        "${PRECOMMIT_CMD}" --config ./.pre-commit-config.yaml "$@"
+      ;;
+    *)
+      PRECOMMIT_CMD=run
+      for HOOK in "$@"; do
+        docker run --rm \
+          --entrypoint=/usr/pre-commit-venv/bin/pre-commit \
+          --volume "${WORKSPACE}:/src/workspace" \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          --workdir /src/workspace \
+          ${IMAGE_TAGGED} \
+          "${PRECOMMIT_CMD}" --config ./.pre-commit-config.yaml --all-files "${HOOK}"
+      done
+  esac
+else
+  PRECOMMIT_CMD=run
+  docker run --rm \
+    --entrypoint=/usr/pre-commit-venv/bin/pre-commit \
+    --volume "${WORKSPACE}:/src/workspace" \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    --workdir /src/workspace \
+    ${IMAGE_TAGGED} \
+    "${PRECOMMIT_CMD}" --config ./.pre-commit-config.yaml --all-files
+fi
+
+# clean up "empty" node_modules dir created by prettier 2.x
+docker run --rm \
+  --entrypoint=/bin/bash \
+  --volume "${WORKSPACE}:/src/workspace" \
+  --workdir /src/workspace \
+  ${IMAGE_TAGGED} \
+  -c "if [[ -d node_modules ]]; then rmdir node_modules/.cache/prettier/ node_modules/.cache/ node_modules/; fi"

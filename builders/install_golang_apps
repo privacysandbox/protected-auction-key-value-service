@@ -1,0 +1,70 @@
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+set -o xtrace
+
+BAZEL_PATH=
+INSTALL_BAZEL=0
+VERBOSE=0
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --with-bazel                  Install bazel. Default: false
+    --bazel-symlink-path <dir>    Set path for bazel symlink. Default: not set
+    --verbose                     Emit verbose info. Default: false
+USAGE
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --bazel-symlink-path)
+      BAZEL_PATH=$2
+      shift
+      shift
+      ;;
+    --with-bazel)
+      INSTALL_BAZEL=1
+      shift
+      ;;
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -h | --help)
+      usage 0
+      break
+      ;;
+    *)
+      usage
+      break
+      ;;
+  esac
+done
+
+if [[ ${VERBOSE} -eq 1 ]]; then
+  printf "=== SHELL ENVIRONMENT ===\n"
+  env
+  printf "=== GO ENVIRONMENT ===\n"
+  go env
+fi
+
+function install_bazelisk() {
+  go install github.com/bazelbuild/bazelisk@v1.12.2
+  BAZELISK="$(go env GOPATH)"/bin/bazelisk
+  if [[ -n ${BAZEL_PATH} ]] && [[ -d ${BAZEL_PATH} ]]; then
+    ln -s ${BAZELISK} ${BAZEL_PATH}/bazel
+  fi
+  # install the specified version of bazel
+  USE_BAZEL_VERSION="$(cat /scripts/.bazelversion)"
+  export USE_BAZEL_VERSION
+  "${BAZELISK}" version
+}
+
+if [[ ${INSTALL_BAZEL} -eq 1 ]]; then
+  install_bazelisk
+fi

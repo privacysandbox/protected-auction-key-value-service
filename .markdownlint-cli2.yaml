@@ -4,6 +4,11 @@ config:
     #stern: true
     code_blocks: false
 
+  # these are apparently in conflict with prettier's markdown formatting
+  list-marker-space: false
+  list-indent: false
+  ul-indent: false
+
   headings: false
 
   proper-names:
@@ -18,3 +23,7 @@ config:
     - Node.js
 
 fix: true
+
+ignores:
+- CHANGELOG.md
+- google_internal/LATEST_RELEASE.md

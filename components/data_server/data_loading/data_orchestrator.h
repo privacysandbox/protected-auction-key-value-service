@@ -15,6 +15,8 @@
 #ifndef COMPONENTS_DATA_SERVER_DATA_LOADING_DATA_ORCHESTRATOR_H_
 #define COMPONENTS_DATA_SERVER_DATA_LOADING_DATA_ORCHESTRATOR_H_
 
+#include <memory>
+#include <string>
 #include <thread>
 
 #include "absl/status/status.h"

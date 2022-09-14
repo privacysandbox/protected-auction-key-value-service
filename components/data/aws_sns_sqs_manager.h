@@ -18,6 +18,7 @@
 #define COMPONENTS_DATA_AWS_SNS_SQS_MANAGER_H_
 
 #include <string>
+#include <utility>
 
 #include "absl/status/status.h"
 #include "aws/sns/SNSClient.h"

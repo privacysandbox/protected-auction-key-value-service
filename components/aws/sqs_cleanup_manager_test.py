@@ -20,90 +20,90 @@ import unittest
 
 @dataclasses.dataclass
 class FakeQueue:
-  url: str
+    url: str
 
 
 class FakeClient(object):
+    def __init__(self):
+        self.tags = {}
+        self.attributes = {}
 
-  def __init__(self):
-    self.tags = {}
-    self.attributes = {}
+    def list_queue_tags(self, QueueUrl):
+        return self.tags
 
-  def list_queue_tags(self, QueueUrl):
-    return self.tags
-
-  def get_queue_attributes(self, QueueUrl, AttributeNames):
-    return self.attributes
+    def get_queue_attributes(self, QueueUrl, AttributeNames):
+        return self.attributes
 
 
 @dataclasses.dataclass
 class Meta:
-  client: FakeClient
+    client: FakeClient
 
 
 class FakeSqsResource(object):
+    def __init__(self, client):
+        self._meta = Meta(client)
 
-  def __init__(self, client):
-    self._meta = Meta(client)
-
-  @property
-  def meta(self):
-    return self._meta
+    @property
+    def meta(self):
+        return self._meta
 
 
 class SqsCleanupManagerTest(unittest.TestCase):
 
-  TIMEOUT_SECS = 600
+    TIMEOUT_SECS = 600
 
-  def setUp(self):
-    self._client = FakeClient()
-    self._fake_sqs_resource = FakeSqsResource(self._client)
-    self._manager = sqs_cleanup_manager.SqsCleanupManager(
-        None, self._fake_sqs_resource)
+    def setUp(self):
+        self._client = FakeClient()
+        self._fake_sqs_resource = FakeSqsResource(self._client)
+        self._manager = sqs_cleanup_manager.SqsCleanupManager(
+            None, self._fake_sqs_resource
+        )
 
-  def test_expired_no_tag(self):
-    queue = FakeQueue('http://foobar.com')
-    now = time.time()
-    self._client.attributes = {
-        'Attributes': {
-            'CreatedTimestamp': str(int(now - 1000))
+    def test_expired_no_tag(self):
+        queue = FakeQueue("http://foobar.com")
+        now = time.time()
+        self._client.attributes = {
+            "Attributes": {"CreatedTimestamp": str(int(now - 1000))}
         }
-    }
-    self.assertTrue(
-        self._manager._is_expired(queue, SqsCleanupManagerTest.TIMEOUT_SECS))
+        self.assertTrue(
+            self._manager._is_expired(queue, SqsCleanupManagerTest.TIMEOUT_SECS)
+        )
 
-  def test_is_not_expired_no_tag(self):
-    queue = FakeQueue('http://foobar.com')
-    now = time.time()
-    self._client.attributes = {
-        'Attributes': {
-            'CreatedTimestamp': str(int(now - 100))
+    def test_is_not_expired_no_tag(self):
+        queue = FakeQueue("http://foobar.com")
+        now = time.time()
+        self._client.attributes = {
+            "Attributes": {"CreatedTimestamp": str(int(now - 100))}
         }
-    }
-    self.assertFalse(
-        self._manager._is_expired(queue, SqsCleanupManagerTest.TIMEOUT_SECS))
+        self.assertFalse(
+            self._manager._is_expired(queue, SqsCleanupManagerTest.TIMEOUT_SECS)
+        )
 
-  def test_is_not_expired(self):
-    queue = FakeQueue('http://foobar.com')
-    now = time.time()
-    self._client.tags = {'Tags': {'last_updated': str(int(now - 100))}}
-    self.assertFalse(
-        self._manager._is_expired(queue, SqsCleanupManagerTest.TIMEOUT_SECS))
+    def test_is_not_expired(self):
+        queue = FakeQueue("http://foobar.com")
+        now = time.time()
+        self._client.tags = {"Tags": {"last_updated": str(int(now - 100))}}
+        self.assertFalse(
+            self._manager._is_expired(queue, SqsCleanupManagerTest.TIMEOUT_SECS)
+        )
 
-  def test_is_expired(self):
-    queue = FakeQueue('http://foobar.com')
-    now = time.time()
-    self._client.tags = {'Tags': {'last_updated': str(int(now - 1000))}}
-    self.assertTrue(
-        self._manager._is_expired(queue, SqsCleanupManagerTest.TIMEOUT_SECS))
+    def test_is_expired(self):
+        queue = FakeQueue("http://foobar.com")
+        now = time.time()
+        self._client.tags = {"Tags": {"last_updated": str(int(now - 1000))}}
+        self.assertTrue(
+            self._manager._is_expired(queue, SqsCleanupManagerTest.TIMEOUT_SECS)
+        )
 
-  def test_is_expired_invalid(self):
-    queue = FakeQueue('http://foobar.com')
-    now = time.time()
-    self._client.tags = {'Tags': {'last_updated': 'abc'}}
-    self.assertTrue(
-        self._manager._is_expired(queue, SqsCleanupManagerTest.TIMEOUT_SECS))
+    def test_is_expired_invalid(self):
+        queue = FakeQueue("http://foobar.com")
+        now = time.time()
+        self._client.tags = {"Tags": {"last_updated": "abc"}}
+        self.assertTrue(
+            self._manager._is_expired(queue, SqsCleanupManagerTest.TIMEOUT_SECS)
+        )
 
 
-if __name__ == '__main__':
-  unittest.main()
+if __name__ == "__main__":
+    unittest.main()

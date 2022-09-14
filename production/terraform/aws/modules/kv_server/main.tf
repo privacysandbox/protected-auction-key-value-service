@@ -24,11 +24,17 @@ module "iam_roles" {
   service     = local.service
 }
 
+module "iam_groups" {
+  source      = "../../services/iam_groups"
+  environment = var.environment
+  service     = local.service
+}
+
 module "data_storage" {
-  source                    = "../../services/data_storage"
-  environment               = var.environment
-  service                   = local.service
-  s3_delta_file_bucket_name = var.s3_delta_file_bucket_name
+  source                         = "../../services/data_storage"
+  environment                    = var.environment
+  service                        = local.service
+  s3_delta_file_bucket_name      = var.s3_delta_file_bucket_name
   bucket_notification_dependency = [module.sqs_cleanup.allow_sqs_cleanup_execution_as_dependency]
 }
 
@@ -69,6 +75,7 @@ module "backend_services" {
   vpc_id                          = module.networking.vpc_id
   vpc_interface_endpoint_services = var.vpc_interface_endpoint_services
   server_instance_role_arn        = module.iam_roles.instance_role_arn
+  ssh_instance_role_arn           = module.iam_roles.ssh_instance_role_arn
 }
 
 module "load_balancing" {
@@ -100,7 +107,6 @@ module "autoscaling" {
   autoscaling_max_size         = var.autoscaling_max_size
   autoscaling_min_size         = var.autoscaling_min_size
   instance_profile_arn         = module.iam_roles.instance_profile_arn
-  instance_ssh_key_name        = var.instance_ssh_key_name
   enclave_cpu_count            = var.enclave_cpu_count
   enclave_memory_mib           = var.enclave_memory_mib
   server_port                  = var.server_port
@@ -110,9 +116,9 @@ module "ssh" {
   source                  = "../../services/ssh"
   environment             = var.environment
   instance_sg_id          = module.security_groups.ssh_security_group_id
-  instance_ssh_key_name   = var.instance_ssh_key_name
   service                 = local.service
   ssh_instance_subnet_ids = module.networking.public_subnet_ids
+  instance_profile_name   = module.iam_roles.ssh_instance_profile_name
 }
 
 module "parameter" {
@@ -122,10 +128,12 @@ module "parameter" {
   mode_parameter_value                  = var.mode
   s3_bucket_parameter_value             = module.data_storage.s3_data_bucket_id
   bucket_update_sns_arn_parameter_value = module.data_storage.sns_data_updates_topic_arn
+  launch_hook_parameter_value           = module.autoscaling.launch_hook_name
 }
 
 module "security_group_rules" {
   source                            = "../../services/security_group_rules"
+  region                            = var.region
   service                           = local.service
   environment                       = var.environment
   server_instance_port              = var.server_port
@@ -135,6 +143,7 @@ module "security_group_rules" {
   ssh_security_group_id             = module.security_groups.ssh_security_group_id
   vpce_security_group_id            = module.security_groups.vpc_endpoint_security_group_id
   gateway_endpoints_prefix_list_ids = module.backend_services.gateway_endpoints_prefix_list_ids
+  ssh_source_cidr_blocks            = var.ssh_source_cidr_blocks
 }
 
 module "iam_role_policies" {
@@ -145,9 +154,20 @@ module "iam_role_policies" {
   sqs_cleanup_lambda_role_name = module.iam_roles.lambda_role_name
   s3_delta_file_bucket_arn     = module.data_storage.s3_data_bucket_arn
   sns_data_updates_topic_arn   = module.data_storage.sns_data_updates_topic_arn
+  ssh_instance_role_name       = module.iam_roles.ssh_instance_role_name
+  autoscaling_group_arn        = module.autoscaling.autoscaling_group_arn
   server_parameter_arns = [
     module.parameter.mode_parameter_arn,
     module.parameter.s3_bucket_parameter_arn,
-    module.parameter.bucket_update_sns_arn_parameter_arn
+    module.parameter.bucket_update_sns_arn_parameter_arn,
+    module.parameter.launch_hook_parameter_arn
   ]
+}
+
+module "iam_group_policies" {
+  source               = "../../services/iam_group_policies"
+  service              = local.service
+  environment          = var.environment
+  ssh_users_group_name = module.iam_groups.ssh_users_group_name
+  ssh_instance_arn     = module.ssh.ssh_instance_arn
 }

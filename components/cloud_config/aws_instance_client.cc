@@ -19,6 +19,9 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "aws/autoscaling/AutoScalingClient.h"
+#include "aws/autoscaling/model/CompleteLifecycleActionRequest.h"
+#include "aws/autoscaling/model/DescribeAutoScalingInstancesRequest.h"
 #include "aws/core/Aws.h"
 #include "aws/core/http/HttpClientFactory.h"
 #include "aws/core/http/HttpRequest.h"
@@ -29,7 +32,7 @@
 #include "aws/ec2/model/DescribeTagsRequest.h"
 #include "aws/ec2/model/DescribeTagsResponse.h"
 #include "aws/ec2/model/Filter.h"
-#include "components/cloud_config/environment_client.h"
+#include "components/cloud_config/instance_client.h"
 #include "components/errors/aws_error_util.h"
 #include "glog/logging.h"
 
@@ -45,6 +48,8 @@ constexpr char kImdsTokenTtlHeader[] = "x-aws-ec2-metadata-token-ttl-seconds";
 constexpr char kImdsTokenResourcePath[] = "/latest/api/token";
 constexpr char kImdsEndpoint[] = "http://169.254.169.254";
 constexpr char kInstanceIdResourcePath[] = "/latest/meta-data/instance-id";
+
+constexpr char kContinueAction[] = "CONTINUE";
 
 absl::StatusOr<std::string> GetAwsHttpResource(
     const Aws::Internal::AWSHttpResourceClient& http_client,
@@ -88,14 +93,38 @@ absl::StatusOr<std::string> GetInstanceId(
   return GetAwsHttpResource(http_client, id_request);
 }
 
-class AwsEnvironmentClient : public EnvironmentClient {
+absl::StatusOr<std::string> GetAutoScalingGroupName(
+    const Aws::AutoScaling::AutoScalingClient& client,
+    std::string_view instance_id) {
+  Aws::AutoScaling::Model::DescribeAutoScalingInstancesRequest request;
+  request.AddInstanceIds(std::string(instance_id));
+
+  const auto outcome = client.DescribeAutoScalingInstances(request);
+  if (!outcome.IsSuccess()) {
+    return AwsErrorToStatus(outcome.GetError());
+  }
+  if (outcome.GetResult().GetAutoScalingInstances().size() != 1) {
+    const std::string error_msg = absl::StrCat(
+        "Could not get auto scaling instances for instance ", instance_id,
+        ". Retrieved ", outcome.GetResult().GetAutoScalingInstances().size(),
+        " auto scaling groups.");
+    return absl::NotFoundError(error_msg);
+  }
+  return outcome.GetResult()
+      .GetAutoScalingInstances()[0]
+      .GetAutoScalingGroupName();
+}
+
+class AwsInstanceClient : public InstanceClient {
  public:
   absl::StatusOr<std::string> GetEnvironmentTag() const override {
     absl::StatusOr<std::string> instance_id =
         GetInstanceId(*ec2_metadata_client_);
     if (!instance_id.ok()) {
+      LOG(ERROR) << "Failed to get instance_id: " << instance_id.status();
       return instance_id;
     }
+    LOG(INFO) << "Retrieved instance id: " << *instance_id;
 
     Aws::EC2::Model::Filter resource_id_filter;
     resource_id_filter.SetName(kResourceIdFilter);
@@ -115,26 +144,61 @@ class AwsEnvironmentClient : public EnvironmentClient {
       const std::string error_msg =
           absl::StrCat("Could not get tag ", kEnvironmentTag, " for instance ",
                        *instance_id);
-      LOG(ERROR) << error_msg;
+      LOG(ERROR) << error_msg << "; Retrieved "
+                 << outcome.GetResult().GetTags().size() << " tags";
       return absl::NotFoundError(error_msg);
     }
     return outcome.GetResult().GetTags()[0].GetValue();
   }
 
-  AwsEnvironmentClient()
+  absl::Status CompleteLifecycle(
+      std::string_view lifecycle_hook_name) const override {
+    absl::StatusOr<std::string> instance_id =
+        GetInstanceId(*ec2_metadata_client_);
+    if (!instance_id.ok()) {
+      LOG(ERROR) << "Failed to get instance_id: " << instance_id.status();
+      return instance_id.status();
+    }
+    LOG(INFO) << "Retrieved instance id: " << *instance_id;
+
+    absl::StatusOr<std::string> auto_scaling_group_name =
+        GetAutoScalingGroupName(*auto_scaling_client_, *instance_id);
+    if (!auto_scaling_group_name.ok()) {
+      return auto_scaling_group_name.status();
+    }
+    LOG(INFO) << "Retrieved auto scaling group name "
+              << *auto_scaling_group_name;
+
+    Aws::AutoScaling::Model::CompleteLifecycleActionRequest request;
+    request.SetAutoScalingGroupName(*auto_scaling_group_name);
+    request.SetLifecycleHookName(std::string(lifecycle_hook_name));
+    request.SetInstanceId(*instance_id);
+    request.SetLifecycleActionResult(kContinueAction);
+
+    const auto outcome = auto_scaling_client_->CompleteLifecycleAction(request);
+    if (!outcome.IsSuccess()) {
+      return AwsErrorToStatus(outcome.GetError());
+    }
+    return absl::OkStatus();
+  }
+
+  AwsInstanceClient()
       : ec2_client_(std::make_unique<Aws::EC2::EC2Client>()),
         ec2_metadata_client_(
-            std::make_unique<Aws::Internal::EC2MetadataClient>()) {}
+            std::make_unique<Aws::Internal::EC2MetadataClient>()),
+        auto_scaling_client_(
+            std::make_unique<Aws::AutoScaling::AutoScalingClient>()) {}
 
  private:
   std::unique_ptr<Aws::EC2::EC2Client> ec2_client_;
   std::unique_ptr<Aws::Internal::EC2MetadataClient> ec2_metadata_client_;
+  std::unique_ptr<Aws::AutoScaling::AutoScalingClient> auto_scaling_client_;
 };
 
 }  // namespace
 
-std::unique_ptr<EnvironmentClient> EnvironmentClient::Create() {
-  return std::make_unique<AwsEnvironmentClient>();
+std::unique_ptr<InstanceClient> InstanceClient::Create() {
+  return std::make_unique<AwsInstanceClient>();
 }
 
 }  // namespace fledge::kv_server

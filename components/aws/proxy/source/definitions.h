@@ -28,7 +28,7 @@ enum class ConnectionState {
   Connecting,
   Connected,
   Disconnected
- };
+};
 // clang-format on
 
 // Linux socket handle - defined as a specific type for readability on API

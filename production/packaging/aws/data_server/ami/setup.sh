@@ -37,6 +37,13 @@ sudo usermod -a -G ne ec2-user
 # Install Socat which needs gcc
 sudo yum install -y gcc
 wget http://www.dest-unreach.org/socat/download/socat-1.7.4.3.tar.gz -O /tmp/socat.tar.gz
+readonly EXPECTED_CHECKSUM=d697245144731423ddbbceacabbd29447089ea223e9a439b28f9ff90d0dd216e
+echo 'Checking checksum of the socat download'
+if ! echo "${EXPECTED_CHECKSUM} /tmp/socat.tar.gz" |sha256sum --check --status
+then
+  echo 'Downloaded socat with incorrect checksum'
+  exit 1
+fi
 tar xzf /tmp/socat.tar.gz -C /tmp
 cd /tmp/socat-1.7.4.3
 ./configure

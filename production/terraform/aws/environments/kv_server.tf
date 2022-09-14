@@ -28,9 +28,8 @@ module "kv_server" {
   certificate_arn     = var.certificate_arn
 
   # Variables related to EC2 instances.
-  instance_type         = var.instance_type
-  instance_ssh_key_name = var.instance_ssh_key_name
-  instance_ami_id       = var.instance_ami_id
+  instance_type   = var.instance_type
+  instance_ami_id = var.instance_ami_id
 
   # Variables related to server configuration.
   mode               = var.mode
@@ -57,6 +56,9 @@ module "kv_server" {
   healthcheck_healthy_threshold   = var.healthcheck_healthy_threshold
   healthcheck_interval_sec        = var.healthcheck_interval_sec
   healthcheck_unhealthy_threshold = var.healthcheck_unhealthy_threshold
+
+  # Variables related to SSH
+  ssh_source_cidr_blocks = var.ssh_source_cidr_blocks
 }
 
 output "kv_server_url" {

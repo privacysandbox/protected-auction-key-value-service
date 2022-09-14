@@ -22,7 +22,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "aws/core/Aws.h"
-#include "components/cloud_config/environment_client.h"
+#include "components/cloud_config/instance_client.h"
 #include "components/cloud_config/parameter_client.h"
 #include "components/data/blob_storage_client.h"
 #include "components/data/delta_file_notifier.h"
@@ -60,6 +60,7 @@ constexpr absl::string_view kParameterPrefix = "kv-server";
 constexpr absl::string_view kModeParameterSuffix = "mode";
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
 constexpr absl::string_view kBucketSNSParameterSuffix = "bucket-sns-arn";
+constexpr absl::string_view kLaunchHookParameterSuffix = "launch-hook";
 
 constexpr absl::Duration kRetryBackoff = absl::Seconds(1);
 
@@ -92,21 +93,20 @@ absl::Status RunServer() {
   std::unique_ptr<ShardedCache> cache = ShardedCache::Create();
   AddInternalKeyValues(*cache);
 
+  // TODO(b/235502114): Add reset timeout call in separate thread.
+
   // Retrieve 'environment' tag. Required for parameters.
-  std::unique_ptr<EnvironmentClient> environment_client =
-      EnvironmentClient::Create();
-  absl::StatusOr<std::string> environment =
-      environment_client->GetEnvironmentTag();
-  if (!environment.ok()) {
-    return environment.status();
-  }
-  LOG(INFO) << "Retrieved environment: " << *environment;
+  std::unique_ptr<InstanceClient> instance_client = InstanceClient::Create();
+  std::string environment = RetryUntilOk(
+      [&instance_client]() { return instance_client->GetEnvironmentTag(); },
+      "GetEnvironment");
+  LOG(INFO) << "Retrieved environment: " << environment;
 
   // Retrieve 'mode' parameter.
   std::unique_ptr<ParameterClient> parameter_client = ParameterClient::Create();
   std::string mode = RetryUntilOk(
-      [&parameter_client, environment]() {
-        return GetParameter(*parameter_client, *environment,
+      [&parameter_client, &environment]() {
+        return GetParameter(*parameter_client, environment,
                             kModeParameterSuffix);
       },
       "GetModeParameter");
@@ -129,10 +129,10 @@ absl::Status RunServer() {
   std::unique_ptr<Server> server(builder.BuildAndStart());
   LOG(INFO) << "Server listening on " << server_address << std::endl;
 
-  // Set up data orchestrator resources
+  // Fetch all parameters and set up data orchestrator resources
   std::string bucket_sns_arn = RetryUntilOk(
-      [&parameter_client, environment]() {
-        return GetParameter(*parameter_client, *environment,
+      [&parameter_client, &environment]() {
+        return GetParameter(*parameter_client, environment,
                             kBucketSNSParameterSuffix);
       },
       "GetBucketSNSARNParmeter");
@@ -149,13 +149,22 @@ absl::Status RunServer() {
           StreamRecordReaderFactory<std::string_view>::Create();
 
   std::string data_bucket = RetryUntilOk(
-      [&parameter_client, environment]() {
-        return GetParameter(*parameter_client, *environment,
+      [&parameter_client, &environment]() {
+        return GetParameter(*parameter_client, environment,
                             kDataBucketParameterSuffix);
       },
       "GetDeltaFileBucketParameter");
   LOG(INFO) << "Retrieved " << kDataBucketParameterSuffix
             << " parameter: " << data_bucket;
+
+  std::string launch_hook_name = RetryUntilOk(
+      [&parameter_client, &environment]() {
+        return GetParameter(*parameter_client, environment,
+                            kLaunchHookParameterSuffix);
+      },
+      "GetLifecycleHookParameterName");
+  LOG(INFO) << "Retrieved " << kLaunchHookParameterSuffix
+            << " parameter: " << launch_hook_name;
 
   // Blocks until cache is initialized
   absl::StatusOr<std::unique_ptr<DataOrchestrator>> maybe_data_orchestrator;
@@ -184,6 +193,15 @@ absl::Status RunServer() {
       absl::SleepFor(kRetryBackoff);
     }
   }
+  // TODO(b/235502114): Add retry for Status
+  absl::Status complete_lifecycle =
+      instance_client->CompleteLifecycle(launch_hook_name);
+  if (!complete_lifecycle.ok()) {
+    LOG(ERROR) << "Could not complete lifecycle hook " << launch_hook_name
+               << ": " << complete_lifecycle;
+    return complete_lifecycle;
+  }
+  LOG(INFO) << "Completed lifecycle hook " << launch_hook_name;
 
   // Wait for the server to shutdown. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.

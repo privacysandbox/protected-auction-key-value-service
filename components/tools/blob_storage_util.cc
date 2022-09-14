@@ -24,18 +24,20 @@
 #include "components/data/blob_storage_client.h"
 
 ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
-using namespace fledge::kv_server;
+
+using fledge::kv_server::BlobReader;
+using fledge::kv_server::BlobStorageClient;
 
 constexpr std::string_view kCloudPrefix = "cloud://";
 
 class FileBlobReader : public BlobReader {
  public:
-  FileBlobReader(const std::string& filename)
+  explicit FileBlobReader(const std::string& filename)
       : stream_(filename, std::ifstream::in) {}
   ~FileBlobReader() { stream_.close(); }
   std::istream& Stream() override { return stream_; }
-  bool CanSeek() const override { return true; };
-  bool IsOpen() const { return stream_.is_open(); };
+  bool CanSeek() const override { return true; }
+  bool IsOpen() const { return stream_.is_open(); }
 
  private:
   std::ifstream stream_;

@@ -15,30 +15,17 @@
 
 # helper script to build and execute the gh CLI tool.
 # Read the gh manual at https://cli.github.com/manual.
+#
+# environment variables (all optional):
+#   WORKSPACE                    repo root directory, must be an absolute path
+#   BUILD_WORKSPACE_DIRECTORY    repo root directory, secondary to WORKSPACE
 
 set -o errexit
 
-readonly WORKSPACE=$(bazel info workspace)
-readonly IMAGE_TAGGED=builders/release:release_image
+readonly IMAGE_TAGGED="hashicorp/terraform:1.0.4"
+readonly WORKSPACE=${WORKSPACE-${BUILD_WORKSPACE_DIRECTORY-$(bazel info workspace)}}
 
-# as needed, build release container image and load it into the local docker client
-if ! docker image inspect bazel/${IMAGE_TAGGED} >/dev/null 2>&1; then
-  bazel run //${IMAGE_TAGGED}
-fi
-
-readonly GH_TOKEN_FILE="$HOME/.gh_token"
-if [[ -z "${GH_TOKEN}" ]]; then
-  GH_TOKEN=$(cat "${GH_TOKEN_FILE}")
-fi
-
-if [[ -z ${GH_TOKEN} ]]; then
-  printf "github token must be specified in the GH_TOKEN environment variable or in [%s]\n" "${GH_TOKEN_FILE}"
-  exit 1
-fi
-
-docker run -it --rm \
-  --entrypoint=gh \
-  -v "${WORKSPACE}:/src/workspace" \
-  --env GH_TOKEN="${GH_TOKEN}" \
-  -w /src/workspace \
-  bazel/${IMAGE_TAGGED} "$@"
+docker run --rm \
+  --volume "${WORKSPACE}:/src/workspace" \
+  --workdir /src/workspace \
+  ${IMAGE_TAGGED} "$@"

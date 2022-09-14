@@ -21,6 +21,7 @@ usage() {
 usage:
   $0 <options>
     --server-port <port>  [required] the port on which the server should bind
+    --with-proxify        if running inside AWS Nitro enclave, set this
 USAGE
   exit ${exitval}
 }
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
       fi
       SERVER_PORT=$2
       shift 2
+      ;;
+    --with-proxify)
+      PROXY=/server/bin/proxify
+      shift
       ;;
     -h | --help)
       usage 0
@@ -51,7 +56,7 @@ if [[ -z "$SERVER_PORT" ]]; then
 fi
 
 # Start the server first.
-/server/bin/proxify /server/bin/server --port=${SERVER_PORT} &
+$PROXY /server/bin/server --port=${SERVER_PORT} &
 
 # Start Envoy proxy
 /usr/local/bin/envoy --config-path /etc/envoy/envoy.yaml -l warn

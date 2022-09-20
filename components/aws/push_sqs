@@ -25,6 +25,11 @@ if [[ -z "${AWS_ECR}" ]]; then
 fi
 
 aws ecr get-login-password --region us-east-1 |
-docker login --username AWS --password-stdin ${AWS_ECR}
+  docker login --username AWS --password-stdin ${AWS_ECR}
 
-AWS_ECR=${AWS_ECR} bazel run //components/aws:sqs_lambda_push_aws_ecr
+WORKSPACE=$(git rev-parse --show-toplevel)
+DIST_DIR="${WORKSPACE}"/dist
+unzip -cq "${DIST_DIR}"/aws_artifacts.zip sqs_lambda.tar | docker load -i /dev/stdin
+AWS_IMAGE_URI="${AWS_ECR}"/sqs_lambda:latest
+docker tag bazel/components/aws:sqs_lambda "${AWS_IMAGE_URI}"
+docker push "${AWS_IMAGE_URI}"

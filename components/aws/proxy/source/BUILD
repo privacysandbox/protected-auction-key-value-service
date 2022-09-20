@@ -39,6 +39,7 @@ cc_binary(
         "-std=c++17",
     ],
     linkopts = ["-pthread"],
+    visibility = ["//production/packaging:__subpackages__"],
     deps = [
         ":proxy_lib",
     ],

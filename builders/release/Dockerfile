@@ -15,12 +15,14 @@
 # build command:
 # `tar --create --dereference --gzip --directory=builders/release . | docker build - --tag privacysandbox/builders/release:release_image`
 
-FROM gcr.io/cloud-builders/npm:node-14.10.1
-
+FROM node:18.9.0-alpine3.16
 
 COPY install_release_apps /scripts/
 COPY gitconfig /etc
 
 RUN  \
+  chmod 644 /etc/gitconfig && \
   /scripts/install_release_apps && \
   rm -rf /scripts
+
+ENTRYPOINT "/bin/sh"

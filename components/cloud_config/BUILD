@@ -29,20 +29,20 @@ cc_library(
 cc_library(
     name = "instance_client",
     srcs = select({
-        "//:aws_parameters": ["aws_instance_client.cc"],
-        "//:local_parameters": ["local_instance_client.cc"],
+        "//:aws_instance": ["aws_instance_client.cc"],
+        "//:local_instance": ["local_instance_client.cc"],
     }),
     hdrs = [
         "instance_client.h",
     ],
     deps = select({
-        "//:aws_parameters": [
+        "//:aws_instance": [
             "@aws_sdk_cpp//:autoscaling",
             "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:ec2",
             "//components/errors:aws_error_util",
         ],
-        "//:local_parameters": [
+        "//:local_instance": [
             "@com_google_absl//absl/flags:flag",
         ],
         "//conditions:default": [],

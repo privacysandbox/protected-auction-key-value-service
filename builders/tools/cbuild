@@ -21,6 +21,14 @@ declare -r -A IMAGE_LIST=(
   [build-amazonlinux2]="privacysandbox/builders/build-amazonlinux2:bazel_build_image"
 )
 
+declare -a ENV_VARS
+ENV_VARS+=(
+  "AWS_ACCESS_KEY_ID"
+  "AWS_SECRET_ACCESS_KEY"
+  "BAZEL_EXTRA_ARGS"
+  "BAZEL_STARTUP_ARGS"
+)
+
 usage() {
   local exitval=${1-1}
   cat &>/dev/stderr << USAGE
@@ -28,8 +36,6 @@ usage:
   $0 <options>
     --cmd                      Command(s) to execute within the docker container, via \`bash -c\`
     --image                    Image name for the build runtime. Valid names:
-    --without-shared-cache     Use a container-local cache
-    --without-embedded-docker  Enable docker client within container
 USAGE
 
   for elem in "${!IMAGE_LIST[@]}"
@@ -37,10 +43,13 @@ USAGE
     if [[ ${IMAGE} == "${elem}" ]]; then
       local EXTRA=" (default)"
     fi
-    printf "                    *  %s%s\n" "${elem}" "${EXTRA}" &>/dev/stderr
+    printf "                                   *  %s%s\n" "${elem}" "${EXTRA}" &>/dev/stderr
   done
 
   cat &>/dev/stderr << USAGE
+    --env <key>[=<value>]      Name of exported environment variable, or name=value
+    --without-shared-cache     Containers will not mount ${HOME}/.cache/bazel
+    --without-embedded-docker  Enable docker client within container
 
 environment variables (all optional):
     WORKSPACE                    Set the path to the workspace (repo root)
@@ -60,6 +69,11 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --cmd)
       CMD="$2"
+      shift
+      shift
+      ;;
+    --env)
+      ENV_VARS+=("$2")
       shift
       shift
       ;;
@@ -113,15 +127,10 @@ DOCKER_RUN_ARGS+=(
   "--rm"
   "--entrypoint=/bin/bash"
   "--volume ${WORKSPACE}:/src/workspace"
+  "--volume /dev/shm:/dev/shm"
   "--workdir /src/workspace"
 )
 
-if [[ -n ${AWS_ACCESS_KEY_ID} ]]; then
-  DOCKER_RUN_ARGS+=(
-    "--env AWS_ACCESS_KEY_ID"
-    "--env AWS_SECRET_ACCESS_KEY"
-  )
-fi
 if [[ ${WITH_SHARED_CACHE} -eq 1 ]]; then
   DOCKER_RUN_ARGS+=(
     "--volume ${HOME}/.cache/bazel:/root/.cache/bazel"
@@ -132,16 +141,12 @@ if [[ ${WITH_DOCKER_SOCK} -eq 1 ]]; then
     "--volume /var/run/docker.sock:/var/run/docker.sock"
   )
 fi
-if [[ -n ${BAZEL_EXTRA_ARGS} ]]; then
+for evar in "${ENV_VARS[@]}"
+do
   DOCKER_RUN_ARGS+=(
-    "--env BAZEL_EXTRA_ARGS"
+    "--env ${evar}"
   )
-fi
-if [[ -n ${BAZEL_STARTUP_ARGS} ]]; then
-  DOCKER_RUN_ARGS+=(
-    "--env BAZEL_STARTUP_ARGS"
-  )
-fi
+done
 if [[ -t 1 ]]; then
   # stdout is open, assume it's an interactive tty session
   DOCKER_RUN_ARGS+=(

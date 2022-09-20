@@ -113,10 +113,10 @@ load("@io_bazel_rules_docker//repositories:deps.bzl", docker_container_deps = "d
 
 docker_container_deps()
 
-load("//bazel:container_deps.bzl", "container_deps")
+load("//third_party:container_deps.bzl", "container_deps")
 
 container_deps()
 
-load("//bazel:cpp_repositories.bzl", "cpp_repositories")
+load("//third_party:cpp_repositories.bzl", "cpp_repositories")
 
 cpp_repositories()

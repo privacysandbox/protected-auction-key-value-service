@@ -16,6 +16,25 @@
 set -o pipefail
 set -o errexit
 
+trap _cleanup EXIT
+
+function _cleanup() {
+  docker run --rm \
+    --entrypoint=/bin/bash \
+    --volume "${WORKSPACE}:/src/workspace" \
+    --env SKIP \
+    --workdir /src/workspace \
+    ${IMAGE_TAGGED} \
+    -c $"
+# change file ownership back to user
+git ls-files . --modified | xargs --replace={} /bin/bash -c '{ chown $(id -u) {}; chgrp $(id -g) {};}'
+# clean up 'empty' node_modules dir created by prettier 2.x
+if [[ -d node_modules ]]; then
+  rmdir node_modules/.cache/prettier/ node_modules/.cache/ node_modules/
+fi
+"
+}
+
 function __exit_msg() {
   local MSG="$1"
   printf "%s. Exiting\n" "${MSG}" &>/dev/stderr
@@ -54,6 +73,7 @@ if [[ $# -gt 0 ]]; then
         --entrypoint=/usr/pre-commit-venv/bin/pre-commit \
         --volume "${WORKSPACE}:/src/workspace" \
         -v /var/run/docker.sock:/var/run/docker.sock \
+        --env SKIP \
         --workdir /src/workspace \
         ${IMAGE_TAGGED} \
         "${PRECOMMIT_CMD}" --config ./.pre-commit-config.yaml "$@"
@@ -65,6 +85,7 @@ if [[ $# -gt 0 ]]; then
           --entrypoint=/usr/pre-commit-venv/bin/pre-commit \
           --volume "${WORKSPACE}:/src/workspace" \
           -v /var/run/docker.sock:/var/run/docker.sock \
+          --env SKIP \
           --workdir /src/workspace \
           ${IMAGE_TAGGED} \
           "${PRECOMMIT_CMD}" --config ./.pre-commit-config.yaml --all-files "${HOOK}"
@@ -76,15 +97,8 @@ else
     --entrypoint=/usr/pre-commit-venv/bin/pre-commit \
     --volume "${WORKSPACE}:/src/workspace" \
     -v /var/run/docker.sock:/var/run/docker.sock \
+    --env SKIP \
     --workdir /src/workspace \
     ${IMAGE_TAGGED} \
     "${PRECOMMIT_CMD}" --config ./.pre-commit-config.yaml --all-files
 fi
-
-# clean up "empty" node_modules dir created by prettier 2.x
-docker run --rm \
-  --entrypoint=/bin/bash \
-  --volume "${WORKSPACE}:/src/workspace" \
-  --workdir /src/workspace \
-  ${IMAGE_TAGGED} \
-  -c "if [[ -d node_modules ]]; then rmdir node_modules/.cache/prettier/ node_modules/.cache/ node_modules/; fi"

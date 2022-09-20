@@ -91,22 +91,19 @@ if [[ ${PRESUBMIT} -eq 1 ]]; then
 fi
 
 printf "==== build AWS Nitro image =====\n"
-AWS_TARGETS="//production/packaging/aws/data_server:server_enclave_image //components/aws/proxy/source:proxy //components/aws:sqs_lambda.tar"
+AWS_TARGETS="//production/packaging/aws/data_server:aws_artifacts"
 if [[ -n ${AWS_TARGETS} ]]; then
   ${BAZEL_CMD} build ${BAZEL_EXTRA_ARGS} ${AWS_TARGETS}
 fi
 
 WORKSPACE=$(${BAZEL_CMD} info workspace)
 
-DIST=${WORKSPACE}/dist
-mkdir -p ${DIST}
-chmod 770 ${DIST}
+DIST="${WORKSPACE}"/dist
+mkdir -p "${DIST}"
+chmod 770 "${DIST}"
 
-cp -p bazel-bin/production/packaging/aws/data_server/*.{eif,json} ${DIST}
-cp -p bazel-bin/components/aws/proxy/source/proxy ${DIST}
-cp components/aws/push_sqs ${DIST}
-chmod 644 ${DIST}/server_enclave_image.{eif,json} ${DIST}/proxy
-chmod 755 ${DIST}/push_sqs
+cp -p bazel-bin/production/packaging/aws/data_server/aws_artifacts.zip components/aws/push_sqs "${DIST}"
+chmod 755 "${DIST}"/push_sqs
 
 printf "To push a newer version of SQS lambda, run ${DIST}/push_sqs\n"
 

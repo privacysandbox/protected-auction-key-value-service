@@ -10,6 +10,7 @@ load(
     "pkg_files",
 )
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
 load("//builders/amazonlinux2:nitro.bzl", "nitro_enclave_image")
 
 pkg_files(
@@ -102,4 +103,15 @@ nitro_enclave_image(
         "no-remote",
     ],
     target_eif_basename = "server_enclave_image",
+)
+
+# aws artifacts
+pkg_zip(
+    name = "aws_artifacts",
+    srcs = [
+        ":server_enclave_image.eif",
+        ":server_enclave_image.json",
+        "//components/aws:sqs_lambda.tar",
+        "//components/aws/proxy/source:proxy",
+    ],
 )

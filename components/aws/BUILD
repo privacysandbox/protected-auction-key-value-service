@@ -36,6 +36,7 @@ container_image(
     layers = [
         ":lambda_binary_layer",
     ],
+    visibility = ["//production/packaging:__subpackages__"],
 )
 
 container_push(

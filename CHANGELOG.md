@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+### [0.3.1](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.3.0...release-0.3.1) (2022-09-20)
+
+
+### Bug Fixes
+
+* Modify build and packaging for AWS SQS Lambda (f02e211)
+
 ## [0.3.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.2.0...release-0.3.0) (2022-09-14)
 
 

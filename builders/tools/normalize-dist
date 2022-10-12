@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# environment variables supported by cbuild (all optional):
+#     WORKSPACE                    Set the path to the workspace (repo root)
+#     EXTRA_DOCKER_RUN_ARGS        Additional arguments to pass to docker run invocations
+
+set -o pipefail
+set -o errexit
+
+CBUILD="$(dirname "$(readlink -f "$0")")/cbuild"
+IMAGE=build-debian
+GROUP="$(id -g)"
+USER="$(id -u)"
+
+TOP_LEVEL_DIRS="dist"
+
+printf "Setting file ownership [%s], group [%s] in dirs [%s]\n" "${USER}" "${GROUP}" "${TOP_LEVEL_DIRS}"
+"${CBUILD}" --image ${IMAGE} --cmd "
+for TOP_LEVEL_DIR in ${TOP_LEVEL_DIRS}; do
+  find \${TOP_LEVEL_DIR} -type f -exec chmod 644 {} \;
+  find \${TOP_LEVEL_DIR} -type d -exec chmod 755 {} \;
+  chgrp --recursive ${GROUP} \${TOP_LEVEL_DIR}
+  chown --recursive ${USER} \${TOP_LEVEL_DIR}
+done
+"

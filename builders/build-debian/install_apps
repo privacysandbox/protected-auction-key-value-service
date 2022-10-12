@@ -1,0 +1,124 @@
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+
+VERBOSE=0
+INSTALL_LOCALE=en_US.UTF-8
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --locale <value>              Set locale. Default: ${INSTALL_LOCALE}
+    --verbose                     Emit verbose info. Default: false
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --locale)
+      INSTALL_LOCALE="$2"
+      shift
+      shift
+      ;;
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -h | --help)
+      usage 0
+      break
+      ;;
+    *) usage 0 ;;
+  esac
+done
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+readonly SCRIPT_DIR
+# shellcheck disable=SC1090
+. "${SCRIPT_DIR}"/install_go.sh
+
+function apt_update() {
+  apt-get --quiet -o 'Acquire::https::No-Cache=True' -o 'Acquire::http::No-Cache=True' update
+}
+
+function install_python() {
+  apt-get --quiet install -y python3.8-venv="3.8.10-0ubuntu1~20.04.5"
+}
+
+function install_misc() {
+  declare -a PACKAGES=(
+    lsb-release
+    apt-transport-https
+    ca-certificates
+    wget
+    curl
+    gnupg
+    software-properties-common
+    locales
+  )
+  DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y "${PACKAGES[@]}"
+  if [[ -n ${INSTALL_LOCALE} ]]; then
+    printf "\nSetting locale to: %s\n" "${INSTALL_LOCALE}"
+    locale-gen "${INSTALL_LOCALE}"
+    update-locale LANG="${INSTALL_LOCALE}"
+  fi
+}
+
+function install_utils() {
+  declare -a PACKAGES=(
+    unzip
+    zip
+    rename
+  )
+  DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y "${PACKAGES[@]}"
+}
+
+function install_clang() {
+  local VERSION="11"
+  curl --silent --fail --show-error --location --remote-name https://apt.llvm.org/llvm.sh
+  chmod +x llvm.sh
+  apt-get --quiet install -y libc++-${VERSION}-dev
+  ./llvm.sh ${VERSION}
+  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${VERSION} 100
+  rm -f llvm.sh
+
+  clang --version
+}
+
+# Install Docker (https://docs.docker.com/engine/install/debian/)
+function install_docker() {
+  apt-get --quiet remove docker docker.io containerd runc
+  mkdir -p /etc/apt/keyrings
+  DIST=ubuntu
+  curl --silent --fail --show-error --location https://download.docker.com/linux/${DIST}/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${DIST} $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list
+  apt_update
+  apt-get --quiet install -y docker-ce docker-ce-cli containerd.io
+
+  # cannot necessarily connect to docker daemon at this point ie. if building a container image
+  #docker version
+}
+
+if [[ ${VERBOSE} -eq 1 ]]; then
+  printf "=== SHELL ENVIRONMENT ===\n"
+  env
+fi
+
+ARCH=$(dpkg --print-architecture)
+readonly ARCH
+
+apt_update
+install_python
+install_misc
+install_utils
+install_clang
+install_golang "${ARCH}"
+install_docker
+
+apt-get --quiet autoremove -y
+apt-get clean

@@ -22,7 +22,6 @@
 #include "components/data/mocks.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
-#include "components/test_util/proto_matcher.h"
 #include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -30,6 +29,8 @@
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
+#include "public/test_util/mocks.h"
+#include "public/test_util/proto_matcher.h"
 
 using fledge::kv_server::BlobStorageChangeNotifier;
 using fledge::kv_server::BlobStorageClient;
@@ -96,28 +97,11 @@ TEST_F(DataOrchestratorTest, InitCacheListRetriesOnFailure) {
                 AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
                       Field(&BlobStorageClient::ListOptions::prefix,
                             FilePrefix<FileType::DELTA>()))))
-      .Times(2)
-      .WillOnce(Return(absl::UnknownError("")))
-      .WillOnce(Return(std::vector<std::string>()));
+      .Times(1)
+      .WillOnce(Return(absl::UnknownError("list failed")));
 
-  EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
-}
-
-TEST_F(DataOrchestratorTest, InitCacheGetBlobFailsThreeTimes) {
-  EXPECT_CALL(
-      blob_client_,
-      ListBlobs(GetTestLocation(),
-                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
-                      Field(&BlobStorageClient::ListOptions::prefix,
-                            FilePrefix<FileType::DELTA>()))))
-      .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(1).value()})));
-
-  EXPECT_CALL(blob_client_,
-              GetBlob(GetTestLocation(ToDeltaFileName(1).value())))
-      .Times(3)
-      .WillRepeatedly([]() { return absl::UnknownError(""); });
-
-  EXPECT_FALSE(DataOrchestrator::TryCreate(options_).ok());
+  EXPECT_EQ(DataOrchestrator::TryCreate(options_).status(),
+            absl::UnknownError("list failed"));
 }
 
 TEST_F(DataOrchestratorTest, InitCacheNoFiles) {
@@ -129,7 +113,7 @@ TEST_F(DataOrchestratorTest, InitCacheNoFiles) {
                             FilePrefix<FileType::DELTA>()))))
       .WillOnce(Return(std::vector<std::string>()));
 
-  EXPECT_CALL(blob_client_, GetBlob).Times(0);
+  EXPECT_CALL(blob_client_, GetBlobReader).Times(0);
 
   EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
 }
@@ -143,7 +127,7 @@ TEST_F(DataOrchestratorTest, InitCacheFilteroutInvalidFiles) {
                             FilePrefix<FileType::DELTA>()))))
       .WillOnce(Return(std::vector<std::string>({"DELTA_01"})));
 
-  EXPECT_CALL(blob_client_, GetBlob).Times(0);
+  EXPECT_CALL(blob_client_, GetBlobReader).Times(0);
 
   EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
 }
@@ -167,7 +151,7 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
         .WillByDefault(
             [&dummy_stream]() -> std::istream& { return dummy_stream; });
 
-    EXPECT_CALL(blob_client_, GetBlob(GetTestLocation(basename)))
+    EXPECT_CALL(blob_client_, GetBlobReader(GetTestLocation(basename)))
         .WillOnce(Return(ByMove(std::move(blob_reader))));
   }
 
@@ -249,7 +233,7 @@ TEST_F(DataOrchestratorTest, StartLoading) {
   std::stringstream dummy_stream;
   for (const auto& basename :
        {ToDeltaFileName(6).value(), ToDeltaFileName(7).value()}) {
-    EXPECT_CALL(blob_client_, GetBlob(GetTestLocation(basename)))
+    EXPECT_CALL(blob_client_, GetBlobReader(GetTestLocation(basename)))
         .WillOnce([&dummy_stream] {
           auto blob_reader = std::make_unique<MockBlobReader>();
           ON_CALL(*blob_reader, Stream())

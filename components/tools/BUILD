@@ -24,13 +24,16 @@ container_layer(
     ],
 )
 
-# This image target is meant for testing running the server in an eclave using
+# This image target is meant for testing running the server in an enclave using
 # socat to abstract vsock communication.
 #
 # See project README.md on how to run the image.
 container_image(
     name = "data_loading_analyzer_enclave_image",
-    base = "@debian_slim_base_image//image",
+    base = select({
+        "@platforms//cpu:arm64": "@debian-slim-arm64//image",
+        "@platforms//cpu:x86_64": "@debian-slim-amd64//image",
+    }),
     cmd = [
         "/opt/privacysandbox/bin/proxify",
         "/opt/privacysandbox/bin/data_loading_analyzer",
@@ -48,11 +51,11 @@ cc_binary(
     deps = [
         "//components/data:blob_storage_client",
         "//components/data:delta_file_notifier",
-        "//components/data:riegeli_stream_io",
         "//components/data_server/cache",
         "//components/data_server/data_loading:data_orchestrator",
         "//public:base_types_cc_proto",
         "//public/data_loading:data_loading_fbs",
+        "//public/data_loading/readers:riegeli_stream_io",
         "@com_github_google_flatbuffers//:flatbuffers",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",

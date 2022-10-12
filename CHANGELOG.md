@@ -2,19 +2,81 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
-### [0.3.2](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.3.1...release-0.3.2) (2022-09-20)
+## [0.4.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.3.0...release-0.4.0) (2022-10-11)
+
+
+### Features
+
+* Add //:buildifier rule as an alias to the pre-commit buildifier hook
+* Add a debugging endpoint for Binary Http GetValues.
+* Add aws-cli helper script
+* Add csv reader and writer
+* Add delta record reader based on riegeli stream io.
+* Add library for reading and writing delta files
+* Add utility for data generation (currently supports csv to delta and vice versa)
+* Add version info to server binaries
+* Determine workspace mount point from docker inspect if inside docker container
+* Display pre-commit error log if it exists
+* Implement API call to record lifecycle heartbeat.
+* Log bazel build flags during server startup runtime.
+* Overhaul building on amazonlinux2
+* Repeating timer with callback implementation
+* Set working dir to current workspace-relative path in tools/terraform
 
 
 ### Bug Fixes
 
-* Strip commit hashes from CHANGELOG.md
-
-### [0.3.1](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.3.0...release-0.3.1) (2022-09-20)
-
-
-### Bug Fixes
-
+* Add bazel rule to copy files to dist dir
+* Add builders/tools/normalize-dist to chmod/chgrp/chown dist/ directory tree
+* Add fetch git tags from remote prior to syncing repos
+* Add files to subject to chown and chgrp
+* Adjust chown/chgrp to be silent
+* Adopt shellcheck
+* Clean bazel_root for smaller docker image
+* Correct the WORKSPACE path in production/packaging/aws/build_and_test
+* Correct variable used to check for valid repo name
+* Drop packer from build-debian image
+* Fix a typo and improve some logging for DataOrchestrator's loading
+* Improve cbuild help text
+* Improve git push message to accommodate patch branches
+* Increase SQS cleanup lamabda timeout
+* Modifications as indicated by shellcheck
 * Modify build and packaging for AWS SQS Lambda
+* Move definition from header to cc to eliminate linker error
+* Only propagate AWS env vars into amazonlinux2 build container
+* pre-commit CLEANUP should default to zero
+* Print pre-commit version rather than help
+* Print timestamps in UTC timezone
+* Remove container when get-architecture exits
+* Remove duplicate text "instance:" in build flavor
+* Remove shellcheck from build-debian
+* Remove unused nitro_enclave_image bazel rule
+* Set bazel output_user_root in image bazelrc
+* Set locale in build-debian
+* Strip commit hashes from CHANGELOG.md
+* Switch from hardcoded arch to using dpkg --print-architecture
+* Update author name
+* Update pre-commit to use cbuild
+* Use --with-ami flag to determine bazel flags instance/platform
+* Use default health check grace priod (300s) now that we have heartbeats.
+* Use git rather than bazel to determine workspace root
+* Use PRE_COMMIT_TOOL env var
+
+
+### Build System
+
+* Add arch to docker image tags
+* Add get_builder_image_tagged tool to determine a content-based tag
+* Add get-architecture helper script
+* Propagate status code in exit functions
+
+
+### Documentation
+
+* Correct command to load docker image locally
+* Instructions to make changes to a dependency
+* Sugggest use of python virtualenv
+* Use concise form of passing env vars into docker container
 
 ## [0.3.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.2.0...release-0.3.0) (2022-09-14)
 

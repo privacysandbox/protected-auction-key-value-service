@@ -91,42 +91,12 @@ cc_test(
 )
 
 cc_library(
-    name = "riegeli_stream_io",
-    hdrs = ["riegeli_stream_io.h"],
-    deps = [
-        "//public/data_loading:riegeli_metadata_cc_proto",
-        "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/cleanup",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_riegeli//riegeli/bytes:istream_reader",
-        "@com_google_riegeli//riegeli/records:record_reader",
-    ],
-)
-
-cc_test(
-    name = "riegeli_stream_io_test",
-    srcs = [
-        "riegeli_stream_io_test.cc",
-    ],
-    deps = [
-        ":mocks",
-        ":riegeli_stream_io",
-        "//components/test_util:proto_matcher",
-        "@com_google_googletest//:gtest_main",
-        "@com_google_riegeli//riegeli/bytes:string_writer",
-        "@com_google_riegeli//riegeli/records:record_writer",
-    ],
-)
-
-cc_library(
     name = "mocks",
     testonly = 1,
     hdrs = ["mocks.h"],
     deps = [
         ":blob_storage_client",
         ":delta_file_notifier",
-        ":riegeli_stream_io",
         "@com_google_googletest//:gtest",
     ],
 )

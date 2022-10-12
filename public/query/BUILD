@@ -10,6 +10,7 @@ proto_library(
     srcs = ["get_values.proto"],
     deps = [
         "@com_google_googleapis//google/api:annotations_proto",
+        "@com_google_googleapis//google/api:httpbody_proto",
         "@com_google_protobuf//:struct_proto",
     ],
 )

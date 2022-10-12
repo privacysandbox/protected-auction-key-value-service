@@ -16,17 +16,17 @@ set -o pipefail
 set -o errexit
 
 IMAGE="build-debian"
-declare -r -A IMAGE_LIST=(
-  [build-debian]="privacysandbox/builders/build-debian:bazel_build_image"
-  [build-amazonlinux2]="privacysandbox/builders/build-amazonlinux2:bazel_build_image"
+VERBOSE=0
+declare -r -a IMAGE_LIST=(
+  "build-debian"
+  "build-amazonlinux2"
+  "presubmit"
 )
 
 declare -a ENV_VARS
 ENV_VARS+=(
-  "AWS_ACCESS_KEY_ID"
-  "AWS_SECRET_ACCESS_KEY"
-  "BAZEL_EXTRA_ARGS"
   "BAZEL_STARTUP_ARGS"
+  "BAZEL_EXTRA_ARGS"
 )
 
 usage() {
@@ -38,25 +38,24 @@ usage:
     --image                    Image name for the build runtime. Valid names:
 USAGE
 
-  for elem in "${!IMAGE_LIST[@]}"
+  for elem in "${IMAGE_LIST[@]}"
   do
-    if [[ ${IMAGE} == "${elem}" ]]; then
-      local EXTRA=" (default)"
-    fi
-    printf "                                   *  %s%s\n" "${elem}" "${EXTRA}" &>/dev/stderr
+    printf "                                   *  %s\n" "${elem}" &>/dev/stderr
   done
 
   cat &>/dev/stderr << USAGE
-    --env <key>[=<value>]      Name of exported environment variable, or name=value
+    --env <key>[=<value>]      Name (or name=value) of exported environment variable, propagated into container
     --without-shared-cache     Containers will not mount ${HOME}/.cache/bazel
-    --without-embedded-docker  Enable docker client within container
+    --without-embedded-docker  Disable docker client within container
+    --verbose                  Enable verbose output
 
-environment variables (all optional):
-    WORKSPACE                    Set the path to the workspace (repo root)
-    AWS_ACCESS_KEY_ID            AWS auth token
-    AWS_SECRET_ACCESS_KEY        AWS auth token
-    BAZEL_STARTUP_ARGS           Additional startup arguments to pass to bazel invocations
-    BAZEL_EXTRA_ARGS             Additional command arguments to pass to bazel invocations
+Environment variables (all optional):
+    WORKSPACE                    Full path to the workspace (repo root)
+    EXTRA_DOCKER_RUN_ARGS        Additional arguments to pass to docker run invocations
+
+Environment variables propagated into container:
+    BAZEL_STARTUP_ARGS
+    BAZEL_EXTRA_ARGS
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}
@@ -90,6 +89,10 @@ while [[ $# -gt 0 ]]; do
       WITH_DOCKER_SOCK=0
       shift
       ;;
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
     -h | --help)
       usage 0
       break
@@ -106,34 +109,69 @@ if [[ -z ${IMAGE} ]]; then
   printf -- "error: --image must be specified\n" &>/dev/stderr
   usage 1
 fi
-readonly IMAGE_TAGGED=${IMAGE_LIST[${IMAGE}]}
-if [[ -z ${IMAGE_TAGGED} ]]; then
-  printf -- "error: image [%s] not recognized\n" "${IMAGE}" &>/dev/stderr
-  usage 1
+# shellcheck disable=SC2076
+if ! [[ " ${IMAGE_LIST[*]} " =~ " ${IMAGE} " ]]; then
+    printf -- "error: image [%s] not recognized\n" "${IMAGE}" &>/dev/stderr
+      usage 1
 fi
 
-SCRIPT_DIR="$(dirname $(readlink -f "$0"))"
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
 WORKSPACE="${WORKSPACE-"$(readlink -f "${SCRIPT_DIR}"/../..)"}"
-readonly BUILDER_DIR="${WORKSPACE}/builders/${IMAGE}"
 
-# build container image and load it into the local docker client
-if ! docker image inspect ${IMAGE_TAGGED} &>/dev/null; then
-  tar --create --dereference --gzip --directory=${WORKSPACE}/builders/${IMAGE} . |
-  docker build - --tag ${IMAGE_TAGGED}
+# if running inside a docker container, the workspace mount point cannot be
+# determined by git or bazel or inspecting the filesystem itself. Instead, we
+# need to use docker to expose its mount info for the /src/workspace path.
+if [[ -f /.dockerenv ]]; then
+  # determine the current container's ID
+  CONTAINER_ID=$(uname --nodename)
+  # use docker inspect to extract the current mount path for /src/workspace
+  # this format string is a golang template (https://pkg.go.dev/text/template) processed
+  # by docker's --format flag, per https://docs.docker.com/config/formatting/
+  # shellcheck disable=SC2016
+  declare -r FORMAT_STR='
+    {{- range $v := .HostConfig.Binds -}}
+      {{$pathpair := split $v ":" -}}
+      {{if eq (index $pathpair 1) "/src/workspace" -}}
+        {{print (index $pathpair 0) -}}
+      {{end -}}
+    {{end -}}
+  '
+  WORKSPACE_MOUNT="$(docker inspect --format "${FORMAT_STR}" "${CONTAINER_ID}")"
+  readonly WORKSPACE_MOUNT
+  if [[ -z ${WORKSPACE_MOUNT} ]]; then
+    printf "Unable to determine mount point for /src/workspace. Exiting\n" &>/dev/stderr
+    exit 1
+  fi
+else
+  WORKSPACE_MOUNT="${WORKSPACE}"
 fi
+if [[ ${VERBOSE} -eq 1 ]]; then
+  printf "mounting workspace into container: %s\n" "${WORKSPACE_MOUNT}" &>/dev/stderr
+fi
+
+IMAGE_TAGGED="$("${WORKSPACE}"/builders/tools/get-builder-image-tagged --image "${IMAGE}")"
+readonly IMAGE_TAGGED
 
 declare -a DOCKER_RUN_ARGS
 DOCKER_RUN_ARGS+=(
   "--rm"
   "--entrypoint=/bin/bash"
-  "--volume ${WORKSPACE}:/src/workspace"
-  "--volume /dev/shm:/dev/shm"
+  "--volume ${WORKSPACE_MOUNT}:/src/workspace"
   "--workdir /src/workspace"
+  "${EXTRA_DOCKER_RUN_ARGS}"
 )
 
-if [[ ${WITH_SHARED_CACHE} -eq 1 ]]; then
+# inside the docker build images, /bazel_root is the bazel cache dir, per the system-wide bazelrc
+readonly BAZEL_ROOT=/bazel_root
+if [[ ${WITH_SHARED_CACHE} -eq 0 ]]; then
+  # use tmpfs for as temporary, container-bound bazel cache
   DOCKER_RUN_ARGS+=(
-    "--volume ${HOME}/.cache/bazel:/root/.cache/bazel"
+    "--tmpfs ${BAZEL_ROOT}:exec"
+  )
+else
+  # mount host filesystem for "shared" use by multiple docker container invocations
+  DOCKER_RUN_ARGS+=(
+    "--volume ${HOME}/.cache/bazel:${BAZEL_ROOT}"
   )
 fi
 if [[ ${WITH_DOCKER_SOCK} -eq 1 ]]; then
@@ -147,23 +185,26 @@ do
     "--env ${evar}"
   )
 done
-if [[ -t 1 ]]; then
-  # stdout is open, assume it's an interactive tty session
+if [[ -t 0 ]] && [[ -t 1 ]]; then
+  # stdin and stdout are open, assume it's an interactive tty session
   DOCKER_RUN_ARGS+=(
     "--interactive"
     "--tty"
   )
 fi
 
-set -o xtrace
+if [[ ${VERBOSE} -eq 1 ]]; then
+  set -o xtrace
+fi
 if [[ -z ${CMD} ]]; then
-  docker run \
-  ${DOCKER_RUN_ARGS[@]} \
-  ${IMAGE_TAGGED}
-else
-  printf "executing [%s] using image [%s]:\n\n" "${CMD}" "${IMAGE_TAGGED}" &>/dev/stderr
+  # shellcheck disable=SC2068
   docker run \
     ${DOCKER_RUN_ARGS[@]} \
-    ${IMAGE_TAGGED} \
+    "${IMAGE_TAGGED}"
+else
+  # shellcheck disable=SC2068
+  docker run \
+    ${DOCKER_RUN_ARGS[@]} \
+    "${IMAGE_TAGGED}" \
     -c "$CMD"
 fi

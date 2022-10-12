@@ -19,6 +19,8 @@ resource "aws_lambda_function" "sqs_cleanup_function" {
   role          = var.lambda_role_arn
   image_uri     = var.sqs_cleanup_image_uri
   package_type  = "Image"
+  timeout       = 900
+  memory_size   = 512
 
   tags = {
     Name        = "${var.service}-${var.environment}-sqs-cleanup"

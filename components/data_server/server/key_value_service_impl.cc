@@ -21,17 +21,28 @@
 
 namespace fledge::kv_server {
 
-using fledge::kv_server::v1::GetValuesRequest;
-using fledge::kv_server::v1::GetValuesResponse;
-using fledge::kv_server::v1::KeyValueService;
 using google::protobuf::Struct;
 using google::protobuf::Value;
 using grpc::CallbackServerContext;
+using v1::GetValuesRequest;
+using v1::GetValuesResponse;
+using v1::KeyValueService;
 
 grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
     CallbackServerContext* context, const GetValuesRequest* request,
     GetValuesResponse* response) {
   grpc::Status status = handler_.GetValues(*request, response);
+
+  auto* reactor = context->DefaultReactor();
+  reactor->Finish(status);
+  return reactor;
+}
+
+grpc::ServerUnaryReactor* KeyValueServiceImpl::BinaryHttpGetValues(
+    CallbackServerContext* context,
+    const v1::BinaryHttpGetValuesRequest* request,
+    google::api::HttpBody* response) {
+  grpc::Status status = handler_.BinaryHttpGetValues(*request, response);
 
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);

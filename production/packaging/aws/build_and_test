@@ -1,0 +1,131 @@
+#!/bin/bash
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+set -o pipefail
+set -o errexit
+set -o xtrace
+export PS4='+\t ' # xtrace prompt
+
+START=$(date +%s)
+
+trap _print_runtime EXIT
+
+function _print_runtime() {
+  local STATUS=$?
+  local END
+  END=$(date +%s)
+  /usr/bin/env LC_ALL=en_US.UTF-8 printf "\naws/build_and_test runtime: %'ds\n" $((END - START)) >/dev/stderr
+  # shellcheck disable=SC2086
+  exit ${STATUS}
+}
+
+BUILD_AMI=0
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --without-shared-cache              Containers will not mount ${HOME}/.cache/bazel
+    --server-image <image.tar>          Server docker image tarfile
+    --with-ami                          Build the AMI. Default: false
+
+environment variables (all optional):
+    WORKSPACE                    Set the path to the workspace (repo root)
+    BAZEL_STARTUP_ARGS           Additional startup arguments to pass to bazel invocations
+    BAZEL_EXTRA_ARGS             Additional command arguments to pass to bazel invocations
+    CBUILD_ARGS                  Additional command-line arguments to cbuild
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --server-image)
+      SERVER_IMAGE="$2"
+      shift
+      shift
+      ;;
+    --with-ami)
+      BUILD_AMI=1
+      shift
+      ;;
+    -h | --help)
+      usage 0
+      break
+      ;;
+    *)
+      usage
+      break
+      ;;
+  esac
+done
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+WORKSPACE="${WORKSPACE-"$(readlink -f "${SCRIPT_DIR}"/../../..)"}"
+CBUILD="${WORKSPACE}"/builders/tools/cbuild
+DIST="${WORKSPACE}"/dist
+
+function _cbuild_al2() {
+  printf "=== cbuild amazonlinux2 action envs ===\n"
+  local AWS_ARGS="--env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY"
+  "${CBUILD}" ${CBUILD_ARGS} ${AWS_ARGS} --image build-amazonlinux2 --cmd "grep -o 'action_env.*' /etc/bazel.bazelrc 1>/dev/stderr 2>/dev/null"
+  "${CBUILD}" ${CBUILD_ARGS} ${AWS_ARGS} --image build-amazonlinux2 --cmd "$*"
+}
+
+mkdir -p "${DIST}"/aws
+chmod 770 "${DIST}" "${DIST}"/aws
+
+printf "==== build AWS artifacts using build-amazonlinux2 =====\n"
+# build nitro enclave image, collect eif artifacts
+readonly IMAGE_URI=bazel/production/packaging/aws/data_server
+IMAGE_TAG=$(mktemp --dry-run temp-XXXXXX)
+_cbuild_al2 $"
+set -o errexit
+# extract server docker image into local docker client and retag it
+docker load -i ${SERVER_IMAGE}
+docker tag ${IMAGE_URI}:server_docker_image ${IMAGE_URI}:${IMAGE_TAG}
+nitro-cli build-enclave --docker-uri ${IMAGE_URI}:${IMAGE_TAG} --output-file /tmp/server_enclave_image.eif > /tmp/server_enclave_image.json
+if [[ $? -eq 0 ]]; then
+  mv /tmp/server_enclave_image.* dist/aws/
+fi
+"
+docker image rm ${IMAGE_URI}:"${IMAGE_TAG}"
+
+_cbuild_al2 "
+trap _collect_logs EXIT
+function _collect_logs() {
+  local STATUS=$?
+  printf 'Collecting bazel logs...\n' &>/dev/stderr
+  bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //:collect-logs
+  # shellcheck disable=SC2086
+  exit ${STATUS}
+}
+set -o errexit
+bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/aws/data_server/ami:copy_to_dist
+"
+"${WORKSPACE}"/builders/tools/normalize-dist
+
+if [[ ${BUILD_AMI} -eq 1 ]]; then
+  unzip -o -d "${DIST}"/aws "${DIST}"/aws/nitro_artifacts.zip
+  printf "==== build AWS AMI (using packer) =====\n"
+  _cbuild_al2 "
+set -o errexit
+packer build -var=distribution_dir=dist/aws -var=workspace=/src/workspace production/packaging/aws/data_server/ami/image.pkr.hcl
+"
+  printf "To push a newer version of SQS lambda, run %s/aws/push_sqs\n" "${DIST}"
+fi

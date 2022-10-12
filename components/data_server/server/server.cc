@@ -26,22 +26,26 @@
 #include "components/cloud_config/parameter_client.h"
 #include "components/data/blob_storage_client.h"
 #include "components/data/delta_file_notifier.h"
-#include "components/data/riegeli_stream_io.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
 #include "components/data_server/request_handler/get_values_handler.h"
 #include "components/data_server/server/key_value_service_impl.h"
 #include "components/errors/retry.h"
+#include "components/util/build_info.h"
+#include "components/util/periodic_closure.h"
 #include "glog/logging.h"
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
 #include "grpcpp/grpcpp.h"
 #include "grpcpp/health_check_service_interface.h"
 #include "public/base_types.pb.h"
+#include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "src/google/protobuf/struct.pb.h"
 
 ABSL_FLAG(uint16_t, port, 50051,
           "Port the server is listening on. Defaults to 50051.");
+
+ABSL_FLAG(bool, buildinfo, false, "Print build info.");
 
 namespace fledge::kv_server {
 
@@ -63,6 +67,7 @@ constexpr absl::string_view kBucketSNSParameterSuffix = "bucket-sns-arn";
 constexpr absl::string_view kLaunchHookParameterSuffix = "launch-hook";
 
 constexpr absl::Duration kRetryBackoff = absl::Seconds(1);
+constexpr absl::Duration kLifecycleHeartbeatFrequency = absl::Seconds(30);
 
 absl::StatusOr<std::string> GetParameter(
     const ParameterClient& parameter_client, absl::string_view environment,
@@ -86,6 +91,11 @@ absl::Status RunServer() {
   // TODO(b/234830172): remove this or turn off by default
   options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
   absl::Cleanup shutdown = [&options] { Aws::ShutdownAPI(options); };
+
+  LogBuildInfo();
+  if (absl::GetFlag(FLAGS_buildinfo)) {
+    return absl::OkStatus();
+  }
 
   int port = absl::GetFlag(FLAGS_port);
   std::string server_address = absl::StrCat("0.0.0.0:", port);
@@ -166,41 +176,41 @@ absl::Status RunServer() {
   LOG(INFO) << "Retrieved " << kLaunchHookParameterSuffix
             << " parameter: " << launch_hook_name;
 
-  // Blocks until cache is initialized
-  absl::StatusOr<std::unique_ptr<DataOrchestrator>> maybe_data_orchestrator;
-  while (true) {
-    maybe_data_orchestrator = DataOrchestrator::TryCreate(
-        {.data_bucket = data_bucket,
-         .cache = *cache,
-         .blob_client = *blob_client,
-         .delta_notifier = *notifier,
-         .change_notifier = *change_notifier,
-         .delta_stream_reader_factory = *delta_stream_reader_factory});
-    if (maybe_data_orchestrator.ok()) {
-      break;
-    } else {
-      LOG(WARNING) << "Failed to create data orchestrator: "
-                   << maybe_data_orchestrator.status();
-      absl::SleepFor(kRetryBackoff);
-    }
+  std::unique_ptr<PeriodicClosure> heartbeat = PeriodicClosure::Create();
+  const absl::Status heartbeat_status = heartbeat->StartDelayed(
+      kLifecycleHeartbeatFrequency, [&instance_client, &launch_hook_name] {
+        if (const absl::Status status =
+                instance_client->RecordLifecycleHeartbeat(launch_hook_name);
+            !status.ok()) {
+          LOG(WARNING) << "Failed to record lifecycle heartbeat: " << status;
+        }
+      });
+  if (!heartbeat_status.ok()) {
+    LOG(ERROR) << "Failed to start lifecycle heartbeat: " << heartbeat_status;
   }
-  while (true) {
-    if (const absl::Status start_status = (*maybe_data_orchestrator)->Start();
-        start_status.ok()) {
-      break;
-    } else {
-      LOG(WARNING) << "Failed to start data orchestrator: " << start_status;
-      absl::SleepFor(kRetryBackoff);
-    }
+  std::unique_ptr<DataOrchestrator> data_orchestrator = RetryUntilOk(
+      [&] {
+        return DataOrchestrator::TryCreate(
+            {.data_bucket = data_bucket,
+             .cache = *cache,
+             .blob_client = *blob_client,
+             .delta_notifier = *notifier,
+             .change_notifier = *change_notifier,
+             .delta_stream_reader_factory = *delta_stream_reader_factory});
+      },
+      "CreateDataOrchestrator");
+  RetryUntilOk([&data_orchestrator] { return data_orchestrator->Start(); },
+               "StartDataOrchestrator");
+  if (heartbeat_status.ok()) {
+    heartbeat->Stop();
   }
-  // TODO(b/235502114): Add retry for Status
-  absl::Status complete_lifecycle =
-      instance_client->CompleteLifecycle(launch_hook_name);
-  if (!complete_lifecycle.ok()) {
-    LOG(ERROR) << "Could not complete lifecycle hook " << launch_hook_name
-               << ": " << complete_lifecycle;
-    return complete_lifecycle;
-  }
+  RetryUntilOk(
+      [&instance_client, &launch_hook_name] {
+        // CompleteLifecycle can fail if it is already complete.
+        // TODO(b/251431397): Check lifecycle status.
+        return instance_client->CompleteLifecycle(launch_hook_name);
+      },
+      "CompleteLifecycle");
   LOG(INFO) << "Completed lifecycle hook " << launch_hook_name;
 
   // Wait for the server to shutdown. Note that some other thread must be

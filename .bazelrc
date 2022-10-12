@@ -2,8 +2,11 @@ build --verbose_failures
 build --client_env=CC=clang
 build --cxxopt=-std=c++17
 build --copt=-Werror=return-type
-build --copt=-Werror=unused-result
 build -c opt
 build --color=yes
+build --@io_bazel_rules_docker//transitions:enable=false
+build --workspace_status_command="bash tools/get_workspace_status"
 
 test --test_output=errors
+# Disable ICU linking for googleurl.
+build --@com_google_googleurl//build_config:system_icu=0

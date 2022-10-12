@@ -41,6 +41,15 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "records_utils_test",
+    srcs = ["records_utils_test.cc"],
+    deps = [
+        ":records_utils",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 proto_descriptor_set(
     name = "riegeli_metadata_descriptor_set",
     deps = [":riegeli_metadata_proto"],

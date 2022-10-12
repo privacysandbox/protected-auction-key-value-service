@@ -11,20 +11,11 @@ load(
 )
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
-load("//builders/amazonlinux2:nitro.bzl", "nitro_enclave_image")
 
 pkg_files(
     name = "server_executables",
     srcs = glob(["bin/init_server_*"]) + [
-        "//components/data_server/server",
-    ],
-    attributes = pkg_attributes(mode = "0555"),
-    prefix = "/server/bin",
-)
-
-pkg_files(
-    name = "proxy_executables",
-    srcs = [
+        "//components/data_server/server:server",
         "//components/aws/proxy/source:proxify",
     ],
     attributes = pkg_attributes(mode = "0555"),
@@ -40,20 +31,26 @@ pkg_files(
     prefix = "/server/bin",
 )
 
-pkg_tar(
+server_binaries = [
+    ":server_executables",
+    ":server_libs",
+]
+
+pkg_zip(
     name = "server_binaries",
-    srcs = [
-        ":proxy_executables",
-        ":server_executables",
-        ":server_libs",
-    ],
+    srcs = server_binaries,
+)
+
+pkg_tar(
+    name = "server_binaries_tar",
+    srcs = server_binaries,
 )
 
 container_layer(
     name = "server_binary_layer",
     directory = "/",
     tars = [
-        ":server_binaries",
+        ":server_binaries_tar",
     ],
 )
 
@@ -63,7 +60,10 @@ container_layer(
 # See project README.md on how to run the image.
 container_image(
     name = "server_docker_image",
-    base = "@debian_slim_base_image//image",
+    base = select({
+        "@platforms//cpu:arm64": "@debian-slim-arm64//image",
+        "@platforms//cpu:x86_64": "@debian-slim-amd64//image",
+    }),
     cmd = [
         "/server/bin/init_server_enclave",
     ],
@@ -93,25 +93,24 @@ container_test(
     image = ":server_docker_image",
 )
 
-# build an EIF for the data server
-nitro_enclave_image(
-    name = "server_enclave_image",
-    aws_nitro_image = "//builders/amazonlinux2:nitro_build_image.tar",
-    source_image = ":server_docker_image.tar",
-    tags = [
-        "manual",  # Exclude from wildcard queries.
-        "no-remote",
-    ],
-    target_eif_basename = "server_enclave_image",
+# server artifacts
+pkg_zip(
+    name = "server_artifacts",
+    srcs = server_binaries,
 )
 
-# aws artifacts
-pkg_zip(
-    name = "aws_artifacts",
+genrule(
+    name = "copy_to_dist",
     srcs = [
-        ":server_enclave_image.eif",
-        ":server_enclave_image.json",
-        "//components/aws:sqs_lambda.tar",
-        "//components/aws/proxy/source:proxy",
+        ":server_artifacts",
+        ":server_docker_image.tar",
     ],
+    outs = ["copy_to_dist.bin"],
+    cmd_bash = """cat << EOF > '$@'
+mkdir -p dist/debian
+cp $(SRCS) dist/debian
+EOF""",
+    executable = True,
+    local = True,
+    message = "copying server artifacts to dist/debian directory",
 )

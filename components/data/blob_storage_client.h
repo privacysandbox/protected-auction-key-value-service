@@ -56,9 +56,8 @@ class BlobStorageClient {
   static std::unique_ptr<BlobStorageClient> Create();
   virtual ~BlobStorageClient() = default;
 
-  // Download blob content.
-  virtual absl::StatusOr<std::unique_ptr<BlobReader>> GetBlob(
-      DataLocation location) = 0;
+  // Get handle to blob data.
+  virtual std::unique_ptr<BlobReader> GetBlobReader(DataLocation location) = 0;
 
   // Upload blob content.
   // Underlying client libraries require iostream.

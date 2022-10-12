@@ -21,15 +21,13 @@
 
 #include "components/data/blob_storage_client.h"
 #include "components/data/delta_file_notifier.h"
-#include "components/data/riegeli_stream_io.h"
 #include "gmock/gmock.h"
-#include "public/data_loading/riegeli_metadata.pb.h"
 
 namespace fledge::kv_server {
 
 class MockBlobStorageClient : public BlobStorageClient {
  public:
-  MOCK_METHOD(absl::StatusOr<std::unique_ptr<BlobReader>>, GetBlob,
+  MOCK_METHOD(std::unique_ptr<BlobReader>, GetBlobReader,
               (DataLocation location), (override));
   MOCK_METHOD(absl::Status, PutBlob, (BlobReader&, DataLocation location),
               (override));
@@ -56,26 +54,6 @@ class MockDeltaFileNotifier : public DeltaFileNotifier {
               (override));
   MOCK_METHOD(absl::Status, StopNotify, (), (override));
   MOCK_METHOD(bool, IsRunning, (), (const, override));
-};
-
-// We have to specialize the template due to the problem that MOCK_METHOD can't
-// work well with template.
-class MockStreamRecordReader : public StreamRecordReader<std::string_view> {
- public:
-  MOCK_METHOD(absl::StatusOr<KVFileMetadata>, GetKVFileMetadata, (),
-              (override));
-
-  MOCK_METHOD(
-      absl::Status, ReadStreamRecords,
-      (const std::function<absl::Status(const std::string_view&)>& callback),
-      (override));
-};
-
-class MockStreamRecordReaderFactory
-    : public StreamRecordReaderFactory<std::string_view> {
- public:
-  MOCK_METHOD(std::unique_ptr<StreamRecordReader<std::string_view>>,
-              CreateReader, (std::istream & data_input), (const, override));
 };
 
 class MockBlobReader : public BlobReader {

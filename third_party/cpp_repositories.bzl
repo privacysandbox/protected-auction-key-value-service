@@ -123,7 +123,7 @@ def cpp_repositories():
 
     http_archive(
         name = "highwayhash",
-        build_file = "@com_google_riegeli//third_party:highwayhash.BUILD",
+        build_file = "//third_party:highwayhash.BUILD",
         sha256 = "cf891e024699c82aabce528a024adbe16e529f2b4e57f954455e0bf53efae585",
         strip_prefix = "highwayhash-276dd7b4b6d330e4734b756e97ccfb1b69cc2e12",
         urls = ["https://github.com/google/highwayhash/archive/276dd7b4b6d330e4734b756e97ccfb1b69cc2e12.zip"],

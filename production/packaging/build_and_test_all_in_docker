@@ -17,36 +17,36 @@
 set -o pipefail
 set -o errexit
 set -o xtrace
-export PS4='+\t ' # xtrace prompt
+export TZ=Etc/UTC
+export PS4='+\tZ ' # xtrace prompt
 
 START=$(date +%s)
 
 trap _print_runtime EXIT
 
 function _print_runtime() {
-  local END=$(date +%s)
-  env LC_ALL=en_US.UTF-8 printf "\nbuild_and_test_all_in_docker runtime: %'ds\n" $((END - START)) > /dev/stderr
+  local STATUS=$?
+  local END
+  END=$(date +%s)
+  /usr/bin/env LC_ALL=en_US.UTF-8 printf "\nbuild_and_test_all_in_docker runtime: %'ds\n" $((END - START)) >/dev/stderr
+  # shellcheck disable=SC2086
+  exit ${STATUS}
 }
 
-CLEAN=0
-BUILD_AND_TEST_ALL_ARGS=
-PRESUBMIT=0
+VERBOSE=0
 PRECOMMIT_ONLY=0
+BUILD_AMI=0
 WITH_SHARED_CACHE=1
-WITH_DOCKER_SOCK=1
-readonly IMAGE_TAGGED=privacysandbox/builders/build-debian:bazel_build_image
 
-usage() {
+function usage() {
   local exitval=${1-1}
   cat >&2 << USAGE
 usage:
   $0 <options>
-    --without-shared-cache       Use a container-local cache
-    --without-embedded-docker    Enable docker client within container
+    --without-shared-cache       Containers will not mount ${HOME}/.cache/bazel
     --precommit-only             Run precommit then exit
-    --with-ami                   Build the AMI
-    --remove-output-base         Remove the bazel output-base dir after building
-    --clean                      Optionally clean build cache before running build
+    --with-ami                   Build the AMI. Default: false
+    --verbose                    Enable verbose output
 
 environment variables (all optional):
     WORKSPACE                    Set the path to the workspace (repo root)
@@ -54,6 +54,7 @@ environment variables (all optional):
     BAZEL_EXTRA_ARGS             Additional command arguments to pass to bazel invocations
     EXTRA_DOCKER_RUN_ARGS        Additional arguments to pass to docker run invocations
 USAGE
+  # shellcheck disable=SC2086
   exit ${exitval}
 }
 
@@ -65,29 +66,22 @@ while [[ $# -gt 0 ]]; do
       ;;
     --without-shared-cache)
       WITH_SHARED_CACHE=0
-      shift
-      ;;
-    --without-embedded-docker)
-      WITH_DOCKER_SOCK=0
+      CBUILD_ARGS="--without-shared-cache"
       shift
       ;;
     --presubmit)
-      BUILD_AND_TEST_ALL_ARGS="${BUILD_AND_TEST_ALL_ARGS} $1"
-      PRESUBMIT=1
+      # no-op
       shift
       ;;
-    --with-ami | --remove-output-base)
-      BUILD_AND_TEST_ALL_ARGS="${BUILD_AND_TEST_ALL_ARGS} $1"
+    --with-ami)
+      BUILD_AMI=1
       shift
       ;;
-    --clean)
-      CLEAN=1
+    --verbose)
+      VERBOSE=1
       shift
       ;;
-    -h | --help)
-      usage 0
-      break
-      ;;
+    -h | --help) usage 0 ;;
     *)
       usage
       break
@@ -95,74 +89,60 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-function cbuild() {
-  declare -a EXTRA_DOCKER_ARGS
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+WORKSPACE="${WORKSPACE-"$(readlink -f "${SCRIPT_DIR}"/../..)"}"
+CBUILD="${WORKSPACE}"/builders/tools/cbuild
+export CBUILD_ARGS
 
-  # build container image and load it into the local docker client
-  if ! docker image inspect ${IMAGE_TAGGED} >/dev/null 2>&1; then
-    tar --create --dereference --gzip --directory=${WORKSPACE}/builders/build-debian . |
-    docker build - --tag ${IMAGE_TAGGED}
-  fi
-  if [[ ${WITH_DOCKER_SOCK} -eq 1 ]]; then
-    EXTRA_DOCKER_ARGS+=(
-      -v /var/run/docker.sock:/var/run/docker.sock
-    )
-  fi
-  if [[ ${WITH_SHARED_CACHE} -eq 1 ]]; then
-    EXTRA_DOCKER_ARGS+=(
-      -v "${HOME}/.cache/bazel:/root/.cache/bazel"
-    )
-  fi
-  if [[ -n ${AWS_ACCESS_KEY_ID} ]]; then
-    EXTRA_DOCKER_ARGS+=(
-      --env AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      --env AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-    )
-  fi
-  if [[ -n ${BAZEL_EXTRA_ARGS} ]]; then
-    EXTRA_DOCKER_ARGS+=(
-      --env BAZEL_EXTRA_ARGS
-    )
-  fi
-  if [[ -n ${BAZEL_STARTUP_ARGS} ]]; then
-    EXTRA_DOCKER_ARGS+=(
-      --env BAZEL_STARTUP_ARGS
-    )
-  fi
-
-  if ! [[ -t 1 ]]; then
-    TTY_OUTPUT='| tail -f'
-  fi
-  docker run --rm \
-    --entrypoint=/bin/bash \
-    -v "${WORKSPACE}:/src/workspace" \
-    -w /src/workspace \
-    "${EXTRA_DOCKER_ARGS[@]}" \
-    ${EXTRA_DOCKER_RUN_ARGS} \
-    ${IMAGE_TAGGED} \
-    -c "$@ ${TTY_OUTPUT}"
-}
-
-WORKSPACE=${WORKSPACE-$(bazel info workspace)}
-
-if [[ ${CLEAN} -eq 1 ]]; then
-  cbuild "bazel clean --expunge_async ${BAZEL_ARGS}"
-  exit
+if [[ ${BUILD_AMI} -eq 1 ]]; then
+  BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:instance=aws --//:platform=aws"
+else
+  BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:instance=local --//:platform=aws"
 fi
 
-${WORKSPACE}/tools/pre-commit
+function _cbuild_debian() {
+  printf "=== cbuild debian action envs ===\n"
+  "${CBUILD}" ${CBUILD_ARGS} --image build-debian --cmd "grep -o 'action_env.*' /etc/bazel.bazelrc" 1>/dev/stderr 2>/dev/null
+  "${CBUILD}" ${CBUILD_ARGS} --image build-debian --cmd "$*"
+}
+
+if [[ ${VERBOSE} -eq 1 ]]; then
+  set -o xtrace
+  CBUILD_ARGS="${CBUILD_ARGS} --verbose"
+fi
+
+"${WORKSPACE}"/tools/pre-commit
 if [[ ${PRECOMMIT_ONLY} -eq 1 ]]; then
   exit 0
 fi
 
-cbuild "production/packaging/build_and_test_all ${BUILD_AND_TEST_ALL_ARGS}"
+printf "==== build and test specified targets using bazel-debian ====\n"
 
-if [[ ${PRESUBMIT} -eq 0 ]]; then
-  if [[ -d ${WORKSPACE}/dist ]]; then
-    cbuild "chgrp --recursive $(id -g) dist/ && chown --recursive $(id -u) dist/"
-    printf "location of the build artifacts:\n"
-    ls -lh ${WORKSPACE}/dist
-  else
-    printf "${WORKSPACE}/dist dir not found\n"
-  fi
+_cbuild_debian "
+trap _collect_logs EXIT
+function _collect_logs() {
+  local STATUS=$?
+  printf 'Collecting bazel logs...\n' &>/dev/stderr
+  bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //:collect-logs
+  # shellcheck disable=SC2086
+  exit ${STATUS}
+}
+set -o errexit
+bazel ${BAZEL_STARTUP_ARGS} build ${BAZEL_EXTRA_ARGS} //components/... //public/... //tools/...
+bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/aws/data_server:copy_to_dist
+bazel ${BAZEL_STARTUP_ARGS} test ${BAZEL_EXTRA_ARGS} //components/... //public/...
+"
+"${WORKSPACE}"/builders/tools/normalize-dist
+
+if [[ ${BUILD_AMI} -eq 1 ]]; then
+  EXTRA_ARGS="--with-ami"
+fi
+"${SCRIPT_DIR}"/aws/build_and_test --server-image dist/debian/server_docker_image.tar ${EXTRA_ARGS}
+
+DIST="${WORKSPACE}"/dist
+if [[ -d ${DIST} ]]; then
+  printf "build artifacts:\n"
+  ls -lhR "${DIST}"
+else
+  printf "dir not found: [%s]\n" "${DIST}"
 fi

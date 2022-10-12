@@ -44,7 +44,7 @@ bool Server::Start(uint16_t port) {
   std::string type = vsock_ ? "virtual sockets" : "TCP";
   std::cout << "Starting server listening thread using " << type << " on port "
             << port_ << std::endl;
-  listener_thread_ = std::move(std::thread(&Server::ListenerWorker, this));
+  listener_thread_ = std::thread(&Server::ListenerWorker, this);
 
   // Wait for listener to be active
   while (listener_status_ == ConnectionState::Connecting) {

@@ -37,4 +37,18 @@ flatbuffers::FlatBufferBuilder DeltaFileRecordStruct::ToFlatBuffer() const {
   return builder;
 }
 
+bool operator==(const DeltaFileRecordStruct& lhs_record,
+                const DeltaFileRecordStruct& rhs_record) {
+  return lhs_record.logical_commit_time == rhs_record.logical_commit_time &&
+         lhs_record.mutation_type == rhs_record.mutation_type &&
+         lhs_record.key == rhs_record.key &&
+         lhs_record.subkey == rhs_record.subkey &&
+         lhs_record.value == rhs_record.value;
+}
+
+bool operator!=(const DeltaFileRecordStruct& lhs_record,
+                const DeltaFileRecordStruct& rhs_record) {
+  return !operator==(lhs_record, rhs_record);
+}
+
 }  // namespace fledge::kv_server

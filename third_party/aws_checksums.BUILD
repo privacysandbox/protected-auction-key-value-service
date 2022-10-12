@@ -28,16 +28,14 @@ cc_library(
 genrule(
     name = "crc_hw_c",
     outs = ["crc_hw.c"],
-    cmd = "\n".join([
-        "cat <<'EOF' >$@",
-        "#include <aws/checksums/private/cpuid.h>",
-        "#include <aws/checksums/private/crc_priv.h>",
-        "int aws_checksums_do_cpu_id(int32_t *cpuid) {",
-        "    return 0;",
-        "}",
-        "uint32_t aws_checksums_crc32c_hw(const uint8_t *input, int length, uint32_t previousCrc32) {",
-        "  return aws_checksums_crc32c_sw(input, length, previousCrc32);",
-        "}",
-        "EOF",
-    ]),
+    cmd_bash = """cat <<EOF >'$@'
+#include <aws/checksums/private/cpuid.h>
+#include <aws/checksums/private/crc_priv.h>
+int aws_checksums_do_cpu_id(int32_t* cpuid) {
+    return 0;
+}
+uint32_t aws_checksums_crc32c_hw(const uint8_t* input, int length, uint32_t previousCrc32) {
+  return aws_checksums_crc32c_sw(input, length, previousCrc32);
+}
+EOF""",
 )

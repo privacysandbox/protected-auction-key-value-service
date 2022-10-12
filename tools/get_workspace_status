@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# This script will be run bazel when building process starts to
+# generate key-value information that represents the status of the
+# workspace. The output should be like
+#
+# KEY1 VALUE1
+# KEY2 VALUE2
+#
+# We want to force binaries to relink when the Git SHA changes. This can be
+# done by prefixing keys with "STABLE_". To avoid breaking compatibility with
+# other status scripts, this one still echos the non-stable ("volatile") names.
+
+if ! command -v git; then
+  exit 0
+fi
+
+GIT_REV=$(git rev-parse HEAD) || exit 1
+readonly GIT_REV
+
+# Check whether there are any uncommitted changes
+git diff-index --quiet HEAD -- && { TREE_STATUS="CLEAN"; } || { TREE_STATUS="MODIFIED"; }
+readonly TREE_STATUS
+
+TOPLEVEL_DIR=$(git rev-parse --show-toplevel)
+readonly TOPLEVEL_DIR
+VERSION=$(cat "${TOPLEVEL_DIR}"/version.txt)
+readonly VERSION
+
+RELEASE_COMMIT=$(git log --basic-regexp --grep "^Release ${VERSION}" --pretty=%H)
+COMMITS_SINCE_RELEASE=$(git log ${RELEASE_COMMIT}..HEAD --pretty=%H | wc -l)
+if [[ ${COMMITS_SINCE_RELEASE} -gt 0 ]]; then
+  EXTENDED_VERSION="plus ${COMMITS_SINCE_RELEASE} commits"
+fi
+
+cat <<EOF
+STABLE_BUILD_VCS_REVISION ${GIT_REV}
+STABLE_BUILD_VCS_STATUS ${TREE_STATUS}
+STABLE_VERSION ${VERSION}
+STABLE_VERSION_EXTENDED ${VERSION} ${EXTENDED_VERSION}
+STABLE_$(grep -o TOOLCHAINS_HASH.*$ /etc/bazel.bazelrc | tr '=' ' ')
+EOF

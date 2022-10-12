@@ -22,6 +22,9 @@ lint:
   - PACKAGE_DIRECTORY_MATCH
   - PACKAGE_VERSION_SUFFIX
   - ENUM_VALUE_PREFIX
+  ignore_only:
+    RPC_RESPONSE_STANDARD_NAME:
+      - public/query/get_values.proto
   enum_zero_value_suffix: _UNSPECIFIED
   rpc_allow_same_request_response: false
   rpc_allow_google_protobuf_empty_requests: false

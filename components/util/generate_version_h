@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# This script generates a header file that is used by version_lib whenever linkstamp is not allowed.
+# linkstamp is used to link in version_linkstamp.cc into the version_lib.
+# However, linkstamp is not available to non-binary bazel targets.
+# This means that if the topmost target being used to compile version_lib is a envoy_cc_library or related, linkstamp will not be in effect.
+# In turn this means that version_linkstamp.cc is not linked, and the build_scm_revision and build_scm_status are unknown symbols to the linker.
+
+# Unfortunately linkstamp is not well documented (https://github.com/bazelbuild/bazel/issues/2893).
+# But following the implicit trail one can deduce that linkstamp is in effect when "stamping" (https://github.com/bazelbuild/bazel/issues/2893) is on.
+# envoy_cc_library -- and the underlying cc_library rule -- does not support "stamping".
+# This makes sense as stamping mainly makes sense in the context of binaries for production releases, not static libraries.
+
+function _value_for() {
+  local VAR=$1
+  LINE=$(grep -wh "^${VAR}" bazel-out/{volatile,stable}-status.txt)
+  printf "%s\n" "${LINE//${VAR} }"
+}
+
+BUILD_PLATFORM="$1"
+
+BUILD_TIMESTAMP=$(_value_for BUILD_TIMESTAMP)
+BUILD_VCS_REVISION=$(_value_for STABLE_BUILD_VCS_REVISION)
+BUILD_VCS_STATUS=$(_value_for STABLE_BUILD_VCS_STATUS)
+TOOLCHAINS_HASH=$(_value_for STABLE_TOOLCHAINS_HASH)
+VERSION=$(_value_for STABLE_VERSION)
+VERSION_EXTENDED=$(_value_for STABLE_VERSION_EXTENDED)
+
+cat <<EOF
+#include "components/util/build_info.h"
+#define FLAVOR_STR(_instance, _platform) _instance ## _platform
+
+namespace fledge::kv_server {
+
+const int64_t kVersionBuildTimestamp = ${BUILD_TIMESTAMP};
+const std::string_view kVersionBuildVcsRevision = "${BUILD_VCS_REVISION}";
+const TreeStatusType kVersionBuildVcsTreeStatus = TreeStatusType::${BUILD_VCS_STATUS};
+const std::string_view kVersionBuildVersion = "${VERSION}";
+const std::string_view kVersionBuildVersionExtended = "${VERSION_EXTENDED}";
+const std::string_view kVersionBuildPlatform = "${BUILD_PLATFORM}";
+const std::string_view kVersionBuildToolchainHash = "$TOOLCHAINS_HASH";
+
+}  // namespace fledge::kv_server
+EOF

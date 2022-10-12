@@ -6,34 +6,61 @@ The data server provides the read API for the KV service.
 
 ### Prereqs
 
--   Install Bazelisk is the recommended way to
-    [install Bazel](https://docs.bazel.build/versions/5.0.0/install-bazelisk.html) or refer to
-    Bazelisk's
-    [installation instructions](https://github.com/bazelbuild/bazelisk/blob/master/README.md#installation).
-    Hint: If you have Go installed, then `go install` may be the simplest option, per
-    [these instructions](https://github.com/bazelbuild/bazelisk/blob/master/README.md#requirements).
-    on linux, Windows, and macOS.
+-   [Docker](https://docs.docker.com/get-docker/) on linux
+-   Supported CPU architectures: AMD64, ARM64
 
-    Note: These instructions refer to the `bazel` command. Therefore, if using bazelisk instead,
-    simply specify `bazelisk` instead of `bazel`, add an alias for `bazel`, or symlink `bazelisk` to
-    `bazel` and add this to your `PATH`.
+### Run the server locally inside a docker container
 
-    If installing bazel directly rather than using bazelisk, refer to the `.bazeliskrc` file for the
-    matching bazel version.
+1.  Build the image
 
--   Optional steps:
+    1. (Optional) If you need to make changes to code of a dependency repo:
 
-    -   Install [Docker](https://docs.docker.com/get-docker/)
-    -   Install
-        [grpc_cli](https://github.com/grpc/grpc/blob/master/doc/server_reflection_tutorial.md#test-services-using-server-reflection)
-        , if you do not already have it
+        1. Note the path of the local repo
+        1. Comment out the http_archive target in [WORKSPACE](/WORKSPACE) file (or a file loaded by
+           it)
+        1. Add a target in the WORKSPACE file:
 
-```sh
-bazel build @com_github_grpc_grpc//test/cpp/util:grpc_cli
-cp "$(bazel info bazel-bin)/external/com_github_grpc_grpc/test/cpp/util/grpc_cli" /bin/opt/grpc_cli
-```
+            - [local_repository](https://bazel.build/reference/be/workspace#local_repository) if the
+              directory tree has WORKSPACE and BUILD files
+            - [new_local_repository](https://bazel.build/reference/be/workspace#new_local_repository)
+              otherwise.
 
-### Running the server locally
+            Example (note, it must be added to the WORKSPACE file itself):
+
+            ```bazel
+            local_repository(
+                name = "bazel_skylib",
+                path = "/tmp/local_dependency/bazel_skylib",
+            )
+            ```
+
+        1. Set environment variable to map the path for builds:
+
+            ```sh
+            export EXTRA_DOCKER_RUN_ARGS='--volume /tmp/local_dependency:/tmp/local_dependency'
+            ```
+
+    1. Build the server artifacts and copy them into the `dist/debian/` directory.
+
+    ```sh
+    builders/tools/bazel-debian run //production/packaging/aws/data_server:copy_to_dist --//:instance=local --//:platform=aws
+    builders/tools/normalize-dist
+    ```
+
+1.  Load the image into docker
+
+    ```sh
+    docker load -i dist/debian/server_docker_image.tar
+    ```
+
+1.  Run the container. Port 50051 can be used to query the server directly through gRPC. Port 51052
+    can be used to query with HTTP which is served through Envoy to the server.
+
+    ```sh
+    docker run -it --rm --entrypoint=/server/bin/init_server_basic --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 -p 127.0.0.1:51052:51052 bazel/production/packaging/aws/data_server:server_docker_image --server-port 50051
+    ```
+
+### Run the server locally
 
 For example:
 
@@ -58,51 +85,7 @@ We are currently developing this server for local testing and for use on AWS Nit
 [Aggregation Service](https://github.com/google/trusted-execution-aggregation-service). We
 anticipate supporting additional cloud providers in the future.
 
-### Running the server docker image locally
-
-1. Build the image
-
-    1. Go into the build environment
-
-        ```sh
-        ./builders/tools/cbuild
-        ```
-
-    1. Build the target image
-
-        ```sh
-        bazel build -c opt //production/packaging/aws/data_server:server_docker_image.tar --//:instance=local --//:platform=aws
-        ```
-
-    1. The image needs to be copied over to `dist/`. The actual directory may be different. It will
-       be shown at the end of the build log.
-
-        ```sh
-        cp bazel-out/k8-opt-ST-4a519fd6d3e4/bin/production/packaging/aws/data_server/server_docker_image.tar dist/
-        ```
-
-    1. Leave the build container
-
-    1. These commands can be combined into one:
-
-        ```sh
-        ./builders/tools/cbuild --image build-debian --env 'BAZEL_OUT_DIR=k8-opt-ST-4a519fd6d3e4' --cmd 'bazel build -c opt //production/packaging/aws/data_server:server_docker_image.tar --//:instance=local --//:platform=aws; cp bazel-out/${BAZEL_OUT_DIR}/bin/production/packaging/aws/data_server/server_docker_image.tar dist/'
-        ```
-
-1. Load the image
-
-    ```sh
-    docker load -i dist/server_docker_image.tar
-    ```
-
-1. Run the container. Port 50051 can be used to query the server directly through gRPC. Port 51052
-   can be used to query with HTTP which is served through Envoy to the server.
-
-    ```sh
-    docker run -it --rm --entrypoint=/server/bin/init_server_basic --env AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID} --env AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} -p 127.0.0.1:50051:50051 -p 127.0.0.1:51052:51052 bazel/production/packaging/aws/data_server:server_docker_image --server-port 50051
-    ```
-
-### Interacting with the server
+### Interact with the server
 
 -   Use `grpc_cli` to interact with your local instance. You might have to pass
     `--channel_creds_type=insecure`.

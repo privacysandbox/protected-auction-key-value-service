@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -34,6 +35,16 @@ TEST(RetryTest, RetryUntilOk) {
   absl::StatusOr<int> v = RetryUntilOk(func.AsStdFunction(), "TestFunc");
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
+}
+
+TEST(RetryTest, RetryUnilOkStatusOnly) {
+  testing::MockFunction<absl::Status()> func;
+  EXPECT_CALL(func, Call)
+      .Times(2)
+      .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
+      .WillOnce([] { return absl::OkStatus(); });
+
+  RetryUntilOk(func.AsStdFunction(), "TestFunc");
 }
 
 TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {

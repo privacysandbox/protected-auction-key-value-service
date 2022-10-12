@@ -257,15 +257,11 @@ cc_library(
 
 genrule(
     name = "SDKConfig_h",
-    outs = [
-        "aws-cpp-sdk-core/include/aws/core/SDKConfig.h",
-    ],
-    cmd = "\n".join([
-        "cat <<'EOF' >$@",
-        "#if defined(_MSC_VER)",
-        "#include <Windows.h>",
-        "#undef IGNORE",
-        "#endif",
-        "EOF",
-    ]),
+    outs = ["aws-cpp-sdk-core/include/aws/core/SDKConfig.h"],
+    cmd_bash = """cat <<EOF >'$@'
+#if defined(_MSC_VER)
+#include <Windows.h>
+#undef IGNORE
+#endif
+EOF""",
 )

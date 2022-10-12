@@ -19,17 +19,21 @@ set -o errexit
 set -o xtrace
 
 if [[ -z "${AWS_ECR}" ]]; then
-      echo "Please export AWS_ECR address as suggested by AWS Elastic Container Registry"
-      echo "This can be found in 'View Push Commands'"
-      echo "in the form of 123456789.dkr.ecr.us-east-1.amazonaws.com'"
+  cat << EOF
+Error: please export the environment variable AWS_ECR containing the FQDN for
+your AWS Elastic Container Registry. This can be found in 'View Push Commands'
+in the form of:
+    123456789.dkr.ecr.us-east-1.amazonaws.com
+EOF
+  exit 1
 fi
 
 aws ecr get-login-password --region us-east-1 |
-  docker login --username AWS --password-stdin ${AWS_ECR}
+  docker login --username AWS --password-stdin "${AWS_ECR}"
 
-WORKSPACE=$(git rev-parse --show-toplevel)
-DIST_DIR="${WORKSPACE}"/dist
-unzip -cq "${DIST_DIR}"/aws_artifacts.zip sqs_lambda.tar | docker load -i /dev/stdin
+WORKSPACE="$(git rev-parse --show-toplevel)"
+DIST_DIR="${WORKSPACE}"/dist/aws
+unzip -q -c "${DIST_DIR}"/nitro_artifacts.zip sqs_lambda.tar | docker load
 AWS_IMAGE_URI="${AWS_ECR}"/sqs_lambda:latest
 docker tag bazel/components/aws:sqs_lambda "${AWS_IMAGE_URI}"
 docker push "${AWS_IMAGE_URI}"

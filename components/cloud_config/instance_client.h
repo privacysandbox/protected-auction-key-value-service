@@ -32,6 +32,10 @@ class InstanceClient {
   // key "environment".
   virtual absl::StatusOr<std::string> GetEnvironmentTag() const = 0;
 
+  // Indicates that the instance is still initializing.
+  virtual absl::Status RecordLifecycleHeartbeat(
+      std::string_view lifecycle_hook_name) const = 0;
+
   // Calls to complete the instance lifecycle with CONTINUE action.
   virtual absl::Status CompleteLifecycle(
       std::string_view lifecycle_hook_name) const = 0;

@@ -10,27 +10,30 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.jjj
+# limitations under the License.
 
 # build command:
 # `tar --create --dereference --gzip --directory=builders/build-debian . | docker build - --tag privacysandbox/builders/build-debian:bazel_build_image`
 
 FROM ubuntu:20.04
 
-COPY install_* generate_system_bazelrc .pre-commit-config.yaml .bazelversion /scripts/
+COPY install_apps install_golang_apps install_go.sh generate_system_bazelrc .bazelversion /scripts/
 COPY gitconfig /etc
 
-ENV PRE_COMMIT_HOME=/var/cache/pre-commit
-ENV PRE_COMMIT_TOOL=/usr/pre-commit-venv/bin/pre-commit
+ARG LOCALE=en_US.UTF-8
+
+ENV WORKSPACE=/src/workspace \
+    TZ=Etc/UTC
 
 RUN  \
   chmod 644 /etc/gitconfig && \
-  /scripts/install_apt_apps --with-golang --with-clang --with-docker --with-packer && \
-  /scripts/generate_system_bazelrc && \
-  /scripts/install_golang_apps --with-bazel --bazel-symlink-path /usr/bin && \
-  /scripts/install_precommit_cache && \
+  /scripts/install_apps --locale ${LOCALE} && \
+  /scripts/generate_system_bazelrc --user-root build_kvserver_ubuntu && \
+  /scripts/install_golang_apps && \
   rm -rf /scripts
 
-ENV PATH="${PATH}:/usr/local/go/bin"
-
-# go version; clang --version; bazel version; packer --version
+ENV LANG=${LOCALE} \
+    LANGUAGE=${LOCALE} \
+    LC_ALL=${LOCALE} \
+    LC_CTYPE=${LOCALE} \
+    PATH="${PATH}:/usr/local/go/bin"

@@ -133,8 +133,7 @@ class S3BlobReader : public BlobReader {
 
 class S3BlobStorageClient : public BlobStorageClient {
  public:
-  absl::StatusOr<std::unique_ptr<BlobReader>> GetBlob(
-      DataLocation location) override {
+  std::unique_ptr<BlobReader> GetBlobReader(DataLocation location) override {
     return std::make_unique<S3BlobReader>(*client_, std::move(location));
   }
 

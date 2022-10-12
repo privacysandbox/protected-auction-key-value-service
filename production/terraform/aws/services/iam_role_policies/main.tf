@@ -40,6 +40,12 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     resources = [var.autoscaling_group_arn]
   }
   statement {
+    sid       = "AllowInstancesToRecordLifecycleActionHeartbeat"
+    actions   = ["autoscaling:RecordLifecycleActionHeartbeat"]
+    effect    = "Allow"
+    resources = [var.autoscaling_group_arn]
+  }
+  statement {
     sid       = "AllowInstancesToDescribeAutoScalingInstances"
     actions   = ["autoscaling:DescribeAutoScalingInstances"]
     effect    = "Allow"

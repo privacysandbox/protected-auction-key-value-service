@@ -12,11 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# environment variables supported by cbuild (all optional):
+#     WORKSPACE                    Set the path to the workspace (repo root)
+#     AWS_ACCESS_KEY_ID            AWS auth token
+#     AWS_SECRET_ACCESS_KEY        AWS auth token
+#     BAZEL_STARTUP_ARGS           Additional startup arguments to pass to bazel invocations
+#     BAZEL_EXTRA_ARGS             Additional command arguments to pass to bazel invocations
+#     EXTRA_DOCKER_RUN_ARGS        Additional arguments to pass to docker run invocations
+
 set -o pipefail
 set -o errexit
 
 SCRIPT_NAME=$(basename "$0")
-CBUILD="$(dirname "$(readlink -f $0)")/cbuild"
+CBUILD="$(dirname "$(readlink -f "$0")")/cbuild"
 IMAGE="build-${SCRIPT_NAME/bazel-}"
 
-"${CBUILD}" --image "${IMAGE}" --cmd "bazel $*"
+"${CBUILD}" --image "${IMAGE}" --cmd "bazel ${BAZEL_STARTUP_ARGS} $* ${BAZEL_EXTRA_ARGS}"

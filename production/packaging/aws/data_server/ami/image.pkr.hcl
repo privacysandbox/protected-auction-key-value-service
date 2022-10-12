@@ -26,7 +26,7 @@ variable "distribution_dir" {
     error_message = <<EOF
 The distribution_dir var is not set: make sure to at least set the DIST env var.
 To fix this you could also set the distribution_dir variable from the arguments, for example:
-$ packer build -var=distribution_dir=/src/workspace/dist ...
+$ packer build -var=distribution_dir=/src/workspace/dist/aws ...
 EOF
   }
 }

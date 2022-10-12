@@ -18,26 +18,28 @@
 #include <utility>
 #include <vector>
 
-#include <grpcpp/grpcpp.h>
-
 #include "absl/strings/str_split.h"
 #include "components/data_server/cache/cache.h"
 #include "glog/logging.h"
+#include "grpcpp/grpcpp.h"
+#include "infrastructure/communication/bhttp_utils.h"
 #include "public/base_types.pb.h"
 #include "public/constants.h"
 #include "public/query/get_values.grpc.pb.h"
+#include "quiche/binary_http/binary_http_message.h"
 #include "src/google/protobuf/message.h"
 #include "src/google/protobuf/struct.pb.h"
 
 namespace fledge::kv_server {
 namespace {
-using fledge::kv_server::v1::GetValuesRequest;
-using fledge::kv_server::v1::GetValuesResponse;
-using fledge::kv_server::v1::KeyValueService;
 using google::protobuf::RepeatedPtrField;
 using google::protobuf::Struct;
 using google::protobuf::Value;
 using grpc::StatusCode;
+using v1::BinaryHttpGetValuesRequest;
+using v1::GetValuesRequest;
+using v1::GetValuesResponse;
+using v1::KeyValueService;
 
 grpc::Status ValidateDSPRequest(const GetValuesRequest& request) {
   if (request.keys().empty()) {
@@ -101,6 +103,42 @@ void ProcessNamespace(const RepeatedPtrField<std::string>& keys,
 }
 
 }  // namespace
+
+grpc::Status GetValuesHandler::BinaryHttpGetValues(
+    const BinaryHttpGetValuesRequest& bhttp_request,
+    google::api::HttpBody* bhttp_response) const {
+  VLOG(9) << "Received BinaryHttpGetValues request";
+  auto maybe_request =
+      DeserializeBHttpToProto<quiche::BinaryHttpRequest, GetValuesRequest>(
+          bhttp_request.raw_body().data());
+  if (!maybe_request.ok()) {
+    VLOG(1) << "Failed to deserialize request: " << maybe_request.status();
+    return grpc::Status(StatusCode::INTERNAL,
+                        std::string(maybe_request.status().message()));
+  }
+  VLOG(3) << "BinaryHttpGetValues request: " << maybe_request->DebugString();
+
+  GetValuesResponse response;
+  const grpc::Status get_values_status = GetValues(*maybe_request, &response);
+  VLOG(3) << "BinaryHttpGetValues status: " << get_values_status.error_message()
+          << "response: " << response.DebugString();
+
+  uint16_t status_code = 200;
+  if (!get_values_status.ok()) {
+    response.Clear();
+    status_code = 500;
+  }
+  auto maybe_response =
+      SerializeProtoToBHttp<quiche::BinaryHttpResponse, GetValuesResponse>(
+          response, status_code);
+
+  if (!maybe_response.ok()) {
+    return grpc::Status(StatusCode::INTERNAL,
+                        std::string(maybe_response.status().message()));
+  }
+  bhttp_response->set_data(std::move(*maybe_response));
+  return grpc::Status::OK;
+}
 
 grpc::Status GetValuesHandler::GetValues(const GetValuesRequest& request,
                                          GetValuesResponse* response) const {

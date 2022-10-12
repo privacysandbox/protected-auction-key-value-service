@@ -47,6 +47,8 @@ repos:
     exclude: '^google_internal/.*/kokoro_(presubmit|continuous).sh$'
   - id: script-must-have-extension
   - id: require-ascii
+  - id: shellcheck
+    exclude: '^(production|tools|google_internal|builders/test|builders/release|builders/build-debian|builders/build-amazonlinux2)/.*$'
 
 - repo: https://github.com/pre-commit/mirrors-clang-format
   rev: v14.0.6

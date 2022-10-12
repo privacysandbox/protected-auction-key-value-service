@@ -20,6 +20,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/cloud_config/instance_client.h"
+#include "glog/logging.h"
 
 ABSL_FLAG(std::string, environment, "local", "Environment name.");
 
@@ -32,8 +33,15 @@ class LocalInstanceClient : public InstanceClient {
     return absl::GetFlag(FLAGS_environment);
   }
 
+  absl::Status RecordLifecycleHeartbeat(
+      std::string_view lifecycle_hook_name) const override {
+    LOG(INFO) << "Record lifecycle heartbeat.";
+    return absl::OkStatus();
+  }
+
   absl::Status CompleteLifecycle(
       std::string_view lifecycle_hook_name) const override {
+    LOG(INFO) << "Complete lifecycle.";
     return absl::OkStatus();
   }
 };

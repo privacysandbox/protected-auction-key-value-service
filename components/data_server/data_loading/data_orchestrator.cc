@@ -29,25 +29,14 @@
 namespace fledge::kv_server {
 namespace {
 
-constexpr int kGetDeltaFileMaxAttempts = 3;
-
 // Reads the file from `location` and updates the cache based on the delta read.
 absl::Status LoadCacheWithDataFromFile(BlobStorageClient::DataLocation location,
                                        DataOrchestrator::Options options) {
   LOG(INFO) << "Loading " << location;
-  absl::StatusOr<std::unique_ptr<BlobReader>> maybe_blob = RetryWithMax(
-      [&options, &location]() -> absl::StatusOr<std::unique_ptr<BlobReader>> {
-        return options.blob_client.GetBlob(location);
-      },
-      "GetBlob", kGetDeltaFileMaxAttempts);
-  if (!maybe_blob.ok()) {
-    return maybe_blob.status();
-  }
-
+  std::unique_ptr<BlobReader> blob_reader =
+      options.blob_client.GetBlobReader(location);
   std::unique_ptr<StreamRecordReader<std::string_view>> record_reader =
-      options.delta_stream_reader_factory.CreateReader(
-          maybe_blob.value()->Stream());
-
+      options.delta_stream_reader_factory.CreateReader(blob_reader->Stream());
   auto maybe_metadata = record_reader->GetKVFileMetadata();
   if (!maybe_metadata.ok()) {
     return maybe_metadata.status();
@@ -116,18 +105,17 @@ class DataOrchestratorImpl : public DataOrchestrator {
   }
 
   static absl::StatusOr<std::string> Init(Options& options) {
-    std::vector<std::string> result = RetryUntilOk(
-        [&options]() {
-          return options.blob_client.ListBlobs(
-              {.bucket = options.data_bucket},
-              {.prefix = std::string(FilePrefix<FileType::DELTA>())});
-        },
-        "ListBlobs");
-    LOG(INFO) << "Initializing cache with " << result.size() << " files from "
-              << options.data_bucket;
+    auto maybe_filenames = options.blob_client.ListBlobs(
+        {.bucket = options.data_bucket},
+        {.prefix = std::string(FilePrefix<FileType::DELTA>())});
+    if (!maybe_filenames.ok()) {
+      return maybe_filenames.status();
+    }
+    LOG(INFO) << "Initializing cache with " << maybe_filenames->size()
+              << " files from " << options.data_bucket;
 
     std::string last_basename;
-    for (auto&& basename : std::move(result)) {
+    for (auto&& basename : std::move(*maybe_filenames)) {
       if (!IsDeltaFilename(basename)) {
         LOG(WARNING) << "Saw a file " << basename
                      << " not in delta file format. Skipping it.";
@@ -193,17 +181,14 @@ class DataOrchestratorImpl : public DataOrchestrator {
         LOG(WARNING) << "Received file with invalid name: " << basename;
         continue;
       }
-
-      const absl::Status status = LoadCacheWithDataFromFile(
-          {.bucket = options_.data_bucket, .key = basename}, options_);
-      if (!status.ok()) {
-        // TODO: distinguish statues. Some can be retried while others are
-        // fatal.
-        LOG(ERROR) << "Failed to load " << basename << ": " << status;
-        absl::MutexLock l(&mu_);
-        unprocessed_basenames_.push_back(std::move(basename));
-        continue;
-      }
+      RetryUntilOk(
+          [this, &basename] {
+            // TODO: distinguish status. Some can be retried while others are
+            // fatal.
+            return LoadCacheWithDataFromFile(
+                {.bucket = options_.data_bucket, .key = basename}, options_);
+          },
+          "LoadNewFile - " + basename);
     }
   }
 

@@ -17,15 +17,40 @@ syntax = "proto3";
 package fledge.kv_server.v1;
 
 import "google/api/annotations.proto";
+import "google/api/httpbody.proto";
 import "google/protobuf/struct.proto";
 
 // Key Value Service API.
 service KeyValueService {
+  // V1 Query API as described in
+  // https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md
   rpc GetValues(GetValuesRequest) returns (GetValuesResponse) {
     option (google.api.http) = {
       get: "/v1/getvalues"
     };
   }
+
+  // Debugging API to communication in Binary Http.
+  //
+  // The body should be a binary Http request described in
+  // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html
+  //
+  // The response will be a binary Http response. The response will return 200
+  // code as long as the binary Http response can be encoded. The actual status
+  // code of the processing can be extracted from the binary Http response.
+  //
+  // ATTENTION: Not used by any external client. Subject to change or deletion.
+  rpc BinaryHttpGetValues(BinaryHttpGetValuesRequest)
+      returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/v1/bhttp_getvalues"
+      body: "raw_body"
+    };
+  }
+}
+
+message BinaryHttpGetValuesRequest {
+  google.api.HttpBody raw_body = 1;
 }
 
 // Request for getting value.

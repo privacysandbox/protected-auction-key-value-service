@@ -31,7 +31,10 @@ container_layer(
 
 container_image(
     name = "sqs_lambda",
-    base = "@aws-lambda-python//image",
+    base = select({
+        "@platforms//cpu:arm64": "@aws-lambda-python-arm64//image",
+        "@platforms//cpu:x86_64": "@aws-lambda-python-amd64//image",
+    }),
     cmd = ["sqs_cleanup.handler"],
     layers = [
         ":lambda_binary_layer",
@@ -46,4 +49,8 @@ container_push(
     registry = "$${AWS_ECR}",
     repository = "sqs_lambda",
     tag = "latest",
+)
+
+exports_files(
+    ["push_sqs"],
 )

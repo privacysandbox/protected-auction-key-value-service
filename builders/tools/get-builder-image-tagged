@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Return an image:tag for the specified builder docker image
+#     Given the input files (Dockerfile, configs, installation scripts etc) for building the docker
+#     image, first generate a hash of the file contents (ie. exclude timestamps, file ownership etc).
+#     This hash will be used as the image tag
+
+set -o pipefail
+set -o errexit
+
+VERBOSE=0
+BUILD_IMAGE_IF_NEEDED=1
+
+declare -r -A IMAGE_DIRS=(
+  [build-debian]="builders/build-debian"
+  [build-amazonlinux2]="builders/build-amazonlinux2"
+  [presubmit]="builders/presubmit"
+  [release]="builders/release"
+)
+
+declare -r -A IMAGE_NAMES=(
+  [build-debian]="privacysandbox/builders/build-debian"
+  [build-amazonlinux2]="privacysandbox/builders/build-amazonlinux2"
+  [presubmit]="privacysandbox/builders/presubmit"
+  [release]="privacysandbox/builders/release"
+)
+
+usage() {
+  local exitval=${1-1}
+  cat &>/dev/stderr << USAGE
+usage:
+  $0 <options>
+    --no-build           Do not build image if it doesn't exist
+    --image              Image name for the build runtime. Valid names:
+USAGE
+
+  for elem in "${!IMAGE_NAMES[@]}"
+  do
+    if [[ ${IMAGE} == "${elem}" ]]; then
+      local EXTRA=" (default)"
+    fi
+    printf "                             *  %s%s\n" "${elem}" "${EXTRA}" &>/dev/stderr
+  done
+
+  cat &>/dev/stderr << USAGE
+    --verbose            Enable verbose output
+
+Environment variables (all optional):
+    WORKSPACE            Full path to the workspace (repo root)
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --image)
+      IMG="$2"
+      shift
+      shift
+      ;;
+    --no-build)
+      BUILD_IMAGE_IF_NEEDED=0
+      shift
+      ;;
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -h | --help) usage 0 ;;
+    *)
+      printf "unrecognized arg: %s\n" "$1"
+      usage
+      ;;
+  esac
+done
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+WORKSPACE="${WORKSPACE-"$(readlink -f "${SCRIPT_DIR}"/../..)"}"
+
+if [[ -z ${IMG} ]]; then
+  printf -- "error: --image must be specified\n" &>/dev/stderr
+  usage 1
+fi
+
+readonly IMAGE_DIR=${IMAGE_DIRS[${IMG}]}
+readonly IMAGE_NAME=${IMAGE_NAMES[${IMG}]}
+if [[ -z ${IMAGE_NAME} ]] || [[ -z ${IMAGE_DIR} ]]; then
+  printf -- "error: image [%s] not recognized\n" "${IMG}" &>/dev/stderr
+  usage 1
+fi
+
+DIR_FULL="${WORKSPACE}/${IMAGE_DIR}"
+
+if ! [[ -s ${DIR_FULL}/Dockerfile ]]; then
+  printf "error: unable to locate [%s/Dockerfile]\n" "${DIR_FULL}" &>/dev/stderr
+  exit 1
+fi
+TEMPTAR="$(mktemp --dry-run --suffix=.tar.gz)"
+readonly TEMPTAR
+
+trap _cleanup EXIT
+
+function _cleanup() {
+  local STATUS=$?
+  rm -f "${TEMPTAR}"
+  # shellcheck disable=SC2086
+  exit ${STATUS}
+}
+
+# try to create a deterministic tar file
+tar --create --dereference --sort=name --owner=0 --group=0 --numeric-owner --mtime='2022-07-01 12:00Z' --format=gnu --directory="${DIR_FULL}" --file="${TEMPTAR}" --exclude=test .
+# use the tarfile size and file content to generate a sha256 hash
+SHA=$({ echo -ne "blob $(wc -c < "${TEMPTAR}")\0"; tar --extract --file="${TEMPTAR}" --to-stdout; } | sha256sum | cut -f1 -d" ")
+ARCH="$("${SCRIPT_DIR}"/get-architecture)"
+readonly ARCH
+readonly IMAGE_TAG="${ARCH}-${SHA}"
+if [[ ${VERBOSE} -eq 1 ]]; then
+  printf "tag for docker inputs: %s\n" "${IMAGE_TAG}" &>/dev/stderr
+fi
+readonly IMAGE_TAGGED="${IMAGE_NAME}:${IMAGE_TAG}"
+printf "%s\n" "${IMAGE_TAGGED}"
+
+if [[ ${BUILD_IMAGE_IF_NEEDED} -eq 1 ]]; then
+  # Create a builder docker image
+  # build container image and load it into the local docker client
+  if ! docker image inspect "${IMAGE_TAGGED}" &>/dev/null; then
+    printf "generating docker image %s\n" "${IMAGE_TAGGED}" &>/dev/stderr
+    docker build --tag "${IMAGE_TAGGED}" - <"${TEMPTAR}" &>/dev/stderr
+  fi
+fi

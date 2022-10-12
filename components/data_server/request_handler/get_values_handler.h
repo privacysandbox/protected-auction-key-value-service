@@ -17,29 +17,30 @@
 #ifndef COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_HANDLER_H_
 #define COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_HANDLER_H_
 
-#include <grpcpp/grpcpp.h>
-
 #include "components/data_server/cache/cache.h"
+#include "grpcpp/grpcpp.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "src/google/protobuf/struct.pb.h"
 
 namespace fledge::kv_server {
 
-using v1::GetValuesRequest;
-using v1::GetValuesResponse;
-
 // Handles GetValuesRequests.
+// See the Service proto definition for details.
 class GetValuesHandler {
  public:
   explicit GetValuesHandler(const ShardedCache& sharded_cache, bool dsp_mode)
       : sharded_cache_(sharded_cache), dsp_mode_(dsp_mode) {}
 
   // TODO: Implement subkey, ad/render url lookups.
-  grpc::Status GetValues(const GetValuesRequest& request,
-                         GetValuesResponse* response) const;
+  grpc::Status GetValues(const v1::GetValuesRequest& request,
+                         v1::GetValuesResponse* response) const;
+
+  grpc::Status BinaryHttpGetValues(
+      const v1::BinaryHttpGetValuesRequest& request,
+      google::api::HttpBody* response) const;
 
  private:
-  grpc::Status ValidateRequest(const GetValuesRequest& request) const;
+  grpc::Status ValidateRequest(const v1::GetValuesRequest& request) const;
 
   const ShardedCache& sharded_cache_;
 

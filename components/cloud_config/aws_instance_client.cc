@@ -22,6 +22,7 @@
 #include "aws/autoscaling/AutoScalingClient.h"
 #include "aws/autoscaling/model/CompleteLifecycleActionRequest.h"
 #include "aws/autoscaling/model/DescribeAutoScalingInstancesRequest.h"
+#include "aws/autoscaling/model/RecordLifecycleActionHeartbeatRequest.h"
 #include "aws/core/Aws.h"
 #include "aws/core/http/HttpClientFactory.h"
 #include "aws/core/http/HttpRequest.h"
@@ -151,9 +152,9 @@ class AwsInstanceClient : public InstanceClient {
     return outcome.GetResult().GetTags()[0].GetValue();
   }
 
-  absl::Status CompleteLifecycle(
+  absl::Status RecordLifecycleHeartbeat(
       std::string_view lifecycle_hook_name) const override {
-    absl::StatusOr<std::string> instance_id =
+    const absl::StatusOr<std::string> instance_id =
         GetInstanceId(*ec2_metadata_client_);
     if (!instance_id.ok()) {
       LOG(ERROR) << "Failed to get instance_id: " << instance_id.status();
@@ -161,7 +162,38 @@ class AwsInstanceClient : public InstanceClient {
     }
     LOG(INFO) << "Retrieved instance id: " << *instance_id;
 
-    absl::StatusOr<std::string> auto_scaling_group_name =
+    const absl::StatusOr<std::string> auto_scaling_group_name =
+        GetAutoScalingGroupName(*auto_scaling_client_, *instance_id);
+    if (!auto_scaling_group_name.ok()) {
+      return auto_scaling_group_name.status();
+    }
+    LOG(INFO) << "Retrieved auto scaling group name "
+              << *auto_scaling_group_name;
+
+    Aws::AutoScaling::Model::RecordLifecycleActionHeartbeatRequest request;
+    request.SetAutoScalingGroupName(*auto_scaling_group_name);
+    request.SetLifecycleHookName(std::string(lifecycle_hook_name));
+    request.SetInstanceId(*instance_id);
+
+    const auto outcome =
+        auto_scaling_client_->RecordLifecycleActionHeartbeat(request);
+    if (!outcome.IsSuccess()) {
+      return AwsErrorToStatus(outcome.GetError());
+    }
+    return absl::OkStatus();
+  }
+
+  absl::Status CompleteLifecycle(
+      std::string_view lifecycle_hook_name) const override {
+    const absl::StatusOr<std::string> instance_id =
+        GetInstanceId(*ec2_metadata_client_);
+    if (!instance_id.ok()) {
+      LOG(ERROR) << "Failed to get instance_id: " << instance_id.status();
+      return instance_id.status();
+    }
+    LOG(INFO) << "Retrieved instance id: " << *instance_id;
+
+    const absl::StatusOr<std::string> auto_scaling_group_name =
         GetAutoScalingGroupName(*auto_scaling_client_, *instance_id);
     if (!auto_scaling_group_name.ok()) {
       return auto_scaling_group_name.status();

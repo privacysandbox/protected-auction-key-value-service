@@ -36,6 +36,12 @@ struct DeltaFileRecordStruct {
   flatbuffers::FlatBufferBuilder ToFlatBuffer() const;
 };
 
+bool operator==(const DeltaFileRecordStruct& lhs_record,
+                const DeltaFileRecordStruct& rhs_record);
+
+bool operator!=(const DeltaFileRecordStruct& lhs_record,
+                const DeltaFileRecordStruct& rhs_record);
+
 }  // namespace fledge::kv_server
 
 #endif  // PUBLIC_DATA_LOADING_RECORDS_UTILS_H_

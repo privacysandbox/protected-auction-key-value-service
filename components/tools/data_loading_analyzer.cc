@@ -23,12 +23,12 @@
 #include "aws/core/Aws.h"
 #include "components/data/blob_storage_client.h"
 #include "components/data/delta_file_notifier.h"
-#include "components/data/riegeli_stream_io.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
 #include "glog/logging.h"
 #include "public/base_types.pb.h"
 #include "public/data_loading/data_loading_generated.h"
+#include "public/data_loading/readers/riegeli_stream_io.h"
 
 ABSL_FLAG(std::vector<std::string>, operations,
           std::vector<std::string>({"PASS_THROUGH", "READ_ONLY", "CACHE"}),

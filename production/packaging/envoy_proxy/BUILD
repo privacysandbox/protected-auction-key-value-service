@@ -47,7 +47,10 @@ container_layer(
 
 container_flatten(
     name = "envoy_distroless_flat",
-    image = "@envoy-distroless//image",
+    image = select({
+        "@platforms//cpu:arm64": "@envoy-distroless-arm64//image",
+        "@platforms//cpu:x86_64": "@envoy-distroless-amd64//image",
+    }),
 )
 
 container_layer(

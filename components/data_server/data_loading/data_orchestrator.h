@@ -23,8 +23,8 @@
 #include "components/data/blob_storage_change_notifier.h"
 #include "components/data/blob_storage_client.h"
 #include "components/data/delta_file_notifier.h"
-#include "components/data/riegeli_stream_io.h"
 #include "components/data_server/cache/cache.h"
+#include "public/data_loading/readers/riegeli_stream_io.h"
 
 namespace fledge::kv_server {
 

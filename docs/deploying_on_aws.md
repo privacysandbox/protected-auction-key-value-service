@@ -23,8 +23,8 @@ You'll need API access, as well as your key ID and secret key.
 
 ## Setup AWS CLI
 
-[Install the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html),
-then set the
+Use the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html) wrapper
+script at `builders/tools/aws-cli` to set up
 [AWS CLI environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html).
 The access key and secret environment variables are required to be exported for the server
 deployment process to work.
@@ -123,7 +123,7 @@ such as
 export AWS_ECR=123456789.dkr.ecr.us-east-1.amazonaws.com
 ```
 
-Then run `dist/push_sqs` to push the SQS cleanup lambda image to AWS ECR.
+Then run `dist/aws/push_sqs` to push the SQS cleanup lambda image to AWS ECR.
 
 ## Set up Terraform
 
@@ -304,20 +304,26 @@ retrieved from the EC2 dashboard.
 Confirm that you can SSH into your SSH EC2 instance by following the instructions on
 [Connect using EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html).
 For example, to connect to the SSH instance using EC2 instance connect cli from a Linux machine,
-install the cli using the following command:
+install the cli using the following command and restart your terminal.
+
+Note: the following command assumes you've created a
+[python3 virtualenv](https://docs.python.org/3/tutorial/venv.html) named `ec2cli`, though you can
+choose to install this tool a different way.
 
 ```sh
-pip3 install ec2instanceconnectcli
+ec2cli/bin/pip3 install ec2instanceconnectcli
 ```
 
 Then, login into the SSH instance using the instance id and specifying the [[REGION]]:
 
 ```sh
-mssh i-0b427bcab8fe23afb --region us-east-1
+ec2cli/bin/mssh i-0b427bcab8fe23afb --region us-east-1
 ```
 
 If you are having trouble connecting to your EC2 instance, look through the
-[AWS SSH connection article](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AccessingInstancesLinux.html).
+[AWS SSH connection article](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html#ec2-instance-connect-connecting-aws-cli).
+To perform advanced operations such as copying files, follow the instructions in the article to set
+up connection using your own keys.
 
 ### Step 2: SSH into the actual EC2 instance from the SSH instance
 

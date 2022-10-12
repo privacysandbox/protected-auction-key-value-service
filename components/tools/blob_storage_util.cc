@@ -99,12 +99,7 @@ absl::StatusOr<std::unique_ptr<BlobReader>> GetSourceStream(
     std::string name = source.substr(kCloudPrefix.size());
     BlobStorageClient::DataLocation location = {std::move(bucket),
                                                 std::move(name)};
-    absl::StatusOr<std::unique_ptr<BlobReader>> reader =
-        client->GetBlob(location);
-    if (!reader.ok()) {
-      return reader.status();
-    }
-    return std::make_unique<CloudBlobReader>(std::move(*reader));
+    return std::make_unique<CloudBlobReader>(client->GetBlobReader(location));
   }
   auto fr = std::make_unique<FileBlobReader>(source);
   if (!fr->IsOpen()) {
@@ -153,13 +148,8 @@ bool CatObjects(std::string bucket, absl::Span<char*> keys) {
   BlobStorageClient::DataLocation location = {std::move(bucket)};
   for (const auto& key : keys) {
     location.key = key;
-    const absl::StatusOr<std::unique_ptr<BlobReader>> reader =
-        client->GetBlob(location);
-    if (!reader.ok()) {
-      std::cerr << reader.status() << std::endl;
-      return false;
-    }
-    std::cout << (*reader)->Stream().rdbuf();
+    auto reader = client->GetBlobReader(location);
+    std::cout << reader->Stream().rdbuf();
   }
   return true;
 }

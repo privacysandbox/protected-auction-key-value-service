@@ -103,3 +103,24 @@ EOF""",
     executable = True,
     local = True,
 )
+
+genrule(
+    name = "buildifier",
+    outs = ["run_buildifier.bin"],
+    cmd = """cat << EOF > '$@'
+tools/pre-commit buildifier
+EOF""",
+    executable = True,
+    local = True,
+)
+
+genrule(
+    name = "collect-logs",
+    outs = ["collect_logs.bin"],
+    cmd_bash = """cat << EOF > '$@'
+tools/collect-logs
+EOF""",
+    executable = True,
+    local = True,
+    message = "copy bazel build and test logs",
+)

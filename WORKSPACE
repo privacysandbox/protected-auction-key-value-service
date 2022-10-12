@@ -14,6 +14,13 @@ load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
 bazel_skylib_workspace()
 
 http_archive(
+    name = "com_google_protobuf",
+    sha256 = "8b28fdd45bab62d15db232ec404248901842e5340299a57765e48abe8a80d930",  # Last updated 2022-05-18
+    strip_prefix = "protobuf-3.20.1",
+    urls = ["https://github.com/protocolbuffers/protobuf/archive/refs/tags/v3.20.1.tar.gz"],
+)
+
+http_archive(
     name = "io_bazel_rules_go",
     sha256 = "16e9fca53ed6bd4ff4ad76facc9b7b651a89db1689a2877d6fd7b82aa824e366",
     urls = [
@@ -120,3 +127,11 @@ container_deps()
 load("//third_party:cpp_repositories.bzl", "cpp_repositories")
 
 cpp_repositories()
+
+load("//third_party:quiche.bzl", "quiche_dependencies")
+
+quiche_dependencies()
+
+load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
+
+protobuf_deps()

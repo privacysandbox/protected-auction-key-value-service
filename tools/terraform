@@ -13,9 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# helper script to build and execute the gh CLI tool.
-# Read the gh manual at https://cli.github.com/manual.
-#
 # environment variables (all optional):
 #   WORKSPACE                    repo root directory, must be an absolute path
 #   BUILD_WORKSPACE_DIRECTORY    repo root directory, secondary to WORKSPACE
@@ -23,9 +20,10 @@
 set -o errexit
 
 readonly IMAGE_TAGGED="hashicorp/terraform:1.0.4"
-readonly WORKSPACE=${WORKSPACE-${BUILD_WORKSPACE_DIRECTORY-$(bazel info workspace)}}
+readonly WORKSPACE=${WORKSPACE-${BUILD_WORKSPACE_DIRECTORY-$(git rev-parse --show-toplevel)}}
+readonly REL_PWD="$(realpath --relative-to="${WORKSPACE}" "$(pwd)")"
 
 docker run --rm \
-  --volume "${WORKSPACE}:/src/workspace" \
-  --workdir /src/workspace \
+  --volume "${WORKSPACE}":/src/workspace \
+  --workdir /src/workspace/"${REL_PWD}" \
   ${IMAGE_TAGGED} "$@"

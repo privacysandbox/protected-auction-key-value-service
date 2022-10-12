@@ -62,7 +62,6 @@ resource "aws_autoscaling_group" "instance_asg" {
   max_size                  = var.autoscaling_max_size
   min_size                  = var.autoscaling_min_size
   desired_capacity          = var.autoscaling_desired_capacity
-  health_check_grace_period = 600
   health_check_type         = "ELB"
   vpc_zone_identifier       = var.autoscaling_subnet_ids
   target_group_arns         = var.target_group_arns
@@ -81,7 +80,6 @@ resource "aws_autoscaling_lifecycle_hook" "launch_hook" {
   name                   = "${var.service}-${var.environment}-launch-hook"
   autoscaling_group_name = aws_autoscaling_group.instance_asg.name
   default_result         = "ABANDON"
-  // TODO(b/235502114): Shorten timeout
-  heartbeat_timeout      = 3600
+  heartbeat_timeout      = 300
   lifecycle_transition   = "autoscaling:EC2_INSTANCE_LAUNCHING"
 }

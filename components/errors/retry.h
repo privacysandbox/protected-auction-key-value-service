@@ -42,22 +42,30 @@ class RetryableWithMax {
         task_name_(std::move(task_name)),
         max_attempts_(max_attempts <= 0 ? kUnlimitedRetry : max_attempts) {}
 
+  absl::Status ToStatus(absl::Status& result) { return result; }
+
+  template <typename = typename std::enable_if_t<
+                !std::is_same<std::invoke_result<Func>, absl::Status>::value>>
+  absl::Status ToStatus(std::invoke_result_t<Func>& result) {
+    return result.status();
+  }
+
   typename std::invoke_result_t<Func> operator()() {
-    std::invoke_result_t<Func> status_or;
+    std::invoke_result_t<Func> result;
     for (int i = 1; max_attempts_ == kUnlimitedRetry || i <= max_attempts_;
          ++i) {
-      status_or = func_();
-      if (status_or.ok()) {
-        return status_or;
+      result = func_();
+      if (result.ok()) {
+        return result;
       } else {
-        LOG(WARNING) << task_name_ << " failed with " << status_or.status()
+        LOG(WARNING) << task_name_ << " failed with " << ToStatus(result)
                      << " for Attempt " << i;
       }
       const absl::Duration backoff = ExponentialBackoffForRetry(i);
       // TODO(b/235082948): Inject a clock and mock for tests.
       absl::SleepFor(backoff);
     }
-    return status_or;
+    return result;
   }
 
  private:
@@ -74,6 +82,14 @@ typename std::invoke_result_t<RetryableWithMax<Func>>::value_type RetryUntilOk(
   return RetryableWithMax(std::forward<Func>(f), std::move(task_name),
                           RetryableWithMax<Func>::kUnlimitedRetry)()
       .value();
+}
+
+// Retries functors that return an absl::Status until they are `ok`.
+inline void RetryUntilOk(std::function<absl::Status()> func,
+                         std::string task_name) {
+  RetryableWithMax(std::move(func), std::move(task_name),
+                   RetryableWithMax<decltype(func)>::kUnlimitedRetry)()
+      .IgnoreError();
 }
 
 // Retries functors that return an absl::StatusOr<T> until they are `ok` or

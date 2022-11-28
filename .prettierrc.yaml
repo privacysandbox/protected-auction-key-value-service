@@ -1,11 +1,1 @@
-printWidth: 120
-trailingComma: es5
-tabWidth: 2
-useTabs: false
-singleQuote: true
-proseWrap: always
-overrides:
-- files: '*.md'
-  options:
-    tabWidth: 4
-    printWidth: 100
+builders/etc/.prettierrc.yaml

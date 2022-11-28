@@ -25,15 +25,6 @@ def container_deps():
             "registry": "public.ecr.aws",
             "repository": "lambda/python",
         },
-        "debian-slim": {
-            "arch_hashes": {
-                # stable-20220912-slim
-                "amd64": "9612e64116a7ac412faf2f7ecda5fa88bdcb77148f60dd32a6209580c056a0bd",
-                "arm64": "83c4fcf26f4ec147ec3d2cfdb9f2f006e60bd6229aad98602dfbaa6cce11e503",
-            },
-            "registry": "docker.io",
-            "repository": "library/debian",
-        },
         "envoy-distroless": {
             "arch_hashes": {
                 # v1.23.1
@@ -42,6 +33,15 @@ def container_deps():
             },
             "registry": "docker.io",
             "repository": "envoyproxy/envoy-distroless",
+        },
+        "runtime-debian": {
+            "arch_hashes": {
+                # stable-20221004-slim
+                "amd64": "a4912461baca94ca557af4e779857867a25e0215d157d2dc04f148811e7877f8",
+                "arm64": "af9a018b749427a53fded449bd1fbb2cbdc7077d8922b7ebb7bd6478ed40d8e7",
+            },
+            "registry": "docker.io",
+            "repository": "library/debian",
         },
     }
 

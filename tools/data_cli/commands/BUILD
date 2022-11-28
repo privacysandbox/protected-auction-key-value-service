@@ -32,6 +32,7 @@ cc_library(
 
 cc_test(
     name = "generate_data_command_test",
+    size = "small",
     srcs = ["generate_data_command_test.cc"],
     deps = [
         ":generate_data_command",

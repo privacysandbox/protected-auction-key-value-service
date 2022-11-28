@@ -13,6 +13,7 @@ proto_library(
 
 buf_lint_test(
     name = "base_types_proto_lint",
+    size = "small",
     config = "//public:buf.yaml",
     targets = [":base_types_proto"],
 )
@@ -43,6 +44,7 @@ exports_files([
 
 cc_test(
     name = "constants_test",
+    size = "small",
     srcs = [
         "constants_test.cc",
     ],

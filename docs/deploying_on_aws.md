@@ -19,12 +19,28 @@ For the initial testing of the Key/Value server, you must have or
 [create an Amazon Web Services (AWS)](https://portal.aws.amazon.com/billing/signup/iam) account.
 You'll need API access, as well as your key ID and secret key.
 
+# Repository set up
+
+## Initialize and update submodules
+
+Before using the repository, initialize the repo's submodules. Run:
+
+```shell
+git submodule update --init
+```
+
+The submodule content can be updated at any time using the following command.
+
+```shell
+git submodule update --remote --merge
+```
+
 # Set up your AWS account
 
 ## Setup AWS CLI
 
-Use the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html) wrapper
-script at `builders/tools/aws-cli` to set up
+Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html). Set
+up
 [AWS CLI environment variables](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html).
 The access key and secret environment variables are required to be exported for the server
 deployment process to work.
@@ -98,7 +114,7 @@ git clone https://github.com/privacysandbox/fledge-key-value-service.git
 From the Key/Value server repo folder, execute the following command:
 
 ```sh
-./production/packaging/build_and_test_all_in_docker --with-ami
+./production/packaging/build_and_test_all_in_docker --with-ami us-east-1 --with-ami us-west-1
 ```
 
 The script will build the Enclave Image File (EIF), store it in an AMI, and upload the AMI. If the
@@ -131,7 +147,7 @@ The setup scripts require Terraform version 1.0.4. There is a helper script /too
 uses the official v1.0.4 Terraform docker image. Alternatively, you can
 [download Terraform version 1.0.4 directly](https://releases.hashicorp.com/terraform/1.0.4/), or you
 can use [Terraform Version Manager (tfenv)](https://github.com/tfutils/tfenv) instead. If you use
-`tfenv`, run the following in your `&lt;repository_root>` to set Terraform to version 1.0.4:
+`tfenv`, run the following in your `<repository_root>` to set Terraform to version 1.0.4:
 
 ```sh
 tfenv install 1.0.4;
@@ -408,7 +424,7 @@ previous [Build the Amazon Machine Image](#build-the-amazon-machine-image-ami) s
 following command:
 
 ```sh
-./production/packaging/build_and_test_all_in_docker --with-ami
+./production/packaging/build_and_test_all_in_docker --with-ami us-east-1 --with-ami us-west-1
 ```
 
 Then set the new AMI ID in the Terraform config. Re-apply Terraform to deploy the updated server.

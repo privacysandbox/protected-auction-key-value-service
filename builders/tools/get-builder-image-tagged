@@ -20,26 +20,35 @@
 set -o pipefail
 set -o errexit
 
-VERBOSE=0
 BUILD_IMAGE_IF_NEEDED=1
+DOCKER_BUILD_ARGS="--quiet"
 
-declare -r -A IMAGE_DIRS=(
-  [build-debian]="builders/build-debian"
-  [build-amazonlinux2]="builders/build-amazonlinux2"
-  [presubmit]="builders/presubmit"
-  [release]="builders/release"
-)
+trap _cleanup EXIT
+function _cleanup() {
+  declare -r -i STATUS=$?
+  if [[ -n ${TAR_IMAGE} ]]; then
+    docker image rm --force "${TAR_IMAGE}" &>/dev/null
+  fi
+  if [[ -n ${TEMPTAR} ]]; then
+    rm -f "${TEMPTAR}" "${SHAFILE}"
+  fi
+  if [[ ${STATUS} -ne 0 ]]; then
+    printf "Error: get-builder-image-tagged status code: %d\n" ${STATUS} &>/dev/stderr
+  fi
+  exit ${STATUS}
+}
 
 declare -r -A IMAGE_NAMES=(
   [build-debian]="privacysandbox/builders/build-debian"
   [build-amazonlinux2]="privacysandbox/builders/build-amazonlinux2"
   [presubmit]="privacysandbox/builders/presubmit"
   [release]="privacysandbox/builders/release"
+  [utils]="privacysandbox/builders/utils"
 )
 
-usage() {
-  local exitval=${1-1}
-  cat &>/dev/stderr << USAGE
+function usage() {
+  declare -r -i exitval=${1-1}
+  cat &>/dev/stderr <<USAGE
 usage:
   $0 <options>
     --no-build           Do not build image if it doesn't exist
@@ -54,11 +63,8 @@ USAGE
     printf "                             *  %s%s\n" "${elem}" "${EXTRA}" &>/dev/stderr
   done
 
-  cat &>/dev/stderr << USAGE
+  cat &>/dev/stderr <<USAGE
     --verbose            Enable verbose output
-
-Environment variables (all optional):
-    WORKSPACE            Full path to the workspace (repo root)
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}
@@ -76,7 +82,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --verbose)
-      VERBOSE=1
+      DOCKER_BUILD_ARGS="--progress plain"
+      set -o xtrace
       shift
       ;;
     -h | --help) usage 0 ;;
@@ -87,50 +94,99 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-WORKSPACE="${WORKSPACE-"$(readlink -f "${SCRIPT_DIR}"/../..)"}"
+TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly TOOLS_DIR
+readonly ETC_DIR="${TOOLS_DIR}"/../etc
+readonly IMAGES_DIR="${TOOLS_DIR}"/../images
+# shellcheck disable=SC1091
+source "${TOOLS_DIR}"/builder.sh
+WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
+readonly WORKSPACE_MOUNT
 
 if [[ -z ${IMG} ]]; then
   printf -- "error: --image must be specified\n" &>/dev/stderr
   usage 1
 fi
 
-readonly IMAGE_DIR=${IMAGE_DIRS[${IMG}]}
 readonly IMAGE_NAME=${IMAGE_NAMES[${IMG}]}
-if [[ -z ${IMAGE_NAME} ]] || [[ -z ${IMAGE_DIR} ]]; then
+if [[ -z ${IMAGE_NAME} ]]; then
   printf -- "error: image [%s] not recognized\n" "${IMG}" &>/dev/stderr
   usage 1
 fi
 
-DIR_FULL="${WORKSPACE}/${IMAGE_DIR}"
-
-if ! [[ -s ${DIR_FULL}/Dockerfile ]]; then
-  printf "error: unable to locate [%s/Dockerfile]\n" "${DIR_FULL}" &>/dev/stderr
+IMAGE_PATH_FULL="${IMAGES_DIR}/${IMG}"
+if ! [[ -s ${IMAGE_PATH_FULL}/Dockerfile ]]; then
+  printf "error: unable to locate [%s/Dockerfile]\n" "${IMAGE_PATH_FULL}" &>/dev/stderr
   exit 1
 fi
-TEMPTAR="$(mktemp --dry-run --suffix=.tar.gz)"
-readonly TEMPTAR
 
-trap _cleanup EXIT
+# install gnu tar into a docker image
+readonly TAR_IMAGE="builders/tar-get-builder-image-tagged:pid-$$"
+{
+  cat <<Dockerfile
+FROM alpine:3.16
+RUN apk --no-cache add tar=1.34-r0
+Dockerfile
+} | docker buildx build ${DOCKER_BUILD_ARGS} --output=type=docker --tag "${TAR_IMAGE}" - >/dev/null
+if ! docker image inspect "${TAR_IMAGE}" &>/dev/null; then
+  printf "error creating docker image [%s]\n" "${TAR_IMAGE}" &>/dev/stderr
+  exit 1
+fi
 
-function _cleanup() {
-  local STATUS=$?
-  rm -f "${TEMPTAR}"
-  # shellcheck disable=SC2086
-  exit ${STATUS}
+# Create a deterministic tar file for the specified file path, returning
+# the SHA for the tar file content
+# Any etc files in the $WORKSPACE (root) directory override the etc
+# files in the image dir, as long as it's a file also found in the
+# builders etc directory
+# the TARFILE and SHAFILE args must be paths located in /tmp
+function _tar_for_dir() {
+  local -r FILE_TAR="$1"
+  local -r FILE_SHA="$2"
+  local -r FILEPATH="$3"
+  local -r TMP_IMAGE_DIR="$(mktemp --tmpdir="${WORKSPACE}" --directory)"
+
+  WS_FILE_TAR="$(realpath "${FILE_TAR}" --relative-to="${WORKSPACE}")"
+  WS_FILE_SHA="$(realpath "${FILE_SHA}" --relative-to="${WORKSPACE}")"
+  WS_FILEPATH="$(realpath "${FILEPATH}" --relative-to="${WORKSPACE}")"
+  WS_TMP_IMAGE_DIR="$(realpath "${TMP_IMAGE_DIR}" --relative-to="${WORKSPACE}")"
+  # find workspace etc files that are also in the image dir and the builders etc dir
+  WORKSPACE_ETC_FILES="$({
+    # shellcheck disable=SC2012
+    ls -A -1 "${FILEPATH}" "${ETC_DIR}" | sort | uniq -d
+    ls -A -1 "${WORKSPACE}"
+  } | sort | uniq -d)"
+  # create a deterministic tarball of the collected files
+  docker run --rm \
+    --entrypoint=/bin/sh \
+    --volume "${WORKSPACE_MOUNT}":/workspace \
+    --workdir /workspace \
+    "${TAR_IMAGE}" -c "
+tar --create --dereference --directory='${WS_FILEPATH}' --exclude=test . | tar --extract --overwrite --directory='${WS_TMP_IMAGE_DIR}'
+
+# overwrite etc files in the image with the WORKSPACE's etc files
+if [ -n '${WORKSPACE_ETC_FILES}' ]; then
+  tar --create --dereference --exclude=test ${WORKSPACE_ETC_FILES} | tar --extract --overwrite --directory='${WS_TMP_IMAGE_DIR}'
+fi
+
+tar --create --dereference --sort=name --owner=0 --group=0 --numeric-owner --format=gnu --directory='${WS_TMP_IMAGE_DIR}' --file='${WS_FILE_TAR}' .
+TARLEN=\$(wc -c <'${WS_FILE_TAR}')
+{ printf 'blob %d\0' \${TARLEN}; tar --extract --file='${WS_FILE_TAR}' --to-stdout; } | sha256sum | cut -f1 -d' ' >'${WS_FILE_SHA}'
+"
+  rm -rf "${TMP_IMAGE_DIR}"
 }
 
-# try to create a deterministic tar file
-tar --create --dereference --sort=name --owner=0 --group=0 --numeric-owner --mtime='2022-07-01 12:00Z' --format=gnu --directory="${DIR_FULL}" --file="${TEMPTAR}" --exclude=test .
+TEMPTAR=$(mktemp --tmpdir="${WORKSPACE}" --dry-run).tar.gz
+readonly TEMPTAR
+SHAFILE=$(mktemp --tmpdir="${WORKSPACE}" --dry-run).sha
+readonly SHAFILE
 # use the tarfile size and file content to generate a sha256 hash
-SHA=$({ echo -ne "blob $(wc -c < "${TEMPTAR}")\0"; tar --extract --file="${TEMPTAR}" --to-stdout; } | sha256sum | cut -f1 -d" ")
-ARCH="$("${SCRIPT_DIR}"/get-architecture)"
+_tar_for_dir "${TEMPTAR}" "${SHAFILE}" "${IMAGE_PATH_FULL}"
+SHA=$(cat "${SHAFILE}")
+ARCH="$("${TOOLS_DIR}"/get-architecture)"
 readonly ARCH
 readonly IMAGE_TAG="${ARCH}-${SHA}"
-if [[ ${VERBOSE} -eq 1 ]]; then
-  printf "tag for docker inputs: %s\n" "${IMAGE_TAG}" &>/dev/stderr
-fi
 readonly IMAGE_TAGGED="${IMAGE_NAME}:${IMAGE_TAG}"
+# generate output
 printf "%s\n" "${IMAGE_TAGGED}"
 
 if [[ ${BUILD_IMAGE_IF_NEEDED} -eq 1 ]]; then
@@ -138,6 +194,6 @@ if [[ ${BUILD_IMAGE_IF_NEEDED} -eq 1 ]]; then
   # build container image and load it into the local docker client
   if ! docker image inspect "${IMAGE_TAGGED}" &>/dev/null; then
     printf "generating docker image %s\n" "${IMAGE_TAGGED}" &>/dev/stderr
-    docker build --tag "${IMAGE_TAGGED}" - <"${TEMPTAR}" &>/dev/stderr
+    docker buildx build ${DOCKER_BUILD_ARGS} --output=type=docker --tag "${IMAGE_TAGGED}" - <"${TEMPTAR}" &>/dev/stderr
   fi
 fi

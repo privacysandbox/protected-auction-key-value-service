@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Generate a system bazelrc file
+# Designed to be executed when generating a container image, for example from Dockerfile.
+# For info on bazelrc files, refer to https://bazel.build/run/bazelrc?hl=en.
+
+set -o pipefail
+set -o errexit
+
+function usage() {
+  local exitval=${1-1}
+  cat &>/dev/stderr << USAGE
+usage:
+  $0 <options>
+    --user-root-name  <dir>     Name of bazel user-root directory (within bazel cache dir)
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --user-root-name)
+      USER_ROOT_NAME="$2"
+      shift
+      shift
+      ;;
+    -h | --help) usage 0 ;;
+    *)
+      printf "unrecognized arg: %s\n" "$1"
+      usage
+      break
+      ;;
+  esac
+done
+
+if [[ -z ${USER_ROOT_NAME} ]]; then
+  printf -- "error: --user-root-name must be specified\n" &>/dev/stderr
+  usage 1
+fi
+
+function _get_toolchains_hash() {
+    {
+      # emit versions of all tools relevant to builds
+      uname --machine
+      cat /etc/os-release
+      clang --version
+      /opt/bin/python3 --version
+      javac --version
+    } | sha256sum | cut --delimiter=" " --fields=1
+}
+
+TOOLCHAINS_HASH=$(_get_toolchains_hash)
+readonly TOOLCHAINS_HASH
+
+readonly BAZELRC="/etc/bazel.bazelrc"
+readonly BAZEL_ROOT=/bazel_root
+readonly BAZEL_OUTPUT_USER_ROOT="${BAZEL_ROOT}/build_${USER_ROOT_NAME}_${TOOLCHAINS_HASH:0:7}"
+mkdir -p "${BAZEL_OUTPUT_USER_ROOT}"
+
+# Within the running container, globally set these variables. This is less
+# obvious than using Dockerfile's ENV, but this particular value isn't
+# available to the Dockerfile
+# Note: The /etc/profile.d/bazel_env.sh will often be sourced automatically
+#       but this may only occur for login shells. For bash, the --login
+#       flag should be supplied. Otherwise, the bazel_env.sh file can be
+#       sourced directly.
+cat >/etc/profile.d/bazel_env.sh <<EOF
+export BAZEL_OUTPUT_USER_ROOT="${BAZEL_OUTPUT_USER_ROOT}"
+user_base=\$(/usr/local/bin/get_workspace_mount | md5sum | cut -f1 -d' ')
+printf "\nstartup --output_base=\"%s/%s\"\n" "${BAZEL_OUTPUT_USER_ROOT}" "\${user_base}" >> \$HOME/.bazelrc
+EOF
+
+printf "generating %s\n" "${BAZELRC}" &>/dev/stderr
+
+# the output_user_root setting will have no effect as long as output_base is set. However, in the
+# case that $HOME/.bazelrc is not created via sourcing /etc/profile.d/bazel_env.sh, at least
+# the appropriate container-specific output_user_root directory will be used
+cat <<BAZELRC >"${BAZELRC}"
+startup --output_user_root="${BAZEL_OUTPUT_USER_ROOT}"
+# set a variable based on the hash of all build tool dependencies other than bazel itself
+# primarily to avoid spurious cache hits for distinct sets of toolchains
+build --action_env=TOOLCHAINS_HASH=${TOOLCHAINS_HASH}
+BAZELRC

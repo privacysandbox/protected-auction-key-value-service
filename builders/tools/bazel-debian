@@ -24,7 +24,11 @@ set -o pipefail
 set -o errexit
 
 SCRIPT_NAME=$(basename "$0")
-CBUILD="$(dirname "$(readlink -f "$0")")/cbuild"
+CBUILD="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/cbuild"
 IMAGE="build-${SCRIPT_NAME/bazel-}"
 
-"${CBUILD}" --image "${IMAGE}" --cmd "bazel ${BAZEL_STARTUP_ARGS} $* ${BAZEL_EXTRA_ARGS}"
+# shellcheck disable=SC1083
+"${CBUILD}" --image "${IMAGE}" --cmd "
+printf \"bazel output_base: [%s]\n\" \"\$(bazel info output_base)\"
+bazel ${BAZEL_STARTUP_ARGS} $* ${BAZEL_EXTRA_ARGS}
+"

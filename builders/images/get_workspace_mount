@@ -1,0 +1,35 @@
+#!/bin/bash
+
+function get_docker_workspace_mount() {
+  # when running inside a docker container, expect /.dockerenv to exist
+  if ! [[ -f /.dockerenv ]]; then
+    printf "Error: %s must execute inside a docker container\n" "$(basename "${BASH_SOURCE[0]}")" &>/dev/stderr
+    exit 1
+  fi
+
+  # if running inside a docker container, the workspace mount point cannot be
+  # determined by git or bazel or inspecting the filesystem itself. Instead, we
+  # need to use docker to expose its mount info for the /src/workspace path.
+  # determine the current container's ID
+  local -r CONTAINER_ID="$(uname --nodename)"
+  # use docker inspect to extract the current mount path for /src/workspace
+  # this format string is a golang template (https://pkg.go.dev/text/template) processed
+  # by docker's --format flag, per https://docs.docker.com/config/formatting/
+  # shellcheck disable=SC2016
+  local -r FORMAT_STR='
+    {{- range $v := .HostConfig.Binds -}}
+      {{$pathpair := split $v ":" -}}
+      {{if eq (index $pathpair 1) "/src/workspace" -}}
+        {{print (index $pathpair 0) -}}
+      {{end -}}
+    {{end -}}
+  '
+  local -r MOUNT_PATH="$(docker inspect --format "${FORMAT_STR}" "${CONTAINER_ID}")"
+  if [[ -z ${MOUNT_PATH} ]]; then
+    printf "Error: Unable to determine mount point for /src/workspace. Exiting\n" &>/dev/stderr
+    exit 1
+  fi
+  printf "%s" "${MOUNT_PATH}"
+}
+
+get_docker_workspace_mount

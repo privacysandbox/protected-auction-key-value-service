@@ -65,11 +65,10 @@ def cpp_repositories():
             # Apply fix in https://github.com/aws/aws-sdk-cpp/commit/9669a1c1d9a96621cd0846679cbe973c648a64b3
             """sed -i.bak 's/Tags\\.entry/Tag/g' aws-cpp-sdk-sqs/source/model/TagQueueRequest.cpp""",
         ],
-        sha256 = "758174f9788fed6cc1e266bcecb20bf738bd5ef1c3d646131c9ed15c2d6c5720",
-        strip_prefix = "aws-sdk-cpp-1.7.336",
+        sha256 = "749322a8be4594472512df8a21d9338d7181c643a00e08a0ff12f07e831e3346",
+        strip_prefix = "aws-sdk-cpp-1.8.186",
         urls = [
-            "https://storage.googleapis.com/mirror.tensorflow.org/github.com/aws/aws-sdk-cpp/archive/1.7.336.tar.gz",
-            "https://github.com/aws/aws-sdk-cpp/archive/1.7.336.tar.gz",
+            "https://github.com/aws/aws-sdk-cpp/archive/1.8.186.tar.gz",
         ],
     )
 
@@ -149,4 +148,14 @@ def cpp_repositories():
         sha256 = "80af25a873bebba60067a1529c03edcc5fc5486c3402354c03a80a5279da5dca",
         strip_prefix = "flatbuffers-2.0.8",
         urls = ["https://github.com/google/flatbuffers/archive/v2.0.8.zip"],
+    )
+
+    http_archive(
+        name = "sqlite3",
+        build_file = "//third_party:sqlite3.BUILD",
+        sha256 = "9c99955b21d2374f3a385d67a1f64cbacb1d4130947473d25c77ad609c03b4cd",
+        strip_prefix = "sqlite-amalgamation-3390400",
+        urls = [
+            "https://www.sqlite.org/2022/sqlite-amalgamation-3390400.zip",
+        ],
     )

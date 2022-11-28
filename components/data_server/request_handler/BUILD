@@ -28,6 +28,7 @@ cc_library(
 
 cc_test(
     name = "get_values_handler_test",
+    size = "small",
     srcs = [
         "get_values_handler_test.cc",
     ],

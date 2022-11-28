@@ -19,7 +19,6 @@ function _value_for() {
 
 BUILD_PLATFORM="$1"
 
-BUILD_TIMESTAMP=$(_value_for BUILD_TIMESTAMP)
 BUILD_VCS_REVISION=$(_value_for STABLE_BUILD_VCS_REVISION)
 BUILD_VCS_STATUS=$(_value_for STABLE_BUILD_VCS_STATUS)
 TOOLCHAINS_HASH=$(_value_for STABLE_TOOLCHAINS_HASH)
@@ -32,7 +31,6 @@ cat <<EOF
 
 namespace fledge::kv_server {
 
-const int64_t kVersionBuildTimestamp = ${BUILD_TIMESTAMP};
 const std::string_view kVersionBuildVcsRevision = "${BUILD_VCS_REVISION}";
 const TreeStatusType kVersionBuildVcsTreeStatus = TreeStatusType::${BUILD_VCS_STATUS};
 const std::string_view kVersionBuildVersion = "${VERSION}";

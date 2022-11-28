@@ -16,6 +16,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 exclude: (?x)^(
              bazel-(bin|out|testlogs|workspace)/.*|
+             google_internal/coordinator_environments/.*$|
              .bazel_output/.*|
              version.txt
          )$
@@ -48,7 +49,7 @@ repos:
   - id: script-must-have-extension
   - id: require-ascii
   - id: shellcheck
-    exclude: '^(production|tools|google_internal|builders/test|builders/release|builders/build-debian|builders/build-amazonlinux2)/.*$'
+    exclude: '^(production|tools|google_internal|builders/images)/.*$'
 
 - repo: https://github.com/pre-commit/mirrors-clang-format
   rev: v14.0.6
@@ -69,9 +70,7 @@ repos:
     pass_filenames: true
     entry: addlicense -v
     types_or:
-    - c++
-    - c
-    - terraform
+    - text
 
   - id: addlicense-check
     name: addlicense check
@@ -82,15 +81,14 @@ repos:
     pass_filenames: true
     entry: addlicense -check
     types_or:
-    - c++
-    - c
-    - terraform
+    - text
 
   - id: terraform-fmt
     name: terraform fmt
+    description: Run terraform via docker to format Terraform files
     language: script
     pass_filenames: false
-    entry: tools/terraform fmt -write=true -recursive
+    entry: tools/terraform fmt -write=true -recursive production/terraform
     types_or:
     - terraform
 

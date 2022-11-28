@@ -26,5 +26,9 @@ TEST(IsDeltaFilename, IsDeltaFilename) {
 
 TEST(FilePrefix, Delta) { EXPECT_EQ(FilePrefix<FileType::DELTA>(), "DELTA"); }
 
+TEST(FilePrefix, Snapshot) {
+  EXPECT_EQ(FilePrefix<FileType::SNAPSHOT>(), "SNAPSHOT");
+}
+
 }  // namespace
 }  // namespace fledge::kv_server

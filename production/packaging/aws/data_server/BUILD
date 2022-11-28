@@ -14,9 +14,12 @@ load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
 
 pkg_files(
     name = "server_executables",
-    srcs = glob(["bin/init_server_*"]) + [
-        "//components/data_server/server:server",
+    srcs = [
+        "bin/init_server_basic",
+        "bin/init_server_enclave",
         "//components/aws/proxy/source:proxify",
+        "//components/data_server/server",
+        "//components/tools:get_region",
     ],
     attributes = pkg_attributes(mode = "0555"),
     prefix = "/server/bin",
@@ -60,20 +63,24 @@ container_layer(
 # See project README.md on how to run the image.
 container_image(
     name = "server_docker_image",
+    architecture = select({
+        "@platforms//cpu:arm64": "arm64",
+        "@platforms//cpu:x86_64": "amd64",
+    }),
     base = select({
-        "@platforms//cpu:arm64": "@debian-slim-arm64//image",
-        "@platforms//cpu:x86_64": "@debian-slim-amd64//image",
+        "@platforms//cpu:arm64": "@runtime-debian-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
     }),
     cmd = [
         "/server/bin/init_server_enclave",
     ],
     entrypoint = ["/bin/bash"],
     layers = [
-        ":server_binary_layer",
         "//production/packaging/envoy_proxy:envoy_distroless_layer",
         "//production/packaging/envoy_proxy:envoy_config_layer",
         "//production/packaging/aws/socat:socat_and_ip_commands_layer",
         "//production/packaging/aws/resolv:resolv_config_layer",
+        ":server_binary_layer",
     ],
 )
 
@@ -104,11 +111,14 @@ genrule(
     srcs = [
         ":server_artifacts",
         ":server_docker_image.tar",
+        "//public/query:get_values_descriptor_set",
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/debian
-cp $(SRCS) dist/debian
+cp $(execpath :server_artifacts) $(execpath :server_docker_image.tar) dist/debian
+cp $(execpath //public/query:get_values_descriptor_set) dist
+builders/tools/normalize-dist
 EOF""",
     executable = True,
     local = True,

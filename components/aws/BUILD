@@ -13,6 +13,7 @@ py_library(
 
 py_test(
     name = "sqs_cleanup_manager_test",
+    size = "small",
     srcs = ["sqs_cleanup_manager_test.py"],
     python_version = "PY3",
     deps = [

@@ -50,8 +50,9 @@ USAGE
     --verbose                  Enable verbose output
 
 Environment variables (all optional):
-    WORKSPACE                    Full path to the workspace (repo root)
-    EXTRA_DOCKER_RUN_ARGS        Additional arguments to pass to docker run invocations
+    WORKSPACE                  Full path to the workspace (repo root)
+    EXTRA_DOCKER_RUN_ARGS      Additional arguments to pass to docker run invocations
+    CBUILD_IMAGE               docker URI to the specific image to run
 
 Environment variables propagated into container:
     BAZEL_STARTUP_ARGS
@@ -115,41 +116,23 @@ if ! [[ " ${IMAGE_LIST[*]} " =~ " ${IMAGE} " ]]; then
       usage 1
 fi
 
-SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-WORKSPACE="${WORKSPACE-"$(readlink -f "${SCRIPT_DIR}"/../..)"}"
+TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly TOOLS_DIR
+# shellcheck disable=SC1091
+source "${TOOLS_DIR}"/builder.sh
 
-# if running inside a docker container, the workspace mount point cannot be
-# determined by git or bazel or inspecting the filesystem itself. Instead, we
-# need to use docker to expose its mount info for the /src/workspace path.
-if [[ -f /.dockerenv ]]; then
-  # determine the current container's ID
-  CONTAINER_ID=$(uname --nodename)
-  # use docker inspect to extract the current mount path for /src/workspace
-  # this format string is a golang template (https://pkg.go.dev/text/template) processed
-  # by docker's --format flag, per https://docs.docker.com/config/formatting/
-  # shellcheck disable=SC2016
-  declare -r FORMAT_STR='
-    {{- range $v := .HostConfig.Binds -}}
-      {{$pathpair := split $v ":" -}}
-      {{if eq (index $pathpair 1) "/src/workspace" -}}
-        {{print (index $pathpair 0) -}}
-      {{end -}}
-    {{end -}}
-  '
-  WORKSPACE_MOUNT="$(docker inspect --format "${FORMAT_STR}" "${CONTAINER_ID}")"
-  readonly WORKSPACE_MOUNT
-  if [[ -z ${WORKSPACE_MOUNT} ]]; then
-    printf "Unable to determine mount point for /src/workspace. Exiting\n" &>/dev/stderr
-    exit 1
-  fi
-else
-  WORKSPACE_MOUNT="${WORKSPACE}"
-fi
+WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
+readonly WORKSPACE_MOUNT
+export WORKSPACE_MOUNT
 if [[ ${VERBOSE} -eq 1 ]]; then
   printf "mounting workspace into container: %s\n" "${WORKSPACE_MOUNT}" &>/dev/stderr
 fi
 
-IMAGE_TAGGED="$("${WORKSPACE}"/builders/tools/get-builder-image-tagged --image "${IMAGE}")"
+if [[ -n ${CBUILD_IMAGE} ]]; then
+  IMAGE_TAGGED=${CBUILD_IMAGE}
+else
+  IMAGE_TAGGED=$("${TOOLS_DIR}"/get-builder-image-tagged --image "${IMAGE}")
+fi
 readonly IMAGE_TAGGED
 
 declare -a DOCKER_RUN_ARGS
@@ -158,7 +141,7 @@ DOCKER_RUN_ARGS+=(
   "--entrypoint=/bin/bash"
   "--volume ${WORKSPACE_MOUNT}:/src/workspace"
   "--workdir /src/workspace"
-  "${EXTRA_DOCKER_RUN_ARGS}"
+  "$(echo "${EXTRA_DOCKER_RUN_ARGS}" | envsubst)"
 )
 
 # inside the docker build images, /bazel_root is the bazel cache dir, per the system-wide bazelrc
@@ -200,11 +183,11 @@ if [[ -z ${CMD} ]]; then
   # shellcheck disable=SC2068
   docker run \
     ${DOCKER_RUN_ARGS[@]} \
-    "${IMAGE_TAGGED}"
+    ${IMAGE_TAGGED}
 else
   # shellcheck disable=SC2068
   docker run \
     ${DOCKER_RUN_ARGS[@]} \
-    "${IMAGE_TAGGED}" \
-    -c "$CMD"
+    ${IMAGE_TAGGED} \
+    --login -c "$CMD"
 fi

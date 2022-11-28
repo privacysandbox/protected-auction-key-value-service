@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 
 cc_library(
@@ -41,5 +42,25 @@ cc_binary(
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+# copy "server"'s output as an opaque executable, simulating a binary that's
+# not built from source
+copy_file(
+    name = "server_copy_exe",
+    src = ":server",
+    out = "server_copy.exe",
+    is_executable = True,
+)
+
+sh_test(
+    name = "server_buildinfo_test",
+    size = "small",
+    srcs = [":server_copy_exe"],
+    args = ["--buildinfo"],
+    tags = [
+        "local",  # local precludes remote caching
+        "smoke",
     ],
 )

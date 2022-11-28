@@ -1,5 +1,21 @@
 # FLEDGE K/V Server developer guide
 
+## Repository set up
+
+### Initialize and update submodules
+
+Before using the repository, initialize the repo's submodules. Run:
+
+```shell
+git submodule update --init
+```
+
+The submodule content can be updated at any time using the following command.
+
+```shell
+git submodule update --remote --merge
+```
+
 ## Data Server
 
 The data server provides the read API for the KV service.
@@ -44,7 +60,6 @@ The data server provides the read API for the KV service.
 
     ```sh
     builders/tools/bazel-debian run //production/packaging/aws/data_server:copy_to_dist --//:instance=local --//:platform=aws
-    builders/tools/normalize-dist
     ```
 
 1.  Load the image into docker
@@ -54,10 +69,13 @@ The data server provides the read API for the KV service.
     ```
 
 1.  Run the container. Port 50051 can be used to query the server directly through gRPC. Port 51052
-    can be used to query with HTTP which is served through Envoy to the server.
+    can be used to query with HTTP which is served through Envoy to the server. --environment and
+    --region must be specified. The server will still read data from S3 and the server uses
+    environment and region to find the S3 bucket. The environment is configured as part of the
+    [AWS deployment process](/docs/deploying_on_aws.md).
 
     ```sh
-    docker run -it --rm --entrypoint=/server/bin/init_server_basic --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 -p 127.0.0.1:51052:51052 bazel/production/packaging/aws/data_server:server_docker_image --server-port 50051
+    docker run -it --rm --entrypoint=/server/bin/init_server_basic --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 -p 127.0.0.1:51052:51052 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment --region us-east-1
     ```
 
 ### Run the server locally

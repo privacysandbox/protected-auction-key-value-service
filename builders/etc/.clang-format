@@ -1,0 +1,33 @@
+BasedOnStyle: Google
+Standard: c++17
+DerivePointerAlignment: false
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  # gtest, this should be put first in tests.
+  - Regex:           '^<gtest\/'
+    Priority:        20
+  # Top level .h headers in <> from OS.
+  - Regex:           '^<[_A-Za-z0-9-]+\.h>'
+    Priority:        30
+  # 2nd level .h headers in <>, POSIX standard.
+  - Regex:           '^<(sys|arpa|net|netinet)\/[_A-Za-z0-9-]+\.h>'
+    Priority:        30
+  # Linux-specific .h headers in <>.
+  - Regex:           '^<linux\/[_A-Za-z0-9-]+\.h>'
+    Priority:        40
+  # Headers in <> without extension, these are basically C++ STL headers
+  - Regex:           '^<[\/_A-Za-z0-9-]+>'
+    Priority:        50
+  # Headers in <> from specific external libraries.
+  - Regex:           '^<(grpcpp|absl)\/'
+    Priority:        60
+  # Any other uncaught headers in <>
+  - Regex:           '^<'
+    Priority:        70
+  # Headers in "" of current directory this should be the last category.
+  - Regex:           '^"[_A-Za-z0-9-]+\.h'
+    Priority:        200
+  # Headers in "" with directory hierarchy
+  - Regex:           '^"[\/_A-Za-z0-9-]+'
+    Priority:        80

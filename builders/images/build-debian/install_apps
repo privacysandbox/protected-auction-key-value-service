@@ -1,0 +1,118 @@
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+
+VERBOSE=0
+INSTALL_LOCALE=en_US.UTF-8
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --locale <value>              Set locale. Default: ${INSTALL_LOCALE}
+    --verbose                     Emit verbose info. Default: false
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --locale)
+      INSTALL_LOCALE="$2"
+      shift
+      shift
+      ;;
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -h | --help)
+      usage 0
+      break
+      ;;
+    *) usage 0 ;;
+  esac
+done
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+readonly SCRIPT_DIR
+# shellcheck disable=SC1090
+. "${SCRIPT_DIR}"/install_go.sh
+
+function apt_update() {
+  apt-get --quiet -o 'Acquire::https::No-Cache=True' -o 'Acquire::http::No-Cache=True' update
+}
+
+function install_misc() {
+  DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y --no-install-recommends \
+    apt-transport-https="2.0.9" \
+    ca-certificates="20211016~20.04.1" \
+    curl="7.68.0-1ubuntu2.14" \
+    gettext="0.19.8.1-10build1" \
+    git="1:2.25.1-1ubuntu3.6" \
+    gnupg="2.2.19-3ubuntu2.2" \
+    locales="2.31-0ubuntu9.9" \
+    lsb-release="11.1.0ubuntu2" \
+    openjdk-11-jdk="11.0.17+8-1ubuntu2~20.04" \
+    python3.9-venv="3.9.5-3ubuntu0~20.04.1" \
+    rename="1.10-1" \
+    software-properties-common="0.99.9.8" \
+    unzip="6.0-25ubuntu1.1" \
+    wget="1.20.3-1ubuntu2" \
+    xz-utils="5.2.4-1ubuntu1.1" \
+    zip="3.0-11build1"
+  mkdir -p /opt/bin
+  update-alternatives --install /opt/bin/python3 python3 /usr/bin/python3.9 100
+  update-alternatives --install /opt/bin/python python /usr/bin/python3.9 100
+  if [[ -n ${INSTALL_LOCALE} ]]; then
+    printf "\nSetting locale to: %s\n" "${INSTALL_LOCALE}"
+    locale-gen "${INSTALL_LOCALE}"
+    update-locale LANG="${INSTALL_LOCALE}"
+  fi
+}
+
+function install_clang() {
+  declare -r VERSION="14"
+  curl --silent --fail --show-error --location --remote-name https://apt.llvm.org/llvm.sh
+  chmod +x llvm.sh
+  ./llvm.sh ${VERSION}
+  apt-get --quiet install -y --no-install-recommends libc++-${VERSION}-dev
+  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${VERSION} 100
+  rm -f llvm.sh
+
+  clang --version
+}
+
+# Install Docker (https://docs.docker.com/engine/install/debian/)
+function install_docker() {
+  declare -r arch="$1"
+  apt-get --quiet remove docker docker.io containerd runc
+  mkdir -p /etc/apt/keyrings
+  declare -r DIST=ubuntu
+  curl --silent --fail --show-error --location https://download.docker.com/linux/${DIST}/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=${arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${DIST} $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list
+  apt_update
+  apt-get --quiet install -y --no-install-recommends docker-ce docker-ce-cli containerd.io
+}
+
+function clean_debian() {
+  apt-get --quiet autoremove -y
+  apt-get autoclean
+  apt-get clean
+  rm -rf /var/lib/apt/lists
+}
+
+if [[ ${VERBOSE} -eq 1 ]]; then
+  printf "=== SHELL ENVIRONMENT ===\n"
+  env
+fi
+
+apt_update
+install_misc
+install_clang
+install_golang "${BUILD_ARCH}"
+install_docker "${BUILD_ARCH}"
+clean_debian

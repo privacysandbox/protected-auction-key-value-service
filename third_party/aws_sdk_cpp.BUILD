@@ -23,6 +23,8 @@ cc_library(
         "aws-cpp-sdk-core/source/http/standard/*.cpp",  # HTTP_STANDARD_SOURCE
         "aws-cpp-sdk-core/source/config/*.cpp",  # CONFIG_SOURCE
         "aws-cpp-sdk-core/source/monitoring/*.cpp",  # MONITORING_SOURCE
+        "aws-cpp-sdk-core/source/net/linux-shared/*.cpp",  # NET_SOURCE
+        "aws-cpp-sdk-core/source/platform/linux-shared/*.cpp",  # PLATFORM_LINUX_SHARED_SOURCE
         "aws-cpp-sdk-core/source/utils/*.cpp",  # UTILS_SOURCE
         "aws-cpp-sdk-core/source/utils/event/*.cpp",  # UTILS_EVENT_SOURCE
         "aws-cpp-sdk-core/source/utils/base64/*.cpp",  # UTILS_BASE64_SOURCE
@@ -37,16 +39,7 @@ cc_library(
         "aws-cpp-sdk-core/source/utils/crypto/factory/*.cpp",  # UTILS_CRYPTO_FACTORY_SOURCE
         "aws-cpp-sdk-core/source/http/curl/*.cpp",  # HTTP_CURL_CLIENT_SOURCE
         "aws-cpp-sdk-core/source/utils/crypto/openssl/*.cpp",  # UTILS_CRYPTO_OPENSSL_SOURCE
-    ]) + select({
-        "@bazel_tools//src/conditions:windows": glob([
-            "aws-cpp-sdk-core/source/net/windows/*.cpp",  # NET_SOURCE
-            "aws-cpp-sdk-core/source/platform/windows/*.cpp",  # PLATFORM_WINDOWS_SOURCE
-        ]),
-        "//conditions:default": glob([
-            "aws-cpp-sdk-core/source/net/linux-shared/*.cpp",  # NET_SOURCE
-            "aws-cpp-sdk-core/source/platform/linux-shared/*.cpp",  # PLATFORM_LINUX_SHARED_SOURCE
-        ]),
-    }),
+    ]),
     hdrs = [
         "aws-cpp-sdk-core/include/aws/core/SDKConfig.h",
     ] + glob([
@@ -78,32 +71,18 @@ cc_library(
         "aws-cpp-sdk-core/include/aws/core/utils/crypto/openssl/*.h",  # UTILS_CRYPTO_OPENSSL_HEADERS
     ]),
     defines = [
-        'AWS_SDK_VERSION_STRING=\\"1.7.366\\"',
+        'AWS_SDK_VERSION_STRING=\\"1.8.186\\"',
         "AWS_SDK_VERSION_MAJOR=1",
-        "AWS_SDK_VERSION_MINOR=7",
-        "AWS_SDK_VERSION_PATCH=366",
+        "AWS_SDK_VERSION_MINOR=8",
+        "AWS_SDK_VERSION_PATCH=186",
         "ENABLE_OPENSSL_ENCRYPTION=1",
         "ENABLE_CURL_CLIENT=1",
         "OPENSSL_IS_BORINGSSL=1",
-    ] + select({
-        "@bazel_tools//src/conditions:windows": [
-            "PLATFORM_WINDOWS",
-            "WIN32_LEAN_AND_MEAN",
-        ],
-        "//conditions:default": [
-            "PLATFORM_LINUX",
-        ],
-    }),
+        "PLATFORM_LINUX",
+    ],
     includes = [
         "aws-cpp-sdk-core/include",
     ],
-    linkopts = select({
-        "@bazel_tools//src/conditions:windows": [
-            "-DEFAULTLIB:userenv.lib",
-            "-DEFAULTLIB:version.lib",
-        ],
-        "//conditions:default": [],
-    }),
     deps = [
         "@aws-c-event-stream",
         "@boringssl//:crypto",
@@ -258,10 +237,5 @@ cc_library(
 genrule(
     name = "SDKConfig_h",
     outs = ["aws-cpp-sdk-core/include/aws/core/SDKConfig.h"],
-    cmd_bash = """cat <<EOF >'$@'
-#if defined(_MSC_VER)
-#include <Windows.h>
-#undef IGNORE
-#endif
-EOF""",
+    cmd_bash = "touch '$@'",
 )

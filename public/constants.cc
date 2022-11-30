@@ -17,12 +17,25 @@
 #include "absl/strings/str_cat.h"
 
 namespace fledge::kv_server {
+namespace {
+template <FileType::Enum file_type>
+std::string FileFormatRegex() {
+  return absl::StrCat(FilePrefix<file_type>(), kFileComponentDelimiter,
+                      R"(\d{)", kLogicalTimeDigits, "}");
+}
+}  // namespace
 
 // TODO(b/241944346): Make kLogicalTimeDigits configurable if necessary.
 std::string_view DeltaFileFormatRegex() {
-  static const std::string* kRegex = new std::string(
-      absl::StrCat(FilePrefix<FileType::DELTA>(), kFileComponentDelimiter,
-                   R"(\d{)", kLogicalTimeDigits, "}"));
+  static const std::string* kRegex =
+      new std::string(FileFormatRegex<FileType::DELTA>());
   return *kRegex;
 }
+
+const std::regex& SnapshotFileFormatRegex() {
+  static const std::regex* const snapshot_regex =
+      new std::regex(FileFormatRegex<FileType::SNAPSHOT>());
+  return *snapshot_regex;
+}
+
 }  // namespace fledge::kv_server

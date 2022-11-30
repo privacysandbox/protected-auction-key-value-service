@@ -15,4 +15,17 @@
 
 set -o errexit
 
-docker run --rm --entrypoint=/bin/bash ubuntu:20.04 -c "dpkg --print-architecture | tr -d '\n'"
+trap _cleanup EXIT
+function _cleanup() {
+  local -r -i STATUS=$?
+  if [[ ${STATUS} -ne 0 ]]; then
+    printf "Error: get-architecture status code: %s\n" "${STATUS}" &>/dev/stderr
+  fi
+  exit ${STATUS}
+}
+
+if [[ -n ${BUILD_ARCH} ]]; then
+  printf "%s\n" "${BUILD_ARCH}"
+else
+  docker run --rm --entrypoint=/usr/bin/dpkg ubuntu:20.04 --print-architecture
+fi

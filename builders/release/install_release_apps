@@ -1,6 +1,0 @@
-#!/bin/sh
-
-npm install --global commit-and-tag-version
-
-# Install the GitHub CLI tool (https://cli.github.com/)
-apk add github-cli

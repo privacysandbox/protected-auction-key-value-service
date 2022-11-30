@@ -17,6 +17,7 @@ proto_library(
 
 buf_lint_test(
     name = "get_values_proto_lint",
+    size = "small",
     config = "//public:buf.yaml",
     targets = [":get_values_proto"],
 )

@@ -13,39 +13,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 set -o pipefail
 set -o errexit
-set -o xtrace
 export TZ=Etc/UTC
-export PS4='+\tZ ' # xtrace prompt
+export PS4='+\t $(basename ${BASH_SOURCE[0]}):${LINENO} ' # xtrace prompt
 
 START=$(date +%s)
+readonly START
 
 trap _print_runtime EXIT
-
 function _print_runtime() {
-  local STATUS=$?
-  local END
-  END=$(date +%s)
-  /usr/bin/env LC_ALL=en_US.UTF-8 printf "\nbuild_and_test_all_in_docker runtime: %'ds\n" $((END - START)) >/dev/stderr
-  # shellcheck disable=SC2086
+  local -r -i STATUS=$?
+  local -r -i END=$(date +%s)
+  /usr/bin/env LC_ALL=en_US.UTF-8 printf "\nbuild_and_test_all_in_docker runtime: %'ds\n" $((END - START)) &>/dev/stderr
+  if [[ ${STATUS} -eq 0 ]]; then
+    printf "build_and_test_in_docker completed successfully\n" &>/dev/stderr
+  else
+    printf "Error: build_and_test_in_docker completed with status code: %s\n" "${STATUS}" &>/dev/stderr
+  fi
   exit ${STATUS}
 }
 
 VERBOSE=0
+VERBOSE_ARG=
 PRECOMMIT_ONLY=0
-BUILD_AMI=0
-WITH_SHARED_CACHE=1
+declare -a AMI_REGIONS
 
 function usage() {
-  local exitval=${1-1}
-  cat >&2 << USAGE
+  local -r -i exitval=${1-1}
+  cat &>/dev/stderr <<USAGE
 usage:
   $0 <options>
     --without-shared-cache       Containers will not mount ${HOME}/.cache/bazel
     --precommit-only             Run precommit then exit
-    --with-ami                   Build the AMI. Default: false
+    --with-ami                   AMI region in which to build and store AWS AMIs. Use multiple times to specify more than one region
+                                 If empty, none will be built
     --verbose                    Enable verbose output
 
 environment variables (all optional):
@@ -65,8 +67,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --without-shared-cache)
-      WITH_SHARED_CACHE=0
       CBUILD_ARGS="--without-shared-cache"
+      export CBUILD_ARGS
       shift
       ;;
     --presubmit)
@@ -74,7 +76,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --with-ami)
-      BUILD_AMI=1
+      AMI_REGIONS+=("$2")
+      shift
       shift
       ;;
     --verbose)
@@ -89,55 +92,50 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-WORKSPACE="${WORKSPACE-"$(readlink -f "${SCRIPT_DIR}"/../..)"}"
-CBUILD="${WORKSPACE}"/builders/tools/cbuild
-export CBUILD_ARGS
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# shellcheck source=builders/tools/builder.sh
+source "${SCRIPT_DIR}"/../../builders/tools/builder.sh
 
-if [[ ${BUILD_AMI} -eq 1 ]]; then
+if [[ -n ${AMI_REGIONS[0]} ]]; then
   BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:instance=aws --//:platform=aws"
 else
   BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:instance=local --//:platform=aws"
 fi
 
-function _cbuild_debian() {
-  printf "=== cbuild debian action envs ===\n"
-  "${CBUILD}" ${CBUILD_ARGS} --image build-debian --cmd "grep -o 'action_env.*' /etc/bazel.bazelrc" 1>/dev/stderr 2>/dev/null
-  "${CBUILD}" ${CBUILD_ARGS} --image build-debian --cmd "$*"
-}
-
 if [[ ${VERBOSE} -eq 1 ]]; then
   set -o xtrace
+  VERBOSE_ARG="--verbose"
   CBUILD_ARGS="${CBUILD_ARGS} --verbose"
 fi
 
-"${WORKSPACE}"/tools/pre-commit
+"${WORKSPACE}"/builders/tools/pre-commit
 if [[ ${PRECOMMIT_ONLY} -eq 1 ]]; then
   exit 0
 fi
 
 printf "==== build and test specified targets using bazel-debian ====\n"
 
-_cbuild_debian "
+builder::cbuild_debian "
 trap _collect_logs EXIT
 function _collect_logs() {
-  local STATUS=$?
+  local -r -i STATUS=\$?
   printf 'Collecting bazel logs...\n' &>/dev/stderr
   bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //:collect-logs
-  # shellcheck disable=SC2086
-  exit ${STATUS}
+  exit \${STATUS}
 }
 set -o errexit
 bazel ${BAZEL_STARTUP_ARGS} build ${BAZEL_EXTRA_ARGS} //components/... //public/... //tools/...
+bazel ${BAZEL_STARTUP_ARGS} test ${BAZEL_EXTRA_ARGS} --test_size_filters=small //...
 bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/aws/data_server:copy_to_dist
-bazel ${BAZEL_STARTUP_ARGS} test ${BAZEL_EXTRA_ARGS} //components/... //public/...
 "
-"${WORKSPACE}"/builders/tools/normalize-dist
 
-if [[ ${BUILD_AMI} -eq 1 ]]; then
-  EXTRA_ARGS="--with-ami"
+if [[ -n ${AMI_REGIONS[0]} ]]; then
+  printf -v EXTRA_ARGS -- '--with-ami %s ' "${AMI_REGIONS[@]}"
+  if [[ ${VERBOSE} -eq 1 ]]; then
+    EXTRA_ARGS="${EXTRA_ARGS} --verbose"
+  fi
 fi
-"${SCRIPT_DIR}"/aws/build_and_test --server-image dist/debian/server_docker_image.tar ${EXTRA_ARGS}
+"${SCRIPT_DIR}"/aws/build_and_test ${VERBOSE_ARG} --server-image dist/debian/server_docker_image.tar ${EXTRA_ARGS}
 
 DIST="${WORKSPACE}"/dist
 if [[ -d ${DIST} ]]; then

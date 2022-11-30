@@ -1,6 +1,4 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-load("@bazel_tools//tools/python:toolchain.bzl", "py_runtime_pair")
-load("@rules_python//python:defs.bzl", "py_runtime")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -61,34 +59,11 @@ exports_files(
     [".bazelversion"],
 )
 
-# define the python3 runtime.
-# this path must exist in the bazel build environment ie. the build container images must install python3.8 in this path
-PY3_PATH = "/usr/bin/python3.8"
-
-py_runtime(
-    name = "py_runtime",
-    interpreter_path = PY3_PATH,
-    python_version = "PY3",
-    visibility = ["//visibility:public"],
-)
-
-py_runtime_pair(
-    name = "py_runtime_pair",
-    py2_runtime = None,
-    py3_runtime = ":py_runtime",
-)
-
-toolchain(
-    name = "py_toolchain",
-    toolchain = ":py_runtime_pair",
-    toolchain_type = "@bazel_tools//tools/python:toolchain_type",
-)
-
 genrule(
     name = "update-deps",
     outs = ["update_deps.bin"],
     cmd = """cat << EOF > '$@'
-tools/pre-commit autoupdate
+builders/tools/pre-commit autoupdate
 EOF""",
     executable = True,
     local = True,
@@ -98,7 +73,7 @@ genrule(
     name = "precommit-hooks",
     outs = ["run_precommit_hooks.bin"],
     cmd = """cat << EOF > '$@'
-tools/pre-commit
+builders/tools/pre-commit
 EOF""",
     executable = True,
     local = True,
@@ -108,7 +83,7 @@ genrule(
     name = "buildifier",
     outs = ["run_buildifier.bin"],
     cmd = """cat << EOF > '$@'
-tools/pre-commit buildifier
+builders/tools/pre-commit buildifier
 EOF""",
     executable = True,
     local = True,

@@ -30,6 +30,17 @@ bool IsDeltaFilename(std::string_view basename);
 
 absl::StatusOr<std::string> ToDeltaFileName(uint64_t logical_commit_time);
 
+// Returns true is `basename` is a valid snapshot filename.
+// Valid snapshot filenames conform to the regex return by
+// `SnapshotFileFormatRegex()` in constants.h
+bool IsSnapshotFilename(std::string_view basename);
+
+// Attempts to construct a valid snapshot filename from `logical_commit_time`.
+//
+// Returns absl::InvalidArgumentError if `logical_commit_time` cannot be used to
+// construct a valid snapshot filename.
+absl::StatusOr<std::string> ToSnapshotFileName(uint64_t logical_commit_time);
+
 }  // namespace fledge::kv_server
 
 #endif  // PUBLIC_DATA_LOADING_FILENAME_UTILS_H_

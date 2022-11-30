@@ -106,9 +106,9 @@ TEST(DeltaRecordStreamWriterTest,
 
 TEST(DeltaRecordStreamWriterTest, ValidateWritingFailsAfterClose) {
   std::stringstream string_stream;
-  DeltaRecordWriter::Options options{.metadata = std::move(GetMetadata())};
+  DeltaRecordWriter::Options options{.metadata = GetMetadata()};
   auto record_writer = DeltaRecordStreamWriter<std::stringstream>::Create(
-      string_stream, options);
+      string_stream, std::move(options));
   EXPECT_TRUE(record_writer.ok());
   (*record_writer)->Close();
   EXPECT_ANY_THROW(auto status =

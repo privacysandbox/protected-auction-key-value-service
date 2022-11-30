@@ -19,6 +19,7 @@ cc_library(
 
 cc_test(
     name = "bhttp_utils_test",
+    size = "small",
     srcs = [
         "bhttp_utils_test.cc",
     ],

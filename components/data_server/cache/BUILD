@@ -20,6 +20,7 @@ cc_library(
 
 cc_test(
     name = "key_value_cache_test",
+    size = "small",
     srcs = [
         "key_value_cache_test.cc",
     ],

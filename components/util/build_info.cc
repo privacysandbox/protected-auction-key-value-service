@@ -23,19 +23,13 @@
 namespace fledge::kv_server {
 
 void LogBuildInfo() {
-  LOG(INFO) << "Build timestamp: " << BuildTimestampAsInt() << std::endl
-            << "VCS revision: " << BuildVcsRevision() << std::endl
-            << "VCS tree status: " << BuildVcsTreeStatusAsString() << std::endl
-            << "Build platform: " << BuildPlatform() << std::endl
+  LOG(INFO) << "Build platform: " << BuildPlatform() << std::endl
             << "Build toolchain hash: " << BuildToolchainHash() << std::endl
             << "Build flavor: " << BuildFlavor() << std::endl
-            << "Build version: " << BuildVersionExtended() << std::endl;
+            << "Build version: " << BuildVersionExtended() << std::endl
+            << "VCS revision: " << BuildVcsRevision() << std::endl
+            << "VCS tree status: " << BuildVcsTreeStatusAsString() << std::endl;
 }
-
-// When this binary was built (used for versioning).
-//
-// For example: 1104963895
-int64_t BuildTimestampAsInt() { return kVersionBuildTimestamp; }
 
 // Version control system commit hash
 //

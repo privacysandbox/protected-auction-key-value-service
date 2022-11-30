@@ -24,7 +24,18 @@ namespace {
 constexpr absl::Duration kMaxRetryInterval = absl::Minutes(2);
 constexpr uint32_t kRetryBackoffBase = 2;
 
+class RealSleepFor : public SleepFor {
+ public:
+  void Duration(absl::Duration d) const override { absl::SleepFor(d); }
+};
+
 }  // namespace
+
+// static
+SleepFor& SleepFor::Real() {
+  static RealSleepFor sleep_for;
+  return sleep_for;
+}
 
 absl::Duration ExponentialBackoffForRetry(uint32_t retries) {
   const absl::Duration backoff = absl::Seconds(pow(kRetryBackoffBase, retries));

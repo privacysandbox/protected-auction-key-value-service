@@ -2,6 +2,81 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.5.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.4.0...release-0.5.0) (2022-11-28)
+
+
+### Features
+
+* Add basic smoke test
+* Add builders/utils docker image
+* Add hadolint to lint Dockerfiles
+* Add toolchain short hash to bazel output_user_root path
+* Add tools/lib/builder.sh
+* Add utils for working with snapshot files.
+* Adopt build-system release-0.2.0
+* Allow AMI building to specify AWS region.
+* Bump debian runtime to stable-20221004-slim
+* Rename nitro_artifacts to aws_artifacts
+* Set BUILD_ARCH env var in docker images
+* Simplify use of --with-ami flag
+* Tag small tests
+* Upgrade build-debian to python3.9
+* Upgrade to build-system 0.3.1
+* Upgrade to build-system 0.4.3
+* Upgrade to build-system 0.4.4
+* Upgrade to clang v14 on bazel-debian
+
+
+### Bug Fixes
+
+* Add get_workspace_mount function to encapsulate code block
+* Allow server script to accept any flags
+* Avoid installing recommended debian packages
+* Copy get_values_descriptor_set.pb to dist dir
+* Correct shell quoting
+* Correct workspace volume when tools/terraform is executed in a nested container
+* Execute tests prior to copy_to_dist
+* Guess user/group for files when running container as root bazel
+* Ignore InvalidArgument error on completing lifecycle hook.
+* include a backoff on errors to long poll 'push' notifications.
+* Invoke addlicense for all text files
+* Invoke unzip via utils image
+* Migrate duration code into KV server.
+* Minor improvements to shell scripts
+* Modify normalize-dist to use builder::id function
+* Mount $HOME/aws in aws-cli container
+* Move builder-related configs to builders/etc
+* Move WORKSPACE definition to cbuild script global
+* multi-region support for sqs_lambda
+* Propagate AWS env vars and $HOME/.aws into terraform container
+* Propagate gcloud stderr
+* Reduce noise from tools/collect-logs
+* Remove build timestamp to afford stability of binary
+* Remove debugging statement
+* Remove docker flags -i and -t
+* Remove dockerfile linter ignore and correct ENTRYPOINT
+* Remove pre-commit config from build-debian
+* Rename bazel image name debian-slim to runtime-debian
+* Set architecture in container_image declaration
+* Set bazel output_base to accommodate distinct workspaces
+* Set WORKSPACE variable
+* Support regions outside us-east-1
+* unzip should overwrite files
+* Update gazelle to v0.28.0
+* Upgrade bazel-skylib to 1.3.0
+* Upgrade rules_pkg to 0.8.0
+* Use builder library functions
+
+
+### Documentation
+
+* Add error handling guidelines.
+* Add submodule instructions
+* Fix build command
+* fix typo in aws doc
+* recommend the use of native AWS CLI in documentation
+* Remove an unnecessary step in server doc
+
 ## [0.4.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.3.0...release-0.4.0) (2022-10-11)
 
 

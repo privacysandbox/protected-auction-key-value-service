@@ -19,23 +19,18 @@ usage() {
   local exitval=${1-1}
   cat >&2 << USAGE
 usage:
-  $0 <options>
-    --server-port <port>  [required] the port on which the server should bind
+  $0 [options]... [server flags]...
+  options:
     --with-proxify        if running inside AWS Nitro enclave, set this
+  server flags:
+    command line flags will be passed to the server invocation.
+    See the server C++ code for available flags.
 USAGE
   exit ${exitval}
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --server-port)
-      if [[ $2 -lt 128 ]]; then
-        printf "Invalid port: $2\n" >&2
-        usage
-      fi
-      SERVER_PORT=$2
-      shift 2
-      ;;
     --with-proxify)
       PROXY=/server/bin/proxify
       shift
@@ -45,18 +40,13 @@ while [[ $# -gt 0 ]]; do
       break
       ;;
     *)
-      usage
       break
       ;;
   esac
 done
 
-if [[ -z "$SERVER_PORT" ]]; then
-  usage
-fi
-
 # Start the server first.
-$PROXY /server/bin/server --port=${SERVER_PORT} &
+$PROXY /server/bin/server "$@" &
 
 # Start Envoy proxy
 /usr/local/bin/envoy --config-path /etc/envoy/envoy.yaml -l warn

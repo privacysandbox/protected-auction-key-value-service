@@ -31,8 +31,8 @@ container_layer(
 container_image(
     name = "data_loading_analyzer_enclave_image",
     base = select({
-        "@platforms//cpu:arm64": "@debian-slim-arm64//image",
-        "@platforms//cpu:x86_64": "@debian-slim-amd64//image",
+        "@platforms//cpu:arm64": "@runtime-debian-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
     }),
     cmd = [
         "/opt/privacysandbox/bin/proxify",
@@ -104,5 +104,22 @@ cc_binary(
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/flags:usage",
+    ],
+)
+
+cc_binary(
+    name = "get_region",
+    srcs = ["get_region.cc"],
+    visibility = ["//production/packaging:__subpackages__"],
+    deps = [
+        "//components/errors:aws_error_util",
+        "@aws_sdk_cpp//:core",
+        "@aws_sdk_cpp//:ec2",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
     ],
 )

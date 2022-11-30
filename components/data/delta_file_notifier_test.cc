@@ -19,29 +19,29 @@
 
 #include "absl/synchronization/notification.h"
 #include "components/data/mocks.h"
+#include "components/errors/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/filename_utils.h"
 
-using fledge::kv_server::BlobStorageClient;
-using fledge::kv_server::DeltaFileNotifier;
-using fledge::kv_server::MockBlobStorageChangeNotifier;
-using fledge::kv_server::MockBlobStorageClient;
-using fledge::kv_server::ToDeltaFileName;
 using testing::_;
 using testing::Field;
 using testing::Return;
 
+namespace fledge::kv_server {
 namespace {
 
 class DeltaFileNotifierTest : public ::testing::Test {
  protected:
-  void SetUp() override { notifier_ = DeltaFileNotifier::Create(client_); }
+  void SetUp() override {
+    notifier_ = DeltaFileNotifier::Create(client_, sleep_for_);
+  }
 
   MockBlobStorageClient client_;
   std::unique_ptr<DeltaFileNotifier> notifier_;
   MockBlobStorageChangeNotifier change_notifier_;
   std::string initial_key_ = ToDeltaFileName(1).value();
+  MockSleepFor sleep_for_;
 };
 
 TEST_F(DeltaFileNotifierTest, NotRunning) {
@@ -114,4 +114,40 @@ TEST_F(DeltaFileNotifierTest, NotifiesWithNewFiles) {
   EXPECT_FALSE(notifier_->IsRunning());
 }
 
+TEST_F(DeltaFileNotifierTest, GetChangesFailure) {
+  BlobStorageClient::DataLocation location = {.bucket = "testbucket"};
+  EXPECT_CALL(change_notifier_, GetNotifications(_, _))
+      .WillOnce(Return(absl::InvalidArgumentError("stuff")))
+      .WillOnce(Return(absl::InvalidArgumentError("stuff")))
+      .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(1).value()})))
+      .WillRepeatedly(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      client_,
+      ListBlobs(Field(&BlobStorageClient::DataLocation::bucket, "testbucket"),
+                Field(&BlobStorageClient::ListOptions::start_after,
+                      ToDeltaFileName(1).value())))
+      .WillOnce(Return(std::vector<std::string>({})))
+      .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(1).value()})));
+
+  absl::Notification finished;
+  testing::MockFunction<void(const std::string& record)> callback;
+  EXPECT_CALL(callback, Call).Times(1).WillOnce([&](const std::string& key) {
+    EXPECT_EQ(key, ToDeltaFileName(1).value());
+    finished.Notify();
+  });
+  EXPECT_CALL(sleep_for_, Duration(absl::Seconds(2))).Times(1);
+  EXPECT_CALL(sleep_for_, Duration(absl::Seconds(4))).Times(1);
+
+  absl::Status status =
+      notifier_->StartNotify(change_notifier_, {.bucket = "testbucket"},
+                             initial_key_, callback.AsStdFunction());
+  ASSERT_TRUE(status.ok());
+  EXPECT_TRUE(notifier_->IsRunning());
+  finished.WaitForNotification();
+  status = notifier_->StopNotify();
+  ASSERT_TRUE(status.ok());
+  EXPECT_FALSE(notifier_->IsRunning());
+}
+
 }  // namespace
+}  // namespace fledge::kv_server

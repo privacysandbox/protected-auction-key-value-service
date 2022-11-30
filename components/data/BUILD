@@ -66,6 +66,8 @@ cc_library(
     deps = [
         ":blob_storage_change_notifier",
         ":blob_storage_client",
+        "//components/errors:retry",
+        "//components/util:duration",
         "//public:constants",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -78,12 +80,14 @@ cc_library(
 
 cc_test(
     name = "delta_file_notifier_test",
+    size = "small",
     srcs = [
         "delta_file_notifier_test.cc",
     ],
     deps = [
         ":delta_file_notifier",
         ":mocks",
+        "//components/errors:mocks",
         "//public/data_loading:filename_utils",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",

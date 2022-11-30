@@ -17,6 +17,7 @@
 #ifndef PUBLIC_CONSTANTS_H_
 #define PUBLIC_CONSTANTS_H_
 
+#include <regex>
 #include <string_view>
 
 #include "public/base_types.pb.h"
@@ -53,6 +54,16 @@ std::string_view DeltaFileFormatRegex();
 // In FLEDGE API, for a list of keys, they can be written as keys=key1,key2
 // This requires the server code to parse and the delimiter is documented here.
 constexpr char kQueryArgDelimiter = ',';
+
+// Returns a compiled snapshot file name regex defined as follows:
+//
+// Compiled regex = "SNAPSHOT_\d{16}"
+// Regex parts:
+// - prefix = "SNAPSHOT"
+// - component delimiter = "_"
+// - suffix = a 16 digit number that represents logical time. A larger number
+//            indicates a more recent snapshot.
+const std::regex& SnapshotFileFormatRegex();
 
 }  // namespace fledge::kv_server
 

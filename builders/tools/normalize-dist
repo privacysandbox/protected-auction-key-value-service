@@ -19,17 +19,34 @@
 set -o pipefail
 set -o errexit
 
-CBUILD="$(dirname "$(readlink -f "$0")")/cbuild"
-IMAGE=build-debian
-GROUP="$(id -g)"
-USER="$(id -u)"
+trap _cleanup EXIT
+function _cleanup() {
+  local -r -i STATUS=$?
+  if [[ ${STATUS} -eq 0 ]]; then
+    printf "normalize-dist completed successfully\n" &>/dev/stderr
+  else
+    printf "Error: normalize-dist completed with status code: %s\n" "${STATUS}" &>/dev/stderr
+  fi
+  exit 0
+}
 
-TOP_LEVEL_DIRS="dist"
+TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly TOOLS_DIR
+# shellcheck disable=SC1091
+source "${TOOLS_DIR}"/builder.sh
+readonly IMAGE=build-debian
+GROUP="$(builder::id g)"
+readonly GROUP
+USER="$(builder::id u)"
+readonly USER
+
+readonly TOP_LEVEL_DIRS="dist"
 
 printf "Setting file ownership [%s], group [%s] in dirs [%s]\n" "${USER}" "${GROUP}" "${TOP_LEVEL_DIRS}"
-"${CBUILD}" --image ${IMAGE} --cmd "
+"${TOOLS_DIR}"/cbuild --image ${IMAGE} --cmd "
 for TOP_LEVEL_DIR in ${TOP_LEVEL_DIRS}; do
-  find \${TOP_LEVEL_DIR} -type f -exec chmod 644 {} \;
+  find \${TOP_LEVEL_DIR} -type f ! -executable -exec chmod 644 {} \;
+  find \${TOP_LEVEL_DIR} -type f -executable -exec chmod 755 {} \;
   find \${TOP_LEVEL_DIR} -type d -exec chmod 755 {} \;
   chgrp --recursive ${GROUP} \${TOP_LEVEL_DIR}
   chown --recursive ${USER} \${TOP_LEVEL_DIR}

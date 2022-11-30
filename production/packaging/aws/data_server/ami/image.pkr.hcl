@@ -12,9 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-variable "region" {
+variable "regions" {
+  type    = list(string)
+  validation {
+    condition     = length(var.regions) > 0
+    error_message = <<EOF
+The regions var is not set. Must specify at least one region.
+EOF
+  }
+}
+
+variable "commit_version" {
   type    = string
-  default = "us-east-1"
 }
 
 # Directory path where the built artifacts appear
@@ -54,7 +63,8 @@ locals { timestamp = regex_replace(timestamp(), "[- TZ:]", "") }
 source "amazon-ebs" "dataserver" {
   ami_name      = "data-server-${local.timestamp}"
   instance_type = "m5.xlarge"
-  region        = var.region
+  region        = var.regions[0]
+  ami_regions   = var.regions
   source_ami_filter {
     filters = {
       name                = "amzn2-ami-kernel-*-x86_64-gp2"
@@ -63,6 +73,9 @@ source "amazon-ebs" "dataserver" {
     }
     most_recent = true
     owners      = ["137112412989"]
+  }
+  tags = {
+    commit_version = var.commit_version
   }
   ssh_username = "ec2-user"
 }

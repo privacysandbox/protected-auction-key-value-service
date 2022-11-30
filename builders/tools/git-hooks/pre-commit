@@ -1,0 +1,18 @@
+#!/bin/bash
+
+TOP_LEVEL_DIR="$(git rev-parse --show-toplevel)"
+GIT_HOOKS_DIR="${TOP_LEVEL_DIR}/$(git rev-parse --git-dir)/hooks"
+declare -a ARGS=(
+  hook-impl
+  "--hook-type=pre-commit"
+  --hook-dir "${GIT_HOOKS_DIR}"
+  --
+  "$@"
+)
+
+if command -v "${TOP_LEVEL_DIR}"/builders/tools/pre-commit > /dev/null; then
+  exec "${TOP_LEVEL_DIR}"/builders/tools/pre-commit "${ARGS[@]}"
+else
+  printf "[builders/tools/pre-commit] not found" 2>&1
+  exit 1
+fi

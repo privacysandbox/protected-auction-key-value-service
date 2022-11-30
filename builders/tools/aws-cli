@@ -12,19 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# environment variables (all optional):
+#   WORKSPACE                    repo root directory, must be an absolute path
+#
 # environment variables exported to AWS CLI
 # For more info on supported env vars, see:
 #   https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
 #
 #     AWS_ACCESS_KEY_ID
-#     AWS_DEFAULT_REGION
 #     AWS_SECRET_ACCESS_KEY
+#     AWS_SESSION_TOKEN
+#     AWS_REGION
+#     AWS_DEFAULT_REGION
+#     AWS_PROFILE
+
+set -o errexit
+
+# shellcheck disable=SC1091
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
 
 declare -a ENV_VARS
+builder::add_aws_env_vars ENV_VARS
 ENV_VARS+=(
-  "AWS_ACCESS_KEY_ID"
-  "AWS_DEFAULT_REGION"
-  "AWS_SECRET_ACCESS_KEY"
+  "HOME=/home"
 )
 
 declare -a DOCKER_RUN_ARGS
@@ -45,7 +55,14 @@ if [[ -t 0 ]] && [[ -t 1 ]]; then
   )
 fi
 
+REL_PWD="$(realpath --relative-to="${WORKSPACE}" "$(pwd)")"
+readonly REL_PWD
+
 # shellcheck disable=SC2068
 docker run \
-    ${DOCKER_RUN_ARGS[@]} \
-    amazon/aws-cli -- "$@"
+  ${DOCKER_RUN_ARGS[@]} \
+  --user "$(id -u):$(id -g)" \
+  --volume "${HOME}"/.aws/:/home/.aws/ \
+  --volume "${WORKSPACE}":/src/workspace \
+  --workdir /src/workspace/"${REL_PWD}" \
+  amazon/aws-cli -- "$@"

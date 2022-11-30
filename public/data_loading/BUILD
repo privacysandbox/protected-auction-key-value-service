@@ -28,6 +28,7 @@ proto_library(
 
 buf_lint_test(
     name = "riegeli_metadata_proto_lint",
+    size = "small",
     config = "//public:buf.yaml",
     targets = [":riegeli_metadata_proto"],
 )
@@ -43,6 +44,7 @@ cc_library(
 
 cc_test(
     name = "records_utils_test",
+    size = "small",
     srcs = ["records_utils_test.cc"],
     deps = [
         ":records_utils",
@@ -75,6 +77,7 @@ cc_library(
 
 cc_test(
     name = "filename_utils_test",
+    size = "small",
     srcs = [
         "filename_utils_test.cc",
     ],

@@ -209,7 +209,15 @@ class AwsInstanceClient : public InstanceClient {
 
     const auto outcome = auto_scaling_client_->CompleteLifecycleAction(request);
     if (!outcome.IsSuccess()) {
-      return AwsErrorToStatus(outcome.GetError());
+      const auto status = AwsErrorToStatus(outcome.GetError());
+      if (!absl::IsInvalidArgument(status)) {
+        return status;
+      }
+      // TODO: add metric
+      // Invalid argument errors are returned if the lifecycle is already
+      // complete. Ignore this error because it is unlikely helpful to retry it.
+      // If we are already complete, it doesn't matter
+      // If we aren't, we should probably restart anyway.
     }
     return absl::OkStatus();
   }

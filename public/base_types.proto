@@ -42,5 +42,7 @@ message FileType {
     FILE_TYPE_UNSPECIFIED = 0;
 
     DELTA = 1;
+
+    SNAPSHOT = 2;
   }
 }

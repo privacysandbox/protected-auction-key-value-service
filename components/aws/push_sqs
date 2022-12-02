@@ -27,13 +27,20 @@ in the form of:
 EOF
   exit 1
 fi
+if [[ -z "${AWS_REGION}" ]]; then
+  printf "Error: please export the environment variable AWS_REGION, e.g., us-east-1.\n"
+  exit 1
+fi
 
-aws ecr get-login-password --region us-east-1 |
+aws ecr get-login-password --region ${AWS_REGION} |
   docker login --username AWS --password-stdin "${AWS_ECR}"
 
 WORKSPACE="$(git rev-parse --show-toplevel)"
 DIST_DIR="${WORKSPACE}"/dist/aws
-unzip -q -c "${DIST_DIR}"/nitro_artifacts.zip sqs_lambda.tar | docker load
+unzip -q -c "${DIST_DIR}"/aws_artifacts.zip sqs_lambda.tar | docker load
 AWS_IMAGE_URI="${AWS_ECR}"/sqs_lambda:latest
 docker tag bazel/components/aws:sqs_lambda "${AWS_IMAGE_URI}"
+
+aws ecr describe-repositories --repository-names sqs_lambda || aws ecr create-repository --repository-name sqs_lambda
+
 docker push "${AWS_IMAGE_URI}"

@@ -39,11 +39,6 @@ extern const std::string_view kVersionBuildFlavor;
 
 void LogBuildInfo();
 
-// When this binary was built (used for versioning).
-//
-// For example: 1104963895
-int64_t BuildTimestampAsInt();
-
 // Version control system commit hash
 //
 // For example: 670425accbe92a1e7c9c04db3a355306d2cea485

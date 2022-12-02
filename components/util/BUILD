@@ -5,6 +5,27 @@ package(default_visibility = [
 ])
 
 cc_library(
+    name = "duration",
+    srcs = ["duration.cc"],
+    hdrs = ["duration.h"],
+    deps = [
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+cc_test(
+    name = "duration_test",
+    size = "small",
+    srcs = ["duration_test.cc"],
+    deps = [
+        ":duration",
+        "@com_google_absl//absl/time",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "periodic_closure",
     srcs = [
         "periodic_closure.cc",
@@ -19,6 +40,7 @@ cc_library(
 
 cc_test(
     name = "periodic_closure_test",
+    size = "small",
     srcs = ["periodic_closure_test.cc"],
     deps = [
         ":periodic_closure",
@@ -54,7 +76,6 @@ cc_library(
     srcs = [
         "build_flags.cc",
         "build_info.cc",
-        #":generate_version_linkstamp",
     ],
     hdrs = [
         "build_info.h",
@@ -72,7 +93,6 @@ cc_library(
     name = "version_linkstamp",
     # Linking this library makes build cache inefficient, limiting this to the //components/data_server/server package only.
     visibility = ["//components/data_server/server:__pkg__"],
-    #linkstamp = ":manual_version_linkstamp",
     deps = [":build_flags"],
     alwayslink = 1,
 )

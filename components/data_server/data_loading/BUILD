@@ -32,6 +32,7 @@ cc_library(
 
 cc_test(
     name = "data_orchestrator_test",
+    size = "small",
     srcs = [
         "data_orchestrator_test.cc",
     ],

@@ -24,6 +24,16 @@
 
 namespace fledge::kv_server {
 
+// Abstraction wraps free function for dependency injection.
+class SleepFor {
+ public:
+  virtual ~SleepFor() {}
+  // Returns a reference to the global SleepFor.
+  static SleepFor& Real();
+
+  virtual void Duration(absl::Duration d) const = 0;
+};
+
 // Retry the function with exponential backoff until it succeeds.
 absl::Duration ExponentialBackoffForRetry(uint32_t retries);
 
@@ -37,10 +47,12 @@ class RetryableWithMax {
   static constexpr int kUnlimitedRetry = -1;
 
   // If max_attempts <= 0, will retry until OK.
-  RetryableWithMax(Func&& f, std::string task_name, int max_attempts)
+  RetryableWithMax(Func&& f, std::string task_name, int max_attempts,
+                   const SleepFor& sleep_for)
       : func_(std::forward<Func>(f)),
         task_name_(std::move(task_name)),
-        max_attempts_(max_attempts <= 0 ? kUnlimitedRetry : max_attempts) {}
+        max_attempts_(max_attempts <= 0 ? kUnlimitedRetry : max_attempts),
+        sleep_for_(sleep_for) {}
 
   absl::Status ToStatus(absl::Status& result) { return result; }
 
@@ -62,8 +74,7 @@ class RetryableWithMax {
                      << " for Attempt " << i;
       }
       const absl::Duration backoff = ExponentialBackoffForRetry(i);
-      // TODO(b/235082948): Inject a clock and mock for tests.
-      absl::SleepFor(backoff);
+      sleep_for_.Duration(backoff);
     }
     return result;
   }
@@ -72,23 +83,27 @@ class RetryableWithMax {
   Func func_;
   std::string task_name_;
   int max_attempts_;
+  const SleepFor& sleep_for_;
 };
 
 // Retries functors that return an absl::StatusOr<T> until they are `ok`.
 // The value of type T is returned by this function.
 template <typename Func>
 typename std::invoke_result_t<RetryableWithMax<Func>>::value_type RetryUntilOk(
-    Func&& f, std::string task_name) {
+    Func&& f, std::string task_name,
+    const SleepFor& sleep_for = SleepFor::Real()) {
   return RetryableWithMax(std::forward<Func>(f), std::move(task_name),
-                          RetryableWithMax<Func>::kUnlimitedRetry)()
+                          RetryableWithMax<Func>::kUnlimitedRetry, sleep_for)()
       .value();
 }
 
 // Retries functors that return an absl::Status until they are `ok`.
 inline void RetryUntilOk(std::function<absl::Status()> func,
-                         std::string task_name) {
+                         std::string task_name,
+                         const SleepFor& sleep_for = SleepFor::Real()) {
   RetryableWithMax(std::move(func), std::move(task_name),
-                   RetryableWithMax<decltype(func)>::kUnlimitedRetry)()
+                   RetryableWithMax<decltype(func)>::kUnlimitedRetry,
+                   sleep_for)()
       .IgnoreError();
 }
 
@@ -96,9 +111,10 @@ inline void RetryUntilOk(std::function<absl::Status()> func,
 // max_attempts is reached. Retry starts at 1.
 template <typename Func>
 typename std::invoke_result_t<RetryableWithMax<Func>> RetryWithMax(
-    Func&& f, std::string task_name, int max_attempts) {
+    Func&& f, std::string task_name, int max_attempts,
+    const SleepFor& sleep_for = SleepFor::Real()) {
   return RetryableWithMax(std::forward<Func>(f), std::move(task_name),
-                          max_attempts)();
+                          max_attempts, sleep_for)();
 }
 
 }  // namespace fledge::kv_server

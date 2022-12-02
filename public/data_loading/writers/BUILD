@@ -29,6 +29,7 @@ cc_library(
 
 cc_test(
     name = "delta_record_stream_writer_test",
+    size = "small",
     srcs = ["delta_record_stream_writer_test.cc"],
     deps = [
         ":delta_record_stream_writer",

@@ -29,6 +29,7 @@ cc_library(
 
 cc_test(
     name = "csv_delta_record_stream_writer_test",
+    size = "small",
     srcs = ["csv_delta_record_stream_writer_test.cc"],
     deps = [
         ":csv_delta_record_stream_reader",
@@ -56,6 +57,7 @@ cc_library(
 
 cc_test(
     name = "csv_delta_record_stream_reader_test",
+    size = "small",
     srcs = ["csv_delta_record_stream_reader_test.cc"],
     deps = [
         ":csv_delta_record_stream_reader",

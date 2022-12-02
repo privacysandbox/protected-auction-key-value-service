@@ -45,5 +45,27 @@ TEST(ToDeltaFileName, ToDeltaFileName) {
             ("DELTA_1234512345123451"));
 }
 
+TEST(SnapshotFilename, IsSnapshotFilename) {
+  EXPECT_FALSE(IsSnapshotFilename(""));
+  EXPECT_FALSE(IsSnapshotFilename("SNAPSHOT_"));
+  EXPECT_FALSE(IsSnapshotFilename("SNAPSHOT"));
+  EXPECT_FALSE(IsSnapshotFilename("SNAPSHOT_1234512345123451x"));
+  EXPECT_FALSE(IsSnapshotFilename("DELTA_1234512345123451"));
+  EXPECT_FALSE(IsSnapshotFilename("SNAPSHOT_12345123451234510"));
+  EXPECT_FALSE(IsSnapshotFilename("Snapshot_1234512345123451"));
+  EXPECT_TRUE(IsSnapshotFilename("SNAPSHOT_1234512345123451"));
+}
+
+TEST(SnapshotFilename, ToSnapshotFilename) {
+  EXPECT_FALSE(ToSnapshotFileName(-1).ok());
+  EXPECT_EQ(ToSnapshotFileName(-1).status().code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_TRUE(ToSnapshotFileName(1).ok());
+  EXPECT_EQ(ToSnapshotFileName(1).value(), ("SNAPSHOT_0000000000000001"));
+  EXPECT_TRUE(ToSnapshotFileName(1234512345123451).ok());
+  EXPECT_EQ(ToSnapshotFileName(1234512345123451).value(),
+            ("SNAPSHOT_1234512345123451"));
+}
+
 }  // namespace
 }  // namespace fledge::kv_server

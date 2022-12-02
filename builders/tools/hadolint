@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -o errexit
+
+TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly TOOLS_DIR
+# shellcheck disable=SC1091
+source "${TOOLS_DIR}"/builder.sh
+
+declare -a DOCKER_RUN_ARGS
+DOCKER_RUN_ARGS+=(
+  "--rm"
+)
+if [[ -t 0 ]] && [[ -t 1 ]]; then
+  # stdin and stdout are open, assume it's an interactive tty session
+  DOCKER_RUN_ARGS+=(
+    "--interactive"
+    "--tty"
+  )
+fi
+
+WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
+readonly WORKSPACE_MOUNT
+
+docker run \
+  "${DOCKER_RUN_ARGS[@]}" \
+  --user "$(id -u):$(id -g)" \
+  --volume "${WORKSPACE_MOUNT}":/src \
+  --workdir /src \
+  ghcr.io/hadolint/hadolint:v2.10.0 \
+  hadolint "$@"

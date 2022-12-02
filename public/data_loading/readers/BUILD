@@ -28,6 +28,7 @@ cc_library(
 
 cc_test(
     name = "riegeli_stream_io_test",
+    size = "small",
     srcs = [
         "riegeli_stream_io_test.cc",
     ],
@@ -55,6 +56,7 @@ cc_library(
 
 cc_test(
     name = "delta_record_stream_reader_test",
+    size = "small",
     srcs = ["delta_record_stream_reader_test.cc"],
     deps = [
         ":delta_record_stream_reader",

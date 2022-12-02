@@ -119,7 +119,9 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
     // Configure request.
     Aws::SQS::Model::ReceiveMessageRequest request;
     request.SetQueueUrl(queue_manager_.GetSqsUrl());
-    request.SetWaitTimeSeconds(absl::ToInt64Seconds(max_wait));
+    // Round up to the nearest second.
+    request.SetWaitTimeSeconds(
+        absl::ToInt64Seconds(absl::Ceil(max_wait, absl::Seconds(1))));
     // Max valid value
     // https://sdk.amazonaws.com/cpp/api/0.12.9/df/d17/class_aws_1_1_s_q_s_1_1_model_1_1_receive_message_request.html#a13311215b25937625b95c86644d5c466
     request.SetMaxNumberOfMessages(10);

@@ -30,8 +30,9 @@ namespace fledge::kv_server {
 namespace {
 
 // Reads the file from `location` and updates the cache based on the delta read.
-absl::Status LoadCacheWithDataFromFile(BlobStorageClient::DataLocation location,
-                                       DataOrchestrator::Options options) {
+absl::Status LoadCacheWithDataFromFile(
+    const BlobStorageClient::DataLocation& location,
+    const DataOrchestrator::Options& options) {
   LOG(INFO) << "Loading " << location;
   std::unique_ptr<BlobReader> blob_reader =
       options.blob_client.GetBlobReader(location);

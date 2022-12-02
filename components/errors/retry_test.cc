@@ -19,6 +19,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "components/errors/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -31,8 +32,10 @@ TEST(RetryTest, RetryUntilOk) {
       .Times(2)
       .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
       .WillOnce([] { return 1; });
-
-  absl::StatusOr<int> v = RetryUntilOk(func.AsStdFunction(), "TestFunc");
+  MockSleepFor sleep_for;
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
+  absl::StatusOr<int> v =
+      RetryUntilOk(func.AsStdFunction(), "TestFunc", sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
@@ -43,8 +46,9 @@ TEST(RetryTest, RetryUnilOkStatusOnly) {
       .Times(2)
       .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
       .WillOnce([] { return absl::OkStatus(); });
-
-  RetryUntilOk(func.AsStdFunction(), "TestFunc");
+  MockSleepFor sleep_for;
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
+  RetryUntilOk(func.AsStdFunction(), "TestFunc", sleep_for);
 }
 
 TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
@@ -53,7 +57,11 @@ TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
     return absl::InvalidArgumentError("whatever");
   });
 
-  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2);
+  MockSleepFor sleep_for;
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(4))).Times(1);
+  absl::StatusOr<int> v =
+      RetryWithMax(func.AsStdFunction(), "TestFunc", 2, sleep_for);
   EXPECT_FALSE(v.ok());
   EXPECT_EQ(v.status(), absl::InvalidArgumentError("whatever"));
 }
@@ -65,7 +73,10 @@ TEST(RetryTest, RetryWithMaxSucceedsOnMax) {
       .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
       .WillOnce([] { return 1; });
 
-  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2);
+  MockSleepFor sleep_for;
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
+  absl::StatusOr<int> v =
+      RetryWithMax(func.AsStdFunction(), "TestFunc", 2, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
@@ -76,8 +87,10 @@ TEST(RetryTest, RetryWithMaxSucceedsEarly) {
       .Times(2)
       .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
       .WillOnce([] { return 1; });
-
-  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 300);
+  MockSleepFor sleep_for;
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
+  absl::StatusOr<int> v =
+      RetryWithMax(func.AsStdFunction(), "TestFunc", 300, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }

@@ -12,6 +12,7 @@ cc_library(
     deps = [
         "@aws_sdk_cpp//:core",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings:cord",
     ],
 )
 
@@ -32,11 +33,23 @@ cc_library(
 
 cc_test(
     name = "retry_test",
+    size = "small",
     srcs = [
         "retry_test.cc",
     ],
     deps = [
+        ":mocks",
         ":retry",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "mocks",
+    testonly = 1,
+    hdrs = ["mocks.h"],
+    deps = [
+        ":retry",
+        "@com_google_googletest//:gtest",
     ],
 )

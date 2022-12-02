@@ -33,7 +33,6 @@ absl::Status ExtractBHttpError(const BHttpMessage& message) {
   return absl::OkStatus();
 }
 
-template <>
 absl::Status ExtractBHttpError(const quiche::BinaryHttpResponse& response) {
   // TODO: Pass more error information
   if (response.status_code() != 200) {
@@ -124,7 +123,7 @@ absl::StatusOr<std::string> SerializeProtoToBHttp(
     return absl::InternalError(s.message().ToString());
   }
   BHttpMessage bhttp_msg(std::move(metadata));
-  bhttp_msg.set_body(body);
+  bhttp_msg.set_body(std::move(body));
   return bhttp_msg.Serialize();
 }
 

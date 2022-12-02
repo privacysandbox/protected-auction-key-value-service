@@ -18,6 +18,8 @@
 
 #include <utility>
 
+#include "absl/status/status.h"
+#include "absl/strings/cord.h"
 #include "aws/core/client/AWSError.h"
 
 namespace fledge::kv_server {
@@ -80,8 +82,7 @@ absl::Status AwsErrorToStatus(const Aws::Client::AWSError<T>& error) {
   auto status = absl::Status(status_code, error.GetMessage());
   if (!status.ok()) {
     for (auto [header, value] : error.GetResponseHeaders()) {
-      absl::Cord cord(std::move(value));
-      status.SetPayload(header, std::move(cord));
+      status.SetPayload(header, absl::Cord(std::move(value)));
     }
   }
   return status;

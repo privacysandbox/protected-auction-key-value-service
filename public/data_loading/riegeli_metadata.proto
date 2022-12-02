@@ -19,11 +19,31 @@ package fledge.kv_server;
 import "public/base_types.proto";
 import "riegeli/records/records_metadata.proto";
 
+// Metadata specific to DELTA files.
+message DeltaMetadata {}
+
+//Metadata specific to SNAPSHOT files.
+message SnapshotMetadata {
+  // [Required]
+  // (1) Name of the previous snapshot file used to generate this snapshot or
+  // (2) Name of the oldest delta file included in the snapshot.
+  optional string starting_file = 1;
+
+  // [Required]
+  // Name of the most recent delta file included in the snapshot.
+  optional string ending_delta_file = 2;
+}
+
 // All K/V server metadata related to one riegeli file.
 // TODO: update data loading code to use this to replace the KVEntry logic.
 message KVFileMetadata {
   // All records in one file are from this namespace.
   optional KeyNamespace.Enum key_namespace = 1;
+
+  oneof file_type {
+    DeltaMetadata delta = 2;
+    SnapshotMetadata snapshot = 3;
+  }
 }
 
 extend riegeli.RecordsMetadata {

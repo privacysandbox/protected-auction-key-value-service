@@ -22,6 +22,7 @@
 
 #include "components/data/blob_storage_change_notifier.h"
 #include "components/data/blob_storage_client.h"
+#include "components/errors/retry.h"
 
 namespace fledge::kv_server {
 
@@ -52,7 +53,8 @@ class DeltaFileNotifier {
   // successful.
   virtual bool IsRunning() const = 0;
 
-  static std::unique_ptr<DeltaFileNotifier> Create(BlobStorageClient& client);
+  static std::unique_ptr<DeltaFileNotifier> Create(
+      BlobStorageClient& client, const SleepFor& sleep_for = SleepFor::Real());
 };
 
 }  // namespace fledge::kv_server

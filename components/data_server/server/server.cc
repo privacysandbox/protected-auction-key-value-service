@@ -66,7 +66,6 @@ constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
 constexpr absl::string_view kBucketSNSParameterSuffix = "bucket-sns-arn";
 constexpr absl::string_view kLaunchHookParameterSuffix = "launch-hook";
 
-constexpr absl::Duration kRetryBackoff = absl::Seconds(1);
 constexpr absl::Duration kLifecycleHeartbeatFrequency = absl::Seconds(30);
 
 absl::StatusOr<std::string> GetParameter(
@@ -206,8 +205,6 @@ absl::Status RunServer() {
   }
   RetryUntilOk(
       [&instance_client, &launch_hook_name] {
-        // CompleteLifecycle can fail if it is already complete.
-        // TODO(b/251431397): Check lifecycle status.
         return instance_client->CompleteLifecycle(launch_hook_name);
       },
       "CompleteLifecycle");

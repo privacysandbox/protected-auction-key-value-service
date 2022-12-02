@@ -58,13 +58,13 @@ resource "aws_launch_template" "instance_launch_template" {
 
 # Create auto scaling group for EC2 instances
 resource "aws_autoscaling_group" "instance_asg" {
-  name                      = "${var.service}-${var.environment}-instance-asg"
-  max_size                  = var.autoscaling_max_size
-  min_size                  = var.autoscaling_min_size
-  desired_capacity          = var.autoscaling_desired_capacity
-  health_check_type         = "ELB"
-  vpc_zone_identifier       = var.autoscaling_subnet_ids
-  target_group_arns         = var.target_group_arns
+  name                = "${var.service}-${var.environment}-instance-asg"
+  max_size            = var.autoscaling_max_size
+  min_size            = var.autoscaling_min_size
+  desired_capacity    = var.autoscaling_desired_capacity
+  health_check_type   = "ELB"
+  vpc_zone_identifier = var.autoscaling_subnet_ids
+  target_group_arns   = var.target_group_arns
 
   launch_template {
     id      = aws_launch_template.instance_launch_template.id

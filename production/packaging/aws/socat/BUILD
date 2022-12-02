@@ -8,8 +8,8 @@ container_run_and_commit_layer(
         "apt-get install -y socat iproute2",
     ],
     image = select({
-        "@platforms//cpu:arm64": "@debian-slim-arm64//image",
-        "@platforms//cpu:x86_64": "@debian-slim-amd64//image",
+        "@platforms//cpu:arm64": "@runtime-debian-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
     }),
     tags = ["no-remote"],
     visibility = ["//production/packaging:__subpackages__"],

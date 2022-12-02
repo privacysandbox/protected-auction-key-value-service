@@ -23,6 +23,14 @@
 #include "public/constants.h"
 
 namespace fledge::kv_server {
+namespace {
+template <FileType::Enum file_type>
+std::string GetFilename(int64_t logical_commit_time) {
+  return absl::StrFormat("%s%s%0*d", FilePrefix<file_type>(),
+                         kFileComponentDelimiter, kLogicalTimeDigits,
+                         logical_commit_time);
+}
+}  // namespace
 
 // Right now we use simple logic to validate, as the format is simple and we
 // hope this is faster than doing a regex match.
@@ -33,12 +41,26 @@ bool IsDeltaFilename(std::string_view basename) {
 }
 
 absl::StatusOr<std::string> ToDeltaFileName(uint64_t logical_commit_time) {
-  const std::string result = absl::StrFormat(
-      "%s%s%0*d", FilePrefix<FileType::DELTA>(), kFileComponentDelimiter,
-      kLogicalTimeDigits, logical_commit_time);
+  const std::string result = GetFilename<FileType::DELTA>(logical_commit_time);
   if (!IsDeltaFilename(result)) {
     return absl::InvalidArgumentError(absl::StrCat(
         "Unable to build delta file name with logical commit time: ",
+        logical_commit_time, " which makes a file name: ", result));
+  }
+  return result;
+}
+
+bool IsSnapshotFilename(std::string_view basename) {
+  return std::regex_match(basename.begin(), basename.end(),
+                          SnapshotFileFormatRegex());
+}
+
+absl::StatusOr<std::string> ToSnapshotFileName(uint64_t logical_commit_time) {
+  const std::string result =
+      GetFilename<FileType::SNAPSHOT>(logical_commit_time);
+  if (!IsSnapshotFilename(result)) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Unable to build a valid snapshot file name with logical commit time: ",
         logical_commit_time, " which makes a file name: ", result));
   }
   return result;

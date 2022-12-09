@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.5.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.4.4...release-0.5.0) (2022-12-06)
+
+
+### Features
+
+* Pin versions in presubmit image
+
+
+### Bug Fixes
+
+* Avoid cache for tar image
+* Update version pin for ca-certificates
+* Use images subdirs for image list
+
 ### [0.4.4](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.4.3...release-0.4.4) (2022-11-18)
 
 

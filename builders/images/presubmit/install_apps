@@ -54,16 +54,16 @@ function apt_update() {
 
 function install_packages() {
   DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y --no-install-recommends \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release \
-    openjdk-11-jre \
+    apt-transport-https="2.0.9" \
+    ca-certificates="20211016ubuntu0.20.04.1" \
+    curl="7.68.0-1ubuntu2.14" \
+    gnupg="2.2.19-3ubuntu2.2" \
+    lsb-release="11.1.0ubuntu2" \
+    openjdk-11-jre="11.0.17+8-1ubuntu2~20.04" \
     python3.9-venv="3.9.5-3ubuntu0~20.04.1" \
-    shellcheck \
-    software-properties-common \
-    wget
+    shellcheck="0.7.0-2build2" \
+    software-properties-common="0.99.9.8" \
+    wget="1.20.3-1ubuntu2"
   update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 100
 }
 

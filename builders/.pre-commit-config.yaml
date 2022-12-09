@@ -15,8 +15,6 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 exclude: (?x)^(
-             bazel-(bin|out|testlogs|workspace)/.*|
-             .bazel_output/.*|
              version.txt
          )$
 
@@ -48,7 +46,7 @@ repos:
   - id: script-must-have-extension
   - id: require-ascii
   - id: shellcheck
-    exclude: '^(production|tools|google_internal|builders/images)/.*$'
+    exclude: '^(tools|google_internal|images)/.*$'
 
 - repo: https://github.com/pre-commit/mirrors-clang-format
   rev: v14.0.6

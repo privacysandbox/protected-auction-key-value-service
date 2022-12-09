@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+### [0.5.1](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.5.0...release-0.5.1) (2022-12-08)
+
+
+### Bug Fixes
+
+* Ignore builders/ when executing pre-commit
+* Upgrade to build-system 0.5.0
+
 ## [0.5.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.4.0...release-0.5.0) (2022-11-28)
 
 

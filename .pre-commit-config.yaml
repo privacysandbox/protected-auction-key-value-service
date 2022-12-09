@@ -18,6 +18,7 @@ exclude: (?x)^(
              bazel-(bin|out|testlogs|workspace)/.*|
              google_internal/coordinator_environments/.*$|
              .bazel_output/.*|
+             builders/.*|
              version.txt
          )$
 

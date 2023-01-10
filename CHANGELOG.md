@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.6.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.5.0...release-0.6.0) (2023-01-10)
+
+
+### Features
+
+* Add --no-precommit flag to build_and_test_all_in_docker
+* Add command to generate snapshots to data cli
+* Add support for reading snapshots during server startup.
+* Implement a snapshot writer.
+* Produce PCR0.json for server EIF
+* Remove VCS commit info from server --buildinfo
+* Reorg build_and_test* scripts
+* Store and validate arch-specific PCR0 hash
+* update dev to staging copybara to include github workflows
+* update GitHub presubmit workflow to trigger on pull request
+* Upgrade to build-system 0.10.0
+* Upgrade to build-system 0.5.0
+* Upgrade to build-system 0.6.0
+* Upgrade to gRPC v1.51.1
+
+
+### Bug Fixes
+
+* add missing "xray" to vpc_interface_endpoint_services references.
+* Adjust git global config
+* Attach initial_launch_hook to autoscaling group.
+* Avoid non-zero exit on PCR0 hash mismatch
+* Correct documentation on endpoint to test
+* Fix the region doc for local development.
+* Ignore builders/ when executing pre-commit
+* LifecycleHeartbeat only Finish once.  Fixed unit test.
+* Upgrade to addlicense v1.1
+* Use absolute path for kokoro_release.sh
+* Use bazel-debian to build and run test_serving_data_generator
+
+
+### Build System
+
+* Add presubmit GitHub workflow
+* Upgrade to bazel 5.4.0
+
+
+### Documentation
+
+* Add a default AWS region to push command
+* Correct command to run server locally
+* Update ECR format and improve the AWS doc order
+
 ## [0.5.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.4.0...release-0.5.0) (2022-11-28)
 
 

@@ -47,6 +47,7 @@ module "kv_server" {
   sqs_cleanup_image_uri     = var.sqs_cleanup_image_uri
   sqs_cleanup_schedule      = var.sqs_cleanup_schedule
   sqs_queue_timeout_secs    = var.sqs_queue_timeout_secs
+  poll_frequency_mins       = var.poll_frequency_mins
 
   # Variables related to AWS backend services.
   vpc_gateway_endpoint_services   = var.vpc_gateway_endpoint_services

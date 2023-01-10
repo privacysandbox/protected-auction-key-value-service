@@ -21,7 +21,7 @@
 #include "absl/status/statusor.h"
 #include "public/data_loading/records_utils.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // A `DeltaRecordReader` defines an interface for reading delta records from a
 // source specified by a concrete implementations of this class. Record sources
@@ -55,6 +55,6 @@ class DeltaRecordReader {
   virtual absl::Status Status() const = 0;
 };
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // PUBLIC_DATA_LOADING_READERS_DELTA_RECORD_READER_H_

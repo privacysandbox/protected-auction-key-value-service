@@ -39,7 +39,7 @@
 #include "components/errors/aws_error_util.h"
 #include "glog/logging.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 constexpr absl::Duration kMaxLongPollDuration = absl::Seconds(20);
@@ -222,4 +222,4 @@ std::unique_ptr<BlobStorageChangeNotifier> BlobStorageChangeNotifier::Create(
       std::move(metadata.sns_arn));
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

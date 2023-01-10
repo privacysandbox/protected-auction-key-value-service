@@ -23,7 +23,7 @@
 #include "gmock/gmock.h"
 #include "google/protobuf/util/message_differencer.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 template <typename MessageT>
 class ProtoMatcher {
@@ -122,6 +122,6 @@ template <typename MessageT>
       ProtoMatcher<MessageT>(message, std::move(comparator)));
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // PUBLIC_TEST_UTIL_PROTO_MATCHER_H_

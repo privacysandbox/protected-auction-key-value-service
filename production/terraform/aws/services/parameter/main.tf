@@ -38,6 +38,13 @@ resource "aws_ssm_parameter" "bucket_update_sns_arn_parameter" {
 resource "aws_ssm_parameter" "launch_hook_parameter" {
   name      = "${var.service}-${var.environment}-launch-hook"
   type      = "String"
-  value     = var.launch_hook_parameter_value
+  value     = "${var.service}-${var.environment}-launch-hook"
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "poll_frequency_mins_parameter" {
+  name      = "${var.service}-${var.environment}-poll-frequency-mins"
+  type      = "String"
+  value     = var.poll_frequency_mins_parameter_value
   overwrite = true
 }

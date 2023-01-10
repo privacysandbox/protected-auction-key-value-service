@@ -25,8 +25,8 @@
 
 ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
 
-using fledge::kv_server::BlobReader;
-using fledge::kv_server::BlobStorageClient;
+using kv_server::BlobReader;
+using kv_server::BlobStorageClient;
 
 constexpr std::string_view kCloudPrefix = "cloud://";
 

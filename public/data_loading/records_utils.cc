@@ -14,7 +14,7 @@
 
 #include "public/data_loading/records_utils.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 // An arbitrary small number in case the flat buffer needs some space for
 // overheads.
@@ -51,4 +51,8 @@ bool operator!=(const DeltaFileRecordStruct& lhs_record,
   return !operator==(lhs_record, rhs_record);
 }
 
-}  // namespace fledge::kv_server
+bool operator==(const DeltaFileRecordStructKey& lhs_key,
+                const DeltaFileRecordStructKey& rhs_key) {
+  return lhs_key.key == rhs_key.key && lhs_key.subkey == rhs_key.subkey;
+}
+}  // namespace kv_server

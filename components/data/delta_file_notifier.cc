@@ -26,17 +26,17 @@
 #include "glog/logging.h"
 #include "public/constants.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
-
-// TODO(b/242344219): Move to flag
-constexpr absl::Duration kPollFrequency = absl::Minutes(5);
 
 class DeltaFileNotifierImpl : public DeltaFileNotifier {
  public:
   explicit DeltaFileNotifierImpl(BlobStorageClient& client,
+                                 const absl::Duration poll_frequency,
                                  const SleepFor& sleep_for)
-      : client_(client), sleep_for_(sleep_for) {}
+      : client_(client),
+        poll_frequency_(poll_frequency),
+        sleep_for_(sleep_for) {}
 
   ~DeltaFileNotifierImpl() {
     if (!IsRunning()) return;
@@ -156,21 +156,24 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
       } else {
         VLOG(2) << "No new file found";
       }
-      expiring_flag.Set(kPollFrequency);
+      expiring_flag.Set(poll_frequency_);
     }
   }
 
   BlobStorageClient& client_;
   std::unique_ptr<std::thread> thread_;
   std::atomic<bool> should_stop_ = false;
+  const absl::Duration poll_frequency_;
   const SleepFor& sleep_for_;
 };
 
 }  // namespace
 
 std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
-    BlobStorageClient& client, const SleepFor& sleep_for) {
-  return std::make_unique<DeltaFileNotifierImpl>(client, sleep_for);
+    BlobStorageClient& client, const absl::Duration poll_frequency,
+    const SleepFor& sleep_for) {
+  return std::make_unique<DeltaFileNotifierImpl>(client, poll_frequency,
+                                                 sleep_for);
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

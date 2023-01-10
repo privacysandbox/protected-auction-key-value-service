@@ -28,7 +28,7 @@
 #include "riegeli/csv/csv_record.h"
 #include "riegeli/csv/csv_writer.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // A `CsvDeltaRecordStreamWriter` writes `DeltaFileRecordStruct` records as CSV
 // records to a `std::iostream` or `std::ostream.` or other subclasses of these
@@ -115,6 +115,6 @@ absl::Status CsvDeltaRecordStreamWriter<DestStreamT>::Flush() {
   return record_writer_.status();
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // TOOLS_DATA_CLI_CSV_CSV_DELTA_RECORD_STREAM_WRITER_H_

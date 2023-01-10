@@ -18,15 +18,17 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/functional/bind_front.h"
 #include "absl/strings/str_cat.h"
 #include "components/errors/retry.h"
+#include "components/telemetry/telemetry.h"
 #include "glog/logging.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 // Reads the file from `location` and updates the cache based on the delta read.
@@ -78,6 +80,17 @@ absl::Status LoadCacheWithDataFromFile(
     return absl::OkStatus();
   });
 }
+absl::Status TraceLoadCacheWithDataFromFile(
+    BlobStorageClient::DataLocation location,
+    const DataOrchestrator::Options& options) {
+  return TraceWithStatus(
+      [location, &options] {
+        return LoadCacheWithDataFromFile(std::move(location), options);
+      },
+      "LoadCacheWithDataFromFile",
+      {{"bucket", std::move(location.bucket)},
+       {"key", std::move(location.key)}});
+}
 
 class DataOrchestratorImpl : public DataOrchestrator {
  public:
@@ -106,16 +119,21 @@ class DataOrchestratorImpl : public DataOrchestrator {
   }
 
   static absl::StatusOr<std::string> Init(Options& options) {
+    auto ending_delta_file = LoadSnapshotFiles(options);
+    if (!ending_delta_file.ok()) {
+      return ending_delta_file.status();
+    }
     auto maybe_filenames = options.blob_client.ListBlobs(
         {.bucket = options.data_bucket},
-        {.prefix = std::string(FilePrefix<FileType::DELTA>())});
+        {.prefix = std::string(FilePrefix<FileType::DELTA>()),
+         .start_after = *ending_delta_file});
     if (!maybe_filenames.ok()) {
       return maybe_filenames.status();
     }
     LOG(INFO) << "Initializing cache with " << maybe_filenames->size()
-              << " files from " << options.data_bucket;
+              << " delta files from " << options.data_bucket;
 
-    std::string last_basename;
+    std::string last_basename = std::move(*ending_delta_file);
     for (auto&& basename : std::move(*maybe_filenames)) {
       if (!IsDeltaFilename(basename)) {
         LOG(WARNING) << "Saw a file " << basename
@@ -123,7 +141,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
         continue;
       }
       last_basename = basename;
-      if (const auto s = LoadCacheWithDataFromFile(
+      if (const auto s = TraceLoadCacheWithDataFromFile(
               {.bucket = options.data_bucket, .key = std::move(basename)},
               options);
           !s.ok()) {
@@ -186,7 +204,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
           [this, &basename] {
             // TODO: distinguish status. Some can be retried while others are
             // fatal.
-            return LoadCacheWithDataFromFile(
+            return TraceLoadCacheWithDataFromFile(
                 {.bucket = options_.data_bucket, .key = basename}, options_);
           },
           "LoadNewFile - " + basename);
@@ -199,6 +217,59 @@ class DataOrchestratorImpl : public DataOrchestrator {
     unprocessed_basenames_.push_front(basename);
     LOG(INFO) << "queued " << basename << " for loading";
     // TODO: block if the queue is too large: consumption is too slow.
+  }
+
+  // Loads snapshot files if there are any.
+  // Returns the latest delta file to be included in a snapshot.
+  static absl::StatusOr<std::string> LoadSnapshotFiles(const Options& options) {
+    absl::StatusOr<std::vector<std::string>> snapshots =
+        options.blob_client.ListBlobs(
+            {.bucket = options.data_bucket},
+            {.prefix = FilePrefix<FileType::SNAPSHOT>().data()});
+    if (!snapshots.ok()) {
+      return snapshots.status();
+    }
+    LOG(INFO) << "Initializing cache with snapshot file(s) from: "
+              << options.data_bucket;
+    std::string ending_delta_file;
+    absl::flat_hash_set<KeyNamespace::Enum> namespaces_set;
+    for (int64_t s = snapshots->size() - 1; s >= 0; s--) {
+      std::string_view snapshot = snapshots->at(s);
+      if (!IsSnapshotFilename(snapshot)) {
+        LOG(WARNING) << "Saw a file " << snapshot
+                     << " not in snapshot file format. Skipping it.";
+        continue;
+      }
+      BlobStorageClient::DataLocation location{.bucket = options.data_bucket,
+                                               .key = snapshot.data()};
+      auto blob_reader = options.blob_client.GetBlobReader(location);
+      auto record_reader = options.delta_stream_reader_factory.CreateReader(
+          blob_reader->Stream());
+      auto metadata = record_reader->GetKVFileMetadata();
+      if (!metadata.ok()) {
+        return metadata.status();
+      }
+      if (!metadata->has_key_namespace()) {
+        return absl::InvalidArgumentError(absl::StrCat(
+            "Snapshot: ", location.key, " does not have a key namespace set."));
+      }
+      if (namespaces_set.contains(metadata->key_namespace())) {
+        continue;
+      }
+      LOG(INFO) << "Loading snapshot file: " << location.bucket << "/"
+                << location.key;
+      if (auto status = TraceLoadCacheWithDataFromFile(location, options);
+          !status.ok()) {
+        return status;
+      }
+      if (metadata->snapshot().ending_delta_file() > ending_delta_file) {
+        ending_delta_file = std::move(metadata->snapshot().ending_delta_file());
+      }
+      namespaces_set.insert(metadata->key_namespace());
+      LOG(INFO) << "Done loading snapshot file: " << location.bucket << "/"
+                << location.key;
+    }
+    return ending_delta_file;
   }
 
   const Options options_;
@@ -222,4 +293,4 @@ absl::StatusOr<std::unique_ptr<DataOrchestrator>> DataOrchestrator::TryCreate(
       std::move(options), std::move(maybe_last_basename.value()));
   return orchestrator;
 }
-}  // namespace fledge::kv_server
+}  // namespace kv_server

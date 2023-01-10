@@ -20,7 +20,7 @@
 #include <array>
 #include <string_view>
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 inline constexpr std::string_view kUpdateMutationType = "update";
 inline constexpr std::string_view kDeleteMutationType = "delete";
@@ -32,6 +32,6 @@ inline constexpr std::string_view kKeyColumn = "key";
 inline constexpr std::string_view kSubKeyColumn = "subkey";
 inline constexpr std::string_view kValueColumn = "value";
 
-}  //  namespace fledge::kv_server
+}  //  namespace kv_server
 
 #endif  // TOOLS_DATA_CLI_CSV_CONSTANTS_H_

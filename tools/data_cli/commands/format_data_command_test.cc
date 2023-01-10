@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "tools/data_cli/commands/generate_data_command.h"
+#include "tools/data_cli/commands/format_data_command.h"
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -23,11 +23,11 @@
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
-GenerateDataCommand::Params GetParams() {
-  return GenerateDataCommand::Params{
+FormatDataCommand::Params GetParams() {
+  return FormatDataCommand::Params{
       .input_format = "CSV", .output_format = "DELTA", .key_namespace = "KEYS"};
 }
 
@@ -47,7 +47,7 @@ KVFileMetadata GetMetadata() {
   return metadata;
 }
 
-TEST(GenerateDataCommandTest, ValidateGeneratingCsvToDeltaData) {
+TEST(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData) {
   std::stringstream csv_stream;
   std::stringstream delta_stream;
   CsvDeltaRecordStreamWriter csv_writer(csv_stream);
@@ -57,7 +57,7 @@ TEST(GenerateDataCommandTest, ValidateGeneratingCsvToDeltaData) {
   csv_writer.Close();
   EXPECT_FALSE(csv_stream.str().empty());
   auto command =
-      GenerateDataCommand::Create(GetParams(), csv_stream, delta_stream);
+      FormatDataCommand::Create(GetParams(), csv_stream, delta_stream);
   EXPECT_TRUE(command.ok()) << command.status();
   EXPECT_TRUE((*command)->Execute().ok());
   DeltaRecordStreamReader delta_reader(delta_stream);
@@ -71,7 +71,7 @@ TEST(GenerateDataCommandTest, ValidateGeneratingCsvToDeltaData) {
   EXPECT_TRUE(delta_reader.ReadRecords(record_callback.AsStdFunction()).ok());
 }
 
-TEST(GenerateDataCommandTest, ValidateGeneratingDeltaToCsvData) {
+TEST(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData) {
   std::stringstream delta_stream;
   std::stringstream csv_stream;
   auto delta_writer = DeltaRecordStreamWriter<std::stringstream>::Create(
@@ -83,9 +83,9 @@ TEST(GenerateDataCommandTest, ValidateGeneratingDeltaToCsvData) {
   EXPECT_TRUE((*delta_writer)->WriteRecord(GetDeltaRecord()).ok());
   EXPECT_TRUE((*delta_writer)->WriteRecord(GetDeltaRecord()).ok());
   (*delta_writer)->Close();
-  auto command = GenerateDataCommand::Create(
-      GenerateDataCommand::Params{.input_format = "DELTA",
-                                  .output_format = "CSV"},
+  auto command = FormatDataCommand::Create(
+      FormatDataCommand::Params{.input_format = "DELTA",
+                                .output_format = "CSV"},
       delta_stream, csv_stream);
   EXPECT_TRUE(command.ok()) << command.status();
   EXPECT_TRUE((*command)->Execute().ok());
@@ -100,55 +100,53 @@ TEST(GenerateDataCommandTest, ValidateGeneratingDeltaToCsvData) {
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
 }
 
-TEST(GenerateDataCommandTest, ValidateIncorrectInputParams) {
+TEST(FormatDataCommandTest, ValidateIncorrectInputParams) {
   std::stringstream unused_stream;
   auto params = GetParams();
   params.input_format = "";
   absl::Status status =
-      GenerateDataCommand::Create(params, unused_stream, unused_stream)
-          .status();
+      FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
   EXPECT_STREQ(status.message().data(), "Input format cannot be empty.")
       << status;
   params.input_format = "UNSUPPORTED_FORMAT";
-  status = GenerateDataCommand::Create(params, unused_stream, unused_stream)
-               .status();
+  status =
+      FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
   EXPECT_STREQ(status.message().data(),
                "Input format: UNSUPPORTED_FORMAT is not supported.")
       << status;
 }
 
-TEST(GenerateDataCommandTest, ValidateIncorrectOutputParams) {
+TEST(FormatDataCommandTest, ValidateIncorrectOutputParams) {
   std::stringstream unused_stream;
   auto params = GetParams();
   params.output_format = "";
   absl::Status status =
-      GenerateDataCommand::Create(params, unused_stream, unused_stream)
-          .status();
+      FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
   EXPECT_STREQ(status.message().data(), "Output format cannot be empty.")
       << status;
   params.output_format = "delta";
   params.key_namespace = "";
-  status = GenerateDataCommand::Create(params, unused_stream, unused_stream)
-               .status();
+  status =
+      FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
   EXPECT_STREQ(status.message().data(),
                "Key namespace is required for writing delta outputs.")
       << status;
   params.key_namespace = "KEYS";
   params.output_format = "UNSUPPORTED_FORMAT";
-  status = GenerateDataCommand::Create(params, unused_stream, unused_stream)
-               .status();
+  status =
+      FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
   EXPECT_STREQ(status.message().data(),
                "Output format: UNSUPPORTED_FORMAT is not supported.")
       << status;
   params.key_namespace = "UNSUPPORTED_KEYS_NAMESPACE";
   params.output_format = "delta";
-  status = GenerateDataCommand::Create(params, unused_stream, unused_stream)
-               .status();
+  status =
+      FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
   EXPECT_STREQ(status.message().data(),
                "Key namespace: UNSUPPORTED_KEYS_NAMESPACE is not valid.")
@@ -156,4 +154,4 @@ TEST(GenerateDataCommandTest, ValidateIncorrectOutputParams) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

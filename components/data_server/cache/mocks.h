@@ -22,7 +22,7 @@
 #include "components/data_server/cache/cache.h"
 #include "gmock/gmock.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 MATCHER_P2(FullKeyEq, key, subkey, "") {
   return testing::ExplainMatchResult(
@@ -63,6 +63,6 @@ class MockShardedCache : public ShardedCache {
               (const, override));
 };
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_DATA_SERVER_CACHE_MOCKS_H_

@@ -18,11 +18,11 @@
 #include "components/errors/retry.h"
 #include "gmock/gmock.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 class MockSleepFor : public SleepFor {
  public:
   MOCK_METHOD(void, Duration, (absl::Duration), (const override));
 };
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_ERRORS_MOCKS_H_

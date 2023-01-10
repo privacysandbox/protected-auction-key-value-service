@@ -24,7 +24,7 @@
 
 ABSL_FLAG(std::string, environment, "local", "Environment name.");
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 class LocalInstanceClient : public InstanceClient {
@@ -52,4 +52,4 @@ std::unique_ptr<InstanceClient> InstanceClient::Create() {
   return std::make_unique<LocalInstanceClient>();
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

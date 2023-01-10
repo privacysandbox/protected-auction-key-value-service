@@ -24,7 +24,7 @@
 #include "google/protobuf/util/json_util.h"
 #include "quiche/binary_http/binary_http_message.h"
 
-namespace fledge {
+namespace kv_server {
 namespace internal {
 
 // Returns error if the message has error outside the Http body.
@@ -127,6 +127,6 @@ absl::StatusOr<std::string> SerializeProtoToBHttp(
   return bhttp_msg.Serialize();
 }
 
-}  // namespace fledge
+}  // namespace kv_server
 
 #endif  // INFRASTRUCTURE_COMMUNICATION_BHTTP_UTILS_H_

@@ -19,22 +19,6 @@ For the initial testing of the Key/Value server, you must have or
 [create an Amazon Web Services (AWS)](https://portal.aws.amazon.com/billing/signup/iam) account.
 You'll need API access, as well as your key ID and secret key.
 
-# Repository set up
-
-## Initialize and update submodules
-
-Before using the repository, initialize the repo's submodules. Run:
-
-```shell
-git submodule update --init
-```
-
-The submodule content can be updated at any time using the following command.
-
-```shell
-git submodule update --remote --merge
-```
-
 # Set up your AWS account
 
 ## Setup AWS CLI
@@ -109,12 +93,26 @@ Using Git, clone the repository into a folder:
 git clone https://github.com/privacysandbox/fledge-key-value-service.git
 ```
 
+## Initialize and update submodules
+
+Before using the repository, initialize the repo's submodules. Run:
+
+```shell
+git submodule update --init
+```
+
+The submodule content can be updated at any time using the following command.
+
+```shell
+git submodule update --remote --merge
+```
+
 ## Build the Amazon Machine Image (AMI)
 
 From the Key/Value server repo folder, execute the following command:
 
 ```sh
-./production/packaging/build_and_test_all_in_docker --with-ami us-east-1 --with-ami us-west-1
+production/packaging/aws/build_and_test --with-ami us-east-1 --with-ami us-west-1
 ```
 
 The script will build the Enclave Image File (EIF), store it in an AMI, and upload the AMI. If the
@@ -137,7 +135,11 @@ such as
 
 ```sh
 export AWS_ECR=123456789.dkr.ecr.us-east-1.amazonaws.com
+export AWS_REGION=us-east-1  # For example.
+
 ```
+
+[The URL for your default private registry is https://aws_account_id.dkr.ecr.region.amazonaws.com](https://docs.aws.amazon.com/AmazonECR/latest/userguide/Registries.html)
 
 Then run `dist/aws/push_sqs` to push the SQS cleanup lambda image to AWS ECR.
 
@@ -424,7 +426,7 @@ previous [Build the Amazon Machine Image](#build-the-amazon-machine-image-ami) s
 following command:
 
 ```sh
-./production/packaging/build_and_test_all_in_docker --with-ami us-east-1 --with-ami us-west-1
+production/packaging/aws/build_and_test --with-ami us-east-1 --with-ami us-west-1
 ```
 
 Then set the new AMI ID in the Terraform config. Re-apply Terraform to deploy the updated server.

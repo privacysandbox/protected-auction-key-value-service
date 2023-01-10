@@ -23,7 +23,7 @@
 #include "absl/status/status.h"
 #include "absl/time/time.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // Runs a closure repeatedly on a thread owned by this class.
 // Can only be started once.
@@ -45,6 +45,6 @@ class PeriodicClosure {
 
   static std::unique_ptr<PeriodicClosure> Create();
 };
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_UTIL_PERIODIC_CLOSURE_H_

@@ -30,7 +30,7 @@
 #include "src/google/protobuf/message.h"
 #include "src/google/protobuf/struct.pb.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 using google::protobuf::RepeatedPtrField;
 using google::protobuf::Struct;
@@ -185,4 +185,4 @@ grpc::Status GetValuesHandler::ValidateRequest(
   return dsp_mode_ ? ValidateDSPRequest(request) : ValidateSSPRequest(request);
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

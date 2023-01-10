@@ -16,7 +16,7 @@
 
 #include "absl/strings/str_cat.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 template <FileType::Enum file_type>
 std::string FileFormatRegex() {
@@ -38,4 +38,4 @@ const std::regex& SnapshotFileFormatRegex() {
   return *snapshot_regex;
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

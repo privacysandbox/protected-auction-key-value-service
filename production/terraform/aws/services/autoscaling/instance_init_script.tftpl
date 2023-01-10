@@ -24,6 +24,9 @@ systemctl enable nitro-enclaves-allocator.service
 systemctl start vsockproxy.service
 systemctl enable vsockproxy.service
 
+# Start the otel collector
+sudo /opt/aws/aws-otel-collector/bin/aws-otel-collector-ctl -c /opt/aws/aws-otel-collector/etc/otel_collector_config.yaml -a start
+
 # Start nitro enclave (server)
 nitro-cli run-enclave \
   --cpu-count ${enclave_cpu_count} \

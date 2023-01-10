@@ -89,7 +89,7 @@ function __init() {
   if [[ -n ${PRESUBMIT_IMAGE} ]]; then
     IMAGE_TAGGED="${PRESUBMIT_IMAGE}"
   else
-    IMAGE_TAGGED="$("${TOOLS_DIR}"/get-builder-image-tagged --image presubmit)"
+    IMAGE_TAGGED="$("${TOOLS_DIR}"/get-builder-image-tagged --image presubmit --verbose)"
   fi
   readonly IMAGE_TAGGED
   export CBUILD_IMAGE="${IMAGE_TAGGED}"

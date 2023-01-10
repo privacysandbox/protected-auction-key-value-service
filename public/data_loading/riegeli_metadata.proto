@@ -14,7 +14,7 @@
 
 syntax = "proto2";
 
-package fledge.kv_server;
+package kv_server;
 
 import "public/base_types.proto";
 import "riegeli/records/records_metadata.proto";

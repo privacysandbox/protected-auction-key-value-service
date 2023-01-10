@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package fledge.kv_server.v1;
+package kv_server.v1;
 
 import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
@@ -33,7 +33,7 @@ service KeyValueService {
   // Debugging API to communication in Binary Http.
   //
   // The body should be a binary Http request described in
-  // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html
+  // https://www.rfc-editor.org/rfc/rfc9292.html
   //
   // The response will be a binary Http response. The response will return 200
   // code as long as the binary Http response can be encoded. The actual status

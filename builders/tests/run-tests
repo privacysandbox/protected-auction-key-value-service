@@ -26,18 +26,15 @@ function _cleanup() {
     rm -rf "${TMP_HASHES_DIR}"
   fi
   if [[ ${STATUS} -ne 0 ]]; then
-    printf "Error: get-builder-image-tagged status code: %d\n" "${STATUS}" &>/dev/stderr
+    printf "Error: run-tests status code: %d\n" "${STATUS}" &>/dev/stderr
   fi
   exit ${STATUS}
 }
 
-declare -r -a IMAGE_LIST=(
-  "build-debian"
-  "build-amazonlinux2"
-  "presubmit"
-  "release"
-  "utils"
-)
+function get_image_list() {
+  declare -r _images_dir="$1"
+  find "${_images_dir}" -maxdepth 1 -mindepth 1 -type d -printf "%P\n" | sort
+}
 
 function usage() {
   declare -r -i exitval=${1-1}
@@ -63,16 +60,17 @@ TESTS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 readonly TESTS_DIR
 readonly TOOLS_DIR="${TESTS_DIR}"/../tools
 readonly HASHES_DIR="${TESTS_DIR}"/data/hashes
-# shellcheck disable=SC1090
-source "${TOOLS_DIR}"/builder.sh
+readonly IMAGES_DIR="${TESTS_DIR}"/../images
+IMAGE_LIST="$(get_image_list "${IMAGES_DIR}")"
+readonly IMAGE_LIST
 
 # warning when running inside a docker container
 if [[ -f /.dockerenv ]]; then
   printf "warning: Executing within docker container, which obviates testing in a non-docker environment\n" &>/dev/stderr
 fi
 printf "Generating image hashes (direct mode)\n"
-for img in "${IMAGE_LIST[@]}"; do
-  "${TOOLS_DIR}"/get-builder-image-tagged --no-build --image "${img}" > "${HASHES_DIR}/${img}"
+for img in ${IMAGE_LIST}; do
+  "${TOOLS_DIR}"/get-builder-image-tagged --no-build --image "${img}" >"${HASHES_DIR}/${img}"
 done
 
 BASELINE_UPDATES="$(git diff --name-only "${HASHES_DIR}")"
@@ -84,8 +82,8 @@ fi
 TMP_HASHES_DIR=$(mktemp -d)
 
 printf "Generating image hashes (cbuild mode)\n"
-for img in "${IMAGE_LIST[@]}"; do
-  "${TOOLS_DIR}"/cbuild --image build-debian --cmd "tools/get-builder-image-tagged --image ${img} --no-build" > "${TMP_HASHES_DIR}/${img}"
+for img in ${IMAGE_LIST}; do
+  "${TOOLS_DIR}"/cbuild --image build-debian --cmd "tools/get-builder-image-tagged --image ${img} --no-build" >"${TMP_HASHES_DIR}/${img}"
 done
 
 if ! diff --recursive "${HASHES_DIR}" "${TMP_HASHES_DIR}"; then

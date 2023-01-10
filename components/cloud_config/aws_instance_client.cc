@@ -37,7 +37,7 @@
 #include "components/errors/aws_error_util.h"
 #include "glog/logging.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 constexpr char kEnvironmentTag[] = "environment";
@@ -241,4 +241,4 @@ std::unique_ptr<InstanceClient> InstanceClient::Create() {
   return std::make_unique<AwsInstanceClient>();
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

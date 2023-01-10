@@ -14,9 +14,10 @@
 
 #include "public/data_loading/records_utils.h"
 
+#include "absl/hash/hash_testing.h"
 #include "gtest/gtest.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 DeltaFileRecordStruct GetDeltaRecord() {
@@ -34,5 +35,13 @@ TEST(DeltaFileRecordStructTest, ValidateEqualsOperator) {
   EXPECT_NE(GetDeltaRecord(), DeltaFileRecordStruct{.key = "key1"});
 }
 
+TEST(DeltaFileRecordStructKeyTest, ValidateHarshingDeltaFileRecordStructKey) {
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
+      {DeltaFileRecordStructKey{.key = "key1", .subkey = ""},
+       DeltaFileRecordStructKey{.key = "key1", .subkey = "subkey1"},
+       DeltaFileRecordStructKey{.key = "key1", .subkey = "subkey2"},
+       DeltaFileRecordStructKey{.key = "key2", .subkey = "subkey1"}}));
+}
+
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

@@ -25,10 +25,14 @@ mkdir /tmp/proxy
 sudo cp /home/ec2-user/vsockproxy.service /etc/systemd/system/vsockproxy.service
 sudo cp /home/ec2-user/proxy /opt/privacysandbox/proxy
 sudo cp /home/ec2-user/server_enclave_image.eif /opt/privacysandbox/server_enclave_image.eif
+OTEL_COL_CONF=/opt/aws/aws-otel-collector/etc/otel_collector_config.yaml
+sudo mkdir -p $(dirname "${OTEL_COL_CONF}")
+sudo cp /home/ec2-user/otel_collector_config.yaml "${OTEL_COL_CONF}"
 
 # Install necessary dependencies
 sudo yum update -y
 sudo yum install -y docker
+sudo yum localinstall -y /home/ec2-user/aws-otel-collector.rpm
 sudo amazon-linux-extras install -y aws-nitro-enclaves-cli
 
 sudo usermod -a -G docker ec2-user

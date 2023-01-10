@@ -18,7 +18,7 @@
 
 #include "absl/strings/ascii.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 absl::StatusOr<int64_t> GetLogicalCommitTime(
     absl::string_view logical_commit_time) {
@@ -66,4 +66,4 @@ absl::StatusOr<DeltaFileRecordStruct> MakeDeltaFileRecordStruct(
 }
 }  // namespace internal
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

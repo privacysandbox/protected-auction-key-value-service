@@ -24,7 +24,7 @@
 #include "aws/sns/SNSClient.h"
 #include "aws/sqs/SQSClient.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 class AwsSnsSqsManager {
  public:
@@ -58,6 +58,6 @@ class AwsSnsSqsManager {
   bool are_attributes_set_ = false;
 };
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_DATA_AWS_SNS_SQS_MANAGER_H_

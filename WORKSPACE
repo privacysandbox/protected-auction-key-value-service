@@ -43,12 +43,30 @@ http_archive(
 )
 
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies")
-load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
+load("@io_bazel_rules_go//go:deps.bzl", "go_rules_dependencies")
 
 go_rules_dependencies()
 
-go_register_toolchains(go_version = "1.18")
+### go_register_toolchains will be called by grpc_extra_deps
+# go_register_toolchains(go_version = "1.18")
 
+### gRPC
+http_archive(
+    name = "com_github_grpc_grpc",
+    sha256 = "b55696fb249669744de3e71acc54a9382bea0dce7cd5ba379b356b12b82d4229",
+    strip_prefix = "grpc-1.51.1",
+    urls = ["https://github.com/grpc/grpc/archive/refs/tags/v1.51.1.tar.gz"],
+)
+
+load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
+
+grpc_deps()
+
+load("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")
+
+grpc_extra_deps()
+
+### gazelle deps must be loaded after go toolchains registered
 gazelle_dependencies()
 
 http_archive(
@@ -63,22 +81,6 @@ http_archive(
 load("@rules_pkg//:deps.bzl", "rules_pkg_dependencies")
 
 rules_pkg_dependencies()
-
-### gRPC
-http_archive(
-    name = "com_github_grpc_grpc",
-    sha256 = "ec19657a677d49af59aa806ec299c070c882986c9fcc022b1c22c2a3caf01bcd",
-    strip_prefix = "grpc-1.45.0",
-    urls = ["https://github.com/grpc/grpc/archive/refs/tags/v1.45.0.tar.gz"],
-)
-
-load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
-
-grpc_deps()
-
-load("@com_github_grpc_grpc//bazel:grpc_extra_deps.bzl", "grpc_extra_deps")
-
-grpc_extra_deps()
 
 ### googletest
 http_archive(
@@ -133,3 +135,16 @@ quiche_dependencies()
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 
 protobuf_deps()
+
+# Load OpenTelemetry dependencies after load.
+load("//third_party:open_telemetry.bzl", "open_telemetry_dependencies")
+
+open_telemetry_dependencies()
+
+load("@io_opentelemetry_cpp//bazel:repository.bzl", "opentelemetry_cpp_deps")
+
+opentelemetry_cpp_deps()
+
+load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
+
+rules_foreign_cc_dependencies()

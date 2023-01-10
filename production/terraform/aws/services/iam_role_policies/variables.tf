@@ -52,8 +52,3 @@ variable "sns_data_updates_topic_arn" {
 variable "ssh_instance_role_name" {
   description = "Role for SSH instance (bastion)."
 }
-
-variable "autoscaling_group_arn" {
-  description = "ARN for autoscaling group."
-  type        = string
-}

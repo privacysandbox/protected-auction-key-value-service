@@ -23,7 +23,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 TEST(RetryTest, RetryUntilOk) {
@@ -95,4 +95,4 @@ TEST(RetryTest, RetryWithMaxSucceedsEarly) {
   EXPECT_EQ(v.value(), 1);
 }
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

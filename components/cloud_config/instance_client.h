@@ -20,7 +20,7 @@
 #include "absl/status/statusor.h"
 
 // TODO: Replace config cpio client once ready
-namespace fledge::kv_server {
+namespace kv_server {
 
 // Client to perform instance-specific operations.
 class InstanceClient {
@@ -41,6 +41,6 @@ class InstanceClient {
       std::string_view lifecycle_hook_name) const = 0;
 };
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_CLOUD_CONFIG_INSTANCE_CLIENT_H_

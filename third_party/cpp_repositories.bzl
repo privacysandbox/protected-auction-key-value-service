@@ -159,3 +159,32 @@ def cpp_repositories():
             "https://www.sqlite.org/2022/sqlite-amalgamation-3390400.zip",
         ],
     )
+
+    http_archive(
+        name = "io_opentelemetry_cpp",
+        sha256 = "2ad0911cdc94fe84a93334773bef4789a38bd1f01e39560cabd4a5c267e823c3",
+        strip_prefix = "opentelemetry-cpp-1.7.0",
+        urls = [
+            "https://github.com/open-telemetry/opentelemetry-cpp/archive/refs/tags/v1.7.0.tar.gz",
+        ],
+    )
+
+    ### Google Benchmark
+    http_archive(
+        name = "com_google_benchmark",
+        sha256 = "aeec52381284ec3752505a220d36096954c869da4573c2e1df3642d2f0a4aac6",
+        strip_prefix = "benchmark-1.7.1",
+        urls = [
+            "https://github.com/google/benchmark/archive/refs/tags/v1.7.1.zip",
+        ],
+    )
+
+    http_archive(
+        name = "nlohmann_json",
+        build_file = "//third_party:nlohmann_json.BUILD",
+        sha256 = "5daca6ca216495edf89d167f808d1d03c4a4d929cef7da5e10f135ae1540c7e4",
+        strip_prefix = "json-3.10.5",
+        urls = [
+            "https://github.com/nlohmann/json/archive/v3.10.5.tar.gz",
+        ],
+    )

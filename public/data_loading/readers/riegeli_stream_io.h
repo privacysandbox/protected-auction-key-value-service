@@ -28,7 +28,7 @@
 #include "riegeli/bytes/istream_reader.h"
 #include "riegeli/records/record_reader.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // Reader that can be used to load data from one data file.
 //
@@ -126,6 +126,6 @@ StreamRecordReaderFactory<RecordT>::Create() {
   return std::make_unique<StreamRecordReaderFactory<RecordT>>();
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // PUBLIC_DATA_LOADING_READERS_RIEGELI_STREAM_IO_H_

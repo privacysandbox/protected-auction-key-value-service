@@ -19,12 +19,14 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
+#include "aws/core/Aws.h"
 #include "glog/logging.h"
 #include "tools/data_cli/commands/command.h"
-#include "tools/data_cli/commands/generate_data_command.h"
+#include "tools/data_cli/commands/format_data_command.h"
+#include "tools/data_cli/commands/generate_snapshot_command.h"
 
-using fledge::kv_server::Command;
-using fledge::kv_server::GenerateDataCommand;
+using kv_server::FormatDataCommand;
+using kv_server::GenerateSnapshotCommand;
 
 ABSL_FLAG(std::string, input_file, "-", "Input file to convert records from.");
 ABSL_FLAG(std::string, input_format, "CSV",
@@ -35,37 +37,69 @@ ABSL_FLAG(std::string, output_format, "DELTA",
           "Format of output file. Possible options=(CSV|DELTA)");
 ABSL_FLAG(std::string, key_namespace, "KEYS",
           "Namespace of the key-value pair");
+ABSL_FLAG(std::string, starting_file, "",
+          "Name of the file to use as the starting file for a snapshot, it can "
+          "be an existing snapshot or delta file.");
+ABSL_FLAG(std::string, ending_delta_file, "",
+          "Name of the most recent delta file to be included in the snapshot.");
+ABSL_FLAG(std::string, working_dir, "/tmp",
+          "Directory to save temp data files.");
+ABSL_FLAG(std::string, snapshot_file, "-",
+          "Output file to write snapshot to. Defaults to stdout.");
+ABSL_FLAG(
+    std::string, data_dir, "",
+    "Data directory with files to be combined into a snapshot. This can be "
+    "an AWS S3 bucket or local directory.");
+ABSL_FLAG(
+    bool, in_memory_compaction, true,
+    "If true, delta file compaction to generate snapshots is done in memory.");
 
 constexpr std::string_view kUsageMessage = R"(
 Usage: data_cli <command> <flags>
 
 Commands:
-- generate             Converts input to output type.
+- format_data          Converts input to output format.
     [--input_file]     (Optional) Defaults to stdin. Input file to convert records from.
     [--input_format]   (Optional) Defaults to "CSV". Possible options=(CSV|DELTA)
     [--output_file]    (Optional) Defaults to stdout. Output file to write converted records to.
     [--output_format]  (Optional) Defaults to "DELTA". Possible options=(CSV|DELTA).
     [--key_namespace]  (Optional) Defaults to "KEYS". Used if output_format="delta-file".
+  Examples:
+    (1) Generate a csv file to a delta file and write output records to std::cout.
+    - data_cli format_data --input_file="$PWD/data.csv"
 
-Examples:
+    (2) Generate a delta file back to csv file and write output to a file.
+    - data_cli format_data --input_file="$PWD/delta" --input_format=DELTA --output_file="$PWD/delta.csv" --output_format=CSV
 
-Convert between file types.
-  (1) Generate a csv file to a delta file and write output records to std::cout.
-  - data_cli generate --input_file="$PWD/data.csv"
+    (3) Pipe csv records and generate delta file records and write to std cout.
+    - cat "$PWD/data.csv" | data_cli format_data --input_format=CSV
 
-  (2) Generate a delta file back to csv file and write output to a file.
-  - data_cli generate --input_file="$PWD/delta" --input_format=DELTA --output_file="$PWD/delta.csv" --output_format=CSV
+- generate_snapshot             Compacts a range of delta files into a single snapshot file.
+    [--starting_file]           (Required) Oldest delta file or base snapshot to include in compaction.
+    [--ending_delta_file]       (Required) Most recent delta file to include compaction.
+    [--snapshot_file]           (Optional) Defaults to stdout. Output snapshot file.
+    [--key_namespace]           (Optional) Defaults to "KEYS". Namespace for snapshot records.
+    [--data_dir]                (Required) Directory with input delta files. Cloud directories are prefixed with "cloud://".
+    [--working_dir]             (Optional) Defaults to "/tmp". Directory used to write temporary data.
+    [--in_memory_compaction]    (Optional) Defaults to true. If false, file backed compaction is used.
+  Examples:
+    (1) Generate snapshot using delta files from local disk.
+    - data_cli generate_snapshot --data_dir="$DATA_DIR" --starting_file="DELTA_1670532228628680" \
+        --ending_delta_file="DELTA_1670532717393878" --snapshot_file="SNAPSHOT_0000000000000003"
 
-  (3) Pipe csv records and generate delta file records and write to std cout.
-  - cat "$PWD/data.csv" | data_cli generate --input_format=CSV
+    (2) Generate snapshot using delta files from S3. (Requires --//:platform=aws build flag.)
+    - export DATA_DIR="cloud://<your-s3-bucket-name>";
+      data_cli generate_snapshot --data_dir="$DATA_DIR" --starting_file="DELTA_1670532228628680" \
+        --ending_delta_file="DELTA_1670532717393878" --snapshot_file="SNAPSHOT_0000000000000003"
 
 Try --help to see detailed flag descriptions and associated default values.
 )";
 
 constexpr std::string_view kStdioSymbol = "-";
-constexpr std::string_view kGenerateDataCommand = "generate";
-constexpr std::array<std::string_view, 1> kSupportedCommands = {
-    kGenerateDataCommand};
+constexpr std::string_view kFormatDataCommand = "format_data";
+constexpr std::string_view kGenerateSnapshotCommand = "generate_snapshot";
+constexpr std::array kSupportedCommands = {kFormatDataCommand,
+                                           kGenerateSnapshotCommand};
 
 bool IsSupportedCommand(std::string_view command) {
   auto exists =
@@ -74,6 +108,10 @@ bool IsSupportedCommand(std::string_view command) {
 }
 
 int main(int argc, char** argv) {
+  Aws::SDKOptions options;
+  Aws::InitAPI(options);
+  absl::Cleanup shutdown = [&options] { Aws::ShutdownAPI(options); };
+
   google::InitGoogleLogging(argv[0]);
   absl::SetProgramUsageMessage(kUsageMessage);
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
@@ -88,7 +126,7 @@ int main(int argc, char** argv) {
                << absl::ProgramUsageMessage();
     return -1;
   }
-  if (command_name == kGenerateDataCommand) {
+  if (command_name == kFormatDataCommand) {
     std::ifstream i_fstream(absl::GetFlag(FLAGS_input_file));
     std::istream* i_stream = kStdioSymbol == absl::GetFlag(FLAGS_input_file)
                                  ? &std::cin
@@ -97,20 +135,41 @@ int main(int argc, char** argv) {
     std::ostream* o_stream = kStdioSymbol == absl::GetFlag(FLAGS_output_file)
                                  ? &std::cout
                                  : &o_fstream;
-    auto generate_data_command = GenerateDataCommand::Create(
-        GenerateDataCommand::Params{
+    auto format_data_command = FormatDataCommand::Create(
+        FormatDataCommand::Params{
             .input_format = absl::GetFlag(FLAGS_input_format),
             .output_format = absl::GetFlag(FLAGS_output_format),
             .key_namespace = absl::GetFlag(FLAGS_key_namespace)},
         *i_stream, *o_stream);
-    if (!generate_data_command.ok()) {
-      LOG(ERROR) << "Failed to create command to generate data. "
-                 << generate_data_command.status();
+    if (!format_data_command.ok()) {
+      LOG(ERROR) << "Failed to create command to format data. "
+                 << format_data_command.status();
       return -1;
     }
-    if (absl::Status status = (*generate_data_command)->Execute();
+    if (absl::Status status = (*format_data_command)->Execute(); !status.ok()) {
+      LOG(ERROR) << "Failed to execute format data command. " << status;
+      return -1;
+    }
+  }
+  if (command_name == kGenerateSnapshotCommand) {
+    auto generate_snapshot_command =
+        GenerateSnapshotCommand::Create(GenerateSnapshotCommand::Params{
+            .data_dir = absl::GetFlag(FLAGS_data_dir),
+            .working_dir = absl::GetFlag(FLAGS_working_dir),
+            .key_namespace = absl::GetFlag(FLAGS_key_namespace),
+            .starting_file = absl::GetFlag(FLAGS_starting_file),
+            .ending_delta_file = absl::GetFlag(FLAGS_ending_delta_file),
+            .snapshot_file = absl::GetFlag(FLAGS_snapshot_file),
+            .in_memory_compaction = absl::GetFlag(FLAGS_in_memory_compaction),
+        });
+    if (!generate_snapshot_command.ok()) {
+      LOG(ERROR) << "Failed to create command to generate snapshot. "
+                 << generate_snapshot_command.status();
+      return -1;
+    }
+    if (absl::Status status = (*generate_snapshot_command)->Execute();
         !status.ok()) {
-      LOG(ERROR) << "Failed to generate data. " << status;
+      LOG(ERROR) << "Failed to execute generate snapshot command. " << status;
       return -1;
     }
   }

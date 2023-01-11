@@ -26,7 +26,7 @@
 #include "riegeli/bytes/istream_reader.h"
 #include "riegeli/csv/csv_reader.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // A `CsvDeltaRecordStreamReader` reads CSV records as `DeltaFileRecordStruct`
 // records from a `std::iostream` or `std::istream` with CSV formatted data.
@@ -115,6 +115,6 @@ absl::Status CsvDeltaRecordStreamReader<SrcStreamT>::ReadRecords(
   return overall_status;
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // TOOLS_DATA_CLI_CSV_CSV_DELTA_RECORD_STREAM_READER_H_

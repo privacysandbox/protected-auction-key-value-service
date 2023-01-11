@@ -29,7 +29,7 @@
 
 #include "sqlite3.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 // A `RecordAggregator` aggregates `DeltaFileRecordStruct` records added to an
 // aggregator instance from potentially multiple record streams. Records can
 // be aggregated by repeatedly calling `InsertOrUpdateRecord(...)` as follows:
@@ -128,6 +128,6 @@ class RecordAggregator {
 
   std::unique_ptr<sqlite3, DbDeleter> db_;
 };
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // PUBLIC_DATA_LOADING_AGGREGATION_RECORD_AGGREGATOR_

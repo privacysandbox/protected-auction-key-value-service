@@ -26,7 +26,7 @@
 #include "riegeli/bytes/string_writer.h"
 #include "riegeli/records/record_writer.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
@@ -38,8 +38,7 @@ TEST(ReadRiegeliStreamRecordsTest, ReadRecord) {
   KVFileMetadata file_metadata;
 
   file_metadata.set_key_namespace(KeyNamespace::KEYS);
-  *metadata.MutableExtension(fledge::kv_server::kv_file_metadata) =
-      file_metadata;
+  *metadata.MutableExtension(kv_server::kv_file_metadata) = file_metadata;
   options.set_metadata(std::move(metadata));
   auto writer = riegeli::RecordWriter(riegeli::StringWriter(&content), options);
 
@@ -70,8 +69,7 @@ TEST(ReadRiegeliStreamRecordsTest, ContinuesReadingRecordsOnError) {
   KVFileMetadata file_metadata;
 
   file_metadata.set_key_namespace(KeyNamespace::KEYS);
-  *metadata.MutableExtension(fledge::kv_server::kv_file_metadata) =
-      file_metadata;
+  *metadata.MutableExtension(kv_server::kv_file_metadata) = file_metadata;
   options.set_metadata(std::move(metadata));
   auto writer = riegeli::RecordWriter(riegeli::StringWriter(&content), options);
 
@@ -147,4 +145,4 @@ TEST(ReadRiegeliStreamRecordsTest, SkipsOverCorruption) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

@@ -25,7 +25,7 @@
 #include "gtest/gtest.h"
 #include "public/base_types.pb.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 using testing::UnorderedElementsAre;
@@ -205,4 +205,4 @@ TEST(DeleteKeyTest, RemoveKeyKeepsOtherKeysWithSameSubkey) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

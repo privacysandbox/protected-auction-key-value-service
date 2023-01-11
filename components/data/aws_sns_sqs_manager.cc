@@ -33,7 +33,7 @@
 #include "aws/sqs/model/SetQueueAttributesRequest.h"
 #include "components/errors/aws_error_util.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 constexpr uint32_t kQueueNameLen = 80;
@@ -156,4 +156,4 @@ void AwsSnsSqsManager::Reset() {
   is_set_up_ = false;
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

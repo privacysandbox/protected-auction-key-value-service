@@ -19,7 +19,7 @@
 
 #include "absl/status/status.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // A `Command` defines an interface for objects that can be executed to do some
 // work.
@@ -34,6 +34,6 @@ class Command {
   virtual absl::Status Execute() = 0;
 };
 
-}  //  namespace fledge::kv_server
+}  //  namespace kv_server
 
 #endif  // TOOLS_DATA_CLI_COMMANDS_COMMAND_H_

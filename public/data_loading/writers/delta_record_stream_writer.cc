@@ -17,7 +17,7 @@
 #include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/records/record_writer.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 riegeli::RecordWriterBase::Options GetRecordWriterOptions(
     const DeltaRecordWriter::Options& options) {
   riegeli::RecordWriterBase::Options writer_options;
@@ -26,10 +26,9 @@ riegeli::RecordWriterBase::Options GetRecordWriterOptions(
   }
   if (options.metadata.has_key_namespace()) {
     riegeli::RecordsMetadata metadata;
-    *metadata.MutableExtension(fledge::kv_server::kv_file_metadata) =
-        options.metadata;
+    *metadata.MutableExtension(kv_server::kv_file_metadata) = options.metadata;
     writer_options.set_metadata(std::move(metadata));
   }
   return writer_options;
 }
-}  // namespace fledge::kv_server
+}  // namespace kv_server

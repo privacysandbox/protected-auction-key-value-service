@@ -14,9 +14,9 @@
 
 #include "components/util/build_info.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 const std::string_view kVersionBuildFlavor =
-    "instance:" INSTANCE " platform:" PLATFORM;
+    "instance:" INSTANCE " platform:" PLATFORM " otel_export:" OTEL_EXPORT;
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

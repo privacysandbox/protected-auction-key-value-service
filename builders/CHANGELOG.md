@@ -2,6 +2,73 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.10.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.9.0...release-0.10.0) (2023-01-06)
+
+
+### Features
+
+* Drop ubuntu package version minor for curl
+
+## [0.9.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.8.0...release-0.9.0) (2023-01-04)
+
+
+### Features
+
+* Add zlib1g-dev to build-debian per scp build dependency
+* Update hook versions
+
+
+### Bug Fixes
+
+* Correct non-zero error message and drop sourcing of tools/builder.sh
+* Elide warnings from bazel info
+* Revert from clang-format v15 to v14
+
+## [0.8.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.7.0...release-0.8.0) (2022-12-29)
+
+
+### Features
+
+* Add bash and jq to test-tools image
+* Add script to normalize bazel- symlinks
+* Ensure run-tests includes all images
+* Skip symlinks that resolve in normalize-bazel-symlink
+
+## [0.7.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.6.0...release-0.7.0) (2022-12-27)
+
+
+### Features
+
+* Add ghz wrapper script
+* Add test-tools image
+
+## [0.6.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.5.0...release-0.6.0) (2022-12-12)
+
+
+### Features
+
+* Add EXTRA_DOCKER_RUN_ARGS support in aws-cli
+
+
+### Bug Fixes
+
+* Emit docker build output only on non-zero exit
+* Remove tempfile before exiting
+
+## [0.5.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.4.4...release-0.5.0) (2022-12-06)
+
+
+### Features
+
+* Pin versions in presubmit image
+
+
+### Bug Fixes
+
+* Avoid cache for tar image
+* Update version pin for ca-certificates
+* Use images subdirs for image list
+
 ### [0.4.4](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.4.3...release-0.4.4) (2022-11-18)
 
 

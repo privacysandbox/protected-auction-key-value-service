@@ -13,7 +13,8 @@
 # limitations under the License.
 
 # environment variables (all optional):
-#   WORKSPACE                    repo root directory, must be an absolute path
+#   WORKSPACE                   repo root directory, must be an absolute path
+#   EXTRA_DOCKER_RUN_ARGS       additional arguments to pass to docker run invocations
 #
 # environment variables exported to AWS CLI
 # For more info on supported env vars, see:
@@ -40,6 +41,7 @@ ENV_VARS+=(
 declare -a DOCKER_RUN_ARGS
 DOCKER_RUN_ARGS+=(
   "--rm"
+  "$(echo "${EXTRA_DOCKER_RUN_ARGS}" | envsubst)"
 )
 for evar in "${ENV_VARS[@]}"
 do
@@ -65,4 +67,4 @@ docker run \
   --volume "${HOME}"/.aws/:/home/.aws/ \
   --volume "${WORKSPACE}":/src/workspace \
   --workdir /src/workspace/"${REL_PWD}" \
-  amazon/aws-cli -- "$@"
+  amazon/aws-cli "$@"

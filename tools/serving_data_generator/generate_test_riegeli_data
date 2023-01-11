@@ -14,10 +14,20 @@
 # limitations under the License.
 
 set -o errexit
-set -o xtrace
 
 # Example command to generate test data.
 # Generate test riegeli file with keys "foo" and values "foo_value".
-bazel run -c opt //tools/serving_data_generator:test_serving_data_generator -- --output_dir="$(pwd)"
+WORKSPACE="$(git rev-parse --show-toplevel)"
 
-echo "Riegeli file was generated at $(pwd). For finer control of data and outputs, please use test_serving_data_generator.cc directly."
+BAZEL_EXTRA_ARGS=
+"${WORKSPACE}"/builders/tools/bazel-debian run -c opt //tools/serving_data_generator:test_serving_data_generator -- --output_dir="/src/workspace"
+
+source "${WORKSPACE}"/builders/tools/builder.sh
+GROUP="$(builder::id g)"
+USER="$(builder::id u)"
+"${WORKSPACE}"/builders/tools/cbuild --image build-debian --cmd "
+  chgrp ${GROUP} /src/workspace/DELTA_*
+  chown ${USER}  /src/workspace/DELTA_*
+"
+
+printf "Riegeli file was generated at %s. For finer control of data and outputs, please use test_serving_data_generator.cc directly.\n" "${WORKSPACE}"

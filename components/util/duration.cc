@@ -22,7 +22,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 constexpr std::chrono::steady_clock::duration kDurationZero =
@@ -180,4 +180,4 @@ std::string GetUsecTimestamp() {
   return std::to_string(absl::ToUnixMicros(absl::Now()));
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

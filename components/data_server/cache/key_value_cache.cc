@@ -24,7 +24,7 @@
 #include "components/data_server/cache/cache.h"
 #include "public/base_types.pb.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 struct KeyContent {
@@ -131,4 +131,4 @@ std::unique_ptr<ShardedCache> ShardedCache::Create() {
   return std::make_unique<NamespaceShardedCache>();
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

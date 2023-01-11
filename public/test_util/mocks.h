@@ -23,7 +23,7 @@
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // We have to specialize the template due to the problem that MOCK_METHOD can't
 // work well with template.
@@ -45,6 +45,6 @@ class MockStreamRecordReaderFactory
               CreateReader, (std::istream & data_input), (const, override));
 };
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // PUBLIC_TEST_UTIL_MOCKS_H_

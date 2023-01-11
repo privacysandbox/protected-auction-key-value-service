@@ -24,7 +24,7 @@
 #include "public/data_loading/records_utils.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // A `DeltaRecordWriter` defines an interface for writing delta records to a
 // destination specified by a concrete implementations of this class.
@@ -80,6 +80,6 @@ class DeltaRecordWriter {
   virtual absl::Status Status() = 0;
 };
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // PUBLIC_DATA_LOADING_WRITERS_DELTA_RECORD_WRITER_H_

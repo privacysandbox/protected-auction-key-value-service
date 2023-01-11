@@ -17,7 +17,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 TEST(IsDeltaFilename, IsDeltaFilename) {
@@ -31,4 +31,4 @@ TEST(FilePrefix, Snapshot) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

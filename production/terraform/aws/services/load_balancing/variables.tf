@@ -65,7 +65,7 @@ variable "http_api_paths" {
 variable "grpc_api_paths" {
   type = set(string)
   default = [
-    "/fledge.kv_server.v1.KeyValueService/*",
+    "/kv_server.v1.KeyValueService/*",
     "/grpc.health.v1.Health/*"
   ]
 }

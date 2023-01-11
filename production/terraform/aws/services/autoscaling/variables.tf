@@ -76,3 +76,8 @@ variable "server_port" {
   description = "Port on which the enclave listens for TCP connections."
   type        = number
 }
+
+variable "launch_hook_name" {
+  description = "Launch hook name"
+  type        = string
+}

@@ -69,13 +69,19 @@ The data server provides the read API for the KV service.
     ```
 
 1.  Run the container. Port 50051 can be used to query the server directly through gRPC. Port 51052
-    can be used to query with HTTP which is served through Envoy to the server. --environment and
-    --region must be specified. The server will still read data from S3 and the server uses
-    environment and region to find the S3 bucket. The environment is configured as part of the
+    can be used to query with HTTP which is served through Envoy to the server. --environment must
+    be specified. The server will still read data from S3 and the server uses environment to find
+    the S3 bucket. The environment is configured as part of the
     [AWS deployment process](/docs/deploying_on_aws.md).
 
+    Set region. The region should be where your environment is deployed:
+
     ```sh
-    docker run -it --rm --entrypoint=/server/bin/init_server_basic --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 -p 127.0.0.1:51052:51052 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment --region us-east-1
+    export AWS_DEFAULT_REGION=us-east-1
+    ```
+
+    ```sh
+    docker run -it --rm --entrypoint=/server/bin/init_server_basic --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 -p 127.0.0.1:51052:51052 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
     ```
 
 ### Run the server locally
@@ -83,7 +89,7 @@ The data server provides the read API for the KV service.
 For example:
 
 ```sh
-bazel run //components/data_server/server:server --//:instance=local --//:platform=aws -- --environment="dev"
+builders/tools/bazel-debian run //components/data_server/server:server --//:instance=local --//:platform=aws -- --environment="dev"
 ```
 
 > Attention: The server can run locally while specifying `aws` as platform, in which case it will
@@ -111,7 +117,7 @@ anticipate supporting additional cloud providers in the future.
 Example:
 
 ```sh
-grpc_cli call localhost:50051 GetValues "kv_internal: 'hi'" --channel_creds_type=insecure
+grpc_cli call localhost:50051 kv_server.v1.KeyValueService.GetValues "kv_internal: 'hi'" --channel_creds_type=insecure
 ```
 
 -   For HTTP queries:
@@ -188,3 +194,11 @@ Depending on which platform the server is being run on, you will want to specify
 
 -   //:aws_instance
 -   //:local_instance
+
+There are two options for OpenTelemetry export when `//:local_instance` is specified:
+
+-   //components/telemetry:local_otel_export=ostream [default]
+-   //components/telemetry:local_otel_export=jaeger
+
+When jaeger is specified, run a local instance of [Jaeger](https://www.jaegertracing.io/) to capture
+telemetry.

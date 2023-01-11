@@ -28,13 +28,14 @@ using testing::_;
 using testing::Field;
 using testing::Return;
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 class DeltaFileNotifierTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    notifier_ = DeltaFileNotifier::Create(client_, sleep_for_);
+    auto poll_frequency_ = absl::Minutes(5);
+    notifier_ = DeltaFileNotifier::Create(client_, poll_frequency_, sleep_for_);
   }
 
   MockBlobStorageClient client_;
@@ -150,4 +151,4 @@ TEST_F(DeltaFileNotifierTest, GetChangesFailure) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

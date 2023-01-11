@@ -31,7 +31,7 @@
 #include "components/errors/aws_error_util.h"
 #include "glog/logging.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 constexpr char kImdsTokenHeader[] = "x-aws-ec2-metadata-token";
 constexpr char kImdsTokenTtlSeconds[] = "5";
 constexpr char kImdsTokenTtlHeader[] = "x-aws-ec2-metadata-token-ttl-seconds";
@@ -98,11 +98,11 @@ absl::Status GetRegion() {
   std::cout << *region;
   return absl::OkStatus();
 }
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
-  const absl::Status status = fledge::kv_server::GetRegion();
+  const absl::Status status = kv_server::GetRegion();
   if (!status.ok()) {
     LOG(FATAL) << "Failed to run: " << status;
   }

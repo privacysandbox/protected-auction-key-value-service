@@ -37,13 +37,13 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     sid       = "AllowInstancesToCompleteLifecycleAction"
     actions   = ["autoscaling:CompleteLifecycleAction"]
     effect    = "Allow"
-    resources = [var.autoscaling_group_arn]
+    resources = ["*"]
   }
   statement {
     sid       = "AllowInstancesToRecordLifecycleActionHeartbeat"
     actions   = ["autoscaling:RecordLifecycleActionHeartbeat"]
     effect    = "Allow"
-    resources = [var.autoscaling_group_arn]
+    resources = ["*"]
   }
   statement {
     sid       = "AllowInstancesToDescribeAutoScalingInstances"
@@ -71,6 +71,36 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     sid       = "AllowInstancesToSubscribeToDataUpdates"
     actions   = ["sns:Subscribe"]
     resources = [var.sns_data_updates_topic_arn]
+  }
+  statement {
+    sid       = "AllowXRayPutTraceSegments"
+    actions   = ["xray:PutTraceSegments"]
+    resources = ["*"]
+    effect    = "Allow"
+  }
+  statement {
+    sid       = "AllowXRayPutTelemetryRecords"
+    actions   = ["xray:PutTelemetryRecords"]
+    resources = ["*"]
+    effect    = "Allow"
+  }
+  statement {
+    sid       = "AllowXRayGetSamplingRules"
+    actions   = ["xray:GetSamplingRules"]
+    resources = ["*"]
+    effect    = "Allow"
+  }
+  statement {
+    sid       = "AllowXRayGetSamplingTargets"
+    actions   = ["xray:GetSamplingTargets"]
+    resources = ["*"]
+    effect    = "Allow"
+  }
+  statement {
+    sid       = "AllowXRayGetSamplingStatisticSummaries"
+    actions   = ["xray:GetSamplingStatisticSummaries"]
+    resources = ["*"]
+    effect    = "Allow"
   }
 }
 

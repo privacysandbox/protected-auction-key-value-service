@@ -74,12 +74,11 @@ resource "aws_autoscaling_group" "instance_asg" {
   instance_refresh {
     strategy = "Rolling"
   }
-}
 
-resource "aws_autoscaling_lifecycle_hook" "launch_hook" {
-  name                   = "${var.service}-${var.environment}-launch-hook"
-  autoscaling_group_name = aws_autoscaling_group.instance_asg.name
-  default_result         = "ABANDON"
-  heartbeat_timeout      = 300
-  lifecycle_transition   = "autoscaling:EC2_INSTANCE_LAUNCHING"
+  initial_lifecycle_hook {
+    name                 = var.launch_hook_name
+    default_result       = "ABANDON"
+    heartbeat_timeout    = 300
+    lifecycle_transition = "autoscaling:EC2_INSTANCE_LAUNCHING"
+  }
 }

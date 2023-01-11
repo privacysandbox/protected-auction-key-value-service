@@ -23,7 +23,7 @@
 
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 
-using fledge::kv_server::BlobStorageChangeNotifier;
+using kv_server::BlobStorageChangeNotifier;
 
 int main(int argc, char** argv) {
   // TODO: use cc/cpio/cloud_providers to initialize cloud.

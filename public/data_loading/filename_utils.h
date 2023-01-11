@@ -22,7 +22,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // File name must be in the form that conforms to Regex in
 // DeltaFileFormatRegex() in constants.h
@@ -41,6 +41,6 @@ bool IsSnapshotFilename(std::string_view basename);
 // construct a valid snapshot filename.
 absl::StatusOr<std::string> ToSnapshotFileName(uint64_t logical_commit_time);
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // PUBLIC_DATA_LOADING_FILENAME_UTILS_H_

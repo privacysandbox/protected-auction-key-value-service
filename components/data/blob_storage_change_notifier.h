@@ -24,7 +24,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 class BlobStorageChangeNotifier {
  public:
@@ -47,6 +47,6 @@ class BlobStorageChangeNotifier {
       NotifierMetadata metadata);
 };
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // DATA_BLOB_STORAGE_CHANGE_NOTIFIER_H_

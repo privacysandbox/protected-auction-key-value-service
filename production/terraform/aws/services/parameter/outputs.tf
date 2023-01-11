@@ -29,3 +29,11 @@ output "bucket_update_sns_arn_parameter_arn" {
 output "launch_hook_parameter_arn" {
   value = aws_ssm_parameter.launch_hook_parameter.arn
 }
+
+output "launch_hook_parameter_value" {
+  value = aws_ssm_parameter.launch_hook_parameter.value
+}
+
+output "poll_frequency_mins_parameter_arn" {
+  value = aws_ssm_parameter.poll_frequency_mins_parameter.arn
+}

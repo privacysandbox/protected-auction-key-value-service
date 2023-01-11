@@ -21,7 +21,7 @@
 #include "public/data_loading/records_utils.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 KVFileMetadata GetMetadata() {
@@ -78,4 +78,4 @@ TEST(DeltaRecordStreamReaderTest, ValidateReadingRecordCallsRecordCallback) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

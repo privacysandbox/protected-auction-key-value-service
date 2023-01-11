@@ -26,7 +26,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // Contains a stream of content data read from a cloud object.
 class BlobReader {
@@ -78,6 +78,6 @@ inline std::ostream& operator<<(
   return os;
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_DATA_BLOB_STORAGE_CLIENT_H_

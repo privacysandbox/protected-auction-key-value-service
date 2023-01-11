@@ -21,7 +21,7 @@
 #include "absl/status/statusor.h"
 
 // TODO: Replace config cpio client once ready
-namespace fledge::kv_server {
+namespace kv_server {
 
 // Client to interact with Parameter storage.
 class ParameterClient {
@@ -32,6 +32,6 @@ class ParameterClient {
   virtual absl::StatusOr<std::string> GetParameter(
       std::string_view parameter_name) const = 0;
 };
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_CLOUD_CONFIG_PARAMETERCLIENT_H_

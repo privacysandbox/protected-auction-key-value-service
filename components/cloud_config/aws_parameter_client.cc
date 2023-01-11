@@ -27,7 +27,7 @@
 #include "components/errors/aws_error_util.h"
 #include "glog/logging.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 class AwsParameterClient : public ParameterClient {
@@ -55,4 +55,4 @@ std::unique_ptr<ParameterClient> ParameterClient::Create() {
   return std::make_unique<AwsParameterClient>();
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

@@ -28,7 +28,7 @@
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/records_utils.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 size_t GetRecordKey(const DeltaFileRecordStruct& record) {
@@ -357,4 +357,4 @@ TEST_P(RecordAggregatorTest, ValidateReadingRecordsWhenCallbackFails) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

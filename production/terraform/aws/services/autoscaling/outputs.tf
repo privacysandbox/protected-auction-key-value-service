@@ -17,7 +17,3 @@
 output "autoscaling_group_arn" {
   value = aws_autoscaling_group.instance_asg.arn
 }
-
-output "launch_hook_name" {
-  value = aws_autoscaling_lifecycle_hook.launch_hook.name
-}

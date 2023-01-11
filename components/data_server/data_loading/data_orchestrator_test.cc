@@ -32,26 +32,27 @@
 #include "public/test_util/mocks.h"
 #include "public/test_util/proto_matcher.h"
 
-using fledge::kv_server::BlobStorageChangeNotifier;
-using fledge::kv_server::BlobStorageClient;
-using fledge::kv_server::DataOrchestrator;
-using fledge::kv_server::DeltaFileRecordStruct;
-using fledge::kv_server::DeltaMutationType;
-using fledge::kv_server::FilePrefix;
-using fledge::kv_server::FileType;
-using fledge::kv_server::FullKeyEq;
-using fledge::kv_server::KeyNamespace;
-using fledge::kv_server::KVFileMetadata;
-using fledge::kv_server::MockBlobReader;
-using fledge::kv_server::MockBlobStorageChangeNotifier;
-using fledge::kv_server::MockBlobStorageClient;
-using fledge::kv_server::MockCache;
-using fledge::kv_server::MockDeltaFileNotifier;
-using fledge::kv_server::MockShardedCache;
-using fledge::kv_server::MockStreamRecordReader;
-using fledge::kv_server::MockStreamRecordReaderFactory;
-using fledge::kv_server::ToDeltaFileName;
-using fledge::kv_server::ToStringView;
+using kv_server::BlobStorageChangeNotifier;
+using kv_server::BlobStorageClient;
+using kv_server::DataOrchestrator;
+using kv_server::DeltaFileRecordStruct;
+using kv_server::DeltaMutationType;
+using kv_server::FilePrefix;
+using kv_server::FileType;
+using kv_server::FullKeyEq;
+using kv_server::KeyNamespace;
+using kv_server::KVFileMetadata;
+using kv_server::MockBlobReader;
+using kv_server::MockBlobStorageChangeNotifier;
+using kv_server::MockBlobStorageClient;
+using kv_server::MockCache;
+using kv_server::MockDeltaFileNotifier;
+using kv_server::MockShardedCache;
+using kv_server::MockStreamRecordReader;
+using kv_server::MockStreamRecordReaderFactory;
+using kv_server::ToDeltaFileName;
+using kv_server::ToSnapshotFileName;
+using kv_server::ToStringView;
 using testing::_;
 using testing::AllOf;
 using testing::ByMove;
@@ -60,7 +61,6 @@ using testing::Return;
 using testing::ReturnRef;
 
 namespace {
-
 // using google::protobuf::TextFormat;
 
 BlobStorageClient::DataLocation GetTestLocation(
@@ -96,6 +96,14 @@ TEST_F(DataOrchestratorTest, InitCacheListRetriesOnFailure) {
       ListBlobs(GetTestLocation(),
                 AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
                       Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .Times(1)
+      .WillOnce(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
                             FilePrefix<FileType::DELTA>()))))
       .Times(1)
       .WillOnce(Return(absl::UnknownError("list failed")));
@@ -104,7 +112,28 @@ TEST_F(DataOrchestratorTest, InitCacheListRetriesOnFailure) {
             absl::UnknownError("list failed"));
 }
 
+TEST_F(DataOrchestratorTest, InitCacheListSnapshotsFailure) {
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .Times(1)
+      .WillOnce(Return(absl::UnknownError("list snapshots failed")));
+  EXPECT_EQ(DataOrchestrator::TryCreate(options_).status(),
+            absl::UnknownError("list snapshots failed"));
+}
+
 TEST_F(DataOrchestratorTest, InitCacheNoFiles) {
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .Times(1)
+      .WillOnce(Return(std::vector<std::string>()));
   EXPECT_CALL(
       blob_client_,
       ListBlobs(GetTestLocation(),
@@ -124,6 +153,14 @@ TEST_F(DataOrchestratorTest, InitCacheFilteroutInvalidFiles) {
       ListBlobs(GetTestLocation(),
                 AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
                       Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .Times(1)
+      .WillOnce(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
                             FilePrefix<FileType::DELTA>()))))
       .WillOnce(Return(std::vector<std::string>({"DELTA_01"})));
 
@@ -132,10 +169,75 @@ TEST_F(DataOrchestratorTest, InitCacheFilteroutInvalidFiles) {
   EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
 }
 
+TEST_F(DataOrchestratorTest, InitCacheFiltersDeltasUsingSnapshotEndingFile) {
+  auto snapshot_name = ToSnapshotFileName(1);
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .Times(1)
+      .WillOnce(Return(std::vector<std::string>({*snapshot_name})));
+
+  std::stringstream dummy_stream;
+  auto blob_reader1 = std::make_unique<MockBlobReader>();
+  ON_CALL(*blob_reader1, Stream())
+      .WillByDefault(
+          [&dummy_stream]() -> std::istream& { return dummy_stream; });
+  auto blob_reader2 = std::make_unique<MockBlobReader>();
+  ON_CALL(*blob_reader2, Stream())
+      .WillByDefault(
+          [&dummy_stream]() -> std::istream& { return dummy_stream; });
+  EXPECT_CALL(blob_client_, GetBlobReader(GetTestLocation(*snapshot_name)))
+      .Times(2)
+      .WillOnce(Return(ByMove(std::move(blob_reader1))))
+      .WillOnce(Return(ByMove(std::move(blob_reader2))));
+
+  KVFileMetadata metadata;
+  metadata.set_key_namespace(KeyNamespace::KEYS);
+  *metadata.mutable_snapshot()->mutable_starting_file() =
+      ToDeltaFileName(1).value();
+  *metadata.mutable_snapshot()->mutable_ending_delta_file() =
+      ToDeltaFileName(5).value();
+  auto record_reader1 = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*record_reader1, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
+  auto record_reader2 = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*record_reader2, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
+  EXPECT_CALL(delta_stream_reader_factory_, CreateReader)
+      .Times(2)
+      .WillOnce(Return(ByMove(std::move(record_reader1))))
+      .WillOnce(Return(ByMove(std::move(record_reader2))));
+  EXPECT_CALL(sharded_cache_, GetMutableCacheShard(KeyNamespace::KEYS))
+      .Times(1)
+      .WillOnce(ReturnRef(cache_));
+
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after,
+                            ToDeltaFileName(5).value()),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::DELTA>()))))
+      .WillOnce(Return(std::vector<std::string>()));
+  EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
+}
+
 TEST_F(DataOrchestratorTest, InitCacheSuccess) {
   const std::vector<std::string> fnames(
       {ToDeltaFileName(1).value(), ToDeltaFileName(2).value()});
-
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .Times(1)
+      .WillOnce(Return(std::vector<std::string>()));
   EXPECT_CALL(
       blob_client_,
       ListBlobs(GetTestLocation(),

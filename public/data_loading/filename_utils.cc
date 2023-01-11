@@ -22,7 +22,7 @@
 #include "glog/logging.h"
 #include "public/constants.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 template <FileType::Enum file_type>
 std::string GetFilename(int64_t logical_commit_time) {
@@ -66,4 +66,4 @@ absl::StatusOr<std::string> ToSnapshotFileName(uint64_t logical_commit_time) {
   return result;
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

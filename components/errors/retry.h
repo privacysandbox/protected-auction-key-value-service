@@ -17,12 +17,14 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
+#include "components/telemetry/telemetry.h"
 #include "glog/logging.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // Abstraction wraps free function for dependency injection.
 class SleepFor {
@@ -97,6 +99,22 @@ typename std::invoke_result_t<RetryableWithMax<Func>>::value_type RetryUntilOk(
       .value();
 }
 
+// Same as above `RetryUntilOk`, wrapped in an `opentelemetry::trace::Span`.
+// Each individual retry of `func` is also traced.
+template <typename Func>
+typename std::invoke_result_t<RetryableWithMax<Func>>::value_type
+TraceRetryUntilOk(Func&& func, std::string task_name,
+                  std::vector<TelemetryAttribute> attributes = {},
+                  const SleepFor& sleep_for = SleepFor::Real()) {
+  auto span = GetTracer()->StartSpan("RetryUntilOk - " + task_name);
+  auto scope = opentelemetry::trace::Scope(span);
+  auto wrapped = [func = std::move(func), attributes = std::move(attributes),
+                  task_name]() {
+    return TraceWithStatusOr(std::move(func), task_name, std::move(attributes));
+  };
+  return RetryUntilOk(std::move(wrapped), std::move(task_name), sleep_for);
+}
+
 // Retries functors that return an absl::Status until they are `ok`.
 inline void RetryUntilOk(std::function<absl::Status()> func,
                          std::string task_name,
@@ -106,6 +124,12 @@ inline void RetryUntilOk(std::function<absl::Status()> func,
                    sleep_for)()
       .IgnoreError();
 }
+
+// Starts and `opentelemetry::trace::Span` and Calls `RetryUntilOk`.
+// Each individual retry of `func` is also traced.
+void TraceRetryUntilOk(std::function<absl::Status()> func,
+                       std::string task_name,
+                       const SleepFor& sleep_for = SleepFor::Real());
 
 // Retries functors that return an absl::StatusOr<T> until they are `ok` or
 // max_attempts is reached. Retry starts at 1.
@@ -117,6 +141,6 @@ typename std::invoke_result_t<RetryableWithMax<Func>> RetryWithMax(
                           max_attempts, sleep_for)();
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_ERRORS_RETRY_H_

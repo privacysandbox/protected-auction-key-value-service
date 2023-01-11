@@ -35,7 +35,9 @@ static_resources:
             - name: local_service
               domains: [ "*" ]
               routes:
-              - match: { prefix: "/fledge.kv_server.v1.KeyValueService" }
+              - match: { prefix: "/kv_server.v1.KeyValueService" }
+                route: { cluster: grpc_cluster, timeout: 2s }
+              - match: { prefix: "/kv_server.v2.KeyValueService" }
                 route: { cluster: grpc_cluster, timeout: 2s }
               - match: { prefix: "/grpc.health.v1.Health" }
                 route: { cluster: grpc_cluster, timeout: 2s }
@@ -68,9 +70,10 @@ static_resources:
           - name: envoy.filters.http.grpc_json_transcoder
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_json_transcoder.v3.GrpcJsonTranscoder
-              proto_descriptor: "/etc/envoy/config/get_values_descriptor_set.pb"
+              proto_descriptor: "/etc/envoy/config/query_api_descriptor_set.pb"
               services:
-              - "fledge.kv_server.v1.KeyValueService"
+              - kv_server.v1.KeyValueService
+              - kv_server.v2.KeyValueService
               print_options:
                 add_whitespace: true
                 always_print_primitive_fields: true

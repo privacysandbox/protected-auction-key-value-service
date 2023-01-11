@@ -39,7 +39,7 @@ variable "bucket_update_sns_arn_parameter_value" {
   type        = string
 }
 
-variable "launch_hook_parameter_value" {
-  description = "Value for lifecycle hook parameter."
+variable "poll_frequency_mins_parameter_value" {
+  description = "Poll frequency for delta file notifier in minutes."
   type        = string
 }

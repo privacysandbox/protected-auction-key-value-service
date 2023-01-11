@@ -15,8 +15,8 @@
  * limitations under the License.
  */
 
-#ifndef TOOLS_DATA_CLI_COMMANDS_GENERATE_DATA_COMMAND_H_
-#define TOOLS_DATA_CLI_COMMANDS_GENERATE_DATA_COMMAND_H_
+#ifndef TOOLS_DATA_CLI_COMMANDS_FORMAT_DATA_COMMAND_H_
+#define TOOLS_DATA_CLI_COMMANDS_FORMAT_DATA_COMMAND_H_
 
 #include <fstream>
 #include <memory>
@@ -29,23 +29,23 @@
 #include "public/data_loading/writers/delta_record_writer.h"
 #include "tools/data_cli/commands/command.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
-// A `GenerateDataCommand` command reads input data from an input stream and
+// A `FormatDataCommand` command reads input data from an input stream and
 // generates output data and writes to an output stream. The format of input
 // data is specified by `Params.input_format` and the format of output data is
 // specified by `Params.output_format`.
 //
 // The command can be used as follows:
 // ```
-// GenerateDataCommand::Params params{
+// FormatDataCommand::Params params{
 //  .input_format = "CSV",
 //  .output_format = "DELTA",
 //  .key_namespace = "KEYS"
 // }
 // std::istringstream input_stream;
 // std::ostringstream output_stream;
-// auto command = GenerateDataCommand::Create(params, input_stream,
+// auto command = FormatDataCommand::Create(params, input_stream,
 // output_stream);
 // if (command.ok() && (*command)->Execute().ok()) {
 //  ReadAndUseDeltaStream(output_stream);
@@ -53,7 +53,7 @@ namespace fledge::kv_server {
 // ...
 // Note that command only supports "CSV" and "DELTA" formats.
 // ```
-class GenerateDataCommand : public Command {
+class FormatDataCommand : public Command {
  public:
   struct Params {
     std::string_view input_format;
@@ -61,14 +61,14 @@ class GenerateDataCommand : public Command {
     std::string_view key_namespace;
   };
 
-  static absl::StatusOr<std::unique_ptr<GenerateDataCommand>> Create(
+  static absl::StatusOr<std::unique_ptr<FormatDataCommand>> Create(
       const Params& params, std::istream& input_stream,
       std::ostream& output_stream);
   absl::Status Execute() override;
 
  private:
-  GenerateDataCommand(std::unique_ptr<DeltaRecordReader> record_reader,
-                      std::unique_ptr<DeltaRecordWriter> record_writer)
+  FormatDataCommand(std::unique_ptr<DeltaRecordReader> record_reader,
+                    std::unique_ptr<DeltaRecordWriter> record_writer)
       : record_reader_(std::move(record_reader)),
         record_writer_(std::move(record_writer)) {}
 
@@ -76,6 +76,6 @@ class GenerateDataCommand : public Command {
   std::unique_ptr<DeltaRecordWriter> record_writer_;
 };
 
-}  //  namespace fledge::kv_server
+}  //  namespace kv_server
 
-#endif  // TOOLS_DATA_CLI_COMMANDS_GENERATE_DATA_COMMAND_H_
+#endif  // TOOLS_DATA_CLI_COMMANDS_FORMAT_DATA_COMMAND_H_

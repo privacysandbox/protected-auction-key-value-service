@@ -26,7 +26,7 @@
 #include "components/data_server/cache/cache.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // Coordinate data loading.
 //
@@ -56,6 +56,6 @@ class DataOrchestrator {
   // Returns immediately without blocking.
   virtual absl::Status Start() = 0;
 };
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_DATA_SERVER_DATA_LOADING_DATA_ORCHESTRATOR_H_

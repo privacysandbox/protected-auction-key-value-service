@@ -1,3 +1,18 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(default_visibility = [
@@ -48,6 +63,22 @@ cc_test(
     ],
 )
 
+selects.config_setting_group(
+    name = "local_otel_jaeger",
+    match_all = [
+        "//:local_instance",
+        "//components/telemetry:local_otel_export_jaeger",
+    ],
+)
+
+selects.config_setting_group(
+    name = "local_otel_ostream",
+    match_all = [
+        "//:local_instance",
+        "//components/telemetry:local_otel_export_ostream",
+    ],
+)
+
 local_defines = select({
     "//:aws_instance": ["INSTANCE=\\\"aws\\\""],
     "//:local_instance": ["INSTANCE=\\\"local\\\""],
@@ -56,13 +87,18 @@ local_defines = select({
     "//:aws_platform": ["PLATFORM=\\\"aws\\\""],
     "//:local_platform": ["PLATFORM=\\\"local\\\""],
     "//conditions:default": ["PLATFORM=\\\"unknown\\\""],
+}) + select({
+    "//:aws_instance": ["OTEL_EXPORT=\\\"xray\\\""],
+    ":local_otel_jaeger": ["OTEL_EXPORT=\\\"jaeger\\\""],
+    ":local_otel_ostream": ["OTEL_EXPORT=\\\"ostream\\\""],
+    "//conditions:default": ["OTEL_EXPORT=\\\"unknown\\\""],
 })
 
 genrule(
     name = "generate_version_linkstamp",
     outs = ["version_linkstamp.cc"],
     cmd = """
-        $(location :generate_version_h) "$(TARGET_CPU)-$(COMPILATION_MODE)" >>$@
+        $(execpath :generate_version_h) "$(TARGET_CPU)-$(COMPILATION_MODE)" >>$@
     """,
     # Undocumented attr to depend on workspace status files.
     # Used here because generate_version_h depends on the workspace status files.
@@ -91,8 +127,11 @@ cc_library(
 
 cc_library(
     name = "version_linkstamp",
-    # Linking this library makes build cache inefficient, limiting this to the //components/data_server/server package only.
-    visibility = ["//components/data_server/server:__pkg__"],
+    # Linking this library makes build cache inefficient,
+    visibility = [
+        "//components/data_server/server:__pkg__",
+        "//components/telemetry:__pkg__",
+    ],
     deps = [":build_flags"],
     alwayslink = 1,
 )

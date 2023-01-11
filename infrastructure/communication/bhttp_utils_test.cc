@@ -22,7 +22,6 @@
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 
-namespace fledge {
 namespace {
 
 using google::protobuf::Struct;
@@ -48,7 +47,8 @@ TEST(BinaryHttpTest, DeserializeBHttpToProto) {
   ASSERT_TRUE(maybe_req.ok());
 
   const auto maybe_proto =
-      DeserializeBHttpToProto<BinaryHttpRequest, Struct>(maybe_req.value());
+      kv_server::DeserializeBHttpToProto<BinaryHttpRequest, Struct>(
+          maybe_req.value());
   ASSERT_TRUE(maybe_proto.ok());
   EXPECT_EQ(maybe_proto->fields().at("key").string_value(), "value");
 }
@@ -58,7 +58,8 @@ TEST(BinaryHttpTest, SerializeProtoToBHttpResponse) {
   (*struct_proto.mutable_fields())["key"].set_string_value("value");
 
   auto maybe_serialized_bresp =
-      SerializeProtoToBHttp<BinaryHttpResponse, Struct>(struct_proto, 200);
+      kv_server::SerializeProtoToBHttp<BinaryHttpResponse, Struct>(struct_proto,
+                                                                   200);
   ASSERT_TRUE(maybe_serialized_bresp.ok());
 
   auto maybe_bhttp = BinaryHttpResponse::Create(maybe_serialized_bresp.value());
@@ -73,7 +74,8 @@ TEST(BinaryHttpTest, SerializeProtoToBHttpRequest) {
   (*struct_proto.mutable_fields())["key"].set_string_value("value");
 
   auto maybe_serialized_breq =
-      SerializeProtoToBHttp<BinaryHttpRequest, Struct>(struct_proto, {});
+      kv_server::SerializeProtoToBHttp<BinaryHttpRequest, Struct>(struct_proto,
+                                                                  {});
   ASSERT_TRUE(maybe_serialized_breq.ok());
 
   auto maybe_bhttp = BinaryHttpRequest::Create(maybe_serialized_breq.value());
@@ -83,4 +85,3 @@ TEST(BinaryHttpTest, SerializeProtoToBHttpRequest) {
 }
 
 }  // namespace
-}  // namespace fledge

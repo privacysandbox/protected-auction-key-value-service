@@ -19,7 +19,7 @@
 #include "absl/status/statusor.h"
 #include "public/data_loading/data_loading_generated.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 absl::StatusOr<std::string_view> GetMutationType(
     const DeltaFileRecordStruct& record) {
@@ -57,4 +57,4 @@ absl::StatusOr<riegeli::CsvRecord> MakeCsvRecord(
 }
 }  // namespace internal
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

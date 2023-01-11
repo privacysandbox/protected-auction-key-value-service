@@ -1,6 +1,6 @@
 // Call flatc -c data_loading.fbs to generate c++ file
 
-namespace fledge.kv_server;
+namespace kv_server;
 
 enum DeltaMutationType:byte { Update = 0,  Delete = 1 }
 

@@ -24,7 +24,7 @@
 #include "absl/synchronization/mutex.h"
 #include "absl/time/time.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 class SteadyTime {
  public:
@@ -298,6 +298,6 @@ std::string GetMsecTimestamp();
 
 std::string GetUsecTimestamp();
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_UTIL_DURATION_H_

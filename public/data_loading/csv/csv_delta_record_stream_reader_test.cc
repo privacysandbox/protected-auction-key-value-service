@@ -22,7 +22,7 @@
 #include "public/data_loading/csv/csv_delta_record_stream_writer.h"
 #include "public/data_loading/records_utils.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 DeltaFileRecordStruct GetDeltaRecord() {
@@ -84,4 +84,4 @@ TEST(CsvDeltaRecordStreamReaderTest,
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

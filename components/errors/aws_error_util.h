@@ -22,7 +22,7 @@
 #include "absl/strings/cord.h"
 #include "aws/core/client/AWSError.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {  // NOLINT(build/namespaces_headers)
 absl::StatusCode HttpResponseCodeToStatusCode(
     Aws::Http::HttpResponseCode response_code) {
@@ -87,5 +87,5 @@ absl::Status AwsErrorToStatus(const Aws::Client::AWSError<T>& error) {
   }
   return status;
 }
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 #endif  // COMPONENTS_ERRORS_AWS_ERROR_UTIL_H_

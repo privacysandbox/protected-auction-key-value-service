@@ -21,10 +21,10 @@
 #include "absl/time/clock.h"
 #include "gtest/gtest.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
-using fledge::kv_server::PeriodicClosure;
+using kv_server::PeriodicClosure;
 
 TEST(PeriodicClosureTest, IsNotRunning) {
   std::unique_ptr<PeriodicClosure> periodic_closure = PeriodicClosure::Create();
@@ -116,4 +116,4 @@ TEST(PeriodicClosureTest, StartAfterStopped) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

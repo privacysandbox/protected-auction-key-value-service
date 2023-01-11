@@ -96,6 +96,14 @@ build {
     source = join("/", [var.workspace, "production/packaging/aws/data_server/ami/vsockproxy.service"])
     destination = "/home/ec2-user/vsockproxy.service"
   }
+  provisioner "file" {
+    source      = join("/", [var.distribution_dir, "aws-otel-collector.rpm"])
+    destination = "/home/ec2-user/aws-otel-collector.rpm"
+  }
+  provisioner "file" {
+    source      = join("/", [var.distribution_dir, "otel_collector_config.yaml"])
+    destination = "/home/ec2-user/otel_collector_config.yaml"
+  }
   provisioner "shell" {
     script = join("/", [var.workspace, "production/packaging/aws/data_server/ami/setup.sh"])
   }

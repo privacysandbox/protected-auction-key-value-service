@@ -17,35 +17,36 @@
 #ifndef COMPONENTS_DATA_SERVER_SERVER_KEY_VALUE_SERVICE_IMPL_H_
 #define COMPONENTS_DATA_SERVER_SERVER_KEY_VALUE_SERVICE_IMPL_H_
 
-#include <grpcpp/grpcpp.h>
+#include <utility>
 
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/get_values_handler.h"
+#include "grpcpp/grpcpp.h"
 #include "public/query/get_values.grpc.pb.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // Implements Key-Value service.
 class KeyValueServiceImpl final
-    : public fledge::kv_server::v1::KeyValueService::CallbackService {
+    : public kv_server::v1::KeyValueService::CallbackService {
  public:
-  explicit KeyValueServiceImpl(const GetValuesHandler& handler)
-      : handler_(handler) {}
+  explicit KeyValueServiceImpl(GetValuesHandler handler)
+      : handler_(std::move(handler)) {}
 
   grpc::ServerUnaryReactor* GetValues(
       grpc::CallbackServerContext* context,
-      const fledge::kv_server::v1::GetValuesRequest* request,
-      fledge::kv_server::v1::GetValuesResponse* response) override;
+      const kv_server::v1::GetValuesRequest* request,
+      kv_server::v1::GetValuesResponse* response) override;
 
   grpc::ServerUnaryReactor* BinaryHttpGetValues(
       grpc::CallbackServerContext* context,
-      const fledge::kv_server::v1::BinaryHttpGetValuesRequest* request,
+      const kv_server::v1::BinaryHttpGetValuesRequest* request,
       google::api::HttpBody* response) override;
 
  private:
-  const GetValuesHandler& handler_;
+  GetValuesHandler handler_;
 };
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_DATA_SERVER_SERVER_KEY_VALUE_SERVICE_IMPL_H_

@@ -23,7 +23,7 @@ fileExistenceTests:
     permissions: "-r--r--r--"
 
   - name: proto descriptor
-    path: /etc/envoy/config/get_values_descriptor_set.pb
+    path: /etc/envoy/config/query_api_descriptor_set.pb
     shouldExist: true
     permissions: "-r--r--r--"
 

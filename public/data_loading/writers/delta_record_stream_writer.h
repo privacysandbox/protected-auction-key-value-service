@@ -29,7 +29,7 @@
 #include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/records/record_writer.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 template <typename DestStreamT = std::iostream>
 class DeltaRecordStreamWriter : public DeltaRecordWriter {
@@ -94,11 +94,11 @@ absl::Status DeltaRecordStreamWriter<DestStreamT>::WriteRecord(
 template <typename DestStreamT>
 absl::Status DeltaRecordStreamWriter<DestStreamT>::Flush() {
   if (!record_writer_->Flush()) {
-    return absl::InternalError("Failed to flush data to underlying stream.");
+    return record_writer_->status();
   }
   return absl::OkStatus();
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // PUBLIC_DATA_LOADING_WRITERS_DELTA_RECORD_STREAM_WRITER_H_

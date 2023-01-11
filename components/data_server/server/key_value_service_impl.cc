@@ -19,7 +19,7 @@
 #include "components/data_server/request_handler/get_values_handler.h"
 #include "public/query/get_values.grpc.pb.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 using google::protobuf::Struct;
 using google::protobuf::Value;
@@ -49,4 +49,4 @@ grpc::ServerUnaryReactor* KeyValueServiceImpl::BinaryHttpGetValues(
   return reactor;
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

@@ -19,7 +19,7 @@
 #include "absl/time/time.h"
 #include "gtest/gtest.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 TEST(DelayedFlagTest, NeverSet) {
@@ -204,4 +204,4 @@ TEST(SteadyTimeTest, SaturatingDifference) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

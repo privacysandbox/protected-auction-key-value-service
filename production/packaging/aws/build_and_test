@@ -39,7 +39,6 @@ function usage() {
 usage:
   $0 <options>
     --without-shared-cache       Containers will not mount ${HOME}/.cache/bazel
-    --server-image <image.tar>   Server docker image tarfile
     --with-ami                   AMI region in which to build and store AWS AMIs. Use multiple times to specify more than one region
                                  If empty, none will be built
 
@@ -57,17 +56,13 @@ declare -a AMI_REGIONS
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --server-image)
-      SERVER_IMAGE="$2"
-      shift
-      shift
-      ;;
     --with-ami)
       AMI_REGIONS+=("$2")
       shift
       shift
       ;;
     --verbose)
+      VERBOSE_ARG="--verbose"
       set -o xtrace
       shift
       ;;
@@ -89,9 +84,12 @@ function arr_to_string_list() {
 }
 
 SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+readonly SCRIPT_DIR
 # shellcheck source=builders/tools/builder.sh
 source "${SCRIPT_DIR}"/../../../builders/tools/builder.sh
-DIST="${WORKSPACE}"/dist
+readonly DIST="${WORKSPACE}"/dist
+
+"${WORKSPACE}"/production/packaging/build_and_test_all_in_docker ${VERBOSE_ARG} --instance aws
 
 mkdir -p "${DIST}"/aws
 chmod 770 "${DIST}" "${DIST}"/aws
@@ -99,18 +97,44 @@ chmod 770 "${DIST}" "${DIST}"/aws
 printf "==== build AWS artifacts using build-amazonlinux2 =====\n"
 # build nitro enclave image, collect eif artifacts
 readonly IMAGE_URI=bazel/production/packaging/aws/data_server
+BUILD_ARCH=$("${WORKSPACE}"/builders/tools/get-architecture)
 IMAGE_TAG=$(mktemp --dry-run temp-XXXXXX)
 builder::cbuild_al2 $"
 set -o errexit
 # extract server docker image into local docker client and retag it
-docker load -i ${SERVER_IMAGE}
-docker tag ${IMAGE_URI}:server_docker_image ${IMAGE_URI}:${IMAGE_TAG}
-nitro-cli build-enclave --docker-uri ${IMAGE_URI}:${IMAGE_TAG} --output-file /tmp/server_enclave_image.eif > /tmp/server_enclave_image.json
-if [[ $? -eq 0 ]]; then
-  mv /tmp/server_enclave_image.* dist/aws/
+docker load -i dist/debian/server_docker_image.tar
+docker tag ${IMAGE_URI}:server_docker_image ${IMAGE_URI}:'${IMAGE_TAG}'
+rm -f dist/aws/{server_enclave_image.eif,server_enclave_image.json,pcr0.json}
+nitro-cli build-enclave --docker-uri ${IMAGE_URI}:'${IMAGE_TAG}' --output-file dist/aws/server_enclave_image.eif >dist/aws/server_enclave_image.json
+if [[ \$? -ne 0 ]]; then
+  printf 'error building nitro eif image\n'
+  exit 1
 fi
+jq --compact-output '{PCR0: .Measurements.PCR0}' dist/aws/server_enclave_image.json >dist/aws/pcr0.json
+jq --compact-output --raw-output '.Measurements.PCR0' dist/aws/server_enclave_image.json >dist/aws/pcr0.txt
+cat dist/aws/pcr0.json
+exit 0
 "
-docker image rm ${IMAGE_URI}:"${IMAGE_TAG}"
+docker image rm --force ${IMAGE_URI}:"${IMAGE_TAG}"
+
+readonly PCR0_REL_DIR=production/packaging/aws/data_server/nitro-pcr0
+readonly PCR0_DIR="${WORKSPACE}"/${PCR0_REL_DIR}
+readonly PCR0_FILE="${PCR0_DIR}"/${BUILD_ARCH}.json
+declare -i OUTDATED_PCR0=0
+if [[ ! -s ${PCR0_FILE} ]]; then
+  printf "warning: PCR0 file doesn't exist or is empty [%s]\n" "${PCR0_FILE}"
+  OUTDATED_PCR0=1
+elif ! diff -q "${DIST}"/aws/pcr0.json "${PCR0_FILE}" &>/dev/null; then
+  printf "warning: PCR0 hash differs\n"
+  OUTDATED_PCR0=1
+fi
+if [[ ${OUTDATED_PCR0} -eq 0 ]]; then
+  printf "PCR0 hash unchanged\n"
+else
+  cp "${DIST}"/aws/pcr0.json "${PCR0_FILE}"
+  printf "PCR0 hash differs: %s:\n" "${PCR0_FILE}"
+  cat "${PCR0_FILE}"
+fi
 
 builder::cbuild_al2 $"
 trap _collect_logs EXIT

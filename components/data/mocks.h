@@ -23,7 +23,7 @@
 #include "components/data/delta_file_notifier.h"
 #include "gmock/gmock.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 class MockBlobStorageClient : public BlobStorageClient {
  public:
@@ -63,6 +63,6 @@ class MockBlobReader : public BlobReader {
   MOCK_METHOD(bool, CanSeek, (), (const, override));
 };
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_DATA_MOCKS_H_

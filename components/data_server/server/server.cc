@@ -15,6 +15,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
@@ -29,8 +30,13 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
 #include "components/data_server/request_handler/get_values_handler.h"
+#include "components/data_server/request_handler/get_values_v2_handler.h"
 #include "components/data_server/server/key_value_service_impl.h"
+#include "components/data_server/server/key_value_service_v2_impl.h"
+#include "components/data_server/server/lifecycle_heartbeat.h"
+#include "components/data_server/server/parameter_fetcher.h"
 #include "components/errors/retry.h"
+#include "components/telemetry/telemetry.h"
 #include "components/util/build_info.h"
 #include "components/util/periodic_closure.h"
 #include "glog/logging.h"
@@ -47,42 +53,161 @@ ABSL_FLAG(uint16_t, port, 50051,
 
 ABSL_FLAG(bool, buildinfo, false, "Print build info.");
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 using google::protobuf::Struct;
 using google::protobuf::Value;
 using grpc::CallbackServerContext;
-using grpc::Server;
-using grpc::ServerBuilder;
-
-using v1::GetValuesRequest;
-using v1::GetValuesResponse;
-using v1::KeyValueService;
 
 // TODO: Use config cpio client to get this from the environment
-constexpr absl::string_view kParameterPrefix = "kv-server";
 constexpr absl::string_view kModeParameterSuffix = "mode";
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
 constexpr absl::string_view kBucketSNSParameterSuffix = "bucket-sns-arn";
-constexpr absl::string_view kLaunchHookParameterSuffix = "launch-hook";
+constexpr absl::string_view kPollFrequencyInMinutesParameterSuffix =
+    "poll-frequency-mins";
 
-constexpr absl::Duration kLifecycleHeartbeatFrequency = absl::Seconds(30);
-
-absl::StatusOr<std::string> GetParameter(
-    const ParameterClient& parameter_client, absl::string_view environment,
-    absl::string_view parameter_suffix) {
-  return parameter_client.GetParameter(
-      absl::StrJoin({kParameterPrefix, environment, parameter_suffix}, "-"));
+std::unique_ptr<BlobStorageChangeNotifier> CreateChangeNotifier(
+    const ParameterFetcher& parameter_fetcher) {
+  std::string bucket_sns_arn =
+      parameter_fetcher.GetParameter(kBucketSNSParameterSuffix);
+  LOG(INFO) << "Retrieved " << kBucketSNSParameterSuffix
+            << " parameter: " << bucket_sns_arn;
+  return BlobStorageChangeNotifier::Create({.sns_arn = bucket_sns_arn});
 }
 
-// Internal server status for demo & debugging. Can add build version and
-// others in the future.
-void AddInternalKeyValues(ShardedCache& sharded_cache) {
-  Cache& cache = sharded_cache.GetMutableCacheShard(KeyNamespace::KV_INTERNAL);
-  cache.UpdateKeyValue({"hi", ""},
-                       "Hello, world! If you are seeing this, it means you can "
-                       "query me successfully");
-}
+class Server {
+ public:
+  Server()
+      : cache_(ShardedCache::Create()),
+        blob_client_(BlobStorageClient::Create()),
+        delta_stream_reader_factory_(
+            StreamRecordReaderFactory<std::string_view>::Create()) {
+    Cache& internal_cache =
+        cache_->GetMutableCacheShard(KeyNamespace::KV_INTERNAL);
+    internal_cache.UpdateKeyValue(
+        {"hi", ""},
+        "Hello, world! If you are seeing this, it means you can "
+        "query me successfully");
+  }
+
+  absl::Status Init() {
+    auto span = GetTracer()->StartSpan("InitServer");
+    auto scope = opentelemetry::trace::Scope(span);
+    std::unique_ptr<InstanceClient> instance_client = InstanceClient::Create();
+    const std::string environment = TraceRetryUntilOk(
+        [&instance_client]() { return instance_client->GetEnvironmentTag(); },
+        "GetEnvironment");
+    LOG(INFO) << "Retrieved environment: " << environment;
+    std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
+        LifecycleHeartbeat::Create(*instance_client);
+    std::unique_ptr<ParameterClient> parameter_client =
+        ParameterClient::Create();
+    std::unique_ptr<ParameterFetcher> parameter_fetcher =
+        ParameterFetcher::Create(*parameter_client, std::move(environment));
+    if (absl::Status status = lifecycle_heartbeat->Start(*parameter_fetcher);
+        status != absl::OkStatus()) {
+      return status;
+    }
+
+    notifier_ = CreateDeltaFileNotifier(*parameter_fetcher);
+
+    CreateGrpcServices(*parameter_fetcher);
+    grpc_server_ = CreateAndStartGrpcServer();
+
+    change_notifier_ = CreateChangeNotifier(*parameter_fetcher);
+    data_orchestrator_ = CreateDataOrchestrator(*parameter_fetcher);
+    TraceRetryUntilOk([this] { return data_orchestrator_->Start(); },
+                      "StartDataOrchestrator");
+    return absl::OkStatus();
+  }
+
+  // Wait for the server to shutdown. Note that some other thread must be
+  // responsible for shutting down the server for this call to ever return.
+  void Wait() { grpc_server_->Wait(); }
+
+ private:
+  std::unique_ptr<DataOrchestrator> CreateDataOrchestrator(
+      const ParameterFetcher& parameter_fetcher) {
+    const std::string data_bucket =
+        parameter_fetcher.GetParameter(kDataBucketParameterSuffix);
+    LOG(INFO) << "Retrieved " << kDataBucketParameterSuffix
+              << " parameter: " << data_bucket;
+
+    return TraceRetryUntilOk(
+        [&] {
+          return DataOrchestrator::TryCreate(
+              {.data_bucket = data_bucket,
+               .cache = *cache_,
+               .blob_client = *blob_client_,
+               .delta_notifier = *notifier_,
+               .change_notifier = *change_notifier_,
+               .delta_stream_reader_factory = *delta_stream_reader_factory_});
+        },
+        "CreateDataOrchestrator");
+  }
+
+  void CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
+    const std::string mode =
+        parameter_fetcher.GetParameter(kModeParameterSuffix);
+    LOG(INFO) << "Retrieved " << kModeParameterSuffix << " parameter: " << mode;
+    GetValuesHandler handler(*cache_, mode == "DSP");
+    grpc_services_.push_back(
+        std::make_unique<KeyValueServiceImpl>(std::move(handler)));
+    GetValuesV2Handler v2handler(*cache_);
+    grpc_services_.push_back(
+        std::make_unique<KeyValueServiceV2Impl>(std::move(v2handler)));
+  }
+
+  std::unique_ptr<grpc::Server> CreateAndStartGrpcServer() {
+    grpc::EnableDefaultHealthCheckService(true);
+    grpc::reflection::InitProtoReflectionServerBuilderPlugin();
+    grpc::ServerBuilder builder;
+    const std::string server_address =
+        absl::StrCat("0.0.0.0:", absl::GetFlag(FLAGS_port));
+    // Listen on the given address without any authentication mechanism.
+    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+    // Register "service" as the instance through which we'll communicate with
+    // clients. In this case it corresponds to a *synchronous* service.
+    for (auto& service : grpc_services_) {
+      builder.RegisterService(service.get());
+    }
+    // Finally assemble the server.
+    LOG(INFO) << "Server listening on " << server_address << std::endl;
+    return builder.BuildAndStart();
+  }
+
+  std::unique_ptr<DeltaFileNotifier> CreateDeltaFileNotifier(
+      const ParameterFetcher& parameter_fetcher) {
+    // TODO: implement support for fetching int params, and use it here.
+    std::string poll_frequency =
+        parameter_fetcher.GetParameter(kPollFrequencyInMinutesParameterSuffix);
+    LOG(INFO) << "Retrieved " << kPollFrequencyInMinutesParameterSuffix
+              << " parameter: " << poll_frequency;
+
+    uint32_t poll_frequency_int;
+    CHECK(absl::SimpleAtoi(poll_frequency, &poll_frequency_int))
+        << "Failed converting " << kPollFrequencyInMinutesParameterSuffix
+        << " parameter: " << poll_frequency << " to integer.";
+
+    return DeltaFileNotifier::Create(*blob_client_,
+                                     absl::Minutes(poll_frequency_int));
+  }
+
+  std::vector<std::unique_ptr<grpc::Service>> grpc_services_;
+  std::unique_ptr<grpc::Server> grpc_server_;
+  std::unique_ptr<ShardedCache> cache_;
+
+  // BlobStorageClient must outlive DeltaFileNotifier
+  std::unique_ptr<BlobStorageClient> blob_client_;
+
+  // The following fields must outlive DataOrchestrator
+  std::unique_ptr<DeltaFileNotifier> notifier_;
+  std::unique_ptr<BlobStorageChangeNotifier> change_notifier_;
+  std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
+      delta_stream_reader_factory_;
+
+  std::unique_ptr<DataOrchestrator> data_orchestrator_;
+};
 
 absl::Status RunServer() {
   Aws::SDKOptions options;
@@ -90,136 +215,25 @@ absl::Status RunServer() {
   // TODO(b/234830172): remove this or turn off by default
   options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
   absl::Cleanup shutdown = [&options] { Aws::ShutdownAPI(options); };
+  InitTracer();
 
   LogBuildInfo();
   if (absl::GetFlag(FLAGS_buildinfo)) {
     return absl::OkStatus();
   }
 
-  int port = absl::GetFlag(FLAGS_port);
-  std::string server_address = absl::StrCat("0.0.0.0:", port);
-
-  std::unique_ptr<ShardedCache> cache = ShardedCache::Create();
-  AddInternalKeyValues(*cache);
-
-  // TODO(b/235502114): Add reset timeout call in separate thread.
-
-  // Retrieve 'environment' tag. Required for parameters.
-  std::unique_ptr<InstanceClient> instance_client = InstanceClient::Create();
-  std::string environment = RetryUntilOk(
-      [&instance_client]() { return instance_client->GetEnvironmentTag(); },
-      "GetEnvironment");
-  LOG(INFO) << "Retrieved environment: " << environment;
-
-  // Retrieve 'mode' parameter.
-  std::unique_ptr<ParameterClient> parameter_client = ParameterClient::Create();
-  std::string mode = RetryUntilOk(
-      [&parameter_client, &environment]() {
-        return GetParameter(*parameter_client, environment,
-                            kModeParameterSuffix);
-      },
-      "GetModeParameter");
-
-  LOG(INFO) << "Retrieved " << kModeParameterSuffix << " parameter: " << mode;
-
-  // Set up gRPC server
-  GetValuesHandler handler(*cache, mode == "DSP");
-  KeyValueServiceImpl service(handler);
-
-  grpc::EnableDefaultHealthCheckService(true);
-  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
-  ServerBuilder builder;
-  // Listen on the given address without any authentication mechanism.
-  builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-  // Register "service" as the instance through which we'll communicate with
-  // clients. In this case it corresponds to an *synchronous* service.
-  builder.RegisterService(&service);
-  // Finally assemble the server.
-  std::unique_ptr<Server> server(builder.BuildAndStart());
-  LOG(INFO) << "Server listening on " << server_address << std::endl;
-
-  // Fetch all parameters and set up data orchestrator resources
-  std::string bucket_sns_arn = RetryUntilOk(
-      [&parameter_client, &environment]() {
-        return GetParameter(*parameter_client, environment,
-                            kBucketSNSParameterSuffix);
-      },
-      "GetBucketSNSARNParmeter");
-  LOG(INFO) << "Retrieved " << kBucketSNSParameterSuffix
-            << " parameter: " << bucket_sns_arn;
-
-  std::unique_ptr<BlobStorageChangeNotifier> change_notifier =
-      BlobStorageChangeNotifier::Create({.sns_arn = bucket_sns_arn});
-  std::unique_ptr<BlobStorageClient> blob_client = BlobStorageClient::Create();
-  std::unique_ptr<DeltaFileNotifier> notifier =
-      DeltaFileNotifier::Create(*blob_client);
-  std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
-      delta_stream_reader_factory =
-          StreamRecordReaderFactory<std::string_view>::Create();
-
-  std::string data_bucket = RetryUntilOk(
-      [&parameter_client, &environment]() {
-        return GetParameter(*parameter_client, environment,
-                            kDataBucketParameterSuffix);
-      },
-      "GetDeltaFileBucketParameter");
-  LOG(INFO) << "Retrieved " << kDataBucketParameterSuffix
-            << " parameter: " << data_bucket;
-
-  std::string launch_hook_name = RetryUntilOk(
-      [&parameter_client, &environment]() {
-        return GetParameter(*parameter_client, environment,
-                            kLaunchHookParameterSuffix);
-      },
-      "GetLifecycleHookParameterName");
-  LOG(INFO) << "Retrieved " << kLaunchHookParameterSuffix
-            << " parameter: " << launch_hook_name;
-
-  std::unique_ptr<PeriodicClosure> heartbeat = PeriodicClosure::Create();
-  const absl::Status heartbeat_status = heartbeat->StartDelayed(
-      kLifecycleHeartbeatFrequency, [&instance_client, &launch_hook_name] {
-        if (const absl::Status status =
-                instance_client->RecordLifecycleHeartbeat(launch_hook_name);
-            !status.ok()) {
-          LOG(WARNING) << "Failed to record lifecycle heartbeat: " << status;
-        }
-      });
-  if (!heartbeat_status.ok()) {
-    LOG(ERROR) << "Failed to start lifecycle heartbeat: " << heartbeat_status;
+  Server server;
+  if (const absl::Status status = server.Init(); status != absl::OkStatus()) {
+    return status;
   }
-  std::unique_ptr<DataOrchestrator> data_orchestrator = RetryUntilOk(
-      [&] {
-        return DataOrchestrator::TryCreate(
-            {.data_bucket = data_bucket,
-             .cache = *cache,
-             .blob_client = *blob_client,
-             .delta_notifier = *notifier,
-             .change_notifier = *change_notifier,
-             .delta_stream_reader_factory = *delta_stream_reader_factory});
-      },
-      "CreateDataOrchestrator");
-  RetryUntilOk([&data_orchestrator] { return data_orchestrator->Start(); },
-               "StartDataOrchestrator");
-  if (heartbeat_status.ok()) {
-    heartbeat->Stop();
-  }
-  RetryUntilOk(
-      [&instance_client, &launch_hook_name] {
-        return instance_client->CompleteLifecycle(launch_hook_name);
-      },
-      "CompleteLifecycle");
-  LOG(INFO) << "Completed lifecycle hook " << launch_hook_name;
-
-  // Wait for the server to shutdown. Note that some other thread must be
-  // responsible for shutting down the server for this call to ever return.
-  server->Wait();
+  server.Wait();
   return absl::OkStatus();
 }
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
-  const absl::Status status = fledge::kv_server::RunServer();
+  const absl::Status status = kv_server::RunServer();
   if (!status.ok()) {
     LOG(FATAL) << "Failed to run server: " << status;
   }

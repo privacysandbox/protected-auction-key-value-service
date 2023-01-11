@@ -36,7 +36,7 @@ ABSL_FLAG(std::vector<std::string>, operations,
 ABSL_FLAG(std::string, bucket, "performance-test-data-bucket",
           "Bucket to read files from");
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 class NoopBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
@@ -174,10 +174,10 @@ absl::Status Run() {
   }
   return absl::OkStatus();
 }
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
-  const absl::Status status = fledge::kv_server::Run();
+  const absl::Status status = kv_server::Run();
   if (!status.ok()) {
     LOG(FATAL) << "Failed to run: " << status;
   }

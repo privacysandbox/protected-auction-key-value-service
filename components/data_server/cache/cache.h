@@ -27,7 +27,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "public/base_types.pb.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // Interface for in-memory datastore.
 // One cache object is only for keys in one namespace.
@@ -75,6 +75,6 @@ inline std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_DATA_SERVER_CACHE_CACHE_H_

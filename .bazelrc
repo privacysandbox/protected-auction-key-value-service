@@ -10,3 +10,4 @@ build --workspace_status_command="bash tools/get_workspace_status"
 test --test_output=errors
 # Disable ICU linking for googleurl.
 build --@com_google_googleurl//build_config:system_icu=0
+build --@io_opentelemetry_cpp//api:with_abseil=true

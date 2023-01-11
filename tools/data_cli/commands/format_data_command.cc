@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "tools/data_cli/commands/generate_data_command.h"
+#include "tools/data_cli/commands/format_data_command.h"
 
 #include <memory>
 #include <utility>
@@ -29,13 +29,13 @@
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 constexpr std::string_view kDeltaFormat = "delta";
 constexpr std::string_view kCsvFormat = "csv";
 
-absl::Status ValidateParams(const GenerateDataCommand::Params& params) {
+absl::Status ValidateParams(const FormatDataCommand::Params& params) {
   if (params.input_format.empty()) {
     return absl::InvalidArgumentError("Input format cannot be empty.");
   }
@@ -56,7 +56,7 @@ absl::Status ValidateParams(const GenerateDataCommand::Params& params) {
 }
 
 absl::StatusOr<std::unique_ptr<DeltaRecordReader>> CreateRecordReader(
-    const GenerateDataCommand::Params& params, std::istream& input_stream) {
+    const FormatDataCommand::Params& params, std::istream& input_stream) {
   std::string lw_input_format = absl::AsciiStrToLower(params.input_format);
   if (lw_input_format == kCsvFormat) {
     return std::make_unique<CsvDeltaRecordStreamReader<std::istream>>(
@@ -71,7 +71,7 @@ absl::StatusOr<std::unique_ptr<DeltaRecordReader>> CreateRecordReader(
 }
 
 absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
-    const GenerateDataCommand::Params& params, std::ostream& output_stream) {
+    const FormatDataCommand::Params& params, std::ostream& output_stream) {
   std::string lw_output_format = absl::AsciiStrToLower(params.output_format);
   if (lw_output_format == kCsvFormat) {
     return std::make_unique<CsvDeltaRecordStreamWriter<std::ostream>>(
@@ -98,9 +98,9 @@ absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
 
 }  // namespace
 
-absl::StatusOr<std::unique_ptr<GenerateDataCommand>>
-GenerateDataCommand::Create(const Params& params, std::istream& input_stream,
-                            std::ostream& output_stream) {
+absl::StatusOr<std::unique_ptr<FormatDataCommand>> FormatDataCommand::Create(
+    const Params& params, std::istream& input_stream,
+    std::ostream& output_stream) {
   if (absl::Status status = ValidateParams(params); !status.ok()) {
     return status;
   }
@@ -112,11 +112,11 @@ GenerateDataCommand::Create(const Params& params, std::istream& input_stream,
   if (!record_writer.ok()) {
     return record_writer.status();
   }
-  return absl::WrapUnique(new GenerateDataCommand(std::move(*record_reader),
-                                                  std::move(*record_writer)));
+  return absl::WrapUnique(new FormatDataCommand(std::move(*record_reader),
+                                                std::move(*record_writer)));
 }
 
-absl::Status GenerateDataCommand::Execute() {
+absl::Status FormatDataCommand::Execute() {
   absl::Status status = record_reader_->ReadRecords(
       [record_writer = record_writer_.get()](DeltaFileRecordStruct record) {
         return record_writer->WriteRecord(record);
@@ -125,4 +125,4 @@ absl::Status GenerateDataCommand::Execute() {
   return status;
 }
 
-}  //  namespace fledge::kv_server
+}  //  namespace kv_server

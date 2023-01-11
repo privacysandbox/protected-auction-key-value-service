@@ -144,3 +144,8 @@ variable "ssh_source_cidr_blocks" {
   description = "Source ips allowed to send ssh traffic to the ssh instance."
   type        = set(string)
 }
+
+variable "poll_frequency_mins" {
+  description = "Poll frequency for delta file notifier in minutes."
+  type        = string
+}

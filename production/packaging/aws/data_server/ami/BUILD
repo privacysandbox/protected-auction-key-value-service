@@ -1,3 +1,17 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
 
 # nitro artifacts for the AMI
@@ -6,6 +20,8 @@ pkg_zip(
     srcs = [
         "//components/aws:sqs_lambda.tar",
         "//components/aws/proxy/source:proxy",
+        "//production/packaging/aws/otel_collector:aws-otel-collector.rpm",
+        "//production/packaging/aws/otel_collector:aws_otel_collector_cfg",
     ],
 )
 
@@ -18,7 +34,7 @@ genrule(
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/aws
-cp $(location :aws_artifacts) $(location //components/aws:push_sqs) dist/aws
+cp $(execpath :aws_artifacts) $(execpath //components/aws:push_sqs) dist/aws
 chmod 755 dist/aws/push_sqs
 EOF""",
     executable = True,

@@ -24,7 +24,7 @@
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/records_utils.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 KVFileMetadata GetMetadata() {
@@ -117,4 +117,4 @@ TEST(DeltaRecordStreamWriterTest, ValidateWritingFailsAfterClose) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

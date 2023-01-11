@@ -22,7 +22,7 @@
 
 #include "public/base_types.pb.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // File basenames of the given type should start with this prefix.
 template <FileType::Enum file_type>
@@ -65,6 +65,6 @@ constexpr char kQueryArgDelimiter = ',';
 //            indicates a more recent snapshot.
 const std::regex& SnapshotFileFormatRegex();
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // PUBLIC_CONSTANTS_H_

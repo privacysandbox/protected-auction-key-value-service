@@ -29,7 +29,7 @@
 #include "public/test_util/proto_matcher.h"
 #include "quiche/binary_http/binary_http_message.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
@@ -367,4 +367,4 @@ TEST_P(GetValuesHandlerTest, ErrorOnSubkeysInSspMode) {
 }
 
 }  // namespace
-}  // namespace fledge::kv_server
+}  // namespace kv_server

@@ -110,6 +110,8 @@ module "autoscaling" {
   enclave_cpu_count            = var.enclave_cpu_count
   enclave_memory_mib           = var.enclave_memory_mib
   server_port                  = var.server_port
+  launch_hook_name             = module.parameter.launch_hook_parameter_value
+  depends_on                   = [module.iam_role_policies.instance_role_policy_attachment]
 }
 
 module "ssh" {
@@ -128,7 +130,7 @@ module "parameter" {
   mode_parameter_value                  = var.mode
   s3_bucket_parameter_value             = module.data_storage.s3_data_bucket_id
   bucket_update_sns_arn_parameter_value = module.data_storage.sns_data_updates_topic_arn
-  launch_hook_parameter_value           = module.autoscaling.launch_hook_name
+  poll_frequency_mins_parameter_value   = var.poll_frequency_mins
 }
 
 module "security_group_rules" {
@@ -155,12 +157,12 @@ module "iam_role_policies" {
   s3_delta_file_bucket_arn     = module.data_storage.s3_data_bucket_arn
   sns_data_updates_topic_arn   = module.data_storage.sns_data_updates_topic_arn
   ssh_instance_role_name       = module.iam_roles.ssh_instance_role_name
-  autoscaling_group_arn        = module.autoscaling.autoscaling_group_arn
   server_parameter_arns = [
     module.parameter.mode_parameter_arn,
     module.parameter.s3_bucket_parameter_arn,
     module.parameter.bucket_update_sns_arn_parameter_arn,
-    module.parameter.launch_hook_parameter_arn
+    module.parameter.launch_hook_parameter_arn,
+    module.parameter.poll_frequency_mins_parameter_arn
   ]
 }
 

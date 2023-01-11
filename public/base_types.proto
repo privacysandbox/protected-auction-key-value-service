@@ -14,7 +14,7 @@
 
 syntax = "proto3";
 
-package fledge.kv_server;
+package kv_server;
 
 // Every key belongs to one namespace. One key is unique within that namespace.
 // See

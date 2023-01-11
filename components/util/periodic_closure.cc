@@ -19,7 +19,7 @@
 
 #include "absl/synchronization/notification.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 class PeriodicClosureImpl : public PeriodicClosure {
@@ -73,4 +73,4 @@ class PeriodicClosureImpl : public PeriodicClosure {
 std::unique_ptr<PeriodicClosure> PeriodicClosure::Create() {
   return std::make_unique<PeriodicClosureImpl>();
 }
-}  // namespace fledge::kv_server
+}  // namespace kv_server

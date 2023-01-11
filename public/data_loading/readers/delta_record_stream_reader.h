@@ -22,7 +22,7 @@
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/records_utils.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // A `DeltaRecordStreamReader` reads records as `DeltaFileRecordStruct`s from a
 // delta record input stream source.
@@ -57,6 +57,9 @@ class DeltaRecordStreamReader : public DeltaRecordReader {
       override;
   bool IsOpen() const override { return stream_reader_.IsOpen(); };
   absl::Status Status() const override { return stream_reader_.Status(); }
+  absl::StatusOr<KVFileMetadata> ReadMetadata() {
+    return stream_reader_.GetKVFileMetadata();
+  }
 
  private:
   RiegeliStreamReader<std::string_view> stream_reader_;
@@ -77,6 +80,6 @@ absl::Status DeltaRecordStreamReader<SrcStreamT>::ReadRecords(
   });
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // PUBLIC_DATA_LOADING_READERS_DELTA_RECORD_STREAM_READER_H_

@@ -30,7 +30,7 @@
 #include "components/errors/aws_error_util.h"
 #include "glog/logging.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 // TODO(b/242313617): Make this a flag or parameter.
@@ -223,4 +223,4 @@ class S3BlobStorageClient : public BlobStorageClient {
 std::unique_ptr<BlobStorageClient> BlobStorageClient::Create() {
   return std::make_unique<S3BlobStorageClient>();
 }
-}  // namespace fledge::kv_server
+}  // namespace kv_server

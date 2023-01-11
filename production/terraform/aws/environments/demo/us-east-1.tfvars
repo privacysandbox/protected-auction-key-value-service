@@ -44,6 +44,7 @@ s3_delta_file_bucket_name = "globally-unique-bucket"
 sqs_cleanup_image_uri     = "demo:latest"
 sqs_cleanup_schedule      = "rate(6 hours)"
 sqs_queue_timeout_secs    = 86400
+poll_frequency_mins       = "5"
 
 # Variables related to AWS backend services.
 vpc_gateway_endpoint_services = [
@@ -53,7 +54,8 @@ vpc_interface_endpoint_services = [
   "ssm",
   "sns",
   "sqs",
-  "autoscaling"
+  "autoscaling",
+  "xray"
 ]
 
 # Variables related to health checks.

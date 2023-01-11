@@ -31,7 +31,7 @@
 
 #include "sqlite3.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 namespace {
 
 constexpr std::string_view kInMemoryPath = ":memory:";
@@ -424,4 +424,4 @@ absl::Status RecordAggregator::DeleteRecords() {
   return absl::OkStatus();
 }
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server

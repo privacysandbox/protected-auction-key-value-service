@@ -22,7 +22,7 @@
 #include "public/query/get_values.grpc.pb.h"
 #include "src/google/protobuf/struct.pb.h"
 
-namespace fledge::kv_server {
+namespace kv_server {
 
 // Handles GetValuesRequests.
 // See the Service proto definition for details.
@@ -49,6 +49,6 @@ class GetValuesHandler {
   const bool dsp_mode_;
 };
 
-}  // namespace fledge::kv_server
+}  // namespace kv_server
 
 #endif  // COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_HANDLER_H_

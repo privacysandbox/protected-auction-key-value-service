@@ -48,7 +48,6 @@ absl::StatusOr<DeltaFileRecordStruct> MakeDeltaFileRecordStruct(
     const riegeli::CsvRecord& csv_record) {
   DeltaFileRecordStruct record;
   record.key = csv_record[kKeyColumn];
-  record.subkey = csv_record[kSubKeyColumn];
   record.value = csv_record[kValueColumn];
   absl::StatusOr<int64_t> commit_time =
       GetLogicalCommitTime(csv_record[kLogicalCommitTimeColumn]);

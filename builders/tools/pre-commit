@@ -73,13 +73,14 @@ usage:
 
 A CLI tool to run pre-commit checks.
 
-  <default>          if command not specified, run the pre-commit tool on all files in entire workspace
-  install            install as a git pre-commit hook in the current git repo
-  autoupdate         update hook versions in .pre-commit-config.yaml
+  <default>               if command not specified, run the pre-commit tool on all files in entire workspace
+  install                 install as a git pre-commit hook in the current git repo
+  autoupdate              update hook versions in .pre-commit-config.yaml
 
 environment variables (all optional):
-    SKIP             comma-delimited list of hook ids to skip
-    PRESUBMIT_IMAGE  docker URI to the specific presubmit image to run
+    SKIP                  comma-delimited list of hook ids to skip
+    PRESUBMIT_IMAGE       docker URI to the specific presubmit image to run
+    IMAGE_BUILD_VERBOSE   capture docker build output if set
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}
@@ -89,7 +90,7 @@ function __init() {
   if [[ -n ${PRESUBMIT_IMAGE} ]]; then
     IMAGE_TAGGED="${PRESUBMIT_IMAGE}"
   else
-    IMAGE_TAGGED="$("${TOOLS_DIR}"/get-builder-image-tagged --image presubmit --verbose)"
+    IMAGE_TAGGED="$("${TOOLS_DIR}"/get-builder-image-tagged --image presubmit)"
   fi
   readonly IMAGE_TAGGED
   export CBUILD_IMAGE="${IMAGE_TAGGED}"

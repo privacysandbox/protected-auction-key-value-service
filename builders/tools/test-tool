@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# environment variables (all optional):
+#   WORKSPACE                    repo root directory, must be an absolute path
+
+set -o errexit
+
+APP=$(basename "$0")
+readonly APP
+if [[ ${APP} == test-tool ]]; then
+  printf "test-tool designed for use via symlink with target program name\n" >/dev/stderr
+  exit 1
+fi
+
+# shellcheck disable=SC1091
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
+TOOLS_DIR="$(builder::get_tools_dir)"
+readonly TOOLS_DIR
+declare -r IMAGE="test-tools"
+IMAGE_TAGGED=$("${TOOLS_DIR}"/get-builder-image-tagged --image "${IMAGE}")
+readonly IMAGE_TAGGED
+
+REL_PWD="$(realpath --relative-to="${WORKSPACE}" "$(pwd)")"
+readonly REL_PWD
+WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
+readonly WORKSPACE_MOUNT
+
+declare -a DOCKER_RUN_ARGS
+DOCKER_RUN_ARGS+=(
+  "--rm"
+  --user "$(id -u):$(id -g)"
+  --volume "${WORKSPACE_MOUNT}":/src/workspace
+  --workdir /src/workspace/"${REL_PWD}"
+  "$(echo "${EXTRA_DOCKER_RUN_ARGS}" | envsubst)"
+)
+if [[ -t 0 ]] && [[ -t 1 ]]; then
+  # stdin and stdout are open, assume it's an interactive tty session
+  DOCKER_RUN_ARGS+=(
+    "--tty"
+  )
+fi
+
+# shellcheck disable=SC2068
+docker run \
+  --interactive \
+  ${DOCKER_RUN_ARGS[@]} \
+  ${IMAGE_TAGGED} "${APP}" "$@"

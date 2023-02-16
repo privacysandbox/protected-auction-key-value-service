@@ -36,3 +36,5 @@ EOF""",
     local = True,
     message = "copying grpc_cli to dist/debian/ directory",
 )
+
+exports_files(glob(["*.patch"]))

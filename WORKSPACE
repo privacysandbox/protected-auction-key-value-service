@@ -1,6 +1,13 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
+    name = "boringssl",
+    sha256 = "0cd64ecff9e5f757988b84b7685e968775de08ea9157656d0b9fee0fa62d67ec",
+    strip_prefix = "boringssl-c2837229f381f5fcd8894f0cca792a94b557ac52",
+    urls = ["https://github.com/google/boringssl/archive/c2837229f381f5fcd8894f0cca792a94b557ac52.tar.gz"],
+)
+
+http_archive(
     name = "bazel_skylib",
     sha256 = "74d544d96f4a5bb630d465ca8bbcfe231e3594e5aae57e1edbf17a6eb3ca2506",
     urls = [
@@ -15,9 +22,9 @@ bazel_skylib_workspace()
 
 http_archive(
     name = "com_google_protobuf",
-    sha256 = "8b28fdd45bab62d15db232ec404248901842e5340299a57765e48abe8a80d930",  # Last updated 2022-05-18
-    strip_prefix = "protobuf-3.20.1",
-    urls = ["https://github.com/protocolbuffers/protobuf/archive/refs/tags/v3.20.1.tar.gz"],
+    sha256 = "e51cc8fc496f893e2a48beb417730ab6cbcb251142ad8b2cd1951faa5c76fe3d",  # Last updated 2022-09-29
+    strip_prefix = "protobuf-3.20.3",
+    urls = ["https://github.com/protocolbuffers/protobuf/releases/download/v3.20.3/protobuf-cpp-3.20.3.tar.gz"],
 )
 
 http_archive(
@@ -92,9 +99,9 @@ http_archive(
 ### rules_buf (https://docs.buf.build/build-systems/bazel)
 http_archive(
     name = "rules_buf",
-    sha256 = "3fe244c9efa42a41edd83f63dee1b5570a1951a654030658b86bfaea6a268164",
-    strip_prefix = "rules_buf-0.1.0",
-    urls = ["https://github.com/bufbuild/rules_buf/archive/refs/tags/v0.1.0.zip"],
+    sha256 = "523a4e06f0746661e092d083757263a249fedca535bd6dd819a8c50de074731a",
+    strip_prefix = "rules_buf-0.1.1",
+    urls = ["https://github.com/bufbuild/rules_buf/archive/refs/tags/v0.1.1.zip"],
 )
 
 load("@rules_buf//buf:repositories.bzl", "rules_buf_dependencies", "rules_buf_toolchains")
@@ -127,6 +134,10 @@ container_deps()
 load("//third_party:cpp_repositories.bzl", "cpp_repositories")
 
 cpp_repositories()
+
+load("//third_party:scp_deps.bzl", "scp_deps")
+
+scp_deps()
 
 load("//third_party:quiche.bzl", "quiche_dependencies")
 

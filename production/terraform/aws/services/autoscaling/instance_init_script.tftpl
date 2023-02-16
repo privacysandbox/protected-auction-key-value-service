@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# Envoy port must match the port specified in components/envoy_proxy/envoy.yaml
-# and production/packaging/aws/data_server/bin/init_server_enclave
-readonly ENVOY_PORT=51052
-
 # Make sure nitro enclave allocator service is stopped
 systemctl stop nitro-enclaves-allocator.service
 
@@ -34,5 +30,14 @@ nitro-cli run-enclave \
   --eif-path /opt/privacysandbox/server_enclave_image.eif \
   --debug-mode --enclave-cid 16
 
-# Run socat - Envoy proxy is listening on 51052 inside enclave
-socat TCP4-LISTEN:${server_port},reuseaddr,fork VSOCK-CONNECT:16:$${ENVOY_PORT} &
+
+sudo mv /home/ec2-user/query_api_descriptor_set.pb /etc/envoy
+sudo mv /home/ec2-user/envoy.yaml /etc/envoy
+sudo chmod 444 /etc/envoy/*
+
+docker run --rm \
+  --network host \
+  -v /etc/envoy:/etc/envoy \
+  envoyproxy/envoy-distroless:v1.24.1 \
+  --config-path /etc/envoy/envoy.yaml \
+  -l warn

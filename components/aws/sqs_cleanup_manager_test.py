@@ -50,7 +50,6 @@ class FakeSqsResource(object):
 
 
 class SqsCleanupManagerTest(unittest.TestCase):
-
     TIMEOUT_SECS = 600
 
     def setUp(self):

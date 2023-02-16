@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "components/data_server/cache/key_value_cache.h"
+
 #include <memory>
 #include <string>
 #include <string_view>
@@ -26,182 +28,248 @@
 #include "public/base_types.pb.h"
 
 namespace kv_server {
+
+class KeyValueCacheTestPeer {
+ public:
+  KeyValueCacheTestPeer() = delete;
+  static absl::btree_map<int64_t, std::string> ReadDeletedNodes(
+      const KeyValueCache& c) {
+    return c.deleted_nodes_;
+  }
+  static absl::flat_hash_map<std::string, CacheValue>& ReadNodes(
+      KeyValueCache& c) {
+    return c.map_;
+  }
+};
+
 namespace {
 
 using testing::UnorderedElementsAre;
 
 TEST(CacheTest, RetrievesMatchingEntry) {
-  std::unique_ptr<ShardedCache> sharded_cache = ShardedCache::Create();
-  Cache& cache = sharded_cache->GetMutableCacheShard(KeyNamespace::KEYS);
-  cache.UpdateKeyValue({"my_key", "my_subkey"}, "my_value");
-
-  Cache::FullyQualifiedKey full_key;
-  full_key.key = "my_key";
-  full_key.subkey = "my_subkey";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key};
-
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
-      cache.GetKeyValuePairs(full_keys);
-  EXPECT_TRUE(
-      sharded_cache->GetCacheShard(KeyNamespace::AD_COMPONENT_RENDER_URLS)
-          .GetKeyValuePairs(full_keys)
-          .empty());
-  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq(full_key, "my_value")));
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->UpdateKeyValue("my_key", "my_value", 1);
+  std::vector<std::string_view> keys = {"my_key"};
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(keys);
+  std::vector<std::string_view> wrong_keys = {"wrong_key"};
+  EXPECT_FALSE(cache->GetKeyValuePairs(keys).empty());
+  EXPECT_TRUE(cache->GetKeyValuePairs(wrong_keys).empty());
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 }
 
 TEST(CacheTest, GetWithMultipleKeysReturnsMatchingValues) {
-  std::unique_ptr<Cache> cache = Cache::Create();
-  cache->UpdateKeyValue({"key1", ""}, "value1");
-  cache->UpdateKeyValue({"key2", ""}, "value2");
-  cache->UpdateKeyValue({"key3", ""}, "value3");
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->UpdateKeyValue("key1", "value1", 1);
+  cache->UpdateKeyValue("key2", "value2", 2);
+  cache->UpdateKeyValue("key3", "value3", 3);
 
-  Cache::FullyQualifiedKey full_key1;
-  full_key1.key = "key1";
-  Cache::FullyQualifiedKey full_key2;
-  full_key2.key = "key2";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key1, full_key2};
+  std::vector<std::string_view> full_keys = {"key1", "key2"};
 
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 2);
-  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq(full_key1, "value1"),
-                                             KVPairEq(full_key2, "value2")));
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("key1", "value1"),
+                                             KVPairEq("key2", "value2")));
 }
 
 TEST(CacheTest, GetAfterUpdateReturnsNewValue) {
-  std::unique_ptr<Cache> cache = Cache::Create();
-  cache->UpdateKeyValue({"my_key", ""}, "my_value");
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->UpdateKeyValue("my_key", "my_value", 1);
 
-  Cache::FullyQualifiedKey full_key;
-  full_key.key = "my_key";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key};
+  std::vector<std::string_view> keys = {"my_key"};
 
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
-      cache->GetKeyValuePairs(full_keys);
-  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq(full_key, "my_value")));
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(keys);
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 
-  cache->UpdateKeyValue({"my_key", ""}, "my_new_value");
+  cache->UpdateKeyValue("my_key", "my_new_value", 2);
 
-  kv_pairs = cache->GetKeyValuePairs(full_keys);
+  kv_pairs = cache->GetKeyValuePairs(keys);
   EXPECT_EQ(kv_pairs.size(), 1);
   EXPECT_THAT(kv_pairs,
-              UnorderedElementsAre(KVPairEq(full_key, "my_new_value")));
+              UnorderedElementsAre(KVPairEq("my_key", "my_new_value")));
 }
 
-TEST(CacheTest, GetAfterUpdateDifferentKeyWithSameSubkeyReturnsSameValue) {
-  std::unique_ptr<Cache> cache = Cache::Create();
-  cache->UpdateKeyValue({"my_key", "my_subkey"}, "my_value");
-  cache->UpdateKeyValue({"new_key", "my_subkey"}, "new_value");
+TEST(CacheTest, GetAfterUpdateDifferentKeyReturnsSameValue) {
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->UpdateKeyValue("my_key", "my_value", 1);
+  cache->UpdateKeyValue("new_key", "new_value", 2);
 
-  Cache::FullyQualifiedKey full_key;
-  full_key.subkey = "my_subkey";
-  full_key.key = "my_key";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key};
+  std::vector<std::string_view> keys = {"my_key"};
 
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
-      cache->GetKeyValuePairs(full_keys);
-  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq(full_key, "my_value")));
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(keys);
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 }
 
 TEST(CacheTest, GetForEmptyCacheReturnsEmptyList) {
-  std::unique_ptr<Cache> cache = Cache::Create();
-
-  Cache::FullyQualifiedKey full_key;
-  full_key.key = "my_key";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key};
-
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
-      cache->GetKeyValuePairs(full_keys);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  std::vector<std::string_view> keys = {"my_key"};
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(keys);
   EXPECT_EQ(kv_pairs.size(), 0);
-}
-
-TEST(CacheTest, GetValuesForMissingSubkeyRetrievesEmptySubkeyEntry) {
-  std::unique_ptr<Cache> cache = Cache::Create();
-  cache->UpdateKeyValue({"my_key", ""}, "my_value");
-
-  Cache::FullyQualifiedKey full_key;
-  full_key.key = "my_key";
-  full_key.subkey = "wrong_subkey";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key};
-
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
-      cache->GetKeyValuePairs(full_keys);
-  EXPECT_EQ(kv_pairs.size(), 1);
-  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq(full_key, "my_value")));
-}
-
-TEST(CacheTest,
-     GetValuesForMissingSubkeyWithoutEmptySubkeyEntryReturnsEmptyList) {
-  std::unique_ptr<Cache> cache = Cache::Create();
-  cache->UpdateKeyValue({"my_key", "my_subkey"}, "my_value");
-
-  Cache::FullyQualifiedKey full_key;
-  full_key.key = "my_key";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key};
-
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
-      cache->GetKeyValuePairs(full_keys);
-  EXPECT_EQ(kv_pairs.size(), 0);
-}
-
-TEST(CacheTest, UpdateWithoutSubkeySetsEmptySubkey) {
-  std::unique_ptr<Cache> cache = Cache::Create();
-  cache->UpdateKeyValue({"my_key", ""}, "my_value");
-
-  Cache::FullyQualifiedKey full_key;
-  full_key.key = "my_key";
-  full_key.subkey = "";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key};
-
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
-      cache->GetKeyValuePairs(full_keys);
-  EXPECT_EQ(kv_pairs.size(), 1);
-  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq(full_key, "my_value")));
 }
 
 TEST(DeleteKeyTest, RemovesKeyEntry) {
-  std::unique_ptr<Cache> cache = Cache::Create();
-  cache->UpdateKeyValue({"my_key", ""}, "my_value");
-  cache->DeleteKey({"my_key", ""});
-
-  Cache::FullyQualifiedKey full_key;
-  full_key.key = "my_key";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key};
-
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->UpdateKeyValue("my_key", "my_value", 1);
+  cache->DeleteKey("my_key", 2);
+  std::vector<std::string_view> full_keys = {"my_key"};
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 0);
 }
 
-TEST(DeleteKeyTest, WrongSubkeyDoesNotRemoveEntry) {
-  std::unique_ptr<Cache> cache = Cache::Create();
-  cache->UpdateKeyValue({"my_key", ""}, "my_value");
-  cache->DeleteKey({"my_key", "wrong_subkey"});
-
-  Cache::FullyQualifiedKey full_key;
-  full_key.key = "my_key";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key};
-
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
-      cache->GetKeyValuePairs(full_keys);
-  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq(full_key, "my_value")));
+TEST(DeleteKeyTest, WrongkeyDoesNotRemoveEntry) {
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->UpdateKeyValue("my_key", "my_value", 1);
+  cache->DeleteKey("wrong_key", 1);
+  std::vector<std::string_view> keys = {"my_key"};
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(keys);
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 }
 
-TEST(DeleteKeyTest, RemoveKeyKeepsOtherKeysWithSameSubkey) {
-  std::unique_ptr<Cache> cache = Cache::Create();
-  cache->UpdateKeyValue({"key1", "subkey"}, "value1");
-  cache->UpdateKeyValue({"key2", "subkey"}, "value2");
+TEST(CacheTest, OutOfOrderUpdateAfterUpdateWorks) {
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->UpdateKeyValue("my_key", "my_value", 2);
 
-  cache->DeleteKey({"key2", "subkey"});
+  std::vector<std::string_view> keys = {"my_key"};
 
-  Cache::FullyQualifiedKey full_key;
-  full_key.subkey = "subkey";
-  full_key.key = "key1";
-  std::vector<Cache::FullyQualifiedKey> full_keys = {full_key};
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(keys);
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 
-  std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs =
+  cache->UpdateKeyValue("my_key", "my_new_value", 1);
+
+  kv_pairs = cache->GetKeyValuePairs(keys);
+  EXPECT_EQ(kv_pairs.size(), 1);
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
+}
+
+TEST(DeleteKeyTest, OutOfOrderDeleteAfterUpdateWorks) {
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->DeleteKey("my_key", 2);
+  cache->UpdateKeyValue("my_key", "my_value", 1);
+  std::vector<std::string_view> full_keys = {"my_key"};
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
-  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq(full_key, "value1")));
+  EXPECT_EQ(kv_pairs.size(), 1);
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
+}
+
+TEST(DeleteKeyTest, OutOfOrderUpdateAfterDeleteWorks) {
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->UpdateKeyValue("my_key", "my_value", 2);
+  cache->DeleteKey("my_key", 1);
+  std::vector<std::string_view> full_keys = {"my_key"};
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(full_keys);
+  EXPECT_EQ(kv_pairs.size(), 1);
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
+}
+
+TEST(DeleteKeyTest, InOrderUpdateAfterDeleteWorks) {
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->DeleteKey("my_key", 1);
+  cache->UpdateKeyValue("my_key", "my_value", 2);
+  std::vector<std::string_view> full_keys = {"my_key"};
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(full_keys);
+  EXPECT_EQ(kv_pairs.size(), 1);
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
+}
+
+TEST(DeleteKeyTest, InOrderDeleteAfterUpdateWorks) {
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  cache->UpdateKeyValue("my_key", "my_value", 1);
+  cache->DeleteKey("my_key", 2);
+  std::vector<std::string_view> full_keys = {"my_key"};
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(full_keys);
+  EXPECT_EQ(kv_pairs.size(), 0);
+}
+
+TEST(CleanUpTimestamps, InsertAKeyDoesntUpdateDeletedNodes) {
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
+  cache->UpdateKeyValue("my_key", "my_value", 1);
+
+  auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
+  EXPECT_EQ(deleted_nodes.size(), 0);
+}
+
+TEST(CleanUpTimestamps, RemoveDeletedKeysRemovesOldRecords) {
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
+  cache->UpdateKeyValue("my_key", "my_value", 1);
+  cache->DeleteKey("my_key", 2);
+
+  cache->RemoveDeletedKeys(3);
+
+  auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
+  EXPECT_EQ(deleted_nodes.size(), 0);
+
+  auto& nodes = KeyValueCacheTestPeer::ReadNodes(*cache);
+  EXPECT_EQ(nodes.size(), 0);
+}
+
+TEST(CleanUpTimestamps, RemoveDeletedKeysDoesntAffectNewRecords) {
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
+  cache->UpdateKeyValue("my_key", "my_value", 5);
+  cache->DeleteKey("my_key", 6);
+
+  cache->RemoveDeletedKeys(2);
+
+  auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
+  EXPECT_EQ(deleted_nodes.size(), 1);
+  EXPECT_EQ(deleted_nodes.at(6), "my_key");
+}
+
+TEST(CleanUpTimestamps,
+     RemoveDeletedKeysRemovesOldRecordsDoesntAffectNewRecords) {
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
+  cache->UpdateKeyValue("my_key1", "my_value", 1);
+  cache->UpdateKeyValue("my_key2", "my_value", 2);
+  cache->UpdateKeyValue("my_key3", "my_value", 3);
+  cache->UpdateKeyValue("my_key4", "my_value", 4);
+  cache->UpdateKeyValue("my_key5", "my_value", 5);
+
+  cache->DeleteKey("my_key3", 8);
+  cache->DeleteKey("my_key1", 6);
+  cache->DeleteKey("my_key2", 7);
+
+  cache->RemoveDeletedKeys(7);
+
+  auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
+  EXPECT_EQ(deleted_nodes.size(), 1);
+  EXPECT_EQ(deleted_nodes.at(8), "my_key3");
+
+  std::vector<std::string_view> full_keys = {
+      "my_key1", "my_key2", "my_key3", "my_key4", "my_key5",
+  };
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(full_keys);
+  EXPECT_EQ(kv_pairs.size(), 2);
+  EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key4", "my_value"),
+                                             KVPairEq("my_key5", "my_value")));
+}
+
+TEST(CleanUpTimestamps, CantInsertOldRecordsAfterCleanup) {
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
+  cache->UpdateKeyValue("my_key1", "my_value", 10);
+  cache->DeleteKey("my_key1", 12);
+  cache->RemoveDeletedKeys(13);
+
+  auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
+  EXPECT_EQ(deleted_nodes.size(), 0);
+
+  cache->UpdateKeyValue("my_key1", "my_value", 10);
+
+  std::vector<std::string_view> keys = {"my_key1"};
+
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+      cache->GetKeyValuePairs(keys);
+  EXPECT_EQ(kv_pairs.size(), 0);
 }
 
 }  // namespace

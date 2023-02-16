@@ -17,7 +17,11 @@
 #ifndef COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_HANDLER_H_
 #define COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_HANDLER_H_
 
+#include <memory>
+#include <string>
+
 #include "components/data_server/cache/cache.h"
+#include "components/telemetry/metrics_recorder.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "src/google/protobuf/struct.pb.h"
@@ -28,8 +32,11 @@ namespace kv_server {
 // See the Service proto definition for details.
 class GetValuesHandler {
  public:
-  explicit GetValuesHandler(const ShardedCache& sharded_cache, bool dsp_mode)
-      : sharded_cache_(sharded_cache), dsp_mode_(dsp_mode) {}
+  explicit GetValuesHandler(const Cache& cache,
+                            MetricsRecorder& metrics_recorder, bool dsp_mode)
+      : cache_(cache),
+        metrics_recorder_(metrics_recorder),
+        dsp_mode_(dsp_mode) {}
 
   // TODO: Implement subkey, ad/render url lookups.
   grpc::Status GetValues(const v1::GetValuesRequest& request,
@@ -42,7 +49,8 @@ class GetValuesHandler {
  private:
   grpc::Status ValidateRequest(const v1::GetValuesRequest& request) const;
 
-  const ShardedCache& sharded_cache_;
+  const Cache& cache_;
+  MetricsRecorder& metrics_recorder_;
 
   // Use DSP mode for request validation. If false, then automatically assumes
   // SSP mode.

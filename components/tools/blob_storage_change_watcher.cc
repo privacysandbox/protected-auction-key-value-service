@@ -19,7 +19,7 @@
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
 #include "aws/core/Aws.h"
-#include "components/data/blob_storage_change_notifier.h"
+#include "components/data/blob_storage/blob_storage_change_notifier.h"
 
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 

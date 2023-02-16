@@ -75,7 +75,6 @@ absl::Status DeltaRecordStreamReader<SrcStreamT>::ReadRecords(
         .mutation_type = fbs_record->mutation_type(),
         .logical_commit_time = fbs_record->logical_commit_time(),
         .key = fbs_record->key()->string_view(),
-        .subkey = fbs_record->subkey()->string_view(),
         .value = fbs_record->value()->string_view()});
   });
 }

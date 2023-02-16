@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/telemetry/aws_xray_id_generator.h"
 #include "components/telemetry/init.h"
+#include "components/telemetry/trace_generator_aws.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter_factory.h"
+#include "opentelemetry/exporters/otlp/otlp_grpc_metric_exporter_factory.h"
 #include "opentelemetry/sdk/trace/random_id_generator_factory.h"
 
 namespace kv_server {
@@ -26,4 +27,16 @@ std::unique_ptr<opentelemetry::sdk::trace::SpanExporter> CreateSpanExporter() {
 std::unique_ptr<opentelemetry::sdk::trace::IdGenerator> CreateIdGenerator() {
   return CreateXrayIdGenerator();
 }
+
+std::unique_ptr<opentelemetry::sdk::metrics::MetricReader>
+CreatePeriodicExportingMetricReader(
+    const opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions&
+        options) {
+  std::unique_ptr<opentelemetry::sdk::metrics::PushMetricExporter> exporter =
+      opentelemetry::exporter::otlp::OtlpGrpcMetricExporterFactory::Create();
+  return std::make_unique<
+      opentelemetry::sdk::metrics::PeriodicExportingMetricReader>(
+      std::move(exporter), options);
+}
+
 }  // namespace kv_server

@@ -70,7 +70,7 @@ static_resources:
           - name: envoy.filters.http.grpc_json_transcoder
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_json_transcoder.v3.GrpcJsonTranscoder
-              proto_descriptor: "/etc/envoy/config/query_api_descriptor_set.pb"
+              proto_descriptor: "/etc/envoy/query_api_descriptor_set.pb"
               services:
               - kv_server.v1.KeyValueService
               - kv_server.v2.KeyValueService

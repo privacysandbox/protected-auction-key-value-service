@@ -12,9 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM alpine:3.16 as builder
+
+# hadolint ignore=DL3018
+RUN apk add --no-cache build-base git openssl-dev autoconf automake
+WORKDIR /build
+ADD https://github.com/shekyan/slowhttptest/archive/refs/tags/v1.9.0.tar.gz /build
+RUN tar xz --strip-components 1 -f v1.9.0.tar.gz && ls -l && ./configure && make
+
 FROM golang:1.19.4-alpine3.17 AS golang-1.19
 FROM fullstorydev/grpcurl:v1.8.7 AS grpcurl
-FROM alpine:3.17.0
+FROM alpine:3.17.1
 
 COPY --from=golang-1.19 /usr/local/go/ /usr/local/go/
 COPY --from=grpcurl /bin/grpcurl /usr/bin
@@ -27,3 +35,4 @@ ENV BUILD_ARCH="${TARGETARCH}" \
 COPY install_apps /scripts/
 
 RUN /scripts/install_apps
+COPY --from=builder /build/src/slowhttptest /usr/bin/

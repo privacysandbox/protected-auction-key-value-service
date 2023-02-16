@@ -2,6 +2,68 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.7.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.6.0...release-0.7.0) (2023-02-16)
+
+
+### Features
+
+* Add --platform flag to build_and_test_all_in_docker
+* Add a concurrent record reader for data files.
+* Add a helper service for protocol testing
+* Add a stub class for reading local blob files
+* add automated PCR0 updates to kokoro continuous
+* Add base streambuf with seeking support for reading blobs.
+* Add delta writer and custom audience data parser
+* add github personal access token validation for release scripts
+* Add instance id to metrics.
+* Add seeking to S3 blob reader.
+* Add support for Zipkin exports for local builds.
+* Add terraform logic to create SNS for real time updates
+* Check timestamps for cache update
+* Implement BinaryHTTP version of V2 API
+* Implement delta file record change notifier to retrieve high priority updates
+* Implement test OHTTP V2 query handling
+* Integrating high priority updates in data server
+* Memory cleanup for delete timestamps in the cache
+* Record metrics for all RetryUntilOk events.  Export them to stdout or
+* Upgrade black to 23.1.0
+* Upgrade to build-system 0.13.0
+* Upgrade to build-system 0.14.0
+* Upgrade to build-system 0.16.0
+* Use concurrent reader for reading snapshot and delta files.
+
+
+### Bug Fixes
+
+* Add docker compose config for testing locally.
+* add empty bug id to automated PCR0 CL
+* Add unit test for delta file backup poll.  Fix bug where we can't
+* Don't ListBlobs to poll Delta files on notifications that don't
+* Don't use default number of cores for small test files.
+* fetch git remote for automated pcr0 updates
+* Fix typos and remove unreachable branches.
+* flaky delta_file_notifier test.
+* Listing non-delta files from bucket shouldn't cause state change.
+* Only read the most recent snapshot file.
+* path for local envoy
+* Prefer github release artifacts over archive artifacts
+* remove duplicate open telemetry entry.
+* remove spaces from automated PCR0 CL commit footer
+* Switch jaeger over to using OTLP directly.  Jaeger otel component is
+* Upgrade to rules_buf 0.1.1
+* Uprev Otel to pull in semantic resource convensions.  Use them
+* Use shared libraries for proxy
+
+
+### Build System
+
+* Hide build stdout/stderr for third_party
+
+
+### Documentation
+
+* Add docs for data loading library.
+
 ## [0.6.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.5.0...release-0.6.0) (2023-01-10)
 
 

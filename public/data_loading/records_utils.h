@@ -28,10 +28,8 @@ std::string_view ToStringView(const flatbuffers::FlatBufferBuilder& fb_buffer);
 
 struct DeltaFileRecordStruct {
   kv_server::DeltaMutationType mutation_type;
-
   int64_t logical_commit_time;
   std::string_view key;
-  std::string_view subkey;
   std::string_view value;
 
   flatbuffers::FlatBufferBuilder ToFlatBuffer() const;
@@ -43,38 +41,6 @@ bool operator==(const DeltaFileRecordStruct& lhs_record,
 bool operator!=(const DeltaFileRecordStruct& lhs_record,
                 const DeltaFileRecordStruct& rhs_record);
 
-// A `DeltaFileRecordStructKey` defines a hashable object that adheres to
-// the `absl::Hash` framework - https://abseil.io/docs/cpp/guides/hash#abslhash
-// which can be used as a key in associative containers to store
-// `DeltaFileRecordStruct` records.
-//
-// (1) To use with std lib associative containers, pass in
-// `absl::Hash<DeltaFileRecordStructKey>` as the hash functor, e.g.:
-// ```
-//   std::unordered_map<DeltaFileRecordStructKey, DeltaFileRecordStruct,
-//                      absl::Hash<DeltaFileRecordStructKey>> map;
-// ```
-// (2) To manually generate hash values for `DeltaFileRecordStruct` records, use
-// the following approach:
-// ```
-//   DeltaFileRecordStruct record{.key = ..., .subkey = ..., ...};
-//   DeltaFileRecordStructKey record_key{.key = record.key, .subkey =
-//   record.subkey};
-//   size_t hash_value = absl::HashOf(record_key);
-// ```
-
-struct DeltaFileRecordStructKey {
-  std::string_view key = "";
-  std::string_view subkey = "";
-
-  template <typename H>
-  friend H AbslHashValue(H h, const DeltaFileRecordStructKey& key) {
-    return H::combine(std::move(h), key.key, key.subkey);
-  }
-};
-
-bool operator==(const DeltaFileRecordStructKey& lhs_key,
-                const DeltaFileRecordStructKey& rhs_key);
 }  // namespace kv_server
 
 #endif  // PUBLIC_DATA_LOADING_RECORDS_UTILS_H_

@@ -4,9 +4,10 @@ set -o errexit
 
 function install_packages() {
   apk --no-cache add \
-    bash=5.2.15-r0 \
-    curl=7.87.0-r0 \
-    jq=1.6-r2
+    bash~=5.2.15 \
+    curl~=7.87.0 \
+    jq~=1.6 \
+    libstdc++
 }
 
 function install_ghz() {
@@ -14,5 +15,25 @@ function install_ghz() {
   ghz --help
 }
 
+function install_nghttp2() {
+  apk --no-cache add \
+    nghttp2~=1.51.0
+  h2load --version
+}
+
+function install_apache2_utils() {
+  apk --no-cache add \
+    apache2-utils~=2.4.55
+  ab -V
+}
+
+function install_cassowary() {
+  go install github.com/rogerwelin/cassowary/cmd/cassowary@v0.16.0
+  cassowary --help
+}
+
 install_packages
 install_ghz
+install_nghttp2
+install_apache2_utils
+install_cassowary

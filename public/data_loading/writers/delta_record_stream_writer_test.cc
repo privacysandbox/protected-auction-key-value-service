@@ -29,14 +29,12 @@ namespace {
 
 KVFileMetadata GetMetadata() {
   KVFileMetadata metadata;
-  metadata.set_key_namespace(KeyNamespace_Enum_KEYS);
   return metadata;
 }
 
 DeltaFileRecordStruct GetDeltaRecord() {
   DeltaFileRecordStruct record;
   record.key = "key";
-  record.subkey = "subkey";
   record.value = "value";
   record.logical_commit_time = 1234567890;
   record.mutation_type = DeltaMutationType::Update;
@@ -74,7 +72,6 @@ TEST_P(DeltaRecordStreamWriterTest, ValidateWritingAndReadingDeltaStream) {
   auto stream_reader = stream_reader_factory->CreateReader(string_stream);
   absl::StatusOr<KVFileMetadata> metadata = stream_reader->GetKVFileMetadata();
   EXPECT_TRUE(metadata.ok()) << "Failed to read metadata";
-  EXPECT_EQ(metadata->key_namespace(), GetMetadata().key_namespace());
   EXPECT_TRUE(stream_reader
                   ->ReadStreamRecords(
                       [](std::string_view record_string) -> absl::Status {
@@ -82,7 +79,6 @@ TEST_P(DeltaRecordStreamWriterTest, ValidateWritingAndReadingDeltaStream) {
                         auto fbs_record = flatbuffers::GetRoot<DeltaFileRecord>(
                             record_string.data());
                         record.key = fbs_record->key()->string_view();
-                        record.subkey = fbs_record->subkey()->string_view();
                         record.value = fbs_record->value()->string_view();
                         record.mutation_type = fbs_record->mutation_type();
                         record.logical_commit_time =
@@ -91,17 +87,6 @@ TEST_P(DeltaRecordStreamWriterTest, ValidateWritingAndReadingDeltaStream) {
                         return absl::OkStatus();
                       })
                   .ok());
-}
-
-TEST(DeltaRecordStreamWriterTest,
-     ValidateCreatingWriterWithIncorrectMetadataFails) {
-  std::stringstream string_stream;
-  DeltaRecordWriter::Options options;
-  options.enable_compression = true;
-  options.metadata = KVFileMetadata();
-  EXPECT_TRUE(!DeltaRecordStreamWriter<std::stringstream>::Create(string_stream,
-                                                                  options)
-                   .ok());
 }
 
 TEST(DeltaRecordStreamWriterTest, ValidateWritingFailsAfterClose) {

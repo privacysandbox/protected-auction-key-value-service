@@ -11,6 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include "components/data_server/cache/key_value_cache.h"
+
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -19,116 +22,106 @@
 
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
+#include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/synchronization/mutex.h"
 #include "components/data_server/cache/cache.h"
+#include "glog/logging.h"
 #include "public/base_types.pb.h"
 
 namespace kv_server {
-namespace {
-
-struct KeyContent {
-  // The default value should normally be set, but it is not enforced in any
-  // way. If the operator updates a subkey before updating the default value,
-  // this could be unset.
-  std::optional<std::string> default_value;
-  absl::flat_hash_map<std::string, std::string> subkey_values;
-};
-
-// Mapping from a key to its values with subkey overrides.
-using KeyContentMap = absl::flat_hash_map<std::string, KeyContent>;
-
-class KeyValueCache : public Cache {
- public:
-  std::vector<std::pair<FullyQualifiedKey, std::string>> GetKeyValuePairs(
-      const std::vector<Cache::FullyQualifiedKey>& full_key_list)
-      const override {
-    std::vector<std::pair<Cache::FullyQualifiedKey, std::string>> kv_pairs;
-
-    absl::ReaderMutexLock lock(&mutex_);
-    for (const auto& full_key : full_key_list) {
-      auto key_iter = map_.find(full_key.key);
-      if (key_iter == map_.end()) {
-        continue;
-      }
-      if (auto subkey_iter =
-              key_iter->second.subkey_values.find(full_key.subkey);
-          subkey_iter != key_iter->second.subkey_values.end()) {
-        kv_pairs.emplace_back(full_key, subkey_iter->second);
-      } else if (ABSL_PREDICT_TRUE(
-                     key_iter->second.default_value.has_value())) {
-        // Fall back to use the default value
-        kv_pairs.emplace_back(full_key, key_iter->second.default_value.value());
-      }
-    }
-    return kv_pairs;
-  }
-
-  // Replaces the current key-value entry with the new key-value entry.
-  void UpdateKeyValue(FullyQualifiedKey full_key, std::string value) override {
-    const bool no_subkey = full_key.subkey.empty();
-
-    absl::MutexLock lock(&mutex_);
-    KeyContent& key_content = map_[full_key.key];
-    if (no_subkey) {
-      key_content.default_value = std::move(value);
+std::vector<std::pair<std::string_view, std::string>>
+KeyValueCache::GetKeyValuePairs(
+    const std::vector<std::string_view>& key_list) const {
+  std::vector<std::pair<std::string_view, std::string>> kv_pairs;
+  absl::ReaderMutexLock lock(&mutex_);
+  for (std::string_view key : key_list) {
+    const auto key_iter = map_.find(key);
+    if (key_iter == map_.end() || key_iter->second.value == nullptr) {
+      continue;
     } else {
-      key_content.subkey_values.insert_or_assign(full_key.subkey,
-                                                 std::move(value));
+      kv_pairs.emplace_back(key, *(key_iter->second.value));
+    }
+  }
+  return kv_pairs;
+}
+
+// Replaces the current key-value entry with the new key-value entry.
+void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
+                                   int64_t logical_commit_time) {
+  absl::MutexLock lock(&mutex_);
+
+  if (logical_commit_time <= max_cleanup_logical_commit_time_) {
+    return;
+  }
+
+  const auto key_iter = map_.find(key);
+
+  if (key_iter != map_.end() &&
+      key_iter->second.last_logical_commit_time >= logical_commit_time) {
+    return;
+  }
+
+  if (key_iter != map_.end() &&
+      key_iter->second.last_logical_commit_time < logical_commit_time &&
+      key_iter->second.value == nullptr) {
+    // should always have this, but checking just in case
+    auto dl_key_iter = deleted_nodes_.find(logical_commit_time);
+    if (dl_key_iter != deleted_nodes_.end() && dl_key_iter->second == key) {
+      deleted_nodes_.erase(dl_key_iter);
     }
   }
 
-  void DeleteKey(FullyQualifiedKey full_key) override {
-    absl::MutexLock lock(&mutex_);
-    if (auto key_iter = map_.find(full_key.key); key_iter != map_.end()) {
-      if (full_key.subkey.empty()) {
-        map_.erase(key_iter);
-      } else {
-        key_iter->second.subkey_values.erase(full_key.subkey);
-      }
+  map_.insert_or_assign(key, {.value = std::make_unique<std::string>(value),
+                              .last_logical_commit_time = logical_commit_time});
+}
+
+void KeyValueCache::DeleteKey(std::string_view key,
+                              int64_t logical_commit_time) {
+  absl::MutexLock lock(&mutex_);
+  const auto key_iter = map_.find(key);
+  if (key_iter != map_.end() &&
+      key_iter->second.last_logical_commit_time < logical_commit_time) {
+    map_.insert_or_assign(
+        key,
+        {.value = nullptr, .last_logical_commit_time = logical_commit_time});
+
+    auto result = deleted_nodes_.insert_or_assign(logical_commit_time, key);
+    if (!result.second) {
+      // assignment took place -- this should never happen as the
+      // logical_commit_time is globally unique
+      LOG(ERROR) << "Assignment happened for logical commit time "
+                 << logical_commit_time << " key " << key;
     }
   }
+}
 
- private:
-  mutable absl::Mutex mutex_;
+void KeyValueCache::RemoveDeletedKeys(int64_t logical_commit_time) {
+  absl::MutexLock lock(&mutex_);
+  auto it = deleted_nodes_.begin();
 
-  KeyContentMap map_ ABSL_GUARDED_BY(mutex_);
-};
+  while (it != deleted_nodes_.end()) {
+    if (it->first > logical_commit_time) {
+      break;
+    }
 
-// Since no edition can be done to the array, no lock is used.
-// This expects the underlying cache object itself is thread safe.
-class NamespaceShardedCache : public ShardedCache {
- public:
-  NamespaceShardedCache()
-      : caches_([] {
-          CacheArrayType raw_cache;
-          for (auto& shard : raw_cache) {
-            shard = Cache::Create();
-          }
-          return raw_cache;
-        }()) {}
+    // should always have this, but checking just in case
+    auto key_iter = map_.find(it->second);
+    if (key_iter != map_.end() && key_iter->second.value == nullptr &&
+        key_iter->second.last_logical_commit_time <= logical_commit_time) {
+      map_.erase(key_iter);
+    }
 
-  Cache& GetMutableCacheShard(KeyNamespace::Enum key_namespace) override {
-    return *caches_[key_namespace];
-  }
-  const Cache& GetCacheShard(KeyNamespace::Enum key_namespace) const override {
-    return *caches_[key_namespace];
+    ++it;
   }
 
- private:
-  using CacheArrayType =
-      std::array<std::unique_ptr<Cache>, KeyNamespace::Enum_ARRAYSIZE>;
-  CacheArrayType caches_;
-};
+  max_cleanup_logical_commit_time_ =
+      std::max(max_cleanup_logical_commit_time_, logical_commit_time);
 
-}  // namespace
+  deleted_nodes_.erase(deleted_nodes_.begin(), it);
+}
 
-std::unique_ptr<Cache> Cache::Create() {
+std::unique_ptr<Cache> KeyValueCache::Create() {
   return std::make_unique<KeyValueCache>();
 }
-
-std::unique_ptr<ShardedCache> ShardedCache::Create() {
-  return std::make_unique<NamespaceShardedCache>();
-}
-
 }  // namespace kv_server

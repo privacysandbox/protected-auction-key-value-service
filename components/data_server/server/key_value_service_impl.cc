@@ -17,7 +17,13 @@
 #include <grpcpp/grpcpp.h>
 
 #include "components/data_server/request_handler/get_values_handler.h"
+#include "components/telemetry/metrics_recorder.h"
+#include "components/telemetry/telemetry.h"
 #include "public/query/get_values.grpc.pb.h"
+
+constexpr char* GET_VALUES_SPAN = "GetValues";
+constexpr char* BINARY_GET_VALUES_SPAN = "BinaryHttpGetValues";
+constexpr char* GET_VALUES_SUCCESS = "GetValuesSuccess";
 
 namespace kv_server {
 
@@ -31,7 +37,23 @@ using v1::KeyValueService;
 grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
     CallbackServerContext* context, const GetValuesRequest* request,
     GetValuesResponse* response) {
+  auto span = GetTracer()->StartSpan(GET_VALUES_SPAN);
+  auto scope = opentelemetry::trace::Scope(span);
+
   grpc::Status status = handler_.GetValues(*request, response);
+
+  if (status.ok()) {
+    metrics_recorder_.IncrementEventStatus(GET_VALUES_SUCCESS,
+                                           absl::OkStatus());
+  } else {
+    // TODO: use implicit conversion when it becomes available externally
+    // https://g3doc.corp.google.com/net/grpc/g3doc/grpc_prod/cpp/status_mapping.md?cl=head
+    absl::StatusCode absl_status_code =
+        static_cast<absl::StatusCode>(status.error_code());
+    absl::Status absl_status =
+        absl::Status(absl_status_code, status.error_message());
+    metrics_recorder_.IncrementEventStatus(GET_VALUES_SUCCESS, absl_status);
+  }
 
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
@@ -42,6 +64,9 @@ grpc::ServerUnaryReactor* KeyValueServiceImpl::BinaryHttpGetValues(
     CallbackServerContext* context,
     const v1::BinaryHttpGetValuesRequest* request,
     google::api::HttpBody* response) {
+  auto span = GetTracer()->StartSpan(BINARY_GET_VALUES_SPAN);
+  auto scope = opentelemetry::trace::Scope(span);
+
   grpc::Status status = handler_.BinaryHttpGetValues(*request, response);
 
   auto* reactor = context->DefaultReactor();

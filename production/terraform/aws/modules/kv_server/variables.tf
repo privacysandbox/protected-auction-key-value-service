@@ -137,7 +137,17 @@ variable "ssh_source_cidr_blocks" {
   type        = set(string)
 }
 
-variable "poll_frequency_mins" {
-  description = "Poll frequency for delta file notifier in minutes."
-  type        = string
+variable "backup_poll_frequency_secs" {
+  description = "Backup poll frequency for delta file notifier in seconds."
+  type        = number
+}
+
+variable "metrics_export_interval_millis" {
+  description = "Export interval for metrics in milliseconds."
+  type        = number
+}
+
+variable "metrics_export_timeout_millis" {
+  description = "Export timeout for metrics in milliseconds."
+  type        = number
 }

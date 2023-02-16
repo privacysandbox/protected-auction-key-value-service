@@ -35,7 +35,11 @@ processors:
 
 exporters:
   awsxray:
+    index_all_attributes: true
   awsemf:
+    namespace: 'KV-Server'
+    resource_to_telemetry_conversion:
+        enabled: true
 
 service:
   pipelines:

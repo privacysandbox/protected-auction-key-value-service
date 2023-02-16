@@ -24,43 +24,21 @@
 
 namespace kv_server {
 
-MATCHER_P2(FullKeyEq, key, subkey, "") {
-  return testing::ExplainMatchResult(
-      testing::AllOf(testing::Field(&Cache::FullyQualifiedKey::subkey, subkey),
-                     testing::Field(&Cache::FullyQualifiedKey::key, key)),
-      arg, result_listener);
-}
-
-MATCHER_P(FullKeyEq, full_key, "") {
-  return testing::ExplainMatchResult(
-      testing::AllOf(
-          testing::Field(&Cache::FullyQualifiedKey::subkey, full_key.subkey),
-          testing::Field(&Cache::FullyQualifiedKey::key, full_key.key)),
-      arg, result_listener);
-}
-
-MATCHER_P2(KVPairEq, full_key, value, "") {
-  return testing::ExplainMatchResult(testing::Pair(FullKeyEq(full_key), value),
-                                     arg, result_listener);
+MATCHER_P2(KVPairEq, key, value, "") {
+  return testing::ExplainMatchResult(testing::Pair(key, value), arg,
+                                     result_listener);
 }
 
 class MockCache : public Cache {
  public:
-  MOCK_METHOD((std::vector<std::pair<FullyQualifiedKey, std::string>>),
-              GetKeyValuePairs,
-              (const std::vector<FullyQualifiedKey>& full_key_list),
+  MOCK_METHOD((std::vector<std::pair<std::string_view, std::string>>),
+              GetKeyValuePairs, (const std::vector<std::string_view>& key_list),
               (const, override));
   MOCK_METHOD(void, UpdateKeyValue,
-              (FullyQualifiedKey full_key, std::string value), (override));
-  MOCK_METHOD(void, DeleteKey, (FullyQualifiedKey full_key), (override));
-};
-
-class MockShardedCache : public ShardedCache {
- public:
-  MOCK_METHOD(Cache&, GetMutableCacheShard, (KeyNamespace::Enum key_namespace),
+              (std::string_view key, std::string_view value, int64_t ts),
               (override));
-  MOCK_METHOD(const Cache&, GetCacheShard, (KeyNamespace::Enum key_namespace),
-              (const, override));
+  MOCK_METHOD(void, DeleteKey, (std::string_view key, int64_t ts), (override));
+  MOCK_METHOD(void, RemoveDeletedKeys, (int64_t ts), (override));
 };
 
 }  // namespace kv_server

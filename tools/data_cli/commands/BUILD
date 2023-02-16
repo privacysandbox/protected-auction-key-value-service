@@ -64,7 +64,7 @@ cc_library(
     hdrs = ["generate_snapshot_command.h"],
     deps = [
         ":command",
-        "//components/data:blob_storage_client",
+        "//components/data/blob_storage:blob_storage_client",
         "//public:constants",
         "//public/data_loading:filename_utils",
         "//public/data_loading:riegeli_metadata_cc_proto",

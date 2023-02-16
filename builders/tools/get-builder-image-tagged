@@ -20,9 +20,6 @@
 set -o pipefail
 set -o errexit
 
-BUILD_IMAGE_IF_NEEDED=1
-DOCKER_BUILD_ARGS="--quiet"
-
 trap _cleanup EXIT
 function _cleanup() {
   declare -r -i STATUS=$?
@@ -33,13 +30,20 @@ function _cleanup() {
     rm -f "${TEMPTAR}" "${SHAFILE}"
   fi
   if [[ ${STATUS} -ne 0 ]]; then
-    if [[ -s $BUILD_OUTPUT ]]; then
-      cat "${BUILD_OUTPUT}" &>/dev/stderr
+    if [[ -s ${BUILD_OUTPUT} ]] && [[ ${VERBOSE} -eq 1 ]]; then
+      cat "${BUILD_OUTPUT}"
     fi
     printf "Error: get-builder-image-tagged status code: %d\n" ${STATUS} &>/dev/stderr
+    sleep 5s
+  elif [[ -f ${BUILD_OUTPUT} ]] && [[ ${VERBOSE} -eq 0 ]]; then
+    rm -f "${BUILD_OUTPUT}"
   fi
-  rm -f "${BUILD_OUTPUT}"
   exit ${STATUS}
+}
+
+function make_temp() {
+  declare _suffix="$1"
+  mktemp --tmpdir="${WORKSPACE}" --dry-run docker-buildx-${IMG}-XXXX --suffix=${_suffix}
 }
 
 function get_image_list() {
@@ -62,19 +66,23 @@ function usage() {
   cat &>/dev/stderr <<USAGE
 usage:
   $0 <options>
-    --no-build           Do not build image if it doesn't exist
-    --image              Image name for the build runtime. Valid names:
+    --no-build            Do not build image if it doesn't exist
+    --image               Image name for the build runtime. Valid names:
+
+environment variables (all optional):
+    IMAGE_BUILD_VERBOSE   Capture docker build output if set
 USAGE
 
   for elem in $(get_image_list "${IMAGES_DIR}"); do
     if [[ ${IMAGE} == "${elem}" ]]; then
       local EXTRA=" (default)"
     fi
-    printf "                             *  %s%s\n" "${elem}" "${EXTRA}" &>/dev/stderr
+    printf "                       *  %s%s\n" "${elem}" "${EXTRA}" &>/dev/stderr
   done
 
   cat &>/dev/stderr <<USAGE
-    --verbose            Enable verbose output
+    --sha-only     Emit only the SHA rather than the image name
+    --verbose      Enable verbose output
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}
@@ -84,7 +92,11 @@ TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 readonly TOOLS_DIR
 readonly ETC_DIR="${TOOLS_DIR}"/../etc
 readonly IMAGES_DIR="${TOOLS_DIR}"/../images
+declare -i SHA_ONLY=0
+declare -i BUILD_IMAGE_IF_NEEDED=1
 declare -i VERBOSE=0
+declare -r DOCKER_BUILD_ARGS="--progress plain"
+
 # shellcheck disable=SC1091
 source "${TOOLS_DIR}"/builder.sh
 WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
@@ -101,8 +113,12 @@ while [[ $# -gt 0 ]]; do
       BUILD_IMAGE_IF_NEEDED=0
       shift
       ;;
+    --sha-only)
+      SHA_ONLY=1
+      shift
+      ;;
     --verbose)
-      DOCKER_BUILD_ARGS="--progress plain"
+      VERBOSE=1
       shift
       ;;
     -h | --help) usage 0 ;;
@@ -112,6 +128,10 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ -v IMAGE_BUILD_VERBOSE ]]; then
+  VERBOSE=1
+fi
 
 if [[ -z ${IMG} ]]; then
   printf -- "error: --image must be specified\n" &>/dev/stderr
@@ -131,8 +151,7 @@ fi
 
 # install gnu tar into a docker image
 readonly TAR_IMAGE="builders/tar-get-builder-image-tagged:pid-$$"
-# shellcheck disable=SC2086
-BUILD_OUTPUT="$(mktemp --dry-run docker-buildx-XXXX)"
+BUILD_OUTPUT="$(make_temp .log)"
 readonly BUILD_OUTPUT
 {
   cat <<Dockerfile
@@ -157,6 +176,7 @@ function _tar_for_dir() {
   local -r FILE_SHA="$2"
   local -r FILEPATH="$3"
   local -r TMP_IMAGE_DIR="$(mktemp --tmpdir="${WORKSPACE}" --directory)"
+  trap "rm -rf '${TMP_IMAGE_DIR}'" RETURN
 
   WS_FILE_TAR="$(realpath "${FILE_TAR}" --relative-to="${WORKSPACE}")"
   WS_FILE_SHA="$(realpath "${FILE_SHA}" --relative-to="${WORKSPACE}")"
@@ -185,12 +205,11 @@ tar --create --dereference --sort=name --owner=0 --group=0 --numeric-owner --for
 TARLEN=\$(wc -c <'${WS_FILE_TAR}')
 { printf 'blob %d\0' \${TARLEN}; tar --extract --file='${WS_FILE_TAR}' --to-stdout; } | sha256sum | cut -f1 -d' ' >'${WS_FILE_SHA}'
 "
-  rm -rf "${TMP_IMAGE_DIR}"
 }
 
-TEMPTAR=$(mktemp --tmpdir="${WORKSPACE}" --dry-run).tar.gz
+TEMPTAR="$(make_temp .tar.gz)"
 readonly TEMPTAR
-SHAFILE=$(mktemp --tmpdir="${WORKSPACE}" --dry-run).sha
+SHAFILE="$(make_temp .sha)"
 readonly SHAFILE
 # use the tarfile size and file content to generate a sha256 hash
 _tar_for_dir "${TEMPTAR}" "${SHAFILE}" "${IMAGE_PATH_FULL}"
@@ -200,7 +219,11 @@ readonly ARCH
 readonly IMAGE_TAG="${ARCH}-${SHA}"
 readonly IMAGE_TAGGED="${IMAGE_NAME}:${IMAGE_TAG}"
 # generate output
-printf "%s\n" "${IMAGE_TAGGED}"
+if [[ ${SHA_ONLY} -eq 0 ]]; then
+  printf "%s\n" "${IMAGE_TAGGED}"
+else
+  printf "%s\n" "${SHA}"
+fi
 
 if [[ ${BUILD_IMAGE_IF_NEEDED} -eq 1 ]]; then
   # Create a builder docker image

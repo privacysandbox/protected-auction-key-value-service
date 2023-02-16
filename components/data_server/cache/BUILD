@@ -18,15 +18,26 @@ package(default_visibility = ["//components:__subpackages__"])
 
 cc_library(
     name = "cache",
+    hdrs = [
+        "cache.h",
+    ],
+    deps = [],
+)
+
+cc_library(
+    name = "key_value_cache",
     srcs = [
         "key_value_cache.cc",
     ],
     hdrs = [
-        "cache.h",
+        "key_value_cache.h",
     ],
     deps = [
+        ":cache",
         "//public:base_types_cc_proto",
+        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",
+        "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/synchronization",
     ],
@@ -39,9 +50,10 @@ cc_test(
         "key_value_cache_test.cc",
     ],
     deps = [
-        ":cache",
+        ":key_value_cache",
         ":mocks",
         "//public:base_types_cc_proto",
+        "@com_google_absl//absl/container:btree",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",

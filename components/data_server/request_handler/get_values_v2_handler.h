@@ -17,24 +17,77 @@
 #ifndef COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_V2_HANDLER_H_
 #define COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_V2_HANDLER_H_
 
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#include "absl/strings/escaping.h"
 #include "components/data_server/cache/cache.h"
+#include "components/data_server/request_handler/compression.h"
+#include "components/telemetry/metrics_recorder.h"
 #include "grpcpp/grpcpp.h"
+#include "nlohmann/json.hpp"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 
 namespace kv_server {
 
-// Handles GetValuesRequests.
+// Handles the request family of *GetValues.
 // See the Service proto definition for details.
 class GetValuesV2Handler {
  public:
-  explicit GetValuesV2Handler(const ShardedCache& sharded_cache)
-      : sharded_cache_(sharded_cache) {}
+  // Accepts a functor to create compression blob builder for testing purposes.
+  explicit GetValuesV2Handler(
+      const Cache& cache, MetricsRecorder& metrics_recorder,
+      std::function<CompressionGroupConcatenator::FactoryFunctionType>
+          create_compression_group_concatenator =
+              &CompressionGroupConcatenator::Create)
+      : cache_(cache),
+        metrics_recorder_(metrics_recorder),
+        create_compression_group_concatenator_(
+            std::move(create_compression_group_concatenator)) {}
 
   grpc::Status GetValues(const v2::GetValuesRequest& request,
                          google::api::HttpBody* response) const;
 
+  grpc::Status BinaryHttpGetValues(
+      const v2::BinaryHttpGetValuesRequest& request,
+      google::api::HttpBody* response) const;
+
+  // Supports requests encrypted with a fixed key for debugging/demoing.
+  // X25519 Secret key (priv key).
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-2
+  // 3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a
+  //
+  // The corresponding public key is
+  // 31e1f05a740102115220e9af918f738674aec95f54db6e04eb705aae8e798155
+  //
+  // HPKE Configuration must be:
+  // KEM: DHKEM(X25519, HKDF-SHA256) 0x0020
+  // KDF: HKDF-SHA256 0x0001
+  // AEAD: AES-128-GCM 0X0001
+  // (https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#encryption)
+  grpc::Status ObliviousGetValues(const v2::ObliviousGetValuesRequest& request,
+                                  google::api::HttpBody* response) const;
+
+  // Given a list of compression group objects, create a JSON object to
+  // represent the list.
+  static nlohmann::json BuildCompressionGroupsForDebugging(
+      std::vector<nlohmann::json> compression_groups);
+
  private:
-  const ShardedCache& sharded_cache_;
+  grpc::Status BinaryHttpGetValues(std::string_view bhttp_request_body,
+                                   std::string& response) const;
+
+  // X25519 Secret key (private key).
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-2
+  const std::string test_private_key_ = absl::HexStringToBytes(
+      "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+
+  const Cache& cache_;
+  std::function<CompressionGroupConcatenator::FactoryFunctionType>
+      create_compression_group_concatenator_;
+  MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

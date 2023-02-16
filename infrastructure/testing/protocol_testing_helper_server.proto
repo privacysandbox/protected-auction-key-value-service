@@ -1,0 +1,119 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package kv_server;
+
+// Helper server to run locally for manual testing/debugging/demoing of the
+// communication protocol.
+//
+// Meant to only run as a single instance for small scale testing.
+//
+// The reason that this is implemented as a service instead of CLI is that OHTTP
+// communication is stateful, and that the state ("context" in OHTTP terms) is
+// not serializable at this time.
+//
+// See docs/testing_the_query_protocol.md for example usages.
+service ProtocolTestingHelper {
+  // Returns test parameters like public key used for testing.
+  rpc GetTestConfig(GetTestConfigRequest) returns (GetTestConfigResponse) {}
+
+  // Given a cleartext http message body in bytes format, wraps it in BinaryHTTP
+  // format.
+  rpc BHTTPEncapsulate(BHTTPEncapsulateRequest)
+      returns (BHTTPEncapsulateResponse) {}
+
+  // Given a BinaryHTTP message, unwraps it into a cleartext message.
+  rpc BHTTPDecapsulate(BHTTPDecapsulateRequest)
+      returns (BHTTPDecapsulateResponse) {}
+
+  // Wraps a byte string with Oblivious HTTP encryption.
+  rpc OHTTPEncapsulate(OHTTPEncapsulateRequest)
+      returns (OHTTPEncapsulateResponse) {}
+
+  // Decrypts a ciphertext encrypted by OHTTP. This is specifically for
+  // decrypting response from the OHTTP gateway (server). That is, if you need
+  // to send a request to a server in OHTTP, first use OHTTPEncapsulate to
+  // encrypt the request, send the request to the server, once you get the
+  // response, you can use this RPC to decrypt the response.
+  //
+  // Since OHTTP is stateful, the original request must be encrypted by calling
+  // OHTTPEncapsulate on this particular helper server process for this RPC to
+  // work. The context_token used as input to this RPC should be from the
+  // response of the earlier call.
+  rpc OHTTPDecapsulate(OHTTPDecapsulateRequest)
+      returns (OHTTPDecapsulateResponse) {}
+}
+
+message GetTestConfigRequest {}
+message GetTestConfigResponse {
+  bytes public_key = 1;
+}
+
+// ======================== BHTTP functions ========================
+message BHTTPEncapsulateRequest {
+  // Message body to be wrapped
+  bytes body = 1;
+  // True: request False: response
+  bool is_request = 2;
+}
+
+message BHTTPEncapsulateResponse {
+  // serialized BHTTP message
+  bytes bhttp_message = 1;
+}
+
+message BHTTPDecapsulateRequest {
+  // serialized BHTTP message
+  bytes bhttp_message = 1;
+  // True: request False: response
+  bool is_request = 2;
+}
+
+message BHTTPDecapsulateResponse {
+  // Message body unwrapped
+  bytes body = 1;
+}
+
+// ======================== OHTTP functions ========================
+message OHTTPEncapsulateRequest {
+  // Request to be encrypted
+  bytes body = 1;
+  // This key id will be embedded in the output
+  uint32 key_id = 2;
+  // This public key will be used as part of the encryption
+  bytes public_key = 3;
+}
+
+message OHTTPEncapsulateResponse {
+  // Request encrypted in OHTTP
+  bytes ohttp_request = 1;
+  // Bi-directional OHTTP is stateful. To decrypt the OHTTP response, this token
+  // must be provided together later when calling OHTTPDecapsulate. See also
+  // OHTTPDecapsulateRequest.
+  int64 context_token = 2;
+}
+
+message OHTTPDecapsulateRequest {
+  // Response from a server encrypted in OHTTP to be decrypted.
+  bytes ohttp_response = 1;
+  // Token found earlier when calling OHTTPEncapsulate on the request.
+  int64 context_token = 2;
+}
+
+message OHTTPDecapsulateResponse {
+  // Decrypted message body.
+  bytes body = 1;
+}

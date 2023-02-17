@@ -124,13 +124,16 @@ module "ssh" {
 }
 
 module "parameter" {
-  source                                = "../../services/parameter"
-  service                               = local.service
-  environment                           = var.environment
-  mode_parameter_value                  = var.mode
-  s3_bucket_parameter_value             = module.data_storage.s3_data_bucket_id
-  bucket_update_sns_arn_parameter_value = module.data_storage.sns_data_updates_topic_arn
-  poll_frequency_mins_parameter_value   = var.poll_frequency_mins
+  source                                         = "../../services/parameter"
+  service                                        = local.service
+  environment                                    = var.environment
+  mode_parameter_value                           = var.mode
+  s3_bucket_parameter_value                      = module.data_storage.s3_data_bucket_id
+  bucket_update_sns_arn_parameter_value          = module.data_storage.sns_data_updates_topic_arn
+  realtime_sns_arn_parameter_value               = module.data_storage.sns_realtime_topic_arn
+  backup_poll_frequency_secs_parameter_value     = var.backup_poll_frequency_secs
+  metrics_export_interval_millis_parameter_value = var.metrics_export_interval_millis
+  metrics_export_timeout_millis_parameter_value  = var.metrics_export_timeout_millis
 }
 
 module "security_group_rules" {
@@ -156,13 +159,17 @@ module "iam_role_policies" {
   sqs_cleanup_lambda_role_name = module.iam_roles.lambda_role_name
   s3_delta_file_bucket_arn     = module.data_storage.s3_data_bucket_arn
   sns_data_updates_topic_arn   = module.data_storage.sns_data_updates_topic_arn
+  sns_realtime_topic_arn       = module.data_storage.sns_realtime_topic_arn
   ssh_instance_role_name       = module.iam_roles.ssh_instance_role_name
   server_parameter_arns = [
     module.parameter.mode_parameter_arn,
     module.parameter.s3_bucket_parameter_arn,
     module.parameter.bucket_update_sns_arn_parameter_arn,
+    module.parameter.realtime_sns_arn_parameter_arn,
     module.parameter.launch_hook_parameter_arn,
-    module.parameter.poll_frequency_mins_parameter_arn
+    module.parameter.backup_poll_frequency_secs_parameter_arn,
+    module.parameter.metrics_export_interval_millis_parameter_arn,
+    module.parameter.metrics_export_timeout_millis_parameter_arn,
   ]
 }
 

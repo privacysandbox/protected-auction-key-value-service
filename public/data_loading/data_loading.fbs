@@ -18,9 +18,6 @@ table DeltaFileRecord {
   // Required.
   key:string;
 
-  // Optional. If unset, the value will be the default value for the key.
-  subkey:string;
-
   // Required.
   value:string;
 }

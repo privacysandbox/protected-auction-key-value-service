@@ -22,6 +22,7 @@
 #include "absl/status/status.h"
 #include "components/cloud_config/instance_client.h"
 #include "components/data_server/server/parameter_fetcher.h"
+#include "components/telemetry/metrics_recorder.h"
 #include "components/util/periodic_closure.h"
 
 namespace kv_server {
@@ -34,12 +35,12 @@ class LifecycleHeartbeat {
   virtual void Finish() = 0;
 
   static std::unique_ptr<LifecycleHeartbeat> Create(
-      InstanceClient& instance_client);
+      InstanceClient& instance_client, MetricsRecorder& metrics_recorder);
 
   // For testing
   static std::unique_ptr<LifecycleHeartbeat> Create(
       std::unique_ptr<PeriodicClosure> heartbeat,
-      InstanceClient& instance_client);
+      InstanceClient& instance_client, MetricsRecorder& metrics_recorder);
 };
 
 }  // namespace kv_server

@@ -32,16 +32,31 @@ cc_library(
         "//components/util:version_linkstamp",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@io_opentelemetry_cpp//api",
-        "@io_opentelemetry_cpp//sdk:headers",
+        "@io_opentelemetry_cpp//sdk/src/metrics",
+        "@io_opentelemetry_cpp//sdk/src/resource",
         "@io_opentelemetry_cpp//sdk/src/trace",
     ],
 )
 
+cc_library(
+    name = "metrics_recorder",
+    srcs = [
+        "metrics_recorder.cc",
+    ],
+    hdrs = [
+        "metrics_recorder.h",
+    ],
+    deps = [
+        ":telemetry",
+        "//components/util:version_linkstamp",
+        "@com_google_absl//absl/status",
+    ],
+)
+
 config_setting(
-    name = "local_otel_export_jaeger",
+    name = "local_otel_export_otlp",
     flag_values = {
-        ":local_otel_export": "jaeger",
+        ":local_otel_export": "otlp",
     },
     visibility = [
         "//components/util:__pkg__",
@@ -58,27 +73,45 @@ config_setting(
     ],
 )
 
+config_setting(
+    name = "local_otel_export_zipkin",
+    flag_values = {
+        ":local_otel_export": "zipkin",
+    },
+    visibility = [
+        "//components/util:__pkg__",
+    ],
+)
+
 string_flag(
     name = "local_otel_export",
     build_setting_default = "ostream",
     values = [
-        "jaeger",
         "ostream",
+        "otlp",
+        "zipkin",
     ],
 )
 
 cc_library(
     name = "init_local",
-    srcs = select({
-        ":local_otel_export_jaeger": ["init_local_jaeger.cc"],
+    srcs = ["init_local.cc"] + select({
         ":local_otel_export_ostream": ["init_local_ostream.cc"],
+        ":local_otel_export_otlp": ["init_local_otlp.cc"],
+        ":local_otel_export_zipkin": ["init_local_zipkin.cc"],
     }),
     hdrs = [
         "init.h",
     ],
-    deps = select({
-        ":local_otel_export_jaeger": ["@io_opentelemetry_cpp//exporters/jaeger:opentelemetry_exporter_jaeger_trace"],
-        ":local_otel_export_ostream": ["@io_opentelemetry_cpp//exporters/ostream:ostream_span_exporter"],
+    deps = [
+        "@com_google_absl//absl/status:statusor",
+        "@io_opentelemetry_cpp//exporters/ostream:ostream_metric_exporter",
+    ] + select({
+        ":local_otel_export_ostream": [
+            "@io_opentelemetry_cpp//exporters/ostream:ostream_span_exporter",
+        ],
+        ":local_otel_export_otlp": ["@io_opentelemetry_cpp//exporters/otlp:otlp_grpc_exporter"],
+        ":local_otel_export_zipkin": ["@io_opentelemetry_cpp//exporters/zipkin:zipkin_exporter"],
     }),
 )
 
@@ -91,6 +124,7 @@ cc_library(
     deps = [
         ":aws_xray",
         "@io_opentelemetry_cpp//exporters/otlp:otlp_grpc_exporter",
+        "@io_opentelemetry_cpp//exporters/otlp:otlp_grpc_metric_exporter",
     ],
 )
 
@@ -109,8 +143,8 @@ cc_library(
 
 cc_library(
     name = "aws_xray",
-    srcs = ["aws_xray_id_generator.cc"],
-    hdrs = ["aws_xray_id_generator.h"],
+    srcs = ["trace_generator_aws.cc"],
+    hdrs = ["trace_generator_aws.h"],
     deps = [
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/strings:str_format",
@@ -119,9 +153,19 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "mocks",
+    testonly = 1,
+    hdrs = ["mocks.h"],
+    deps = [
+        ":metrics_recorder",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
 cc_test(
     name = "aws_xray_id_generator_test",
-    srcs = ["aws_xray_id_generator_test.cc"],
+    srcs = ["xray_id_generator_aws_test.cc"],
     deps = [
         ":aws_xray",
         "@com_google_absl//absl/time",

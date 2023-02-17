@@ -32,14 +32,12 @@ namespace kv_server {
 namespace {
 
 size_t GetRecordKey(const DeltaFileRecordStruct& record) {
-  return std::hash<std::string>{}(absl::StrCat(record.key, "-", record.subkey));
+  return absl::HashOf(record.key);
 }
 
-DeltaFileRecordStruct GetDeltaRecord(std::string_view key = "key",
-                                     std::string_view subkey = "subkey") {
+DeltaFileRecordStruct GetDeltaRecord(std::string_view key = "key") {
   DeltaFileRecordStruct record;
   record.key = key;
-  record.subkey = subkey;
   record.value = "value";
   record.logical_commit_time = 1234567890;
   record.mutation_type = DeltaMutationType::Update;

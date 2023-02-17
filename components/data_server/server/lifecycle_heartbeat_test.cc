@@ -17,6 +17,7 @@
 #include <string>
 #include <utility>
 
+#include "components/telemetry/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -52,66 +53,80 @@ class FakePeriodicClosure : public PeriodicClosure {
 
 class MockInstanceClient : public InstanceClient {
  public:
-  MOCK_METHOD(absl::StatusOr<std::string>, GetEnvironmentTag, (),
-              (const, override));
+  MOCK_METHOD(absl::StatusOr<std::string>, GetEnvironmentTag, (), (override));
   MOCK_METHOD(absl::Status, RecordLifecycleHeartbeat,
-              (std::string_view lifecycle_hook_name), (const, override));
+              (std::string_view lifecycle_hook_name), (override));
   MOCK_METHOD(absl::Status, CompleteLifecycle,
-              (std::string_view lifecycle_hook_name), (const, override));
+              (std::string_view lifecycle_hook_name), (override));
+  MOCK_METHOD(absl::StatusOr<std::string>, GetInstanceId, (), (override));
 };
 
 class MockParameterFetcher : public ParameterFetcher {
  public:
   MOCK_METHOD(std::string, GetParameter, (std::string_view parameter_suffix),
               (const, override));
+  MOCK_METHOD(int32_t, GetInt32Parameter, (std::string_view parameter_suffix),
+              (const, override));
 };
 
 TEST(LifecycleHeartbeat, CantRunTwice) {
-  std::unique_ptr<PeriodicClosure> pc = std::make_unique<FakePeriodicClosure>();
-  MockInstanceClient ic;
-  std::unique_ptr<LifecycleHeartbeat> lh =
-      LifecycleHeartbeat::Create(std::move(pc), ic);
-  MockParameterFetcher pf;
-  EXPECT_CALL(pf, GetParameter("launch-hook")).WillOnce(testing::Return("hi"));
-  absl::Status status = lh->Start(pf);
+  std::unique_ptr<PeriodicClosure> periodic_closure =
+      std::make_unique<FakePeriodicClosure>();
+  MockInstanceClient instance_client;
+  MockMetricsRecorder metrics_recorder;
+  std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
+      LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client,
+                                 metrics_recorder);
+  MockParameterFetcher parameter_fetcher;
+  EXPECT_CALL(parameter_fetcher, GetParameter("launch-hook"))
+      .WillOnce(testing::Return("hi"));
+  absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
   ASSERT_TRUE(status.ok());
-  status = lh->Start(pf);
+  status = lifecycle_heartbeat->Start(parameter_fetcher);
   ASSERT_FALSE(status.ok());
-  EXPECT_CALL(ic, CompleteLifecycle("hi"))
+  EXPECT_CALL(instance_client, CompleteLifecycle("hi"))
       .WillOnce(testing::Return(absl::OkStatus()));
 }
 
 TEST(LifecycleHeartbeat, RecordsHeartbeat) {
-  std::unique_ptr<PeriodicClosure> pc = std::make_unique<FakePeriodicClosure>();
-  FakePeriodicClosure* pcp = dynamic_cast<FakePeriodicClosure*>(pc.get());
-  MockInstanceClient ic;
-  std::unique_ptr<LifecycleHeartbeat> lh =
-      LifecycleHeartbeat::Create(std::move(pc), ic);
-  MockParameterFetcher pf;
-  EXPECT_CALL(pf, GetParameter("launch-hook")).WillOnce(testing::Return("hi"));
-  absl::Status status = lh->Start(pf);
-  EXPECT_CALL(ic, RecordLifecycleHeartbeat("hi"))
-      .WillOnce(testing::Return(absl::OkStatus()));
-  pcp->RunFunc();
+  std::unique_ptr<PeriodicClosure> periodic_closure =
+      std::make_unique<FakePeriodicClosure>();
+  FakePeriodicClosure* periodic_closurep =
+      dynamic_cast<FakePeriodicClosure*>(periodic_closure.get());
+  MockInstanceClient instance_client;
+  MockMetricsRecorder metrics_recorder;
+  std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
+      LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client,
+                                 metrics_recorder);
+  MockParameterFetcher parameter_fetcher;
+  EXPECT_CALL(parameter_fetcher, GetParameter("launch-hook"))
+      .WillOnce(testing::Return("hi"));
+  absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
   ASSERT_TRUE(status.ok());
-  EXPECT_CALL(ic, CompleteLifecycle("hi"))
+  EXPECT_CALL(instance_client, RecordLifecycleHeartbeat("hi"))
       .WillOnce(testing::Return(absl::OkStatus()));
+  EXPECT_CALL(instance_client, CompleteLifecycle("hi"))
+      .WillOnce(testing::Return(absl::OkStatus()));
+  periodic_closurep->RunFunc();
 }
 
 TEST(LifecycleHeartbeat, OnlyFinishOnce) {
-  std::unique_ptr<PeriodicClosure> pc = std::make_unique<FakePeriodicClosure>();
-  MockInstanceClient ic;
-  EXPECT_CALL(ic, CompleteLifecycle("hi"))
+  std::unique_ptr<PeriodicClosure> periodic_closure =
+      std::make_unique<FakePeriodicClosure>();
+  MockInstanceClient instance_client;
+  MockMetricsRecorder metrics_recorder;
+  EXPECT_CALL(instance_client, CompleteLifecycle("hi"))
       .Times(1)
       .WillOnce(testing::Return(absl::OkStatus()));
   {
-    std::unique_ptr<LifecycleHeartbeat> lh =
-        LifecycleHeartbeat::Create(std::move(pc), ic);
-    MockParameterFetcher pf;
-    EXPECT_CALL(pf, GetParameter("launch-hook"))
+    std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
+        LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client,
+                                   metrics_recorder);
+    MockParameterFetcher parameter_fetcher;
+    EXPECT_CALL(parameter_fetcher, GetParameter("launch-hook"))
         .WillOnce(testing::Return("hi"));
-    absl::Status status = lh->Start(pf);
-    lh->Finish();
+    absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
+    lifecycle_heartbeat->Finish();
   }
 }
 

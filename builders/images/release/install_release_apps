@@ -1,6 +1,6 @@
 #!/bin/sh
 
-npm install --global commit-and-tag-version
+npm install --global commit-and-tag-version@10.1.0
 
 # Install the GitHub CLI tool (https://cli.github.com/)
 apk add github-cli

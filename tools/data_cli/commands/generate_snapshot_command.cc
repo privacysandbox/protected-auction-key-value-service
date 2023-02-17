@@ -30,6 +30,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
+#include "components/data/blob_storage/blob_storage_client.h"
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
@@ -38,9 +39,9 @@
 namespace kv_server {
 namespace {
 
-constexpr std::string_view kStdioSymbol = "-";
-constexpr std::string_view kCloudDirectoryPrefix = "cloud://";
-
+// The working_dir is always on local disk but the BlobStorageClient that this
+// CLI is compiled with may support either S3 or local, not both.  So we need a
+// BlobReader that can read the local temp data for writing to the Client.
 class FileBlobReader : public BlobReader {
  public:
   explicit FileBlobReader(const std::string& filename)
@@ -53,61 +54,9 @@ class FileBlobReader : public BlobReader {
   std::ifstream file_stream_;
 };
 
-class FileBlobStorageClient : public BlobStorageClient {
- public:
-  ~FileBlobStorageClient() = default;
-  static std::unique_ptr<BlobStorageClient> Create() {
-    return std::make_unique<FileBlobStorageClient>();
-  }
-  std::unique_ptr<BlobReader> GetBlobReader(DataLocation location) override {
-    return std::make_unique<FileBlobReader>(GetFullPath(location));
-  }
-  absl::Status PutBlob(BlobReader& blob_reader,
-                       DataLocation location) override {
-    std::filesystem::remove(GetFullPath(location));
-    std::ofstream blob_ostream(GetFullPath(location));
-    blob_ostream << blob_reader.Stream().rdbuf();
-    blob_ostream.close();
-    return absl::OkStatus();
-  }
-  absl::Status DeleteBlob(DataLocation location) override {
-    auto fullpath = GetFullPath(location);
-    if (std::filesystem::remove(fullpath)) {
-      return absl::OkStatus();
-    }
-    return absl::InternalError(
-        absl::StrCat("Failed to delete blob: ", fullpath.c_str()));
-  }
-  absl::StatusOr<std::vector<std::string>> ListBlobs(
-      DataLocation location, ListOptions options) override {
-    std::vector<std::string> blob_names;
-    for (const auto& dir_entry :
-         std::filesystem::directory_iterator(location.bucket)) {
-      if (dir_entry.is_directory()) {
-        continue;
-      }
-      auto blob_name = dir_entry.path().filename();
-      if (!absl::StartsWith(blob_name.c_str(), options.prefix) ||
-          blob_name <= options.start_after) {
-        continue;
-      }
-      blob_names.push_back(blob_name);
-    }
-    std::sort(blob_names.begin(), blob_names.end());
-    return blob_names;
-  }
+constexpr std::string_view kStdioSymbol = "-";
 
- private:
-  std::filesystem::path GetFullPath(DataLocation location) {
-    return std::filesystem::path(location.bucket) / location.key;
-  }
-};
-
-absl::Status ValidateRequiredParams(
-    const GenerateSnapshotCommand::Params& params) {
-  if (params.key_namespace.empty()) {
-    return absl::InvalidArgumentError("Key namespace is required.");
-  }
+absl::Status ValidateRequiredParams(GenerateSnapshotCommand::Params& params) {
   if (params.working_dir.empty()) {
     return absl::InvalidArgumentError("Working directory is required.");
   }
@@ -117,13 +66,6 @@ absl::Status ValidateRequiredParams(
   }
   if (params.data_dir.empty()) {
     return absl::InvalidArgumentError("Data directory is required.");
-  }
-  if (!absl::StartsWith(params.data_dir, kCloudDirectoryPrefix) &&
-      !std::filesystem::is_directory(params.data_dir)) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Data directory must be a valid local directory or an S3 "
-                     "bucket. Data directory: ",
-                     params.data_dir));
   }
   if (params.starting_file.empty() ||
       (!IsDeltaFilename(params.starting_file) &&
@@ -136,10 +78,6 @@ absl::Status ValidateRequiredParams(
     return absl::InvalidArgumentError("Ending delta file is not valid.");
   }
   return absl::OkStatus();
-}
-
-bool IsCloudDataDir(std::string_view data_dir) {
-  return absl::StartsWith(data_dir, kCloudDirectoryPrefix);
 }
 
 std::filesystem::path GetTempAggregatorDbFile(
@@ -162,24 +100,9 @@ std::filesystem::path GetTempSnapshotFile(
   return file_path;
 }
 
-absl::StatusOr<KeyNamespace::Enum> GetKeyNamespace(
-    std::string_view key_namespace) {
-  KeyNamespace::Enum key_ns;
-  if (KeyNamespace::Enum_Parse(key_namespace.data(), &key_ns)) {
-    return key_ns;
-  }
-  return absl::InvalidArgumentError(
-      absl::StrCat("Key namespace: ", key_namespace, " is not valid."));
-}
-
 absl::StatusOr<KVFileMetadata> CreateSnapshotMetadata(
     const GenerateSnapshotCommand::Params& params) {
   KVFileMetadata metadata;
-  auto key_ns = GetKeyNamespace(params.key_namespace);
-  if (!key_ns.ok()) {
-    return key_ns.status();
-  }
-  metadata.set_key_namespace(*key_ns);
   auto snapshot_metadata = metadata.mutable_snapshot();
   *snapshot_metadata->mutable_starting_file() = params.starting_file;
   *snapshot_metadata->mutable_ending_delta_file() = params.ending_delta_file;
@@ -193,7 +116,7 @@ void ResetInputStream(std::istream& istream) {
 
 absl::StatusOr<std::string> WriteBaseSnapshotData(
     const GenerateSnapshotCommand::Params& params,
-    KeyNamespace::Enum key_namespace, BlobStorageClient& blob_client,
+    BlobStorageClient& blob_client,
     SnapshotStreamWriter<std::ostream>& snapshot_writer) {
   LOG(INFO) << "Compacting base snapshot file: " << params.starting_file;
   auto blob_reader = blob_client.GetBlobReader(
@@ -202,13 +125,6 @@ absl::StatusOr<std::string> WriteBaseSnapshotData(
   auto metadata = record_reader.ReadMetadata();
   if (!metadata.ok()) {
     return metadata.status();
-  }
-  if (!metadata->has_key_namespace() ||
-      metadata->key_namespace() != key_namespace) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "Base snapshot file has different key namespace than "
-        "target snapshot. Base key namespace: ",
-        metadata->key_namespace(), ", target key namespace: ", key_namespace));
   }
   if (blob_reader->CanSeek()) {
     ResetInputStream(blob_reader->Stream());
@@ -228,7 +144,7 @@ absl::StatusOr<std::string> WriteBaseSnapshotData(
 absl::Status WriteDeltaFilesToSnapshot(
     const std::vector<std::string>& delta_files,
     const GenerateSnapshotCommand::Params& params,
-    KeyNamespace::Enum key_namespace, BlobStorageClient& blob_client,
+    BlobStorageClient& blob_client,
     SnapshotStreamWriter<std::ostream>& snapshot_writer) {
   for (const auto& delta_file : delta_files) {
     LOG(INFO) << "Compacting delta file: " << delta_file;
@@ -247,14 +163,6 @@ absl::Status WriteDeltaFilesToSnapshot(
     auto metadata = record_reader.ReadMetadata();
     if (!metadata.ok()) {
       return metadata.status();
-    }
-    if (!metadata->has_key_namespace() ||
-        metadata->key_namespace() != key_namespace) {
-      LOG(INFO) << "Skipping delta file: " << delta_file
-                << " because of key namespace mismatch. "
-                << " Delta file namespace: " << metadata->key_namespace()
-                << ", Target snapshot namespace: " << key_namespace;
-      continue;
     }
     if (blob_reader->CanSeek()) {
       ResetInputStream(blob_reader->Stream());
@@ -289,26 +197,18 @@ GenerateSnapshotCommand::Create(Params params) {
   if (absl::Status status = ValidateRequiredParams(params); !status.ok()) {
     return status;
   }
-  auto blob_client = IsCloudDataDir(params.data_dir)
-                         ? BlobStorageClient::Create()
-                         : FileBlobStorageClient::Create();
-  params.data_dir = IsCloudDataDir(params.data_dir)
-                        ? params.data_dir.substr(kCloudDirectoryPrefix.size())
-                        : params.data_dir;
+  auto blob_client = BlobStorageClient::Create();
   return absl::WrapUnique(
       new GenerateSnapshotCommand(std::move(params), std::move(blob_client)));
 }
 
 absl::Status GenerateSnapshotCommand::Execute() {
-  auto key_namespace = GetKeyNamespace(params_.key_namespace);
-  if (!key_namespace.ok()) {
-    return key_namespace.status();
-  }
   auto snapshot_metadata = CreateSnapshotMetadata(params_);
   if (!snapshot_metadata.ok()) {
     return snapshot_metadata.status();
   }
-  std::ofstream snapshot_ofstream(GetTempSnapshotFile(params_));
+  const std::filesystem::path temp_snapshot(GetTempSnapshotFile(params_));
+  std::ofstream snapshot_ofstream(temp_snapshot);
   std::ostream* snapshot_ostream =
       params_.snapshot_file == kStdioSymbol ? &std::cout : &snapshot_ofstream;
   auto snapshot_writer = SnapshotStreamWriter<std::ostream>::Create(
@@ -322,8 +222,8 @@ absl::Status GenerateSnapshotCommand::Execute() {
   }
   std::string_view start_after_delta_file = params_.starting_file;
   if (IsSnapshotFilename(params_.starting_file)) {
-    auto snapshot_end_file = WriteBaseSnapshotData(
-        params_, *key_namespace, *blob_client_, **snapshot_writer);
+    auto snapshot_end_file =
+        WriteBaseSnapshotData(params_, *blob_client_, **snapshot_writer);
     if (!snapshot_end_file.ok()) {
       return snapshot_end_file.status();
     }
@@ -339,9 +239,8 @@ absl::Status GenerateSnapshotCommand::Execute() {
   if (IsDeltaFilename(params_.starting_file)) {
     delta_files->insert(delta_files->begin(), start_after_delta_file.data());
   }
-  if (auto status =
-          WriteDeltaFilesToSnapshot(*delta_files, params_, *key_namespace,
-                                    *blob_client_, **snapshot_writer);
+  if (auto status = WriteDeltaFilesToSnapshot(*delta_files, params_,
+                                              *blob_client_, **snapshot_writer);
       !status.ok()) {
     return status;
   }
@@ -349,12 +248,11 @@ absl::Status GenerateSnapshotCommand::Execute() {
     return status;
   }
   snapshot_ofstream.close();
-  auto blob_reader = FileBlobStorageClient::Create()->GetBlobReader(
-      {.bucket = params_.working_dir, .key = params_.snapshot_file});
+  FileBlobReader file_blob_reader(temp_snapshot);
   LOG(INFO) << "Writing snapshot file: " << params_.data_dir << "/"
             << params_.snapshot_file;
   if (auto status = blob_client_->PutBlob(
-          *blob_reader,
+          file_blob_reader,
           {.bucket = params_.data_dir, .key = params_.snapshot_file});
       !status.ok()) {
     return status;

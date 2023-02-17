@@ -26,6 +26,10 @@ output "bucket_update_sns_arn_parameter_arn" {
   value = aws_ssm_parameter.bucket_update_sns_arn_parameter.arn
 }
 
+output "realtime_sns_arn_parameter_arn" {
+  value = aws_ssm_parameter.realtime_sns_arn_parameter.arn
+}
+
 output "launch_hook_parameter_arn" {
   value = aws_ssm_parameter.launch_hook_parameter.arn
 }
@@ -34,6 +38,14 @@ output "launch_hook_parameter_value" {
   value = aws_ssm_parameter.launch_hook_parameter.value
 }
 
-output "poll_frequency_mins_parameter_arn" {
-  value = aws_ssm_parameter.poll_frequency_mins_parameter.arn
+output "backup_poll_frequency_secs_parameter_arn" {
+  value = aws_ssm_parameter.backup_poll_frequency_secs_parameter.arn
+}
+
+output "metrics_export_interval_millis_parameter_arn" {
+  value = aws_ssm_parameter.metrics_export_interval_millis_parameter.arn
+}
+
+output "metrics_export_timeout_millis_parameter_arn" {
+  value = aws_ssm_parameter.metrics_export_timeout_millis_parameter.arn
 }

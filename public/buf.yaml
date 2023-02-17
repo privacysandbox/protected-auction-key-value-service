@@ -26,6 +26,8 @@ lint:
     RPC_RESPONSE_STANDARD_NAME:
       - public/query/get_values.proto
       - public/query/v2/get_values_v2.proto
+    RPC_REQUEST_RESPONSE_UNIQUE:
+      - public/query/v2/get_values_v2.proto
   enum_zero_value_suffix: _UNSPECIFIED
   rpc_allow_same_request_response: false
   rpc_allow_google_protobuf_empty_requests: false

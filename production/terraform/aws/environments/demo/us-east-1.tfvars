@@ -29,7 +29,8 @@ instance_type   = "m5.xlarge"
 instance_ami_id = "ami-0000000"
 
 # Variables related to server configuration.
-mode               = "DSP"
+mode = "DSP"
+# server_port must match the value configured in envoy.yaml
 server_port        = 51052
 enclave_cpu_count  = 2
 enclave_memory_mib = 3072
@@ -40,11 +41,11 @@ autoscaling_max_size         = 6
 autoscaling_min_size         = 4
 
 # Variables related to data storage and cleanup.
-s3_delta_file_bucket_name = "globally-unique-bucket"
-sqs_cleanup_image_uri     = "demo:latest"
-sqs_cleanup_schedule      = "rate(6 hours)"
-sqs_queue_timeout_secs    = 86400
-poll_frequency_mins       = "5"
+s3_delta_file_bucket_name  = "globally-unique-bucket"
+sqs_cleanup_image_uri      = "demo:latest"
+sqs_cleanup_schedule       = "rate(6 hours)"
+sqs_queue_timeout_secs     = 86400
+backup_poll_frequency_secs = 300
 
 # Variables related to AWS backend services.
 vpc_gateway_endpoint_services = [
@@ -55,7 +56,8 @@ vpc_interface_endpoint_services = [
   "sns",
   "sqs",
   "autoscaling",
-  "xray"
+  "xray",
+  "logs",
 ]
 
 # Variables related to health checks.
@@ -65,3 +67,7 @@ healthcheck_unhealthy_threshold = 3
 
 # Variables related to SSH.
 ssh_source_cidr_blocks = ["0.0.0.0/0"]
+
+# Variables related to metrics.
+metrics_export_interval_millis = 5000
+metrics_export_timeout_millis  = 500

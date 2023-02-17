@@ -23,6 +23,7 @@
 
 #include "absl/status/statusor.h"
 #include "components/cloud_config/parameter_client.h"
+#include "components/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -33,8 +34,13 @@ class ParameterFetcher {
   // This function will retry any necessary requests until it succeeds.
   virtual std::string GetParameter(std::string_view parameter_suffix) const = 0;
 
+  // This function will retry any necessary requests until it succeeds.
+  virtual int32_t GetInt32Parameter(
+      std::string_view parameter_suffix) const = 0;
+
   static std::unique_ptr<ParameterFetcher> Create(
-      const ParameterClient& parameter_client, std::string environment);
+      std::string environment, const ParameterClient& parameter_client,
+      MetricsRecorder& metrics_recorder);
 };
 
 }  // namespace kv_server

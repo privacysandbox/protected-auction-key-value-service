@@ -48,10 +48,6 @@ absl::Status ValidateParams(const FormatDataCommand::Params& params) {
         "Input and output format must be different. Input format: ",
         params.input_format, " Output format: ", params.output_format));
   }
-  if (lw_output_format == kDeltaFormat && params.key_namespace.empty()) {
-    return absl::InvalidArgumentError(
-        "Key namespace is required for writing delta outputs.");
-  }
   return absl::OkStatus();
 }
 
@@ -79,12 +75,6 @@ absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
   }
   if (lw_output_format == kDeltaFormat) {
     KVFileMetadata metadata;
-    KeyNamespace::Enum key_ns;
-    if (!KeyNamespace::Enum_Parse(params.key_namespace.data(), &key_ns)) {
-      return absl::InvalidArgumentError(absl::StrCat(
-          "Key namespace: ", params.key_namespace, " is not valid."));
-    }
-    metadata.set_key_namespace(key_ns);
     auto delta_record_writer = DeltaRecordStreamWriter<std::ostream>::Create(
         output_stream, DeltaRecordWriter::Options{.metadata = metadata});
     if (!delta_record_writer.ok()) {

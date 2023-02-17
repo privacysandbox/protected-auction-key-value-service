@@ -48,7 +48,7 @@ class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
  public:
   struct Options : public DeltaRecordWriter::Options {
     char field_separator = ',';
-    std::vector<std::string_view> header = {kKeyColumn, kSubKeyColumn,
+    std::vector<std::string_view> header = {kKeyColumn,
                                             kLogicalCommitTimeColumn,
                                             kMutationTypeColumn, kValueColumn};
   };

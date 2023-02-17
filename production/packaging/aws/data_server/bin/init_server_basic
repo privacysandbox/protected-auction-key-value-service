@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/busybox/sh
 # Copyright 2022 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,7 +29,7 @@ USAGE
   exit ${exitval}
 }
 
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
   case "$1" in
     --with-proxify)
       PROXY=/server/bin/proxify
@@ -45,8 +45,5 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Start the server first.
-$PROXY /server/bin/server "$@" &
-
-# Start Envoy proxy
-/usr/local/bin/envoy --config-path /etc/envoy/envoy.yaml -l warn
+# Start the server.
+$PROXY /server/bin/server "$@"

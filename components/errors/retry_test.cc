@@ -20,6 +20,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/errors/mocks.h"
+#include "components/telemetry/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -34,8 +35,14 @@ TEST(RetryTest, RetryUntilOk) {
       .WillOnce([] { return 1; });
   MockSleepFor sleep_for;
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
-  absl::StatusOr<int> v =
-      RetryUntilOk(func.AsStdFunction(), "TestFunc", sleep_for);
+  MockMetricsRecorder metrics_recorder;
+  EXPECT_CALL(metrics_recorder,
+              IncrementEventStatus("TestFunc",
+                                   absl::InvalidArgumentError("whatever"), 1));
+  EXPECT_CALL(metrics_recorder,
+              IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
+  absl::StatusOr<int> v = RetryUntilOk(func.AsStdFunction(), "TestFunc",
+                                       metrics_recorder, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
@@ -48,7 +55,13 @@ TEST(RetryTest, RetryUnilOkStatusOnly) {
       .WillOnce([] { return absl::OkStatus(); });
   MockSleepFor sleep_for;
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
-  RetryUntilOk(func.AsStdFunction(), "TestFunc", sleep_for);
+  MockMetricsRecorder metrics_recorder;
+  EXPECT_CALL(metrics_recorder,
+              IncrementEventStatus("TestFunc",
+                                   absl::InvalidArgumentError("whatever"), 1));
+  EXPECT_CALL(metrics_recorder,
+              IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
+  RetryUntilOk(func.AsStdFunction(), "TestFunc", metrics_recorder, sleep_for);
 }
 
 TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
@@ -60,8 +73,13 @@ TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
   MockSleepFor sleep_for;
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(4))).Times(1);
-  absl::StatusOr<int> v =
-      RetryWithMax(func.AsStdFunction(), "TestFunc", 2, sleep_for);
+  MockMetricsRecorder metrics_recorder;
+  EXPECT_CALL(metrics_recorder,
+              IncrementEventStatus("TestFunc",
+                                   absl::InvalidArgumentError("whatever"), 1))
+      .Times(2);
+  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2,
+                                       metrics_recorder, sleep_for);
   EXPECT_FALSE(v.ok());
   EXPECT_EQ(v.status(), absl::InvalidArgumentError("whatever"));
 }
@@ -75,8 +93,14 @@ TEST(RetryTest, RetryWithMaxSucceedsOnMax) {
 
   MockSleepFor sleep_for;
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
-  absl::StatusOr<int> v =
-      RetryWithMax(func.AsStdFunction(), "TestFunc", 2, sleep_for);
+  MockMetricsRecorder metrics_recorder;
+  EXPECT_CALL(metrics_recorder,
+              IncrementEventStatus("TestFunc",
+                                   absl::InvalidArgumentError("whatever"), 1));
+  EXPECT_CALL(metrics_recorder,
+              IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
+  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2,
+                                       metrics_recorder, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
@@ -89,8 +113,14 @@ TEST(RetryTest, RetryWithMaxSucceedsEarly) {
       .WillOnce([] { return 1; });
   MockSleepFor sleep_for;
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
-  absl::StatusOr<int> v =
-      RetryWithMax(func.AsStdFunction(), "TestFunc", 300, sleep_for);
+  MockMetricsRecorder metrics_recorder;
+  EXPECT_CALL(metrics_recorder,
+              IncrementEventStatus("TestFunc",
+                                   absl::InvalidArgumentError("whatever"), 1));
+  EXPECT_CALL(metrics_recorder,
+              IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
+  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 300,
+                                       metrics_recorder, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }

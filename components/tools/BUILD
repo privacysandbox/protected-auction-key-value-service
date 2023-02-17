@@ -24,8 +24,9 @@ pkg_tar(
     name = "data_loading_analyzer_binaries",
     srcs = [
         ":data_loading_analyzer",
-        "//components/aws/proxy/source:proxify",
-        "//components/aws/proxy/source:proxy_preload",
+        "@control_plane_shared//cc/aws/proxy/src:proxify",
+        "@control_plane_shared//cc/aws/proxy/src:proxy_preload",
+        "@control_plane_shared//cc/aws/proxy/src:socket_vendor",
     ],
     package_dir = "/opt/privacysandbox/bin",
 )
@@ -38,8 +39,7 @@ container_layer(
     ],
 )
 
-# This image target is meant for testing running the server in an enclave using
-# socat to abstract vsock communication.
+# This image target is meant for testing running the server in an enclave using.
 #
 # See project README.md on how to run the image.
 container_image(
@@ -63,10 +63,12 @@ cc_binary(
     srcs = ["data_loading_analyzer.cc"],
     visibility = ["//production/packaging:__subpackages__"],
     deps = [
-        "//components/data:blob_storage_client",
-        "//components/data:delta_file_notifier",
+        "//components/data/blob_storage:blob_storage_client",
+        "//components/data/blob_storage:delta_file_notifier",
         "//components/data_server/cache",
+        "//components/data_server/cache:key_value_cache",
         "//components/data_server/data_loading:data_orchestrator",
+        "//components/telemetry:metrics_recorder",
         "//public:base_types_cc_proto",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading/readers:riegeli_stream_io",
@@ -84,7 +86,7 @@ cc_binary(
         "blob_storage_change_watcher.cc",
     ],
     deps = [
-        "//components/data:blob_storage_change_notifier",
+        "//components/data/blob_storage:blob_storage_change_notifier",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
@@ -98,7 +100,7 @@ cc_binary(
         "blob_storage_util.cc",
     ],
     deps = [
-        "//components/data:blob_storage_client",
+        "//components/data/blob_storage:blob_storage_client",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
@@ -112,8 +114,26 @@ cc_binary(
         "delta_file_watcher.cc",
     ],
     deps = [
-        "//components/data:blob_storage_client",
-        "//components/data:delta_file_notifier",
+        "//components/data/blob_storage:blob_storage_client",
+        "//components/data/blob_storage:delta_file_notifier",
+        "//components/data/common:thread_notifier",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/flags:usage",
+    ],
+)
+
+cc_binary(
+    name = "delta_file_record_change_watcher",
+    srcs = [
+        "delta_file_record_change_watcher.cc",
+    ],
+    deps = [
+        "//components/data/realtime:delta_file_record_change_notifier",
+        "//public/data_loading:data_loading_fbs",
+        "//public/data_loading:filename_utils",
+        "//public/data_loading/readers:riegeli_stream_io",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",

@@ -35,10 +35,11 @@ function _print_runtime() {
 }
 
 declare -i VERBOSE=0
-VERBOSE_ARG=
+declare VERBOSE_ARG=
 declare -i PRECOMMIT_ONLY=0
 declare -i SKIP_PRECOMMIT=0
-INSTANCE=local
+declare INSTANCE=local
+declare PLATFORM=aws
 declare -a AMI_REGIONS
 
 function usage() {
@@ -47,6 +48,7 @@ function usage() {
 usage:
   ${BASH_SOURCE[0]} <options>
     --instance <type>            Instance can be local or aws. Default: ${INSTANCE}
+    --platform <type>            Platform can be aws or local. Default: ${PLATFORM}
     --precommit-only             Run precommit then exit
     --no-precommit               Skip precommit checks
     --verbose                    Enable verbose output
@@ -85,6 +87,11 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --platform)
+      PLATFORM="$2"
+      shift
+      shift
+      ;;
     --verbose)
       VERBOSE=1
       shift
@@ -97,7 +104,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:instance=${INSTANCE} --//:platform=aws"
+BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:instance=${INSTANCE} --//:platform=${PLATFORM}"
 
 if [[ ${VERBOSE} -eq 1 ]]; then
   set -o xtrace

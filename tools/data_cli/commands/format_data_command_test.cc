@@ -27,14 +27,13 @@ namespace kv_server {
 namespace {
 
 FormatDataCommand::Params GetParams() {
-  return FormatDataCommand::Params{
-      .input_format = "CSV", .output_format = "DELTA", .key_namespace = "KEYS"};
+  return FormatDataCommand::Params{.input_format = "CSV",
+                                   .output_format = "DELTA"};
 }
 
 DeltaFileRecordStruct GetDeltaRecord() {
   DeltaFileRecordStruct record;
   record.key = "key";
-  record.subkey = "subkey";
   record.value = "value";
   record.logical_commit_time = 1234567890;
   record.mutation_type = DeltaMutationType::Update;
@@ -43,7 +42,6 @@ DeltaFileRecordStruct GetDeltaRecord() {
 
 KVFileMetadata GetMetadata() {
   KVFileMetadata metadata;
-  metadata.set_key_namespace(KeyNamespace_Enum_KEYS);
   return metadata;
 }
 
@@ -128,28 +126,15 @@ TEST(FormatDataCommandTest, ValidateIncorrectOutputParams) {
   EXPECT_STREQ(status.message().data(), "Output format cannot be empty.")
       << status;
   params.output_format = "delta";
-  params.key_namespace = "";
   status =
       FormatDataCommand::Create(params, unused_stream, unused_stream).status();
-  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
-  EXPECT_STREQ(status.message().data(),
-               "Key namespace is required for writing delta outputs.")
-      << status;
-  params.key_namespace = "KEYS";
+  EXPECT_TRUE(status.ok());
   params.output_format = "UNSUPPORTED_FORMAT";
   status =
       FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
   EXPECT_STREQ(status.message().data(),
                "Output format: UNSUPPORTED_FORMAT is not supported.")
-      << status;
-  params.key_namespace = "UNSUPPORTED_KEYS_NAMESPACE";
-  params.output_format = "delta";
-  status =
-      FormatDataCommand::Create(params, unused_stream, unused_stream).status();
-  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
-  EXPECT_STREQ(status.message().data(),
-               "Key namespace: UNSUPPORTED_KEYS_NAMESPACE is not valid.")
       << status;
 }
 

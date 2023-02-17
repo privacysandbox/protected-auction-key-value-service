@@ -40,8 +40,7 @@ namespace kv_server {
 // ```
 // FormatDataCommand::Params params{
 //  .input_format = "CSV",
-//  .output_format = "DELTA",
-//  .key_namespace = "KEYS"
+//  .output_format = "DELTA"
 // }
 // std::istringstream input_stream;
 // std::ostringstream output_stream;
@@ -58,7 +57,6 @@ class FormatDataCommand : public Command {
   struct Params {
     std::string_view input_format;
     std::string_view output_format;
-    std::string_view key_namespace;
   };
 
   static absl::StatusOr<std::unique_ptr<FormatDataCommand>> Create(

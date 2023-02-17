@@ -20,15 +20,21 @@
 
 #include "absl/strings/str_split.h"
 #include "components/data_server/cache/cache.h"
+#include "components/telemetry/metrics_recorder.h"
+#include "components/telemetry/telemetry.h"
 #include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 #include "infrastructure/communication/bhttp_utils.h"
-#include "public/base_types.pb.h"
 #include "public/constants.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "quiche/binary_http/binary_http_message.h"
 #include "src/google/protobuf/message.h"
 #include "src/google/protobuf/struct.pb.h"
+
+constexpr char* GET_VALUES_HANDLER_SPAN = "GetValuesHandler";
+constexpr char* GET_BINARY_VALUES_HANDLER_SPAN = "BinaryGetValuesHandler";
+constexpr char* CACHE_KEY_HIT = "CacheKeyHit";
+constexpr char* CACHE_KEY_MISS = "CacheKeyMiss";
 
 namespace kv_server {
 namespace {
@@ -73,31 +79,30 @@ grpc::Status ValidateSSPRequest(const GetValuesRequest& request) {
   return grpc::Status();
 }
 
-void AddNamespaceKeys(const RepeatedPtrField<std::string>& keys,
-                      std::string_view subkey,
-                      std::vector<Cache::FullyQualifiedKey>& full_key_list) {
+std::vector<std::string_view> GetKeys(
+    const RepeatedPtrField<std::string>& keys) {
+  std::vector<std::string_view> key_list;
   for (const auto& key : keys) {
     for (absl::string_view individual_key :
          absl::StrSplit(key, kQueryArgDelimiter)) {
-      Cache::FullyQualifiedKey full_key;
-      full_key.key = individual_key;
-      full_key.subkey = subkey;
-      full_key_list.emplace_back(full_key);
+      key_list.emplace_back(individual_key);
     }
   }
+  return key_list;
 }
 
-void ProcessNamespace(const RepeatedPtrField<std::string>& keys,
-                      std::string_view subkey, const Cache& cache,
-                      Struct& result_struct) {
+void ProcessKeys(const RepeatedPtrField<std::string>& keys, const Cache& cache,
+                 MetricsRecorder& metrics_recorder, Struct& result_struct) {
   if (keys.empty()) return;
-  std::vector<Cache::FullyQualifiedKey> full_key_list;
-  AddNamespaceKeys(keys, subkey, full_key_list);
+  auto kv_pairs = cache.GetKeyValuePairs(GetKeys(keys));
 
-  auto kv_pairs = cache.GetKeyValuePairs(full_key_list);
+  if (kv_pairs.empty())
+    metrics_recorder.IncrementEventCounter(CACHE_KEY_MISS);
+  else
+    metrics_recorder.IncrementEventCounter(CACHE_KEY_HIT);
 
   for (auto&& [k, v] : std::move(kv_pairs)) {
-    (*result_struct.mutable_fields())[std::move(k.key)].set_string_value(
+    (*result_struct.mutable_fields())[std::move(k)].set_string_value(
         std::move(v));
   }
 }
@@ -107,6 +112,9 @@ void ProcessNamespace(const RepeatedPtrField<std::string>& keys,
 grpc::Status GetValuesHandler::BinaryHttpGetValues(
     const BinaryHttpGetValuesRequest& bhttp_request,
     google::api::HttpBody* bhttp_response) const {
+  auto span = GetTracer()->StartSpan(GET_BINARY_VALUES_HANDLER_SPAN);
+  auto scope = opentelemetry::trace::Scope(span);
+
   VLOG(9) << "Received BinaryHttpGetValues request";
   auto maybe_request =
       DeserializeBHttpToProto<quiche::BinaryHttpRequest, GetValuesRequest>(
@@ -142,35 +150,29 @@ grpc::Status GetValuesHandler::BinaryHttpGetValues(
 
 grpc::Status GetValuesHandler::GetValues(const GetValuesRequest& request,
                                          GetValuesResponse* response) const {
+  auto span = GetTracer()->StartSpan(GET_VALUES_HANDLER_SPAN);
+  auto scope = opentelemetry::trace::Scope(span);
+
   grpc::Status status = ValidateRequest(request);
   if (!status.ok()) {
     return status;
   }
 
-  std::string_view subkey = request.subkey();
-  if (subkey.empty() && !request.hostname().empty()) {
-    subkey = request.hostname();
-  }
   VLOG(5) << "Processing kv_internal for " << request.DebugString();
   if (!request.kv_internal().empty()) {
-    ProcessNamespace(request.kv_internal(), request.subkey(),
-                     sharded_cache_.GetCacheShard(KeyNamespace::KV_INTERNAL),
-                     *response->mutable_kv_internal());
+    ProcessKeys(request.kv_internal(), cache_, metrics_recorder_,
+                *response->mutable_kv_internal());
   }
   if (dsp_mode_) {
     VLOG(5) << "Processing keys for " << request.DebugString();
-    ProcessNamespace(request.keys(), request.subkey(),
-                     sharded_cache_.GetCacheShard(KeyNamespace::KEYS),
-                     *response->mutable_keys());
+    ProcessKeys(request.keys(), cache_, metrics_recorder_,
+                *response->mutable_keys());
   } else {
     VLOG(5) << "Processing ssp for " << request.DebugString();
-    ProcessNamespace(request.render_urls(), request.subkey(),
-                     sharded_cache_.GetCacheShard(KeyNamespace::RENDER_URLS),
-                     *response->mutable_render_urls());
-    ProcessNamespace(
-        request.ad_component_render_urls(), request.subkey(),
-        sharded_cache_.GetCacheShard(KeyNamespace::AD_COMPONENT_RENDER_URLS),
-        *response->mutable_ad_component_render_urls());
+    ProcessKeys(request.render_urls(), cache_, metrics_recorder_,
+                *response->mutable_render_urls());
+    ProcessKeys(request.ad_component_render_urls(), cache_, metrics_recorder_,
+                *response->mutable_ad_component_render_urls());
   }
 
   return grpc::Status::OK;

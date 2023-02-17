@@ -21,7 +21,7 @@ package(default_visibility = [
 cc_library(
     name = "aws_error_util",
     hdrs = [
-        "aws_error_util.h",
+        "error_util_aws.h",
     ],
     deps = [
         "@aws_sdk_cpp//:core",
@@ -40,6 +40,7 @@ cc_library(
     ],
     deps = [
         "//components/telemetry",
+        "//components/telemetry:metrics_recorder",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/time",
@@ -55,6 +56,7 @@ cc_test(
     deps = [
         ":mocks",
         ":retry",
+        "//components/telemetry:mocks",
         "@com_google_googletest//:gtest_main",
     ],
 )

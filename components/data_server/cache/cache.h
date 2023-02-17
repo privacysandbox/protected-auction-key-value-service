@@ -31,49 +31,27 @@ namespace kv_server {
 
 // Interface for in-memory datastore.
 // One cache object is only for keys in one namespace.
-// ShardedCache should be used for multiple key namespaces. See below.
 class Cache {
  public:
-  struct FullyQualifiedKey {
-    std::string_view key;
-    std::string_view subkey;
-  };
-
   virtual ~Cache() = default;
 
   // Looks up and returns key-value pairs for the given keys.
-  virtual std::vector<std::pair<FullyQualifiedKey, std::string>>
-  GetKeyValuePairs(
-      const std::vector<FullyQualifiedKey>& full_key_list) const = 0;
+  virtual std::vector<std::pair<std::string_view, std::string>>
+  GetKeyValuePairs(const std::vector<std::string_view>& key_list) const = 0;
 
-  // Inserts or updates the key, subkey with the new value.
-  virtual void UpdateKeyValue(FullyQualifiedKey full_key,
-                              std::string value) = 0;
+  // Inserts or updates the key with the new value.
+  virtual void UpdateKeyValue(std::string_view key, std::string_view value,
+                              int64_t logical_commit_time) = 0;
 
-  // Deletes a particular (key, subkey) tuple.
-  virtual void DeleteKey(FullyQualifiedKey full_key) = 0;
+  // Deletes a particular (key, value) pair.
+  virtual void DeleteKey(std::string_view key, int64_t logical_commit_time) = 0;
+
+  // Remove the values that were deleted before the specified
+  // logical_commit_time.
+  virtual void RemoveDeletedKeys(int64_t logical_commit_time) = 0;
 
   static std::unique_ptr<Cache> Create();
 };
-
-// Manages all caches for all key namespaces.
-// For the best concurrent performance, all caches are initialized at creation
-// time and no API is provided for adding/removing caches.
-class ShardedCache {
- public:
-  static std::unique_ptr<ShardedCache> Create();
-
-  virtual ~ShardedCache() = default;
-  virtual Cache& GetMutableCacheShard(KeyNamespace::Enum key_namespace) = 0;
-  virtual const Cache& GetCacheShard(
-      KeyNamespace::Enum key_namespace) const = 0;
-};
-
-inline std::ostream& operator<<(std::ostream& os,
-                                const Cache::FullyQualifiedKey& full_key) {
-  os << full_key.key << ":" << full_key.subkey;
-  return os;
-}
 
 }  // namespace kv_server
 

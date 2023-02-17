@@ -32,9 +32,11 @@ cc_library(
     deps = [
         "//public/data_loading:riegeli_metadata_cc_proto",
         "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/base",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@com_google_riegeli//riegeli/bytes:istream_reader",
         "@com_google_riegeli//riegeli/records:record_reader",
     ],

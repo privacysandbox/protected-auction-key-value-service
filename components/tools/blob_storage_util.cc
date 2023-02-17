@@ -21,7 +21,7 @@
 #include "absl/flags/usage.h"
 #include "absl/strings/match.h"
 #include "aws/core/Aws.h"
-#include "components/data/blob_storage_client.h"
+#include "components/data/blob_storage/blob_storage_client.h"
 
 ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
 

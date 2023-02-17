@@ -17,15 +17,8 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 def quiche_dependencies():
     http_archive(
         name = "com_github_google_quiche",
-        urls = ["https://github.com/google/quiche/archive/44a71d94ae4f89db150cd5ed664891793250551b.tar.gz"],
-        strip_prefix = "quiche-44a71d94ae4f89db150cd5ed664891793250551b",
-    )
-
-    http_archive(
-        name = "boringssl",
-        sha256 = "482a59ea63d03fbb4d3cab22e40043fb4eef2cbbdc2eb944cd627675ae8b0cf3",  # Last updated 2022-05-18
-        strip_prefix = "boringssl-02c6711efbb6c9dc6236a1c3779af1bcb0274dfd",
-        urls = ["https://github.com/google/boringssl/archive/02c6711efbb6c9dc6236a1c3779af1bcb0274dfd.tar.gz"],
+        urls = ["https://github.com/google/quiche/archive/c06013fca03cc95f662cb3b09ad582b0336258aa.tar.gz"],
+        strip_prefix = "quiche-c06013fca03cc95f662cb3b09ad582b0336258aa",
     )
 
     http_archive(

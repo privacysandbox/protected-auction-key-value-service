@@ -44,7 +44,6 @@ absl::StatusOr<riegeli::CsvRecord> MakeCsvRecord(
   // known ahead of time.
   riegeli::CsvRecord csv_record(header);
   csv_record[kKeyColumn] = record.key;
-  csv_record[kSubKeyColumn] = record.subkey;
   csv_record[kValueColumn] = record.value;
   absl::StatusOr<std::string_view> mutation_type = GetMutationType(record);
   if (!mutation_type.ok()) {

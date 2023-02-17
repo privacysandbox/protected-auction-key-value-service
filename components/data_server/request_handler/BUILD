@@ -28,6 +28,7 @@ cc_library(
     ],
     deps = [
         "//components/data_server/cache",
+        "//components/telemetry:metrics_recorder",
         "//infrastructure/communication:bhttp_utils",
         "//public:base_types_cc_proto",
         "//public:constants",
@@ -49,7 +50,10 @@ cc_test(
     deps = [
         ":get_values_handler",
         "//components/data_server/cache",
+        "//components/data_server/cache:key_value_cache",
         "//components/data_server/cache:mocks",
+        "//components/telemetry:metrics_recorder",
+        "//components/telemetry:mocks",
         "//infrastructure/communication:bhttp_utils",
         "//public/query:get_values_cc_grpc",
         "//public/test_util:proto_matcher",
@@ -68,15 +72,39 @@ cc_library(
         "get_values_v2_handler.h",
     ],
     deps = [
+        ":compression",
         "//components/data_server/cache",
+        "//components/telemetry:metrics_recorder",
         "//public:base_types_cc_proto",
         "//public:constants",
         "//public/query/v2:get_values_v2_cc_grpc",
         "@com_github_google_glog//:glog",
+        "@com_github_google_quiche//quiche:binary_http_unstable_api",
+        "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
         "@nlohmann_json//:lib",
+    ],
+)
+
+cc_library(
+    name = "compression",
+    srcs = ["compression.cc"],
+    hdrs = ["compression.h"],
+    deps = [
+        "@com_github_google_glog//:glog",
+        "@com_github_google_quiche//quiche:quiche_unstable_api",
+    ],
+)
+
+cc_test(
+    name = "compression_test",
+    srcs = ["compression_test.cc"],
+    deps = [
+        ":compression",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -90,10 +118,15 @@ cc_test(
         ":get_values_v2_handler",
         "//components/data_server/cache",
         "//components/data_server/cache:mocks",
+        "//components/telemetry:metrics_recorder",
+        "//components/telemetry:mocks",
         "//infrastructure/communication:bhttp_utils",
+        "//public:constants",
         "//public/query/v2:get_values_v2_cc_grpc",
         "//public/test_util:proto_matcher",
+        "@com_github_google_glog//:glog",
         "@com_github_google_quiche//quiche:binary_http_unstable_api",
+        "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
     ],

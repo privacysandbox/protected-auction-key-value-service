@@ -28,7 +28,6 @@ namespace {
 DeltaFileRecordStruct GetDeltaRecord() {
   DeltaFileRecordStruct record;
   record.key = "key";
-  record.subkey = "subkey";
   record.value = "value";
   record.logical_commit_time = 1234567890;
   record.mutation_type = DeltaMutationType::Update;
@@ -51,9 +50,8 @@ TEST(CsvDeltaRecordStreamReaderTest, ValidateReadingAndWritingRecords) {
 
 TEST(CsvDeltaRecordStreamReaderTest,
      ValidateReadingCsvRecordsWithInvalidTimestamps) {
-  const char invalid_data[] =
-      "key,subkey,value,mutation_type,logical_commit_time\n\"key\",\"subkey\","
-      "\"value\",\"Update\",\"invalid_time\"\n";
+  const char invalid_data[] = R"csv(key,value,mutation_type,logical_commit_time
+  key,value,Update,invalid_time)csv";
   std::stringstream csv_stream;
   csv_stream.str(invalid_data);
   CsvDeltaRecordStreamReader record_reader(csv_stream);
@@ -68,9 +66,8 @@ TEST(CsvDeltaRecordStreamReaderTest,
 
 TEST(CsvDeltaRecordStreamReaderTest,
      ValidateReadingCsvRecordsWithInvalidMutation) {
-  const char invalid_data[] =
-      "key,subkey,value,mutation_type,logical_commit_time\n\"key\",\"subkey\","
-      "\"value\",\"invalid_mutation\",\"1000000\"\n";
+  const char invalid_data[] = R"csv(key,value,mutation_type,logical_commit_time
+  key,value,invalid_mutation,1000000)csv";
   std::stringstream csv_stream;
   csv_stream.str(invalid_data);
   CsvDeltaRecordStreamReader record_reader(csv_stream);

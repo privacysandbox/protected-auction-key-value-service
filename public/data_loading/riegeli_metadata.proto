@@ -35,10 +35,9 @@ message SnapshotMetadata {
 }
 
 // All K/V server metadata related to one riegeli file.
-// TODO: update data loading code to use this to replace the KVEntry logic.
 message KVFileMetadata {
   // All records in one file are from this namespace.
-  optional KeyNamespace.Enum key_namespace = 1;
+  optional KeyNamespace.Enum key_namespace = 1 [deprecated = true];
 
   oneof file_type {
     DeltaMetadata delta = 2;

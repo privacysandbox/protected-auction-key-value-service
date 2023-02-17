@@ -1,0 +1,34 @@
+diff --git a/cc/aws/proxy/src/proxify.cc b/cc/aws/proxy/src/proxify.cc
+index f0404ee..e9c0d99 100644
+--- a/cc/aws/proxy/src/proxify.cc
++++ b/cc/aws/proxy/src/proxify.cc
+@@ -29,11 +29,15 @@ static constexpr char socket_vendor[] = "socket_vendor";
+ static constexpr char resolv_conf_path[] = "/etc/resolv.conf";
+ static constexpr char use_vc_option[] = "use-vc";
+
+-static const char resolv_conf_content[] =
+-    "nameserver 8.8.8.8\n"
+-    "nameserver 8.8.4.4\n"
+-    "nameserver 1.1.1.1\n"
+-    "options use-vc";
++static const char resolv_conf_content[] = R"resolv(
++; use-vc forces use of TCP for DNS resolutions.
++; See https://man7.org/linux/man-pages/man5/resolv.conf.5.html
++options use-vc timeout:2 attempts:5
++search ec2.internal
++; Ip of AWS DNS resolver located at base of VPC IPV4 network range, plus two.
++; See https://docs.aws.amazon.com/vpc/latest/userguide/vpc-dns.html#AmazonDNS
++nameserver 10.0.0.2
++)resolv";
+
+ int main(int argc, char* argv[]) {
+   std::string exe = argv[0];
+@@ -64,7 +68,7 @@ int main(int argc, char* argv[]) {
+   // Run the socket_vendor. If there's already a running socket_vendor, this
+   // will end with a benign failure.
+   if (fork() == 0) {
+-    daemon(1, 1);
++    daemon(1, 0);
+     execl(socket_vendor_path.c_str(), socket_vendor_path.c_str(), nullptr);
+     exit(1);
+   }

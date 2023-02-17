@@ -19,8 +19,9 @@
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
 #include "aws/core/Aws.h"
-#include "components/data/blob_storage_client.h"
-#include "components/data/delta_file_notifier.h"
+#include "components/data/blob_storage/blob_storage_client.h"
+#include "components/data/blob_storage/delta_file_notifier.h"
+#include "components/data/common/thread_notifier.h"
 
 ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
@@ -47,12 +48,14 @@ int main(int argc, char** argv) {
     return -1;
   }
   std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  auto thread_notifier_ =
+      kv_server::ThreadNotifier::Create("Delta file thread notifier");
   std::unique_ptr<DeltaFileNotifier> notifier =
-      DeltaFileNotifier::Create(*client);
+      DeltaFileNotifier::Create(*thread_notifier_, *client);
   std::unique_ptr<BlobStorageChangeNotifier> change_notifier =
       BlobStorageChangeNotifier::Create({.sns_arn = sns_arn});
 
-  const absl::Status status = notifier->StartNotify(
+  const absl::Status status = notifier->Start(
       *change_notifier, {.bucket = std::move(bucket)}, "",
       [](const std::string& key) { std::cout << key << std::endl; });
   if (!status.ok()) {

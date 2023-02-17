@@ -24,11 +24,9 @@ riegeli::RecordWriterBase::Options GetRecordWriterOptions(
   if (!options.enable_compression) {
     writer_options.set_uncompressed();
   }
-  if (options.metadata.has_key_namespace()) {
-    riegeli::RecordsMetadata metadata;
-    *metadata.MutableExtension(kv_server::kv_file_metadata) = options.metadata;
-    writer_options.set_metadata(std::move(metadata));
-  }
+  riegeli::RecordsMetadata metadata;
+  *metadata.MutableExtension(kv_server::kv_file_metadata) = options.metadata;
+  writer_options.set_metadata(std::move(metadata));
   return writer_options;
 }
 }  // namespace kv_server

@@ -26,14 +26,12 @@ namespace {
 
 KVFileMetadata GetMetadata() {
   KVFileMetadata metadata;
-  metadata.set_key_namespace(KeyNamespace_Enum_KEYS);
   return metadata;
 }
 
 DeltaFileRecordStruct GetDeltaRecord() {
   DeltaFileRecordStruct record;
   record.key = "key";
-  record.subkey = "subkey";
   record.value = "value";
   record.logical_commit_time = 1234567890;
   record.mutation_type = DeltaMutationType::Update;

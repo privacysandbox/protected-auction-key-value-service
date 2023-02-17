@@ -131,7 +131,6 @@ class DeltaRecordCallback : public RecordRowCallback {
         .mutation_type = record->mutation_type(),
         .logical_commit_time = record->logical_commit_time(),
         .key = record->key()->string_view(),
-        .subkey = record->subkey()->string_view(),
         .value = record->value()->string_view()});
   }
 

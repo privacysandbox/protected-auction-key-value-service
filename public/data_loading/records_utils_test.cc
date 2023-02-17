@@ -23,7 +23,6 @@ namespace {
 DeltaFileRecordStruct GetDeltaRecord() {
   DeltaFileRecordStruct record;
   record.key = "key";
-  record.subkey = "subkey";
   record.value = "value";
   record.logical_commit_time = 1234567890;
   record.mutation_type = DeltaMutationType::Update;
@@ -34,14 +33,5 @@ TEST(DeltaFileRecordStructTest, ValidateEqualsOperator) {
   EXPECT_EQ(GetDeltaRecord(), GetDeltaRecord());
   EXPECT_NE(GetDeltaRecord(), DeltaFileRecordStruct{.key = "key1"});
 }
-
-TEST(DeltaFileRecordStructKeyTest, ValidateHarshingDeltaFileRecordStructKey) {
-  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
-      {DeltaFileRecordStructKey{.key = "key1", .subkey = ""},
-       DeltaFileRecordStructKey{.key = "key1", .subkey = "subkey1"},
-       DeltaFileRecordStructKey{.key = "key1", .subkey = "subkey2"},
-       DeltaFileRecordStructKey{.key = "key2", .subkey = "subkey1"}}));
-}
-
 }  // namespace
 }  // namespace kv_server

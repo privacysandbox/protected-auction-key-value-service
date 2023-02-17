@@ -15,5 +15,5 @@
 FROM alpine:3.16
 
 RUN apk --no-cache add \
-  unzip=6.0-r9 \
-  zip=3.0-r9
+  unzip~=6.0 \
+  zip~=3.0

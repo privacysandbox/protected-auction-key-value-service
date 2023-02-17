@@ -58,6 +58,7 @@ variable "http_api_paths" {
   type = set(string)
   default = [
     "/v1/*",
+    "/v2/*",
     "/healthcheck"
   ]
 }
@@ -66,6 +67,7 @@ variable "grpc_api_paths" {
   type = set(string)
   default = [
     "/kv_server.v1.KeyValueService/*",
+    "/kv_server.v2.KeyValueService/*",
     "/grpc.health.v1.Health/*"
   ]
 }

@@ -171,7 +171,7 @@ SnapshotStreamWriter<DestStreamT>::CreateDeltaRecordWriterOptions(
       .recovery_function =
           [](const DeltaFileRecordStruct& record) {
             LOG(ERROR) << "Failed to write record to snapshot stream. (key: "
-                       << record.key << ", subkey: " << record.subkey << ")";
+                       << record.key << ")";
           },
       .metadata = options.metadata,
   };
@@ -189,10 +189,8 @@ SnapshotStreamWriter<DestStreamT>::CreateRecordAggregator(
 template <typename DestStreamT>
 absl::Status SnapshotStreamWriter<DestStreamT>::InsertOrUpdateRecord(
     const DeltaFileRecordStruct& record) {
-  return record_aggregator_->InsertOrUpdateRecord(
-      absl::HashOf(
-          DeltaFileRecordStructKey{.key = record.key, .subkey = record.subkey}),
-      record);
+  return record_aggregator_->InsertOrUpdateRecord(absl::HashOf(record.key),
+                                                  record);
 }
 
 template <typename DestStreamT>
@@ -203,17 +201,6 @@ absl::Status SnapshotStreamWriter<DestStreamT>::InsertOrUpdateRecords(
   absl::StatusOr<KVFileMetadata> metadata = record_reader.ReadMetadata();
   if (!metadata.ok()) {
     return metadata.status();
-  }
-  if (!metadata->has_key_namespace()) {
-    return absl::InvalidArgumentError(
-        "Source stream must specify key namespace metadata.");
-  }
-  if (metadata->key_namespace() != options_.metadata.key_namespace()) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "Source stream must have the same key namespace as the snapshot. "
-        "Source stream key namespace: ",
-        metadata->key_namespace(),
-        " and snapshot key namespace: ", options_.metadata.key_namespace()));
   }
   return record_reader.ReadRecords(
       [this](auto record) { return InsertOrUpdateRecord(record); });
@@ -267,11 +254,6 @@ template <typename DestStreamT>
 absl::Status
 SnapshotStreamWriter<DestStreamT>::ValidateRequiredSnapshotMetadata(
     const KVFileMetadata& metadata) {
-  if (!metadata.has_key_namespace() ||
-      metadata.key_namespace() == KeyNamespace_Enum_KEY_NAMESPACE_UNSPECIFIED) {
-    return absl::InvalidArgumentError(
-        "Key namespace is required for writing snapshot files.");
-  }
   if (!metadata.has_snapshot()) {
     return absl::InvalidArgumentError(
         "Snapshot metadata is required for writing snapshots.");

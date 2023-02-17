@@ -89,6 +89,14 @@ build {
     destination = "/home/ec2-user/proxy"
   }
   provisioner "file" {
+    source      = join("/", [var.workspace, "components/envoy_proxy/envoy.yaml"])
+    destination = "/home/ec2-user/envoy.yaml"
+  }
+  provisioner "file" {
+    source      = join("/", [var.workspace, "dist/query_api_descriptor_set.pb"])
+    destination = "/home/ec2-user/query_api_descriptor_set.pb"
+  }
+  provisioner "file" {
     source      = join("/", [var.distribution_dir, "/server_enclave_image.eif"])
     destination = "/home/ec2-user/server_enclave_image.eif"
   }

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -28,8 +29,10 @@
 #include "aws/core/http/HttpResponse.h"
 #include "aws/core/internal/AWSHttpResourceClient.h"
 #include "aws/core/utils/Outcome.h"
-#include "components/errors/aws_error_util.h"
+#include "components/errors/error_util_aws.h"
 #include "glog/logging.h"
+
+ABSL_FLAG(std::string, output_file, "", "output_file");
 
 namespace kv_server {
 constexpr char kImdsTokenHeader[] = "x-aws-ec2-metadata-token";
@@ -95,7 +98,22 @@ absl::Status GetRegion() {
                << region.status();
     return region.status();
   }
-  std::cout << *region;
+  // Create and open file, if file exits, rewrite the content.
+  const std::string region_output_file_path = absl::GetFlag(FLAGS_output_file);
+  std::ofstream output_file(region_output_file_path);
+  if (!output_file.is_open()) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("ERROR: unable to open the region output file ",
+                     region_output_file_path));
+  }
+  output_file << region.value();
+  if (output_file.tellp() != region->size()) {
+    output_file.close();
+    return absl::FailedPreconditionError(
+        absl::StrCat("ERROR: cannot fully write region output file ",
+                     region_output_file_path));
+  }
+  output_file.close();
   return absl::OkStatus();
 }
 }  // namespace kv_server

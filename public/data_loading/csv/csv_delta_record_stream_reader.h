@@ -44,7 +44,7 @@ namespace kv_server {
 // ```
 // The default delimiter is assumed to be a ',' and records are assumed to have
 // the following fields:
-// `header = ["mutation_type", "logical_commit_time", "key", "subkey", "value"]`
+// `header = ["mutation_type", "logical_commit_time", "key", "value"]`
 // These defaults can be overriden by specifying `Options` when initializing the
 // record reader.
 template <typename SrcStreamT = std::iostream>
@@ -52,7 +52,7 @@ class CsvDeltaRecordStreamReader : public DeltaRecordReader {
  public:
   struct Options {
     char field_separator = ',';
-    std::vector<std::string_view> header = {kKeyColumn, kSubKeyColumn,
+    std::vector<std::string_view> header = {kKeyColumn,
                                             kLogicalCommitTimeColumn,
                                             kMutationTypeColumn, kValueColumn};
   };

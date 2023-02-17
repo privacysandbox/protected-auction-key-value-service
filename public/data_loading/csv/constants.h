@@ -29,7 +29,6 @@ inline constexpr std::string_view kMutationTypeColumn = "mutation_type";
 inline constexpr std::string_view kLogicalCommitTimeColumn =
     "logical_commit_time";
 inline constexpr std::string_view kKeyColumn = "key";
-inline constexpr std::string_view kSubKeyColumn = "subkey";
 inline constexpr std::string_view kValueColumn = "value";
 
 }  //  namespace kv_server

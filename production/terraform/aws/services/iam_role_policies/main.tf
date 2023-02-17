@@ -73,34 +73,37 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     resources = [var.sns_data_updates_topic_arn]
   }
   statement {
-    sid       = "AllowXRayPutTraceSegments"
-    actions   = ["xray:PutTraceSegments"]
+    sid       = "AllowInstancesToSubscribeToRealtimeDataUpdates"
+    actions   = ["sns:Subscribe"]
+    resources = [var.sns_realtime_topic_arn]
+  }
+  statement {
+    sid = "AllowXRay"
+    actions = [
+      "xray:PutTraceSegments",
+      "xray:PutTelemetryRecords",
+      "xray:GetSamplingRules",
+      "xray:GetSamplingTargets",
+      "xray:GetSamplingStatisticSummaries",
+    ]
     resources = ["*"]
     effect    = "Allow"
   }
   statement {
-    sid       = "AllowXRayPutTelemetryRecords"
-    actions   = ["xray:PutTelemetryRecords"]
+    sid = "AllowOtelWriteLogs"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+    ]
     resources = ["*"]
-    effect    = "Allow"
   }
   statement {
-    sid       = "AllowXRayGetSamplingRules"
-    actions   = ["xray:GetSamplingRules"]
+    sid = "AllowOtelPutMetricData"
+    actions = [
+      "cloudwatch:PutMetricData",
+    ]
     resources = ["*"]
-    effect    = "Allow"
-  }
-  statement {
-    sid       = "AllowXRayGetSamplingTargets"
-    actions   = ["xray:GetSamplingTargets"]
-    resources = ["*"]
-    effect    = "Allow"
-  }
-  statement {
-    sid       = "AllowXRayGetSamplingStatisticSummaries"
-    actions   = ["xray:GetSamplingStatisticSummaries"]
-    resources = ["*"]
-    effect    = "Allow"
   }
 }
 

@@ -31,9 +31,10 @@ pkg_files(
     srcs = [
         "bin/init_server_basic",
         "bin/init_server_enclave",
-        "//components/aws/proxy/source:proxify",
         "//components/data_server/server",
         "//components/tools:get_region",
+        "@control_plane_shared//cc/aws/proxy/src:proxify",
+        "@control_plane_shared//cc/aws/proxy/src:socket_vendor",
     ],
     attributes = pkg_attributes(mode = "0555"),
     prefix = "/server/bin",
@@ -42,7 +43,7 @@ pkg_files(
 pkg_files(
     name = "server_libs",
     srcs = [
-        "//components/aws/proxy/source:proxy_preload",
+        "@control_plane_shared//cc/aws/proxy/src:proxy_preload",
     ],
     attributes = pkg_attributes(mode = "0444"),
     prefix = "/server/bin",
@@ -71,8 +72,7 @@ container_layer(
     ],
 )
 
-# This image target is meant for testing running the server in an enclave using
-# socat to abstract vsock communication.
+# This image target is meant for testing running the server in an enclave using.
 #
 # See project README.md on how to run the image.
 container_image(
@@ -90,9 +90,6 @@ container_image(
     ],
     entrypoint = ["/bin/bash"],
     layers = [
-        "//production/packaging/envoy_proxy:envoy_distroless_layer",
-        "//production/packaging/envoy_proxy:envoy_config_layer",
-        "//production/packaging/aws/socat:socat_and_ip_commands_layer",
         "//production/packaging/aws/resolv:resolv_config_layer",
         ":server_binary_layer",
     ],

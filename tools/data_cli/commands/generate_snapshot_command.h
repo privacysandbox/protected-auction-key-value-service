@@ -22,7 +22,7 @@
 #include <string>
 
 #include "absl/status/statusor.h"
-#include "components/data/blob_storage_client.h"
+#include "components/data/blob_storage/blob_storage_client.h"
 #include "public/data_loading/writers/snapshot_stream_writer.h"
 #include "tools/data_cli/commands/command.h"
 
@@ -33,7 +33,6 @@ class GenerateSnapshotCommand : public Command {
   struct Params {
     std::string data_dir;
     std::string working_dir;
-    std::string key_namespace;
     std::string starting_file;
     std::string ending_delta_file;
     std::string snapshot_file;

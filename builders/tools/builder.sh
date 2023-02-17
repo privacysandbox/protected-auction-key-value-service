@@ -29,7 +29,7 @@ fi
 #######################################
 function builder::set_workspace() {
   export WORKSPACE
-  if [[ -n ${WORKSPACE} ]]; then
+  if [[ -v WORKSPACE ]]; then
     return
   fi
   local GIT_TOPLEVEL="$(git rev-parse --show-superproject-working-tree)"
@@ -45,6 +45,10 @@ function builder::set_workspace() {
 # the docker volume or mount argument
 #######################################
 function builder::get_docker_workspace_mount() {
+  if [[ -v WORKSPACE_MOUNT ]]; then
+    printf "%s" "${WORKSPACE_MOUNT}"
+    return
+  fi
   # when running inside a docker container, expect /.dockerenv to exist
   if ! [[ -f /.dockerenv ]]; then
     printf "%s" "${WORKSPACE}"

@@ -14,6 +14,7 @@
 *.eif
 /dist/
 __pycache__/
+/test/run_local/dist
 
 # Hedron's Compile Commands Extractor for Bazel
 # https://github.com/hedronvision/bazel-compile-commands-extractor

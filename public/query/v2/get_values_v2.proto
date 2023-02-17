@@ -20,12 +20,12 @@ import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
 
 // Key Value Service API V2.
+// Spec: https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#query-api-version-2
 // Note: V2 API is still in an experimental state. Please use the V1 API.
 service KeyValueService {
   // Plain text version of the V2 GetValues query API. This is intended to be
-  // used for debugging and demoing purposes. The result is a JSON dictionary
-  // where the key is the compression group of the partitions and the value
-  // contains the output for the requested partitions.
+  // used for debugging and demoing purposes. The result is a JSON list
+  // which contains the compression groups.
   //
   // TODO(b/263284614): Add more comments once the explainer is published.
   rpc GetValues(GetValuesRequest) returns (google.api.HttpBody) {
@@ -34,8 +34,41 @@ service KeyValueService {
       body: "raw_body"
     };
   }
+
+  // Debugging API to communication in Binary Http.
+  //
+  // The body should be a binary Http request described in
+  // https://www.rfc-editor.org/rfc/rfc9292.html
+  //
+  // The response will be a binary Http response. The response will return 200
+  // code as long as the binary Http response can be encoded. The actual status
+  // code of the processing can be extracted from the binary Http response.
+  rpc BinaryHttpGetValues(BinaryHttpGetValuesRequest)
+      returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/v2/bhttp_getvalues"
+      body: "raw_body"
+    };
+  }
+
+  // V2 GetValues API based on the Oblivious HTTP protocol.
+  rpc ObliviousGetValues(ObliviousGetValuesRequest)
+      returns (google.api.HttpBody) {
+    option (google.api.http) = {
+      post: "/v2/oblivious_getvalues"
+      body: "raw_body"
+    };
+  }
 }
 
 message GetValuesRequest {
+  google.api.HttpBody raw_body = 1;
+}
+
+message BinaryHttpGetValuesRequest {
+  google.api.HttpBody raw_body = 1;
+}
+
+message ObliviousGetValuesRequest {
   google.api.HttpBody raw_body = 1;
 }

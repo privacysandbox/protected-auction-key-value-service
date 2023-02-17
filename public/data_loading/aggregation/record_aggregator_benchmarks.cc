@@ -20,7 +20,6 @@
 #include "public/data_loading/records_utils.h"
 
 using kv_server::DeltaFileRecordStruct;
-using kv_server::DeltaFileRecordStructKey;
 using kv_server::DeltaMutationType;
 using kv_server::RecordAggregator;
 
@@ -38,8 +37,7 @@ static void BM_InMemoryRecordAggregator_InsertRecord(benchmark::State& state) {
     state.PauseTiming();
     std::string record_key = absl::StrCat("key", std::rand() % 10'000);
     record.key = record_key;
-    size_t record_hash = absl::HashOf(
-        DeltaFileRecordStructKey{.key = record_key, .subkey = record.subkey});
+    size_t record_hash = absl::HashOf(record.key);
     state.ResumeTiming();
     auto ignored =
         (*record_aggregator)->InsertOrUpdateRecord(record_hash, record);

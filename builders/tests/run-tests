@@ -22,11 +22,12 @@ set -o errexit
 trap _cleanup EXIT
 function _cleanup() {
   declare -r -i STATUS=$?
-  if [[ -d ${TMP_HASHES_DIR} ]]; then
-    rm -rf "${TMP_HASHES_DIR}"
+  if [[ -d ${TMP_HASHES_DIR1} ]]; then
+    rm -rf "${TMP_HASHES_DIR1}" "${TMP_HASHES_DIR2}"
   fi
   if [[ ${STATUS} -ne 0 ]]; then
-    printf "Error: run-tests status code: %d\n" "${STATUS}" &>/dev/stderr
+    printf "Error: run-tests status code: %d\n" "${STATUS}"
+    sleep 5s
   fi
   exit ${STATUS}
 }
@@ -40,14 +41,26 @@ function usage() {
   declare -r -i exitval=${1-1}
   cat &>/dev/stderr <<USAGE
 usage:
-  $0
+  $0 <options>
+    --fast       Only generate hashes directly rather than also using cbuild
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}
 }
 
+declare -i DIRECT_ONLY=0
+declare -i VERBOSE=0
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --fast)
+      DIRECT_ONLY=1
+      shift
+      ;;
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
     -h | --help) usage 0 ;;
     *)
       printf "unrecognized arg: %s\n" "$1"
@@ -63,30 +76,62 @@ readonly HASHES_DIR="${TESTS_DIR}"/data/hashes
 readonly IMAGES_DIR="${TESTS_DIR}"/../images
 IMAGE_LIST="$(get_image_list "${IMAGES_DIR}")"
 readonly IMAGE_LIST
+declare -i RETCODE=0
+
+TMP_HASHES_DIR1=$(mktemp --directory)
 
 # warning when running inside a docker container
 if [[ -f /.dockerenv ]]; then
   printf "warning: Executing within docker container, which obviates testing in a non-docker environment\n" &>/dev/stderr
 fi
 printf "Generating image hashes (direct mode)\n"
+declare -r GET_BUILDER_IMAGE_ARGS="--no-build --sha-only"
 for img in ${IMAGE_LIST}; do
-  "${TOOLS_DIR}"/get-builder-image-tagged --no-build --image "${img}" >"${HASHES_DIR}/${img}"
+  # shellcheck disable=SC2086
+  if ! "${TOOLS_DIR}"/get-builder-image-tagged ${GET_BUILDER_IMAGE_ARGS} --image ${img} >"${TMP_HASHES_DIR1}/${img}"; then
+    printf "Error generating image hash: %s\n" "${img}" &>/dev/stderr
+    RETCODE+=1
+  fi
 done
 
-BASELINE_UPDATES="$(git diff --name-only "${HASHES_DIR}")"
+BASELINE_UPDATES="$(diff --brief "${HASHES_DIR}" "${TMP_HASHES_DIR1}" || true)"
+readonly BASELINE_UPDATES
 if [[ -n $BASELINE_UPDATES ]]; then
   # shellcheck disable=SC2086
-  printf "detected shift in baseline files: %s\n" ${BASELINE_UPDATES}
+  printf "detected shift in baseline files:\n%s\n" "${BASELINE_UPDATES}"
+  if [[ ${VERBOSE} -eq 1 ]]; then
+    diff "${HASHES_DIR}" "${TMP_HASHES_DIR1}" || true
+  fi
+  cp --force "${TMP_HASHES_DIR1}"/* "${HASHES_DIR}"
+  RETCODE+=10
+else
+  printf "hashes unchanged\n"
 fi
 
-TMP_HASHES_DIR=$(mktemp -d)
+if [[ ${DIRECT_ONLY} -eq 1 ]]; then
+  exit ${RETCODE}
+fi
+
+TMP_HASHES_DIR2=$(mktemp --directory)
 
 printf "Generating image hashes (cbuild mode)\n"
 for img in ${IMAGE_LIST}; do
-  "${TOOLS_DIR}"/cbuild --image build-debian --cmd "tools/get-builder-image-tagged --image ${img} --no-build" >"${TMP_HASHES_DIR}/${img}"
+  if ! "${TOOLS_DIR}"/cbuild --image build-debian --cmd "tools/get-builder-image-tagged ${GET_BUILDER_IMAGE_ARGS} --image ${img}" >"${TMP_HASHES_DIR2}/${img}"; then
+    printf "Error generating image hash: %s\n" "${img}" &>/dev/stderr
+    RETCODE+=1
+  fi
 done
 
-if ! diff --recursive "${HASHES_DIR}" "${TMP_HASHES_DIR}"; then
-  printf "error: mismatch between direct and cbuild mode\n" &>/dev/stderr
-  exit 1
+MODE_MISMATCH="$(diff --brief "${TMP_HASHES_DIR1}" "${TMP_HASHES_DIR2}" || true)"
+readonly MODE_MISMATCH
+if [[ -n $MODE_MISMATCH ]]; then
+  # shellcheck disable=SC2086
+  printf "Error: mismatch between direct and cbuild modes\n%s" "${MODE_MISMATCH}" &>/dev/stderr
+  if [[ ${VERBOSE} -eq 1 ]]; then
+    diff "${TMP_HASHES_DIR1}" "${TMP_HASHES_DIR2}" || true
+  fi
+  RETCODE+=100
+else
+  printf "hashes unchanged\n"
 fi
+exit ${RETCODE}

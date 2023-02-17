@@ -64,10 +64,10 @@ cc_test(
 )
 
 selects.config_setting_group(
-    name = "local_otel_jaeger",
+    name = "local_otel_otlp",
     match_all = [
         "//:local_instance",
-        "//components/telemetry:local_otel_export_jaeger",
+        "//components/telemetry:local_otel_export_otlp",
     ],
 )
 
@@ -89,8 +89,8 @@ local_defines = select({
     "//conditions:default": ["PLATFORM=\\\"unknown\\\""],
 }) + select({
     "//:aws_instance": ["OTEL_EXPORT=\\\"xray\\\""],
-    ":local_otel_jaeger": ["OTEL_EXPORT=\\\"jaeger\\\""],
     ":local_otel_ostream": ["OTEL_EXPORT=\\\"ostream\\\""],
+    ":local_otel_otlp": ["OTEL_EXPORT=\\\"otlp\\\""],
     "//conditions:default": ["OTEL_EXPORT=\\\"unknown\\\""],
 })
 

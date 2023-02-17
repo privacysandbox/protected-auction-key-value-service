@@ -17,10 +17,12 @@
 #ifndef COMPONENTS_DATA_SERVER_SERVER_KEY_VALUE_SERVICE_V2_IMPL_H_
 #define COMPONENTS_DATA_SERVER_SERVER_KEY_VALUE_SERVICE_V2_IMPL_H_
 
+#include <memory>
 #include <utility>
 
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/get_values_v2_handler.h"
+#include "components/telemetry/metrics_recorder.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 
@@ -28,18 +30,29 @@ namespace kv_server {
 
 // Implements Key-Value service Query V2 API.
 class KeyValueServiceV2Impl final
-    : public kv_server::v2::KeyValueService::CallbackService {
+    : public v2::KeyValueService::CallbackService {
  public:
-  explicit KeyValueServiceV2Impl(GetValuesV2Handler handler)
-      : handler_(std::move(handler)) {}
+  explicit KeyValueServiceV2Impl(GetValuesV2Handler handler,
+                                 MetricsRecorder& metrics_recorder)
+      : handler_(std::move(handler)), metrics_recorder_(metrics_recorder) {}
 
-  grpc::ServerUnaryReactor* GetValues(
+  grpc::ServerUnaryReactor* GetValues(grpc::CallbackServerContext* context,
+                                      const v2::GetValuesRequest* request,
+                                      google::api::HttpBody* response) override;
+
+  grpc::ServerUnaryReactor* BinaryHttpGetValues(
       grpc::CallbackServerContext* context,
-      const kv_server::v2::GetValuesRequest* request,
+      const v2::BinaryHttpGetValuesRequest* request,
+      google::api::HttpBody* response) override;
+
+  grpc::ServerUnaryReactor* ObliviousGetValues(
+      grpc::CallbackServerContext* context,
+      const v2::ObliviousGetValuesRequest* request,
       google::api::HttpBody* response) override;
 
  private:
   const GetValuesV2Handler handler_;
+  MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

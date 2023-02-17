@@ -17,10 +17,12 @@
 #ifndef COMPONENTS_DATA_SERVER_SERVER_KEY_VALUE_SERVICE_IMPL_H_
 #define COMPONENTS_DATA_SERVER_SERVER_KEY_VALUE_SERVICE_IMPL_H_
 
+#include <memory>
 #include <utility>
 
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/get_values_handler.h"
+#include "components/telemetry/metrics_recorder.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/get_values.grpc.pb.h"
 
@@ -30,8 +32,9 @@ namespace kv_server {
 class KeyValueServiceImpl final
     : public kv_server::v1::KeyValueService::CallbackService {
  public:
-  explicit KeyValueServiceImpl(GetValuesHandler handler)
-      : handler_(std::move(handler)) {}
+  explicit KeyValueServiceImpl(GetValuesHandler handler,
+                               MetricsRecorder& metrics_recorder)
+      : handler_(std::move(handler)), metrics_recorder_(metrics_recorder) {}
 
   grpc::ServerUnaryReactor* GetValues(
       grpc::CallbackServerContext* context,
@@ -45,6 +48,7 @@ class KeyValueServiceImpl final
 
  private:
   GetValuesHandler handler_;
+  MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

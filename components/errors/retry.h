@@ -21,6 +21,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
+#include "components/telemetry/metrics_recorder.h"
 #include "components/telemetry/telemetry.h"
 #include "glog/logging.h"
 
@@ -50,10 +51,11 @@ class RetryableWithMax {
 
   // If max_attempts <= 0, will retry until OK.
   RetryableWithMax(Func&& f, std::string task_name, int max_attempts,
-                   const SleepFor& sleep_for)
+                   MetricsRecorder& metrics_recorder, const SleepFor& sleep_for)
       : func_(std::forward<Func>(f)),
         task_name_(std::move(task_name)),
         max_attempts_(max_attempts <= 0 ? kUnlimitedRetry : max_attempts),
+        metrics_recorder_(metrics_recorder),
         sleep_for_(sleep_for) {}
 
   absl::Status ToStatus(absl::Status& result) { return result; }
@@ -69,6 +71,7 @@ class RetryableWithMax {
     for (int i = 1; max_attempts_ == kUnlimitedRetry || i <= max_attempts_;
          ++i) {
       result = func_();
+      metrics_recorder_.IncrementEventStatus(task_name_, ToStatus(result));
       if (result.ok()) {
         return result;
       } else {
@@ -85,6 +88,7 @@ class RetryableWithMax {
   Func func_;
   std::string task_name_;
   int max_attempts_;
+  MetricsRecorder& metrics_recorder_;
   const SleepFor& sleep_for_;
 };
 
@@ -92,10 +96,11 @@ class RetryableWithMax {
 // The value of type T is returned by this function.
 template <typename Func>
 typename std::invoke_result_t<RetryableWithMax<Func>>::value_type RetryUntilOk(
-    Func&& f, std::string task_name,
+    Func&& f, std::string task_name, MetricsRecorder& metrics_recorder,
     const SleepFor& sleep_for = SleepFor::Real()) {
   return RetryableWithMax(std::forward<Func>(f), std::move(task_name),
-                          RetryableWithMax<Func>::kUnlimitedRetry, sleep_for)()
+                          RetryableWithMax<Func>::kUnlimitedRetry,
+                          metrics_recorder, sleep_for)()
       .value();
 }
 
@@ -104,6 +109,7 @@ typename std::invoke_result_t<RetryableWithMax<Func>>::value_type RetryUntilOk(
 template <typename Func>
 typename std::invoke_result_t<RetryableWithMax<Func>>::value_type
 TraceRetryUntilOk(Func&& func, std::string task_name,
+                  MetricsRecorder& metrics_recorder,
                   std::vector<TelemetryAttribute> attributes = {},
                   const SleepFor& sleep_for = SleepFor::Real()) {
   auto span = GetTracer()->StartSpan("RetryUntilOk - " + task_name);
@@ -112,23 +118,25 @@ TraceRetryUntilOk(Func&& func, std::string task_name,
                   task_name]() {
     return TraceWithStatusOr(std::move(func), task_name, std::move(attributes));
   };
-  return RetryUntilOk(std::move(wrapped), std::move(task_name), sleep_for);
+  return RetryUntilOk(std::move(wrapped), std::move(task_name),
+                      metrics_recorder, sleep_for);
 }
 
 // Retries functors that return an absl::Status until they are `ok`.
 inline void RetryUntilOk(std::function<absl::Status()> func,
                          std::string task_name,
+                         MetricsRecorder& metrics_recorder,
                          const SleepFor& sleep_for = SleepFor::Real()) {
   RetryableWithMax(std::move(func), std::move(task_name),
                    RetryableWithMax<decltype(func)>::kUnlimitedRetry,
-                   sleep_for)()
+                   metrics_recorder, sleep_for)()
       .IgnoreError();
 }
 
 // Starts and `opentelemetry::trace::Span` and Calls `RetryUntilOk`.
 // Each individual retry of `func` is also traced.
 void TraceRetryUntilOk(std::function<absl::Status()> func,
-                       std::string task_name,
+                       std::string task_name, MetricsRecorder& metrics_recorder,
                        const SleepFor& sleep_for = SleepFor::Real());
 
 // Retries functors that return an absl::StatusOr<T> until they are `ok` or
@@ -136,9 +144,10 @@ void TraceRetryUntilOk(std::function<absl::Status()> func,
 template <typename Func>
 typename std::invoke_result_t<RetryableWithMax<Func>> RetryWithMax(
     Func&& f, std::string task_name, int max_attempts,
+    MetricsRecorder& metrics_recorder,
     const SleepFor& sleep_for = SleepFor::Real()) {
   return RetryableWithMax(std::forward<Func>(f), std::move(task_name),
-                          max_attempts, sleep_for)();
+                          max_attempts, metrics_recorder, sleep_for)();
 }
 
 }  // namespace kv_server

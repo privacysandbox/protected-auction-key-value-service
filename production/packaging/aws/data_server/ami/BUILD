@@ -19,9 +19,9 @@ pkg_zip(
     name = "aws_artifacts",
     srcs = [
         "//components/aws:sqs_lambda.tar",
-        "//components/aws/proxy/source:proxy",
         "//production/packaging/aws/otel_collector:aws-otel-collector.rpm",
         "//production/packaging/aws/otel_collector:aws_otel_collector_cfg",
+        "@control_plane_shared//cc/aws/proxy/src:proxy",
     ],
 )
 

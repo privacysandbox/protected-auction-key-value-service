@@ -29,20 +29,31 @@ namespace {
 
 class LocalInstanceClient : public InstanceClient {
  public:
-  absl::StatusOr<std::string> GetEnvironmentTag() const override {
+  absl::StatusOr<std::string> GetEnvironmentTag() override {
     return absl::GetFlag(FLAGS_environment);
   }
 
   absl::Status RecordLifecycleHeartbeat(
-      std::string_view lifecycle_hook_name) const override {
+      std::string_view lifecycle_hook_name) override {
     LOG(INFO) << "Record lifecycle heartbeat.";
     return absl::OkStatus();
   }
 
   absl::Status CompleteLifecycle(
-      std::string_view lifecycle_hook_name) const override {
+      std::string_view lifecycle_hook_name) override {
     LOG(INFO) << "Complete lifecycle.";
     return absl::OkStatus();
+  }
+
+  absl::StatusOr<std::string> GetInstanceId() override {
+    std::string hostname;
+    hostname.resize(HOST_NAME_MAX);
+    const int result = gethostname(hostname.data(), HOST_NAME_MAX);
+    if (result != 0) {
+      return absl::ErrnoToStatus(errno, strerror(errno));
+    }
+    hostname.resize(strlen(hostname.c_str()));
+    return hostname;
   }
 };
 

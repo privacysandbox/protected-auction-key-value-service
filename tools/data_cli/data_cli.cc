@@ -35,8 +35,6 @@ ABSL_FLAG(std::string, output_file, "-",
           "Output file to write converted records to.");
 ABSL_FLAG(std::string, output_format, "DELTA",
           "Format of output file. Possible options=(CSV|DELTA)");
-ABSL_FLAG(std::string, key_namespace, "KEYS",
-          "Namespace of the key-value pair");
 ABSL_FLAG(std::string, starting_file, "",
           "Name of the file to use as the starting file for a snapshot, it can "
           "be an existing snapshot or delta file.");
@@ -63,7 +61,6 @@ Commands:
     [--input_format]   (Optional) Defaults to "CSV". Possible options=(CSV|DELTA)
     [--output_file]    (Optional) Defaults to stdout. Output file to write converted records to.
     [--output_format]  (Optional) Defaults to "DELTA". Possible options=(CSV|DELTA).
-    [--key_namespace]  (Optional) Defaults to "KEYS". Used if output_format="delta-file".
   Examples:
     (1) Generate a csv file to a delta file and write output records to std::cout.
     - data_cli format_data --input_file="$PWD/data.csv"
@@ -78,7 +75,6 @@ Commands:
     [--starting_file]           (Required) Oldest delta file or base snapshot to include in compaction.
     [--ending_delta_file]       (Required) Most recent delta file to include compaction.
     [--snapshot_file]           (Optional) Defaults to stdout. Output snapshot file.
-    [--key_namespace]           (Optional) Defaults to "KEYS". Namespace for snapshot records.
     [--data_dir]                (Required) Directory with input delta files. Cloud directories are prefixed with "cloud://".
     [--working_dir]             (Optional) Defaults to "/tmp". Directory used to write temporary data.
     [--in_memory_compaction]    (Optional) Defaults to true. If false, file backed compaction is used.
@@ -138,8 +134,7 @@ int main(int argc, char** argv) {
     auto format_data_command = FormatDataCommand::Create(
         FormatDataCommand::Params{
             .input_format = absl::GetFlag(FLAGS_input_format),
-            .output_format = absl::GetFlag(FLAGS_output_format),
-            .key_namespace = absl::GetFlag(FLAGS_key_namespace)},
+            .output_format = absl::GetFlag(FLAGS_output_format)},
         *i_stream, *o_stream);
     if (!format_data_command.ok()) {
       LOG(ERROR) << "Failed to create command to format data. "
@@ -156,7 +151,6 @@ int main(int argc, char** argv) {
         GenerateSnapshotCommand::Create(GenerateSnapshotCommand::Params{
             .data_dir = absl::GetFlag(FLAGS_data_dir),
             .working_dir = absl::GetFlag(FLAGS_working_dir),
-            .key_namespace = absl::GetFlag(FLAGS_key_namespace),
             .starting_file = absl::GetFlag(FLAGS_starting_file),
             .ending_delta_file = absl::GetFlag(FLAGS_ending_delta_file),
             .snapshot_file = absl::GetFlag(FLAGS_snapshot_file),

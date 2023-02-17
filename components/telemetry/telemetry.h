@@ -26,15 +26,25 @@
 #include "absl/status/statusor.h"
 #include "opentelemetry/common/attribute_value.h"
 #include "opentelemetry/nostd/string_view.h"
+#include "opentelemetry/sdk/metrics/export/periodic_exporting_metric_reader.h"
+#include "opentelemetry/sdk/metrics/meter.h"
 #include "opentelemetry/sdk/trace/tracer.h"
 
 namespace kv_server {
 
 // Must be called to initialize tracing functionality.
 // If `InitTracer` is not called, all tracing will be NoOp.
-void InitTracer();
+void InitTracer(std::string instance_id);
+
+// Must be called to initialize metrics functionality.
+// If `InitMetrics` is not called, all metrics recording will be NoOp.
+void InitMetrics(
+    std::string instance_id,
+    const opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions&
+        options);
 
 opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> GetTracer();
+opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter> GetMeter();
 
 // Translates the `absl::Status` to `opentelemetry::StatusCode`.
 // If the status is not `ok`, the string representation of `status` is used.

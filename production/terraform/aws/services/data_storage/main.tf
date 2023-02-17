@@ -102,3 +102,14 @@ resource "aws_sns_topic_policy" "sns_topic_policy" {
   arn    = aws_sns_topic.sns_topic.arn
   policy = data.aws_iam_policy_document.sns_topic_policy_doc.json
 }
+
+# SNS topic for listening to realtime updates.
+resource "aws_sns_topic" "realtime_sns_topic" {
+  name = "${aws_s3_bucket.bucket.bucket}-realtime-sns-topic"
+
+  tags = {
+    Name        = "${aws_s3_bucket.bucket.bucket}-realtime-sns-topic"
+    service     = var.service
+    environment = var.environment
+  }
+}

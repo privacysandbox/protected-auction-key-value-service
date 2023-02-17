@@ -1,0 +1,57 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@com_github_grpc_grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_descriptor_set", "proto_library")
+
+cc_binary(
+    name = "protocol_testing_helper_server",
+    srcs = ["protocol_testing_helper_server.cc"],
+    deps = [
+        ":protocol_testing_helper_server_cc_grpc",
+        "//public:constants",
+        "@com_github_google_glog//:glog",
+        "@com_github_google_quiche//quiche:binary_http_unstable_api",
+        "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_github_grpc_grpc//:grpc++_reflection",  # for grpc_cli
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+proto_library(
+    name = "protocol_testing_helper_server_proto",
+    srcs = ["protocol_testing_helper_server.proto"],
+)
+
+cc_proto_library(
+    name = "protocol_testing_helper_server_cc_proto",
+    deps = [":protocol_testing_helper_server_proto"],
+)
+
+cc_grpc_library(
+    name = "protocol_testing_helper_server_cc_grpc",
+    srcs = [":protocol_testing_helper_server_proto"],
+    grpc_only = True,
+    deps = [":protocol_testing_helper_server_cc_proto"],
+)
+
+proto_descriptor_set(
+    name = "protocol_testing_helper_server_descriptor_set",
+    deps = [
+        ":protocol_testing_helper_server_proto",
+    ],
+)

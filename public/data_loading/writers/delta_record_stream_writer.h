@@ -73,12 +73,6 @@ template <typename DestStreamT>
 absl::StatusOr<std::unique_ptr<DeltaRecordStreamWriter<DestStreamT>>>
 DeltaRecordStreamWriter<DestStreamT>::Create(DestStreamT& dest_stream,
                                              Options options) {
-  if (!options.metadata.has_key_namespace() ||
-      options.metadata.key_namespace() ==
-          KeyNamespace_Enum_KEY_NAMESPACE_UNSPECIFIED) {
-    return absl::InvalidArgumentError(
-        "Key namespace is required for writing delta files.");
-  }
   return absl::WrapUnique(new DeltaRecordStreamWriter(dest_stream, options));
 }
 

@@ -51,6 +51,7 @@ USAGE
 
 Environment variables (all optional):
     WORKSPACE                  Full path to the workspace (repo root)
+    WORKSPACE_MOUNT            Full path to the workspace on the host filesystem
     EXTRA_DOCKER_RUN_ARGS      Additional arguments to pass to docker run invocations
     CBUILD_IMAGE               docker URI to the specific image to run
 

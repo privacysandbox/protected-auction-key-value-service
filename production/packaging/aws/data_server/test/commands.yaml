@@ -22,8 +22,3 @@ commandTests:
     command: "/server/bin/server"
     args: ["--help"]
     exitCode: 1
-
-  - name: "envoy help"
-    command: "/usr/local/bin/envoy"
-    args: ["--help"]
-    exitCode: 0

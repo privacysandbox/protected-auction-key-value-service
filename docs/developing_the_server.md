@@ -68,10 +68,9 @@ The data server provides the read API for the KV service.
     docker load -i dist/debian/server_docker_image.tar
     ```
 
-1.  Run the container. Port 50051 can be used to query the server directly through gRPC. Port 51052
-    can be used to query with HTTP which is served through Envoy to the server. --environment must
-    be specified. The server will still read data from S3 and the server uses environment to find
-    the S3 bucket. The environment is configured as part of the
+1.  Run the container. Port 50051 can be used to query the server directly through gRPC.
+    --environment must be specified. The server will still read data from S3 and the server uses
+    environment to find the S3 bucket. The environment is configured as part of the
     [AWS deployment process](/docs/deploying_on_aws.md).
 
     Set region. The region should be where your environment is deployed:
@@ -80,9 +79,20 @@ The data server provides the read API for the KV service.
     export AWS_DEFAULT_REGION=us-east-1
     ```
 
-    ```sh
-    docker run -it --rm --entrypoint=/server/bin/init_server_basic --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 -p 127.0.0.1:51052:51052 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
-    ```
+To run the server by itself
+
+```sh
+docker run -it --rm --entrypoint=/server/bin/init_server_basic --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
+```
+
+To start Envoy (required to test HTTP access) a similar pattern is used to build the image, load it
+into docker and start a container. From the project root directory:
+
+```sh
+builders/tools/bazel-debian run //testing/run_local:build_envoy_image
+docker load -i testing/run_local/dist/envoy_image.tar
+docker run -it --rm --network host  bazel/testing/run_local:envoy_image
+```
 
 ### Run the server locally
 
@@ -92,17 +102,22 @@ For example:
 builders/tools/bazel-debian run //components/data_server/server:server --//:instance=local --//:platform=aws -- --environment="dev"
 ```
 
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable line-length -->
 > Attention: The server can run locally while specifying `aws` as platform, in which case it will
 > contact AWS based on the local AWS credentials. However, this requires the AWS environment to be
 > set up first following the [AWS deployment guide](/docs/deploying_on_aws.md). You might need to
 > set up the following parameters in the AWS System Manager:
 >
-> | Parameter Name                 | Value                                                          |
-> | ------------------------------ | -------------------------------------------------------------- |
-> | kv-server-local-data-bucket-id | Name of the delta file S3 bucket                               |
-> | kv-server-local-bucket-sns-arn | ARN of the Simple Notification Service (SNS) for the S3 bucket |
-> | kv-server-local-launch-hook    | Any value, this won't be needed for                            |
-> | kv-server-local-mode           | "DSP" or "SSP"                                                 |
+> | Parameter Name                                           | Value                                                             |
+> | -------------------------------------------------------- | ----------------------------------------------------------------- |
+> | kv-server-local-data-bucket-id                           | Name of the delta file S3 bucket                                  |
+> | kv-server-local-data-loading-file-channel-bucket-sns-arn | ARN of the Simple Notification Service (SNS) for the S3 bucket    |
+> | kv-server-local-data-loading-realtime-channel-sns-arn    | ARN of the Simple Notification Service (SNS) for realtime updates |
+> | kv-server-local-launch-hook                              | Any value, this won't be needed for                               |
+> | kv-server-local-mode                                     | "DSP" or "SSP"                                                    |
+<!-- markdownlint-enable line-length -->
+<!-- prettier-ignore-end -->
 
 We are currently developing this server for local testing and for use on AWS Nitro instances
 (similar to the
@@ -120,7 +135,10 @@ Example:
 grpc_cli call localhost:50051 kv_server.v1.KeyValueService.GetValues "kv_internal: 'hi'" --channel_creds_type=insecure
 ```
 
--   For HTTP queries:
+-   HTTP queries can also be used when
+    [deployed in an AWS enclave](#develop-and-run-the-server-inside-aws-enclave) or with Envoy
+    deployed alongside the server (see `docker-compose` instructions in
+    [the section on running in a container](#run-the-server-locally-inside-a-docker-container)).
 
 ```sh
 curl http://localhost:51052/v1/getvalues?kv_internal=hi
@@ -171,7 +189,7 @@ Example:
 cc_library(
     name = "blob_storage_client",
     srcs = select({
-        "//:aws_platform": ["s3_blob_storage_client.cc"],
+        "//:aws_platform": ["blob_storage_client_s3.cc"],
     }),
     hdrs = [
         "blob_storage_client.h",
@@ -198,7 +216,20 @@ Depending on which platform the server is being run on, you will want to specify
 There are two options for OpenTelemetry export when `//:local_instance` is specified:
 
 -   //components/telemetry:local_otel_export=ostream [default]
--   //components/telemetry:local_otel_export=jaeger
+-   //components/telemetry:local_otel_export=otlp
 
-When jaeger is specified, run a local instance of [Jaeger](https://www.jaegertracing.io/) to capture
+When otlp is specified, run a local instance of [Jaeger](https://www.jaegertracing.io/) to capture
 telemetry.
+
+### Running the server with Jaeger locally in Docker
+
+To export telemetry to Jaeger from within a local Docker container,
+
+1. Start a local instance of [Jaeger](https://www.jaegertracing.io/docs/1.42/getting-started/)
+
+2. Follow the instructions on running the server in docker. For the `docker run` command, pass the
+   flags `--network host --add-host=host.docker.internal:host-gateway`:
+
+```sh
+docker run -it --rm --network host --add-host=host.docker.internal:host-gateway --entrypoint=/server/bin/init_server_basic --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
+```

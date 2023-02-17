@@ -12,16 +12,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(default_visibility = [
     "//components:__subpackages__",
 ])
 
 cc_library(
+    name = "parameter_client_local",
+    srcs = [
+        "parameter_client_local.cc",
+    ],
+    hdrs = [
+        "parameter_client.h",
+    ],
+    deps = [
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_test(
+    name = "parameter_client_local_test",
+    size = "small",
+    srcs = ["parameter_client_local_test.cc"],
+    deps = [
+        ":parameter_client_local",
+        "//components/data/common:mocks",
+        "//components/errors:mocks",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "parameter_client",
     srcs = select({
-        "//:aws_platform": ["aws_parameter_client.cc"],
+        "//:aws_platform": ["parameter_client_aws.cc"],
+        "//:local_platform": [":parameter_client_local"],
     }),
     hdrs = [
         "parameter_client.h",
@@ -43,7 +73,7 @@ cc_library(
 cc_library(
     name = "instance_client",
     srcs = select({
-        "//:aws_instance": ["aws_instance_client.cc"],
+        "//:aws_instance": ["instance_client_aws.cc"],
         "//:local_instance": ["local_instance_client.cc"],
     }),
     hdrs = [

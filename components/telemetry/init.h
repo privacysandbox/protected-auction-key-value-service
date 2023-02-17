@@ -19,12 +19,17 @@
 
 #include <memory>
 
+#include "opentelemetry/sdk/metrics/export/periodic_exporting_metric_reader.h"
 #include "opentelemetry/sdk/trace/exporter.h"
 #include "opentelemetry/sdk/trace/id_generator.h"
 
 namespace kv_server {
 std::unique_ptr<opentelemetry::sdk::trace::SpanExporter> CreateSpanExporter();
 std::unique_ptr<opentelemetry::sdk::trace::IdGenerator> CreateIdGenerator();
+std::unique_ptr<opentelemetry::sdk::metrics::MetricReader>
+CreatePeriodicExportingMetricReader(
+    const opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions&
+        options);
 }  // namespace kv_server
 
 #endif  // COMPONENTS_TELEMETRY_INITIALIZER_H_

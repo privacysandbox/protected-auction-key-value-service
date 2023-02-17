@@ -25,3 +25,7 @@ output "s3_data_bucket_id" {
 output "sns_data_updates_topic_arn" {
   value = aws_sns_topic.sns_topic.arn
 }
+
+output "sns_realtime_topic_arn" {
+  value = aws_sns_topic.realtime_sns_topic.arn
+}

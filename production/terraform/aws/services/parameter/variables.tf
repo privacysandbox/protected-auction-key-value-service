@@ -39,7 +39,22 @@ variable "bucket_update_sns_arn_parameter_value" {
   type        = string
 }
 
-variable "poll_frequency_mins_parameter_value" {
-  description = "Poll frequency for delta file notifier in minutes."
+variable "realtime_sns_arn_parameter_value" {
+  description = "Value for realtime update SNS ARN parameter."
   type        = string
+}
+
+variable "backup_poll_frequency_secs_parameter_value" {
+  description = "Backup poll frequency for delta file notifier in seconds."
+  type        = number
+}
+
+variable "metrics_export_interval_millis_parameter_value" {
+  description = "Export interval for metrics in milliseconds."
+  type        = number
+}
+
+variable "metrics_export_timeout_millis_parameter_value" {
+  description = "Export timeout for metrics in milliseconds."
+  type        = number
 }

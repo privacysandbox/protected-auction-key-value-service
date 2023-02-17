@@ -131,7 +131,6 @@ fi
 if [[ ${OUTDATED_PCR0} -eq 0 ]]; then
   printf "PCR0 hash unchanged\n"
 else
-  cp "${DIST}"/aws/pcr0.json "${PCR0_FILE}"
   printf "PCR0 hash differs: %s:\n" "${PCR0_FILE}"
   cat "${PCR0_FILE}"
 fi

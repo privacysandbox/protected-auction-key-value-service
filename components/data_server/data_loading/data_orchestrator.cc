@@ -14,11 +14,11 @@
 
 #include "components/data_server/data_loading/data_orchestrator.h"
 
+#include <algorithm>
 #include <deque>
 #include <utility>
 #include <vector>
 
-#include "absl/container/flat_hash_set.h"
 #include "absl/functional/bind_front.h"
 #include "absl/strings/str_cat.h"
 #include "components/errors/retry.h"
@@ -30,46 +30,41 @@
 
 namespace kv_server {
 namespace {
+// Holds an input stream pointing to a blob of Riegeli records.
+class BlobRecordStream : public RecordStream {
+ public:
+  explicit BlobRecordStream(std::unique_ptr<BlobReader> blob_reader)
+      : blob_reader_(std::move(blob_reader)) {}
+  std::istream& Stream() { return blob_reader_->Stream(); }
 
-// Reads the file from `location` and updates the cache based on the delta read.
-absl::Status LoadCacheWithDataFromFile(
-    const BlobStorageClient::DataLocation& location,
-    const DataOrchestrator::Options& options) {
-  LOG(INFO) << "Loading " << location;
-  std::unique_ptr<BlobReader> blob_reader =
-      options.blob_client.GetBlobReader(location);
-  std::unique_ptr<StreamRecordReader<std::string_view>> record_reader =
-      options.delta_stream_reader_factory.CreateReader(blob_reader->Stream());
-  auto maybe_metadata = record_reader->GetKVFileMetadata();
-  if (!maybe_metadata.ok()) {
-    return maybe_metadata.status();
-  }
-  if (!maybe_metadata->has_key_namespace()) {
-    return absl::InvalidArgumentError(
-        "key namespace is not set in file metadata");
-  }
-  Cache& cache =
-      options.cache.GetMutableCacheShard(maybe_metadata->key_namespace());
-  return record_reader->ReadStreamRecords([&cache](std::string_view raw) {
+ private:
+  std::unique_ptr<BlobReader> blob_reader_;
+};
+
+absl::Status LoadCacheWithData(
+    StreamRecordReader<std::string_view>& record_reader, Cache& cache,
+    int64_t& max_timestamp) {
+  return record_reader.ReadStreamRecords([&cache, &max_timestamp](
+                                             std::string_view raw) {
     auto record = flatbuffers::GetRoot<DeltaFileRecord>(raw.data());
-
     auto recordVerifier = flatbuffers::Verifier(
         reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
     if (!record->Verify(recordVerifier)) {
       // TODO(b/239061954): Publish metrics for alerting
       return absl::InvalidArgumentError("Invalid flatbuffer format");
     }
-
     switch (record->mutation_type()) {
       case DeltaMutationType::Update: {
-        cache.UpdateKeyValue(
-            {record->key()->string_view(), record->subkey()->string_view()},
-            record->value()->str());
+        cache.UpdateKeyValue(record->key()->string_view(),
+                             record->value()->string_view(),
+                             record->logical_commit_time());
+        max_timestamp = std::max(max_timestamp, record->logical_commit_time());
         break;
       }
       case DeltaMutationType::Delete: {
-        cache.DeleteKey(
-            {record->key()->string_view(), record->subkey()->string_view()});
+        cache.DeleteKey(record->key()->string_view(),
+                        record->logical_commit_time());
+        max_timestamp = std::max(max_timestamp, record->logical_commit_time());
         break;
       }
       default:
@@ -79,6 +74,26 @@ absl::Status LoadCacheWithDataFromFile(
     }
     return absl::OkStatus();
   });
+}
+
+// Reads the file from `location` and updates the cache based on the delta read.
+absl::Status LoadCacheWithDataFromFile(
+    const BlobStorageClient::DataLocation& location,
+    const DataOrchestrator::Options& options) {
+  LOG(INFO) << "Loading " << location;
+  int64_t max_timestamp = 0;
+  auto& cache = options.cache;
+  auto record_reader =
+      options.delta_stream_reader_factory.CreateConcurrentReader(
+          /*stream_factory=*/[&location, &options]() {
+            return std::make_unique<BlobRecordStream>(
+                options.blob_client.GetBlobReader(location));
+          });
+  auto status = LoadCacheWithData(*record_reader, cache, max_timestamp);
+  if (status.ok()) {
+    cache.RemoveDeletedKeys(max_timestamp);
+  }
+  return status;
 }
 absl::Status TraceLoadCacheWithDataFromFile(
     BlobStorageClient::DataLocation location,
@@ -96,9 +111,11 @@ class DataOrchestratorImpl : public DataOrchestrator {
  public:
   // `last_basename` is the last file seen during init. The cache is up to date
   // until this file.
-  DataOrchestratorImpl(Options options, std::string last_basename)
+  DataOrchestratorImpl(Options options, std::string last_basename,
+                       MetricsRecorder& metrics_recorder)
       : options_(std::move(options)),
-        last_basename_of_init_(std::move(last_basename)) {}
+        last_basename_of_init_(std::move(last_basename)),
+        metrics_recorder_(metrics_recorder) {}
 
   ~DataOrchestratorImpl() override {
     if (!data_loader_thread_) return;
@@ -109,7 +126,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
     LOG(INFO) << "Sent cancel signal to data loader thread";
     LOG(INFO) << "Stopping loading new data from " << options_.data_bucket;
     if (options_.delta_notifier.IsRunning()) {
-      if (const auto s = options_.delta_notifier.StopNotify(); !s.ok()) {
+      if (const auto s = options_.delta_notifier.Stop(); !s.ok()) {
         LOG(ERROR) << "Failed to stop notify: " << s;
       }
     }
@@ -157,8 +174,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
       return absl::OkStatus();
     }
     LOG(INFO) << "Transitioning to state ContinuouslyLoadNewData";
-    // TODO: rename StartNotify to Start.
-    const absl::Status status = options_.delta_notifier.StartNotify(
+    absl::Status status = options_.delta_notifier.Start(
         options_.change_notifier, {.bucket = options_.data_bucket},
         last_basename_of_init_,
         absl::bind_front(&DataOrchestratorImpl::EnqueueNewFilesToProcess,
@@ -168,6 +184,22 @@ class DataOrchestratorImpl : public DataOrchestrator {
     }
     data_loader_thread_ = std::make_unique<std::thread>(
         absl::bind_front(&DataOrchestratorImpl::ProcessNewFiles, this));
+
+    auto& cache = options_.cache;
+    auto& delta_stream_reader_factory = options_.delta_stream_reader_factory;
+
+    status = options_.realtime_notifier.Start(
+        options_.delta_file_record_change_notifier,
+        [this, &cache,
+         &delta_stream_reader_factory](const std::string& message_body) {
+          return LoadCacheWithHighPriorityUpdates(delta_stream_reader_factory,
+                                                  message_body, cache);
+        });
+
+    if (!status.ok()) {
+      return status;
+    }
+
     return absl::OkStatus();
   }
 
@@ -207,7 +239,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
             return TraceLoadCacheWithDataFromFile(
                 {.bucket = options_.data_bucket, .key = basename}, options_);
           },
-          "LoadNewFile - " + basename);
+          "LoadNewFile", metrics_recorder_);
     }
   }
 
@@ -232,7 +264,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
     LOG(INFO) << "Initializing cache with snapshot file(s) from: "
               << options.data_bucket;
     std::string ending_delta_file;
-    absl::flat_hash_set<KeyNamespace::Enum> namespaces_set;
+
     for (int64_t s = snapshots->size() - 1; s >= 0; s--) {
       std::string_view snapshot = snapshots->at(s);
       if (!IsSnapshotFilename(snapshot)) {
@@ -242,19 +274,15 @@ class DataOrchestratorImpl : public DataOrchestrator {
       }
       BlobStorageClient::DataLocation location{.bucket = options.data_bucket,
                                                .key = snapshot.data()};
-      auto blob_reader = options.blob_client.GetBlobReader(location);
-      auto record_reader = options.delta_stream_reader_factory.CreateReader(
-          blob_reader->Stream());
+      auto record_reader =
+          options.delta_stream_reader_factory.CreateConcurrentReader(
+              /*stream_factory=*/[&location, &options]() {
+                return std::make_unique<BlobRecordStream>(
+                    options.blob_client.GetBlobReader(location));
+              });
       auto metadata = record_reader->GetKVFileMetadata();
       if (!metadata.ok()) {
         return metadata.status();
-      }
-      if (!metadata->has_key_namespace()) {
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Snapshot: ", location.key, " does not have a key namespace set."));
-      }
-      if (namespaces_set.contains(metadata->key_namespace())) {
-        continue;
       }
       LOG(INFO) << "Loading snapshot file: " << location.bucket << "/"
                 << location.key;
@@ -265,11 +293,20 @@ class DataOrchestratorImpl : public DataOrchestrator {
       if (metadata->snapshot().ending_delta_file() > ending_delta_file) {
         ending_delta_file = std::move(metadata->snapshot().ending_delta_file());
       }
-      namespaces_set.insert(metadata->key_namespace());
       LOG(INFO) << "Done loading snapshot file: " << location.bucket << "/"
                 << location.key;
+      break;
     }
     return ending_delta_file;
+  }
+
+  absl::Status LoadCacheWithHighPriorityUpdates(
+      StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory,
+      const std::string& record_string, Cache& cache) {
+    std::istringstream is(record_string);
+    int64_t max_timestamp = 0;
+    auto record_reader = delta_stream_reader_factory.CreateReader(is);
+    return LoadCacheWithData(*record_reader, cache, max_timestamp);
   }
 
   const Options options_;
@@ -279,18 +316,20 @@ class DataOrchestratorImpl : public DataOrchestrator {
   bool stop_ GUARDED_BY(mu_) = false;
   // last basename of file in initialization.
   const std::string last_basename_of_init_;
+  MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<DataOrchestrator>> DataOrchestrator::TryCreate(
-    Options options) {
+    Options options, MetricsRecorder& metrics_recorder) {
   const auto maybe_last_basename = DataOrchestratorImpl::Init(options);
   if (!maybe_last_basename.ok()) {
     return maybe_last_basename.status();
   }
   auto orchestrator = std::make_unique<DataOrchestratorImpl>(
-      std::move(options), std::move(maybe_last_basename.value()));
+      std::move(options), std::move(maybe_last_basename.value()),
+      metrics_recorder);
   return orchestrator;
 }
 }  // namespace kv_server

@@ -43,11 +43,11 @@ module "kv_server" {
   autoscaling_min_size         = var.autoscaling_min_size
 
   # Variables related to data storage and cleanup.
-  s3_delta_file_bucket_name = var.s3_delta_file_bucket_name
-  sqs_cleanup_image_uri     = var.sqs_cleanup_image_uri
-  sqs_cleanup_schedule      = var.sqs_cleanup_schedule
-  sqs_queue_timeout_secs    = var.sqs_queue_timeout_secs
-  poll_frequency_mins       = var.poll_frequency_mins
+  s3_delta_file_bucket_name  = var.s3_delta_file_bucket_name
+  sqs_cleanup_image_uri      = var.sqs_cleanup_image_uri
+  sqs_cleanup_schedule       = var.sqs_cleanup_schedule
+  sqs_queue_timeout_secs     = var.sqs_queue_timeout_secs
+  backup_poll_frequency_secs = var.backup_poll_frequency_secs
 
   # Variables related to AWS backend services.
   vpc_gateway_endpoint_services   = var.vpc_gateway_endpoint_services
@@ -60,6 +60,10 @@ module "kv_server" {
 
   # Variables related to SSH
   ssh_source_cidr_blocks = var.ssh_source_cidr_blocks
+
+  # Variables related to metrics.
+  metrics_export_interval_millis = var.metrics_export_interval_millis
+  metrics_export_timeout_millis  = var.metrics_export_timeout_millis
 }
 
 output "kv_server_url" {

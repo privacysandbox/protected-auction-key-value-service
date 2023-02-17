@@ -25,6 +25,7 @@ def container_deps():
             "registry": "public.ecr.aws",
             "repository": "lambda/python",
         },
+        # Used for deploying Envoy locally for testing
         "envoy-distroless": {
             "arch_hashes": {
                 # v1.23.1
@@ -36,12 +37,12 @@ def container_deps():
         },
         "runtime-debian": {
             "arch_hashes": {
-                # stable-20221004-slim
-                "amd64": "a4912461baca94ca557af4e779857867a25e0215d157d2dc04f148811e7877f8",
-                "arm64": "af9a018b749427a53fded449bd1fbb2cbdc7077d8922b7ebb7bd6478ed40d8e7",
+                # cc-debian11:debug-nonroot
+                "amd64": "0331a001514446904bdfd9f162979e7360f981609ad5dc92ad78c47578dac2d6",
+                "arm64": "a5abaf60507710421643ae5a87bcee5ef5e86ba6405235e7deec7478062b8213",
             },
-            "registry": "docker.io",
-            "repository": "library/debian",
+            "registry": "gcr.io",
+            "repository": "distroless/cc-debian11",
         },
     }
 

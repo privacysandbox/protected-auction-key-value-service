@@ -29,9 +29,16 @@ resource "aws_ssm_parameter" "s3_bucket_parameter" {
 }
 
 resource "aws_ssm_parameter" "bucket_update_sns_arn_parameter" {
-  name      = "${var.service}-${var.environment}-bucket-sns-arn"
+  name      = "${var.service}-${var.environment}-data-loading-file-channel-bucket-sns-arn"
   type      = "String"
   value     = var.bucket_update_sns_arn_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "realtime_sns_arn_parameter" {
+  name      = "${var.service}-${var.environment}-data-loading-realtime-channel-sns-arn"
+  type      = "String"
+  value     = var.realtime_sns_arn_parameter_value
   overwrite = true
 }
 
@@ -42,9 +49,23 @@ resource "aws_ssm_parameter" "launch_hook_parameter" {
   overwrite = true
 }
 
-resource "aws_ssm_parameter" "poll_frequency_mins_parameter" {
-  name      = "${var.service}-${var.environment}-poll-frequency-mins"
+resource "aws_ssm_parameter" "backup_poll_frequency_secs_parameter" {
+  name      = "${var.service}-${var.environment}-backup-poll-frequency-secs"
   type      = "String"
-  value     = var.poll_frequency_mins_parameter_value
+  value     = var.backup_poll_frequency_secs_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "metrics_export_interval_millis_parameter" {
+  name      = "${var.service}-${var.environment}-metrics-export-interval-millis"
+  type      = "String"
+  value     = var.metrics_export_interval_millis_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "metrics_export_timeout_millis_parameter" {
+  name      = "${var.service}-${var.environment}-metrics-export-timeout-millis"
+  type      = "String"
+  value     = var.metrics_export_timeout_millis_parameter_value
   overwrite = true
 }

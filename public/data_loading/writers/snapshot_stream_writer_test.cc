@@ -36,22 +36,19 @@ constexpr std::string_view kEndingDeltaFilename = "DELTA_0000000000000010";
 
 KVFileMetadata GetMetadata() {
   KVFileMetadata metadata;
-  metadata.set_key_namespace(KeyNamespace_Enum_KEYS);
   return metadata;
 }
 KVFileMetadata GetSnapshotMetadata() {
-  KVFileMetadata metadata = GetMetadata();
+  KVFileMetadata metadata;
   SnapshotMetadata* snapshot = metadata.mutable_snapshot();
   *snapshot->mutable_starting_file() = kBaseSnapshotFilename;
   *snapshot->mutable_ending_delta_file() = kEndingDeltaFilename;
   return metadata;
 }
 
-DeltaFileRecordStruct GetDeltaRecord(std::string_view key = "key",
-                                     std::string_view subkey = "subkey") {
+DeltaFileRecordStruct GetDeltaRecord(std::string_view key = "key") {
   DeltaFileRecordStruct record;
   record.key = key;
-  record.subkey = subkey;
   record.value = "value";
   record.logical_commit_time = 1234567890;
   record.mutation_type = DeltaMutationType::Update;
@@ -241,18 +238,6 @@ TEST(SnapshotStreamWriterTest,
   auto snapshot_writer = SnapshotStreamWriter<>::Create(
       {.metadata = GetSnapshotMetadata()}, dest_stream);
   EXPECT_TRUE(snapshot_writer.ok()) << snapshot_writer.status();
-}
-
-TEST(SnapshotStreamWriterTest,
-     ValidateCreatingSnapshotWriterWithInvalidKeyNamespace) {
-  std::stringstream dest_stream;
-  auto metadata = GetSnapshotMetadata();
-  metadata.clear_key_namespace();
-  auto snapshot_writer =
-      SnapshotStreamWriter<>::Create({.metadata = metadata}, dest_stream);
-  EXPECT_FALSE(snapshot_writer.ok()) << snapshot_writer.status();
-  EXPECT_EQ(snapshot_writer.status().code(),
-            absl::StatusCode::kInvalidArgument);
 }
 
 TEST(SnapshotStreamWriterTest,

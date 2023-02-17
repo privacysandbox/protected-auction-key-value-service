@@ -65,6 +65,23 @@ constexpr char kQueryArgDelimiter = ',';
 //            indicates a more recent snapshot.
 const std::regex& SnapshotFileFormatRegex();
 
+// X25519 public key used to test/debug/demo the ObliviousGetValues query API.
+// ObliviousGetValues requests encrypted with this key can be processed by the
+// server. Key originates from
+// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-2
+constexpr std::string_view kTestPublicKey =
+    "31e1f05a740102115220e9af918f738674aec95f54db6e04eb705aae8e798155";
+
+// Parameters used to configure Oblivious HTTP according to
+// https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#encryption
+//
+// KEM: DHKEM(X25519, HKDF-SHA256) 0x0020
+const uint16_t kKEMParameter = 0x0020;
+// KDF: HKDF-SHA256 0x0001
+const uint16_t kKDFParameter = 0x0001;
+// AEAD: AES-128-GCM 0X0001
+const uint16_t kAEADParameter = 0x0001;
+
 }  // namespace kv_server
 
 #endif  // PUBLIC_CONSTANTS_H_

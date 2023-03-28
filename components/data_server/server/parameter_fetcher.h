@@ -20,27 +20,39 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 
 #include "absl/status/statusor.h"
 #include "components/cloud_config/parameter_client.h"
+#include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
 class ParameterFetcher {
  public:
+  ParameterFetcher(std::string environment,
+                   const ParameterClient& parameter_client,
+                   MetricsRecorder& metrics_recorder);
+
   virtual ~ParameterFetcher() = default;
 
   // This function will retry any necessary requests until it succeeds.
-  virtual std::string GetParameter(std::string_view parameter_suffix) const = 0;
+  virtual std::string GetParameter(std::string_view parameter_suffix) const;
 
   // This function will retry any necessary requests until it succeeds.
-  virtual int32_t GetInt32Parameter(
-      std::string_view parameter_suffix) const = 0;
+  virtual int32_t GetInt32Parameter(std::string_view parameter_suffix) const;
 
-  static std::unique_ptr<ParameterFetcher> Create(
-      std::string environment, const ParameterClient& parameter_client,
-      MetricsRecorder& metrics_recorder);
+  virtual NotifierMetadata GetBlobStorageNotifierMetadata() const;
+
+  virtual NotifierMetadata GetRealtimeNotifierMetadata() const;
+
+ private:
+  std::string GetParamName(std::string_view parameter_suffix) const;
+
+  const std::string environment_;
+  const ParameterClient& parameter_client_;
+  MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

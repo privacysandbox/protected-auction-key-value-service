@@ -15,6 +15,7 @@
  */
 
 #include <string>
+#include <thread>
 
 #include "absl/status/statusor.h"
 #include "components/cloud_config/parameter_client.h"
@@ -23,17 +24,74 @@
 namespace kv_server {
 namespace {
 
-TEST(ParameterClientLocal, NotImplemented) {
+TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
   std::unique_ptr<ParameterClient> client = ParameterClient::Create();
   ASSERT_TRUE(client != nullptr);
 
-  EXPECT_EQ(absl::StatusCode::kUnimplemented,
-            client->GetParameter("unused").status().code());
-  EXPECT_EQ(absl::StatusCode::kUnimplemented,
-            client->GetInt32Parameter("unused").status().code());
+  {
+    const auto statusor = client->GetParameter("kv-server-local-directory");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ("", *statusor);
+  }
+  {
+    const auto statusor =
+        client->GetParameter("kv-server-local-realtime-directory");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ("", *statusor);
+  }
+  {
+    const auto statusor = client->GetParameter("kv-server-local-launch-hook");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ("", *statusor);
+  }
+  {
+    const auto statusor = client->GetParameter("kv-server-local-mode");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ("DSP", *statusor);
+  }
+  {
+    const auto statusor = client->GetInt32Parameter(
+        "kv-server-local-metrics-export-interval-millis");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(30000, *statusor);
+  }
+  {
+    const auto statusor = client->GetInt32Parameter(
+        "kv-server-local-metrics-export-timeout-millis");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(5000, *statusor);
+  }
+  {
+    const auto statusor =
+        client->GetInt32Parameter("kv-server-local-backup-poll-frequency-secs");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(5, *statusor);
+  }
+  {
+    const auto statusor = client->GetInt32Parameter(
+        "kv-server-local-realtime-updater-num-threads");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(1, *statusor);
+  }
+  {
+    const auto statusor =
+        client->GetInt32Parameter("kv-server-local-data-loading-num-threads");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(std::thread::hardware_concurrency(), *statusor);
+  }
+  {
+    const auto statusor =
+        client->GetInt32Parameter("kv-server-local-s3client-max-connections");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(1, *statusor);
+  }
+  {
+    const auto statusor =
+        client->GetInt32Parameter("kv-server-local-s3client-max-range-bytes");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(1, *statusor);
+  }
 }
-
-// TODO(237669491): Add tests here
 
 }  // namespace
 }  // namespace kv_server

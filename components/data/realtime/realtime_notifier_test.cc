@@ -15,11 +15,13 @@
 #include "components/data/realtime/realtime_notifier.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/synchronization/notification.h"
 #include "components/data/common/mocks.h"
 #include "components/errors/mocks.h"
+#include "components/telemetry/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/filename_utils.h"
@@ -34,15 +36,23 @@ namespace {
 class RealtimeNotifierTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    thread_notifier_ = ThreadNotifier::Create("Realtim notifier");
-    notifier_ = RealtimeNotifier::Create(*thread_notifier_, sleep_for_);
+    std::unique_ptr<MockSleepFor> mock_sleep_for =
+        std::make_unique<MockSleepFor>();
+    sleep_for_ = mock_sleep_for.get();
+    notifier_ = RealtimeNotifier::Create(mock_metrics_recorder_,
+                                         std::move(mock_sleep_for));
   }
 
   std::unique_ptr<RealtimeNotifier> notifier_;
-  std::unique_ptr<ThreadNotifier> thread_notifier_;
   MockDeltaFileRecordChangeNotifier change_notifier_;
-  MockSleepFor sleep_for_;
+  MockMetricsRecorder mock_metrics_recorder_;
+  MockSleepFor* sleep_for_;
 };
+
+NotificationsContext GetNotificationsContext() {
+  auto span = GetTracer()->GetCurrentSpan();
+  return NotificationsContext{.scope = opentelemetry::trace::Scope(span)};
+}
 
 TEST_F(RealtimeNotifierTest, NotRunning) {
   ASSERT_FALSE(notifier_->IsRunning());
@@ -72,10 +82,22 @@ TEST_F(RealtimeNotifierTest, NotifiesWithHighPriorityUpdates) {
 
   EXPECT_CALL(change_notifier_, GetNotifications(_, _))
       // x64 encoded file with two records
-      .WillOnce(Return(std::vector<std::string>({high_priority_update_1})))
+      .WillOnce([&]() {
+        NotificationsContext nc1 = GetNotificationsContext();
+        nc1.parsed_notifications =
+            std::vector<std::string>({high_priority_update_1});
+
+        return nc1;
+      })
       // x64 encoded file with one record
-      .WillOnce(Return(std::vector<std::string>({high_priority_update_2})))
-      .WillRepeatedly(Return(std::vector<std::string>()));
+      .WillOnce([&]() {
+        NotificationsContext nc2 = GetNotificationsContext();
+        nc2.parsed_notifications =
+            std::vector<std::string>({high_priority_update_2});
+
+        return nc2;
+      })
+      .WillRepeatedly([]() { return GetNotificationsContext(); });
 
   absl::Notification finished;
   testing::MockFunction<void(const std::string& record)> callback;
@@ -103,10 +125,16 @@ TEST_F(RealtimeNotifierTest, NotifiesWithHighPriorityUpdates) {
 TEST_F(RealtimeNotifierTest, GetChangesFailure) {
   std::string high_priority_update_1 = "high_priority_update_1";
   EXPECT_CALL(change_notifier_, GetNotifications(_, _))
-      .WillOnce(Return(absl::InvalidArgumentError("stuff")))
-      .WillOnce(Return(absl::InvalidArgumentError("stuff")))
-      .WillOnce(Return(std::vector<std::string>({high_priority_update_1})))
-      .WillRepeatedly(Return(std::vector<std::string>()));
+      .WillOnce([]() { return absl::InvalidArgumentError("stuff"); })
+      .WillOnce([]() { return absl::InvalidArgumentError("stuff"); })
+      .WillOnce([&]() {
+        NotificationsContext nc1 = GetNotificationsContext();
+        nc1.parsed_notifications =
+            std::vector<std::string>({high_priority_update_1});
+
+        return nc1;
+      })
+      .WillRepeatedly([]() { return GetNotificationsContext(); });
 
   absl::Notification finished;
   testing::MockFunction<void(const std::string& record)> callback;
@@ -114,8 +142,12 @@ TEST_F(RealtimeNotifierTest, GetChangesFailure) {
     EXPECT_EQ(key, high_priority_update_1);
     finished.Notify();
   });
-  EXPECT_CALL(sleep_for_, Duration(absl::Seconds(2))).Times(1);
-  EXPECT_CALL(sleep_for_, Duration(absl::Seconds(4))).Times(1);
+  EXPECT_CALL(*sleep_for_, Duration(absl::Seconds(2)))
+      .Times(1)
+      .WillOnce(Return(true));
+  EXPECT_CALL(*sleep_for_, Duration(absl::Seconds(4)))
+      .Times(1)
+      .WillOnce(Return(true));
 
   absl::Status status =
       notifier_->Start(change_notifier_, callback.AsStdFunction());

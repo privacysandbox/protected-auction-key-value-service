@@ -30,6 +30,7 @@ cc_library(
     name = "riegeli_stream_io",
     hdrs = ["riegeli_stream_io.h"],
     deps = [
+        "//components/telemetry:metrics_recorder",
         "//public/data_loading:riegeli_metadata_cc_proto",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",

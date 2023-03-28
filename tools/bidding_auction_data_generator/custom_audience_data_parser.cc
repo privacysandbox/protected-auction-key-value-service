@@ -15,33 +15,48 @@
  */
 #include "tools/bidding_auction_data_generator/custom_audience_data_parser.h"
 
+#include <fstream>
+#include <sstream>
+
 #include "google/protobuf/util/json_util.h"
 #include "tools/bidding_auction_data_generator/data/custom_audience_data.pb.h"
 
 namespace kv_server {
 using SideLoadData =
-    ::kv_server::tools::bidding_auction_data_generator::SideLoadData;
-absl::Status ParseAudienceData(
-    const std::string& side_load_json,
-    absl::flat_hash_set<std::string>& custom_audience_names,
-    absl::flat_hash_set<std::string>& render_urls) {
-  SideLoadData side_load_proto_data;
-  google::protobuf::util::Status result =
-      google::protobuf::util::JsonStringToMessage(side_load_json,
-                                                  &side_load_proto_data);
-  if (!result.ok()) {
-    return absl::FailedPreconditionError(absl::StrCat(
-        "Failed to convert json to side load proto data:", result.ToString()));
-  }
+    kv_server::tools::bidding_auction_data_generator::SideLoadData;
 
+absl::StatusOr<SideLoadData> ReadCustomAudienceData(
+    const std::string& file_path) {
+  std::ifstream in_stream(file_path);
+  if (in_stream) {
+    std::ostringstream contents;
+    contents << in_stream.rdbuf();
+    in_stream.close();
+    SideLoadData side_load_proto_data;
+    google::protobuf::util::Status result =
+        google::protobuf::util::JsonStringToMessage(contents.str(),
+                                                    &side_load_proto_data);
+    if (!result.ok()) {
+      return absl::FailedPreconditionError(
+          absl::StrCat("Failed to convert json to side load proto data:",
+                       result.ToString()));
+    }
+    return side_load_proto_data;
+  }
+  return absl::InvalidArgumentError(
+      absl::StrCat("Unable to read the file,", file_path));
+}
+
+void ParseAudienceData(const SideLoadData& custom_audience_data,
+                       absl::flat_hash_set<std::string>& custom_audience_names,
+                       absl::flat_hash_set<std::string>& render_urls) {
   // Parse custom audience names
-  for (auto& ca : side_load_proto_data.interest_groups()) {
+  for (auto& ca : custom_audience_data.interest_groups()) {
     custom_audience_names.insert(ca.name());
     // Parse render urls
     for (auto& ad : ca.ads()) {
       render_urls.insert(ad.render_url());
     }
   }
-  return absl::OkStatus();
 }
 }  // namespace kv_server

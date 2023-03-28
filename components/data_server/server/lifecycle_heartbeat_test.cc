@@ -61,12 +61,26 @@ class MockInstanceClient : public InstanceClient {
   MOCK_METHOD(absl::StatusOr<std::string>, GetInstanceId, (), (override));
 };
 
+class MockParameterClient : public ParameterClient {
+ public:
+  MOCK_METHOD(absl::StatusOr<std::string>, GetParameter,
+              (std::string_view parameter_name), (const, override));
+  MOCK_METHOD(absl::StatusOr<int32_t>, GetInt32Parameter,
+              (std::string_view parameter_name), (const, override));
+};
+
 class MockParameterFetcher : public ParameterFetcher {
  public:
+  MockParameterFetcher()
+      : ParameterFetcher("environment", client, metrics_recorder) {}
   MOCK_METHOD(std::string, GetParameter, (std::string_view parameter_suffix),
               (const, override));
   MOCK_METHOD(int32_t, GetInt32Parameter, (std::string_view parameter_suffix),
               (const, override));
+
+ private:
+  MockParameterClient client;
+  MockMetricsRecorder metrics_recorder;
 };
 
 TEST(LifecycleHeartbeat, CantRunTwice) {

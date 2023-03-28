@@ -63,6 +63,12 @@ absl::Status TraceWithStatus(std::function<absl::Status()> func,
                              opentelemetry::nostd::string_view name,
                              std::vector<TelemetryAttribute> attributes = {});
 
+// Must be called after the `InitMetrics`, otherwise this is a noop. This
+// function is not meant to be used directly -- for most cases,
+// MetricsRecorder's `RegisterHistogram` should be used to register histograms.
+void RegisterHistogramView(std::string name, std::string description,
+                           std::vector<double> bucket_boundaries = {});
+
 template <typename Func>
 typename std::invoke_result_t<Func> TraceWithStatusOr(
     Func func, opentelemetry::nostd::string_view name,

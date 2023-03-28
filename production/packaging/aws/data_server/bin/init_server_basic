@@ -46,4 +46,4 @@ while [ $# -gt 0 ]; do
 done
 
 # Start the server.
-$PROXY /server/bin/server "$@"
+GLOG_logtostderr=1 $PROXY /server/bin/server "$@"

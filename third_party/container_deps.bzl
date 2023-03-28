@@ -38,8 +38,8 @@ def container_deps():
         "runtime-debian": {
             "arch_hashes": {
                 # cc-debian11:debug-nonroot
-                "amd64": "0331a001514446904bdfd9f162979e7360f981609ad5dc92ad78c47578dac2d6",
-                "arm64": "a5abaf60507710421643ae5a87bcee5ef5e86ba6405235e7deec7478062b8213",
+                "amd64": "7caec0c1274f808d29492012a5c3f57331c7f44d5e9e83acf5819eb2e3ae14dc",
+                "arm64": "f17be941beeaa468ef03fc986cd525fe61e7550affc12fbd4160ec9e1dac9c1d",
             },
             "registry": "gcr.io",
             "repository": "distroless/cc-debian11",

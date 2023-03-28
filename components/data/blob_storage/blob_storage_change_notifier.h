@@ -24,21 +24,12 @@
 
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
+#include "components/data/common/change_notifier.h"
 
 namespace kv_server {
 
 class BlobStorageChangeNotifier {
  public:
-  // Notification publisher details.
-  // TODO(b/237669491): Consider putting this into a std::variant rather than
-  // allowing both values to be set even though only one will be used.
-  struct NotifierMetadata {
-    // Used for AWS
-    std::string sns_arn;
-    // Directory to watch
-    std::filesystem::path local_directory;
-  };
-
   virtual ~BlobStorageChangeNotifier() = default;
 
   // Waits up to `max_wait` to return a vector keys(notifications).
@@ -48,8 +39,8 @@ class BlobStorageChangeNotifier {
       absl::Duration max_wait,
       const std::function<bool()>& should_stop_callback) = 0;
 
-  static std::unique_ptr<BlobStorageChangeNotifier> Create(
-      NotifierMetadata metadata);
+  static absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> Create(
+      NotifierMetadata notifier_metadata);
 };
 
 }  // namespace kv_server

@@ -43,9 +43,8 @@ class S3BlobInputStreamBuf : public SeekingInputStreambuf {
  public:
   S3BlobInputStreamBuf(Aws::S3::S3Client& client,
                        BlobStorageClient::DataLocation location,
-                       std::function<void(absl::Status)> error_callback)
-      : SeekingInputStreambuf(
-            GetOptions(kMaxRangeBytes, std::move(error_callback))),
+                       SeekingInputStreambuf::Options options)
+      : SeekingInputStreambuf(std::move(options)),
         client_(client),
         location_(std::move(location)) {}
 
@@ -91,6 +90,29 @@ class S3BlobInputStreamBuf : public SeekingInputStreambuf {
                         std::to_string(offset + length - 1));
   }
 
+  Aws::S3::S3Client& client_;
+  const BlobStorageClient::DataLocation location_;
+};
+
+class S3BlobReader : public BlobReader {
+ public:
+  S3BlobReader(Aws::S3::S3Client& client,
+               BlobStorageClient::DataLocation location,
+               const BlobStorageClient::ClientOptions& client_options)
+      : BlobReader(),
+        streambuf_(client, location,
+                   GetOptions(client_options.max_range_bytes,
+                              [this, location](absl::Status status) {
+                                LOG(ERROR) << "Blob " << location.key
+                                           << " failed stream with: " << status;
+                                is_.setstate(std::ios_base::badbit);
+                              })),
+        is_(&streambuf_) {}
+
+  std::istream& Stream() { return is_; }
+  bool CanSeek() const { return true; }
+
+ private:
   static SeekingInputStreambuf::Options GetOptions(
       int64_t buffer_size, std::function<void(absl::Status)> error_callback) {
     SeekingInputStreambuf::Options options;
@@ -99,27 +121,6 @@ class S3BlobInputStreamBuf : public SeekingInputStreambuf {
     return options;
   }
 
-  Aws::S3::S3Client& client_;
-  const BlobStorageClient::DataLocation location_;
-};
-
-class S3BlobReader : public BlobReader {
- public:
-  S3BlobReader(Aws::S3::S3Client& client,
-               BlobStorageClient::DataLocation location)
-      : BlobReader(),
-        streambuf_(client, location,
-                   [this, location](absl::Status status) {
-                     LOG(ERROR) << "Blob " << location.key
-                                << " failed stream with: " << status;
-                     is_.setstate(std::ios_base::badbit);
-                   }),
-        is_(&streambuf_) {}
-
-  std::istream& Stream() { return is_; }
-  bool CanSeek() const { return true; }
-
- private:
   S3BlobInputStreamBuf streambuf_;
   std::istream is_;
 };
@@ -127,7 +128,8 @@ class S3BlobReader : public BlobReader {
 class S3BlobStorageClient : public BlobStorageClient {
  public:
   std::unique_ptr<BlobReader> GetBlobReader(DataLocation location) override {
-    return std::make_unique<S3BlobReader>(*client_, std::move(location));
+    return std::make_unique<S3BlobReader>(*client_, std::move(location),
+                                          client_options_);
   }
 
   absl::Status PutBlob(BlobReader& reader, DataLocation location) override {
@@ -193,8 +195,11 @@ class S3BlobStorageClient : public BlobStorageClient {
     return keys;
   }
 
-  S3BlobStorageClient() : BlobStorageClient() {
-    client_ = std::make_shared<Aws::S3::S3Client>();
+  explicit S3BlobStorageClient(BlobStorageClient::ClientOptions client_options)
+      : client_options_(std::move(client_options)) {
+    Aws::Client::ClientConfiguration config;
+    config.maxConnections = client_options_.max_connections;
+    client_ = std::make_shared<Aws::S3::S3Client>(config);
     executor_ = std::make_unique<Aws::Utils::Threading::PooledThreadExecutor>(
         std::thread::hardware_concurrency());
     Aws::Transfer::TransferManagerConfiguration transfer_config(
@@ -206,13 +211,15 @@ class S3BlobStorageClient : public BlobStorageClient {
  private:
   // TODO: Consider switch to CRT client.
   // AWS API requires shared_ptr
+  ClientOptions client_options_;
   std::unique_ptr<Aws::Utils::Threading::PooledThreadExecutor> executor_;
   std::shared_ptr<Aws::S3::S3Client> client_;
   std::shared_ptr<Aws::Transfer::TransferManager> transfer_manager_;
 };
 }  // namespace
 
-std::unique_ptr<BlobStorageClient> BlobStorageClient::Create() {
-  return std::make_unique<S3BlobStorageClient>();
+std::unique_ptr<BlobStorageClient> BlobStorageClient::Create(
+    BlobStorageClient::ClientOptions client_options) {
+  return std::make_unique<S3BlobStorageClient>(client_options);
 }
 }  // namespace kv_server

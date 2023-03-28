@@ -41,11 +41,6 @@ class KeyValueServiceImpl final
       const kv_server::v1::GetValuesRequest* request,
       kv_server::v1::GetValuesResponse* response) override;
 
-  grpc::ServerUnaryReactor* BinaryHttpGetValues(
-      grpc::CallbackServerContext* context,
-      const kv_server::v1::BinaryHttpGetValuesRequest* request,
-      google::api::HttpBody* response) override;
-
  private:
   GetValuesHandler handler_;
   MetricsRecorder& metrics_recorder_;

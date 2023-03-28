@@ -31,6 +31,7 @@ DeltaKeyValueWriter::Create(std::ostream& output_stream) {
   return absl::WrapUnique(
       new DeltaKeyValueWriter(std::move(*delta_record_writer)));
 }
+
 absl::Status DeltaKeyValueWriter::Write(
     const absl::flat_hash_map<std::string, std::string>& key_value_map,
     int64_t logical_commit_time, DeltaMutationType mutation_type) {

@@ -69,3 +69,31 @@ resource "aws_ssm_parameter" "metrics_export_timeout_millis_parameter" {
   value     = var.metrics_export_timeout_millis_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "realtime_updater_num_threads_parameter" {
+  name      = "${var.service}-${var.environment}-realtime-updater-num-threads"
+  type      = "String"
+  value     = var.realtime_updater_num_threads_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "data_loading_num_threads_parameter" {
+  name      = "${var.service}-${var.environment}-data-loading-num-threads"
+  type      = "String"
+  value     = var.data_loading_num_threads_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "s3client_max_connections_parameter" {
+  name      = "${var.service}-${var.environment}-s3client-max-connections"
+  type      = "String"
+  value     = var.s3client_max_connections_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "s3client_max_range_bytes_parameter" {
+  name      = "${var.service}-${var.environment}-s3client-max-range-bytes"
+  type      = "String"
+  value     = var.s3client_max_range_bytes_parameter_value
+  overwrite = true
+}

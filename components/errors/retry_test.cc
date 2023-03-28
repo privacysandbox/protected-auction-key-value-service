@@ -15,6 +15,7 @@
 #include "components/errors/retry.h"
 
 #include <string>
+#include <thread>
 #include <utility>
 
 #include "absl/status/status.h"
@@ -27,14 +28,18 @@
 namespace kv_server {
 namespace {
 
+using ::testing::Return;
+
 TEST(RetryTest, RetryUntilOk) {
   testing::MockFunction<absl::StatusOr<int>()> func;
   EXPECT_CALL(func, Call)
       .Times(2)
       .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
       .WillOnce([] { return 1; });
-  MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
+  MockUnstoppableSleepFor sleep_for;
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2)))
+      .Times(1)
+      .WillOnce(Return(true));
   MockMetricsRecorder metrics_recorder;
   EXPECT_CALL(metrics_recorder,
               IncrementEventStatus("TestFunc",
@@ -53,8 +58,10 @@ TEST(RetryTest, RetryUnilOkStatusOnly) {
       .Times(2)
       .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
       .WillOnce([] { return absl::OkStatus(); });
-  MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
+  MockUnstoppableSleepFor sleep_for;
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2)))
+      .Times(1)
+      .WillOnce(Return(true));
   MockMetricsRecorder metrics_recorder;
   EXPECT_CALL(metrics_recorder,
               IncrementEventStatus("TestFunc",
@@ -71,8 +78,12 @@ TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
   });
 
   MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
-  EXPECT_CALL(sleep_for, Duration(absl::Seconds(4))).Times(1);
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2)))
+      .Times(1)
+      .WillOnce(Return(true));
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(4)))
+      .Times(1)
+      .WillOnce(Return(true));
   MockMetricsRecorder metrics_recorder;
   EXPECT_CALL(metrics_recorder,
               IncrementEventStatus("TestFunc",
@@ -92,7 +103,9 @@ TEST(RetryTest, RetryWithMaxSucceedsOnMax) {
       .WillOnce([] { return 1; });
 
   MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2)))
+      .Times(1)
+      .WillOnce(Return(true));
   MockMetricsRecorder metrics_recorder;
   EXPECT_CALL(metrics_recorder,
               IncrementEventStatus("TestFunc",
@@ -112,7 +125,9 @@ TEST(RetryTest, RetryWithMaxSucceedsEarly) {
       .WillOnce([] { return absl::InvalidArgumentError("whatever"); })
       .WillOnce([] { return 1; });
   MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2))).Times(1);
+  EXPECT_CALL(sleep_for, Duration(absl::Seconds(2)))
+      .Times(1)
+      .WillOnce(Return(true));
   MockMetricsRecorder metrics_recorder;
   EXPECT_CALL(metrics_recorder,
               IncrementEventStatus("TestFunc",
@@ -124,5 +139,52 @@ TEST(RetryTest, RetryWithMaxSucceedsEarly) {
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
+
+TEST(SleepForTest, DoesSleep) {
+  SleepFor sleep_for;
+  absl::Time start = absl::Now();
+  sleep_for.Duration(absl::Seconds(2));
+  absl::Duration total = absl::Now() - start;
+  // Make sure it is close enough to intended sleep time.
+  ASSERT_LT(total - absl::Seconds(2), absl::Milliseconds(20));
+}
+
+TEST(SleepForTest, DoesConcurrentSleep) {
+  SleepFor sleep_for;
+  absl::Duration d1;
+  std::thread t1([&sleep_for, &d1]() {
+    const auto start = absl::Now();
+    sleep_for.Duration(absl::Seconds(2));
+    d1 = absl::Now() - start;
+  });
+  absl::Duration d2;
+  std::thread t2([&sleep_for, &d2]() {
+    const auto start = absl::Now();
+    sleep_for.Duration(absl::Seconds(2));
+    d2 = absl::Now() - start;
+  });
+  t1.join();
+  t2.join();
+  // Make sure it is close enough to intended sleep time.
+  ASSERT_LT(d1 - absl::Seconds(2), absl::Milliseconds(20));
+  ASSERT_LT(d2 - absl::Seconds(2), absl::Milliseconds(20));
+}
+
+TEST(SleepForTest, DoesSleepStop) {
+  SleepFor sleep_for;
+  absl::Time start;
+  std::thread t([&sleep_for, &start]() {
+    start = absl::Now();
+    sleep_for.Duration(absl::Minutes(10));
+  });
+  ASSERT_TRUE(sleep_for.Stop().ok());
+  t.join();
+  absl::Duration total = absl::Now() - start;
+  // Make sure stop is fast enough
+  ASSERT_LT(total, absl::Seconds(20));
+  // Can't stop twice
+  ASSERT_FALSE(sleep_for.Stop().ok());
+}
+
 }  // namespace
 }  // namespace kv_server

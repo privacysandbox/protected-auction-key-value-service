@@ -1,5 +1,10 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
+local_repository(
+    name = "google_privacysandbox_functionaltest_system",
+    path = "testing/functionaltest-system",
+)
+
 http_archive(
     name = "boringssl",
     sha256 = "0cd64ecff9e5f757988b84b7685e968775de08ea9157656d0b9fee0fa62d67ec",

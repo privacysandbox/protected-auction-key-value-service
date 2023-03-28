@@ -24,6 +24,15 @@ resource "aws_security_group_rule" "allow_all_elb_ingress" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
+resource "aws_security_group_rule" "allow_all_elb_ingress2" {
+  from_port         = 8443
+  protocol          = "TCP"
+  security_group_id = var.elb_security_group_id
+  to_port           = 8443
+  type              = "ingress"
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
 resource "aws_security_group_rule" "allow_elb_to_ec2_egress" {
   from_port                = var.server_instance_port
   protocol                 = "TCP"

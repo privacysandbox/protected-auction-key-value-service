@@ -43,15 +43,12 @@ module "kv_server" {
   autoscaling_min_size         = var.autoscaling_min_size
 
   # Variables related to data storage and cleanup.
-  s3_delta_file_bucket_name  = var.s3_delta_file_bucket_name
-  sqs_cleanup_image_uri      = var.sqs_cleanup_image_uri
-  sqs_cleanup_schedule       = var.sqs_cleanup_schedule
-  sqs_queue_timeout_secs     = var.sqs_queue_timeout_secs
-  backup_poll_frequency_secs = var.backup_poll_frequency_secs
-
-  # Variables related to AWS backend services.
-  vpc_gateway_endpoint_services   = var.vpc_gateway_endpoint_services
-  vpc_interface_endpoint_services = var.vpc_interface_endpoint_services
+  s3_delta_file_bucket_name    = var.s3_delta_file_bucket_name
+  sqs_cleanup_image_uri        = var.sqs_cleanup_image_uri
+  sqs_cleanup_schedule         = var.sqs_cleanup_schedule
+  sqs_queue_timeout_secs       = var.sqs_queue_timeout_secs
+  backup_poll_frequency_secs   = var.backup_poll_frequency_secs
+  realtime_updater_num_threads = var.realtime_updater_num_threads
 
   # Variables related to health checks.
   healthcheck_healthy_threshold   = var.healthcheck_healthy_threshold
@@ -64,6 +61,15 @@ module "kv_server" {
   # Variables related to metrics.
   metrics_export_interval_millis = var.metrics_export_interval_millis
   metrics_export_timeout_millis  = var.metrics_export_timeout_millis
+
+  # Variables related to prometheus service
+  prometheus_service_region = var.prometheus_service_region
+  prometheus_workspace_id   = var.prometheus_workspace_id
+
+  # Variables related to data loading.
+  data_loading_num_threads = var.data_loading_num_threads
+  s3client_max_connections = var.s3client_max_connections
+  s3client_max_range_bytes = var.s3client_max_range_bytes
 }
 
 output "kv_server_url" {

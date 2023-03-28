@@ -19,7 +19,7 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
-#include "aws/core/Aws.h"
+#include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "tools/data_cli/commands/command.h"
 #include "tools/data_cli/commands/format_data_command.h"
@@ -104,9 +104,7 @@ bool IsSupportedCommand(std::string_view command) {
 }
 
 int main(int argc, char** argv) {
-  Aws::SDKOptions options;
-  Aws::InitAPI(options);
-  absl::Cleanup shutdown = [&options] { Aws::ShutdownAPI(options); };
+  kv_server::PlatformInitializer initializer;
 
   google::InitGoogleLogging(argv[0]);
   absl::SetProgramUsageMessage(kUsageMessage);

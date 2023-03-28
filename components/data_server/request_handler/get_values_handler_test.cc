@@ -28,9 +28,7 @@
 #include "google/protobuf/text_format.h"
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
-#include "infrastructure/communication/bhttp_utils.h"
 #include "public/test_util/proto_matcher.h"
-#include "quiche/binary_http/binary_http_message.h"
 
 namespace kv_server {
 namespace {
@@ -43,57 +41,13 @@ using testing::UnorderedElementsAre;
 using v1::GetValuesRequest;
 using v1::GetValuesResponse;
 
-enum class ProtocolType {
-  kPlain = 0,
-  kBinaryHttp = 1,
-};
-
-class GetValuesHandlerTest
-    : public ::testing::Test,
-      public ::testing::WithParamInterface<ProtocolType> {
+class GetValuesHandlerTest : public ::testing::Test {
  protected:
-  template <ProtocolType protocol_type>
-  bool IsUsing() {
-    return GetParam() == protocol_type;
-  }
-
-  grpc::Status GetValuesBasedOnProtocol(const v1::GetValuesRequest& request,
-                                        v1::GetValuesResponse* response,
-                                        GetValuesHandler* handler) {
-    if (IsUsing<ProtocolType::kPlain>()) {
-      return handler->GetValues(request, response);
-    }
-    v1::BinaryHttpGetValuesRequest brequest;
-    brequest.mutable_raw_body()->set_data(
-        SerializeProtoToBHttp<quiche::BinaryHttpRequest, GetValuesRequest>(
-            request, {})
-            .value());
-    google::api::HttpBody bresponse;
-    if (const auto s = handler->BinaryHttpGetValues(brequest, &bresponse);
-        !s.ok()) {
-      return s;
-    }
-    if (const auto maybe_response =
-            DeserializeBHttpToProto<quiche::BinaryHttpResponse,
-                                    GetValuesResponse>(bresponse.data());
-        !maybe_response.ok()) {
-      return grpc::Status(StatusCode::INTERNAL,
-                          std::string(maybe_response.status().message()));
-    } else {
-      *response = *maybe_response;
-    }
-
-    return grpc::Status::OK;
-  }
   MockCache mock_cache_;
   MockMetricsRecorder mock_metrics_recorder_;
 };
 
-INSTANTIATE_TEST_SUITE_P(GetValuesHandlerTest, GetValuesHandlerTest,
-                         testing::Values(ProtocolType::kPlain,
-                                         ProtocolType::kBinaryHttp));
-
-TEST_P(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
+TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
   EXPECT_CALL(mock_cache_, GetKeyValuePairs(UnorderedElementsAre("my_key")))
       .Times(2)
       .WillRepeatedly(
@@ -104,7 +58,7 @@ TEST_P(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_metrics_recorder_,
                            /*dsp_mode=*/true);
-  const auto result = GetValuesBasedOnProtocol(request, &response, &handler);
+  const auto result = handler.GetValues(request, &response);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -118,11 +72,11 @@ TEST_P(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
                               &expected);
   EXPECT_THAT(response, EqualsProto(expected));
 
-  ASSERT_TRUE(GetValuesBasedOnProtocol(request, &response, &handler).ok());
+  ASSERT_TRUE(handler.GetValues(request, &response).ok());
   EXPECT_THAT(response, EqualsProto(expected));
 }
 
-TEST_P(GetValuesHandlerTest, RepeatedKeys) {
+TEST_F(GetValuesHandlerTest, RepeatedKeys) {
   MockCache mock_cache_;
   EXPECT_CALL(mock_cache_,
               GetKeyValuePairs(UnorderedElementsAre("key1", "key2", "key3")))
@@ -136,7 +90,7 @@ TEST_P(GetValuesHandlerTest, RepeatedKeys) {
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_metrics_recorder_,
                            /*dsp_mode=*/true);
-  ASSERT_TRUE(GetValuesBasedOnProtocol(request, &response, &handler).ok());
+  ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
   TextFormat::ParseFromString(R"pb(keys {
@@ -149,7 +103,7 @@ TEST_P(GetValuesHandlerTest, RepeatedKeys) {
   EXPECT_THAT(response, EqualsProto(expected));
 }
 
-TEST_P(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
+TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   MockCache mock_cache;
   EXPECT_CALL(mock_cache_,
               GetKeyValuePairs(UnorderedElementsAre("key1", "key2")))
@@ -163,7 +117,7 @@ TEST_P(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_metrics_recorder_,
                            /*dsp_mode=*/true);
-  ASSERT_TRUE(GetValuesBasedOnProtocol(request, &response, &handler).ok());
+  ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
   TextFormat::ParseFromString(R"pb(keys {
@@ -180,7 +134,7 @@ TEST_P(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   EXPECT_THAT(response, EqualsProto(expected));
 }
 
-TEST_P(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
+TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
   MockCache mock_cache;
   EXPECT_CALL(mock_cache, GetKeyValuePairs(UnorderedElementsAre("key1")))
       .Times(1)
@@ -196,7 +150,7 @@ TEST_P(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache, mock_metrics_recorder_,
                            /*dsp_mode=*/false);
-  ASSERT_TRUE(GetValuesBasedOnProtocol(request, &response, &handler).ok());
+  ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
   TextFormat::ParseFromString(R"pb(render_urls {
@@ -215,126 +169,187 @@ TEST_P(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
   EXPECT_THAT(response, EqualsProto(expected));
 }
 
-TEST_P(GetValuesHandlerTest, DspModeErrorOnMissingKeysNamespace) {
+TEST_F(GetValuesHandlerTest, DspModeErrorOnMissingKeysNamespace) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.set_subkey("my_subkey");
   GetValuesResponse response;
   GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/true);
-  if (IsUsing<ProtocolType::kPlain>()) {
-    grpc::Status status = handler.GetValues(request, &response);
-    EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-    EXPECT_EQ(status.error_details(), "Missing field 'keys'");
-  } else {
-    grpc::Status status =
-        GetValuesBasedOnProtocol(request, &response, &handler);
-    EXPECT_FALSE(status.ok());
-  }
+  grpc::Status status = handler.GetValues(request, &response);
+  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
+  EXPECT_EQ(status.error_details(), "Missing field 'keys'");
 }
 
-TEST_P(GetValuesHandlerTest, ErrorOnMissingKeysInDspMode) {
+TEST_F(GetValuesHandlerTest, ErrorOnMissingKeysInDspMode) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   GetValuesResponse response;
   GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/true);
-  if (IsUsing<ProtocolType::kPlain>()) {
-    grpc::Status status = handler.GetValues(request, &response);
-    EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-    EXPECT_EQ(status.error_details(), "Missing field 'keys'");
-  } else {
-    grpc::Status status =
-        GetValuesBasedOnProtocol(request, &response, &handler);
-    EXPECT_FALSE(status.ok());
-  }
+  grpc::Status status = handler.GetValues(request, &response);
+  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
+  EXPECT_EQ(status.error_details(), "Missing field 'keys'");
 }
 
-TEST_P(GetValuesHandlerTest, ErrorOnRenderUrlInDspMode) {
+TEST_F(GetValuesHandlerTest, ErrorOnRenderUrlInDspMode) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.add_keys("my_key");
   request.add_render_urls("my_render_url");
   GetValuesResponse response;
   GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/true);
-  if (IsUsing<ProtocolType::kPlain>()) {
-    grpc::Status status = handler.GetValues(request, &response);
-    EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-    EXPECT_EQ(status.error_details(), "Invalid field 'renderUrls'");
-  } else {
-    grpc::Status status =
-        GetValuesBasedOnProtocol(request, &response, &handler);
-    EXPECT_FALSE(status.ok());
-  }
+
+  grpc::Status status = handler.GetValues(request, &response);
+  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
+  EXPECT_EQ(status.error_details(), "Invalid field 'renderUrls'");
 }
 
-TEST_P(GetValuesHandlerTest, ErrorOnAdComponentRenderUrlInDspMode) {
+TEST_F(GetValuesHandlerTest, ErrorOnAdComponentRenderUrlInDspMode) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.add_keys("my_key");
   request.add_ad_component_render_urls("my_ad_component_render_url");
   GetValuesResponse response;
   GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/true);
-  if (IsUsing<ProtocolType::kPlain>()) {
-    grpc::Status status = handler.GetValues(request, &response);
-    EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-    EXPECT_EQ(status.error_details(), "Invalid field 'adComponentRenderUrls'");
-  } else {
-    grpc::Status status =
-        GetValuesBasedOnProtocol(request, &response, &handler);
-    EXPECT_FALSE(status.ok());
-  }
+
+  grpc::Status status = handler.GetValues(request, &response);
+  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
+  EXPECT_EQ(status.error_details(), "Invalid field 'adComponentRenderUrls'");
 }
 
-TEST_P(GetValuesHandlerTest, ErrorOnMissingRenderUrlInSspMode) {
+TEST_F(GetValuesHandlerTest, ErrorOnMissingRenderUrlInSspMode) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.add_ad_component_render_urls("my_ad_component_render_url");
   GetValuesResponse response;
   GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/false);
-  if (IsUsing<ProtocolType::kPlain>()) {
-    grpc::Status status = handler.GetValues(request, &response);
-    EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-    EXPECT_EQ(status.error_details(), "Missing field 'renderUrls'");
-  } else {
-    grpc::Status status =
-        GetValuesBasedOnProtocol(request, &response, &handler);
-    EXPECT_FALSE(status.ok());
-  }
+
+  grpc::Status status = handler.GetValues(request, &response);
+  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
+  EXPECT_EQ(status.error_details(), "Missing field 'renderUrls'");
 }
 
-TEST_P(GetValuesHandlerTest, ErrorOnKeysInSspMode) {
+TEST_F(GetValuesHandlerTest, ErrorOnKeysInSspMode) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.add_render_urls("my_render_url");
   request.add_keys("my_key");
   GetValuesResponse response;
   GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/false);
-  if (IsUsing<ProtocolType::kPlain>()) {
-    grpc::Status status = handler.GetValues(request, &response);
-    EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-    EXPECT_EQ(status.error_details(), "Invalid field 'keys'");
-  } else {
-    grpc::Status status =
-        GetValuesBasedOnProtocol(request, &response, &handler);
-    EXPECT_FALSE(status.ok());
-  }
+
+  grpc::Status status = handler.GetValues(request, &response);
+  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
+  EXPECT_EQ(status.error_details(), "Invalid field 'keys'");
 }
 
-TEST_P(GetValuesHandlerTest, ErrorOnSubkeysInSspMode) {
+TEST_F(GetValuesHandlerTest, ErrorOnSubkeysInSspMode) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.add_render_urls("my_render_url");
   request.set_subkey("my_subkey");
   GetValuesResponse response;
   GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/false);
-  if (IsUsing<ProtocolType::kPlain>()) {
-    grpc::Status status = handler.GetValues(request, &response);
-    EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-    EXPECT_EQ(status.error_details(), "Invalid field 'subkey'");
-  } else {
-    grpc::Status status =
-        GetValuesBasedOnProtocol(request, &response, &handler);
-    EXPECT_FALSE(status.ok());
-  }
+
+  grpc::Status status = handler.GetValues(request, &response);
+  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
+  EXPECT_EQ(status.error_details(), "Invalid field 'subkey'");
+}
+
+TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
+  MockCache mock_cache;
+  std::string value1 = R"json([
+      [[1, 2, 3, 4]],
+      null,
+      [
+        "123456789",
+        "123456789",
+      ],
+      ["v1"]
+    ])json";
+  std::string value2 = R"json({
+    "k1": 123,
+    "k2": "v",
+  })json";
+  std::string value3("v3");
+
+  std::string response_pb_string =
+      R"pb(keys {
+             fields {
+               key: "key1"
+               value {
+                 list_value {
+                   values {
+                     list_value {
+                       values {
+                         list_value {
+                           values { number_value: 1 }
+                           values { number_value: 2 }
+                           values { number_value: 3 }
+                           values { number_value: 4 }
+                         }
+                       }
+                     }
+                   }
+                   values { null_value: NULL_VALUE }
+                   values {
+                     list_value {
+                       values { string_value: "123456789" }
+                       values { string_value: "123456789" }
+                     }
+                   }
+                   values { list_value { values { string_value: "v1" } } }
+                 }
+               }
+             }
+             fields {
+               key: "key2"
+               value {
+                 struct_value {
+                   fields {
+                     key: "k1"
+                     value { number_value: 123 }
+                   }
+                   fields {
+                     key: "k2"
+                     value { string_value: "v" }
+                   }
+                 }
+               }
+             }
+             fields {
+               key: "key3"
+               value { string_value: "v3" }
+             }
+           }
+      )pb";
+
+  std::string response_json_string = R"json({
+    "keys":{
+      "key1":[[[1,2,3,4]],null,["123456789","123456789"],["v1"]],
+      "key2":{"k2":"v","k1":123},
+      "key3":"v3"}
+  })json";
+
+  EXPECT_CALL(mock_cache_,
+              GetKeyValuePairs(UnorderedElementsAre("key1", "key2", "key3")))
+      .Times(1)
+      .WillOnce(Return(std::vector<std::pair<std::string_view, std::string>>{
+          {"key1", value1}, {"key2", value2}, {"key3", value3}}));
+
+  GetValuesRequest request;
+  request.add_keys("key1");
+  request.add_keys("key2");
+  request.add_keys("key3");
+  GetValuesResponse response;
+  GetValuesHandler handler(mock_cache_, mock_metrics_recorder_,
+                           /*dsp_mode=*/true);
+  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  GetValuesResponse expected_from_pb;
+  TextFormat::ParseFromString(response_pb_string, &expected_from_pb);
+  EXPECT_THAT(response, EqualsProto(expected_from_pb));
+  GetValuesResponse expected_from_json;
+  google::protobuf::util::JsonStringToMessage(response_json_string,
+                                              &expected_from_json);
+  EXPECT_THAT(response, EqualsProto(expected_from_json));
 }
 
 }  // namespace

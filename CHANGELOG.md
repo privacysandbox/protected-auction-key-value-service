@@ -2,6 +2,76 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.8.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.7.0...release-0.8.0) (2023-03-28)
+
+
+### Features
+
+* add AWS SQS ReceiveMessage latency histogram
+* Add command line flags for parameters
+* Add configurable thread count for realtime updater
+* Add functional test
+* Adding e2e latency measurement for realtime updates
+* Allow specifying explicit histogram bucket boundaries
+* Allow the blob_storage_util cp command to work with local files.
+* Allow the DeltaFileRecordChangeNotifier to read local files as well as from S3
+* Batch delete SQS messages
+* Build delta files from csv
+* clean up realtime queues
+* Configure AWS hosted Prometheus.
+* Disable the use of exceptions
+* Enhance/Simplify local export of telemetry with OTLP.
+* Functional testing of local server with delta files
+* make AwsSnsSqsManager thread safe
+* Make the blob_storage_change_watcher tool work for local files
+* Make the blob_storage_util cat and rm commands work for local files
+* Make the blob_storage_util ls command work for local files and refactor out common parts from the AWS binary
+* Make the delta_file_watcher tool work for local files
+* Move the platform specific server configuration logic to a separate file
+* multi-threaded realtime notifier
+* realtime tester in a container
+* Reuse SQS client
+* Speed up test updates publisher
+* Tools for generating and inserting realtime test data.
+* Upgrade build-system to release-0.18.0
+* Upgrade build-system to release-0.20.0
+* Upgrade debian runtime images to 15 Feb 2023
+* Upgrade to build-system 0.17.0
+* Use a PlatformInitializer so the data_cli will compile for --platform=local
+
+
+### Bug Fixes
+
+* Add ability to interrupt a SleepFor Duration.
+* Add minimum shard size threshold for concurrent reader.
+* Launch Envoy first before all other processes.
+* Make MetricsRecorder a shared global instance.
+* Only run functional tests against local server
+* Remove functionaltest/run-server, update docs accordingly
+* Remove submodule section from docs
+* Run server in background, and reduce noise
+* Run server using delta files in run-server-docker
+* Update generate_load_test_data to use bazel-debian
+* Use symlink for identical test replies
+* Use VLOG for concurrent reader debugging logs.
+* Wait for envoy to respond before launching enclave service.
+
+
+### Documentation
+
+* Add a playbook template for new alerts
+* Add description for backup_poll_frequency_secs
+* Add docs about how to run the server locally
+* fix /tmp/deltas discrepancy
+* remove obsolete service
+* Updating instructions on how to copy `eif` manually.
+
+
+### Terraform
+
+* Convert tfvar files to json
+* Support Prometheus service running in a different region
+
 ## [0.7.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.6.0...release-0.7.0) (2023-02-16)
 
 

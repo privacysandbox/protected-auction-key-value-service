@@ -24,11 +24,27 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "glog/logging.h"
 
 namespace kv_server {
+namespace {
+constexpr std::string_view kSizeEventName = "SeekingInputStreambuf::Size";
+constexpr std::string_view kUnderflowEventName =
+    "SeekingInputStreambuf::underflow";
+constexpr std::string_view kSeekoffEventName = "SeekingInputStreambuf::seekoff";
 
-SeekingInputStreambuf::SeekingInputStreambuf(Options options)
-    : options_(std::move(options)) {
+void MaybeVerboseLogLatency(std::string_view event_name, absl::Duration latency,
+                            double sampling_threshold = 0.05) {
+  if ((double)std::rand() / RAND_MAX <= sampling_threshold) {
+    VLOG(3) << event_name << " latency: " << absl::ToDoubleMilliseconds(latency)
+            << " ms.";
+  }
+}
+}  // namespace
+
+SeekingInputStreambuf::SeekingInputStreambuf(Options options,
+                                             MetricsRecorder& metrics_recorder)
+    : options_(std::move(options)), metrics_recorder_(metrics_recorder) {
   setg(buffer_.data(), buffer_.data(), buffer_.data() + buffer_.length());
 }
 
@@ -40,6 +56,8 @@ std::streampos SeekingInputStreambuf::seekpos(std::streampos pos,
 std::streampos SeekingInputStreambuf::seekoff(std::streamoff off,
                                               std::ios_base::seekdir dir,
                                               std::ios_base::openmode which) {
+  ScopeLatencyRecorder latency_recorder(std::string(kSeekoffEventName),
+                                        metrics_recorder_);
   const auto size = Size();
   if (ABSL_PREDICT_FALSE(!size.ok())) {
     MaybeReportError(size.status());
@@ -87,10 +105,13 @@ std::streampos SeekingInputStreambuf::seekoff(std::streamoff off,
          buffer_.data() + (new_position - BufferStartPosition()),
          buffer_.data() + buffer_.length());
   }
+  MaybeVerboseLogLatency(kSeekoffEventName, latency_recorder.GetLatency());
   return std::streampos(std::streamoff(new_position));
 }
 
 std::streambuf::int_type SeekingInputStreambuf::underflow() {
+  ScopeLatencyRecorder latency_recorder(std::string(kUnderflowEventName),
+                                        metrics_recorder_);
   const auto size = Size();
   if (ABSL_PREDICT_FALSE(!size.ok())) {
     MaybeReportError(size.status());
@@ -124,6 +145,7 @@ std::streambuf::int_type SeekingInputStreambuf::underflow() {
     buffer_.resize(total_bytes_read);
   }
   setg(buffer_.data(), buffer_.data(), buffer_.data() + buffer_.length());
+  MaybeVerboseLogLatency(kUnderflowEventName, latency_recorder.GetLatency());
   return traits_type::to_int_type(buffer_[0]);
 }
 
@@ -144,6 +166,8 @@ int64_t SeekingInputStreambuf::BufferCursorPosition() {
 }
 
 absl::StatusOr<int64_t> SeekingInputStreambuf::Size() {
+  ScopeLatencyRecorder latency_recorder(std::string(kSizeEventName),
+                                        metrics_recorder_);
   if (ABSL_PREDICT_TRUE(src_cached_size_ >= 0)) {
     return src_cached_size_;
   }
@@ -152,6 +176,7 @@ absl::StatusOr<int64_t> SeekingInputStreambuf::Size() {
     return size.status();
   }
   src_cached_size_ = *size;
+  MaybeVerboseLogLatency(kSizeEventName, latency_recorder.GetLatency());
   return *size;
 }
 

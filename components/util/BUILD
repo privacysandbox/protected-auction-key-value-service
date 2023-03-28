@@ -126,6 +126,36 @@ cc_library(
 )
 
 cc_library(
+    name = "platform_initializer",
+    srcs = select({
+        "//:aws_platform": [
+            "platform_initializer_aws.cc",
+        ],
+        "//:local_platform": [
+            "platform_initializer_local.cc",
+        ],
+    }),
+    hdrs = [
+        "platform_initializer.h",
+    ],
+    visibility = [
+        "//components:__subpackages__",
+        "//tools/data_cli:__subpackages__",
+    ],
+    deps = select({
+        "//:aws_platform": [
+            "@aws_sdk_cpp//:core",
+            "//components/errors:aws_error_util",
+        ],
+        "//conditions:default": [],
+    }) + [
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_github_google_glog//:glog",
+    ],
+)
+
+cc_library(
     name = "version_linkstamp",
     # Linking this library makes build cache inefficient,
     visibility = [

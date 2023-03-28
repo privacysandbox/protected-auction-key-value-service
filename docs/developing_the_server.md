@@ -132,7 +132,9 @@ anticipate supporting additional cloud providers in the future.
 Example:
 
 ```sh
-grpc_cli call localhost:50051 kv_server.v1.KeyValueService.GetValues "kv_internal: 'hi'" --channel_creds_type=insecure
+grpc_cli call localhost:50051 kv_server.v1.KeyValueService.GetValues \
+  'kv_internal: "hi"' \
+  --channel_creds_type=insecure
 ```
 
 -   HTTP queries can also be used when
@@ -156,8 +158,38 @@ only requires restarting the enclave image:
    instances, using the same SSH key. So the copy command below should be repeated twice to reach
    the destination EC2 instance.
 
+    See
+    [this doc](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html#ec2-instance-connect-connecting-aws-cli)
+    for additional info
+
+    Make sure you specify correct `availability-zone`.
+
+    `ssh-public-key` should be pointing to your public key. See the doc above talking about how to
+    generate it.
+
     ```sh
-    scp -i ~/"key.pem" dist/server_enclave_image.eif ec2-user@${EC2_ADDR}.compute-1.amazonaws.com:/home/ec2-user/server_enclave_image.eif
+    aws ec2-instance-connect send-ssh-public-key --instance-id INSTANCE_ID --availability-zone us-east-1a --instance-os-user ec2-user --ssh-public-key file://keys/my_key.pub --region us-east-1
+    ```
+
+    After the command above you have 60 seconds to run this command.
+
+    The EC2_ADDR for scp'ing from the public internet to ssh instance is the Public IPv4 DNS, e.g.,
+    `ec2-3-81-186-232.compute-1.amazonaws.com` and for scp'ing from ssh instance to server instance
+    is the Private IP DNS name e.g., `ip-10-0-226-225.ec2.internal`
+
+    `./keys/my_key` here points to your private key.
+
+    (If the command fails, ssh to your instance and make sure `ec2-user` owns the directtory you're
+    trying to write in, e.g. run `chown ec2-user /home/ec2-user`)
+
+    ```sh
+    scp -o "IdentitiesOnly=yes" -i ./keys/my_key ./kv-server/dist/aws/server_enclave_image.eif ec2-user@{EC2_ADDR}:/home/ec2-user/server_enclave_image.eif
+    ```
+
+    Finally, you can ssh to the machine. You might need to `send-ssh-public-key` again.
+
+    ```sh
+    ssh -o "IdentitiesOnly=yes" -i ./keys/my_key ec2-user@{EC2_ADDR}
     ```
 
 1. Start the enclave job (If one is running, terminate it first, see below for instructions):

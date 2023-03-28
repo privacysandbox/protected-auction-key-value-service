@@ -17,6 +17,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(default_visibility = [
     "//components:__subpackages__",
+    "//public:__subpackages__",
 ])
 
 cc_library(
@@ -48,6 +49,7 @@ cc_library(
     ],
     deps = [
         ":telemetry",
+        "//components/util:duration",
         "//components/util:version_linkstamp",
         "@com_google_absl//absl/status",
     ],
@@ -73,32 +75,20 @@ config_setting(
     ],
 )
 
-config_setting(
-    name = "local_otel_export_zipkin",
-    flag_values = {
-        ":local_otel_export": "zipkin",
-    },
-    visibility = [
-        "//components/util:__pkg__",
-    ],
-)
-
 string_flag(
     name = "local_otel_export",
     build_setting_default = "ostream",
     values = [
         "ostream",
         "otlp",
-        "zipkin",
     ],
 )
 
 cc_library(
     name = "init_local",
-    srcs = ["init_local.cc"] + select({
+    srcs = select({
         ":local_otel_export_ostream": ["init_local_ostream.cc"],
         ":local_otel_export_otlp": ["init_local_otlp.cc"],
-        ":local_otel_export_zipkin": ["init_local_zipkin.cc"],
     }),
     hdrs = [
         "init.h",
@@ -110,8 +100,10 @@ cc_library(
         ":local_otel_export_ostream": [
             "@io_opentelemetry_cpp//exporters/ostream:ostream_span_exporter",
         ],
-        ":local_otel_export_otlp": ["@io_opentelemetry_cpp//exporters/otlp:otlp_grpc_exporter"],
-        ":local_otel_export_zipkin": ["@io_opentelemetry_cpp//exporters/zipkin:zipkin_exporter"],
+        ":local_otel_export_otlp": [
+            "@io_opentelemetry_cpp//exporters/otlp:otlp_grpc_exporter",
+            "@io_opentelemetry_cpp//exporters/otlp:otlp_grpc_metric_exporter",
+        ],
     }),
 )
 

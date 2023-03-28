@@ -19,6 +19,7 @@ exclude: (?x)^(
              google_internal/coordinator_environments/.*$|
              .bazel_output/.*|
              builders/.*|
+             testing/functionaltest-system/.*|
              version.txt
          )$
 
@@ -40,11 +41,13 @@ repos:
   - id: check-vcs-permalinks
   - id: check-executables-have-shebangs
   - id: detect-private-key
+  - id: pretty-format-json
+    args: ['--autofix']
+    exclude: '^testing/functionaltest/test_cases/.*$'
 
 - repo: https://github.com/jumanjihouse/pre-commit-hooks
   rev: 3.0.0
   hooks:
-  - id: git-check
   - id: script-must-not-have-extension
     exclude: '^google_internal/.*/kokoro_(presubmit|continuous).sh$'
   - id: script-must-have-extension

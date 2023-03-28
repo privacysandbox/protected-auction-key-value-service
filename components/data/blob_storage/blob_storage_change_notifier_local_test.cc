@@ -25,22 +25,16 @@
 namespace kv_server {
 namespace {
 
-TEST(LocalBlobStorageClientTest, NotImplemented) {
-  BlobStorageChangeNotifier::NotifierMetadata metadata;
-  std::unique_ptr<BlobStorageChangeNotifier> notifier =
+// We don't need to test the watching of files as that's covered in tests
+// for the ChangeNotifier that this class delegates to.
+TEST(BlobStorageChangeNotifierLocalTest, SmokeTest) {
+  LocalNotifierMetadata metadata{
+      .local_directory = std::filesystem::path(::testing::TempDir())};
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
       BlobStorageChangeNotifier::Create(metadata);
-  ASSERT_TRUE(notifier != nullptr);
-
-  absl::Duration duration;
-  auto should_stop_callback = []() { return false; };
-
-  EXPECT_EQ(absl::StatusCode::kUnimplemented,
-            notifier->GetNotifications(duration, should_stop_callback)
-                .status()
-                .code());
+  EXPECT_TRUE(notifier.ok());
 }
-
-// TODO(237669491): Add tests here
 
 }  // namespace
 }  // namespace kv_server

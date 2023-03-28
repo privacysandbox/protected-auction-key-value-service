@@ -34,9 +34,12 @@ resource "aws_launch_template" "instance_launch_template" {
   user_data = base64encode(templatefile(
     "${path.module}/instance_init_script.tftpl",
     {
-      enclave_memory_mib = var.enclave_memory_mib,
-      enclave_cpu_count  = var.enclave_cpu_count,
-      server_port        = var.server_port
+      enclave_memory_mib        = var.enclave_memory_mib,
+      enclave_cpu_count         = var.enclave_cpu_count,
+      server_port               = var.server_port,
+      region                    = var.region,
+      prometheus_service_region = var.prometheus_service_region
+      prometheus_workspace_id   = var.prometheus_workspace_id
   }))
 
   # Enforce IMDSv2.

@@ -45,8 +45,7 @@ class MockStreamRecordReaderFactory
               CreateReader, (std::istream & data_input), (const, override));
   MOCK_METHOD(std::unique_ptr<StreamRecordReader<std::string_view>>,
               CreateConcurrentReader,
-              (std::function<std::unique_ptr<RecordStream>()>,
-               ConcurrentStreamRecordReader<std::string_view>::Options),
+              (std::function<std::unique_ptr<RecordStream>()>),
               (const, override));
 };
 

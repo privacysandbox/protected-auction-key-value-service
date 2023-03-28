@@ -49,3 +49,8 @@ variable "sns_data_updates_topic_arn" {
   description = "SNS topic where S3 delta file updates are pushed to."
   type        = string
 }
+
+variable "sns_realtime_topic_arn" {
+  description = "SNS topic where realtime updates are pushed to."
+  type        = string
+}

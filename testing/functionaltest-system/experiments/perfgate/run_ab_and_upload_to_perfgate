@@ -1,0 +1,129 @@
+#!/bin/bash
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#######################################
+# Runs AB to measure latency metrics for a given url and then uploads the data to a perfgate benchmark.
+#
+# perfgate_uploader is located in google3 and will need to be built and added to the local path. The following blaze target will need to be used:
+# //chrome/privacy_sandbox/potassium_engprod/perfgate:perfgate_uploader
+# Arguments:
+#   $1, Number of perfgate runs, int
+#   $2, Perfgate Benchmark Key, str
+#   $3, Perfgate Metric Key, str
+#   $4, Total number of requests for AB to perform, int
+#   $5, Total allowed concurrent requests for AB, int
+#   $6, Url to be tested by AB, str
+#   $7, Quickstore input file, str
+#######################################
+# set -o xtrace
+set -o errexit
+
+trap cleanup EXIT
+
+#######################################
+# Deletes all files generated from this script
+#######################################
+function cleanup() {
+  if [[ -d ${TMP_DIR} ]]; then
+    rm -rf "${TMP_DIR}"
+    printf "Deleted %s" "${TMP_DIR}"
+  fi
+}
+
+function usage() {
+  local -i STATUS=${1-1}
+  cat <<'EOF'
+#######################################
+# Runs AB to measure latency metrics for a given url and then uploads the data to a perfgate benchmark.
+#
+# perfgate_uploader is located in google3 and will need to be built and added to the local path. The following blaze target will need to be used:
+# //chrome/privacy_sandbox/potassium_engprod/perfgate:perfgate_uploader
+# Arguments:
+#   $1, Number of perfgate runs, int
+#   $2, Perfgate Benchmark Key, str
+#   $3, Perfgate Metric Key, str
+#   $4, Total number of requests for AB to perform, int
+#   $5, Total allowed concurrent requests for AB, int
+#   $6, Url to be tested by AB, str
+#   $7, Quickstore input file, str
+#######################################
+EOF
+  # shellcheck disable=SC2086
+  exit ${STATUS}
+}
+
+if [[ $# -lt 7 ]]; then
+  printf "Error: Incorrect number of arguments specified\n"
+  usage 1
+fi
+
+# Get the options
+while getopts ":h" option; do
+  case $option in
+    h) # display Help
+       usage 0 ;;
+    \*) # incorrect option
+       printf "Error: Invalid option\n"
+       usage 1 ;;
+  esac
+done
+
+declare -r -i NUM_RUNS=$1
+declare -r BENCHMARK_KEY="$2"
+declare -r METRIC_KEY="$3"
+declare -r -i NUM_REQUESTS=$4
+declare -r -i NUM_CONCURRENT_REQUESTS=$5
+declare -r URL="$6"
+declare -r QUICKSTORE_INPUT_FILE="$7"
+
+TMP_DIR=$(mktemp -d --tmpdir=.)
+readonly TMP_DIR
+declare -r WORKSPACE=${WORKSPACE-$(git rev-parse --show-toplevel)}
+
+#######################################
+# Runs AB and uploads a single run to perfgate
+#
+# Arguments:
+#   $1, Run number, int
+#######################################
+function run_ab_and_upload_to_perfgate() {
+  declare -r METRICS_FILE="${TMP_DIR}"/metrics_$1
+  declare -r RUN_PROTOBUF="${METRICS_FILE}".runinfo.textproto
+  declare -r METRICS_AGGREGATE_PROTOBUF="${METRICS_FILE}".aggregate.textproto
+
+  "${WORKSPACE}"/builders/tools/ab \
+    -c "${NUM_CONCURRENT_REQUESTS}" \
+    -n "${NUM_REQUESTS}" \
+    -e "${METRICS_FILE}" \
+    "${URL}"
+
+  "${WORKSPACE}"/tests/performance_tests/ab_to_perfgate_rundata \
+    "${BENCHMARK_KEY}" \
+    "${METRIC_KEY}" \
+    "${METRICS_FILE}" \
+    "${NUM_REQUESTS}"
+
+  perfgate_uploader \
+    --quickstoreinput_file "${RUN_PROTOBUF}" \
+    --quickstoreinput_file "${QUICKSTORE_INPUT_FILE}" \
+    --aggregate_file "${METRICS_AGGREGATE_PROTOBUF}"
+
+  printf "Run #%s completed\n" "${iter}"
+}
+
+for (( iter=1; iter<=NUM_RUNS; iter++ ))
+do
+  run_ab_and_upload_to_perfgate ${iter}
+done

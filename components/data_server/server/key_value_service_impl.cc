@@ -60,18 +60,4 @@ grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
   return reactor;
 }
 
-grpc::ServerUnaryReactor* KeyValueServiceImpl::BinaryHttpGetValues(
-    CallbackServerContext* context,
-    const v1::BinaryHttpGetValuesRequest* request,
-    google::api::HttpBody* response) {
-  auto span = GetTracer()->StartSpan(BINARY_GET_VALUES_SPAN);
-  auto scope = opentelemetry::trace::Scope(span);
-
-  grpc::Status status = handler_.BinaryHttpGetValues(*request, response);
-
-  auto* reactor = context->DefaultReactor();
-  reactor->Finish(status);
-  return reactor;
-}
-
 }  // namespace kv_server

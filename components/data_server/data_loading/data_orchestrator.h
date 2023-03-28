@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
@@ -39,6 +40,11 @@ class DataOrchestrator {
   // Stops loading new data, if it is currently continuously loading new data.
   virtual ~DataOrchestrator() = default;
 
+  struct RealtimeOptions {
+    std::unique_ptr<DeltaFileRecordChangeNotifier>
+        delta_file_record_change_notifier;
+    std::unique_ptr<RealtimeNotifier> realtime_notifier;
+  };
   struct Options {
     // bucket to keep loading data from.
     const std::string data_bucket;
@@ -47,8 +53,7 @@ class DataOrchestrator {
     DeltaFileNotifier& delta_notifier;
     BlobStorageChangeNotifier& change_notifier;
     StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory;
-    DeltaFileRecordChangeNotifier& delta_file_record_change_notifier;
-    RealtimeNotifier& realtime_notifier;
+    std::vector<RealtimeOptions>& realtime_options;
   };
 
   // Creates initial state. Scans the bucket and initializes the cache with data

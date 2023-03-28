@@ -42,7 +42,6 @@ repos:
   hooks:
   - id: git-check
   - id: script-must-not-have-extension
-    exclude: '^google_internal/.*/kokoro_(presubmit|continuous).sh$'
   - id: script-must-have-extension
   - id: require-ascii
   - id: shellcheck
@@ -141,7 +140,7 @@ repos:
     - --quiet
 
 - repo: https://github.com/psf/black
-  rev: 22.12.0
+  rev: 23.1.0
   hooks:
   - id: black
     name: black python formatter

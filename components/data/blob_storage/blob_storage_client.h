@@ -21,6 +21,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -53,9 +54,17 @@ class BlobStorageClient {
     std::string start_after;  // noninclusive
   };
 
+  // Options for the underyling storage client.
+  struct ClientOptions {
+    ClientOptions() {}
+    int64_t max_connections = std::thread::hardware_concurrency();
+    int64_t max_range_bytes = 8 * 1024 * 1024;  // 8MB
+  };
+
   // TODO(b/237669491): Replace these factory methods with one based off the
   // flag values that are set.
-  static std::unique_ptr<BlobStorageClient> Create();
+  static std::unique_ptr<BlobStorageClient> Create(
+      ClientOptions client_options = ClientOptions());
   virtual ~BlobStorageClient() = default;
 
   // Get handle to blob data.

@@ -34,16 +34,37 @@ cc_library(
 
 cc_library(
     name = "parameter_fetcher",
-    srcs = ["parameter_fetcher.cc"],
+    srcs = select({
+        "//:aws_platform": ["parameter_fetcher_aws.cc"],
+        "//:local_platform": ["parameter_fetcher_local.cc"],
+    }) + ["parameter_fetcher.cc"],
     hdrs = ["parameter_fetcher.h"],
     deps = [
         "//components/cloud_config:parameter_client",
+        "//components/data/blob_storage:blob_storage_change_notifier",
         "//components/errors:retry",
         "//components/telemetry:metrics_recorder",
         "//components/util:periodic_closure",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "parameter_fetcher_test",
+    size = "small",
+    srcs = select({
+        "//:aws_platform": ["parameter_fetcher_aws_test.cc"],
+        "//:local_platform": ["parameter_fetcher_local_test.cc"],
+    }),
+    deps = [
+        ":parameter_fetcher",
+        "//components/telemetry:mocks",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -57,6 +78,7 @@ cc_library(
         "//components/errors:retry",
         "//components/telemetry:metrics_recorder",
         "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status",
     ],
 )
@@ -92,10 +114,10 @@ cc_library(
     ],
 )
 
-cc_binary(
-    name = "server",
+cc_library(
+    name = "server_lib",
     srcs = ["server.cc"],
-    visibility = ["//production/packaging:__subpackages__"],
+    hdrs = ["server.h"],
     deps = [
         ":key_value_service_impl",
         ":key_value_service_v2_impl",
@@ -115,13 +137,46 @@ cc_binary(
         "//components/telemetry:init",
         "//components/telemetry:metrics_recorder",
         "//components/util:periodic_closure",
-        "//components/util:version_linkstamp",
+        "//components/util:platform_initializer",
         "//public:base_types_cc_proto",
         "//public/data_loading/readers:riegeli_stream_io",
         "//public/query:get_values_cc_grpc",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_github_grpc_grpc//:grpc++_reflection",  # for grpc_cli
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "server_lib_test",
+    size = "small",
+    srcs = select({
+        "//:aws_platform": ["server_aws_test.cc"],
+        "//:local_platform": ["server_local_test.cc"],
+    }),
+    deps = [
+        ":server_lib",
+        "//components/telemetry:mocks",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_binary(
+    name = "server",
+    srcs = ["main.cc"],
+    visibility = ["//production/packaging:__subpackages__"],
+    deps = [
+        ":server_lib",
+        "//components/util:version_linkstamp",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/debugging:failure_signal_handler",
+        "@com_google_absl//absl/debugging:symbolize",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/strings",

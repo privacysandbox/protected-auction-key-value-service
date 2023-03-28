@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Return an image:tag for the specified builder docker image
+#     Given the input files (Dockerfile, configs, installation scripts etc) for building the docker
+#     image, first generate a hash of the file contents (ie. exclude timestamps, file ownership etc).
+#     This hash will be used as the image tag
+
+set -o pipefail
+set -o errexit
+
+declare -i BUILD_IMAGE_IF_NEEDED=1
+declare -r REPO=us-docker.pkg.dev/kiwi-air-force-remote-build
+declare -r TEST_IMAGE=privacysandbox/builders/build-debian
+declare -r -a IMAGE_LIST=(
+  "build-debian"
+  "build-amazonlinux2"
+  "presubmit"
+  "release"
+  "test-tools"
+  "utils"
+)
+declare -i ALL_IMAGES=0
+
+usage() {
+  local exitval=${1-1}
+  cat &>/dev/stderr << USAGE
+usage:
+  $0 <options>
+    --all-images         Pull all the images
+    --image <image>      Image name for the build runtime. Valid names:
+USAGE
+
+  for elem in "${IMAGE_LIST[@]}"
+  do
+    printf "                             *  %s\n" "${elem}" &>/dev/stderr
+  done
+
+  cat &>/dev/stderr << USAGE
+    --no-build           Do not build image if it doesn't exist
+    --verbose            Verbose mode
+
+Environment variables (all optional):
+    WORKSPACE            Full path to the workspace (repo root)
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --all-images)
+      ALL_IMAGES=1
+      shift
+      ;;
+    --image)
+      IMAGE="$2"
+      shift 2
+      ;;
+    --verbose)
+      set -o xtrace
+      VERBOSE="--verbose"
+      shift
+      ;;
+    --no-build)
+      BUILD_IMAGE_IF_NEEDED=0
+      shift
+      ;;
+    -h | --help) usage 0 ;;
+    *)
+      printf "unrecognized arg: %s\n" "$1"
+      usage
+      ;;
+  esac
+done
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+readonly SCRIPT_DIR
+WORKSPACE="${WORKSPACE-"$(git rev-parse --show-toplevel)"}"
+
+if [[ -z ${IMAGE} ]] && [[ ${ALL_IMAGES} -eq 0 ]]; then
+  printf -- "error: --image or -all-images must be specified\n" &>/dev/stderr
+  usage 1
+fi
+
+function _assert_is_image() {
+  declare -r IMG="$1"
+
+  for image in "${IMAGE_LIST[@]}"; do
+    if [[ ${image} == "${IMG}" ]]; then
+      return
+    fi
+  done
+  printf -- "error: image [%s] not recognized\n" "${IMG}" &>/dev/stderr
+  usage 1
+}
+
+function _pull_image() {
+  declare -r IMG="$1"
+  _assert_is_image "${IMG}"
+
+  printf "pulling image: [%s]\n" "${IMG}"
+  declare -r IMAGE_TAGGED="$("${WORKSPACE}"/builders/tools/get-builder-image-tagged ${VERBOSE} --image "${IMG}" --no-build)"
+  declare -r REPO_IMAGE_TAGGED="${REPO}/${IMAGE_TAGGED}"
+
+  # test connecting to GAR repo
+  declare -r REPO_IMAGE_DEBIAN="${REPO}/${TEST_IMAGE}"
+  if ! gcloud artifacts docker images list "${REPO_IMAGE_DEBIAN}" --include-tags --limit 1 &>/dev/null; then
+    printf "Error connecting to Artifact Registry [%s]\n" "${REPO_IMAGE_DEBIAN}" &>/dev/stderr
+    exit 1
+  fi
+
+  if ! docker pull "${REPO_IMAGE_TAGGED}"; then
+    if [[ ${BUILD_IMAGE_IF_NEEDED} -eq 1 ]]; then
+      # push builder image, which will also build the image as it's not available
+      "${SCRIPT_DIR}"/push_builder_image ${VERBOSE} --image "${IMG}" || printf "error: failed to push image %s" "${IMG}" &>/dev/stderr
+    else
+      printf "image does not exist: %s\n" "${IMAGE_TAGGED}" &>/dev/stderr
+      exit 1
+    fi
+  fi
+
+  for TAG in "${IMAGE_TAGGED}" "${IMAGE_TAGGED%:*}:latest"; do
+    docker tag "${REPO_IMAGE_TAGGED}" "${TAG}"
+  done
+}
+
+if [[ -n ${IMAGE} ]]; then
+  _pull_image "${IMAGE}"
+else
+  for image in "${IMAGE_LIST[@]}"; do
+    _pull_image "${image}"
+  done
+fi

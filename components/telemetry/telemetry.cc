@@ -33,85 +33,130 @@
 #include "opentelemetry/sdk/version/version.h"
 #include "opentelemetry/trace/provider.h"
 
+namespace metric_sdk = opentelemetry::sdk::metrics;
+namespace metrics_api = opentelemetry::metrics;
+namespace nostd = opentelemetry::nostd;
+namespace trace = opentelemetry::trace;
+namespace semantic_conventions =
+    opentelemetry::sdk::resource::SemanticConventions;
+using opentelemetry::sdk::resource::Resource;
+using opentelemetry::sdk::resource::ResourceAttributes;
+using opentelemetry::sdk::trace::AlwaysOnSamplerFactory;
+using opentelemetry::sdk::trace::SimpleSpanProcessorFactory;
+using opentelemetry::sdk::trace::TracerProviderFactory;
+using opentelemetry::trace::Provider;
+using opentelemetry::trace::Scope;
+using opentelemetry::trace::Span;
+using opentelemetry::trace::StatusCode;
+using opentelemetry::trace::Tracer;
+using opentelemetry::trace::TracerProvider;
+
 namespace kv_server {
 
 namespace {
 // Workaround for no `constexpr opentelemetry::nostd::string_view`
 constexpr char kTracerLibName[] = "KVServer";
 constexpr size_t kNameLen = sizeof(kTracerLibName) - 1;
+constexpr char kSchema[] = "https://opentelemetry.io/schemas/1.2.0";
+constexpr size_t kSchemaLen = sizeof(kSchema) - 1;
+// The units below are nanoseconds.
+const std::vector<double> kDefaultHistogramBuckets = {
+    40'000,        80'000,      120'000,     160'000,       220'000,
+    280'000,       320'000,     640'000,     1'200'000,     2'500'000,
+    5'000'000,     10'000'000,  20'000'000,  40'000'000,    80'000'000,
+    160'000'000,   320'000'000, 640'000'000, 1'300'000'000, 2'600'000'000,
+    5'000'000'000,
+};
+static bool metrics_initialized = false;
 
-opentelemetry::sdk::resource::ResourceAttributes CreateCommonAttributes(
-    std::string instance_id) {
-  return opentelemetry::sdk::resource::ResourceAttributes{
-      {opentelemetry::sdk::resource::SemanticConventions::kServiceName,
-       "kv-server"},
-      {opentelemetry::sdk::resource::SemanticConventions::kServiceVersion,
-       std::string(BuildVersion())},
-      {opentelemetry::sdk::resource::SemanticConventions::kHostArch,
-       std::string(BuildPlatform())},
-      {opentelemetry::sdk::resource::SemanticConventions::kServiceInstanceId,
-       std::move(instance_id)}};
+ResourceAttributes CreateCommonAttributes(std::string instance_id) {
+  return ResourceAttributes{
+      {semantic_conventions::kServiceName, "kv-server"},
+      {semantic_conventions::kServiceVersion, std::string(BuildVersion())},
+      {semantic_conventions::kHostArch, std::string(BuildPlatform())},
+      {semantic_conventions::kServiceInstanceId, std::move(instance_id)}};
 }
 
 }  // namespace
 
 void InitTracer(std::string instance_id) {
   auto exporter = CreateSpanExporter();
-  auto processor =
-      opentelemetry::sdk::trace::SimpleSpanProcessorFactory::Create(
-          std::move(exporter));
-  const auto resource = opentelemetry::sdk::resource::Resource::Create(
-      CreateCommonAttributes(std::move(instance_id)));
-  std::shared_ptr<opentelemetry::trace::TracerProvider> provider =
-      opentelemetry::sdk::trace::TracerProviderFactory::Create(
-          std::move(processor), resource,
-          opentelemetry::sdk::trace::AlwaysOnSamplerFactory::Create(),
-          CreateIdGenerator());
+  auto processor = SimpleSpanProcessorFactory::Create(std::move(exporter));
+  const auto resource =
+      Resource::Create(CreateCommonAttributes(std::move(instance_id)));
+  std::shared_ptr<TracerProvider> provider = TracerProviderFactory::Create(
+      std::move(processor), resource, AlwaysOnSamplerFactory::Create(),
+      CreateIdGenerator());
 
   // Set the global trace provider
-  opentelemetry::trace::Provider::SetTracerProvider(provider);
+  Provider::SetTracerProvider(provider);
+}
+
+void RegisterHistogramView(std::string name, std::string description,
+                           std::vector<double> bucket_boundaries) {
+  if (!metrics_initialized) {
+    return;
+  }
+  if (bucket_boundaries.empty()) {
+    bucket_boundaries = kDefaultHistogramBuckets;
+  }
+  auto provider = metrics_api::Provider::GetMeterProvider();
+  auto p = static_cast<metric_sdk::MeterProvider*>(provider.get());
+  auto histogram_instrument_selector =
+      std::make_unique<metric_sdk::InstrumentSelector>(
+          metric_sdk::InstrumentType::kHistogram, name);
+  auto histogram_meter_selector = std::make_unique<metric_sdk::MeterSelector>(
+      std::string({kTracerLibName, kNameLen}), BuildVersion().data(),
+      std::string({kSchema, kSchemaLen}));
+  auto histogram_aggregation_config =
+      std::make_shared<metric_sdk::HistogramAggregationConfig>();
+  histogram_aggregation_config->boundaries_ = bucket_boundaries;
+  auto histogram_view = std::make_unique<metric_sdk::View>(
+      name, description, metric_sdk::AggregationType::kHistogram,
+      std::move(histogram_aggregation_config));
+  p->AddView(std::move(histogram_instrument_selector),
+             std::move(histogram_meter_selector), std::move(histogram_view));
 }
 
 void InitMetrics(
     std::string instance_id,
-    const opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions&
-        options) {
+    const metric_sdk::PeriodicExportingMetricReaderOptions& options) {
   auto reader = CreatePeriodicExportingMetricReader(options);
-  auto resource = opentelemetry::sdk::resource::Resource::Create(
-      CreateCommonAttributes(std::move(instance_id)));
-  std::shared_ptr<opentelemetry::metrics::MeterProvider> provider =
-      std::make_shared<opentelemetry::sdk::metrics::MeterProvider>(
-          std::make_unique<opentelemetry::sdk::metrics::ViewRegistry>(),
-          std::move(resource));
-  auto p = std::static_pointer_cast<opentelemetry::sdk::metrics::MeterProvider>(
-      provider);
+  auto resource =
+      Resource::Create(CreateCommonAttributes(std::move(instance_id)));
+  std::shared_ptr<metrics_api::MeterProvider> provider =
+      std::make_shared<metric_sdk::MeterProvider>(
+          std::make_unique<metric_sdk::ViewRegistry>(), std::move(resource));
+  std::shared_ptr<metric_sdk::MeterProvider> p =
+      std::static_pointer_cast<metric_sdk::MeterProvider>(provider);
   p->AddMetricReader(std::move(reader));
-  opentelemetry::metrics::Provider::SetMeterProvider(provider);
+  metrics_api::Provider::SetMeterProvider(provider);
+  metrics_initialized = true;
 }
 
-opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> GetTracer() {
-  auto provider = opentelemetry::trace::Provider::GetTracerProvider();
+nostd::shared_ptr<Tracer> GetTracer() {
+  auto provider = Provider::GetTracerProvider();
   return provider->GetTracer({kTracerLibName, kNameLen}, BuildVersion().data());
 }
 
-opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter> GetMeter() {
-  auto provider = opentelemetry::metrics::Provider::GetMeterProvider();
+nostd::shared_ptr<metrics_api::Meter> GetMeter() {
+  auto provider = metrics_api::Provider::GetMeterProvider();
   return provider->GetMeter({kTracerLibName, kNameLen}, BuildVersion().data());
 }
 
-void SetStatus(const absl::Status& status, opentelemetry::trace::Span& span) {
+void SetStatus(const absl::Status& status, Span& span) {
   if (status.ok()) {
-    span.SetStatus(opentelemetry::trace::StatusCode::kOk);
+    span.SetStatus(StatusCode::kOk);
   } else {
-    span.SetStatus(opentelemetry::trace::StatusCode::kError, status.ToString());
+    span.SetStatus(StatusCode::kError, status.ToString());
   }
 }
 
 absl::Status TraceWithStatus(std::function<absl::Status()> func,
-                             opentelemetry::nostd::string_view name,
+                             nostd::string_view name,
                              std::vector<TelemetryAttribute> attributes) {
   auto span = GetTracer()->StartSpan(name);
-  auto scope = opentelemetry::trace::Scope(span);
+  auto scope = Scope(span);
   for (const auto& attribute : attributes) {
     span->SetAttribute(attribute.key, attribute.value);
   }

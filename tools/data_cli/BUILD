@@ -16,6 +16,7 @@ load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 package(default_visibility = [
     "//production/packaging/tools:__subpackages__",
+    "//testing:__subpackages__",
     "//tools:__subpackages__",
 ])
 
@@ -23,6 +24,7 @@ cc_binary(
     name = "data_cli",
     srcs = ["data_cli.cc"],
     deps = [
+        "//components/util:platform_initializer",
         "//public/data_loading:filename_utils",
         "//public/data_loading:records_utils",
         "//tools/data_cli/commands:command",

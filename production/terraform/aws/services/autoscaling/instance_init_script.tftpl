@@ -1,5 +1,34 @@
 #!/bin/bash
 
+# Start Envoy as detached.
+# Because of a bug discovered in b/270945312, Envoy has to run first before reloading
+# the nitro enclaves allocator service, otherwise Envoy seg faults.
+sudo mv /home/ec2-user/query_api_descriptor_set.pb /etc/envoy
+sudo mv /home/ec2-user/envoy.yaml /etc/envoy
+sudo chmod 444 /etc/envoy/*
+
+docker run \
+  --detach \
+  --rm \
+  --network host \
+  --volume /etc/envoy:/etc/envoy \
+  envoyproxy/envoy-distroless:v1.24.1 \
+  --config-path /etc/envoy/envoy.yaml \
+  --log-level warn
+# Because of the bug described above, we need to try and wait for envoy to respond before
+# proceeding with the rest of the script to avoid a race condition between launching envoy
+# and reloading the nitro enclaves allocator service. We do not want to wait forever,
+# so we only wait for at most 30 seconds, but proceed as soon as envoy responds.
+MAX_WAIT_SEC=30
+ENVOY_HELP_URL=http://localhost:9902/help
+until $(curl --output /dev/null --silent --head --fail $ENVOY_HELP_URL) || [ $MAX_WAIT_SEC -eq 0 ]
+do
+  echo "waiting $MAX_WAIT_SEC sec for envoy to respond..."
+  sleep 1
+  ((MAX_WAIT_SEC--))
+done
+echo "Proceeding after waiting for envoy..."
+
 # Make sure nitro enclave allocator service is stopped
 systemctl stop nitro-enclaves-allocator.service
 
@@ -20,6 +49,8 @@ systemctl enable nitro-enclaves-allocator.service
 systemctl start vsockproxy.service
 systemctl enable vsockproxy.service
 
+# Update otel collector config
+sed -i -e 's/$REGION/'${prometheus_service_region}'/g' -e 's/$WORKSPACE_ID/'${prometheus_workspace_id}'/g' /opt/aws/aws-otel-collector/etc/otel_collector_config.yaml
 # Start the otel collector
 sudo /opt/aws/aws-otel-collector/bin/aws-otel-collector-ctl -c /opt/aws/aws-otel-collector/etc/otel_collector_config.yaml -a start
 
@@ -28,16 +59,5 @@ nitro-cli run-enclave \
   --cpu-count ${enclave_cpu_count} \
   --memory ${enclave_memory_mib} \
   --eif-path /opt/privacysandbox/server_enclave_image.eif \
-  --debug-mode --enclave-cid 16
-
-
-sudo mv /home/ec2-user/query_api_descriptor_set.pb /etc/envoy
-sudo mv /home/ec2-user/envoy.yaml /etc/envoy
-sudo chmod 444 /etc/envoy/*
-
-docker run --rm \
-  --network host \
-  -v /etc/envoy:/etc/envoy \
-  envoyproxy/envoy-distroless:v1.24.1 \
-  --config-path /etc/envoy/envoy.yaml \
-  -l warn
+  --debug-mode \
+  --enclave-cid 16

@@ -25,8 +25,8 @@ namespace {
 
 class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
-  explicit S3BlobStorageChangeNotifier(std::string sns_arn)
-      : change_notifier_(ChangeNotifier::Create("BlobNotifier_", sns_arn)) {}
+  explicit S3BlobStorageChangeNotifier(std::unique_ptr<ChangeNotifier> notifier)
+      : change_notifier_(std::move(notifier)) {}
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
@@ -97,10 +97,19 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
 
 }  // namespace
 
-std::unique_ptr<BlobStorageChangeNotifier> BlobStorageChangeNotifier::Create(
-    NotifierMetadata metadata) {
-  return std::make_unique<S3BlobStorageChangeNotifier>(
-      std::move(metadata.sns_arn));
+absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>>
+BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata) {
+  auto cloud_notifier_metadata =
+      std::get<CloudNotifierMetadata>(notifier_metadata);
+  cloud_notifier_metadata.queue_prefix = "BlobNotifier_";
+  absl::StatusOr<std::unique_ptr<ChangeNotifier>> status_or =
+      ChangeNotifier::Create(std::move(cloud_notifier_metadata));
+
+  if (!status_or.ok()) {
+    return status_or.status();
+  }
+
+  return std::make_unique<S3BlobStorageChangeNotifier>(std::move(*status_or));
 }
 
 }  // namespace kv_server

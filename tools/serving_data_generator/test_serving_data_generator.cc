@@ -32,6 +32,7 @@ ABSL_FLAG(std::string, key, "foo", "Specify the key for lookups");
 ABSL_FLAG(int, value_size, 100, "Specify the size of value for the key");
 ABSL_FLAG(std::string, output_dir, "", "Output file directory");
 ABSL_FLAG(int, num_records, 5, "Number of records to generate");
+ABSL_FLAG(int64_t, timestamp, 123123123, "Record timestamp");
 
 using kv_server::DeltaFileRecordStruct;
 using kv_server::DeltaMutationType;
@@ -42,11 +43,12 @@ using kv_server::ToStringView;
 void WriteRecords(std::string_view key, int value_size,
                   riegeli::RecordWriterBase& writer) {
   const int repetition = absl::GetFlag(FLAGS_num_records);
+  int64_t timestamp = absl::GetFlag(FLAGS_timestamp);
 
   for (int i = 0; i < repetition; ++i) {
     const std::string value(value_size, 'A' + (i % 50));
     writer.WriteRecord(ToStringView(DeltaFileRecordStruct{
-        DeltaMutationType::Update, 123123123, absl::StrCat(key, i), value}
+        DeltaMutationType::Update, timestamp++, absl::StrCat(key, i), value}
                                         .ToFlatBuffer()));
   }
   LOG(INFO) << "write done";

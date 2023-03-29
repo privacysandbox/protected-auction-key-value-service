@@ -21,14 +21,22 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "tools/bidding_auction_data_generator/data/custom_audience_data.pb.h"
 
 namespace kv_server {
+
+// Reads custom audience data from json file
+absl::StatusOr<kv_server::tools::bidding_auction_data_generator::SideLoadData>
+ReadCustomAudienceData(const std::string& file_path);
+
 // Defines a function that parses custom audience names and render_urls from
-// json string (tools/data/custom_audience_data.proto). custom audience names
-// can be buyer keys to test against DSP KV server and render_urls can be seller
-// keys to test against SSP KV server.
-absl::Status ParseAudienceData(
-    const std::string& side_load_json,
+// custom audience data proto message (tools/data/custom_audience_data.proto).
+// Custom audience names can be buyer keys to test against DSP KV server and
+// render_urls can be seller keys to test against SSP KV server.
+void ParseAudienceData(
+    const kv_server::tools::bidding_auction_data_generator::SideLoadData&
+        custom_audience_data,
     absl::flat_hash_set<std::string>& custom_audience_names,
     absl::flat_hash_set<std::string>& render_urls);
 

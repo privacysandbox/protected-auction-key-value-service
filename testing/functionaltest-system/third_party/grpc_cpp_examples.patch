@@ -1,0 +1,35 @@
+--- examples/cpp/helloworld/BUILD
++++ examples/cpp/helloworld/BUILD
+@@ -12,6 +12,8 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+
++package(default_visibility = ["//visibility:public"])
++
+ licenses(["notice"])
+
+ cc_binary(
+diff '--color=auto' -ru examples/cpp/keyvaluestore/BUILD examples/cpp/keyvaluestore/BUILD
+--- examples/cpp/keyvaluestore/BUILD
++++ examples/cpp/keyvaluestore/BUILD
+@@ -12,6 +12,8 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+
++package(default_visibility = ["//visibility:public"])
++
+ licenses(["notice"])
+
+ cc_binary(
+diff '--color=auto' -ru examples/cpp/route_guide/BUILD examples/cpp/route_guide/BUILD
+--- examples/cpp/route_guide/BUILD
++++ examples/cpp/route_guide/BUILD
+@@ -12,6 +12,8 @@
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+
++package(default_visibility = ["//visibility:public"])
++
+ licenses(["notice"])
+
+ cc_library(

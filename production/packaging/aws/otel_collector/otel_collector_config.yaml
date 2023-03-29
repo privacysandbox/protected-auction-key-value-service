@@ -12,8 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# REGION will be replaced with the region set in terraform
+# WORKSPACE_ID will be replaced with the region set in terraform
 extensions:
   health_check:
+  sigv4auth:
+    service: "aps"
+    region: $REGION
 
 receivers:
   otlp:
@@ -40,6 +45,10 @@ exporters:
     namespace: 'KV-Server'
     resource_to_telemetry_conversion:
         enabled: true
+  prometheusremotewrite:
+    endpoint: "https://aps-workspaces.$REGION.amazonaws.com/workspaces/$WORKSPACE_ID/api/v1/remote_write"
+    auth:
+      authenticator: sigv4auth
 
 service:
   pipelines:
@@ -47,9 +56,14 @@ service:
       receivers: [otlp,awsxray]
       processors: [batch/traces]
       exporters: [awsxray]
-    metrics:
+    # Metrics are exported to both Cloudwatch and Amazon Managed Prometheus.
+    metrics/1:
       receivers: [otlp]
       processors: [batch/metrics]
       exporters: [awsemf]
+    metrics/2:
+      receivers: [otlp]
+      processors: [batch/metrics]
+      exporters: [prometheusremotewrite]
 
-  extensions: [health_check]
+  extensions: [health_check,sigv4auth]

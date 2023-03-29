@@ -17,38 +17,56 @@
 #ifndef COMPONENTS_DATA_REALTIME_DELTA_FILE_RECORD_NOTIFIER_H_
 #define COMPONENTS_DATA_REALTIME_DELTA_FILE_RECORD_NOTIFIER_H_
 
+#include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
+#include "components/data/common/change_notifier.h"
+#include "components/telemetry/telemetry.h"
 
 namespace kv_server {
 
+struct NotificationsContext {
+  // A list of messages passed through the realtime endpoint in a single call
+  std::vector<std::string> parsed_notifications;
+
+  // Time set producer side before the message was inserted to the pubsub.
+  // since we read a batch of messages from the queue, this will aways be the
+  // min of all insertion times. Note that for most usecases this will be null,
+  // as it is only used for measuring latency during tests.
+  // Note that since the time differences are so small, the clock skew might
+  // affect the result. So you should be sending your requests from the same
+  // machine on which the server is running -- i.e. cloudtop.
+  std::optional<absl::Time> notifications_inserted;
+
+  // The time when these notifications were received from server side
+  absl::Time notifications_received;
+  // An open telemetry scope assosiated with the beggining of the trace that
+  // started when these notifications were received.
+  opentelemetry::trace::Scope scope;
+};
+
 // This notifier enables receiving updates from an SNS.
 // Example:
-//   auto notifier_ = DeltaFileRecordChangeNotifier::Create({.sns_arn =
-//   sns_arn}); notifier_->GetNotifications(max_wait, should_stop_callback);
+//   auto notifier_ = DeltaFileRecordChangeNotifier::Create(change_notifier);
+//   notifier_->GetNotifications(max_wait, should_stop_callback);
 class DeltaFileRecordChangeNotifier {
  public:
-  // Notification publisher details.
-  struct NotifierMetadata {
-    // Use for AWS
-    std::string sns_arn;
-  };
-
   virtual ~DeltaFileRecordChangeNotifier() = default;
 
   // Waits up to `max_wait` to return a vector of realtime notifications.
   // `should_stop_callback` is called periodically as a signal to abort prior to
   // `max_wait`.
-  virtual absl::StatusOr<std::vector<std::string>> GetNotifications(
+  virtual absl::StatusOr<NotificationsContext> GetNotifications(
       absl::Duration max_wait,
       const std::function<bool()>& should_stop_callback) = 0;
 
   static std::unique_ptr<DeltaFileRecordChangeNotifier> Create(
-      NotifierMetadata metadata);
+      std::unique_ptr<ChangeNotifier> change_notifier);
 };
 
 }  // namespace kv_server

@@ -1,0 +1,98 @@
+#!/bin/bash
+
+set -o errexit
+
+function usage() {
+  local -r -i exitval=$1
+  cat &>/dev/stderr <<USAGE
+usage:
+  $0 <options>
+    --endpoint-env-var <name>    name of env var containing endpoint host:port
+    --rpc <rpc name>             rpc name
+    --request <filename>         request.json filename
+environment variables:
+    <ENDPOINT>                   host:port of grpc endpoint
+    DOCKER_NETWORK               docker network name
+    TEST_TOOLS_IMAGE             docker image uri for test tools
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --endpoint-env-var)
+      ENDPOINT_VAR="$2"
+      shift 2
+      ;;
+    --rpc)
+      RPC="$2"
+      shift 2
+      ;;
+    --protoset)
+      PROTOSET_FILENAME="$2"
+      shift 2
+      ;;
+    --request)
+      REQUEST_FILENAME="$2"
+      shift 2
+      ;;
+    --help | -h)
+      usage 0
+      ;;
+    *)
+      usage 1
+      break
+      ;;
+  esac
+done
+
+: "${RPC?"Error: --rpc must be specified"}"
+: "${PROTOSET_FILENAME?"Error: --protoset must be specified"}"
+: "${REQUEST_FILENAME?"Error: --request must be specified"}"
+: "${ENDPOINT_VAR?"Error: --endpoint-env-var not specified"}"
+declare -r ENDPOINT="${!ENDPOINT_VAR}"
+: "${ENDPOINT?"Error: Endpoint host:port not specified in ${ENDPOINT_VAR} env var"}"
+: "${TEST_TOOLS_IMAGE?"Error: Test tools image URI not specified in TEST_TOOLS_IMAGE env var"}"
+
+REQ_JSON="$(cat "${REQUEST_FILENAME}")"
+REPORT_FILE=ghz_report.json
+REPORT_FORMAT=pretty
+
+declare -a DOCKER_ARGS
+if [[ -n ${DOCKER_NETWORK} ]]; then
+  DOCKER_ARGS+=(
+    --network
+    "${DOCKER_NETWORK}"
+  )
+fi
+
+declare -a GHZ_ARGS=(
+  "--insecure"
+  "--concurrency=10"
+  "--total=5000"
+  "--call=${RPC}"
+  "--format=${REPORT_FORMAT}"
+  # --format=pretty
+)
+
+# declare -a GHZ_LINEAR_LOAD=(
+#   "--load-schedule=line"
+#   "--load-start=5"
+#   "--load-step=5"
+# )
+
+# declare -a GHZ_STEP_UP_RPS=(
+#   "--load-schedule=step"
+#   "--load-start=50"
+#   "--load-end=150"
+#   "--load-step=10"
+#   "--load-step-duration=5s"
+# )
+
+set -o xtrace
+docker run -i "${DOCKER_ARGS[@]}" --entrypoint /bin/bash --tmpfs /work --workdir /work "${TEST_TOOLS_IMAGE}" -c "
+set -o errexit
+cat /dev/stdin >protoset.pb
+ghz ${GHZ_ARGS[*]} --data '${REQ_JSON}' --protoset protoset.pb ${ENDPOINT}
+" <"${PROTOSET_FILENAME}" >"${TEST_UNDECLARED_OUTPUTS_DIR}"/${REPORT_FILE}

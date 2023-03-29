@@ -23,55 +23,40 @@
 
 namespace kv_server {
 
-namespace {
 constexpr std::string_view kParameterPrefix = "kv-server";
 
-class ParameterFetcherImpl : public ParameterFetcher {
- public:
-  ParameterFetcherImpl(std::string environment,
-                       const ParameterClient& parameter_client,
-                       MetricsRecorder& metrics_recorder)
-      : environment_(std::move(environment)),
-        parameter_client_(parameter_client),
-        metrics_recorder_(metrics_recorder) {}
+ParameterFetcher::ParameterFetcher(std::string environment,
+                                   const ParameterClient& parameter_client,
+                                   MetricsRecorder& metrics_recorder)
+    : environment_(std::move(environment)),
+      parameter_client_(parameter_client),
+      metrics_recorder_(metrics_recorder) {}
 
-  std::string GetParameter(std::string_view parameter_suffix) const override {
-    const std::string param_name = GetParamName(parameter_suffix);
-    return TraceRetryUntilOk(
-        [this, &param_name] {
-          return parameter_client_.GetParameter(param_name);
-        },
-        "GetParameter", metrics_recorder_, {{"param", param_name}});
-  }
+std::string ParameterFetcher::GetParameter(
+    std::string_view parameter_suffix) const {
+  const std::string param_name = GetParamName(parameter_suffix);
+  return TraceRetryUntilOk(
+      [this, &param_name] {
+        return parameter_client_.GetParameter(param_name);
+      },
+      "GetParameter", metrics_recorder_, {{"param", param_name}});
+}
 
-  int32_t GetInt32Parameter(std::string_view parameter_suffix) const override {
-    const std::string param_name = GetParamName(parameter_suffix);
-    return TraceRetryUntilOk(
-        [this, &param_name] {
-          return parameter_client_.GetInt32Parameter(param_name);
-        },
-        "GetParameter", metrics_recorder_, {{"param", param_name}});
-  }
+int32_t ParameterFetcher::GetInt32Parameter(
+    std::string_view parameter_suffix) const {
+  const std::string param_name = GetParamName(parameter_suffix);
+  return TraceRetryUntilOk(
+      [this, &param_name] {
+        return parameter_client_.GetInt32Parameter(param_name);
+      },
+      "GetParameter", metrics_recorder_, {{"param", param_name}});
+}
 
- private:
-  const std::string environment_;
-  const ParameterClient& parameter_client_;
-  MetricsRecorder& metrics_recorder_;
-
-  std::string GetParamName(std::string_view parameter_suffix) const {
-    const std::vector<std::string_view> v = {kParameterPrefix, environment_,
-                                             parameter_suffix};
-    return absl::StrJoin(v, "-");
-  }
-};
-
-}  // namespace
-
-std::unique_ptr<ParameterFetcher> ParameterFetcher::Create(
-    std::string environment, const ParameterClient& parameter_client,
-    MetricsRecorder& metrics_recorder) {
-  return std::make_unique<ParameterFetcherImpl>(
-      std::move(environment), parameter_client, metrics_recorder);
+std::string ParameterFetcher::GetParamName(
+    std::string_view parameter_suffix) const {
+  const std::vector<std::string_view> v = {kParameterPrefix, environment_,
+                                           parameter_suffix};
+  return absl::StrJoin(v, "-");
 }
 
 }  // namespace kv_server

@@ -1,0 +1,14 @@
+workspace(name = "functionaltest_system_grpc_greeter_example")
+
+local_repository(
+    name = "google_privacysandbox_functionaltest_system",
+    path = "../..",
+)
+
+load("@google_privacysandbox_functionaltest_system//:deps.bzl", repo_dependencies = "dependencies")
+
+repo_dependencies()
+
+load("@bazel_skylib//:workspace.bzl", "bazel_skylib_workspace")
+
+bazel_skylib_workspace()

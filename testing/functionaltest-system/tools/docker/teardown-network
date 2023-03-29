@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -o errexit
+
+function usage() {
+  local -r -i exitval=${1-1}
+  cat &>/dev/stderr <<USAGE
+usage:
+  ${BASH_SOURCE[0]} <network name>
+
+  teardown specified docker network, removing any attached containers
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+function teardown_network() {
+  declare -r _network_name="$1"
+  if ! docker inspect --format '{{.ID}}' "${_network_name}" &>/dev/null; then
+    printf "docker network [%s] not found\n" "${_network_name}"
+    exit 1
+  fi
+
+  printf "tearing down network %s...\n" "${_network_name}"
+  local -r _containers="$(docker container ls --filter network="${_network_name}" --format "{{print .ID}}\t{{print .Names}}")"
+  if [[ -n ${_containers} ]]; then
+    printf "deleting containers:\n"
+    while IFS=$'\t' read -r _cid _name; do
+      printf "\t%s\t(id: %s)\n" "${_name}" "${_cid}"
+      docker container rm --force "${_cid}" >/dev/null
+    done <<<"${_containers}"
+  fi
+  printf "deleting network "
+  docker network rm "${_network_name}"
+}
+
+if [[ $# -ne 1 ]]; then
+  usage 1
+fi
+
+teardown_network "$1"

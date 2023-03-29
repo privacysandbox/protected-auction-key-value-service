@@ -23,17 +23,42 @@ cc_library(
     name = "delta_file_record_change_notifier",
     srcs = select({
         "//:aws_platform": [
-            "delta_file_record_change_notifier.cc",
+            "delta_file_record_change_notifier_aws.cc",
         ],
-        "//conditions:default": [],
+        "//:local_platform": [
+            "delta_file_record_change_notifier_local.cc",
+        ],
     }),
     hdrs = [
         "delta_file_record_change_notifier.h",
     ],
     deps = [
         "//components/data/common:change_notifier",
+        "//components/telemetry",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_test(
+    name = "delta_file_record_change_notifier_test",
+    size = "small",
+    srcs = select({
+        "//:aws_platform": [
+            "delta_file_record_change_notifier_aws_test.cc",
+        ],
+        "//:local_platform": ["delta_file_record_change_notifier_local_test.cc"],
+    }),
+    data = [
+        "//components/data/realtime/testdata:data",
+    ],
+    deps = [
+        ":delta_file_record_change_notifier",
+        "//components/data/common:change_notifier",
+        "//components/data/common:mocks",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -70,6 +95,7 @@ cc_test(
         ":realtime_notifier",
         "//components/data/common:mocks",
         "//components/errors:mocks",
+        "//components/telemetry:mocks",
         "//public/data_loading:filename_utils",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",

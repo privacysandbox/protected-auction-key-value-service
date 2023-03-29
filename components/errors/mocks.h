@@ -21,8 +21,16 @@
 namespace kv_server {
 class MockSleepFor : public SleepFor {
  public:
-  MOCK_METHOD(void, Duration, (absl::Duration), (const override));
+  MOCK_METHOD(bool, Duration, (absl::Duration), (const override));
+  MOCK_METHOD(absl::Status, Stop, (), (override));
 };
+
+class MockUnstoppableSleepFor : public UnstoppableSleepFor {
+ public:
+  MOCK_METHOD(bool, Duration, (absl::Duration), (const override));
+  MOCK_METHOD(absl::Status, Stop, (), (override));
+};
+
 }  // namespace kv_server
 
 #endif  // COMPONENTS_ERRORS_MOCKS_H_

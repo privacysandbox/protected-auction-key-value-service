@@ -50,8 +50,11 @@ class RealtimeNotifier {
   virtual bool IsRunning() const = 0;
 
   static std::unique_ptr<RealtimeNotifier> Create(
-      ThreadNotifier& thread_notifier,
-      const SleepFor& sleep_for = SleepFor::Real());
+      MetricsRecorder& metrics_recorder);
+
+  // Used for test
+  static std::unique_ptr<RealtimeNotifier> Create(
+      MetricsRecorder& metrics_recorder, std::unique_ptr<SleepFor> sleep_for);
 };
 
 }  // namespace kv_server

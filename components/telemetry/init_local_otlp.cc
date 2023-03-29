@@ -14,6 +14,7 @@
 
 #include "components/telemetry/init.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter_factory.h"
+#include "opentelemetry/exporters/otlp/otlp_grpc_metric_exporter_factory.h"
 #include "opentelemetry/sdk/trace/random_id_generator_factory.h"
 
 // To use Jaeger first run a local instance of the collector
@@ -30,6 +31,17 @@ std::unique_ptr<opentelemetry::sdk::trace::SpanExporter> CreateSpanExporter() {
 
 std::unique_ptr<opentelemetry::sdk::trace::IdGenerator> CreateIdGenerator() {
   return opentelemetry::sdk::trace::RandomIdGeneratorFactory::Create();
+}
+
+std::unique_ptr<opentelemetry::sdk::metrics::MetricReader>
+CreatePeriodicExportingMetricReader(
+    const opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions&
+        options) {
+  std::unique_ptr<opentelemetry::sdk::metrics::PushMetricExporter> exporter =
+      opentelemetry::exporter::otlp::OtlpGrpcMetricExporterFactory::Create();
+  return std::make_unique<
+      opentelemetry::sdk::metrics::PeriodicExportingMetricReader>(
+      std::move(exporter), options);
 }
 
 }  // namespace kv_server

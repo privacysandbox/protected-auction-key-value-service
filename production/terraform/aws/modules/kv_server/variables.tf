@@ -97,16 +97,6 @@ variable "mode" {
   type        = string
 }
 
-variable "vpc_interface_endpoint_services" {
-  description = "List of AWS services to create vpc interface endpoints for."
-  type        = set(string)
-}
-
-variable "vpc_gateway_endpoint_services" {
-  description = "List of AWS services to create vpc gateway endpoints for."
-  type        = set(string)
-}
-
 variable "enclave_memory_mib" {
   description = "Amount of memory to allocate to the enclave."
   type        = number
@@ -149,5 +139,36 @@ variable "metrics_export_interval_millis" {
 
 variable "metrics_export_timeout_millis" {
   description = "Export timeout for metrics in milliseconds."
+  type        = number
+}
+
+variable "realtime_updater_num_threads" {
+  description = "The number of threads for the realtime updater."
+  type        = number
+}
+
+variable "prometheus_service_region" {
+  description = "Region where prometheus service runs that other services deployed by this file should interact with."
+  type        = string
+}
+
+variable "prometheus_workspace_id" {
+  description = "Workspace ID created for this environment."
+  default     = ""
+  type        = string
+}
+
+variable "data_loading_num_threads" {
+  description = "Number of parallel threads for reading and loading data files."
+  type        = number
+}
+
+variable "s3client_max_connections" {
+  description = "S3Client max connections for reading data files."
+  type        = number
+}
+
+variable "s3client_max_range_bytes" {
+  description = "S3Client max range bytes for reading data files."
   type        = number
 }

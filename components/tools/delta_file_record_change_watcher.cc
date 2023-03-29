@@ -14,12 +14,11 @@
 #include <future>
 #include <iostream>
 
-#include "absl/cleanup/cleanup.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
-#include "aws/core/Aws.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/util/platform_initializer.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
@@ -67,10 +66,7 @@ void Print(std::string string_decoded) {
 }
 
 int main(int argc, char** argv) {
-  // TODO: use cc/cpio/cloud_providers to initialize cloud.
-  Aws::SDKOptions options;
-  Aws::InitAPI(options);
-  absl::Cleanup shutdown = [&options] { Aws::ShutdownAPI(options); };
+  kv_server::PlatformInitializer initializer;
 
   std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
   std::string sns_arn = absl::GetFlag(FLAGS_sns_arn);
@@ -78,14 +74,36 @@ int main(int argc, char** argv) {
     std::cerr << "Must specify sns_arn" << std::endl;
     return -1;
   }
+
+  auto message_service_status = kv_server::MessageService::Create(
+      kv_server::CloudNotifierMetadata{"BlobNotifier_", sns_arn});
+
+  if (!message_service_status.ok()) {
+    std::cerr << "Unable to create MessageService: "
+              << message_service_status.status().message();
+    return -1;
+  }
+
+  auto status_or_notifier =
+      kv_server::ChangeNotifier::Create(kv_server::CloudNotifierMetadata{
+          .queue_prefix = "QueueNotifier_",
+          .sns_arn = std::move(sns_arn),
+          .queue_manager = message_service_status->get()});
+
+  if (!status_or_notifier.ok()) {
+    std::cerr << "Unable to create ChangeNotifier: "
+              << status_or_notifier.status().message();
+    return -1;
+  }
+
   std::unique_ptr<DeltaFileRecordChangeNotifier> notifier =
-      DeltaFileRecordChangeNotifier::Create({.sns_arn = sns_arn});
+      DeltaFileRecordChangeNotifier::Create(std::move(*status_or_notifier));
 
   while (true) {
-    absl::StatusOr<std::vector<std::string>> keys = notifier->GetNotifications(
-        absl::InfiniteDuration(), []() { return false; });
+    auto keys = notifier->GetNotifications(absl::InfiniteDuration(),
+                                           []() { return false; });
     if (keys.ok()) {
-      for (const auto& key : *keys) {
+      for (const auto& key : keys->parsed_notifications) {
         Print(key);
       }
     } else {

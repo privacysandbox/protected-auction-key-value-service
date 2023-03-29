@@ -24,10 +24,8 @@
 #include "components/telemetry/telemetry.h"
 #include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
-#include "infrastructure/communication/bhttp_utils.h"
 #include "public/constants.h"
 #include "public/query/get_values.grpc.pb.h"
-#include "quiche/binary_http/binary_http_message.h"
 #include "src/google/protobuf/message.h"
 #include "src/google/protobuf/struct.pb.h"
 
@@ -42,7 +40,6 @@ using google::protobuf::RepeatedPtrField;
 using google::protobuf::Struct;
 using google::protobuf::Value;
 using grpc::StatusCode;
-using v1::BinaryHttpGetValuesRequest;
 using v1::GetValuesRequest;
 using v1::GetValuesResponse;
 using v1::KeyValueService;
@@ -102,51 +99,21 @@ void ProcessKeys(const RepeatedPtrField<std::string>& keys, const Cache& cache,
     metrics_recorder.IncrementEventCounter(CACHE_KEY_HIT);
 
   for (auto&& [k, v] : std::move(kv_pairs)) {
-    (*result_struct.mutable_fields())[std::move(k)].set_string_value(
-        std::move(v));
+    Value value_proto;
+    google::protobuf::util::Status status =
+        google::protobuf::util::JsonStringToMessage(v, &value_proto);
+    if (status.ok()) {
+      (*result_struct.mutable_fields())[std::move(k)] = value_proto;
+    } else {
+      // If string is not a Json string that can be parsed into Value proto,
+      // simply set it as pure string value to the response.
+      (*result_struct.mutable_fields())[std::move(k)].set_string_value(
+          std::move(v));
+    }
   }
 }
 
 }  // namespace
-
-grpc::Status GetValuesHandler::BinaryHttpGetValues(
-    const BinaryHttpGetValuesRequest& bhttp_request,
-    google::api::HttpBody* bhttp_response) const {
-  auto span = GetTracer()->StartSpan(GET_BINARY_VALUES_HANDLER_SPAN);
-  auto scope = opentelemetry::trace::Scope(span);
-
-  VLOG(9) << "Received BinaryHttpGetValues request";
-  auto maybe_request =
-      DeserializeBHttpToProto<quiche::BinaryHttpRequest, GetValuesRequest>(
-          bhttp_request.raw_body().data());
-  if (!maybe_request.ok()) {
-    VLOG(1) << "Failed to deserialize request: " << maybe_request.status();
-    return grpc::Status(StatusCode::INTERNAL,
-                        std::string(maybe_request.status().message()));
-  }
-  VLOG(3) << "BinaryHttpGetValues request: " << maybe_request->DebugString();
-
-  GetValuesResponse response;
-  const grpc::Status get_values_status = GetValues(*maybe_request, &response);
-  VLOG(3) << "BinaryHttpGetValues status: " << get_values_status.error_message()
-          << "response: " << response.DebugString();
-
-  uint16_t status_code = 200;
-  if (!get_values_status.ok()) {
-    response.Clear();
-    status_code = 500;
-  }
-  auto maybe_response =
-      SerializeProtoToBHttp<quiche::BinaryHttpResponse, GetValuesResponse>(
-          response, status_code);
-
-  if (!maybe_response.ok()) {
-    return grpc::Status(StatusCode::INTERNAL,
-                        std::string(maybe_response.status().message()));
-  }
-  bhttp_response->set_data(std::move(*maybe_response));
-  return grpc::Status::OK;
-}
 
 grpc::Status GetValuesHandler::GetValues(const GetValuesRequest& request,
                                          GetValuesResponse* response) const {
@@ -174,7 +141,6 @@ grpc::Status GetValuesHandler::GetValues(const GetValuesRequest& request,
     ProcessKeys(request.ad_component_render_urls(), cache_, metrics_recorder_,
                 *response->mutable_ad_component_render_urls());
   }
-
   return grpc::Status::OK;
 }
 

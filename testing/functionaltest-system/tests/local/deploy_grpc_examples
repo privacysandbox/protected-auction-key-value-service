@@ -1,0 +1,96 @@
+#!/bin/bash
+
+set -o errexit
+
+declare -r SRV_IMAGE=bazel/tests:grpc_examples_docker_image
+
+function usage() {
+  local -r -i exitval=${1-1}
+  cat &>/dev/stderr <<USAGE
+usage:
+  ${BASH_SOURCE[0]} <command> [<flags>]
+
+commands:
+    gen-name                Generate likely unique name for test run
+    deploy <network-name>   Deploy system to specified docker network
+    help
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+function load_image() {
+  # build docker image then load it into local docker client
+  local -r _tmpout=$(mktemp)
+  trap 'rm -f "${_tmpout}"' RETURN
+  declare -r _target=//"${SRV_IMAGE#bazel/}"
+  "${TOOLS_DIR}"/bazel-debian build "${_target}"
+  if ! "${TOOLS_DIR}"/bazel-debian run "${_target}" &>"${_tmpout}"; then
+    printf "bazel build %s failed\n" "${_target}"
+    cat "${_tmpout}"
+    rm -f "${_tmpout}"
+    exit 1
+  fi
+}
+
+declare -r -A SERVERS=(
+  [greeter]="/server/bin/greeter_server"
+  [keyvalue]="/server/bin/keyvaluestore_server"
+  [route_guide]="/server/bin/route_guide_server --db_path=/server/data/route_guide_db.json"
+)
+
+function deploy() {
+  declare -r _network_name="$1"
+
+  load_image
+
+  printf "creating and deploying to network %s...\n" "${_network_name}"
+  if ! docker network create "${_network_name}"; then
+    printf "failed to create network %s\n" "${_network_name}"
+    exit 1
+  fi
+
+  declare -a _servers=()
+
+  printf "running server containers:\n"
+  for _srv in "${!SERVERS[@]}"; do
+    declare _srv_cmd="${SERVERS["${_srv}"]}"
+    printf "\t%s\t" "${_srv}"
+    docker run --detach --network "${_network_name}" --name "${_network_name}-${_srv}" --hostname "${_srv}" --entrypoint bash "${SRV_IMAGE}" -c "${_srv_cmd}"
+    _servers+=("${_srv}")
+  done
+
+  if [[ -t 0 ]] && [[ -t 1 ]]; then
+    docker container ls --filter network="${_network_name}"
+  fi
+}
+
+if [[ $# -eq 0 ]]; then
+  usage 1
+fi
+
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly SCRIPT_DIR
+readonly TOOLS_DIR="${SCRIPT_DIR}"/../../builders/tools
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    gen-name)
+      mktemp --dry-run --suffix=-net test-XXX
+      exit 0
+      ;;
+    deploy)
+      if [[ $# -lt 2 ]]; then
+        usage 1
+      fi
+      set -o xtrace
+      deploy "$2"
+      exit 0
+      ;;
+    help | -h | --help) usage 0 ;;
+    *)
+      usage
+      break
+      ;;
+  esac
+done

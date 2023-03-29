@@ -1,0 +1,11 @@
+# proto-file: google3/third_party/perfgate/proto/quickstore/quickstore.proto
+# proto-message: QuickstoreInput
+
+tags: "cloud_provider=aws"
+tags: "machine_type=C5.4xlarge"
+tags: "num_reports=1m"
+duration_time_ms: 3000000
+hyperlink_list: {
+  name: "fusion2"
+  data: "http://fusion2/f6dee857-bdf8-4b5e-8d5f-beaacb971a53"
+}

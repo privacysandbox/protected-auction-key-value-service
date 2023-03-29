@@ -35,7 +35,9 @@ data "aws_iam_policy_document" "vpce_policy_doc" {
 
 # Create gateway endpoints for accessing AWS services.
 resource "aws_vpc_endpoint" "vpc_gateway_endpoint" {
-  for_each          = var.vpc_gateway_endpoint_services
+  for_each = toset([
+    "s3"
+  ])
   service_name      = "com.amazonaws.${var.region}.${each.key}"
   vpc_id            = var.vpc_id
   vpc_endpoint_type = "Gateway"
@@ -51,7 +53,15 @@ resource "aws_vpc_endpoint" "vpc_gateway_endpoint" {
 
 # Create interface endpoints for accessing AWS services.
 resource "aws_vpc_endpoint" "vpc_interface_endpoint" {
-  for_each            = var.vpc_interface_endpoint_services
+  for_each = toset(concat([
+    "ec2",
+    "ssm",
+    "sns",
+    "sqs",
+    "autoscaling",
+    "xray",
+    "logs",
+  ], var.prometheus_service_region == var.region ? ["aps-workspaces"] : []))
   service_name        = "com.amazonaws.${var.region}.${each.key}"
   vpc_id              = var.vpc_id
   vpc_endpoint_type   = "Interface"

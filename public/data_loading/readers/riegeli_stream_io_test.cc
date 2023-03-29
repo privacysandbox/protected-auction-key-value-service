@@ -52,18 +52,16 @@ class StreamRecordReaderTest : public ::testing::TestWithParam<ReaderType> {
   template <typename RecordT>
   std::unique_ptr<StreamRecordReader<RecordT>> CreateReader(
       std::stringstream& stream) {
-    auto reader_factory = StreamRecordReaderFactory<std::string_view>::Create();
+    auto reader_factory = StreamRecordReaderFactory<std::string_view>::Create(
+        {.num_worker_threads = 1});
     if (ReaderType::kConcurrent == GetParam()) {
-      return reader_factory->CreateConcurrentReader(
-          [&stream]() {
-            auto stream_handle =
-                std::make_unique<StringBlobStream>(stream.str());
-            if (stream.bad()) {
-              stream_handle->Stream().setstate(std::ios_base::badbit);
-            }
-            return stream_handle;
-          },
-          {.num_worker_threads = 1});
+      return reader_factory->CreateConcurrentReader([&stream]() {
+        auto stream_handle = std::make_unique<StringBlobStream>(stream.str());
+        if (stream.bad()) {
+          stream_handle->Stream().setstate(std::ios_base::badbit);
+        }
+        return stream_handle;
+      });
     }
     return reader_factory->CreateReader(stream);
   }
@@ -76,12 +74,11 @@ class ConcurrentStreamRecordReaderTest
  protected:
   std::unique_ptr<StreamRecordReader<std::string_view>> CreateConcurrentReader(
       const std::string& blob_content) {
-    auto reader_factory = StreamRecordReaderFactory<std::string_view>::Create();
-    return reader_factory->CreateConcurrentReader(
-        [&blob_content]() {
-          return std::make_unique<StringBlobStream>(blob_content);
-        },
-        GetParam());
+    auto reader_factory =
+        StreamRecordReaderFactory<std::string_view>::Create(GetParam());
+    return reader_factory->CreateConcurrentReader([&blob_content]() {
+      return std::make_unique<StringBlobStream>(blob_content);
+    });
   }
 };
 
@@ -196,12 +193,19 @@ INSTANTIATE_TEST_SUITE_P(ConcurrentOptions, ConcurrentStreamRecordReaderTest,
                          testing::Values(
                              ConcurrentReaderOptions{
                                  .num_worker_threads = 1,
+                                 .min_shard_size_bytes = 1024,
                              },
                              ConcurrentReaderOptions{
                                  .num_worker_threads = 2,
+                                 .min_shard_size_bytes = 1024,
                              },
                              ConcurrentReaderOptions{
                                  .num_worker_threads = 5,
+                                 .min_shard_size_bytes = 1024,
+                             },
+                             ConcurrentReaderOptions{
+                                 .num_worker_threads = 5,
+                                 .min_shard_size_bytes = 1024 * 1024,
                              }));
 
 TEST_P(ConcurrentStreamRecordReaderTest, ReadsAllRecordsExactlyOnce) {

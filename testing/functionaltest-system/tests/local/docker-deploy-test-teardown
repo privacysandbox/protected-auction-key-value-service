@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -o errexit
+
+trap _cleanup EXIT
+function _cleanup() {
+  declare -r -i status=$?
+  readonly DOCKER_TOOLS_DIR="${LOCAL_TESTS_DIR}"/../../tools/docker
+  if [[ -n ${NET} ]]; then
+    "${DOCKER_TOOLS_DIR}"/teardown-network "${NET}"
+  fi
+  exit ${status}
+}
+
+LOCAL_TESTS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly LOCAL_TESTS_DIR
+readonly TESTS_DIR="${LOCAL_TESTS_DIR}"/..
+readonly EXAMPLES_DIR="${TESTS_DIR}"/../examples
+
+set -o xtrace
+NET="$("${LOCAL_TESTS_DIR}"/deploy_grpc_examples gen-name)"
+readonly NET
+printf "deploying servers to docker network: %s\n" "${NET}"
+if ! "${LOCAL_TESTS_DIR}"/deploy_grpc_examples deploy "${NET}"; then
+  printf "error deploying test servers, continuing anyway\n"
+fi
+printf "running tests\n"
+"${TESTS_DIR}"/run-tests --network "${NET}"
+"${EXAMPLES_DIR}"/grpc_greeter/run-tests --network "${NET}"

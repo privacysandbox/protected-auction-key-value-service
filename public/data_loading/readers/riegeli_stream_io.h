@@ -21,6 +21,7 @@
 #include <cmath>
 #include <future>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -29,6 +30,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "components/telemetry/metrics_recorder.h"
 #include "glog/logging.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "riegeli/bytes/istream_reader.h"
@@ -109,6 +111,11 @@ class RiegeliStreamReader : public StreamRecordReader<RecordT> {
 };
 
 const int64_t kDefaultNumWorkerThreads = std::thread::hardware_concurrency();
+constexpr int64_t kDefaultMinShardSize = 8 * 1024 * 1024;  // 8MB
+constexpr std::string_view kReadShardRecordsLatencyEvent =
+    "ConcurrentStreamRecordReader::ReadShardRecords";
+constexpr std::string_view kReadStreamRecordsLatencyEvent =
+    "ConcurrentStreamRecordReader::ReadStreamRecords";
 
 // Holds a stream of data.
 class RecordStream {
@@ -135,7 +142,8 @@ class RecordStream {
 // };
 //
 // std::string data_blob = ...;
-// ConcurrentStreamRecordReader<std::string_view> record_reader([&data_blob]() {
+// ConcurrentStreamRecordReader<std::string_view> record_reader([&data_blob]()
+// {
 //  return std::make_unique<StringBlobStream>(data_blob);
 // });
 // auto status = record_reader.ReadStreamRecords(...);
@@ -149,6 +157,7 @@ class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
  public:
   struct Options {
     int64_t num_worker_threads = kDefaultNumWorkerThreads;
+    int64_t min_shard_size_bytes = kDefaultMinShardSize;
     std::function<bool(const riegeli::SkippedRegion&)> recovery_callback =
         [](const riegeli::SkippedRegion& region) {
           LOG(WARNING) << "Skipping over corrupted region: " << region;
@@ -157,7 +166,8 @@ class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
   };
   ConcurrentStreamRecordReader(
       std::function<std::unique_ptr<RecordStream>()> stream_factory,
-      Options options = Options());
+      Options options = Options(),
+      MetricsRecorder& metrics_recorder = MetricsRecorder::GetInstance());
   ~ConcurrentStreamRecordReader() = default;
   ConcurrentStreamRecordReader(const ConcurrentStreamRecordReader&) = delete;
   ConcurrentStreamRecordReader& operator=(const ConcurrentStreamRecordReader&) =
@@ -173,8 +183,8 @@ class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
     int64_t start_pos;
     int64_t end_pos;
   };
-  // Defines metadata/stats returned by a shard reading task. This is useful for
-  // correctness checks.
+  // Defines metadata/stats returned by a shard reading task. This is useful
+  // for correctness checks.
   struct ShardResult {
     int64_t first_record_pos;
     int64_t next_shard_first_record_pos;
@@ -188,13 +198,16 @@ class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
 
   std::function<std::unique_ptr<RecordStream>()> stream_factory_;
   Options options_;
+  MetricsRecorder& metrics_recorder_;
 };
 
 template <typename RecordT>
 ConcurrentStreamRecordReader<RecordT>::ConcurrentStreamRecordReader(
     std::function<std::unique_ptr<RecordStream>()> stream_factory,
-    Options options)
-    : stream_factory_(std::move(stream_factory)), options_(std::move(options)) {
+    Options options, MetricsRecorder& metrics_recorder)
+    : stream_factory_(std::move(stream_factory)),
+      options_(std::move(options)),
+      metrics_recorder_(metrics_recorder) {
   CHECK(options.num_worker_threads >= 1)
       << "Number of work threads must be at least 1.";
 }
@@ -238,8 +251,12 @@ ConcurrentStreamRecordReader<RecordT>::BuildShards() {
         absl::StrFormat("Num worker threads %d must be at least 1.",
                         options_.num_worker_threads));
   }
-  int64_t shard_size =
-      std::ceil((double)*stream_size / options_.num_worker_threads);
+  // The shard size must be at least `options_.min_shard_size_bytes` and
+  // at most `*stream_size`.
+  int64_t shard_size = std::min(
+      *stream_size, std::max(int64_t(std::ceil((double)*stream_size /
+                                               options_.num_worker_threads)),
+                             options_.min_shard_size_bytes));
   int64_t shard_start_pos = 0;
   std::vector<ShardRangeT> shards;
   shards.reserve(options_.num_worker_threads);
@@ -263,6 +280,8 @@ ConcurrentStreamRecordReader<RecordT>::BuildShards() {
 template <typename RecordT>
 absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     const std::function<absl::Status(const RecordT&)>& callback) {
+  ScopeLatencyRecorder latency_recorder(
+      std::string(kReadStreamRecordsLatencyEvent), metrics_recorder_);
   auto shards = BuildShards();
   if (!shards.ok() || shards->empty()) {
     return shards.status();
@@ -293,14 +312,16 @@ absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     if (prev_shard_result->next_shard_first_record_pos <
         curr_shard_result->first_record_pos) {
       return absl::InternalError(
-          absl::StrFormat("Skipped some records between byte=%d and byte%d.",
+          absl::StrFormat("Skipped some records between byte=%d and byte=%d.",
                           prev_shard_result->next_shard_first_record_pos,
                           curr_shard_result->first_record_pos));
     }
     total_records_read += curr_shard_result->num_records_read;
     prev_shard_result = curr_shard_result;
   }
-  LOG(INFO) << absl::StrFormat("Done reading %d records.", total_records_read);
+  VLOG(2) << "Done reading " << total_records_read << " records in "
+          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
+          << " ms.";
   return absl::OkStatus();
 }
 
@@ -309,8 +330,10 @@ absl::StatusOr<typename ConcurrentStreamRecordReader<RecordT>::ShardResult>
 ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
     const ShardRange& shard,
     const std::function<absl::Status(const RecordT&)>& record_callback) {
-  LOG(INFO) << "Reading shard: "
-            << absl::StrFormat("[%d,%d)", shard.start_pos, shard.end_pos);
+  VLOG(2) << "Reading shard: "
+          << "[" << shard.start_pos << "," << shard.end_pos << "]";
+  ScopeLatencyRecorder latency_recorder(
+      std::string(kReadShardRecordsLatencyEvent), metrics_recorder_);
   auto record_stream = stream_factory_();
   riegeli::RecordReader<riegeli::IStreamReader<>> record_reader(
       riegeli::IStreamReader(&record_stream->Stream()),
@@ -330,8 +353,8 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
     num_records_read++;
     next_record_pos = record_reader.pos().numeric();
   }
-  // TODO: b/269119466 - Figure out how to handle this better. Maybe add metrics
-  // to track callback failures (??).
+  // TODO: b/269119466 - Figure out how to handle this better. Maybe add
+  // metrics to track callback failures (??).
   if (!overall_status.ok()) {
     LOG(ERROR) << "Record callback failed to process some records with: "
                << overall_status;
@@ -341,9 +364,10 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
   }
   shard_result.next_shard_first_record_pos = next_record_pos;
   shard_result.num_records_read = num_records_read;
-  LOG(INFO) << absl::StrFormat("Done reading %d records in shard[%d,%d)",
-                               num_records_read, shard.start_pos,
-                               shard.end_pos);
+  VLOG(2) << "Done reading " << num_records_read << " records in shard: ["
+          << shard.start_pos << "," << shard.end_pos << "] in "
+          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
+          << " ms.";
   return shard_result;
 }
 
@@ -352,8 +376,15 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
 template <typename RecordT>
 class StreamRecordReaderFactory {
  public:
+  StreamRecordReaderFactory(
+      typename ConcurrentStreamRecordReader<RecordT>::Options options =
+          typename ConcurrentStreamRecordReader<RecordT>::Options())
+      : options_(std::move(options)) {}
   virtual ~StreamRecordReaderFactory() = default;
-  static std::unique_ptr<StreamRecordReaderFactory<RecordT>> Create();
+
+  static std::unique_ptr<StreamRecordReaderFactory<RecordT>> Create(
+      typename ConcurrentStreamRecordReader<RecordT>::Options options =
+          typename ConcurrentStreamRecordReader<RecordT>::Options());
 
   virtual std::unique_ptr<StreamRecordReader<RecordT>> CreateReader(
       std::istream& data_input) const {
@@ -365,18 +396,21 @@ class StreamRecordReaderFactory {
   }
 
   virtual std::unique_ptr<StreamRecordReader<RecordT>> CreateConcurrentReader(
-      std::function<std::unique_ptr<RecordStream>()> stream_factory,
-      typename ConcurrentStreamRecordReader<RecordT>::Options options =
-          typename ConcurrentStreamRecordReader<RecordT>::Options()) const {
+      std::function<std::unique_ptr<RecordStream>()> stream_factory) const {
     return std::make_unique<ConcurrentStreamRecordReader<RecordT>>(
-        stream_factory, options);
+        stream_factory, options_);
   }
+
+ private:
+  typename ConcurrentStreamRecordReader<RecordT>::Options options_;
 };
 
 template <typename RecordT>
 std::unique_ptr<StreamRecordReaderFactory<RecordT>>
-StreamRecordReaderFactory<RecordT>::Create() {
-  return std::make_unique<StreamRecordReaderFactory<RecordT>>();
+StreamRecordReaderFactory<RecordT>::Create(
+    typename ConcurrentStreamRecordReader<RecordT>::Options options) {
+  return std::make_unique<StreamRecordReaderFactory<RecordT>>(
+      std::move(options));
 }
 
 }  // namespace kv_server

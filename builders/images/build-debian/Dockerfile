@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+FROM docker/buildx-bin:v0.10 AS buildx-bin
 FROM ubuntu:20.04
 
 COPY install_apps install_golang_apps install_go.sh generate_system_bazelrc .bazelversion /scripts/
 COPY get_workspace_mount /usr/local/bin
 COPY gitconfig /etc
+COPY --from=buildx-bin /buildx /usr/libexec/docker/cli-plugins/docker-buildx
 
 ARG LOCALE=en_US.UTF-8
 ARG TARGETARCH

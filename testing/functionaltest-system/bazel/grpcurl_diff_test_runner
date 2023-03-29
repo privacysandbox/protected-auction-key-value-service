@@ -1,0 +1,128 @@
+#!/bin/bash
+
+set -o errexit
+
+function usage() {
+  local -r -i exitval=$1
+  cat &>/dev/stderr <<USAGE
+usage:
+  $0 <options>
+    --endpoint-env-var <name>    name of env var containing endpoint host:port
+    --rpc <rpc name>             rpc name
+    --request <filename>         request.json filename
+    --jq-pre-filter <filename>   jq program to transform the request
+    --jq-post-filter <filename>  jq program to transform the reply
+    --jq-post-slurp              run jq postprocessor in stream slurp mode
+    --reply <filename>           golden reply against which to diff the output
+environment variables:
+    <ENDPOINT>                   host:port of grpc endpoint
+    DOCKER_NETWORK               docker network name
+    TEST_TOOLS_IMAGE             docker image uri for test tools
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+declare -i JQ_POST_SLURP=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --endpoint-env-var)
+      ENDPOINT_VAR="$2"
+      shift 2
+      ;;
+    --rpc)
+      RPC="$2"
+      shift 2
+      ;;
+    --protoset)
+      PROTOSET_FILENAME="$2"
+      shift 2
+      ;;
+    --request)
+      REQUEST_FILENAME="$2"
+      shift 2
+      ;;
+    --reply)
+      GOLDEN_REPLY="$2"
+      shift 2
+      ;;
+    --jq-pre-filter)
+      JQ_PRE_PROGRAM_FILENAME="$2"
+      shift 2
+      ;;
+    --jq-post-filter)
+      JQ_POST_PROGRAM_FILENAME="$2"
+      shift 2
+      ;;
+    --jq-post-slurp)
+      JQ_POST_SLURP=1
+      shift
+      ;;
+    --help | -h)
+      usage 0
+      ;;
+    *)
+      usage 1
+      break
+      ;;
+  esac
+done
+
+: "${RPC?"Error: --rpc must be specified"}"
+: "${PROTOSET_FILENAME?"Error: --protoset must be specified"}"
+: "${REQUEST_FILENAME?"Error: --request must be specified"}"
+: "${GOLDEN_REPLY?"Error: --reply must be specified"}"
+: "${ENDPOINT_VAR?"Error: --endpoint-env-var not specified"}"
+declare -r ENDPOINT="${!ENDPOINT_VAR}"
+: "${ENDPOINT?"Error: Endpoint host:port not specified in ${ENDPOINT_VAR} env var"}"
+: "${TEST_TOOLS_IMAGE?"Error: Test tools image URI not specified in TEST_TOOLS_IMAGE env var"}"
+
+REQ_JSON="$(cat "${REQUEST_FILENAME}")"
+TMP_REPLY="$(mktemp --dry-run)"
+trap cleanup EXIT
+function cleanup() {
+  local -r -i STATUS=$?
+  rm -f "${TMP_REPLY}"
+  exit ${STATUS}
+}
+
+declare -a DOCKER_ARGS
+if [[ -n ${DOCKER_NETWORK} ]]; then
+  DOCKER_ARGS+=(
+    --network
+    "${DOCKER_NETWORK}"
+  )
+fi
+set -o xtrace
+if [[ -s ${JQ_PRE_PROGRAM_FILENAME} ]]; then
+  JQ_PRE_PROGRAM="$(cat "${JQ_PRE_PROGRAM_FILENAME}")"
+fi
+if [[ -s ${JQ_POST_PROGRAM_FILENAME} ]]; then
+  JQ_POST_PROGRAM="$(cat "${JQ_POST_PROGRAM_FILENAME}")"
+  if [[ ${JQ_POST_SLURP} -eq 1 ]]; then
+    JQ_POST_ARGS="--slurp"
+  fi
+fi
+docker run -i "${DOCKER_ARGS[@]}" --entrypoint /bin/bash --tmpfs /work --workdir /work "${TEST_TOOLS_IMAGE}" -c "
+set -o errexit
+cat /dev/stdin >protoset.pb
+if [[ -n '${JQ_PRE_PROGRAM}' ]]; then
+  echo '${JQ_PRE_PROGRAM}' >pre-filter.jq
+  jq --exit-status --from-file pre-filter.jq >grpcurl.in <<EOF
+${REQ_JSON}
+EOF
+else
+  cat >grpcurl.in <<EOF
+${REQ_JSON}
+EOF
+fi
+grpcurl -plaintext -d @ -protoset protoset.pb ${ENDPOINT} ${RPC} <grpcurl.in >grpcurl.out
+if [[ -n '${JQ_POST_PROGRAM}' ]]; then
+  echo '${JQ_POST_PROGRAM}' >post-filter.jq
+  jq --exit-status ${JQ_POST_ARGS} --from-file post-filter.jq <grpcurl.out
+else
+  cat grpcurl.out
+fi
+" <"${PROTOSET_FILENAME}" >"${TMP_REPLY}"
+diff "${TMP_REPLY}" "${GOLDEN_REPLY}"

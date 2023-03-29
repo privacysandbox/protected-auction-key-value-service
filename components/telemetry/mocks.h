@@ -18,6 +18,7 @@
 #define COMPONENTS_TELEMETRY_MOCKS_H_
 
 #include <string>
+#include <vector>
 
 #include "components/telemetry/metrics_recorder.h"
 #include "gmock/gmock.h"
@@ -29,7 +30,15 @@ class MockMetricsRecorder : public MetricsRecorder {
   MOCK_METHOD(void, IncrementEventStatus,
               (std::string event, absl::Status status, uint64_t count),
               (override));
-  MOCK_METHOD(void, IncrementEventCounter, (std::string name), (override));
+  MOCK_METHOD(void, IncrementEventCounter, (std::string event), (override));
+  MOCK_METHOD(void, RecordLatency, (std::string event, absl::Duration duration),
+              (override));
+  MOCK_METHOD(void, RegisterHistogram,
+              (std::string event, std::string description, std::string unit,
+               std::vector<double> bucket_boundaries),
+              (override));
+  MOCK_METHOD(void, RecordHistogramEvent, (std::string event, int64_t value),
+              (override));
 };
 
 }  // namespace kv_server

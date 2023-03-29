@@ -58,3 +58,23 @@ variable "metrics_export_timeout_millis_parameter_value" {
   description = "Export timeout for metrics in milliseconds."
   type        = number
 }
+
+variable "realtime_updater_num_threads_parameter_value" {
+  description = "Amount of realtime notifier threads."
+  type        = number
+}
+
+variable "data_loading_num_threads_parameter_value" {
+  description = "Number of parallel threads for reading and loading data files."
+  type        = number
+}
+
+variable "s3client_max_connections_parameter_value" {
+  description = "S3Client max connections for reading data files."
+  type        = number
+}
+
+variable "s3client_max_range_bytes_parameter_value" {
+  description = "S3Client max range bytes for reading data files."
+  type        = number
+}

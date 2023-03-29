@@ -47,6 +47,7 @@ module "sqs_cleanup" {
   sqs_cleanup_schedule       = var.sqs_cleanup_schedule
   sns_data_updates_topic_arn = module.data_storage.sns_data_updates_topic_arn
   sqs_queue_timeout_secs     = var.sqs_queue_timeout_secs
+  sns_realtime_topic_arn     = module.data_storage.sns_realtime_topic_arn
 }
 
 module "networking" {
@@ -64,18 +65,25 @@ module "security_groups" {
 }
 
 module "backend_services" {
-  source                          = "../../services/backend_services"
-  region                          = var.region
-  environment                     = var.environment
-  service                         = local.service
-  vpc_endpoint_route_table_ids    = module.networking.private_route_table_ids
-  vpc_endpoint_sg_id              = module.security_groups.vpc_endpoint_security_group_id
-  vpc_endpoint_subnet_ids         = module.networking.private_subnet_ids
-  vpc_gateway_endpoint_services   = var.vpc_gateway_endpoint_services
-  vpc_id                          = module.networking.vpc_id
-  vpc_interface_endpoint_services = var.vpc_interface_endpoint_services
-  server_instance_role_arn        = module.iam_roles.instance_role_arn
-  ssh_instance_role_arn           = module.iam_roles.ssh_instance_role_arn
+  source                       = "../../services/backend_services"
+  region                       = var.region
+  environment                  = var.environment
+  service                      = local.service
+  vpc_endpoint_route_table_ids = module.networking.private_route_table_ids
+  vpc_endpoint_sg_id           = module.security_groups.vpc_endpoint_security_group_id
+  vpc_endpoint_subnet_ids      = module.networking.private_subnet_ids
+  vpc_id                       = module.networking.vpc_id
+  server_instance_role_arn     = module.iam_roles.instance_role_arn
+  ssh_instance_role_arn        = module.iam_roles.ssh_instance_role_arn
+  prometheus_service_region    = var.prometheus_service_region
+}
+
+module "telemetry" {
+  source                    = "../../services/telemetry"
+  environment               = var.environment
+  service                   = local.service
+  region                    = var.region
+  prometheus_service_region = var.prometheus_service_region
 }
 
 module "load_balancing" {
@@ -97,6 +105,7 @@ module "load_balancing" {
 module "autoscaling" {
   source                       = "../../services/autoscaling"
   environment                  = var.environment
+  region                       = var.region
   service                      = local.service
   autoscaling_subnet_ids       = module.networking.private_subnet_ids
   instance_ami_id              = var.instance_ami_id
@@ -112,6 +121,8 @@ module "autoscaling" {
   server_port                  = var.server_port
   launch_hook_name             = module.parameter.launch_hook_parameter_value
   depends_on                   = [module.iam_role_policies.instance_role_policy_attachment]
+  prometheus_service_region    = var.prometheus_service_region
+  prometheus_workspace_id      = var.prometheus_workspace_id != "" ? var.prometheus_workspace_id : module.telemetry.prometheus_workspace_id
 }
 
 module "ssh" {
@@ -134,6 +145,10 @@ module "parameter" {
   backup_poll_frequency_secs_parameter_value     = var.backup_poll_frequency_secs
   metrics_export_interval_millis_parameter_value = var.metrics_export_interval_millis
   metrics_export_timeout_millis_parameter_value  = var.metrics_export_timeout_millis
+  realtime_updater_num_threads_parameter_value   = var.realtime_updater_num_threads
+  data_loading_num_threads_parameter_value       = var.data_loading_num_threads
+  s3client_max_connections_parameter_value       = var.s3client_max_connections
+  s3client_max_range_bytes_parameter_value       = var.s3client_max_range_bytes
 }
 
 module "security_group_rules" {
@@ -170,6 +185,10 @@ module "iam_role_policies" {
     module.parameter.backup_poll_frequency_secs_parameter_arn,
     module.parameter.metrics_export_interval_millis_parameter_arn,
     module.parameter.metrics_export_timeout_millis_parameter_arn,
+    module.parameter.realtime_updater_num_threads_parameter_arn,
+    module.parameter.data_loading_num_threads_parameter_arn,
+    module.parameter.s3client_max_connections_parameter_arn,
+    module.parameter.s3client_max_range_bytes_parameter_arn,
   ]
 }
 

@@ -38,8 +38,7 @@ ENV_VARS+=(
   "HOME=/home"
 )
 
-declare -a DOCKER_RUN_ARGS
-DOCKER_RUN_ARGS+=(
+declare -a DOCKER_RUN_ARGS=(
   "--rm"
 )
 for evar in "${ENV_VARS[@]}"
@@ -56,16 +55,20 @@ if [[ -t 0 ]] && [[ -t 1 ]]; then
   )
 fi
 
-readonly IMAGE_TAGGED="hashicorp/terraform:1.0.4"
-readonly REL_PWD="$(realpath --relative-to="${WORKSPACE}" "$(pwd)")"
+readonly IMAGE_TAGGED=hashicorp/terraform:1.0.4
+REL_PWD="$(realpath --relative-to="${WORKSPACE}" "$(pwd)")"
+readonly REL_PWD
 WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
 readonly WORKSPACE_MOUNT
 
+DOCKER_RUN_ARGS+=(
+  --user "$(id -u):$(id -g)"
+  --volume "${HOME}"/.aws/:/home/.aws/
+  --volume "${WORKSPACE_MOUNT}":/src/workspace
+  --workdir /src/workspace/"${REL_PWD}"
+)
+
 # shellcheck disable=SC2068
 docker run \
-  ${DOCKER_RUN_ARGS[@]} \
-  --user "$(id -u):$(id -g)" \
-  --volume "${HOME}"/.aws/:/home/.aws/ \
-  --volume "${WORKSPACE_MOUNT}":/src/workspace \
-  --workdir /src/workspace/"${REL_PWD}" \
+  "${DOCKER_RUN_ARGS[@]}" \
   ${IMAGE_TAGGED} "$@"

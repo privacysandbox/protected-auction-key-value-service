@@ -17,19 +17,31 @@
 
 set -o errexit
 
-APP=$(basename "$0")
+APP=$(basename "${BASH_SOURCE[0]}")
 readonly APP
-if [[ ${APP} == test-tool ]]; then
-  printf "test-tool designed for use via symlink with target program name\n" >/dev/stderr
+APP_LINK_TARGET=$(readlink "${BASH_SOURCE[0]}") || true
+readonly APP_LINK_TARGET
+if [[ -z ${APP_LINK_TARGET} ]] || [[ ${APP_LINK_TARGET} == test-tool && ${APP} == utils-tool ]]; then
+  printf "%s designed for use via symlink with target program name\n" "${APP}" >/dev/stderr
   exit 1
 fi
+
+case "${APP_LINK_TARGET}" in
+  utils-tool)
+    IMAGE="utils" ;;
+  test-tool)
+    IMAGE="test-tools" ;;
+  *)
+    printf "Unsupported image target: %s\n" "${APP_LINK_TARGET}" >/dev/stderr
+    exit 1
+esac
+readonly IMAGE
 
 # shellcheck disable=SC1091
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
 TOOLS_DIR="$(builder::get_tools_dir)"
 readonly TOOLS_DIR
-declare -r IMAGE="test-tools"
-IMAGE_TAGGED=$("${TOOLS_DIR}"/get-builder-image-tagged --image "${IMAGE}")
+IMAGE_TAGGED="$("${TOOLS_DIR}"/get-builder-image-tagged --image "${IMAGE}")"
 readonly IMAGE_TAGGED
 
 REL_PWD="$(realpath --relative-to="${WORKSPACE}" "$(pwd)")"
@@ -37,14 +49,18 @@ readonly REL_PWD
 WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
 readonly WORKSPACE_MOUNT
 
-declare -a DOCKER_RUN_ARGS
-DOCKER_RUN_ARGS+=(
-  "--rm"
+declare -a DOCKER_RUN_ARGS=(
+  --rm
+  --interactive
   --user "$(id -u):$(id -g)"
   --volume "${WORKSPACE_MOUNT}":/src/workspace
   --workdir /src/workspace/"${REL_PWD}"
-  "$(echo "${EXTRA_DOCKER_RUN_ARGS}" | envsubst)"
 )
+if [[ -n ${EXTRA_DOCKER_RUN_ARGS} ]]; then
+  DOCKER_RUN_ARGS+=(
+    $(echo "${EXTRA_DOCKER_RUN_ARGS}" | envsubst)
+  )
+fi
 if [[ -t 0 ]] && [[ -t 1 ]]; then
   # stdin and stdout are open, assume it's an interactive tty session
   DOCKER_RUN_ARGS+=(
@@ -54,6 +70,5 @@ fi
 
 # shellcheck disable=SC2068
 docker run \
-  --interactive \
-  ${DOCKER_RUN_ARGS[@]} \
-  ${IMAGE_TAGGED} "${APP}" "$@"
+  "${DOCKER_RUN_ARGS[@]}" \
+  "${IMAGE_TAGGED}" "${APP}" "$@"

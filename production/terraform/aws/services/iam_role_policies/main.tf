@@ -63,7 +63,9 @@ data "aws_iam_policy_document" "instance_policy_doc" {
       "sqs:CreateQueue",
       "sqs:Get*",
       "sqs:ReceiveMessage",
-      "sqs:TagQueue"
+      "sqs:TagQueue",
+      "sqs:SetQueueAttributes",
+      "sqs:DeleteMessage"
     ]
     resources = ["*"]
   }
@@ -105,6 +107,13 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     ]
     resources = ["*"]
   }
+  statement {
+    sid = "AllowPrometheusRemoteWrite"
+    actions = [
+      "aps:RemoteWrite",
+    ]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_policy" "instance_policy" {
@@ -126,7 +135,7 @@ data "aws_iam_policy_document" "sqs_cleanup_lambda_policy_doc" {
       "sns:List*",
       "sns:Unsubscribe"
     ]
-    resources = [var.sns_data_updates_topic_arn]
+    resources = [var.sns_data_updates_topic_arn, var.sns_realtime_topic_arn]
   }
   statement {
     sid = "AllowLambdaToManageSQSQueues"

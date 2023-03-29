@@ -81,17 +81,14 @@ class DataOrchestratorTest : public ::testing::Test {
             .delta_notifier = notifier_,
             .change_notifier = change_notifier_,
             .delta_stream_reader_factory = delta_stream_reader_factory_,
-            .delta_file_record_change_notifier =
-                delta_file_record_change_notifier_,
-            .realtime_notifier = realtime_notifier_}) {}
+            .realtime_options = realtime_options_}) {}
 
   MockBlobStorageClient blob_client_;
   MockDeltaFileNotifier notifier_;
   MockBlobStorageChangeNotifier change_notifier_;
   MockStreamRecordReaderFactory delta_stream_reader_factory_;
   MockCache cache_;
-  MockDeltaFileRecordChangeNotifier delta_file_record_change_notifier_;
-  MockRealtimeNotifier realtime_notifier_;
+  std::vector<DataOrchestrator::RealtimeOptions> realtime_options_;
   DataOrchestrator::Options options_;
   MockMetricsRecorder metrics_recorder_;
 };
@@ -333,6 +330,14 @@ TEST_F(DataOrchestratorTest, StartLoading) {
   EXPECT_TRUE(orchestrator->Start().ok());
   LOG(INFO) << "Created ContinuouslyLoadNewData";
   all_records_loaded.WaitForNotificationWithTimeout(absl::Seconds(10));
+}
+
+TEST_F(DataOrchestratorTest, CreateOrchestratorWithRealtimeDisabled) {
+  ON_CALL(blob_client_, ListBlobs)
+      .WillByDefault(Return(std::vector<std::string>({})));
+  auto maybe_orchestrator =
+      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  ASSERT_TRUE(maybe_orchestrator.ok());
 }
 
 }  // namespace

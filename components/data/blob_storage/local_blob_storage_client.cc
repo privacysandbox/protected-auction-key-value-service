@@ -125,7 +125,8 @@ class FileBlobStorageClient : public BlobStorageClient {
 
 }  // namespace
 
-std::unique_ptr<BlobStorageClient> BlobStorageClient::Create() {
+std::unique_ptr<BlobStorageClient> BlobStorageClient::Create(
+    BlobStorageClient::ClientOptions client_options) {
   return std::make_unique<FileBlobStorageClient>();
 }
 }  // namespace kv_server

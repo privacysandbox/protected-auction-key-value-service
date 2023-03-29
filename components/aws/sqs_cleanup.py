@@ -27,17 +27,26 @@ def handler(event, context):
     """AWS Lambda hook."""
     sns_topic = event.get("sns_topic")
     queue_prefix = event.get("queue_prefix")
-    timeout_secs = event.get("timeout_secs")
+    timeout_secs = int(event.get("timeout_secs"))
     if queue_prefix is None:
         raise Exception("no prefix")
     if sns_topic is None:
         raise Exception("no topic")
-    if timeout_secs is None:
-        raise Exception("no timeout")
     deleted_queues, deleted_subscriptions = find_and_cleanup(
-        sns_topic, queue_prefix, int(timeout_secs)
+        sns_topic, queue_prefix, timeout_secs
+    )
+    realtime_sns_topic = event.get("realtime_sns_topic")
+    realtime_queue_prefix = event.get("realtime_queue_prefix")
+    if realtime_sns_topic is None:
+        raise Exception("no realtime topic")
+    if realtime_queue_prefix is None:
+        raise Exception("no realtime prefix")
+    deleted_realtime_queues, deleted_realtime_subscriptions = find_and_cleanup(
+        realtime_sns_topic, realtime_queue_prefix, timeout_secs
     )
     return {
         "deleted_queues": deleted_queues,
         "deleted_subscriptions": deleted_subscriptions,
+        "deleted_realtime_queues": deleted_realtime_queues,
+        "deleted_realtime_subscriptions": deleted_realtime_subscriptions,
     }

@@ -51,15 +51,18 @@ class DeltaFileNotifier {
   // Blocks until `IsRunning` is False.
   virtual absl::Status Stop() = 0;
 
-  // Returns False before calling `StartNotify` or after `StopNotify` is
+  // Returns False before calling `Start` or after `Stop` is
   // successful.
   virtual bool IsRunning() const = 0;
 
   static std::unique_ptr<DeltaFileNotifier> Create(
-      ThreadNotifier& thread_notifier, BlobStorageClient& client,
-      const absl::Duration poll_frequency = absl::Minutes(5),
-      const SleepFor& sleep_for = SleepFor::Real(),
-      SteadyClock& clock = SteadyClock::RealClock());
+      BlobStorageClient& client,
+      const absl::Duration poll_frequency = absl::Minutes(5));
+
+  // Used for test
+  static std::unique_ptr<DeltaFileNotifier> Create(
+      BlobStorageClient& client, const absl::Duration poll_frequency,
+      std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock);
 };
 
 }  // namespace kv_server

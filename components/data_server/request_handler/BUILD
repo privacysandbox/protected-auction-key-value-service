@@ -29,12 +29,10 @@ cc_library(
     deps = [
         "//components/data_server/cache",
         "//components/telemetry:metrics_recorder",
-        "//infrastructure/communication:bhttp_utils",
         "//public:base_types_cc_proto",
         "//public:constants",
         "//public/query:get_values_cc_grpc",
         "@com_github_google_glog//:glog",
-        "@com_github_google_quiche//quiche:binary_http_unstable_api",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
@@ -54,10 +52,8 @@ cc_test(
         "//components/data_server/cache:mocks",
         "//components/telemetry:metrics_recorder",
         "//components/telemetry:mocks",
-        "//infrastructure/communication:bhttp_utils",
         "//public/query:get_values_cc_grpc",
         "//public/test_util:proto_matcher",
-        "@com_github_google_quiche//quiche:binary_http_unstable_api",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
     ],
@@ -91,8 +87,14 @@ cc_library(
 
 cc_library(
     name = "compression",
-    srcs = ["compression.cc"],
-    hdrs = ["compression.h"],
+    srcs = [
+        "compression.cc",
+        "uncompressed.cc",
+    ],
+    hdrs = [
+        "compression.h",
+        "uncompressed.h",
+    ],
     deps = [
         "@com_github_google_glog//:glog",
         "@com_github_google_quiche//quiche:quiche_unstable_api",
@@ -100,8 +102,8 @@ cc_library(
 )
 
 cc_test(
-    name = "compression_test",
-    srcs = ["compression_test.cc"],
+    name = "uncompressed_test",
+    srcs = ["uncompressed_test.cc"],
     deps = [
         ":compression",
         "@com_google_googletest//:gtest_main",
@@ -120,7 +122,6 @@ cc_test(
         "//components/data_server/cache:mocks",
         "//components/telemetry:metrics_recorder",
         "//components/telemetry:mocks",
-        "//infrastructure/communication:bhttp_utils",
         "//public:constants",
         "//public/query/v2:get_values_v2_cc_grpc",
         "//public/test_util:proto_matcher",

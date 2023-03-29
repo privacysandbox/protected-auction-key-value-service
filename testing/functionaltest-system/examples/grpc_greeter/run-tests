@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Test runner for the build system. This script should preferably be run
+# "directly" and not inside docker, permitting the test cases to execute
+# both inside and outside a docker container.
+
+set -o pipefail
+set -o errexit
+
+WORKSPACE_TMPFILE="$(mktemp)"
+readonly WORKSPACE_TMPFILE
+
+trap _cleanup EXIT
+function _cleanup() {
+  declare -r -i STATUS=$?
+  if [[ ${STATUS} -ne 0 ]]; then
+    printf "Error: run-tests status code: %d\n" "${STATUS}"
+  fi
+  rm -f "${WORKSPACE_TMPFILE}"
+  # kokoro has a habit of truncating build logs for scripts, adding a delay
+  # seems to help ensure completeness
+  if [[ -v KOKORO_ARTIFACTS_DIR ]]; then
+    sleep 5s
+  fi
+  exit ${STATUS}
+}
+
+function usage() {
+  declare -r -i exitval=$?
+  cat &>/dev/stderr <<USAGE
+usage:
+  $0 <options>
+      --network <name>    docker network name
+USAGE
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --network)
+      DOCKER_NETWORK="$2"
+      shift 2
+      ;;
+    -h | --help) usage 0 ;;
+    *)
+      printf "unrecognized arg: %s\n" "$1"
+      usage
+      ;;
+  esac
+done
+
+: "${DOCKER_NETWORK?"--network flag not specified"}"
+
+TEST_REPO="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly TEST_REPO
+cd "${TEST_REPO}"
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+readonly REPO_ROOT
+readonly TOOLS_DIR="${REPO_ROOT}"/builders/tools
+
+declare -a -r TEST_ARGS=(
+  "--test_env=GREETER_ENDPOINT=greeter:50051"
+  "--test_env=ROUTEGUIDE_ENDPOINT=route_guide:50051"
+  "--test_env=DOCKER_NETWORK=${DOCKER_NETWORK}"
+  "--test_env=TEST_TOOLS_IMAGE=$("${TOOLS_DIR}"/get-builder-image-tagged --image test-tools --verbose)"
+)
+
+declare -a -r TESTS=("//test_cases/grpc:all")
+
+function buildozer_filter() {
+  "${TOOLS_DIR}"/buildozer -stdout "$@"
+}
+
+# run the tests using a bazel-debian docker container
+function container_run_test() {
+  readonly FUNCTEST_REPO_NAME=google_privacysandbox_functionaltest_system
+  readonly FUNCTEST_REPO_PATH=/src/repos/functionaltest_system
+  buildozer_filter "set path ${FUNCTEST_REPO_PATH} ${FUNCTEST_REPO_NAME}" -:"${FUNCTEST_REPO_NAME}" \
+    <"${TEST_REPO}"/WORKSPACE \
+    >"${WORKSPACE_TMPFILE}"
+
+  # when overriding WORKSPACE_MOUNT, we also need to CBUILD_IMAGE as the new
+  # WORKSPACE_MOUNT value will cause get-builder-image-tagged to fail
+  local -r CBUILD_IMAGE="$("${TOOLS_DIR}"/get-builder-image-tagged --image build-debian)"
+  export CBUILD_IMAGE
+  declare -r -x WORKSPACE_MOUNT="${TEST_REPO}"
+  export EXTRA_DOCKER_RUN_ARGS="--volume ${REPO_ROOT}:${FUNCTEST_REPO_PATH} --volume ${WORKSPACE_TMPFILE}:/src/workspace/WORKSPACE"
+  "${TOOLS_DIR}"/bazel-debian test "${TESTS[@]}" "${TEST_ARGS[@]}"
+}
+
+# run the tests using bazel, if installed
+function bazel_run_test() {
+  if ! command bazel --help &>/dev/null; then
+    printf "bazel not available, skipping 'direct' execution of test suite\n"
+    return
+  fi
+  bazel test "${TESTS[@]}" "${TEST_ARGS[@]}"
+}
+
+container_run_test
+
+# if bazel is available, then run the tests directly too
+bazel_run_test

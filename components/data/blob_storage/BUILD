@@ -24,6 +24,8 @@ cc_library(
     srcs = ["seeking_input_streambuf.cc"],
     hdrs = ["seeking_input_streambuf.h"],
     deps = [
+        "//components/telemetry:metrics_recorder",
+        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -106,7 +108,7 @@ cc_library(
         "//:aws_platform": [
             "blob_storage_change_notifier_s3.cc",
         ],
-        "//:local_platform": [":blob_storage_change_notifier_local"],
+        "//:local_platform": ["blob_storage_change_notifier_local.cc"],
     }),
     hdrs = [
         "blob_storage_change_notifier.h",
@@ -119,30 +121,18 @@ cc_library(
     ],
 )
 
-# This is a separate cc_library so that it can be compiled independent of the
-# "platform" config and used in the unit test below.
-cc_library(
-    name = "blob_storage_change_notifier_local",
-    srcs = ["blob_storage_change_notifier_local.cc"],
-    hdrs = [
-        "blob_storage_change_notifier.h",
-    ],
-    deps = [
-        "//components/data/common:change_notifier",
-        "@com_google_absl//absl/functional:bind_front",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-    ],
-)
-
 cc_test(
-    name = "blob_storage_change_notifier_local_test",
+    name = "blob_storage_change_notifier_test",
     size = "small",
-    srcs = ["blob_storage_change_notifier_local_test.cc"],
+    srcs = select({
+        "//:aws_platform": [
+            "blob_storage_change_notifier_s3_test.cc",
+        ],
+        "//:local_platform": ["blob_storage_change_notifier_local_test.cc"],
+    }),
     deps = [
-        ":blob_storage_change_notifier_local",
-        "//components/data/common:mocks",
-        "//components/errors:mocks",
+        ":blob_storage_change_notifier",
+        "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
     ],

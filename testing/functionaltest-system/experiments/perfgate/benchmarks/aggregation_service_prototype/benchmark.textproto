@@ -1,0 +1,44 @@
+# proto-file: google3/third_party/perfgate/spec/proto/perfgate.proto
+# proto-message: BenchmarkInfo
+
+benchmark_name: "Aggregation Service Prototype"
+benchmark_key: "6135205122015232"
+description: "Experimental performance metrics dashboard"
+project_name: "potassium_engprod_test"
+build_id_label: "Gerrit change number"
+build_id_url_format: "http://tg/%d"
+input_value_info: {
+  value_key: "x"
+  label: "input_time"
+  type: TIMESTAMP
+}
+metric_info_list: {
+  value_key: "cp"
+  description: "CPU Utilization"
+  label: "cpu_usage"
+  type: NUMERIC
+}
+metric_info_list: {
+  value_key: "dc"
+  description: "Decryption Time"
+  label: "decryption_time"
+  type: NUMERIC
+  unit: "ms"
+}
+metric_info_list: {
+  value_key: "me"
+  description: "Memory Usage"
+  label: "memory_usage"
+  type: NUMERIC
+  unit: "MBy"
+}
+metric_info_list: {
+  value_key: "rd"
+  description: "Read Time"
+  label: "read_time"
+  type: NUMERIC
+  unit: "ms"
+}
+percentile_milli_rank_list: 90000
+percentile_milli_rank_list: 95000
+percentile_milli_rank_list: 99000

@@ -1,0 +1,49 @@
+#!/bin/bash
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Build and run the server in a docker container, in a new docker network
+
+set -o xtrace
+set -o errexit
+
+TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/../../builders/tools
+# shellcheck source=builders/tools/builder.sh
+source "${TOOLS_DIR}"/builder.sh
+readonly DELTA_DIR="${WORKSPACE}"/dist/test_data/deltas
+
+network_name="$(mktemp --dry-run --suffix=-net kvserver-local-XXX)"
+readonly network_name
+
+docker network create "${network_name}" >/dev/null
+docker run \
+  --rm \
+  --detach \
+  --network "${network_name}" \
+  --name "${network_name}-server" \
+  --hostname kvserver \
+  --entrypoint=/server/bin/init_server_basic \
+  --volume "${DELTA_DIR}":/deltas \
+  --tmpfs /data \
+  --privileged \
+  bazel/production/packaging/aws/data_server:server_docker_image \
+  --delta_directory /deltas \
+  --realtime_directory /data \
+  >/dev/null
+
+printf "running server on docker network: %s\n" "${network_name}"
+
+if [[ -t 0 ]] && [[ -t 1 ]]; then
+  docker container ls --filter network="${network_name}"
+fi

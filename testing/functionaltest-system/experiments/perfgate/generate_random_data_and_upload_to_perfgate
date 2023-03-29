@@ -1,0 +1,205 @@
+#!/bin/bash
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#######################################
+# Generates random aggregate data for hardcoded metrics and uploads to a perfgate benchmark
+#
+# perfgate_uploader is located in google3 and will need to be built and added to the local path. The following blaze target will need to be used:
+# //chrome/privacy_sandbox/potassium_engprod/perfgate:perfgate_uploader
+# Arguments:
+#   $1, Number of perfgate runs, int
+#   $2, Perfgate Benchmark Key, str
+#   $3, Quickstore input file, str
+#######################################
+set -o xtrace
+set -o errexit
+
+trap cleanup EXIT
+
+#######################################
+# Deletes all files generated from this script
+#######################################
+function cleanup() {
+  if [[ -d ${TMP_DIR} ]]; then
+    rm -rf "${TMP_DIR}"
+    printf "Deleted %s" "${TMP_DIR}"
+  fi
+}
+
+function usage() {
+  local -i STATUS=${1-1}
+  cat <<'EOF'
+#######################################
+# Generates random data and uploads to perfgate
+#
+# perfgate_uploader is located in google3 and will need to be built and added to the local path. The following blaze target will need to be used:
+# //chrome/privacy_sandbox/potassium_engprod/perfgate:perfgate_uploader
+# Arguments:
+#   $1, Number of perfgate runs, int
+#   $2, Perfgate Benchmark Key, str
+#   $3, Quickstore input file, str
+#######################################
+EOF
+  # shellcheck disable=SC2086
+  exit ${STATUS}
+}
+
+if [[ $# -lt 3 ]]; then
+  printf "Error: Incorrect number of arguments specified\n"
+  usage 1
+fi
+
+declare -r -i NUM_RUNS=$1
+declare -r BENCHMARK_KEY="$2"
+declare -r QUICKSTORE_INPUT_FILE="$3"
+
+TMP_DIR=$(mktemp -d --tmpdir=.)
+readonly TMP_DIR
+declare -r WORKSPACE=${WORKSPACE-$(git rev-parse --show-toplevel)}
+declare -r -A METRIC_MIN_RANGE_LIST=(
+  [cp]=20
+  [dc]=1000
+  [me]=1000
+  [rd]=2000
+)
+declare -r -A METRIC_MAX_RANGE_LIST=(
+  [cp]=100
+  [dc]=5000
+  [me]=8000
+  [rd]=5000
+)
+
+#######################################
+# Generates a random integer based on a specified min and max
+#
+# Arguments:
+#   $1, Min, int
+#   $2, Max, int
+#######################################
+function compute_random_integer() {
+  if [[ $1 -eq $2 ]]; then
+    echo "$1"
+  fi
+
+  declare -i -r DIFFERENCE=$(( $2 - $1 ))
+  echo $(( (RANDOM % DIFFERENCE) + $1 ))
+}
+
+#######################################
+# Generates random aggregate data for a specific metric and appends it to a metric file
+#
+# Arguments:
+#   $1, Metric aggregate protobuf file, str
+#   $2, Min, int
+#   $3, Max, int
+#   $4, Metric key, str
+#######################################
+function generate_data_for_metric() {
+  declare -r METRICS_AGGREGATE_PROTOBUF="$1"
+  declare -i -r MIN_NUMBER_RANGE=$2
+  declare -i -r MAX_NUMBER_RANGE=$3
+  declare -r METRIC_KEY="$4"
+  declare -i MEDIAN
+  MEDIAN=$(compute_random_integer "${MIN_NUMBER_RANGE}" "${MAX_NUMBER_RANGE}")
+  readonly MEDIAN
+  declare -i MIN
+  MIN=$(compute_random_integer "${MIN_NUMBER_RANGE}" "${MEDIAN}")
+  readonly MIN
+  declare -i P90
+  P90=$(compute_random_integer "${MEDIAN}" "${MAX_NUMBER_RANGE}")
+  readonly P90
+  declare -i P95
+  P95=$(compute_random_integer "${P90}" "${MAX_NUMBER_RANGE}")
+  readonly P95
+  declare -i P99
+  P99=$(compute_random_integer "${P95}" "${MAX_NUMBER_RANGE}")
+  readonly P99
+  declare -i MAX
+  MAX=$(compute_random_integer "${P99}" "${MAX_NUMBER_RANGE}")
+  readonly MAX
+
+  cat << EOF >> "${METRICS_AGGREGATE_PROTOBUF}"
+metric_aggregate_list: {
+  metric_key: "${METRIC_KEY}"
+  count: 1000
+  median: ${MEDIAN}
+  min: ${MIN}
+  # p90
+  percentile_list: ${P90}
+  # p95
+  percentile_list: ${P95}
+  # p99
+  percentile_list: ${P99}
+  max: ${MAX}
+}
+EOF
+}
+
+#######################################
+# Generates random metric data and uploads a single run to perfgate
+#
+# Arguments:
+#   $1, Run number, int
+#######################################
+function generate_data_and_upload_to_perfgate() {
+  declare -r RUN_PROTOBUF="${TMP_DIR}"/runinfo$1.textproto
+  declare -r METRICS_AGGREGATE_PROTOBUF="${TMP_DIR}"/aggregate$1.textproto
+  declare -r BUILD_ID=$(( 170000 + ($1 * 5) ))
+
+  # generate quickstore input file
+  cat >"${RUN_PROTOBUF}" <<EOF
+# proto-file: google3/third_party/perfgate/proto/quickstore/quickstore.proto
+# proto-message: QuickstoreInput
+benchmark_key: "${BENCHMARK_KEY}"
+build_id: ${BUILD_ID}
+EOF
+
+  # generate metrics aggregate file
+  cat > "${METRICS_AGGREGATE_PROTOBUF}" <<EOF
+# proto-file: google3/third_party/perfgate/spec/proto/perfgate.proto
+# proto-message: Aggregate
+percentile_milli_rank_list: 90000
+percentile_milli_rank_list: 95000
+percentile_milli_rank_list: 99000
+run_aggregate: {
+  usable_sample_count: 1000
+  ignore_sample_count: 0
+  error_sample_count: 0
+}
+EOF
+
+  for metric in "${!METRIC_MIN_RANGE_LIST[@]}"
+  do
+    generate_data_for_metric \
+    "${METRICS_AGGREGATE_PROTOBUF}" \
+    "${METRIC_MIN_RANGE_LIST["${metric}"]}" \
+    "${METRIC_MAX_RANGE_LIST["${metric}"]}" \
+    "${metric}"
+  done
+
+  cat "${METRICS_AGGREGATE_PROTOBUF}"
+
+  perfgate_uploader \
+    --quickstoreinput_file "${RUN_PROTOBUF}" \
+    --quickstoreinput_file "${QUICKSTORE_INPUT_FILE}" \
+    --aggregate_file "${METRICS_AGGREGATE_PROTOBUF}"
+
+  printf "Run #%s completed\n" "${iter}"
+}
+
+for (( iter=1; iter<=NUM_RUNS; iter++ ))
+do
+  generate_data_and_upload_to_perfgate ${iter}
+done

@@ -20,6 +20,7 @@ output "kv_server_url" {
 
 output "target_group_arns" {
   value = [
+    aws_lb_target_group.alb_http1_target_group.arn,
     aws_lb_target_group.alb_http2_target_group.arn,
     aws_lb_target_group.alb_grpc_target_group.arn
   ]

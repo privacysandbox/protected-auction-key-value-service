@@ -1,0 +1,96 @@
+#!/bin/bash
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# Test runner for the build system. This script should preferably be run
+# "directly" and not inside docker
+
+set -o pipefail
+set -o errexit
+
+trap _cleanup EXIT
+function _cleanup() {
+  declare -r -i STATUS=$?
+  if [[ ${STATUS} -ne 0 ]]; then
+    printf "Error: run-tests status code: %d\n" "${STATUS}"
+  fi
+  # kokoro has a habit of truncating build logs for scripts, adding a delay
+  # seems to help ensure completeness
+  if [[ -v KOKORO_ARTIFACTS_DIR ]]; then
+    sleep 5s
+  fi
+  exit ${STATUS}
+}
+
+function usage() {
+  declare -r -i exitval=$?
+  cat &>/dev/stderr <<USAGE
+usage:
+  $0 <options>
+      --network <name>       docker network name
+      --endpoint <host:port> host:port for service
+      --verbose              verbose output
+USAGE
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --network)
+      DOCKER_NETWORK="$2"
+      shift 2
+      ;;
+    --endpoint)
+      ENDPOINT="$2"
+      shift 2
+      ;;
+    --verbose)
+      set -o xtrace
+      shift
+      ;;
+    -h | --help) usage 0 ;;
+    *)
+      printf "unrecognized arg: %s\n" "$1"
+      usage
+      ;;
+  esac
+done
+
+: "${DOCKER_NETWORK?"--network flag not specified"}"
+: "${ENDPOINT?"--endpoint flag not specified"}"
+
+TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/../../builders/tools
+readonly TOOLS_DIR
+
+declare -a TEST_ARGS=(
+  "--test_env=KVSERVER_ENDPOINT=${ENDPOINT}"
+  "--test_env=TEST_TOOLS_IMAGE=$("${TOOLS_DIR}"/get-builder-image-tagged --image test-tools --verbose)"
+)
+
+if [[ -v DOCKER_NETWORK ]]; then
+  TEST_ARGS+=(
+    "--test_env=DOCKER_NETWORK=${DOCKER_NETWORK}"
+  )
+fi
+
+declare -a -r TESTS=("//testing/functionaltest/test_cases/grpc:all")
+
+# run the tests using bazel, if installed
+if command bazel --help &>/dev/null; then
+  bazel test "${TESTS[@]}" "${TEST_ARGS[@]}"
+fi
+
+# also run the test suites using bazel-debian container
+"${TOOLS_DIR}"/bazel-debian test "${TESTS[@]}" "${TEST_ARGS[@]}"

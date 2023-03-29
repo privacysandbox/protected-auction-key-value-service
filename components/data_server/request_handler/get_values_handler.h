@@ -42,10 +42,6 @@ class GetValuesHandler {
   grpc::Status GetValues(const v1::GetValuesRequest& request,
                          v1::GetValuesResponse* response) const;
 
-  grpc::Status BinaryHttpGetValues(
-      const v1::BinaryHttpGetValuesRequest& request,
-      google::api::HttpBody* response) const;
-
  private:
   grpc::Status ValidateRequest(const v1::GetValuesRequest& request) const;
 

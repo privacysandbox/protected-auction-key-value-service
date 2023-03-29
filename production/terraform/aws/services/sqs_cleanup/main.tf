@@ -53,7 +53,9 @@ resource "aws_cloudwatch_event_target" "sqs_cleanup_target" {
   {
     "sns_topic": "${var.sns_data_updates_topic_arn}",
     "queue_prefix": "BlobNotifier_",
-    "timeout_secs": "${var.sqs_queue_timeout_secs}"
+    "timeout_secs": "${var.sqs_queue_timeout_secs}",
+    "realtime_sns_topic": "${var.sns_realtime_topic_arn}",
+    "realtime_queue_prefix": "QueueNotifier_"
   }
   JSON
 }

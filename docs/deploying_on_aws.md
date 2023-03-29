@@ -78,6 +78,8 @@ policy", and copy-paste the above policy with your information filled out.
 
 # Build the Key/Value server artifacts
 
+OS: The current build process can run on Debian. Other OS may not be well supported at this moment.
+
 Before starting the build process, install [Docker](https://docs.docker.com/engine/install/). If you
 run into any Docker access errors, follow the instructions for
 [setting up sudoless Docker](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
@@ -91,20 +93,6 @@ Using Git, clone the repository into a folder:
 
 ```sh
 git clone https://github.com/privacysandbox/fledge-key-value-service.git
-```
-
-## Initialize and update submodules
-
-Before using the repository, initialize the repo's submodules. Run:
-
-```shell
-git submodule update --init
-```
-
-The submodule content can be updated at any time using the following command.
-
-```shell
-git submodule update --remote --merge
 ```
 
 ## Build the Amazon Machine Image (AMI)
@@ -163,10 +151,9 @@ For your Terraform configuration, you can use the template under
 your environment name such as dev/staging/prod, name the files inside according to the region you
 want to deploy to, and update the following file content.
 
-In `[[REGION]].tfvars`:
+In `[[REGION]].tfvars.json`:
 
 -   Environment
-    -   `service` - Name of the Key/Value server.
     -   `environment` - The default is `demo`. The value can be any arbitrary unique string, and for
         example, strings like `staging` and `prod` can be used to represent the environment that the
         Key/Value server will run in.
@@ -187,20 +174,33 @@ In `[[REGION]].tfvars`:
         -   If you want to import an existing public certificate into ACM, follow these steps to
             [import the certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html).
 -   EC2 instance
--   `instance_type` - Set the instance type. Use instances with at least four vCPUs. Learn more
-    about which types are supported from the
-    [AWS article](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
--   `instance_ami_id` - Set the value to the AMI ID that was generated when the image was built.
+    -   `instance_type` - Set the instance type. Use instances with at least four vCPUs. Learn more
+        about which types are supported from the
+        [AWS article](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
+    -   `instance_ami_id` - Set the value to the AMI ID that was generated when the image was built.
 -   Server configuration
--   `mode` - Set the server mode. The acceptable values are "DSP" or "SSP".
--   `server_port` - Set the port of the EC2 parent instance (that hosts the Nitro Enclave instance).
--   `enclave_cpu_count` - Set how many CPUs the server will use.
--   `enclave_memory_mib` - Set how much RAM the server will use.
+    -   `mode` - Set the server mode. The acceptable values are "DSP" or "SSP".
+    -   `server_port` - Set the port of the EC2 parent instance (that hosts the Nitro Enclave
+        instance).
+    -   `enclave_cpu_count` - Set how many CPUs the server will use.
+    -   `enclave_memory_mib` - Set how much RAM the server will use.
 -   Data storage
--   `sqs_cleanup_image_uri`
--   `s3_delta_file_bucket_name` - Set a name for the bucket that the server will read data from. The
-    bucket name must be globally unique. This bucket is different from the one that was manually
-    created for Terraform states earlier.
+    -   `sqs_cleanup_image_uri` - The image built previously in the ECR. Example:
+        `123456789.dkr.ecr.us-east-1.amazonaws.com/sqs_lambda:latest`
+    -   `s3_delta_file_bucket_name` - Set a name for the bucket that the server will read data from.
+        The bucket name must be globally unique. This bucket is different from the one that was
+        manually created for Terraform states earlier.
+    -   `backup_poll_frequency_secs` - Interval between attempts to check if there are new data
+        files on S3, as a backup to listening to new data files.
+-   Peripheral features
+    -   `prometheus_service_region` - Specifies which region to find Prometheus service and use.
+        [Not all regions have Prometheus service.](See
+        <https://docs.aws.amazon.com/general/latest/gr/prometheus-service.html> for supported
+        regions). If this region does not have Prometheus service, it must be created beforehand
+        either manually or by deploying this system in that region. At this time Prometheus service
+        is needed. In the future it can be refactored to become optional.
+    -   `prometheus_workspace_id` - If the target Prometheus service runs in a different region than
+        this deployment, the workspace id must be specified.
 
 In `[[REGION]].backend.conf`:
 
@@ -301,6 +301,15 @@ Once you have constructed your URL, you can use [curl](https://curl.se/) to quer
 ```sh
 KV_SERVER_URL="https://demo.kv-server.your-domain.example/v1/getvalues"
 curl ${KV_SERVER_URL}/v1/getvalues?keys=foo1
+```
+
+Since 7.47.0. curl by default send request via HTTP/2 protocol
+[curl-http2](https://curl.se/docs/http2.html). The terraform setup has the KV load balancer listen
+to HTTP/2 on port 443 and HTTP1.1 on port 8443. To query the server using http1.1 request protocol:
+
+```sh
+KV_SERVER_URL="https://demo.kv-server.your-domain.example:8443/v1/getvalues"
+curl ${KV_SERVER_URL}/v1/getvalues?keys=foo1 --http1.1
 ```
 
 ## SSH into EC2
@@ -430,9 +439,49 @@ production/packaging/aws/build_and_test --with-ami us-east-1 --with-ami us-west-
 ```
 
 Then set the new AMI ID in the Terraform config. Re-apply Terraform to deploy the updated server.
+Note that after the terraform is complete, you still might need to wait until all ec2 instances have
+the new AMI ID. You can query your ec2 instances in the UI, since all of them will have your
+environment name in their names. You can check the AMI ID in the AWS UI. You can also terminate EC2
+instances with the old AMI IDs manually, if you so choose.
 
 For development on non-production instances, a faster approach is available in the
 [developer guide](/docs/developing_the_server.md).
+
+## Viewing Telemetry
+
+### Metrics
+
+Metrics are exported to both Cloudwatch and Prometheus, both are hosted services by Amazon
+([otel_collector_config.yaml](../production/packaging/aws/otel_collector/otel_collector_config.yaml)).
+
+#### Cloudwatch
+
+Metrics in Cloudwatch can be viewed in the AWS Cloudwatch console.
+
+#### Prometheus
+
+Amazon managed Prometheus is configured as part of Terraform. Querying Prometheus can be done using
+PromQL from the command line. For example:
+
+```sh
+docker run --rm -it okigan/awscurl --access_key $AWS_ACCESS_KEY_ID  --secret_key $AWS_SECRET_ACCESS_KEY  --region us-east-1 --service aps $AMP_QUERY_ENDPOINT?query=EventStatus
+```
+
+More complex queries can be run using POST:
+
+```sh
+docker run --rm -it okigan/awscurl --access_key $AWS_ACCESS_KEY_ID  --secret_key $AWS_SECRET_ACCESS_KEY  --region us-east-1 --service aps $AMP_QUERY_ENDPOINT -X POST  -H "Content-Type: application/x-www-form-urlencoded" --data 'query=Latency_bucket{event="ReceivedLowLatencyNotifications"}'
+```
+
+The AMP_QUERY_ENDPOINT can be found in the AWS Prometheus console.
+
+More information on PromQL can be found in the
+[Prometheus documentation](https://prometheus.io/docs/prometheus/latest/querying/basics/).
+
+### Traces
+
+Traces are exported to AWS-Xray, which is configured as part of Terraform. Traces are visualized in
+the AWS Xray console.
 
 # Frequently asked questions
 

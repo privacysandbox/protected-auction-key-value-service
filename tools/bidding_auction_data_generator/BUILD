@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_proto_library", "cc_test")
 load("@rules_proto//proto:defs.bzl", "proto_descriptor_set", "proto_library")
 
 proto_library(
@@ -52,6 +52,64 @@ cc_library(
         ":custom_audience_data_cc_proto",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name = "value_fetch_util",
+    srcs = ["value_fetch_util.cc"],
+    hdrs = ["value_fetch_util.h"],
+    deps = [
+        "//public/query:get_values_cc_grpc",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_protobuf//:protobuf",
+        "@curl",
+    ],
+)
+
+cc_library(
+    name = "http_url_fetch_client",
+    srcs = ["http_url_fetch_client.cc"],
+    hdrs = ["http_url_fetch_client.h"],
+    deps = [
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@curl",
+    ],
+)
+
+cc_library(
+    name = "http_value_retriever",
+    srcs = ["http_value_retriever.cc"],
+    hdrs = ["http_value_retriever.h"],
+    deps = [
+        ":http_url_fetch_client",
+        ":value_fetch_util",
+        "//public/query:get_values_cc_grpc",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_protobuf//:protobuf",
+        "@curl",
+    ],
+)
+
+cc_binary(
+    name = "bidding_auction_data_cli",
+    srcs = ["bidding_auction_data_cli.cc"],
+    deps = [
+        ":custom_audience_data_parser",
+        ":delta_key_value_writer",
+        ":http_value_retriever",
+        "//public/data_loading:filename_utils",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
     ],
 )
 
@@ -74,5 +132,28 @@ cc_test(
     deps = [
         ":custom_audience_data_parser",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "http_value_retriever_test",
+    size = "small",
+    srcs = ["http_value_retriever_test.cc"],
+    deps = [
+        ":http_value_retriever",
+        ":mocks",
+        "//public/query:get_values_cc_grpc",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "mocks",
+    testonly = 1,
+    hdrs = ["mocks.h"],
+    deps = [
+        ":http_url_fetch_client",
+        "@com_google_googletest//:gtest",
     ],
 )

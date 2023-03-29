@@ -15,6 +15,7 @@
 #include "components/data/blob_storage/delta_file_notifier.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/synchronization/notification.h"
@@ -34,17 +35,18 @@ namespace {
 class DeltaFileNotifierTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    thread_notifier_ = ThreadNotifier::Create("Delta file notifier");
+    std::unique_ptr<MockSleepFor> mock_sleep_for =
+        std::make_unique<MockSleepFor>();
+    sleep_for_ = mock_sleep_for.get();
     notifier_ = DeltaFileNotifier::Create(
-        *thread_notifier_, client_, poll_frequency_, sleep_for_, sim_clock_);
+        client_, poll_frequency_, std::move(mock_sleep_for), sim_clock_);
   }
 
   MockBlobStorageClient client_;
   std::unique_ptr<DeltaFileNotifier> notifier_;
-  std::unique_ptr<ThreadNotifier> thread_notifier_;
   MockBlobStorageChangeNotifier change_notifier_;
   std::string initial_key_ = ToDeltaFileName(1).value();
-  MockSleepFor sleep_for_;
+  MockSleepFor* sleep_for_;
   SimulatedSteadyClock sim_clock_;
   absl::Duration poll_frequency_ = absl::Minutes(5);
 };
@@ -197,8 +199,12 @@ TEST_F(DeltaFileNotifierTest, GetChangesFailure) {
     EXPECT_EQ(key, ToDeltaFileName(1).value());
     finished.Notify();
   });
-  EXPECT_CALL(sleep_for_, Duration(absl::Seconds(2))).Times(1);
-  EXPECT_CALL(sleep_for_, Duration(absl::Seconds(4))).Times(1);
+  EXPECT_CALL(*sleep_for_, Duration(absl::Seconds(2)))
+      .Times(1)
+      .WillOnce(Return(true));
+  EXPECT_CALL(*sleep_for_, Duration(absl::Seconds(4)))
+      .Times(1)
+      .WillOnce(Return(true));
 
   absl::Status status =
       notifier_->Start(change_notifier_, {.bucket = "testbucket"}, initial_key_,

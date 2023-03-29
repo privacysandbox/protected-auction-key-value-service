@@ -1,1 +1,51 @@
-builders/etc/.versionrc.json
+{
+  "bumpFiles": [
+    {
+      "filename": "version.txt",
+      "type": "plain-text"
+    }
+  ],
+  "commitUrlFormat": " ",
+  "issueUrlFormat": " ",
+  "packageFiles": [
+    {
+      "filename": "version.txt",
+      "type": "plain-text"
+    }
+  ],
+  "tagPrefix": "release-",
+  "types": [
+    {
+      "section": "Features",
+      "type": "feat"
+    },
+    {
+      "section": "Bug Fixes",
+      "type": "fix"
+    },
+    {
+      "section": "Documentation",
+      "type": "docs"
+    },
+    {
+      "section": "Terraform",
+      "type": "terraform"
+    },
+    {
+      "hidden": true,
+      "type": "internal"
+    },
+    {
+      "hidden": true,
+      "type": "chore"
+    },
+    {
+      "hidden": true,
+      "type": "test"
+    },
+    {
+      "hidden": true,
+      "type": "refactor"
+    }
+  ]
+}

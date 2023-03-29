@@ -33,32 +33,36 @@ namespace {
 
 class DeltaFileNotifierImpl : public DeltaFileNotifier {
  public:
-  explicit DeltaFileNotifierImpl(ThreadNotifier& thread_notifier,
-                                 BlobStorageClient& client,
+  explicit DeltaFileNotifierImpl(BlobStorageClient& client,
                                  const absl::Duration poll_frequency,
-                                 const SleepFor& sleep_for, SteadyClock& clock)
-      : thread_notifier_(thread_notifier),
+                                 std::unique_ptr<SleepFor> sleep_for,
+                                 SteadyClock& clock)
+      : thread_notifier_(ThreadNotifier::Create("Delta file notifier")),
         client_(client),
         poll_frequency_(poll_frequency),
-        sleep_for_(sleep_for),
+        sleep_for_(std::move(sleep_for)),
         clock_(clock) {}
 
-  absl::Status Start(BlobStorageChangeNotifier& change_notifier,
-                     BlobStorageClient::DataLocation location,
-                     std::string start_after,
-                     std::function<void(const std::string& key)> callback) {
-    return thread_notifier_.Start([this, location = std::move(location),
-                                   start_after = std::move(start_after),
-                                   callback = std::move(callback),
-                                   &change_notifier]() mutable {
+  absl::Status Start(
+      BlobStorageChangeNotifier& change_notifier,
+      BlobStorageClient::DataLocation location, std::string start_after,
+      std::function<void(const std::string& key)> callback) override {
+    return thread_notifier_->Start([this, location = std::move(location),
+                                    start_after = std::move(start_after),
+                                    callback = std::move(callback),
+                                    &change_notifier]() mutable {
       Watch(change_notifier, std::move(location), std::move(start_after),
             std::move(callback));
     });
   }
 
-  absl::Status Stop() override { return thread_notifier_.Stop(); }
+  absl::Status Stop() override {
+    absl::Status status = sleep_for_->Stop();
+    status.Update(thread_notifier_->Stop());
+    return status;
+  }
 
-  bool IsRunning() const override { return thread_notifier_.IsRunning(); }
+  bool IsRunning() const override { return thread_notifier_->IsRunning(); }
 
  private:
   // Returns max DeltaFile in alphabetical order from notification
@@ -68,7 +72,7 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
       absl::Duration wait_duration) {
     absl::StatusOr<std::vector<std::string>> changes =
         change_notifier.GetNotifications(
-            wait_duration, [this]() { return thread_notifier_.ShouldStop(); });
+            wait_duration, [this]() { return thread_notifier_->ShouldStop(); });
     if (!changes.ok()) {
       return changes.status();
     }
@@ -118,7 +122,7 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
     // Flag starts expired, and forces an initial poll.
     ExpiringFlag expiring_flag(clock_);
     uint32_t sequential_failures = 0;
-    while (!thread_notifier_.ShouldStop()) {
+    while (!thread_notifier_->ShouldStop()) {
       const absl::StatusOr<bool> should_list_blobs =
           ShouldListBlobs(change_notifier, expiring_flag, last_key);
       if (!should_list_blobs.ok()) {
@@ -129,8 +133,10 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
         LOG(ERROR) << "Failed to get delta file notifications: "
                    << should_list_blobs.status() << ".  Waiting for "
                    << backoff_time;
-        // TODO: b/268557235,  SleepFor needs to be interruptable
-        sleep_for_.Duration(backoff_time);
+        if (!sleep_for_->Duration(backoff_time)) {
+          LOG(ERROR) << "Failed to sleep for " << backoff_time
+                     << ".  SleepFor invalid.";
+        }
         continue;
       }
       sequential_failures = 0;
@@ -162,21 +168,28 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
     }
   }
 
-  ThreadNotifier& thread_notifier_;
+  std::unique_ptr<ThreadNotifier> thread_notifier_;
   BlobStorageClient& client_;
   const absl::Duration poll_frequency_;
-  const SleepFor& sleep_for_;
+  std::unique_ptr<SleepFor> sleep_for_;
   SteadyClock& clock_;
 };
 
 }  // namespace
 
 std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
-    ThreadNotifier& thread_notifier, BlobStorageClient& client,
-    const absl::Duration poll_frequency, const SleepFor& sleep_for,
-    SteadyClock& clock) {
-  return std::make_unique<DeltaFileNotifierImpl>(
-      thread_notifier, client, poll_frequency, sleep_for, clock);
+    BlobStorageClient& client, const absl::Duration poll_frequency) {
+  return std::make_unique<DeltaFileNotifierImpl>(client, poll_frequency,
+                                                 std::make_unique<SleepFor>(),
+                                                 SteadyClock::RealClock());
+}
+
+// For test only
+std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
+    BlobStorageClient& client, const absl::Duration poll_frequency,
+    std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock) {
+  return std::make_unique<DeltaFileNotifierImpl>(client, poll_frequency,
+                                                 std::move(sleep_for), clock);
 }
 
 }  // namespace kv_server

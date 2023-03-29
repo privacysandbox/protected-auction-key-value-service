@@ -49,16 +49,6 @@ variable "vpc_endpoint_sg_id" {
   type        = string
 }
 
-variable "vpc_interface_endpoint_services" {
-  description = "AWS services to create vpc interface endpoints for."
-  type        = set(string)
-}
-
-variable "vpc_gateway_endpoint_services" {
-  description = "AWS services to create vpc gateway endpoints for."
-  type        = set(string)
-}
-
 variable "server_instance_role_arn" {
   description = "The service role for server instancces."
   type        = string
@@ -66,5 +56,10 @@ variable "server_instance_role_arn" {
 
 variable "ssh_instance_role_arn" {
   description = "The service role for the SSH instancce."
+  type        = string
+}
+
+variable "prometheus_service_region" {
+  description = "Region where prometheus service runs that other services deployed by this file should interact with."
   type        = string
 }

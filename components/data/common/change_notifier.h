@@ -21,6 +21,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "components/data/common/msg_svc.h"
 
 namespace kv_server {
 
@@ -41,8 +42,8 @@ class ChangeNotifier {
       absl::Duration max_wait,
       const std::function<bool()>& should_stop_callback) = 0;
 
-  static std::unique_ptr<ChangeNotifier> Create(std::string queue_prefix,
-                                                std::string sns_arn);
+  static absl::StatusOr<std::unique_ptr<ChangeNotifier>> Create(
+      NotifierMetadata notifier_metadata);
 };
 
 }  // namespace kv_server

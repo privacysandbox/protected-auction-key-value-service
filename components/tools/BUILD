@@ -17,7 +17,7 @@ load(
     "container_image",
     "container_layer",
 )
-load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 pkg_tar(
@@ -69,6 +69,7 @@ cc_binary(
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/data_loading:data_orchestrator",
         "//components/telemetry:metrics_recorder",
+        "//components/util:platform_initializer",
         "//public:base_types_cc_proto",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading/readers:riegeli_stream_io",
@@ -82,26 +83,48 @@ cc_binary(
 
 cc_binary(
     name = "blob_storage_change_watcher",
-    srcs = [
-        "blob_storage_change_watcher.cc",
-    ],
+    srcs = select({
+        "//:aws_platform": [
+            "blob_storage_change_watcher_aws.cc",
+        ],
+        "//:local_platform": [
+            "blob_storage_change_watcher_local.cc",
+        ],
+    }),
     deps = [
         "//components/data/blob_storage:blob_storage_change_notifier",
-        "@com_google_absl//absl/cleanup",
+        "//components/util:platform_initializer",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/flags:usage",
     ],
 )
 
-cc_binary(
-    name = "blob_storage_util",
-    srcs = [
-        "blob_storage_util.cc",
-    ],
+cc_library(
+    name = "blob_storage_commands",
+    srcs = ["blob_storage_commands.cc"],
+    hdrs = ["blob_storage_commands.h"],
     deps = [
         "//components/data/blob_storage:blob_storage_client",
-        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_binary(
+    name = "blob_storage_util",
+    srcs = select({
+        "//:aws_platform": [
+            "blob_storage_util_aws.cc",
+        ],
+        "//:local_platform": [
+            "blob_storage_util_local.cc",
+        ],
+    }),
+    deps = [
+        ":blob_storage_commands",
+        "//components/data/blob_storage:blob_storage_client",
+        "//components/util:platform_initializer",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/flags:usage",
@@ -110,14 +133,19 @@ cc_binary(
 
 cc_binary(
     name = "delta_file_watcher",
-    srcs = [
-        "delta_file_watcher.cc",
-    ],
+    srcs = select({
+        "//:aws_platform": [
+            "delta_file_watcher_aws.cc",
+        ],
+        "//:local_platform": [
+            "delta_file_watcher_local.cc",
+        ],
+    }),
     deps = [
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",
         "//components/data/common:thread_notifier",
-        "@com_google_absl//absl/cleanup",
+        "//components/util:platform_initializer",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/flags:usage",
@@ -131,10 +159,10 @@ cc_binary(
     ],
     deps = [
         "//components/data/realtime:delta_file_record_change_notifier",
+        "//components/util:platform_initializer",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:filename_utils",
         "//public/data_loading/readers:riegeli_stream_io",
-        "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/flags:usage",
@@ -143,17 +171,40 @@ cc_binary(
 
 cc_binary(
     name = "get_region",
-    srcs = ["get_region.cc"],
+    srcs = select({
+        "//:aws_platform": ["get_region_aws.cc"],
+        "//:local_platform": ["get_region_local.cc"],
+    }),
+    visibility = ["//production/packaging:__subpackages__"],
+    deps = select({
+        "//:aws_platform": [
+            "//components/errors:aws_error_util",
+            "@aws_sdk_cpp//:core",
+            "@aws_sdk_cpp//:ec2",
+            "@com_github_google_glog//:glog",
+            "@com_google_absl//absl/cleanup",
+            "@com_google_absl//absl/flags:flag",
+            "@com_google_absl//absl/flags:parse",
+            "@com_google_absl//absl/status:statusor",
+            "@com_google_absl//absl/strings",
+        ],
+        "//:local_platform": [
+            "@com_github_google_glog//:glog",
+        ],
+    }),
+)
+
+cc_binary(
+    name = "realtime_updates_publisher",
+    srcs = ["realtime_updates_publisher.cc"],
     visibility = ["//production/packaging:__subpackages__"],
     deps = [
         "//components/errors:aws_error_util",
-        "@aws_sdk_cpp//:core",
-        "@aws_sdk_cpp//:ec2",
-        "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/cleanup",
+        "//components/util:platform_initializer",
+        "//public/data_loading:filename_utils",
+        "@aws_sdk_cpp//:sns",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )

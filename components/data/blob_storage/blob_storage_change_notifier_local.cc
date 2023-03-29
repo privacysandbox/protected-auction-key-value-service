@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
+#include "components/data/common/change_notifier.h"
 
 namespace kv_server {
 namespace {
@@ -23,21 +23,31 @@ namespace {
 class LocalBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   explicit LocalBlobStorageChangeNotifier(
-      std::filesystem::path local_directory) {}
+      std::unique_ptr<ChangeNotifier> notifier)
+      : notifier_(std::move(notifier)) {}
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
       const std::function<bool()>& should_stop_callback) override {
-    return absl::UnimplementedError("TODO(b/237669491)");
+    return notifier_->GetNotifications(max_wait, should_stop_callback);
   }
+
+ private:
+  std::unique_ptr<ChangeNotifier> notifier_;
 };
 
 }  // namespace
 
-std::unique_ptr<BlobStorageChangeNotifier> BlobStorageChangeNotifier::Create(
-    NotifierMetadata metadata) {
-  return std::make_unique<LocalBlobStorageChangeNotifier>(
-      std::move(metadata.local_directory));
+absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>>
+BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata) {
+  absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
+      ChangeNotifier::Create(
+          std::get<LocalNotifierMetadata>(notifier_metadata));
+  if (!notifier.ok()) {
+    return notifier.status();
+  }
+
+  return std::make_unique<LocalBlobStorageChangeNotifier>(std::move(*notifier));
 }
 
 }  // namespace kv_server

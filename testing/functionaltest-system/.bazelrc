@@ -1,0 +1,9 @@
+build --verbose_failures
+build --client_env=CC=clang
+build --cxxopt=-std=c++17
+build --copt=-Werror=return-type
+build -c opt
+build --color=yes
+build --@io_bazel_rules_docker//transitions:enable=false
+
+test --test_output=errors

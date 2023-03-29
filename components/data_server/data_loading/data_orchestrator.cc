@@ -184,20 +184,36 @@ class DataOrchestratorImpl : public DataOrchestrator {
     }
     data_loader_thread_ = std::make_unique<std::thread>(
         absl::bind_front(&DataOrchestratorImpl::ProcessNewFiles, this));
-
     auto& cache = options_.cache;
     auto& delta_stream_reader_factory = options_.delta_stream_reader_factory;
 
-    status = options_.realtime_notifier.Start(
-        options_.delta_file_record_change_notifier,
-        [this, &cache,
-         &delta_stream_reader_factory](const std::string& message_body) {
-          return LoadCacheWithHighPriorityUpdates(delta_stream_reader_factory,
-                                                  message_body, cache);
-        });
+    for (int i = 0; i < options_.realtime_options.size(); i++) {
+      if (options_.realtime_options[i].delta_file_record_change_notifier ==
+          nullptr) {
+        LOG(ERROR) << "Realtime delta_file_record_change_notifier is nullptr, "
+                      "realtime data loading disabled.";
+        return absl::OkStatus();
+      }
+      if (options_.realtime_options[i].realtime_notifier == nullptr) {
+        LOG(ERROR) << "Realtime realtime_notifier is nullptr, realtime data "
+                      "loading disabled.";
+        return absl::OkStatus();
+      }
 
-    if (!status.ok()) {
-      return status;
+      auto realtime_notifier =
+          options_.realtime_options[i].realtime_notifier.get();
+      auto delta_file_record_change_notifier =
+          options_.realtime_options[i].delta_file_record_change_notifier.get();
+      auto status = realtime_notifier->Start(
+          *delta_file_record_change_notifier,
+          [this, &cache,
+           &delta_stream_reader_factory](const std::string& message_body) {
+            return LoadCacheWithHighPriorityUpdates(delta_stream_reader_factory,
+                                                    message_body, cache);
+          });
+      if (!status.ok()) {
+        return status;
+      }
     }
 
     return absl::OkStatus();

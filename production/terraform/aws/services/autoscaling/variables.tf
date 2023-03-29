@@ -81,3 +81,27 @@ variable "launch_hook_name" {
   description = "Launch hook name"
   type        = string
 }
+
+variable "region" {
+  description = "AWS region to deploy to."
+  type        = string
+}
+
+variable "prometheus_service_region" {
+  description = "All parameters related to AWS region setup for specific services"
+  type        = string
+  validation {
+    condition     = var.prometheus_service_region != ""
+    error_message = "Please set var.prometheus_service_region. See https://docs.aws.amazon.com/general/latest/gr/prometheus-service.html for supported regions."
+  }
+}
+
+variable "prometheus_workspace_id" {
+  description = "Workspace ID created for this environment."
+  type        = string
+}
+
+locals {
+  validate_prometheus_workspace_id = (
+  var.prometheus_service_region == var.region || var.prometheus_workspace_id != null) ? true : tobool("If Prometheus service runs in a different region, please create the workspace first and specify the workspace id in var file.")
+}

@@ -16,12 +16,15 @@
 
 #include "tools/bidding_auction_data_generator/custom_audience_data_parser.h"
 
+#include <google/protobuf/util/json_util.h>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace kv_server {
 namespace {
-
+using SideLoadData =
+    kv_server::tools::bidding_auction_data_generator::SideLoadData;
 TEST(CustomAudienceDataLoadingTest, ParseJsonDataTest) {
   const std::string json_input = R"({
    "interestGroups":[
@@ -59,10 +62,13 @@ TEST(CustomAudienceDataLoadingTest, ParseJsonDataTest) {
 
   absl::flat_hash_set<std::string> custom_audience_names;
   absl::flat_hash_set<std::string> render_urls;
-
-  absl::Status status = kv_server::ParseAudienceData(
-      json_input, custom_audience_names, render_urls);
-  EXPECT_TRUE(status.ok());
+  SideLoadData side_load_proto_data;
+  google::protobuf::util::JsonStringToMessage(json_input,
+                                              &side_load_proto_data);
+  kv_server::ParseAudienceData(side_load_proto_data, custom_audience_names,
+                               render_urls);
+  google::protobuf::util::JsonStringToMessage(json_input,
+                                              &side_load_proto_data);
   EXPECT_THAT(custom_audience_names,
               testing::UnorderedElementsAre("group1", "group2"));
   EXPECT_THAT(render_urls,

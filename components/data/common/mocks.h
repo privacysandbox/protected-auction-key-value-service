@@ -21,6 +21,7 @@
 
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
+#include "components/data/common/change_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/data/realtime/realtime_notifier.h"
 #include "gmock/gmock.h"
@@ -48,7 +49,7 @@ class MockBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
 
 class MockDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
  public:
-  MOCK_METHOD(absl::StatusOr<std::vector<std::string>>, GetNotifications,
+  MOCK_METHOD(absl::StatusOr<NotificationsContext>, GetNotifications,
               (absl::Duration max_wait,
                const std::function<bool()>& should_stop_callback),
               (override));
@@ -84,6 +85,15 @@ class MockRealtimeNotifier : public RealtimeNotifier {
               (override));
   MOCK_METHOD(absl::Status, Stop, (), (override));
   MOCK_METHOD(bool, IsRunning, (), (const, override));
+};
+
+class MockChangeNotifier : public ChangeNotifier {
+ public:
+  MockChangeNotifier() : ChangeNotifier() {}
+  MOCK_METHOD(absl::StatusOr<std::vector<std::string>>, GetNotifications,
+              (absl::Duration max_wait,
+               const std::function<bool()>& should_stop_callback),
+              (override));
 };
 
 }  // namespace kv_server

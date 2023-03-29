@@ -62,6 +62,48 @@ resource "aws_lb_listener" "public_alb_listener" {
   }
 }
 
+resource "aws_lb_listener" "public_alb_h1_listener" {
+  load_balancer_arn = aws_lb.public_alb.arn
+  port              = 8443
+  protocol          = "HTTPS"
+  certificate_arn   = var.certificate_arn
+
+  # Traffic that gets here cannot be handled
+  default_action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Not implemented"
+      status_code  = "501"
+    }
+  }
+}
+
+resource "aws_lb_target_group" "alb_http1_target_group" {
+  name                 = "${var.service}-${var.environment}-alb-http1-tg"
+  port                 = var.server_port
+  protocol             = "HTTP"
+  protocol_version     = "HTTP1"
+  vpc_id               = var.vpc_id
+  deregistration_delay = 30
+
+  health_check {
+    protocol            = "HTTP"
+    port                = var.server_port
+    path                = var.http_healthcheck_path
+    interval            = var.healthcheck_interval_sec
+    healthy_threshold   = var.healthcheck_healthy_threshold
+    unhealthy_threshold = var.healthcheck_unhealthy_threshold
+  }
+
+  tags = {
+    Name        = "${var.service}-${var.environment}-alb-http1-tg"
+    service     = var.service
+    environment = var.environment
+  }
+}
+
 resource "aws_lb_target_group" "alb_http2_target_group" {
   name                 = "${var.service}-${var.environment}-alb-http2-tg"
   port                 = var.server_port
@@ -136,6 +178,21 @@ resource "aws_lb_listener_rule" "public_alb_listener_grpc_rule" {
   condition {
     path_pattern {
       values = var.grpc_api_paths
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "public_alb_listener_http1_rule" {
+  listener_arn = aws_lb_listener.public_alb_h1_listener.arn
+  priority     = 1
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.alb_http1_target_group.arn
+  }
+  condition {
+    path_pattern {
+      values = var.http_api_paths
     }
   }
 }

@@ -49,3 +49,19 @@ output "metrics_export_interval_millis_parameter_arn" {
 output "metrics_export_timeout_millis_parameter_arn" {
   value = aws_ssm_parameter.metrics_export_timeout_millis_parameter.arn
 }
+
+output "realtime_updater_num_threads_parameter_arn" {
+  value = aws_ssm_parameter.realtime_updater_num_threads_parameter.arn
+}
+
+output "data_loading_num_threads_parameter_arn" {
+  value = aws_ssm_parameter.data_loading_num_threads_parameter.arn
+}
+
+output "s3client_max_connections_parameter_arn" {
+  value = aws_ssm_parameter.s3client_max_connections_parameter.arn
+}
+
+output "s3client_max_range_bytes_parameter_arn" {
+  value = aws_ssm_parameter.s3client_max_range_bytes_parameter.arn
+}

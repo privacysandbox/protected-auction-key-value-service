@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+#include <memory>
 #include <streambuf>
 #include <string>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "components/telemetry/metrics_recorder.h"
 
 #ifndef COMPONENTS_DATA_BLOB_STORAGE_SEEKING_INPUT_STREAMBUF_H_
 #define COMPONENTS_DATA_BLOB_STORAGE_SEEKING_INPUT_STREAMBUF_H_
@@ -69,7 +71,9 @@ class SeekingInputStreambuf : public std::streambuf {
     std::function<void(absl::Status)> error_callback = [](absl::Status) {};
   };
 
-  explicit SeekingInputStreambuf(Options options = Options());
+  explicit SeekingInputStreambuf(
+      Options options = Options(),
+      MetricsRecorder& metrics_recorder = MetricsRecorder::GetInstance());
   virtual ~SeekingInputStreambuf() = default;
   SeekingInputStreambuf(const SeekingInputStreambuf&) = delete;
   SeekingInputStreambuf& operator=(const SeekingInputStreambuf&) = delete;
@@ -110,6 +114,7 @@ class SeekingInputStreambuf : public std::streambuf {
 
   Options options_;
   std::string buffer_;
+  MetricsRecorder& metrics_recorder_;
   // `src_limit_position_` points to the next byte to be read from the
   // underlying source. All bytes before this have been read or buffered
   // already.

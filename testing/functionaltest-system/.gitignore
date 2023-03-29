@@ -1,0 +1,22 @@
+# Bazel symlinks
+/bazel-*
+
+# IDEs
+/.vscode/
+/*.code-workspace
+/.idea/
+/.clwb/
+
+#Backup files
+*~
+
+*.tar
+*.eif
+/dist/
+__pycache__/
+
+# Hedron's Compile Commands Extractor for Bazel
+# https://github.com/hedronvision/bazel-compile-commands-extractor
+/external
+/compile_commands.json
+/.cache/

@@ -43,6 +43,9 @@ static_resources:
                 route: { cluster: grpc_cluster, timeout: 2s }
               - match: { prefix: "/grpc.reflection.v1alpha.ServerReflection" }
                 route: { cluster: grpc_cluster, timeout: 2s }
+              retry_policy:
+                retry_on: 5xx
+                num_retries: 10
             response_headers_to_add:
             - header:
                 key: 'x-allow-FLEDGE'

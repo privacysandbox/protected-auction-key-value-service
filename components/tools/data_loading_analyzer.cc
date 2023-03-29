@@ -20,13 +20,13 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/strings/str_cat.h"
-#include "aws/core/Aws.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
 #include "components/telemetry/metrics_recorder.h"
+#include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "public/base_types.pb.h"
 #include "public/data_loading/data_loading_generated.h"
@@ -51,10 +51,11 @@ class NoopBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
 
 class NoopDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
  public:
-  absl::StatusOr<std::vector<std::string>> GetNotifications(
+  absl::StatusOr<NotificationsContext> GetNotifications(
       absl::Duration max_wait,
       const std::function<bool()>& should_stop_callback) override {
-    return std::vector<std::string>();
+    auto span = GetTracer()->GetCurrentSpan();
+    return NotificationsContext{.scope = opentelemetry::trace::Scope(span)};
   }
 };
 
@@ -130,9 +131,8 @@ std::vector<Operation> OperationsFromFlag() {
 absl::Status InitOnce(Operation operation) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   std::unique_ptr<BlobStorageClient> blob_client = BlobStorageClient::Create();
-  auto thread_notifier_ = ThreadNotifier::Create("Delta file thread notifier");
   std::unique_ptr<DeltaFileNotifier> notifier =
-      DeltaFileNotifier::Create(*thread_notifier_, *blob_client);
+      DeltaFileNotifier::Create(*blob_client);
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
       delta_stream_reader_factory;
   switch (operation) {
@@ -155,15 +155,18 @@ absl::Status InitOnce(Operation operation) {
       break;
   }
   NoopBlobStorageChangeNotifier change_notifier;
-  NoopDeltaFileRecordChangeNotifier delta_file_record_change_notifier;
   // Blocks until cache is initialized
   absl::StatusOr<std::unique_ptr<DataOrchestrator>> maybe_data_orchestrator;
   absl::Time start_time = absl::Now();
-  std::unique_ptr<MetricsRecorder> metrics_recorder = MetricsRecorder::Create();
-  auto realtime_thread_notifier_ =
-      ThreadNotifier::Create("Realtime thread notifier");
-  std::unique_ptr<RealtimeNotifier> realtime_notifier_ =
-      RealtimeNotifier::Create(*realtime_thread_notifier_);
+  MetricsRecorder& metrics_recorder = MetricsRecorder::GetInstance();
+
+  std::vector<DataOrchestrator::RealtimeOptions> realtime_options;
+  DataOrchestrator::RealtimeOptions realtime_option;
+  realtime_option.delta_file_record_change_notifier =
+      std::make_unique<NoopDeltaFileRecordChangeNotifier>();
+  realtime_option.realtime_notifier =
+      RealtimeNotifier::Create(metrics_recorder);
+  realtime_options.push_back(std::move(realtime_option));
 
   maybe_data_orchestrator = DataOrchestrator::TryCreate(
       {
@@ -172,22 +175,18 @@ absl::Status InitOnce(Operation operation) {
           .blob_client = *blob_client,
           .delta_notifier = *notifier,
           .change_notifier = change_notifier,
-          .delta_file_record_change_notifier =
-              delta_file_record_change_notifier,
           .delta_stream_reader_factory = *delta_stream_reader_factory,
-          .realtime_notifier = *realtime_notifier_,
+          .realtime_options = realtime_options,
       },
-      *metrics_recorder);
+      metrics_recorder);
   absl::Time end_time = absl::Now();
   LOG(INFO) << "Init used " << (end_time - start_time);
   return maybe_data_orchestrator.status();
 }
 }  // namespace
 absl::Status Run() {
-  Aws::SDKOptions options;
-  Aws::InitAPI(options);
-  options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
-  absl::Cleanup shutdown = [&options] { Aws::ShutdownAPI(options); };
+  kv_server::PlatformInitializer initializer;
+
   const std::vector<Operation> operations = OperationsFromFlag();
   LOG(INFO) << "Performing " << operations.size() << " operations";
   for (const auto op : operations) {

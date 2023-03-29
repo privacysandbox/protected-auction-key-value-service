@@ -19,18 +19,21 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
+#include "absl/time/time.h"
+#include "components/util/duration.h"
 
 namespace kv_server {
 class MetricsRecorder {
  public:
   // `InitMetrics` must be called prior to `Create`.
   // Otherwise metrics recording will be a NoOp.
-  static std::unique_ptr<MetricsRecorder> Create();
+  static MetricsRecorder& GetInstance();
 
   // Create a NoOp metrics recorder.
-  static std::unique_ptr<MetricsRecorder> CreateBlank();
+  static MetricsRecorder& GetNoOpInstance();
 
   virtual ~MetricsRecorder() = default;
 
@@ -40,7 +43,38 @@ class MetricsRecorder {
                                     uint64_t count = 1) = 0;
 
   // Increments a named counter
-  virtual void IncrementEventCounter(std::string name) = 0;
+  virtual void IncrementEventCounter(std::string event) = 0;
+
+  // Register a histogram. This allows fine tuning histogram buckets, units.
+  virtual void RegisterHistogram(
+      std::string event, std::string description, std::string unit,
+      std::vector<double> bucket_boundaries = {}) = 0;
+
+  // Records a value for the `event`.
+  // Note that this histogram must be initialized first by calling
+  // `RegisterHistogram` above, otherwise, this is a noop.
+  virtual void RecordHistogramEvent(std::string event, int64_t value) = 0;
+
+  // Records a latency for a given `event` in the standard catch all latencies
+  // histogram with predefined buckets.
+  virtual void RecordLatency(std::string event, absl::Duration duration) = 0;
+};
+
+// Measures and records the latency of a block of code. Latency is automatically
+// recorded to the MetricsRecorder when an instance of this class goes out of
+// scope.
+class ScopeLatencyRecorder {
+ public:
+  ScopeLatencyRecorder(std::string event_name,
+                       MetricsRecorder& metrics_recorder);
+  ~ScopeLatencyRecorder();
+  // Returns the latency so far.
+  absl::Duration GetLatency();
+
+ private:
+  Stopwatch stop_watch_;
+  std::string event_name_;
+  MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

@@ -222,13 +222,13 @@ REGION=[[YOUR_AWS_REGION]]
 Initialize the working directory containing Terraform configuration files:
 
 ```sh
-terraform init --backend-config=./${ENVIRONMENT}/${REGION}.backend.conf --var-file=./${ENVIRONMENT}/${REGION}.tfvars --reconfigure
+terraform init --backend-config=./${ENVIRONMENT}/${REGION}.backend.conf --var-file=./${ENVIRONMENT}/${REGION}.tfvars.json --reconfigure
 ```
 
 Generate/update AWS resources:
 
 ```sh
-terraform apply --var-file=./${ENVIRONMENT}/${REGION}.tfvars
+terraform apply --var-file=./${ENVIRONMENT}/${REGION}.tfvars.json
 ```
 
 Once the operation completes, you can find the server URL in the `kv_server_url` value of the

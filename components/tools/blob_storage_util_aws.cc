@@ -19,6 +19,7 @@
 #include "absl/flags/usage.h"
 #include "absl/strings/match.h"
 #include "components/data/blob_storage/blob_storage_client.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "components/tools/blob_storage_commands.h"
 #include "components/util/platform_initializer.h"
 
@@ -26,6 +27,7 @@ ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
 
 using kv_server::BlobReader;
 using kv_server::BlobStorageClient;
+using kv_server::TelemetryProvider;
 
 constexpr std::string_view kCloudPrefix = "cloud://";
 
@@ -57,7 +59,10 @@ absl::StatusOr<std::unique_ptr<BlobReader>> GetSourceStream(
 // Source and Destination files can be cloud files, local files, and stdin.
 // Cloud files are prefixed with `cloud://`, stdin is `-`
 bool CpObjects(std::string bucket, std::string source, std::string dest) {
-  std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<BlobStorageClient> client =
+      BlobStorageClient::Create(*noop_metrics_recorder);
   absl::StatusOr<std::unique_ptr<BlobReader>> reader =
       GetSourceStream(client.get(), bucket, std::move(source));
   if (!reader.ok()) {

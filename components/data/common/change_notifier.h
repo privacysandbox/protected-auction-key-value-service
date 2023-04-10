@@ -22,6 +22,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/data/common/msg_svc.h"
+#include "components/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -43,7 +44,7 @@ class ChangeNotifier {
       const std::function<bool()>& should_stop_callback) = 0;
 
   static absl::StatusOr<std::unique_ptr<ChangeNotifier>> Create(
-      NotifierMetadata notifier_metadata);
+      NotifierMetadata notifier_metadata, MetricsRecorder& metrics_recorder);
 };
 
 }  // namespace kv_server

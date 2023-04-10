@@ -24,12 +24,14 @@
 #include "absl/flags/usage.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/common/change_notifier.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 
 ABSL_FLAG(std::string, directory, "", "Local directory to watch");
 
 using kv_server::BlobStorageChangeNotifier;
+using kv_server::TelemetryProvider;
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -41,9 +43,13 @@ int main(int argc, char** argv) {
     std::cerr << "Must specify --directory" << std::endl;
     return -1;
   }
-  auto status_or_notifier =
-      BlobStorageChangeNotifier::Create(kv_server::LocalNotifierMetadata{
-          .local_directory = std::filesystem::path(directory)});
+
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  auto status_or_notifier = BlobStorageChangeNotifier::Create(
+      kv_server::LocalNotifierMetadata{.local_directory =
+                                           std::filesystem::path(directory)},
+      *noop_metrics_recorder);
 
   if (!status_or_notifier.ok()) {
     std::cerr << "Unable to create BlobStorageChangeNotifier: "

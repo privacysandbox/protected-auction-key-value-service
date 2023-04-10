@@ -12,18 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-genrule(
-    name = "copy_to_dist",
+load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
+
+run_binary(
+    name = "generate_delta",
     srcs = [
-        "//testing/functionaltest/test_cases/grpc:delta_files",
+        ":udf.js",
     ],
-    outs = ["copy_to_dist.bin"],
-    cmd_bash = """cat << EOF > '$@'
-mkdir -p dist/test_data/deltas
-cp $(execpaths //testing/functionaltest/test_cases/grpc:delta_files) dist/test_data/deltas
-builders/tools/normalize-dist
-EOF""",
-    executable = True,
-    local = True,
-    message = "copying test data to dist/test_data/deltas directory",
+    outs = [
+        "DELTA_0000000000000005",
+    ],
+    args = [
+        "--udf_file_path",
+        "$(location :udf.js)",
+        "--output_path",
+        "$(location DELTA_0000000000000005)",
+    ],
+    tool = "//tools/udf/udf_generator:udf_delta_file_generator",
 )

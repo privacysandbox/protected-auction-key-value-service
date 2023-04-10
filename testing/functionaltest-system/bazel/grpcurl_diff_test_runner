@@ -7,17 +7,17 @@ function usage() {
   cat &>/dev/stderr <<USAGE
 usage:
   $0 <options>
-    --endpoint-env-var <name>    name of env var containing endpoint host:port
-    --rpc <rpc name>             rpc name
-    --request <filename>         request.json filename
-    --jq-pre-filter <filename>   jq program to transform the request
-    --jq-post-filter <filename>  jq program to transform the reply
-    --jq-post-slurp              run jq postprocessor in stream slurp mode
-    --reply <filename>           golden reply against which to diff the output
+    --endpoint-env-var <ENDPOINT>   name of env var containing endpoint host:port
+    --rpc <rpc name>                rpc name
+    --request <filename>            request.json filename
+    --jq-pre-filter <filename>      jq program to transform the request
+    --jq-post-filter <filename>     jq program to transform the reply
+    --jq-post-slurp                 run jq postprocessor in stream slurp mode
+    --reply <filename>              golden reply against which to diff the output
 environment variables:
-    <ENDPOINT>                   host:port of grpc endpoint
-    DOCKER_NETWORK               docker network name
-    TEST_TOOLS_IMAGE             docker image uri for test tools
+    <ENDPOINT>                      host:port of grpc endpoint
+    DOCKER_NETWORK                  docker network name
+    TEST_TOOLS_IMAGE                docker image uri for test tools
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}
@@ -94,7 +94,6 @@ if [[ -n ${DOCKER_NETWORK} ]]; then
     "${DOCKER_NETWORK}"
   )
 fi
-set -o xtrace
 if [[ -s ${JQ_PRE_PROGRAM_FILENAME} ]]; then
   JQ_PRE_PROGRAM="$(cat "${JQ_PRE_PROGRAM_FILENAME}")"
 fi
@@ -120,7 +119,7 @@ fi
 grpcurl -plaintext -d @ -protoset protoset.pb ${ENDPOINT} ${RPC} <grpcurl.in >grpcurl.out
 if [[ -n '${JQ_POST_PROGRAM}' ]]; then
   echo '${JQ_POST_PROGRAM}' >post-filter.jq
-  jq --exit-status ${JQ_POST_ARGS} --from-file post-filter.jq <grpcurl.out
+  jq ${JQ_POST_ARGS} --from-file post-filter.jq <grpcurl.out
 else
   cat grpcurl.out
 fi

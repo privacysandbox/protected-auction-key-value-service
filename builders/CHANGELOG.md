@@ -2,21 +2,38 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
-### [0.21.1](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.21.0...release-0.21.1) (2023-03-07)
+## [0.22.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.21.1...release-0.22.0) (2023-04-03)
+
+
+### Features
+
+* Add awscurl wrapper script ([58b2ce1]( ))
+* Add tests for misc CLI wrappers ([105c7ee]( ))
+* Correctly quote bash args ([d57a0de]( ))
+* Extend test-tool to support the release image ([61129e8]( ))
+* Use login shell for interactive container ([67fe3e0]( ))
+
+
+### Documentation
+
+* Add section on tools to README ([d572517]( ))
+* Remove section on building images directly ([19d47ec]( ))
+
+### [0.21.1] (2023-03-07)
 
 
 ### Bug Fixes
 
 * Relax pinned version for apache2-utils
 
-## [0.21.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.20.0...release-0.21.0) (2023-03-06)
+## [0.21.0] (2023-03-06)
 
 
 ### Features
 
 * Add wrapper scripts for utils
 
-## [0.20.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.19.0...release-0.20.0) (2023-03-01)
+## [0.20.0] (2023-03-01)
 
 
 ### Features
@@ -26,7 +43,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Permit testing of a single image
 * Relax pinned versions in build-debian, presubmit and test-tools
 
-## [0.19.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.18.0...release-0.19.0) (2023-03-01)
+## [0.19.0] (2023-03-01)
 
 
 ### Features
@@ -38,14 +55,14 @@ All notable changes to this project will be documented in this file. See [commit
 
 * Relax pinned version of openjdk to 11.0.*
 
-## [0.18.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.17.0...release-0.18.0) (2023-02-23)
+## [0.18.0] (2023-02-23)
 
 
 ### Features
 
 * Relax pinned versions for apk and yum packages to semver
 
-## [0.17.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.16.0...release-0.17.0) (2023-02-21)
+## [0.17.0] (2023-02-21)
 
 
 ### Features
@@ -60,21 +77,21 @@ All notable changes to this project will be documented in this file. See [commit
 * Minor code cleanup in images/presubmit/install_apps
 * Upgrade ghz to 0.114.0
 
-## [0.16.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.15.1...release-0.16.0) (2023-02-05)
+## [0.16.0] (2023-02-05)
 
 
 ### Features
 
 * Run test tools in docker interactive mode to admit std streams
 
-### [0.15.1](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.15.0...release-0.15.1) (2023-02-04)
+### [0.15.1] (2023-02-04)
 
 
 ### Bug Fixes
 
 * Return value from get_docker_workspace_mount()
 
-## [0.15.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.14.0...release-0.15.0) (2023-02-03)
+## [0.15.0] (2023-02-03)
 
 
 ### Features
@@ -86,21 +103,21 @@ All notable changes to this project will be documented in this file. See [commit
 
 * Pin commit-and-tag-version to v10.1.0
 
-## [0.14.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.13.1...release-0.14.0) (2023-01-27)
+## [0.14.0] (2023-01-27)
 
 
 ### Features
 
 * Improve verbose output for get-builder-image-tagged
 
-### [0.13.1](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.13.0...release-0.13.1) (2023-01-26)
+### [0.13.1] (2023-01-26)
 
 
 ### Bug Fixes
 
 * Upgrade software-properties-common
 
-## [0.13.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.12.0...release-0.13.0) (2023-01-23)
+## [0.13.0] (2023-01-23)
 
 
 ### Features
@@ -120,7 +137,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Upgrade amazonlinux2 base image
 * Upgrade git on amazonlinux2
 
-## [0.12.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.11.0...release-0.12.0) (2023-01-10)
+## [0.12.0] (2023-01-10)
 
 
 ### Features
@@ -128,7 +145,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Modify ghz wrapper for generic use. Add curl
 * Use test-tools image for grpcurl
 
-## [0.11.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.10.0...release-0.11.0) (2023-01-09)
+## [0.11.0] (2023-01-09)
 
 
 ### Features
@@ -140,14 +157,14 @@ All notable changes to this project will be documented in this file. See [commit
 
 * Clean up tmpdir via RETURN trap
 
-## [0.10.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.9.0...release-0.10.0) (2023-01-06)
+## [0.10.0] (2023-01-06)
 
 
 ### Features
 
 * Drop ubuntu package version minor for curl
 
-## [0.9.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.8.0...release-0.9.0) (2023-01-04)
+## [0.9.0] (2023-01-04)
 
 
 ### Features
@@ -162,7 +179,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Elide warnings from bazel info
 * Revert from clang-format v15 to v14
 
-## [0.8.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.7.0...release-0.8.0) (2022-12-29)
+## [0.8.0] (2022-12-29)
 
 
 ### Features
@@ -172,7 +189,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Ensure run-tests includes all images
 * Skip symlinks that resolve in normalize-bazel-symlink
 
-## [0.7.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.6.0...release-0.7.0) (2022-12-27)
+## [0.7.0] (2022-12-27)
 
 
 ### Features
@@ -180,7 +197,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Add ghz wrapper script
 * Add test-tools image
 
-## [0.6.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.5.0...release-0.6.0) (2022-12-12)
+## [0.6.0] (2022-12-12)
 
 
 ### Features
@@ -193,7 +210,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Emit docker build output only on non-zero exit
 * Remove tempfile before exiting
 
-## [0.5.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.4.4...release-0.5.0) (2022-12-06)
+## [0.5.0] (2022-12-06)
 
 
 ### Features
@@ -207,14 +224,14 @@ All notable changes to this project will be documented in this file. See [commit
 * Update version pin for ca-certificates
 * Use images subdirs for image list
 
-### [0.4.4](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.4.3...release-0.4.4) (2022-11-18)
+### [0.4.4] (2022-11-18)
 
 
 ### Bug Fixes
 
 * Retain execute permissions when normalizing dist
 
-### [0.4.3](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.4.2...release-0.4.3) (2022-11-17)
+### [0.4.3] (2022-11-17)
 
 
 ### Bug Fixes
@@ -224,14 +241,14 @@ All notable changes to this project will be documented in this file. See [commit
 * Improve verbose output for get-builder-image-tagged
 * Pin apt and yum package versions
 
-### [0.4.2](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.4.1...release-0.4.2) (2022-11-17)
+### [0.4.2] (2022-11-17)
 
 
 ### Bug Fixes
 
 * Generate SHA within docker container
 
-### [0.4.1](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.4.0...release-0.4.1) (2022-11-15)
+### [0.4.1] (2022-11-15)
 
 
 ### Bug Fixes
@@ -239,7 +256,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Reduce noise creating presubmit image
 * Remove docker run --interactive flag
 
-## [0.4.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.3.1...release-0.4.0) (2022-11-14)
+## [0.4.0] (2022-11-14)
 
 
 ### Features
@@ -257,14 +274,14 @@ All notable changes to this project will be documented in this file. See [commit
 * Add xz to build-debian
 * Explicitly add machine type and OS release to toolchains hash
 
-### [0.3.1](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.3.0...release-0.3.1) (2022-11-01)
+### [0.3.1] (2022-11-01)
 
 
 ### Bug Fixes
 
 * Add OpenJDK 11 in build-amazonlinux2
 
-## [0.3.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.2.0...release-0.3.0) (2022-11-01)
+## [0.3.0] (2022-11-01)
 
 
 ### Features
@@ -279,7 +296,7 @@ All notable changes to this project will be documented in this file. See [commit
 
 * Ensure builder::set_workspace does not overwrite WORKSPACE
 
-## [0.2.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.1.0...release-0.2.0) (2022-10-26)
+## [0.2.0] (2022-10-26)
 
 
 ### Features

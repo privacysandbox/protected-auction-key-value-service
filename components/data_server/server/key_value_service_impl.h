@@ -28,13 +28,18 @@
 
 namespace kv_server {
 
+constexpr char* kGetValuesV1Latency = "GetValuesV1Latency";
+
 // Implements Key-Value service.
 class KeyValueServiceImpl final
     : public kv_server::v1::KeyValueService::CallbackService {
  public:
   explicit KeyValueServiceImpl(GetValuesHandler handler,
                                MetricsRecorder& metrics_recorder)
-      : handler_(std::move(handler)), metrics_recorder_(metrics_recorder) {}
+      : handler_(std::move(handler)), metrics_recorder_(metrics_recorder) {
+    metrics_recorder_.RegisterHistogram(
+        kGetValuesV1Latency, "GetValues V1 service latency", "nanosecond");
+  }
 
   grpc::ServerUnaryReactor* GetValues(
       grpc::CallbackServerContext* context,

@@ -61,7 +61,6 @@ go_rules_dependencies()
 
 ### go_register_toolchains will be called by grpc_extra_deps
 # go_register_toolchains(go_version = "1.18")
-
 ### gRPC
 http_archive(
     name = "com_github_grpc_grpc",
@@ -144,6 +143,10 @@ load("//third_party:scp_deps.bzl", "scp_deps")
 
 scp_deps()
 
+load("@v8_python_deps//:requirements.bzl", install_v8_python_deps = "install_deps")
+
+install_v8_python_deps()
+
 load("//third_party:quiche.bzl", "quiche_dependencies")
 
 quiche_dependencies()
@@ -156,6 +159,31 @@ protobuf_deps()
 load("//third_party:open_telemetry.bzl", "open_telemetry_dependencies")
 
 open_telemetry_dependencies()
+
+# emscripten
+
+http_archive(
+    name = "emsdk",
+    sha256 = "d55e3c73fc4f8d1fecb7aabe548de86bdb55080fe6b12ce593d63b8bade54567",
+    strip_prefix = "emsdk-3891e7b04bf8cbb3bc62758e9c575ae096a9a518/bazel",
+    url = "https://github.com/emscripten-core/emsdk/archive/3891e7b04bf8cbb3bc62758e9c575ae096a9a518.tar.gz",
+)
+
+load("@emsdk//:deps.bzl", emsdk_deps = "deps")
+
+emsdk_deps()
+
+load("@emsdk//:emscripten_deps.bzl", emsdk_emscripten_deps = "emscripten_deps")
+
+emsdk_emscripten_deps(emscripten_version = "2.0.31")
+
+# googleapis
+http_archive(
+    name = "com_google_googleapis",  # master branch from 26.04.2022
+    sha256 = "3cbe0fcdad3ad7b2fdc58b0f297190c1e05b47b7c10fd14e3364501baa14177e",
+    strip_prefix = "googleapis-f91b6cf82e929280f6562f6110957c654bd9e2e6",
+    urls = ["https://github.com/googleapis/googleapis/archive/f91b6cf82e929280f6562f6110957c654bd9e2e6.tar.gz"],
+)
 
 load("@io_opentelemetry_cpp//bazel:repository.bzl", "opentelemetry_cpp_deps")
 

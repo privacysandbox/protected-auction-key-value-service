@@ -25,7 +25,6 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
-#include "public/base_types.pb.h"
 
 namespace kv_server {
 
@@ -36,8 +35,8 @@ class Cache {
   virtual ~Cache() = default;
 
   // Looks up and returns key-value pairs for the given keys.
-  virtual std::vector<std::pair<std::string_view, std::string>>
-  GetKeyValuePairs(const std::vector<std::string_view>& key_list) const = 0;
+  virtual absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
+      const std::vector<std::string_view>& key_list) const = 0;
 
   // Inserts or updates the key with the new value.
   virtual void UpdateKeyValue(std::string_view key, std::string_view value,

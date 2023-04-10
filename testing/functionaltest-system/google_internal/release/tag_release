@@ -54,9 +54,9 @@ function __assert_branch_version() {
   exit 1
 }
 
-function __assert_release_tag_not_exists() {
+function __assert_release_branch_not_exists() {
   local TAG="$1"
-  if [[ -n $(git tag --list "${TAG}") ]]; then
+  if [[ -n $(git branch --list "${TAG}") ]]; then
     printf "Error: release tag [%s] already exists. Exiting\n" "${TAG}" &>/dev/stderr
     exit 1
   fi
@@ -77,14 +77,15 @@ VERSION=$(cat "${WORKSPACE}"/version.txt)
 CURR_BRANCH="$(git branch --show-current)"
 __assert_branch_version "${CURR_BRANCH}" "${VERSION}"
 
-printf "Fetching tags, overwriting any local tags of the same name\n"
-git fetch origin --tags --prune-tags --force
+printf "Refreshing local repo from origin\n"
+git fetch origin --force
 
-RELEASE_TAG="release-${VERSION}"
-__assert_release_tag_not_exists "${RELEASE_TAG}"
+RELEASE_TAG="v${VERSION}"
+RELEASE_BRANCH="release-${VERSION}"
+__assert_release_branch_not_exists "${RELEASE_BRANCH}"
 
 RELEASE_COMMIT="$(__find_and_assert_release_commit "${VERSION}")"
-printf "Tagging commit [%s] as tag [%s]\n" "${RELEASE_COMMIT}" "${RELEASE_TAG}"
+printf "Tagging commit [%s] as tag [%s], branch [%s]\n" "${RELEASE_COMMIT}" "${RELEASE_TAG}" "${RELEASE_BRANCH}"
 
 if [[ $DRY_RUN -eq 1 ]]; then
   printf "DRY RUN: exiting\n"
@@ -93,10 +94,11 @@ fi
 
 # create release tag ${RELEASE_TAG}
 git tag --annotate "${RELEASE_TAG}" -m "Release ${VERSION}" "${RELEASE_COMMIT}"
+git branch "${RELEASE_TAG}" "${RELEASE_BRANCH}"
 
 cat << EOF
-Run the following command to push the release tag to the gerrit repo:
+Run the following command to push the release tag and branch to the gerrit repo:
 
-  git push origin ${RELEASE_TAG}
+  git push origin ${RELEASE_TAG} ${RELEASE_BRANCH}
 
 EOF

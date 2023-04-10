@@ -52,7 +52,7 @@ class DeltaRecordStreamWriterTest
   }
 };
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     ValidMetadata, DeltaRecordStreamWriterTest,
     testing::Values(DeltaRecordWriter::Options{.enable_compression = false,
                                                .metadata = GetMetadata()},
@@ -96,9 +96,8 @@ TEST(DeltaRecordStreamWriterTest, ValidateWritingFailsAfterClose) {
       string_stream, std::move(options));
   EXPECT_TRUE(record_writer.ok());
   (*record_writer)->Close();
-  EXPECT_DEATH(auto status = (*record_writer)->WriteRecord(GetDeltaRecord()),
-               "terminate called after throwing an instance of "
-               "'std::bad_function_call'");
+  auto status = (*record_writer)->WriteRecord(GetDeltaRecord());
+  EXPECT_FALSE(status.ok());
 }
 
 }  // namespace

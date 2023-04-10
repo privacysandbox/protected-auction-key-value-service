@@ -41,6 +41,7 @@ usage:
     --without-shared-cache       Containers will not mount ${HOME}/.cache/bazel
     --with-ami                   AMI region in which to build and store AWS AMIs. Use multiple times to specify more than one region
                                  If empty, none will be built
+    --no-precommit               Skip precommit checks
 
 environment variables (all optional):
     WORKSPACE                    Set the path to the workspace (repo root)
@@ -53,6 +54,8 @@ USAGE
 }
 
 declare -a AMI_REGIONS
+declare -i SKIP_PRECOMMIT=0
+declare -a BUILD_AND_TEST_ARGS
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -61,8 +64,12 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --no-precommit)
+      BUILD_AND_TEST_ARGS+=("--no-precommit")
+      shift
+      ;;
     --verbose)
-      VERBOSE_ARG="--verbose"
+      BUILD_AND_TEST_ARGS+=("--verbose")
       set -o xtrace
       shift
       ;;
@@ -89,7 +96,7 @@ readonly SCRIPT_DIR
 source "${SCRIPT_DIR}"/../../../builders/tools/builder.sh
 readonly DIST="${WORKSPACE}"/dist
 
-"${WORKSPACE}"/production/packaging/build_and_test_all_in_docker ${VERBOSE_ARG} --instance aws
+"${WORKSPACE}"/production/packaging/build_and_test_all_in_docker "${BUILD_AND_TEST_ARGS[@]}" --instance aws
 
 mkdir -p "${DIST}"/aws
 chmod 770 "${DIST}" "${DIST}"/aws

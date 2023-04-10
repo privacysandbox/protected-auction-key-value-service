@@ -20,6 +20,22 @@ package(default_visibility = [
     "//public:__subpackages__",
 ])
 
+# TODO: b/272282272 move/refactor this code when telemetry is moved to common
+cc_library(
+    name = "kv_telemetry",
+    srcs = [
+        "kv_telemetry.cc",
+    ],
+    hdrs = [
+        "kv_telemetry.h",
+    ],
+    deps = [
+        "//components/util:version_linkstamp",
+        "//public:constants",
+        "@io_opentelemetry_cpp//sdk/src/resource",
+    ],
+)
+
 cc_library(
     name = "telemetry",
     srcs = [
@@ -30,7 +46,7 @@ cc_library(
     ],
     deps = [
         ":init",
-        "//components/util:version_linkstamp",
+        "//components/telemetry:telemetry_provider",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@io_opentelemetry_cpp//sdk/src/metrics",
@@ -48,10 +64,45 @@ cc_library(
         "metrics_recorder.h",
     ],
     deps = [
-        ":telemetry",
         "//components/util:duration",
-        "//components/util:version_linkstamp",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/status",
+        "@io_opentelemetry_cpp//sdk/src/metrics",
+        "@io_opentelemetry_cpp//sdk/src/resource",
+    ],
+)
+
+cc_library(
+    name = "telemetry_provider",
+    srcs = [
+        "telemetry_provider.cc",
+    ],
+    hdrs = [
+        "telemetry_provider.h",
+    ],
+    deps = [
+        ":metrics_recorder",
+        "@io_opentelemetry_cpp//sdk/src/metrics",
+        "@io_opentelemetry_cpp//sdk/src/resource",
+        "@io_opentelemetry_cpp//sdk/src/trace",
+    ],
+)
+
+cc_library(
+    name = "tracing",
+    srcs = [
+        "tracing.cc",
+    ],
+    hdrs = [
+        "tracing.h",
+    ],
+    deps = [
+        ":telemetry",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@io_opentelemetry_cpp//sdk/src/resource",
+        "@io_opentelemetry_cpp//sdk/src/trace",
     ],
 )
 

@@ -199,3 +199,9 @@ module "iam_group_policies" {
   ssh_users_group_name = module.iam_groups.ssh_users_group_name
   ssh_instance_arn     = module.ssh.ssh_instance_arn
 }
+
+
+module "dashboards" {
+  source      = "../../services/dashboard"
+  environment = var.environment
+}

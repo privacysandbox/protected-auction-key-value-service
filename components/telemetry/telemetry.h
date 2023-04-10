@@ -32,56 +32,21 @@
 
 namespace kv_server {
 
-// Must be called to initialize tracing functionality.
-// If `InitTracer` is not called, all tracing will be NoOp.
-void InitTracer(std::string instance_id);
+// Must be called to initialize telemetry functionality.
+void InitTelemetry(std::string service_name, std::string build_version);
 
 // Must be called to initialize metrics functionality.
-// If `InitMetrics` is not called, all metrics recording will be NoOp.
-void InitMetrics(
-    std::string instance_id,
+// If `ConfigureMetrics` is not called, all metrics recording will be NoOp.
+void ConfigureMetrics(
+    opentelemetry::sdk::resource::Resource resource,
     const opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions&
         options);
 
+// Must be called to initialize tracing functionality.
+// If `ConfigureTracer` is not called, all tracing will be NoOp.
+void ConfigureTracer(opentelemetry::sdk::resource::Resource resource);
+
 opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> GetTracer();
-opentelemetry::nostd::shared_ptr<opentelemetry::metrics::Meter> GetMeter();
-
-// Translates the `absl::Status` to `opentelemetry::StatusCode`.
-// If the status is not `ok`, the string representation of `status` is used.
-void SetStatus(const absl::Status& status, opentelemetry::trace::Span& span);
-
-// Key value pair of an attribute. (ex: 'filename': 'DELTA_123')
-struct TelemetryAttribute {
-  std::string key;
-  opentelemetry::common::AttributeValue value;
-};
-
-// Traces `func` associating with `name`.
-// Optionally a vector of `attributes` can be added to the trace of the
-// function.
-absl::Status TraceWithStatus(std::function<absl::Status()> func,
-                             opentelemetry::nostd::string_view name,
-                             std::vector<TelemetryAttribute> attributes = {});
-
-// Must be called after the `InitMetrics`, otherwise this is a noop. This
-// function is not meant to be used directly -- for most cases,
-// MetricsRecorder's `RegisterHistogram` should be used to register histograms.
-void RegisterHistogramView(std::string name, std::string description,
-                           std::vector<double> bucket_boundaries = {});
-
-template <typename Func>
-typename std::invoke_result_t<Func> TraceWithStatusOr(
-    Func func, opentelemetry::nostd::string_view name,
-    std::vector<TelemetryAttribute> attributes = {}) {
-  auto span = GetTracer()->StartSpan(name);
-  auto scope = opentelemetry::trace::Scope(span);
-  for (const auto& attribute : attributes) {
-    span->SetAttribute(attribute.key, attribute.value);
-  }
-  auto statusor = func();
-  SetStatus(statusor.status(), *span);
-  return statusor;
-}
 
 }  // namespace kv_server
 

@@ -18,9 +18,14 @@ To use Privacy Sandbox Builders, you need:
 
 To build a docker image directly, you can use the `tools/get-builder-image-tagged` tool.
 
-Alternatively, you can use `docker buildx build` to create the image using a command like this:
+## Tools
+
+The `tools` directory contains wrapper scripts along with some non-wrapper scripts. The wrapper
+scripts, such as `terraform` and `curl` execute the corresponding tool installed in one of the build
+images.
+
+For example, to execute `curl`:
 
 ```sh
-tar --create --dereference --gzip --directory=images/build-debian . | \
-  docker buildx build - --tag privacysandbox/builders/build-debian:latest`
+tools/curl --help
 ```

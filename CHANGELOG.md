@@ -2,7 +2,57 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
-## [0.8.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.7.0...release-0.8.0) (2023-03-28)
+## Release 0.9.0 (2023-04-10)
+
+
+### Features
+
+* Add a total realtime QPS metric
+* Add aws supplied e2e latency
+* Add basic UDF functional tests for v2
+* Add error counters for realtime updates
+* Add functional test stubs for v2
+* Add target to generate delta for sample udf.js
+* Add test data artifacts to dist/test_data/deltas
+* Add UDF delta file generator tool.
+* Add UDF delta file upload through terraform config.
+* Add udf.js delta file to test set
+* Upgrade to build-system 0.22.0 and functionaltest-system 0.2.0
+
+
+### Bug Fixes
+
+* Add a dashboard for environments
+* Add documentation for editing dashboards
+* Change envoy log level to debug
+* Check that recovery function is valid before calling it.
+* Enable docker network cleanup
+* Ensure changelog notes use specific version
+* ignore interestGroupNames argument
+* MetricsRecorder no longer a singleton.
+* MetricsRecorder now optional for retry templates.
+* Return missing key error status from internal lookup server.
+* Upgrade gRPC and make lookup client a singleton
+* Use dynamic_cast to get metric_sdk::MeterProvider provider.
+
+
+### Terraform
+
+* Add us-west-1 terraform
+
+
+### Documentation
+
+* Add documentation on roma child processes.
+* Add instructions on realtime updates
+* Add note to use grpcurl for v2 since http has a bug.
+* Add v2 request JSON schema
+* AWS realtime update capabilities
+* Correct udf target name
+* Update documentation for building data cli.
+* Update realtime metrics querying docs
+
+## Release 0.8.0 (2023-03-28)
 
 
 ### Features
@@ -72,7 +122,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Convert tfvar files to json
 * Support Prometheus service running in a different region
 
-## [0.7.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.6.0...release-0.7.0) (2023-02-16)
+## Release 0.7.0 (2023-02-16)
 
 
 ### Features
@@ -134,7 +184,7 @@ All notable changes to this project will be documented in this file. See [commit
 
 * Add docs for data loading library.
 
-## [0.6.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.5.0...release-0.6.0) (2023-01-10)
+## Release 0.6.0 (2023-01-10)
 
 
 ### Features
@@ -182,7 +232,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Correct command to run server locally
 * Update ECR format and improve the AWS doc order
 
-## [0.5.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.4.0...release-0.5.0) (2022-11-28)
+## Release 0.5.0 (2022-11-28)
 
 
 ### Features
@@ -257,7 +307,7 @@ All notable changes to this project will be documented in this file. See [commit
 * recommend the use of native AWS CLI in documentation
 * Remove an unnecessary step in server doc
 
-## [0.4.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.3.0...release-0.4.0) (2022-10-11)
+## Release 0.4.0 (2022-10-11)
 
 
 ### Features
@@ -333,7 +383,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Sugggest use of python virtualenv
 * Use concise form of passing env vars into docker container
 
-## [0.3.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.2.0...release-0.3.0) (2022-09-14)
+## Release 0.3.0 (2022-09-14)
 
 
 ### Features
@@ -352,7 +402,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Invoke bash via /usr/bin/env
 * Propagate SKIP env var into pre-commit container
 
-## [0.2.0](https://github.com/privacysandbox/fledge-key-value-service/compare/release-0.1.0...release-0.2.0) (2022-09-07)
+## Release 0.2.0 (2022-09-07)
 
 
 ### Features

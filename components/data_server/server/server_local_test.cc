@@ -17,11 +17,16 @@
 #include <thread>
 
 #include "components/data_server/server/server.h"
+#include "components/udf/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "opentelemetry/sdk/resource/resource.h"
 
 namespace kv_server {
 namespace {
+
+using opentelemetry::sdk::resource::Resource;
+using testing::_;
 
 class MockInstanceClient : public InstanceClient {
  public:
@@ -51,13 +56,25 @@ class MockParameterClient : public ParameterClient {
   }
 };
 
+void InitializeMetrics() {
+  opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
+      metrics_options;
+  // The defaults for these values are 30 and 60s and we don't want to wait that
+  // long for metrics to be flushed when each test finishes.
+  metrics_options.export_interval_millis = std::chrono::milliseconds(200);
+  metrics_options.export_timeout_millis = std::chrono::milliseconds(100);
+  ConfigureMetrics(Resource::Create({}), metrics_options);
+}
+
 TEST(ServerLocalTest, WaitWithoutStart) {
+  InitializeMetrics();
   kv_server::Server server;
   // These should be a no-op as the server was never started:
   server.Wait();
 }
 
 TEST(ServerLocalTest, ShutdownWithoutStart) {
+  InitializeMetrics();
   kv_server::Server server;
   // These should be a no-op as the server was never started:
   server.GracefulShutdown(absl::Seconds(1));
@@ -84,9 +101,14 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
       GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
 
+  InitializeMetrics();
+  auto mock_udf_client = std::make_unique<MockUdfClient>();
+  MockCodeFetcher code_fetcher;
+
   kv_server::Server server;
   absl::Status status =
-      server.Init(parameter_client, instance_client, "environment");
+      server.Init(parameter_client, instance_client, code_fetcher,
+                  std::move(mock_udf_client), "environment", "instance id");
   EXPECT_FALSE(status.ok());
 }
 
@@ -120,9 +142,19 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
       GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
 
+  InitializeMetrics();
+  auto mock_udf_client = std::make_unique<MockUdfClient>();
+  MockCodeFetcher code_fetcher;
+  CodeConfig code_config{.js = "function SomeUDFCode(){}",
+                         .udf_handler_name = "SomeUDFCode"};
+
+  EXPECT_CALL(code_fetcher, FetchCodeConfig(_))
+      .WillOnce(testing::Return(code_config));
+
   kv_server::Server server;
   absl::Status status =
-      server.Init(parameter_client, instance_client, "environment");
+      server.Init(parameter_client, instance_client, code_fetcher,
+                  std::move(mock_udf_client), "environment", "instance id");
   EXPECT_TRUE(status.ok());
 }
 
@@ -156,9 +188,19 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
       GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
 
+  InitializeMetrics();
+  auto mock_udf_client = std::make_unique<MockUdfClient>();
+  MockCodeFetcher code_fetcher;
+  CodeConfig code_config{.js = "function SomeUDFCode(){}",
+                         .udf_handler_name = "SomeUDFCode"};
+
+  EXPECT_CALL(code_fetcher, FetchCodeConfig(_))
+      .WillOnce(testing::Return(code_config));
+
   kv_server::Server server;
   absl::Status status =
-      server.Init(parameter_client, instance_client, "environment");
+      server.Init(parameter_client, instance_client, code_fetcher,
+                  std::move(mock_udf_client), "environment", "instance id");
   ASSERT_TRUE(status.ok());
   std::thread server_thread(&kv_server::Server::Wait, &server);
   server.GracefulShutdown(absl::Seconds(5));
@@ -195,9 +237,19 @@ TEST(ServerLocalTest, ForceServerShutdown) {
       GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
 
+  InitializeMetrics();
+  auto mock_udf_client = std::make_unique<MockUdfClient>();
+  MockCodeFetcher code_fetcher;
+  CodeConfig code_config{.js = "function SomeUDFCode(){}",
+                         .udf_handler_name = "SomeUDFCode"};
+
+  EXPECT_CALL(code_fetcher, FetchCodeConfig(_))
+      .WillOnce(testing::Return(code_config));
+
   kv_server::Server server;
   absl::Status status =
-      server.Init(parameter_client, instance_client, "environment");
+      server.Init(parameter_client, instance_client, code_fetcher,
+                  std::move(mock_udf_client), "environment", "instance id");
   ASSERT_TRUE(status.ok());
   std::thread server_thread(&kv_server::Server::Wait, &server);
   server.ForceShutdown();

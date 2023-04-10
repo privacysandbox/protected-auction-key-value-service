@@ -33,6 +33,8 @@
 #include "components/data_server/server/parameter_fetcher.h"
 #include "components/telemetry/metrics_recorder.h"
 #include "components/telemetry/telemetry.h"
+#include "components/udf/code_fetcher.h"
+#include "components/udf/udf_client.h"
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
 #include "public/query/get_values.grpc.pb.h"
@@ -44,7 +46,9 @@ class Server {
   Server();
 
   absl::Status Init(const ParameterClient& parameter_client,
-                    InstanceClient& instance_client, std::string environment);
+                    InstanceClient& instance_client, CodeFetcher& code_fetcher,
+                    std::unique_ptr<UdfClient> udf_client,
+                    std::string environment, std::string instance_id);
 
   // Wait for the server to shut down. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.
@@ -61,7 +65,7 @@ class Server {
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
   CreateStreamRecordReaderFactory(const ParameterFetcher& parameter_fetcher);
   std::unique_ptr<DataOrchestrator> CreateDataOrchestrator(
-      const ParameterFetcher& parameter_fetcher);
+      const ParameterFetcher& parameter_fetcher, UdfClient& udf_client);
 
   void CreateGrpcServices(const ParameterFetcher& parameter_fetcher);
   absl::Status MaybeShutdownNotifiers();
@@ -71,7 +75,11 @@ class Server {
   std::unique_ptr<DeltaFileNotifier> CreateDeltaFileNotifier(
       const ParameterFetcher& parameter_fetcher);
 
-  MetricsRecorder& metrics_recorder_;
+  std::unique_ptr<grpc::Server> CreateAndStartInternalLookupServer();
+
+  void SetUdfCodeObject(CodeFetcher& code_fetcher);
+
+  std::unique_ptr<MetricsRecorder> metrics_recorder_;
   std::vector<std::unique_ptr<grpc::Service>> grpc_services_;
   std::unique_ptr<grpc::Server> grpc_server_;
   std::unique_ptr<Cache> cache_;
@@ -90,6 +98,12 @@ class Server {
       delta_stream_reader_factory_;
 
   std::unique_ptr<DataOrchestrator> data_orchestrator_;
+
+  // Internal Lookup Server
+  std::unique_ptr<grpc::Service> internal_lookup_service_;
+  std::unique_ptr<grpc::Server> internal_lookup_server_;
+
+  std::unique_ptr<UdfClient> udf_client_;
 };
 
 absl::Status RunServer();

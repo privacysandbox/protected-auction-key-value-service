@@ -29,11 +29,8 @@ namespace kv_server {
 class MetricsRecorder {
  public:
   // `InitMetrics` must be called prior to `Create`.
-  // Otherwise metrics recording will be a NoOp.
-  static MetricsRecorder& GetInstance();
-
-  // Create a NoOp metrics recorder.
-  static MetricsRecorder& GetNoOpInstance();
+  static std::unique_ptr<MetricsRecorder> Create(std::string service_name,
+                                                 std::string build_version);
 
   virtual ~MetricsRecorder() = default;
 

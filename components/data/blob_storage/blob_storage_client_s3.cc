@@ -43,8 +43,9 @@ class S3BlobInputStreamBuf : public SeekingInputStreambuf {
  public:
   S3BlobInputStreamBuf(Aws::S3::S3Client& client,
                        BlobStorageClient::DataLocation location,
+                       MetricsRecorder& metrics_recorder,
                        SeekingInputStreambuf::Options options)
-      : SeekingInputStreambuf(std::move(options)),
+      : SeekingInputStreambuf(metrics_recorder, std::move(options)),
         client_(client),
         location_(std::move(location)) {}
 
@@ -98,9 +99,10 @@ class S3BlobReader : public BlobReader {
  public:
   S3BlobReader(Aws::S3::S3Client& client,
                BlobStorageClient::DataLocation location,
+               MetricsRecorder& metrics_recorder,
                const BlobStorageClient::ClientOptions& client_options)
       : BlobReader(),
-        streambuf_(client, location,
+        streambuf_(client, location, metrics_recorder,
                    GetOptions(client_options.max_range_bytes,
                               [this, location](absl::Status status) {
                                 LOG(ERROR) << "Blob " << location.key
@@ -129,7 +131,7 @@ class S3BlobStorageClient : public BlobStorageClient {
  public:
   std::unique_ptr<BlobReader> GetBlobReader(DataLocation location) override {
     return std::make_unique<S3BlobReader>(*client_, std::move(location),
-                                          client_options_);
+                                          metrics_recorder_, client_options_);
   }
 
   absl::Status PutBlob(BlobReader& reader, DataLocation location) override {
@@ -195,8 +197,10 @@ class S3BlobStorageClient : public BlobStorageClient {
     return keys;
   }
 
-  explicit S3BlobStorageClient(BlobStorageClient::ClientOptions client_options)
-      : client_options_(std::move(client_options)) {
+  explicit S3BlobStorageClient(MetricsRecorder& metrics_recorder,
+                               BlobStorageClient::ClientOptions client_options)
+      : metrics_recorder_(metrics_recorder),
+        client_options_(std::move(client_options)) {
     Aws::Client::ClientConfiguration config;
     config.maxConnections = client_options_.max_connections;
     client_ = std::make_shared<Aws::S3::S3Client>(config);
@@ -211,6 +215,7 @@ class S3BlobStorageClient : public BlobStorageClient {
  private:
   // TODO: Consider switch to CRT client.
   // AWS API requires shared_ptr
+  MetricsRecorder& metrics_recorder_;
   ClientOptions client_options_;
   std::unique_ptr<Aws::Utils::Threading::PooledThreadExecutor> executor_;
   std::shared_ptr<Aws::S3::S3Client> client_;
@@ -219,7 +224,9 @@ class S3BlobStorageClient : public BlobStorageClient {
 }  // namespace
 
 std::unique_ptr<BlobStorageClient> BlobStorageClient::Create(
+    MetricsRecorder& metrics_recorder,
     BlobStorageClient::ClientOptions client_options) {
-  return std::make_unique<S3BlobStorageClient>(client_options);
+  return std::make_unique<S3BlobStorageClient>(metrics_recorder,
+                                               client_options);
 }
 }  // namespace kv_server

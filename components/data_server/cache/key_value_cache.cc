@@ -30,17 +30,16 @@
 #include "public/base_types.pb.h"
 
 namespace kv_server {
-std::vector<std::pair<std::string_view, std::string>>
-KeyValueCache::GetKeyValuePairs(
+absl::flat_hash_map<std::string, std::string> KeyValueCache::GetKeyValuePairs(
     const std::vector<std::string_view>& key_list) const {
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs;
+  absl::flat_hash_map<std::string, std::string> kv_pairs;
   absl::ReaderMutexLock lock(&mutex_);
   for (std::string_view key : key_list) {
     const auto key_iter = map_.find(key);
     if (key_iter == map_.end() || key_iter->second.value == nullptr) {
       continue;
     } else {
-      kv_pairs.emplace_back(key, *(key_iter->second.value));
+      kv_pairs.insert_or_assign(key, *(key_iter->second.value));
     }
   }
   return kv_pairs;

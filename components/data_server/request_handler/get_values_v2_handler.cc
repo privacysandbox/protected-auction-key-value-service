@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/status/statusor.h"
 #include "components/telemetry/telemetry.h"
 #include "glog/logging.h"
@@ -35,6 +36,9 @@ constexpr char* GET_VALUES_v2_HANDLER_SPAN = "GetValuesV2Handler";
 constexpr char* CACHE_KEY_V2_HIT = "CacheKeyHit";
 constexpr char* CACHE_KEY_V2_MISS = "CacheKeyMiss";
 
+constexpr int kUdfInputApiVersion = 1;
+constexpr int kUdfOutputApiVersion = 1;
+
 namespace kv_server {
 namespace {
 using grpc::StatusCode;
@@ -47,47 +51,66 @@ using v2::ObliviousGetValuesRequest;
 
 const std::string_view kOHTTPResponseContentType = "message/ohttp-res";
 
-// Does a key value lookup for the keys in this group. This is a reference
-// implementation.
-absl::StatusOr<nlohmann::json> ProcessKeyGroup(
-    const Cache& cache, const nlohmann::json& context,
-    const nlohmann::json& key_group) {
-  std::vector<std::string_view> key_list;
-  for (const auto& key : key_group["keyList"]) {
-    key_list.push_back(std::string_view{
-        key.get_ptr<const nlohmann::json::string_t*>()->c_str()});
+absl::StatusOr<nlohmann::json> ExecuteUdfForKeyGroups(
+    const UdfClient& udf_client, const nlohmann::json& udf_input) {
+  const auto maybe_udf_output_string =
+      udf_client.ExecuteCode(std::vector<std::string>({udf_input.dump()}));
+  if (!maybe_udf_output_string.ok()) {
+    return maybe_udf_output_string.status();
   }
-  auto kv_pairs = cache.GetKeyValuePairs(key_list);
-
-  nlohmann::json group_output;
-  group_output["tags"] = key_group["tags"];
-  auto& key_values = group_output["keyValues"];
-  for (auto&& [k, v] : std::move(kv_pairs)) {
-    nlohmann::json value = {{"value", v}};
-    key_values.emplace(k, value);
+  nlohmann::json key_group_outputs =
+      nlohmann::json::parse(std::move(maybe_udf_output_string.value()), nullptr,
+                            /*allow_exceptions=*/false,
+                            /*ignore_comments=*/true);
+  if (key_group_outputs.is_discarded()) {
+    return absl::InvalidArgumentError("Error while parsing UDF output.");
   }
-  VLOG(5) << "Generated group output: " << group_output;
-  return group_output;
+  return key_group_outputs;
 }
-// This is a reference implementation. This would be replaced by UDF
-// invocations.
+
+// Processes partition, passing its keyGroups to a single UDF call.
 absl::StatusOr<nlohmann::json> ProcessPartition(
-    const Cache& cache, const nlohmann::json& context,
+    const UdfClient& udf_client, const nlohmann::json& context,
     const nlohmann::json& partition) {
   nlohmann::json partition_output = {{"id", partition["id"]}};
   auto& group_outputs = partition_output["keyGroupOutputs"];
-  for (const auto& key_group : partition["keyGroups"]) {
-    const auto& tags = key_group["tags"];
-    // Structured keys are not supported
-    VLOG(6) << "Processing key group with tags: " << tags;
-    if (std::find(tags.begin(), tags.end(), "structured") != tags.end())
-      continue;
-    if (auto maybe_output = ProcessKeyGroup(cache, context, key_group);
-        maybe_output.ok()) {
-      group_outputs.emplace_back(std::move(maybe_output).value());
+
+  // Create keyGroups item for UDF input
+  nlohmann::json udf_input;
+  udf_input["context"] = std::move(context);
+  if (const auto iter = partition.find("keyGroups"); iter == partition.end()) {
+    return absl::InvalidArgumentError("Request has no keyGroups");
+  } else {
+    udf_input["keyGroups"] = std::move(iter.value());
+  }
+  udf_input["udfInputApiVersion"] = kUdfInputApiVersion;
+
+  // Call UDF for key groups in the partition
+  const auto maybe_udf_group_outputs =
+      ExecuteUdfForKeyGroups(udf_client, udf_input);
+  if (!maybe_udf_group_outputs.ok()) {
+    return maybe_udf_group_outputs.status();
+  }
+
+  if (const auto iter =
+          maybe_udf_group_outputs.value().find("udfOutputApiVersion");
+      iter == maybe_udf_group_outputs.value().end()) {
+    return absl::InternalError("UDF response has no udfOutputApiVersion");
+  } else {
+    if (iter.value() != kUdfOutputApiVersion) {
+      return absl::InternalError("Invalid udfOutputApiVersion");
     }
   }
 
+  if (const auto iter = maybe_udf_group_outputs.value().find("keyGroupOutputs");
+      iter == maybe_udf_group_outputs.value().end()) {
+    return absl::InternalError("UDF Response has no keyGroupOutputs");
+  } else {
+    if (!iter.value().is_array()) {
+      return absl::InternalError("UDF keyGroupOutputs not an array");
+    }
+    absl::c_move(iter.value(), std::back_inserter(group_outputs));
+  }
   VLOG(5) << "Generated partition output: " << partition_output;
   return partition_output;
 }
@@ -108,7 +131,7 @@ absl::StatusOr<nlohmann::json> Parse(std::string_view json_string) {
 // Returns a list of JSON objects each representing a compression group, which
 // is a group of partition outputs.
 absl::StatusOr<std::vector<nlohmann::json>> ProcessGetValuesCoreRequest(
-    const Cache& cache, const nlohmann::json& core_data_json) {
+    const UdfClient& udf_client, const nlohmann::json& core_data_json) {
   const nlohmann::json *partitions, *context;
 
   // First get the partitions and context. They will be the input to the
@@ -144,7 +167,7 @@ absl::StatusOr<std::vector<nlohmann::json>> ProcessGetValuesCoreRequest(
       }
     }
 
-    if (auto maybe_result = ProcessPartition(cache, *context, partition);
+    if (auto maybe_result = ProcessPartition(udf_client, *context, partition);
         maybe_result.ok()) {
       compression_group_map[compression_group]["partitions"].emplace_back(
           std::move(maybe_result).value());
@@ -185,8 +208,8 @@ grpc::Status GetValuesV2Handler::GetValues(
         std::string(maybe_core_request_json.status().message()));
   }
 
-  if (auto maybe_compression_groups =
-          ProcessGetValuesCoreRequest(cache_, maybe_core_request_json.value());
+  if (auto maybe_compression_groups = ProcessGetValuesCoreRequest(
+          udf_client_, maybe_core_request_json.value());
       maybe_compression_groups.ok()) {
     nlohmann::json response_json = BuildCompressionGroupsForDebugging(
         std::move(maybe_compression_groups).value());
@@ -239,8 +262,8 @@ grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
       create_compression_group_concatenator_(
           CompressionGroupConcatenator::CompressionType::kUncompressed);
   std::string error_message;
-  if (auto maybe_compression_groups =
-          ProcessGetValuesCoreRequest(cache_, maybe_core_request_json.value());
+  if (auto maybe_compression_groups = ProcessGetValuesCoreRequest(
+          udf_client_, maybe_core_request_json.value());
       maybe_compression_groups.ok()) {
     VLOG(9) << "Building compressed response with compression group map";
     // Compress

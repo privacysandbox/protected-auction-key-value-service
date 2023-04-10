@@ -56,6 +56,7 @@ cc_test(
         ":delta_file_record_change_notifier",
         "//components/data/common:change_notifier",
         "//components/data/common:mocks",
+        "//components/telemetry:mocks",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",

@@ -42,6 +42,7 @@
 #include "components/data/common/msg_svc.h"
 #include "components/errors/error_util_aws.h"
 #include "components/telemetry/metrics_recorder.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "glog/logging.h"
 
 namespace kv_server {
@@ -51,6 +52,16 @@ constexpr absl::Duration kMaxLongPollDuration = absl::Seconds(20);
 constexpr absl::Duration kLastUpdatedFrequency = absl::Minutes(2);
 constexpr char kLastUpdatedTag[] = "last_updated";
 constexpr char* kAwsSqsReceiveMessageLatency = "AwsSqsReceiveMessageLatency";
+// Failure events
+constexpr char* kAwsChangeNotifierQueueSetupFailure =
+    "AwsChangeNotifierQueueSetupFailure";
+constexpr char* kAwsChangeNotifierMessagesReceivingFailure =
+    "AwsChangeNotifierMessagesReceivingFailure";
+constexpr char* kAwsChangeNotifierTagFailure = "AwsChangeNotifierTagFailure";
+constexpr char* kAwsChangeNotifierMessagesDeletionFailure =
+    "AwsChangeNotifierMessagesDeletionFailure";
+constexpr char* kAwsChangeNotifierMessagesDataLossFailure =
+    "AwsChangeNotifierMessagesDataLossFailure";
 
 // The units below are microseconds.
 const std::vector<double> kAwsSqsReceiveMessageLatencyBucketBoundaries = {
@@ -60,10 +71,11 @@ const std::vector<double> kAwsSqsReceiveMessageLatencyBucketBoundaries = {
 
 class AwsChangeNotifier : public ChangeNotifier {
  public:
-  explicit AwsChangeNotifier(CloudNotifierMetadata notifier_metadata)
+  explicit AwsChangeNotifier(CloudNotifierMetadata notifier_metadata,
+                             MetricsRecorder& metrics_recorder)
       : sns_arn_(std::move(notifier_metadata.sns_arn)),
         queue_manager_(notifier_metadata.queue_manager),
-        metrics_recorder_(MetricsRecorder::GetInstance()) {
+        metrics_recorder_(metrics_recorder) {
     // request timeout must be > poll timeout
     // https://github.com/awsdocs/aws-doc-sdk-examples/blob/main/cpp/example_code/sqs/long_polling_on_message_receipt.cpp
     Aws::Client::ClientConfiguration client_cfg;
@@ -84,6 +96,8 @@ class AwsChangeNotifier : public ChangeNotifier {
         absl::Status status = queue_manager_->SetupQueue();
         if (!status.ok()) {
           LOG(ERROR) << "Could not set up queue for topic " << sns_arn_;
+          metrics_recorder_.IncrementEventCounter(
+              kAwsChangeNotifierQueueSetupFailure);
           return status;
         }
       }
@@ -125,6 +139,7 @@ class AwsChangeNotifier : public ChangeNotifier {
       } else {
         LOG(ERROR) << "Failed to TagQueue with " << kLastUpdatedTag << ": "
                    << tag << " " << status;
+        metrics_recorder_.IncrementEventCounter(kAwsChangeNotifierTagFailure);
       }
     }
   }
@@ -146,6 +161,8 @@ class AwsChangeNotifier : public ChangeNotifier {
     if (!outcome.IsSuccess()) {
       LOG(ERROR) << "Failed to receive message from SQS: "
                  << outcome.GetError().GetMessage();
+      metrics_recorder_.IncrementEventCounter(
+          kAwsChangeNotifierMessagesReceivingFailure);
       if (!outcome.GetError().ShouldRetry()) {
         // Handle case where recreating Queue will resolve the issue.
         // Example: Queue accidentally deleted.
@@ -169,6 +186,8 @@ class AwsChangeNotifier : public ChangeNotifier {
     }
     DeleteMessages(queue_manager_->GetSqsUrl(), messages);
     if (keys.empty()) {
+      metrics_recorder_.IncrementEventCounter(
+          kAwsChangeNotifierMessagesDataLossFailure);
       return absl::DataLossError("All messages invalid.");
     }
     return keys;
@@ -194,6 +213,8 @@ class AwsChangeNotifier : public ChangeNotifier {
     if (!outcome.IsSuccess()) {
       LOG(ERROR) << "Failed to delete message from SQS: "
                  << outcome.GetError().GetMessage();
+      metrics_recorder_.IncrementEventCounter(
+          kAwsChangeNotifierMessagesDeletionFailure);
     }
   }
 
@@ -206,9 +227,10 @@ class AwsChangeNotifier : public ChangeNotifier {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata, MetricsRecorder& metrics_recorder) {
   return std::make_unique<AwsChangeNotifier>(
-      std::move(std::get<CloudNotifierMetadata>(notifier_metadata)));
+      std::move(std::get<CloudNotifierMetadata>(notifier_metadata)),
+      metrics_recorder);
 }
 
 }  // namespace kv_server

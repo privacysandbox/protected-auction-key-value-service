@@ -114,6 +114,16 @@ us-east-1: ami-0fc7e6b563291d9c6
 
 Take a note of the AMI ID from the output as it will be used for Terraform later.
 
+## (Optional) Generate and upload a UDF delta file
+
+We provide a default UDF implementation that is loaded into the server at startup.
+
+To use your own UDF, refer to the [UDF Delta file documentation](./generating_udf_files.md) to
+generate a UDF delta file.
+
+Upload this UDF delta file to the S3 bucket that will be used for delta files before attempting to
+start the server.
+
 # Deployment
 
 ## Push artifacts
@@ -222,13 +232,13 @@ REGION=[[YOUR_AWS_REGION]]
 Initialize the working directory containing Terraform configuration files:
 
 ```sh
-terraform init --backend-config=./${ENVIRONMENT}/${REGION}.backend.conf --var-file=./${ENVIRONMENT}/${REGION}.tfvars --reconfigure
+terraform init --backend-config=./${ENVIRONMENT}/${REGION}.backend.conf --var-file=./${ENVIRONMENT}/${REGION}.tfvars.json --reconfigure
 ```
 
 Generate/update AWS resources:
 
 ```sh
-terraform apply --var-file=./${ENVIRONMENT}/${REGION}.tfvars
+terraform apply --var-file=./${ENVIRONMENT}/${REGION}.tfvars.json
 ```
 
 Once the operation completes, you can find the server URL in the `kv_server_url` value of the
@@ -311,6 +321,29 @@ to HTTP/2 on port 443 and HTTP1.1 on port 8443. To query the server using http1.
 KV_SERVER_URL="https://demo.kv-server.your-domain.example:8443/v1/getvalues"
 curl ${KV_SERVER_URL}/v1/getvalues?keys=foo1 --http1.1
 ```
+
+To test the UDF functionality, query the V2 endpoint (HTTP or gRPC).
+
+```sh
+BODY='{ "context": { "subkey": "example.com" }, "partitions": [{ "id": 0, "compressionGroup": 0, "keyGroups": [{ "tags": [ "custom", "keys" ], "keyList": [ "foo1" ] }] }] }'
+```
+
+HTTP:
+
+> Currently, the HTTP endpoint for V2 does not work. We are working on a fix for the next release.
+> Please use grpcurl instead.
+
+```sh
+curl -vX PUT -d "$BODY"  http://demo.kv-server.your-domain.example/v2/getvalues
+```
+
+Or gRPC (using [grpcurl](https://github.com/fullstorydev/grpcurl)):
+
+```sh
+grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' -plaintext demo.kv-server.your-domain.example:443 kv_server.v2.KeyValueService/GetValues
+```
+
+For gRPC, you will need to base64 decode the output.
 
 ## SSH into EC2
 

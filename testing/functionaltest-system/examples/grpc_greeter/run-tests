@@ -86,13 +86,13 @@ function buildozer_filter() {
 
 # run the tests using a bazel-debian docker container
 function container_run_test() {
-  readonly FUNCTEST_REPO_NAME=google_privacysandbox_functionaltest_system
-  readonly FUNCTEST_REPO_PATH=/src/repos/functionaltest_system
+  declare -r FUNCTEST_REPO_NAME=google_privacysandbox_functionaltest_system
+  declare -r FUNCTEST_REPO_PATH=/src/repos/functionaltest_system
   buildozer_filter "set path ${FUNCTEST_REPO_PATH} ${FUNCTEST_REPO_NAME}" -:"${FUNCTEST_REPO_NAME}" \
     <"${TEST_REPO}"/WORKSPACE \
     >"${WORKSPACE_TMPFILE}"
 
-  # when overriding WORKSPACE_MOUNT, we also need to CBUILD_IMAGE as the new
+  # when overriding WORKSPACE_MOUNT, we also need to set CBUILD_IMAGE as the new
   # WORKSPACE_MOUNT value will cause get-builder-image-tagged to fail
   local -r CBUILD_IMAGE="$("${TOOLS_DIR}"/get-builder-image-tagged --image build-debian)"
   export CBUILD_IMAGE

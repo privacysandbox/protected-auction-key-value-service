@@ -47,7 +47,7 @@ TEST(RetryTest, RetryUntilOk) {
   EXPECT_CALL(metrics_recorder,
               IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
   absl::StatusOr<int> v = RetryUntilOk(func.AsStdFunction(), "TestFunc",
-                                       metrics_recorder, sleep_for);
+                                       &metrics_recorder, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
@@ -68,7 +68,7 @@ TEST(RetryTest, RetryUnilOkStatusOnly) {
                                    absl::InvalidArgumentError("whatever"), 1));
   EXPECT_CALL(metrics_recorder,
               IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
-  RetryUntilOk(func.AsStdFunction(), "TestFunc", metrics_recorder, sleep_for);
+  RetryUntilOk(func.AsStdFunction(), "TestFunc", &metrics_recorder, sleep_for);
 }
 
 TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
@@ -90,7 +90,7 @@ TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
                                    absl::InvalidArgumentError("whatever"), 1))
       .Times(2);
   absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2,
-                                       metrics_recorder, sleep_for);
+                                       &metrics_recorder, sleep_for);
   EXPECT_FALSE(v.ok());
   EXPECT_EQ(v.status(), absl::InvalidArgumentError("whatever"));
 }
@@ -113,7 +113,7 @@ TEST(RetryTest, RetryWithMaxSucceedsOnMax) {
   EXPECT_CALL(metrics_recorder,
               IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
   absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2,
-                                       metrics_recorder, sleep_for);
+                                       &metrics_recorder, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
@@ -135,7 +135,7 @@ TEST(RetryTest, RetryWithMaxSucceedsEarly) {
   EXPECT_CALL(metrics_recorder,
               IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
   absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 300,
-                                       metrics_recorder, sleep_for);
+                                       &metrics_recorder, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }

@@ -69,6 +69,7 @@ cc_binary(
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/data_loading:data_orchestrator",
         "//components/telemetry:metrics_recorder",
+        "//components/telemetry:telemetry_provider",
         "//components/util:platform_initializer",
         "//public:base_types_cc_proto",
         "//public/data_loading:data_loading_fbs",

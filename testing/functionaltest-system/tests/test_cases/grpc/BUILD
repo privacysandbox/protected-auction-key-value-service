@@ -19,7 +19,6 @@ rpcs = [
         test_files_glob_spec = "{}/{}/**/*".format(endpoint, rpc),
         test_tags = [
             "external",
-            "manual",
         ],
     )
     for test_suite_name, endpoint, rpc, protoset in rpcs
@@ -35,7 +34,6 @@ rpcs = [
         test_tags = [
             "exclusive",
             "external",
-            "manual",
         ],
     )
     for test_suite_name, endpoint, rpc, protoset in rpcs

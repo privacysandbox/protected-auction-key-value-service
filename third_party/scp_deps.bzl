@@ -13,8 +13,9 @@
 # limitations under the License.
 
 load("@com_github_nelhage_rules_boost//:boost/boost.bzl", "boost_deps")
+load("@control_plane_shared//build_defs/cc:v8.bzl", "import_v8")
 
 def scp_deps():
     """Dependencies for shared control plane repository."""
-
+    import_v8("@control_plane_shared")
     boost_deps()

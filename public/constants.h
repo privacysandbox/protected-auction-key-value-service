@@ -82,6 +82,8 @@ const uint16_t kKDFParameter = 0x0001;
 // AEAD: AES-128-GCM 0X0001
 const uint16_t kAEADParameter = 0x0001;
 
+constexpr std::string_view kServiceName = "kv-server";
+
 }  // namespace kv_server
 
 #endif  // PUBLIC_CONSTANTS_H_

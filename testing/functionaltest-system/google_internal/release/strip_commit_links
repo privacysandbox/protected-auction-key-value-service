@@ -1,4 +1,8 @@
 s/\x1b\[[0-9;]*m//g
+# remove trailing CR
 s/\r$//
+# remove commit hashes
 s/ (\[\([0-9a-f]\+\)\]( ))$//
 s/ ([0-9a-f]\+)$//
+# remove url to compare releases
+s/^#\+ \[\([0-9]\+[.][0-9]\+[.][0-9]\+\)\]([^[:blank:]]\+) \(([0-9-]\+)\)$/## Release \1 \2/

@@ -18,6 +18,7 @@
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "components/util/platform_initializer.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
@@ -27,6 +28,7 @@
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 
 using kv_server::DeltaFileRecordChangeNotifier;
+using kv_server::TelemetryProvider;
 
 void Print(std::string string_decoded) {
   std::istringstream is(string_decoded);
@@ -84,11 +86,14 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  auto status_or_notifier =
-      kv_server::ChangeNotifier::Create(kv_server::CloudNotifierMetadata{
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  auto status_or_notifier = kv_server::ChangeNotifier::Create(
+      kv_server::CloudNotifierMetadata{
           .queue_prefix = "QueueNotifier_",
           .sns_arn = std::move(sns_arn),
-          .queue_manager = message_service_status->get()});
+          .queue_manager = message_service_status->get()},
+      *noop_metrics_recorder);
 
   if (!status_or_notifier.ok()) {
     std::cerr << "Unable to create ChangeNotifier: "
@@ -97,14 +102,15 @@ int main(int argc, char** argv) {
   }
 
   std::unique_ptr<DeltaFileRecordChangeNotifier> notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(*status_or_notifier));
+      DeltaFileRecordChangeNotifier::Create(std::move(*status_or_notifier),
+                                            *noop_metrics_recorder);
 
   while (true) {
     auto keys = notifier->GetNotifications(absl::InfiniteDuration(),
                                            []() { return false; });
     if (keys.ok()) {
-      for (const auto& key : keys->parsed_notifications) {
-        Print(key);
+      for (const auto& key : keys->realtime_messages) {
+        Print(key.parsed_notification);
       }
     } else {
       std::cerr << keys.status() << std::endl;

@@ -20,6 +20,7 @@
 #include <thread>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/status/status.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/blob_storage/blob_storage_client.h"
@@ -54,6 +55,7 @@ class DataOrchestrator {
     BlobStorageChangeNotifier& change_notifier;
     StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory;
     std::vector<RealtimeOptions>& realtime_options;
+    const absl::AnyInvocable<void()>& udf_update_callback = []() {};
   };
 
   // Creates initial state. Scans the bucket and initializes the cache with data

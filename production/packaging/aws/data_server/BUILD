@@ -72,6 +72,14 @@ container_layer(
     ],
 )
 
+container_layer(
+    name = "server_socket_directory",
+    empty_dirs = [
+        "/server/socket",
+    ],
+    mode = "0o777",
+)
+
 # This image target is meant for testing running the server in an enclave using.
 #
 # See project README.md on how to run the image.
@@ -90,6 +98,7 @@ container_image(
     ],
     entrypoint = ["/bin/bash"],
     layers = [
+        ":server_socket_directory",
         "//production/packaging/aws/resolv:resolv_config_layer",
         ":server_binary_layer",
     ],
@@ -123,12 +132,14 @@ genrule(
         ":server_artifacts",
         ":server_docker_image.tar",
         "//public/query:query_api_descriptor_set",
+        "//testing/functionaltest/test_cases/grpc:delta_files",
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
-mkdir -p dist/debian
+mkdir -p dist/debian dist/test_data/deltas
 cp $(execpath :server_artifacts) $(execpath :server_docker_image.tar) dist/debian
 cp $(execpath //public/query:query_api_descriptor_set) dist
+cp $(execpath //testing/functionaltest/test_cases/grpc:delta_files) dist/test_data/deltas
 builders/tools/normalize-dist
 EOF""",
     executable = True,

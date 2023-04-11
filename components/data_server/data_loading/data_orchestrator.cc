@@ -22,7 +22,7 @@
 #include "absl/functional/bind_front.h"
 #include "absl/strings/str_cat.h"
 #include "components/errors/retry.h"
-#include "components/telemetry/telemetry.h"
+#include "components/telemetry/tracing.h"
 #include "glog/logging.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
@@ -41,43 +41,55 @@ class BlobRecordStream : public RecordStream {
   std::unique_ptr<BlobReader> blob_reader_;
 };
 
-absl::Status LoadCacheWithData(
+absl::StatusOr<DataLoadingStats> LoadCacheWithData(
     StreamRecordReader<std::string_view>& record_reader, Cache& cache,
     int64_t& max_timestamp) {
-  return record_reader.ReadStreamRecords([&cache, &max_timestamp](
-                                             std::string_view raw) {
-    auto record = flatbuffers::GetRoot<DeltaFileRecord>(raw.data());
-    auto recordVerifier = flatbuffers::Verifier(
-        reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
-    if (!record->Verify(recordVerifier)) {
-      // TODO(b/239061954): Publish metrics for alerting
-      return absl::InvalidArgumentError("Invalid flatbuffer format");
-    }
-    switch (record->mutation_type()) {
-      case DeltaMutationType::Update: {
-        cache.UpdateKeyValue(record->key()->string_view(),
-                             record->value()->string_view(),
-                             record->logical_commit_time());
-        max_timestamp = std::max(max_timestamp, record->logical_commit_time());
-        break;
-      }
-      case DeltaMutationType::Delete: {
-        cache.DeleteKey(record->key()->string_view(),
-                        record->logical_commit_time());
-        max_timestamp = std::max(max_timestamp, record->logical_commit_time());
-        break;
-      }
-      default:
-        return absl::InvalidArgumentError(
-            absl::StrCat("Invalid mutation type: ",
-                         EnumNameDeltaMutationType(record->mutation_type())));
-    }
-    return absl::OkStatus();
-  });
+  DataLoadingStats data_loading_stats;
+  auto status = record_reader.ReadStreamRecords(
+      [&cache, &max_timestamp, &data_loading_stats](std::string_view raw) {
+        auto record = flatbuffers::GetRoot<DeltaFileRecord>(raw.data());
+        auto recordVerifier = flatbuffers::Verifier(
+            reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
+        if (!record->Verify(recordVerifier)) {
+          // TODO(b/239061954): Publish metrics for alerting
+          return absl::InvalidArgumentError("Invalid flatbuffer format");
+        }
+        switch (record->mutation_type()) {
+          case DeltaMutationType::Update: {
+            cache.UpdateKeyValue(record->key()->string_view(),
+                                 record->value()->string_view(),
+                                 record->logical_commit_time());
+            max_timestamp =
+                std::max(max_timestamp, record->logical_commit_time());
+            data_loading_stats.total_updated_records++;
+            break;
+          }
+          case DeltaMutationType::Delete: {
+            cache.DeleteKey(record->key()->string_view(),
+                            record->logical_commit_time());
+            max_timestamp =
+                std::max(max_timestamp, record->logical_commit_time());
+            data_loading_stats.total_deleted_records++;
+            break;
+          }
+          default:
+            return absl::InvalidArgumentError(absl::StrCat(
+                "Invalid mutation type: ",
+                EnumNameDeltaMutationType(record->mutation_type())));
+        }
+        return absl::OkStatus();
+      });
+
+  if (!status.ok()) {
+    return status;
+  }
+
+  return data_loading_stats;
 }
 
 // Reads the file from `location` and updates the cache based on the delta read.
-absl::Status LoadCacheWithDataFromFile(
+absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
+    MetricsRecorder& metrics_recorder,
     const BlobStorageClient::DataLocation& location,
     const DataOrchestrator::Options& options) {
   LOG(INFO) << "Loading " << location;
@@ -85,6 +97,7 @@ absl::Status LoadCacheWithDataFromFile(
   auto& cache = options.cache;
   auto record_reader =
       options.delta_stream_reader_factory.CreateConcurrentReader(
+          metrics_recorder,
           /*stream_factory=*/[&location, &options]() {
             return std::make_unique<BlobRecordStream>(
                 options.blob_client.GetBlobReader(location));
@@ -95,12 +108,13 @@ absl::Status LoadCacheWithDataFromFile(
   }
   return status;
 }
-absl::Status TraceLoadCacheWithDataFromFile(
-    BlobStorageClient::DataLocation location,
+absl::StatusOr<DataLoadingStats> TraceLoadCacheWithDataFromFile(
+    MetricsRecorder& metrics_recorder, BlobStorageClient::DataLocation location,
     const DataOrchestrator::Options& options) {
-  return TraceWithStatus(
-      [location, &options] {
-        return LoadCacheWithDataFromFile(std::move(location), options);
+  return TraceWithStatusOr(
+      [&metrics_recorder, location, &options] {
+        return LoadCacheWithDataFromFile(metrics_recorder, std::move(location),
+                                         options);
       },
       "LoadCacheWithDataFromFile",
       {{"bucket", std::move(location.bucket)},
@@ -135,8 +149,9 @@ class DataOrchestratorImpl : public DataOrchestrator {
     LOG(INFO) << "Stopped loading new data";
   }
 
-  static absl::StatusOr<std::string> Init(Options& options) {
-    auto ending_delta_file = LoadSnapshotFiles(options);
+  static absl::StatusOr<std::string> Init(Options& options,
+                                          MetricsRecorder& metrics_recorder) {
+    auto ending_delta_file = LoadSnapshotFiles(options, metrics_recorder);
     if (!ending_delta_file.ok()) {
       return ending_delta_file.status();
     }
@@ -159,10 +174,11 @@ class DataOrchestratorImpl : public DataOrchestrator {
       }
       last_basename = basename;
       if (const auto s = TraceLoadCacheWithDataFromFile(
+              metrics_recorder,
               {.bucket = options.data_bucket, .key = std::move(basename)},
               options);
           !s.ok()) {
-        return s;
+        return s.status();
       }
       LOG(INFO) << "Done loading " << last_basename;
     }
@@ -253,9 +269,10 @@ class DataOrchestratorImpl : public DataOrchestrator {
             // TODO: distinguish status. Some can be retried while others are
             // fatal.
             return TraceLoadCacheWithDataFromFile(
+                metrics_recorder_,
                 {.bucket = options_.data_bucket, .key = basename}, options_);
           },
-          "LoadNewFile", metrics_recorder_);
+          "LoadNewFile", &metrics_recorder_);
     }
   }
 
@@ -269,7 +286,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
 
   // Loads snapshot files if there are any.
   // Returns the latest delta file to be included in a snapshot.
-  static absl::StatusOr<std::string> LoadSnapshotFiles(const Options& options) {
+  static absl::StatusOr<std::string> LoadSnapshotFiles(
+      const Options& options, MetricsRecorder& metrics_recorder) {
     absl::StatusOr<std::vector<std::string>> snapshots =
         options.blob_client.ListBlobs(
             {.bucket = options.data_bucket},
@@ -292,6 +310,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
                                                .key = snapshot.data()};
       auto record_reader =
           options.delta_stream_reader_factory.CreateConcurrentReader(
+              metrics_recorder,
               /*stream_factory=*/[&location, &options]() {
                 return std::make_unique<BlobRecordStream>(
                     options.blob_client.GetBlobReader(location));
@@ -302,9 +321,10 @@ class DataOrchestratorImpl : public DataOrchestrator {
       }
       LOG(INFO) << "Loading snapshot file: " << location.bucket << "/"
                 << location.key;
-      if (auto status = TraceLoadCacheWithDataFromFile(location, options);
+      if (auto status = TraceLoadCacheWithDataFromFile(metrics_recorder,
+                                                       location, options);
           !status.ok()) {
-        return status;
+        return status.status();
       }
       if (metadata->snapshot().ending_delta_file() > ending_delta_file) {
         ending_delta_file = std::move(metadata->snapshot().ending_delta_file());
@@ -316,7 +336,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
     return ending_delta_file;
   }
 
-  absl::Status LoadCacheWithHighPriorityUpdates(
+  absl::StatusOr<DataLoadingStats> LoadCacheWithHighPriorityUpdates(
       StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory,
       const std::string& record_string, Cache& cache) {
     std::istringstream is(record_string);
@@ -339,7 +359,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
 
 absl::StatusOr<std::unique_ptr<DataOrchestrator>> DataOrchestrator::TryCreate(
     Options options, MetricsRecorder& metrics_recorder) {
-  const auto maybe_last_basename = DataOrchestratorImpl::Init(options);
+  const auto maybe_last_basename =
+      DataOrchestratorImpl::Init(options, metrics_recorder);
   if (!maybe_last_basename.ok()) {
     return maybe_last_basename.status();
   }

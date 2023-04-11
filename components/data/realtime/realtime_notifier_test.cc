@@ -59,16 +59,17 @@ TEST_F(RealtimeNotifierTest, NotRunning) {
 }
 
 TEST_F(RealtimeNotifierTest, ConsecutiveStartsWork) {
-  absl::Status status =
-      notifier_->Start(change_notifier_, [](const std::string&) {});
+  absl::Status status = notifier_->Start(
+      change_notifier_, [](const std::string&) { return absl::OkStatus(); });
   ASSERT_TRUE(status.ok());
-  status = notifier_->Start(change_notifier_, [](const std::string&) {});
+  status = notifier_->Start(
+      change_notifier_, [](const std::string&) { return absl::OkStatus(); });
   ASSERT_FALSE(status.ok());
 }
 
 TEST_F(RealtimeNotifierTest, StartsAndStops) {
-  absl::Status status =
-      notifier_->Start(change_notifier_, [](const std::string&) {});
+  absl::Status status = notifier_->Start(
+      change_notifier_, [](const std::string&) { return absl::OkStatus(); });
   ASSERT_TRUE(status.ok());
   EXPECT_TRUE(notifier_->IsRunning());
   status = notifier_->Stop();
@@ -84,32 +85,36 @@ TEST_F(RealtimeNotifierTest, NotifiesWithHighPriorityUpdates) {
       // x64 encoded file with two records
       .WillOnce([&]() {
         NotificationsContext nc1 = GetNotificationsContext();
-        nc1.parsed_notifications =
-            std::vector<std::string>({high_priority_update_1});
+        nc1.realtime_messages = std::vector<RealtimeMessage>(
+            {RealtimeMessage{.parsed_notification = high_priority_update_1}});
 
         return nc1;
       })
       // x64 encoded file with one record
       .WillOnce([&]() {
         NotificationsContext nc2 = GetNotificationsContext();
-        nc2.parsed_notifications =
-            std::vector<std::string>({high_priority_update_2});
+        nc2.realtime_messages = std::vector<RealtimeMessage>(
+            {RealtimeMessage{.parsed_notification = high_priority_update_2}});
 
         return nc2;
       })
       .WillRepeatedly([]() { return GetNotificationsContext(); });
 
   absl::Notification finished;
-  testing::MockFunction<void(const std::string& record)> callback;
+  testing::MockFunction<absl::StatusOr<DataLoadingStats>(
+      const std::string& record)>
+      callback;
   // will match the above
   EXPECT_CALL(callback, Call)
       .Times(2)
       .WillOnce([&](const std::string& key) {
         EXPECT_EQ(key, high_priority_update_1);
+        return DataLoadingStats{};
       })
       .WillOnce([&](const std::string& key) {
         EXPECT_EQ(key, high_priority_update_2);
         finished.Notify();
+        return DataLoadingStats{};
       });
 
   absl::Status status =
@@ -129,18 +134,21 @@ TEST_F(RealtimeNotifierTest, GetChangesFailure) {
       .WillOnce([]() { return absl::InvalidArgumentError("stuff"); })
       .WillOnce([&]() {
         NotificationsContext nc1 = GetNotificationsContext();
-        nc1.parsed_notifications =
-            std::vector<std::string>({high_priority_update_1});
+        nc1.realtime_messages = std::vector<RealtimeMessage>(
+            {RealtimeMessage{.parsed_notification = high_priority_update_1}});
 
         return nc1;
       })
       .WillRepeatedly([]() { return GetNotificationsContext(); });
 
   absl::Notification finished;
-  testing::MockFunction<void(const std::string& record)> callback;
+  testing::MockFunction<absl::StatusOr<DataLoadingStats>(
+      const std::string& record)>
+      callback;
   EXPECT_CALL(callback, Call).Times(1).WillOnce([&](const std::string& key) {
     EXPECT_EQ(key, high_priority_update_1);
     finished.Notify();
+    return DataLoadingStats{};
   });
   EXPECT_CALL(*sleep_for_, Duration(absl::Seconds(2)))
       .Times(1)

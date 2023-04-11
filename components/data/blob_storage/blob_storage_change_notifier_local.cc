@@ -23,7 +23,7 @@ namespace {
 class LocalBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   explicit LocalBlobStorageChangeNotifier(
-      std::unique_ptr<ChangeNotifier> notifier)
+      std::unique_ptr<ChangeNotifier> notifier, MetricsRecorder& unused)
       : notifier_(std::move(notifier)) {}
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
@@ -39,15 +39,17 @@ class LocalBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>>
-BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata) {
+BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata,
+                                  MetricsRecorder& metrics_recorder) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(
-          std::get<LocalNotifierMetadata>(notifier_metadata));
+      ChangeNotifier::Create(std::get<LocalNotifierMetadata>(notifier_metadata),
+                             metrics_recorder);
   if (!notifier.ok()) {
     return notifier.status();
   }
 
-  return std::make_unique<LocalBlobStorageChangeNotifier>(std::move(*notifier));
+  return std::make_unique<LocalBlobStorageChangeNotifier>(std::move(*notifier),
+                                                          metrics_recorder);
 }
 
 }  // namespace kv_server

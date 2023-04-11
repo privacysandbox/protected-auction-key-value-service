@@ -41,9 +41,6 @@ repos:
   - id: check-vcs-permalinks
   - id: check-executables-have-shebangs
   - id: detect-private-key
-  - id: pretty-format-json
-    args: ['--autofix']
-    exclude: '^testing/functionaltest/test_cases/.*$'
 
 - repo: https://github.com/jumanjihouse/pre-commit-hooks
   rev: 3.0.0
@@ -72,7 +69,7 @@ repos:
     - github.com/google/addlicense@v1.1.0
     always_run: false
     pass_filenames: true
-    entry: addlicense -v
+    entry: addlicense -v -ignore google_internal/third_party/**
     types_or:
     - text
 
@@ -83,7 +80,7 @@ repos:
     - github.com/google/addlicense@v1.1.0
     always_run: false
     pass_filenames: true
-    entry: addlicense -check
+    entry: addlicense -check -ignore google_internal/third_party/**
     types_or:
     - text
 
@@ -100,9 +97,10 @@ repos:
   rev: v2.7.1
   hooks:
   - id: prettier
-    name: prettier markdown
     types_or:
     - markdown
+    - json
+    exclude: '^testing/functionaltest/test_cases/.*$'
 
 - repo: https://github.com/DavidAnson/markdownlint-cli2
   rev: v0.6.0

@@ -20,6 +20,7 @@
 
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
+#include "components/telemetry/mocks.h"
 #include "gtest/gtest.h"
 
 namespace kv_server {
@@ -31,8 +32,9 @@ TEST(BlobStorageChangeNotifierLocalTest, SmokeTest) {
   LocalNotifierMetadata metadata{
       .local_directory = std::filesystem::path(::testing::TempDir())};
 
+  MockMetricsRecorder metrics_recorder;
   absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
-      BlobStorageChangeNotifier::Create(metadata);
+      BlobStorageChangeNotifier::Create(metadata, metrics_recorder);
   EXPECT_TRUE(notifier.ok());
 }
 

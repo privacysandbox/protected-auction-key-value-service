@@ -39,8 +39,8 @@ cc_library(
         "retry.h",
     ],
     deps = [
-        "//components/telemetry",
         "//components/telemetry:metrics_recorder",
+        "//components/telemetry:tracing",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/time",

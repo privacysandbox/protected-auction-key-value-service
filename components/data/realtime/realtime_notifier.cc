@@ -34,9 +34,14 @@ namespace kv_server {
 namespace {
 constexpr char* kReceivedLowLatencyNotifications =
     "ReceivedLowLatencyNotifications";
-
 constexpr char* kReceivedLowLatencyNotificationsE2E =
     "ReceivedLowLatencyNotificationsE2E";
+constexpr char* kRealtimeTotalRowsUpdated = "RealtimeTotalRowsUpdated";
+constexpr char* kReceivedLowLatencyNotificationsE2EAwsProvided =
+    "ReceivedLowLatencyNotificationsE2EAwsProvided";
+constexpr char* kRealtimeGetNotificationsFailure =
+    "RealtimeGetNotificationsFailure";
+constexpr char* kRealtimeSleepFailure = "RealtimeSleepFailure";
 
 // The units below are microseconds.
 const std::vector<double> kE2eBucketBoundaries = {
@@ -54,11 +59,16 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
     metrics_recorder.RegisterHistogram(kReceivedLowLatencyNotificationsE2E,
                                        "Low latency notifictionas E2E latency",
                                        "microsecond", kE2eBucketBoundaries);
+    metrics_recorder.RegisterHistogram(
+        kReceivedLowLatencyNotificationsE2EAwsProvided,
+        "Low latency notifications E2E latency aws supplied", "microsecond",
+        kE2eBucketBoundaries);
   }
 
   absl::Status Start(
       DeltaFileRecordChangeNotifier& change_notifier,
-      std::function<void(const std::string& key)> callback) override {
+      std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
+          callback) override {
     return thread_notifier_->Start(
         [this, callback = std::move(callback), &change_notifier]() mutable {
           Watch(change_notifier, std::move(callback));
@@ -74,8 +84,10 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
   bool IsRunning() const override { return thread_notifier_->IsRunning(); }
 
  private:
-  void Watch(DeltaFileRecordChangeNotifier& change_notifier,
-             std::function<void(const std::string& key)> callback) {
+  void Watch(
+      DeltaFileRecordChangeNotifier& change_notifier,
+      std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
+          callback) {
     // Starts with zero wait to force an initial short poll.
     // Later polls are long polls.
     auto max_wait = absl::ZeroDuration();
@@ -96,28 +108,41 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
             ExponentialBackoffForRetry(sequential_failures);
         LOG(ERROR) << "Failed to get realtime notifications: "
                    << updates.status() << ".  Waiting for " << backoff_time;
+        metrics_recorder_.IncrementEventCounter(
+            kRealtimeGetNotificationsFailure);
         if (!sleep_for_->Duration(backoff_time)) {
           LOG(ERROR) << "Failed to sleep for " << backoff_time
                      << ".  SleepFor invalid.";
+          metrics_recorder_.IncrementEventCounter(kRealtimeSleepFailure);
         }
         continue;
       }
       sequential_failures = 0;
 
-      for (const std::string& key : updates->parsed_notifications) {
-        callback(key);
+      for (const auto& realtime_message : updates->realtime_messages) {
+        auto count = callback(realtime_message.parsed_notification);
+        if (count.ok()) {
+          metrics_recorder_.IncrementEventStatus(
+              kRealtimeTotalRowsUpdated, count.status(),
+              (count->total_updated_records + count->total_deleted_records));
+        }
+        metrics_recorder_.RecordHistogramEvent(
+            kReceivedLowLatencyNotificationsE2EAwsProvided,
+            absl::ToInt64Microseconds(
+                absl::Now() - (realtime_message.notifications_sns_inserted)));
+
+        if (realtime_message.notifications_inserted) {
+          auto e2eDuration =
+              absl::Now() - (realtime_message.notifications_inserted).value();
+          metrics_recorder_.RecordHistogramEvent(
+              kReceivedLowLatencyNotificationsE2E,
+              absl::ToInt64Microseconds(e2eDuration));
+        }
       }
 
       metrics_recorder_.RecordLatency(
           kReceivedLowLatencyNotifications,
           (absl::Now() - updates->notifications_received));
-      if (updates->notifications_inserted) {
-        auto e2eDuration =
-            absl::Now() - (updates->notifications_inserted).value();
-        metrics_recorder_.RecordHistogramEvent(
-            kReceivedLowLatencyNotificationsE2E,
-            absl::ToInt64Microseconds(e2eDuration));
-      }
 
       // if we don't move it here, then it will destroy this object
       // downstack, and the latency of the trace will be incorrect.

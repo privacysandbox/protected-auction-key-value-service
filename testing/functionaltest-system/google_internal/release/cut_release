@@ -3,12 +3,12 @@
 set -o errexit
 set -o pipefail
 
-FORCE=0
-DRY_RUN=0
+declare -i FORCE=0
+declare -i DRY_RUN=0
 
 RELEASE_TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 readonly RELEASE_TOOLS_DIR
-readonly TOOLS_DIR="${RELEASE_TOOLS_DIR}"/../../builders/tools
+declare -r TOOLS_DIR="${RELEASE_TOOLS_DIR}"/../../builders/tools
 # shellcheck disable=SC1091
 source "${TOOLS_DIR}"/builder.sh
 
@@ -109,20 +109,17 @@ function __determine_version_bump() {
 
 # cut a release using the specified version
 function __cut_release() {
-  local VERSION="$1"
+  declare -r VERSION="$1"
   "${RELEASE_TOOLS_DIR}"/commit-and-tag-version --skip.commit=true --skip.tag=true --release-as "${VERSION}"
 }
 
 function __collect_changelog() {
-  local VERSION="$1"
+  declare -r VERSION="$1"
   {
-    printf "Release %s\n" "${VERSION}"
-
     # generate changelog for this release
-    "${RELEASE_TOOLS_DIR}"/commit-and-tag-version --dry-run --silent |
+    "${RELEASE_TOOLS_DIR}"/commit-and-tag-version --release-as="${VERSION}" --dry-run --silent |
     # collect the changelog between the two --- markers
     awk '/^---/ {f = !f; next} f == 1 {print}' |
-    grep -vP '### \[\d+\.\d+\.\d+\]' |
     sed --file "${STRIP_COMMIT_LINKS}"
   }
 }
@@ -163,15 +160,14 @@ if [[ ${NEW_VERSION} != "${VERSION}" ]]; then
 fi
 
 readonly LATEST_RELEASE_MD="${WORKSPACE}"/google_internal/LATEST_RELEASE.md
-# strip commit links in the full changelog
-sed --in-place --file "${STRIP_COMMIT_LINKS}" "${WORKSPACE}"/CHANGELOG.md
-cp "${TMP_LATEST_RELEASE_MD}" "${LATEST_RELEASE_MD}"
-mv "${TMP_LATEST_RELEASE_MD}" "${TMP_COMMIT_MSG}"
-printf "\nBug: N/A\n" >>"${TMP_COMMIT_MSG}"
-
+mv "${TMP_LATEST_RELEASE_MD}" "${LATEST_RELEASE_MD}"
+# tidy up the commit message
+{
+  sed 's/^## Release /Release /' "${LATEST_RELEASE_MD}"
+  printf '\nBug: N/A\n'
+} >"${TMP_COMMIT_MSG}"
 # download and execute gerrit commit-msg hook, which explicitly adds a gerrit Change-Id trailer to the specified file
 /usr/bin/env bash <(curl --silent --location https://gerrit-review.googlesource.com/tools/hooks/commit-msg) "${TMP_COMMIT_MSG}"
-
 
 UPDATED_FILES=("${WORKSPACE}"/{version.txt,CHANGELOG.md} "${LATEST_RELEASE_MD}")
 git add "${UPDATED_FILES[@]}"

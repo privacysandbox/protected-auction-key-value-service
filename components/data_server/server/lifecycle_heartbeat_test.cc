@@ -72,7 +72,7 @@ class MockParameterClient : public ParameterClient {
 class MockParameterFetcher : public ParameterFetcher {
  public:
   MockParameterFetcher()
-      : ParameterFetcher("environment", client, metrics_recorder) {}
+      : ParameterFetcher("environment", client, &metrics_recorder) {}
   MOCK_METHOD(std::string, GetParameter, (std::string_view parameter_suffix),
               (const, override));
   MOCK_METHOD(int32_t, GetInt32Parameter, (std::string_view parameter_suffix),

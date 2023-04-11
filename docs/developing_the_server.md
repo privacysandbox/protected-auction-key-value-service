@@ -20,6 +20,25 @@ git submodule update --remote --merge
 
 The data server provides the read API for the KV service.
 
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable line-length -->
+> Attention: The server can run locally (in or outside of Docker) while specifying `aws` as platform, in which case it will
+> contact AWS based on the local AWS credentials. However, this requires the AWS environment to be
+> set up first following the [AWS deployment guide](/docs/deploying_on_aws.md). You might need to
+> set up the following parameters in the AWS System Manager:
+>
+> | Parameter Name                                           | Value                                                             |
+> | -------------------------------------------------------- | ----------------------------------------------------------------- |
+> | kv-server-local-data-bucket-id                           | Name of the delta file S3 bucket                                  |
+> | kv-server-local-data-loading-file-channel-bucket-sns-arn | ARN of the Simple Notification Service (SNS) for the S3 bucket    |
+> | kv-server-local-data-loading-realtime-channel-sns-arn    | ARN of the Simple Notification Service (SNS) for realtime updates |
+> | kv-server-local-launch-hook                              | Any value, this won't be needed for                               |
+> | kv-server-local-mode                                     | "DSP" or "SSP"                                                    |
+>
+> If you have a UDF delta file, you will also need to include it in your delta file S3 bucket. Refer to the [UDF Delta file documentation](./generating_udf_files.md) for how to generate a UDF delta file and upload it to S3 before starting the server.
+<!-- markdownlint-enable line-length -->
+<!-- prettier-ignore-end -->
+
 ### Prereqs
 
 -   [Docker](https://docs.docker.com/get-docker/) on linux
@@ -96,28 +115,14 @@ docker run -it --rm --network host  bazel/testing/run_local:envoy_image
 
 ### Run the server locally
 
+> Note: The server creates double forked processes. If you run the server locally outside of Docker,
+> you will need to kill those processes separately.
+
 For example:
 
 ```sh
 builders/tools/bazel-debian run //components/data_server/server:server --//:instance=local --//:platform=aws -- --environment="dev"
 ```
-
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable line-length -->
-> Attention: The server can run locally while specifying `aws` as platform, in which case it will
-> contact AWS based on the local AWS credentials. However, this requires the AWS environment to be
-> set up first following the [AWS deployment guide](/docs/deploying_on_aws.md). You might need to
-> set up the following parameters in the AWS System Manager:
->
-> | Parameter Name                                           | Value                                                             |
-> | -------------------------------------------------------- | ----------------------------------------------------------------- |
-> | kv-server-local-data-bucket-id                           | Name of the delta file S3 bucket                                  |
-> | kv-server-local-data-loading-file-channel-bucket-sns-arn | ARN of the Simple Notification Service (SNS) for the S3 bucket    |
-> | kv-server-local-data-loading-realtime-channel-sns-arn    | ARN of the Simple Notification Service (SNS) for realtime updates |
-> | kv-server-local-launch-hook                              | Any value, this won't be needed for                               |
-> | kv-server-local-mode                                     | "DSP" or "SSP"                                                    |
-<!-- markdownlint-enable line-length -->
-<!-- prettier-ignore-end -->
 
 We are currently developing this server for local testing and for use on AWS Nitro instances
 (similar to the
@@ -265,3 +270,26 @@ To export telemetry to Jaeger from within a local Docker container,
 ```sh
 docker run -it --rm --network host --add-host=host.docker.internal:host-gateway --entrypoint=/server/bin/init_server_basic --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
 ```
+
+### Modifying CloudWatch dashboard
+
+Each environment has a dashboard configured in AWS CloudWatch that is created via a Terraform
+script.
+
+Example dashboard:
+
+![Example dashboard](assets/cloudwatch_dashboard_example.png)
+
+The dashboard layout is specified via the `dashboard_body` parameter in the `environment_dashboard`
+Terraform resource. This is a
+[JSON configuration](https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/CloudWatch-Dashboard-Body-Structure.html)
+that can be manually edited, but for larger edits the Cloudwatch console may be used to build this.
+
+To edit:
+
+1. Open an environment dashboard and edit the widgets as desired.
+2. At the top right, save the dashboard.
+3. From the 'Actions' dropdown, select _View/edit source_.
+4. A pop-up will appear, click the _Copy source_ button at the top.
+5. Paste this as the `dashboard_body` value in the Terraform dashboard script.
+6. In the new JSON, replace the current environment name everywhere with `${var.environment}`

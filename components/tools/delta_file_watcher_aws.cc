@@ -20,6 +20,7 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/common/thread_notifier.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "components/util/platform_initializer.h"
 
 ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
@@ -28,6 +29,7 @@ ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 using kv_server::BlobStorageChangeNotifier;
 using kv_server::BlobStorageClient;
 using kv_server::DeltaFileNotifier;
+using kv_server::TelemetryProvider;
 
 int main(int argc, char** argv) {
   kv_server::PlatformInitializer initializer;
@@ -43,7 +45,10 @@ int main(int argc, char** argv) {
     std::cerr << "Must specify sns_arn" << std::endl;
     return -1;
   }
-  std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<BlobStorageClient> client =
+      BlobStorageClient::Create(*noop_metrics_recorder);
   std::unique_ptr<DeltaFileNotifier> notifier =
       DeltaFileNotifier::Create(*client);
 
@@ -56,9 +61,10 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  auto status_or_change_notifier =
-      BlobStorageChangeNotifier::Create(kv_server::CloudNotifierMetadata{
-          .sns_arn = sns_arn, .queue_manager = maybe_message_service->get()});
+  auto status_or_change_notifier = BlobStorageChangeNotifier::Create(
+      kv_server::CloudNotifierMetadata{
+          .sns_arn = sns_arn, .queue_manager = maybe_message_service->get()},
+      *noop_metrics_recorder);
 
   if (!status_or_change_notifier.ok()) {
     std::cerr << "Unable to create BlobStorageChangeNotifier: "

@@ -26,6 +26,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "components/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -64,6 +65,7 @@ class BlobStorageClient {
   // TODO(b/237669491): Replace these factory methods with one based off the
   // flag values that are set.
   static std::unique_ptr<BlobStorageClient> Create(
+      MetricsRecorder& metrics_recorder,
       ClientOptions client_options = ClientOptions());
   virtual ~BlobStorageClient() = default;
 

@@ -24,6 +24,7 @@
 #include "components/data/common/change_notifier.h"
 #include "components/data/common/mocks.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/telemetry/mocks.h"
 #include "gtest/gtest.h"
 
 using testing::_;
@@ -59,6 +60,7 @@ class DeltaFileRecordChangeNotifierAwsTest : public ::testing::Test {
     mock_change_notifier_ = std::make_unique<kv_server::MockChangeNotifier>();
   }
   std::unique_ptr<MockChangeNotifier> mock_change_notifier_;
+  MockMetricsRecorder mock_metrics_recorder_;
 };
 
 TEST_F(DeltaFileRecordChangeNotifierAwsTest, FailureStatusPropagated) {
@@ -67,7 +69,8 @@ TEST_F(DeltaFileRecordChangeNotifierAwsTest, FailureStatusPropagated) {
   });
 
   auto delta_file_record_change_notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_));
+      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_),
+                                            mock_metrics_recorder_);
   auto status = delta_file_record_change_notifier->GetNotifications(
       absl::Seconds(1), []() { return false; });
   ASSERT_FALSE(status.ok());
@@ -86,15 +89,18 @@ TEST_F(DeltaFileRecordChangeNotifierAwsTest, MessageWithoutInsertionTime) {
   });
 
   auto delta_file_record_change_notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_));
+      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_),
+                                            mock_metrics_recorder_);
   auto notifications_context =
       delta_file_record_change_notifier->GetNotifications(
           absl::Seconds(1), []() { return false; });
   ASSERT_TRUE(notifications_context.ok());
   std::string string_decoded;
   absl::Base64Unescape(kX64EncodedMessage, &string_decoded);
-  ASSERT_EQ(notifications_context->parsed_notifications[0], string_decoded);
-  ASSERT_EQ(notifications_context->notifications_inserted, std::nullopt);
+  ASSERT_EQ(notifications_context->realtime_messages[0].parsed_notification,
+            string_decoded);
+  ASSERT_EQ(notifications_context->realtime_messages[0].notifications_inserted,
+            std::nullopt);
 }
 
 TEST_F(DeltaFileRecordChangeNotifierAwsTest,
@@ -110,7 +116,8 @@ TEST_F(DeltaFileRecordChangeNotifierAwsTest,
   });
 
   auto delta_file_record_change_notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_));
+      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_),
+                                            mock_metrics_recorder_);
   auto notifications_context =
       delta_file_record_change_notifier->GetNotifications(
           absl::Seconds(1), []() { return false; });
@@ -118,8 +125,9 @@ TEST_F(DeltaFileRecordChangeNotifierAwsTest,
 
   std::string string_decoded;
   absl::Base64Unescape(kX64EncodedMessage, &string_decoded);
-  ASSERT_EQ(notifications_context->parsed_notifications[0], string_decoded);
-  ASSERT_EQ(notifications_context->notifications_inserted,
+  ASSERT_EQ(notifications_context->realtime_messages[0].parsed_notification,
+            string_decoded);
+  ASSERT_EQ(notifications_context->realtime_messages[0].notifications_inserted,
             absl::FromUnixNanos(1677096720486518762));
 }
 
@@ -143,15 +151,17 @@ TEST_F(DeltaFileRecordChangeNotifierAwsTest,
   });
 
   auto delta_file_record_change_notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_));
+      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_),
+                                            mock_metrics_recorder_);
   auto notifications_context =
       delta_file_record_change_notifier->GetNotifications(
           absl::Seconds(1), []() { return false; });
   ASSERT_TRUE(notifications_context.ok());
   std::string string_decoded;
   absl::Base64Unescape(kX64EncodedMessage, &string_decoded);
-  ASSERT_EQ(notifications_context->parsed_notifications[0], string_decoded);
-  ASSERT_EQ(notifications_context->notifications_inserted,
+  ASSERT_EQ(notifications_context->realtime_messages[0].parsed_notification,
+            string_decoded);
+  ASSERT_EQ(notifications_context->realtime_messages[0].notifications_inserted,
             absl::FromUnixNanos(1677096720486518762));
 }
 

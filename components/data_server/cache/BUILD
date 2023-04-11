@@ -14,14 +14,19 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
-package(default_visibility = ["//components:__subpackages__"])
+package(default_visibility = [
+    "//components:__subpackages__",
+    "//tools:__subpackages__",
+])
 
 cc_library(
     name = "cache",
     hdrs = [
         "cache.h",
     ],
-    deps = [],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+    ],
 )
 
 cc_library(

@@ -87,11 +87,11 @@ container_layer(
 container_image(
     name = "grpc_examples_docker_image",
     architecture = select({
-        "@platforms//cpu:arm64": "arm64",
+        "@platforms//cpu:aarch64": "arm64",
         "@platforms//cpu:x86_64": "amd64",
     }),
     base = select({
-        "@platforms//cpu:arm64": "@runtime-debian-arm64//image",
+        "@platforms//cpu:aarch64": "@runtime-debian-arm64//image",
         "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
     }),
     entrypoint = ["/bin/bash"],

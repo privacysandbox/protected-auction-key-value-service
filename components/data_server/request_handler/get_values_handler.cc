@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
 #include "components/data_server/cache/cache.h"
 #include "components/telemetry/metrics_recorder.h"
@@ -127,6 +128,7 @@ grpc::Status GetValuesHandler::GetValues(const GetValuesRequest& request,
 
   VLOG(5) << "Processing kv_internal for " << request.DebugString();
   if (!request.kv_internal().empty()) {
+    VLOG(5) << "Processing keys for " << request.DebugString();
     ProcessKeys(request.kv_internal(), cache_, metrics_recorder_,
                 *response->mutable_kv_internal());
   }

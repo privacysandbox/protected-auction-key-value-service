@@ -23,27 +23,40 @@ TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/../../builders/tools
 source "${TOOLS_DIR}"/builder.sh
 readonly DELTA_DIR="${WORKSPACE}"/dist/test_data/deltas
 
-network_name="$(mktemp --dry-run --suffix=-net kvserver-local-XXX)"
+function run_docker() {
+  declare -r _network="$1"
+  declare -r _host="$2"
+  declare -r _port="$3"
+
+  docker run \
+    --rm \
+    --detach \
+    --network "${_network}" \
+    --name "${_network}-${_host}" \
+    --hostname "${_host}" \
+    --entrypoint=/server/bin/init_server_basic \
+    --volume "${DELTA_DIR}":/deltas \
+    --tmpfs /realtime_data \
+    bazel/production/packaging/aws/data_server:server_docker_image \
+      --port "${_port}" \
+      --delta_directory /deltas \
+      --realtime_directory /realtime_data \
+    >/dev/null
+
+  printf "running server on docker network: %s\n" "${_network}"
+  if [[ -t 0 ]] && [[ -t 1 ]]; then
+    docker container ls --filter network="${_network}"
+  fi
+}
+
+
+if [[ -v DOCKER_NETWORK ]]; then
+  network_name="${DOCKER_NETWORK}"
+else
+  network_name="$(mktemp --dry-run --suffix=-net kvserver-local-XXX)"
+  docker network create "${network_name}" >/dev/null
+fi
 readonly network_name
 
-docker network create "${network_name}" >/dev/null
-docker run \
-  --rm \
-  --detach \
-  --network "${network_name}" \
-  --name "${network_name}-server" \
-  --hostname kvserver \
-  --entrypoint=/server/bin/init_server_basic \
-  --volume "${DELTA_DIR}":/deltas \
-  --tmpfs /data \
-  --privileged \
-  bazel/production/packaging/aws/data_server:server_docker_image \
-  --delta_directory /deltas \
-  --realtime_directory /data \
-  >/dev/null
-
-printf "running server on docker network: %s\n" "${network_name}"
-
-if [[ -t 0 ]] && [[ -t 1 ]]; then
-  docker container ls --filter network="${network_name}"
-fi
+set -o xtrace
+run_docker "${network_name}" kvserver 2000

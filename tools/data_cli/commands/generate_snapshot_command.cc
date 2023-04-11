@@ -31,6 +31,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "components/data/blob_storage/blob_storage_client.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
@@ -197,7 +198,9 @@ GenerateSnapshotCommand::Create(Params params) {
   if (absl::Status status = ValidateRequiredParams(params); !status.ok()) {
     return status;
   }
-  auto blob_client = BlobStorageClient::Create();
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  auto blob_client = BlobStorageClient::Create(*noop_metrics_recorder);
   return absl::WrapUnique(
       new GenerateSnapshotCommand(std::move(params), std::move(blob_client)));
 }

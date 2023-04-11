@@ -43,7 +43,7 @@ function _cleanup() {
 
 function make_temp() {
   declare _suffix="$1"
-  mktemp --tmpdir="${WORKSPACE}" --dry-run docker-buildx-${IMG}-XXXX --suffix=${_suffix}
+  mktemp --tmpdir="${WORKSPACE}" --dry-run "docker-buildx-${IMG}-XXXX" --suffix="${_suffix}"
 }
 
 function get_image_list() {
@@ -95,7 +95,9 @@ readonly IMAGES_DIR="${TOOLS_DIR}"/../images
 declare -i SHA_ONLY=0
 declare -i BUILD_IMAGE_IF_NEEDED=1
 declare -i VERBOSE=0
-declare -r DOCKER_BUILD_ARGS="--progress plain"
+declare -r -a DOCKER_BUILD_ARGS=(
+  --progress plain
+)
 
 # shellcheck disable=SC1091
 source "${TOOLS_DIR}"/builder.sh
@@ -158,7 +160,7 @@ readonly BUILD_OUTPUT
 FROM alpine:3.16
 RUN apk --no-cache add tar~=1.34
 Dockerfile
-} | docker buildx build ${DOCKER_BUILD_ARGS} --no-cache --output=type=docker --tag "${TAR_IMAGE}" - &>"${BUILD_OUTPUT}"
+} | docker buildx build "${DOCKER_BUILD_ARGS[@]}" --no-cache --output=type=docker --tag "${TAR_IMAGE}" - &>"${BUILD_OUTPUT}"
 rm -f "${BUILD_OUTPUT}"
 if ! docker image inspect "${TAR_IMAGE}" &>/dev/null; then
   printf "error creating docker image [%s]\n" "${TAR_IMAGE}" &>/dev/stderr
@@ -176,6 +178,8 @@ function _tar_for_dir() {
   local -r FILE_SHA="$2"
   local -r FILEPATH="$3"
   local -r TMP_IMAGE_DIR="$(mktemp --tmpdir="${WORKSPACE}" --directory)"
+  # shellcheck disable=SC2064
+  # expand TMP_IMAGE_DIR immediately
   trap "rm -rf '${TMP_IMAGE_DIR}'" RETURN
 
   WS_FILE_TAR="$(realpath "${FILE_TAR}" --relative-to="${WORKSPACE}")"
@@ -194,16 +198,23 @@ function _tar_for_dir() {
     --volume "${WORKSPACE_MOUNT}":/workspace \
     --workdir /workspace \
     "${TAR_IMAGE}" -c "
-tar --create --dereference --directory='${WS_FILEPATH}' --exclude=test . | tar --extract --overwrite --directory='${WS_TMP_IMAGE_DIR}'
+tar --create --dereference --directory='${WS_FILEPATH}' --exclude=test . \
+  | tar --extract --overwrite --directory='${WS_TMP_IMAGE_DIR}'
 
 # overwrite etc files in the image with the WORKSPACE's etc files
 if [ -n '${WORKSPACE_ETC_FILES}' ]; then
-  tar --create --dereference --exclude=test ${WORKSPACE_ETC_FILES} | tar --extract --overwrite --directory='${WS_TMP_IMAGE_DIR}'
+  tar --create --dereference --exclude=test ${WORKSPACE_ETC_FILES} \
+    | tar --extract --overwrite --directory='${WS_TMP_IMAGE_DIR}'
 fi
 
 tar --create --dereference --sort=name --owner=0 --group=0 --numeric-owner --format=gnu --directory='${WS_TMP_IMAGE_DIR}' --file='${WS_FILE_TAR}' .
-TARLEN=\$(wc -c <'${WS_FILE_TAR}')
-{ printf 'blob %d\0' \${TARLEN}; tar --extract --file='${WS_FILE_TAR}' --to-stdout; } | sha256sum | cut -f1 -d' ' >'${WS_FILE_SHA}'
+{
+  printf 'blob %d\0' \$(wc -c <'${WS_FILE_TAR}')
+  tar --extract --file='${WS_FILE_TAR}' --to-stdout
+} \
+  | sha256sum \
+  | cut -f1 -d' ' \
+  >'${WS_FILE_SHA}'
 "
 }
 
@@ -213,7 +224,8 @@ SHAFILE="$(make_temp .sha)"
 readonly SHAFILE
 # use the tarfile size and file content to generate a sha256 hash
 _tar_for_dir "${TEMPTAR}" "${SHAFILE}" "${IMAGE_PATH_FULL}"
-SHA=$(cat "${SHAFILE}")
+SHA="$(cat "${SHAFILE}")"
+readonly SHA
 ARCH="$("${TOOLS_DIR}"/get-architecture)"
 readonly ARCH
 readonly IMAGE_TAG="${ARCH}-${SHA}"
@@ -231,6 +243,6 @@ if [[ ${BUILD_IMAGE_IF_NEEDED} -eq 1 ]]; then
   if ! docker image inspect "${IMAGE_TAGGED}" &>/dev/null; then
     printf "generating docker image %s\n" "${IMAGE_TAGGED}" &>/dev/stderr
     # shellcheck disable=SC2086
-    docker buildx build ${DOCKER_BUILD_ARGS} --output=type=docker --tag "${IMAGE_TAGGED}" - <"${TEMPTAR}" &>"${BUILD_OUTPUT}"
+    docker buildx build "${DOCKER_BUILD_ARGS[@]}" --output=type=docker --tag "${IMAGE_TAGGED}" - <"${TEMPTAR}" &>"${BUILD_OUTPUT}"
   fi
 fi

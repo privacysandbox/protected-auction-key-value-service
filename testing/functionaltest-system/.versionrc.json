@@ -1,1 +1,27 @@
-builders/etc/.versionrc.json
+{
+  "types": [
+    {"type": "feat", "section": "Features"},
+    {"type": "fix", "section": "Bug Fixes"},
+    {"type": "build", "section": "Build System"},
+    {"type": "docs", "section": "Documentation"},
+    {"type": "internal", "hidden": true},
+    {"type": "chore", "hidden": true},
+    {"type": "test", "hidden": true},
+    {"type": "refactor", "hidden": true}
+  ],
+  "commitUrlFormat": " ",
+  "issueUrlFormat": " ",
+  "tagPrefix": "v",
+  "packageFiles": [
+    {
+      "filename": "version.txt",
+      "type": "plain-text"
+    }
+  ],
+  "bumpFiles": [
+    {
+      "filename": "version.txt",
+      "type": "plain-text"
+    }
+  ]
+}

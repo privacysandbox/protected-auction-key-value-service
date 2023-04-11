@@ -148,6 +148,7 @@ def grpc_diff_test_suite(
     native.test_suite(
         name = name,
         tests = test_labels,
+        tags = test_tags,
     )
 
 def grpc_perf_test(
@@ -232,4 +233,5 @@ def grpc_perf_test_suite(
     native.test_suite(
         name = name,
         tests = test_labels,
+        tags = test_tags,
     )

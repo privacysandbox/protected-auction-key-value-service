@@ -23,7 +23,7 @@ index f0404ee..e9c0d99 100644
 
  int main(int argc, char* argv[]) {
    std::string exe = argv[0];
-@@ -64,7 +68,7 @@ int main(int argc, char* argv[]) {
+@@ -70,7 +74,7 @@ int main(int argc, char* argv[]) {
    // Run the socket_vendor. If there's already a running socket_vendor, this
    // will end with a benign failure.
    if (fork() == 0) {

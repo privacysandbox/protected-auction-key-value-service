@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.2.0](https://team/potassium-engprod-team/functionaltest-system/compare/v0.1.0...v0.2.0) (2023-04-03)
+
+
+### Features
+
+* Add test_tags to test suites ([a9011d2]( ))
+* Create annotated tag in addition to branch for releases ([f5b847f]( ))
+* Switch from cpu:arm64 to cpu:aarch64 ([2457ca6]( ))
+* Upgrade build-system to release-0.21.1 ([8a8dda6]( ))
+
+
+### Bug Fixes
+
+* Ensure changelog notes use specific version ([b960648]( ))
+* improve usage message for --endpoint-env-var flag in internal bazel grpcurl_diff_test_runner script ([02da2b4]( ))
+* Remove debug output ([18551b0]( ))
+* Remove exit-status flag for post-filter jq ([e9e24e2]( ))
+
 ## 0.1.0 (2023-03-07)
 
 

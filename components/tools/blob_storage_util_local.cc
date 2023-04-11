@@ -23,6 +23,7 @@
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
 #include "components/data/blob_storage/blob_storage_client.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "components/tools/blob_storage_commands.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
@@ -33,10 +34,14 @@ namespace {
 
 using kv_server::BlobReader;
 using kv_server::BlobStorageClient;
+using kv_server::TelemetryProvider;
 
 // Source and Destination files can be local files, and stdin ("-").
 bool CpObjects(std::string directory, std::string source, std::string dest) {
-  std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<BlobStorageClient> client =
+      BlobStorageClient::Create(*noop_metrics_recorder);
   absl::StatusOr<std::unique_ptr<BlobReader>> reader =
       kv_server::blob_storage_commands::GetStdinOrFileSourceStream(
           directory, std::move(source));

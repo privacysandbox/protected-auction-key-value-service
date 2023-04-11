@@ -31,6 +31,7 @@ cc_library(
     hdrs = ["riegeli_stream_io.h"],
     deps = [
         "//components/telemetry:metrics_recorder",
+        "//components/telemetry:telemetry_provider",
         "//public/data_loading:riegeli_metadata_cc_proto",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",
@@ -51,6 +52,7 @@ cc_test(
     ],
     deps = [
         ":riegeli_stream_io",
+        "//components/telemetry:mocks",
         "//public/test_util:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",

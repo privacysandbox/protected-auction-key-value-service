@@ -10,12 +10,15 @@ build --copt=-fno-exceptions
 # Grant exceptions to some dependencies so they can use exceptions
 build --per_file_copt=.*boost.*@-fexceptions
 build --per_file_copt=.*cc/aws/proxy.*@-fexceptions
+build --per_file_copt=.*cc/roma.*@-fexceptions
+build --per_file_copt=.*oneTBB.*@-fexceptions
 
 build -c opt
 build --output_filter='^//((?!(third_party):).)*$'`
 build --color=yes
 build --@io_bazel_rules_docker//transitions:enable=false
 build --workspace_status_command="bash tools/get_workspace_status"
+build --copt=-Werror=thread-safety-analysis
 
 test --test_output=errors
 # Disable ICU linking for googleurl.

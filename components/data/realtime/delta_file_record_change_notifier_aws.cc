@@ -28,17 +28,22 @@ namespace {
 
 constexpr char* RECEIVED_LOW_LATENCY_NOTIFICATIONS =
     "ReceivedLowLatencyNotifications";
+constexpr char* kDeltaFileRecordChangeNotifierParsingFailure =
+    "DeltaFileRecordChangeNotifierParsingFailure";
 
 struct ParsedBody {
   std::string message;
   std::optional<absl::Time> time_sent;
+  absl::Time time_sns_inserted;
 };
 
 class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
  public:
   explicit AwsDeltaFileRecordChangeNotifier(
-      std::unique_ptr<ChangeNotifier> change_notifier)
-      : change_notifier_(std::move(change_notifier)) {}
+      std::unique_ptr<ChangeNotifier> change_notifier,
+      MetricsRecorder& metrics_recorder)
+      : change_notifier_(std::move(change_notifier)),
+        metrics_recorder_(metrics_recorder) {}
 
   absl::StatusOr<NotificationsContext> GetNotifications(
       absl::Duration max_wait,
@@ -53,26 +58,19 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
     auto span = GetTracer()->StartSpan(RECEIVED_LOW_LATENCY_NOTIFICATIONS);
     NotificationsContext nc = {.scope = opentelemetry::trace::Scope(span),
                                .notifications_received = absl::Now()};
-    std::vector<std::string> parsed_notifications;
+    std::vector<std::string> realtime_messages;
     for (const auto& message : *notifications) {
       const auto parsedMessage = ParseObjectKeyFromJson(message);
       if (!parsedMessage.ok()) {
         LOG(ERROR) << "Failed to parse JSON: " << message;
+        metrics_recorder_.IncrementEventCounter(
+            kDeltaFileRecordChangeNotifierParsingFailure);
         continue;
       }
-      nc.parsed_notifications.push_back(std::move(parsedMessage->message));
-
-      if (!parsedMessage->time_sent) {
-        continue;
-      }
-      if (nc.notifications_inserted &&
-          nc.notifications_inserted <= parsedMessage->time_sent) {
-        continue;
-      }
-
-      // only update if the value has been passed and it hasn't been set before
-      // or it's smaller then the current value
-      nc.notifications_inserted = parsedMessage->time_sent;
+      nc.realtime_messages.push_back(RealtimeMessage{
+          .parsed_notification = std::move(parsedMessage->message),
+          .notifications_inserted = parsedMessage->time_sent,
+          .notifications_sns_inserted = parsedMessage->time_sns_inserted});
     }
     return nc;
   }
@@ -97,6 +95,20 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
     }
     ParsedBody pb = {.message = string_decoded};
     const auto message_attributes = view.GetObject("MessageAttributes");
+    const auto sns_time_stamp = view.GetObject("Timestamp").AsString();
+
+    std::string sns_time_stamp_parsin_error;
+    absl::Time parsed_sns_timestamp;
+    if (!absl::ParseTime(absl::RFC3339_full, sns_time_stamp,
+                         absl::UTCTimeZone(), &parsed_sns_timestamp,
+                         &sns_time_stamp_parsin_error)) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Can't parse the time specified by sns_time_stamp: ", sns_time_stamp,
+          ";error: ", sns_time_stamp_parsin_error));
+    }
+
+    pb.time_sns_inserted = parsed_sns_timestamp;
+
     if (!message_attributes.IsObject()) {
       return pb;
     }
@@ -114,14 +126,16 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
   }
 
   std::unique_ptr<ChangeNotifier> change_notifier_;
+  MetricsRecorder& metrics_recorder_;
 };
 }  // namespace
 
 std::unique_ptr<DeltaFileRecordChangeNotifier>
 DeltaFileRecordChangeNotifier::Create(
-    std::unique_ptr<ChangeNotifier> change_notifier) {
+    std::unique_ptr<ChangeNotifier> change_notifier,
+    MetricsRecorder& metrics_recorder) {
   return std::make_unique<AwsDeltaFileRecordChangeNotifier>(
-      std::move(change_notifier));
+      std::move(change_notifier), metrics_recorder);
 }
 
 }  // namespace kv_server

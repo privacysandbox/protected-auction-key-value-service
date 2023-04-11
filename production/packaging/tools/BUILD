@@ -20,6 +20,7 @@ load(
 load(
     "@rules_pkg//pkg:mappings.bzl",
     "pkg_attributes",
+    "pkg_filegroup",
     "pkg_files",
 )
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
@@ -50,20 +51,40 @@ pkg_files(
     prefix = "/tools/realtime",
 )
 
-tools_binaries = [
-    ":benchmarks",
-    ":data_cli",
-    ":realtime",
-]
+pkg_filegroup(
+    name = "tools_executables",
+    srcs = [
+        ":benchmarks",
+        ":data_cli",
+        ":realtime",
+    ],
+    prefix = "/",
+)
 
 pkg_zip(
-    name = "tools_binaries_zip",
-    srcs = tools_binaries,
+    name = "tools_binaries",
+    srcs = [":tools_executables"],
+)
+
+pkg_files(
+    name = "udf_tester_executables",
+    srcs = [
+        "//tools/udf/udf_tester:udf_delta_file_tester",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
+)
+
+pkg_files(
+    name = "udf_generator_executables",
+    srcs = [
+        "//tools/udf/udf_generator:udf_delta_file_generator",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
 )
 
 pkg_tar(
     name = "tools_binaries_tar",
-    srcs = tools_binaries,
+    srcs = [":tools_executables"],
 )
 
 container_layer(
@@ -92,17 +113,35 @@ container_image(
 genrule(
     name = "copy_to_dist",
     srcs = [
-        ":tools_binaries_zip",
+        ":tools_binaries",
         ":tools_binaries_docker_image.tar",
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/debian
-cp $(execpath :tools_binaries_zip) dist
+cp $(execpath :tools_binaries) dist/debian
 cp $(execpath :tools_binaries_docker_image.tar) dist
 builders/tools/normalize-dist
 EOF""",
     executable = True,
     local = True,
     message = "Copying tools to dist/debian directory",
+)
+
+genrule(
+    name = "copy_to_dist_udf",
+    srcs = [
+        ":udf_tester_executables",
+        ":udf_generator_executables",
+    ],
+    outs = ["copy_to_dist_udf.bin"],
+    cmd_bash = """cat << EOF > '$@'
+mkdir -p dist/debian
+cp $(execpath :udf_tester_executables) dist/debian
+cp $(execpath :udf_generator_executables) dist/debian
+builders/tools/normalize-dist
+EOF""",
+    executable = True,
+    local = True,
+    message = "copying tools to dist/debian directory",
 )

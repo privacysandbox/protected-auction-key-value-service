@@ -17,7 +17,6 @@ readonly LOCAL_TESTS_DIR
 readonly TESTS_DIR="${LOCAL_TESTS_DIR}"/..
 readonly EXAMPLES_DIR="${TESTS_DIR}"/../examples
 
-set -o xtrace
 NET="$("${LOCAL_TESTS_DIR}"/deploy_grpc_examples gen-name)"
 readonly NET
 printf "deploying servers to docker network: %s\n" "${NET}"

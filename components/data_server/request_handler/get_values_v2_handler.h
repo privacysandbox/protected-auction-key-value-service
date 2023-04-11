@@ -26,6 +26,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/compression.h"
 #include "components/telemetry/metrics_recorder.h"
+#include "components/udf/udf_client.h"
 #include "grpcpp/grpcpp.h"
 #include "nlohmann/json.hpp"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
@@ -38,11 +39,11 @@ class GetValuesV2Handler {
  public:
   // Accepts a functor to create compression blob builder for testing purposes.
   explicit GetValuesV2Handler(
-      const Cache& cache, MetricsRecorder& metrics_recorder,
+      const UdfClient& udf_client, MetricsRecorder& metrics_recorder,
       std::function<CompressionGroupConcatenator::FactoryFunctionType>
           create_compression_group_concatenator =
               &CompressionGroupConcatenator::Create)
-      : cache_(cache),
+      : udf_client_(udf_client),
         metrics_recorder_(metrics_recorder),
         create_compression_group_concatenator_(
             std::move(create_compression_group_concatenator)) {}
@@ -84,7 +85,7 @@ class GetValuesV2Handler {
   const std::string test_private_key_ = absl::HexStringToBytes(
       "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
 
-  const Cache& cache_;
+  const UdfClient& udf_client_;
   std::function<CompressionGroupConcatenator::FactoryFunctionType>
       create_compression_group_concatenator_;
   MetricsRecorder& metrics_recorder_;

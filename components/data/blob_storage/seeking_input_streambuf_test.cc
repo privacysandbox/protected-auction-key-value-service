@@ -25,6 +25,7 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "components/telemetry/mocks.h"
 #include "gtest/gtest.h"
 
 namespace kv_server {
@@ -40,7 +41,8 @@ class StringBlobInputStreambuf : public SeekingInputStreambuf {
  public:
   StringBlobInputStreambuf(std::string_view blob,
                            SeekingInputStreambuf::Options options)
-      : SeekingInputStreambuf(std::move(options)), blob_(blob) {}
+      : SeekingInputStreambuf(metrics_recorder_, std::move(options)),
+        blob_(blob) {}
 
  protected:
   absl::StatusOr<int64_t> ReadChunk(int64_t offset, int64_t chunk_size,
@@ -58,12 +60,14 @@ class StringBlobInputStreambuf : public SeekingInputStreambuf {
 
  private:
   std::string blob_;
+  MockMetricsRecorder metrics_recorder_;
 };
 
 class SeekingInputStreambufTest
     : public testing::TestWithParam<SeekingInputStreambuf::Options> {
  protected:
   StringBlobInputStreambuf CreateStringBlobStreambuf(std::string_view blob) {
+    TelemetryProvider::Init("test", "test");
     return StringBlobInputStreambuf(blob, GetParam());
   }
 };

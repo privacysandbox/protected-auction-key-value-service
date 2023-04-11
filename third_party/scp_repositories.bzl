@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 def scp_repositories():
@@ -32,10 +33,10 @@ def scp_repositories():
 
     http_archive(
         name = "control_plane_shared",
-        sha256 = "a8f374e2ee8571b6e2b0ffba1a4420dd37308375da4aefaa655028c3f1c3b59c",
-        strip_prefix = "control-plane-shared-libraries-0.43.0",
+        sha256 = "679ce9a94d0302078eecb92bc891d3763072fff3a51f1fc58c90b26cace3dce9",
+        strip_prefix = "control-plane-shared-libraries-0.63.0",
         urls = [
-            "https://github.com/privacysandbox/control-plane-shared-libraries/archive/refs/tags/v0.43.0.zip",
+            "https://github.com/privacysandbox/control-plane-shared-libraries/archive/refs/tags/v0.63.0.zip",
         ],
         patch_args = [
             # Needed to import Git-based patches.
@@ -44,4 +45,12 @@ def scp_repositories():
         patches = [
             "//third_party:shared_control_plane.patch",
         ],
+    )
+
+    git_repository(
+        name = "oneTBB",
+        # Commits on Apr 18, 2022
+        commit = "9d2a3477ce276d437bf34b1582781e5b11f9b37a",
+        remote = "https://github.com/oneapi-src/oneTBB.git",
+        shallow_since = "1648820995 +0300",
     )

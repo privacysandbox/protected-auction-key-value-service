@@ -7,16 +7,17 @@ your own environment (e.g. "dev" and "prod").
 
 ```bash
 nano demo/us-east-1.backend.conf  # Customize backend parameters
-nano demo/us-east-1.tfvars  # Customize input variables to suit your demo environment.
-terraform init --backend-config=demo/us-east-1.backend.conf --var-file=demo/us-east-1.tfvars --reconfigure
-terraform plan --var-file=demo/us-east-1.tfvars
-terraform apply --var-file=demo/us-east-1.tfvars
+nano demo/us-east-1.tfvars.json  # Customize input variables to suit your demo environment.
+terraform init --backend-config=demo/us-east-1.backend.conf --var-file=demo/us-east-1.tfvars.json --reconfigure
+terraform plan --var-file=demo/us-east-1.tfvars.json
+terraform apply --var-file=demo/us-east-1.tfvars.json
 ```
 
 ## Configuration Files
 
 The files which should be modified for your purposes for each environment that you create are:
 
--   [us-east-1.tfvars](demo/us-east-1.tfvars) - an example configuration file for the KV server.
+-   [us-east-1.tfvars.json](demo/us-east-1.tfvars.json) - an example configuration file for the KV
+    server.
 -   [us-east-1.backend.conf](demo/us-east-1.backend.conf) - contains terraform state bucket
     location - should be edited to point to a state bucket you control.

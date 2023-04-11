@@ -69,6 +69,7 @@ cc_library(
         "//conditions:default": [],
     }) + [
         "//components/telemetry:metrics_recorder",
+        "//components/telemetry:telemetry_provider",
         ":message_service",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -86,6 +87,7 @@ cc_library(
     ],
     deps = [
         ":message_service",
+        "//components/telemetry:metrics_recorder",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status",
@@ -99,6 +101,7 @@ cc_test(
     srcs = ["change_notifier_local_test.cc"],
     deps = [
         ":change_notifier_local",
+        "//components/telemetry:mocks",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",

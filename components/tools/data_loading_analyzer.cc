@@ -26,6 +26,7 @@
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
 #include "components/telemetry/metrics_recorder.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "public/base_types.pb.h"
@@ -130,7 +131,10 @@ std::vector<Operation> OperationsFromFlag() {
 
 absl::Status InitOnce(Operation operation) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  std::unique_ptr<BlobStorageClient> blob_client = BlobStorageClient::Create();
+  std::unique_ptr<MetricsRecorder> metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<BlobStorageClient> blob_client =
+      BlobStorageClient::Create(*metrics_recorder);
   std::unique_ptr<DeltaFileNotifier> notifier =
       DeltaFileNotifier::Create(*blob_client);
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
@@ -158,14 +162,13 @@ absl::Status InitOnce(Operation operation) {
   // Blocks until cache is initialized
   absl::StatusOr<std::unique_ptr<DataOrchestrator>> maybe_data_orchestrator;
   absl::Time start_time = absl::Now();
-  MetricsRecorder& metrics_recorder = MetricsRecorder::GetInstance();
 
   std::vector<DataOrchestrator::RealtimeOptions> realtime_options;
   DataOrchestrator::RealtimeOptions realtime_option;
   realtime_option.delta_file_record_change_notifier =
       std::make_unique<NoopDeltaFileRecordChangeNotifier>();
   realtime_option.realtime_notifier =
-      RealtimeNotifier::Create(metrics_recorder);
+      RealtimeNotifier::Create(*metrics_recorder);
   realtime_options.push_back(std::move(realtime_option));
 
   maybe_data_orchestrator = DataOrchestrator::TryCreate(
@@ -178,7 +181,7 @@ absl::Status InitOnce(Operation operation) {
           .delta_stream_reader_factory = *delta_stream_reader_factory,
           .realtime_options = realtime_options,
       },
-      metrics_recorder);
+      *metrics_recorder);
   absl::Time end_time = absl::Now();
   LOG(INFO) << "Init used " << (end_time - start_time);
   return maybe_data_orchestrator.status();

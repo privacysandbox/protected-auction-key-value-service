@@ -25,6 +25,11 @@
 #include "components/errors/retry.h"
 
 namespace kv_server {
+struct DataLoadingStats {
+  int64_t total_updated_records = 0;
+  int64_t total_deleted_records = 0;
+};
+
 class RealtimeNotifier {
  public:
   virtual ~RealtimeNotifier() = default;
@@ -40,7 +45,8 @@ class RealtimeNotifier {
   // the constructor.
   virtual absl::Status Start(
       DeltaFileRecordChangeNotifier& change_notifier,
-      std::function<void(const std::string& key)> callback) = 0;
+      std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
+          callback) = 0;
 
   // Blocks until `IsRunning` is False.
   virtual absl::Status Stop() = 0;

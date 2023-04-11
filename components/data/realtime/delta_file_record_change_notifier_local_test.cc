@@ -22,6 +22,7 @@
 #include "components/data/common/change_notifier.h"
 #include "components/data/common/mocks.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/telemetry/mocks.h"
 #include "gtest/gtest.h"
 
 namespace kv_server {
@@ -32,8 +33,10 @@ namespace {
 TEST(DeltaFileRecordChangeNotifierTest, SmokeTest) {
   auto mock_change_notifier = std::make_unique<kv_server::MockChangeNotifier>();
 
+  MockMetricsRecorder mock_metrics_recorder;
   std::unique_ptr<DeltaFileRecordChangeNotifier> notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier));
+      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier),
+                                            mock_metrics_recorder);
   EXPECT_TRUE(notifier != nullptr);
 }
 

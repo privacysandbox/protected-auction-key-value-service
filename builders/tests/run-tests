@@ -114,6 +114,18 @@ function cli_tests_test-tools() {
   done
 }
 
+function cli_tests_misc() {
+  declare -a -r TOOLS=(
+    "${TOOLS_DIR}/aws-cli --help"
+    "${TOOLS_DIR}/awscurl --help"
+  )
+  printf "Testing utils CLI tool wrappers\n"
+  for tool_cmd in "${TOOLS[@]}"; do
+    printf "  %s\n" "${tool_cmd}"
+    ${tool_cmd} &>/dev/null
+  done
+}
+
 function cli_tests_utils() {
   declare -r _image="$1"
   if [[ ${FAST} -eq 1 ]] || [[ ${_image} != utils ]]; then
@@ -146,7 +158,7 @@ function cli_tests_release() {
 }
 
 function create_temp_hash_dir() {
-  local -r DIR=$(mktemp --directory)
+  declare -r DIR=$(mktemp --directory)
   cp "${HASHES_DIR}"/* "${DIR}"
   printf "%s" "${DIR}"
 }
@@ -213,6 +225,7 @@ fi
 
 # CLI tests
 
+cli_tests_misc
 for img in ${IMAGE_LIST}; do
   cli_tests_test-tools "${img}"
   cli_tests_utils "${img}"

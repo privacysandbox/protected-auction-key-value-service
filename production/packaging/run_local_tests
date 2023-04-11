@@ -34,5 +34,4 @@ source "${SCRIPT_DIR}"/../../builders/tools/builder.sh
 # shellcheck source=production/packaging/lib_local_server.sh
 source "${SCRIPT_DIR}"/lib_local_server.sh
 
-set -o xtrace
 local_server::run_and_test

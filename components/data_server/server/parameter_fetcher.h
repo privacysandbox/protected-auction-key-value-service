@@ -31,9 +31,10 @@ namespace kv_server {
 
 class ParameterFetcher {
  public:
+  // `metrics_recorder` is optional
   ParameterFetcher(std::string environment,
                    const ParameterClient& parameter_client,
-                   MetricsRecorder& metrics_recorder);
+                   MetricsRecorder* metrics_recorder);
 
   virtual ~ParameterFetcher() = default;
 
@@ -52,7 +53,7 @@ class ParameterFetcher {
 
   const std::string environment_;
   const ParameterClient& parameter_client_;
-  MetricsRecorder& metrics_recorder_;
+  MetricsRecorder* const metrics_recorder_;
 };
 
 }  // namespace kv_server

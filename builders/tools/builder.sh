@@ -19,8 +19,8 @@
 
 # require this script to be sourced rather than executed
 if ! (return 0 2>/dev/null); then
-    printf "Error: Script %s must be sourced\n" "${BASH_SOURCE[0]}" &>/dev/stderr
-    exit 1
+  printf "Error: Script %s must be sourced\n" "${BASH_SOURCE[0]}" &>/dev/stderr
+  exit 1
 fi
 
 #######################################

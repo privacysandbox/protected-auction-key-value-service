@@ -25,6 +25,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "components/data/common/change_notifier.h"
+#include "components/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -40,7 +41,7 @@ class BlobStorageChangeNotifier {
       const std::function<bool()>& should_stop_callback) = 0;
 
   static absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> Create(
-      NotifierMetadata notifier_metadata);
+      NotifierMetadata notifier_metadata, MetricsRecorder& metrics_recorder);
 };
 
 }  // namespace kv_server

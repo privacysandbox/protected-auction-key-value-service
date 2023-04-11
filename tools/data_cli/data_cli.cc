@@ -75,7 +75,7 @@ Commands:
     [--starting_file]           (Required) Oldest delta file or base snapshot to include in compaction.
     [--ending_delta_file]       (Required) Most recent delta file to include compaction.
     [--snapshot_file]           (Optional) Defaults to stdout. Output snapshot file.
-    [--data_dir]                (Required) Directory with input delta files. Cloud directories are prefixed with "cloud://".
+    [--data_dir]                (Required) Directory (or S3 bucket) with input delta files.
     [--working_dir]             (Optional) Defaults to "/tmp". Directory used to write temporary data.
     [--in_memory_compaction]    (Optional) Defaults to true. If false, file backed compaction is used.
   Examples:
@@ -84,7 +84,7 @@ Commands:
         --ending_delta_file="DELTA_1670532717393878" --snapshot_file="SNAPSHOT_0000000000000003"
 
     (2) Generate snapshot using delta files from S3. (Requires --//:platform=aws build flag.)
-    - export DATA_DIR="cloud://<your-s3-bucket-name>";
+    - export DATA_DIR="<your-s3-bucket-name>";
       data_cli generate_snapshot --data_dir="$DATA_DIR" --starting_file="DELTA_1670532228628680" \
         --ending_delta_file="DELTA_1670532717393878" --snapshot_file="SNAPSHOT_0000000000000003"
 
@@ -94,8 +94,10 @@ Try --help to see detailed flag descriptions and associated default values.
 constexpr std::string_view kStdioSymbol = "-";
 constexpr std::string_view kFormatDataCommand = "format_data";
 constexpr std::string_view kGenerateSnapshotCommand = "generate_snapshot";
-constexpr std::array kSupportedCommands = {kFormatDataCommand,
-                                           kGenerateSnapshotCommand};
+constexpr std::array kSupportedCommands = {
+    kFormatDataCommand,
+    kGenerateSnapshotCommand,
+};
 
 bool IsSupportedCommand(std::string_view command) {
   auto exists =

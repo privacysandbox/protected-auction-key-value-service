@@ -42,9 +42,9 @@ void MaybeVerboseLogLatency(std::string_view event_name, absl::Duration latency,
 }
 }  // namespace
 
-SeekingInputStreambuf::SeekingInputStreambuf(Options options,
-                                             MetricsRecorder& metrics_recorder)
-    : options_(std::move(options)), metrics_recorder_(metrics_recorder) {
+SeekingInputStreambuf::SeekingInputStreambuf(MetricsRecorder& metrics_recorder,
+                                             Options options)
+    : metrics_recorder_(metrics_recorder), options_(std::move(options)) {
   setg(buffer_.data(), buffer_.data(), buffer_.data() + buffer_.length());
 }
 

@@ -74,7 +74,7 @@ class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
         [this] {
           return instance_client_.CompleteLifecycle(launch_hook_name_);
         },
-        "CompleteLifecycle", metrics_recorder_);
+        "CompleteLifecycle", &metrics_recorder_);
     LOG(INFO) << "Completed lifecycle hook " << launch_hook_name_;
   }
 

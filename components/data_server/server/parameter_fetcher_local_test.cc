@@ -38,7 +38,7 @@ TEST(ParameterFetcherTest, CreateChangeNotifierSmokeTest) {
       .WillOnce(::testing::Return(::testing::TempDir()));
   MockMetricsRecorder metrics_recorder;
   ParameterFetcher fetcher(
-      /*environment=*/"local", client, metrics_recorder);
+      /*environment=*/"local", client, &metrics_recorder);
 
   const auto metadata = fetcher.GetBlobStorageNotifierMetadata();
   auto local_notifier_metadata = std::get<LocalNotifierMetadata>(metadata);
@@ -53,7 +53,7 @@ TEST(ParameterFetcherTest, CreateDeltaFileRecordChangeNotifierSmokeTest) {
       .WillOnce(::testing::Return(::testing::TempDir()));
   MockMetricsRecorder metrics_recorder;
   ParameterFetcher fetcher(
-      /*environment=*/"local", client, metrics_recorder);
+      /*environment=*/"local", client, &metrics_recorder);
 
   const auto notifier_metadata = fetcher.GetRealtimeNotifierMetadata();
   auto local_notifier_metadata =

@@ -32,5 +32,5 @@ readonly CBUILD
 # shellcheck disable=SC1083
 "${CBUILD}" --image "${IMAGE}" --cmd "
 printf 'bazel output_base: [%s]\n' \"\$(bazel info output_base 2>/dev/null)\"
-bazel ${BAZEL_STARTUP_ARGS} $* ${BAZEL_EXTRA_ARGS}
+bazel ${BAZEL_STARTUP_ARGS} ${*@Q} ${BAZEL_EXTRA_ARGS}
 "

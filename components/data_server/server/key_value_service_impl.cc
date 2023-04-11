@@ -14,6 +14,8 @@
 
 #include "components/data_server/server/key_value_service_impl.h"
 
+#include <string>
+
 #include <grpcpp/grpcpp.h>
 
 #include "components/data_server/request_handler/get_values_handler.h"
@@ -39,6 +41,8 @@ grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
     GetValuesResponse* response) {
   auto span = GetTracer()->StartSpan(GET_VALUES_SPAN);
   auto scope = opentelemetry::trace::Scope(span);
+  ScopeLatencyRecorder latency_recorder(std::string(kGetValuesV1Latency),
+                                        metrics_recorder_);
 
   grpc::Status status = handler_.GetValues(*request, response);
 

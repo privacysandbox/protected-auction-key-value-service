@@ -31,8 +31,8 @@ MATCHER_P2(KVPairEq, key, value, "") {
 
 class MockCache : public Cache {
  public:
-  MOCK_METHOD((std::vector<std::pair<std::string_view, std::string>>),
-              GetKeyValuePairs, (const std::vector<std::string_view>& key_list),
+  MOCK_METHOD((absl::flat_hash_map<std::string, std::string>), GetKeyValuePairs,
+              (const std::vector<std::string_view>& key_list),
               (const, override));
   MOCK_METHOD(void, UpdateKeyValue,
               (std::string_view key, std::string_view value, int64_t ts),

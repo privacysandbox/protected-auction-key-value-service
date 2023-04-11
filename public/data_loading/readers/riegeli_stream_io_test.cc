@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "components/telemetry/mocks.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
@@ -55,16 +56,19 @@ class StreamRecordReaderTest : public ::testing::TestWithParam<ReaderType> {
     auto reader_factory = StreamRecordReaderFactory<std::string_view>::Create(
         {.num_worker_threads = 1});
     if (ReaderType::kConcurrent == GetParam()) {
-      return reader_factory->CreateConcurrentReader([&stream]() {
-        auto stream_handle = std::make_unique<StringBlobStream>(stream.str());
-        if (stream.bad()) {
-          stream_handle->Stream().setstate(std::ios_base::badbit);
-        }
-        return stream_handle;
-      });
+      return reader_factory->CreateConcurrentReader(
+          metrics_recorder_, [&stream]() {
+            auto stream_handle =
+                std::make_unique<StringBlobStream>(stream.str());
+            if (stream.bad()) {
+              stream_handle->Stream().setstate(std::ios_base::badbit);
+            }
+            return stream_handle;
+          });
     }
     return reader_factory->CreateReader(stream);
   }
+  MockMetricsRecorder metrics_recorder_;
 };
 
 using ConcurrentReaderOptions =
@@ -76,10 +80,12 @@ class ConcurrentStreamRecordReaderTest
       const std::string& blob_content) {
     auto reader_factory =
         StreamRecordReaderFactory<std::string_view>::Create(GetParam());
-    return reader_factory->CreateConcurrentReader([&blob_content]() {
-      return std::make_unique<StringBlobStream>(blob_content);
-    });
+    return reader_factory->CreateConcurrentReader(
+        metrics_recorder_, [&blob_content]() {
+          return std::make_unique<StringBlobStream>(blob_content);
+        });
   }
+  MockMetricsRecorder metrics_recorder_;
 };
 
 INSTANTIATE_TEST_SUITE_P(ReaderType, StreamRecordReaderTest,
@@ -269,9 +275,11 @@ TEST(ConcurrentStreamRecordReaderTest, FailsToReadNonSeekingStream) {
     writer.WriteRecord(record);
   }
   ASSERT_TRUE(writer.Close());
-  ConcurrentStreamRecordReader<std::string_view> record_reader([&content]() {
-    return std::make_unique<NonSeekingStringBlobStream>(content);
-  });
+  MockMetricsRecorder metrics_recorder;
+  ConcurrentStreamRecordReader<std::string_view> record_reader(
+      metrics_recorder, [&content]() {
+        return std::make_unique<NonSeekingStringBlobStream>(content);
+      });
   auto status = record_reader.ReadStreamRecords(callback.AsStdFunction());
   EXPECT_FALSE(status.ok());
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);

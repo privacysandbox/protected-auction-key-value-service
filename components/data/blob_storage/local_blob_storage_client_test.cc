@@ -26,6 +26,7 @@
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_client.h"
+#include "components/telemetry/mocks.h"
 #include "gtest/gtest.h"
 
 namespace kv_server {
@@ -39,7 +40,9 @@ void CreateFileInTmpDir(const std::string& filename) {
 }
 
 TEST(LocalBlobStorageClientTest, ListNotFoundDirectory) {
-  std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  MockMetricsRecorder metrics_recorder;
+  std::unique_ptr<BlobStorageClient> client =
+      BlobStorageClient::Create(metrics_recorder);
   ASSERT_TRUE(client != nullptr);
 
   BlobStorageClient::DataLocation location;
@@ -51,7 +54,9 @@ TEST(LocalBlobStorageClientTest, ListNotFoundDirectory) {
 }
 
 TEST(LocalBlobStorageClientTest, ListEmptyDirectory) {
-  std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  MockMetricsRecorder metrics_recorder;
+  std::unique_ptr<BlobStorageClient> client =
+      BlobStorageClient::Create(metrics_recorder);
   ASSERT_TRUE(client != nullptr);
 
   BlobStorageClient::DataLocation location;
@@ -64,7 +69,9 @@ TEST(LocalBlobStorageClientTest, ListEmptyDirectory) {
 }
 
 TEST(LocalBlobStorageClientTest, ListDirectoryWithFile) {
-  std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  MockMetricsRecorder metrics_recorder;
+  std::unique_ptr<BlobStorageClient> client =
+      BlobStorageClient::Create(metrics_recorder);
   ASSERT_TRUE(client != nullptr);
 
   CreateFileInTmpDir("a");
@@ -78,7 +85,9 @@ TEST(LocalBlobStorageClientTest, ListDirectoryWithFile) {
 }
 
 TEST(LocalBlobStorageClientTest, DeleteNotFoundBlob) {
-  std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  MockMetricsRecorder metrics_recorder;
+  std::unique_ptr<BlobStorageClient> client =
+      BlobStorageClient::Create(metrics_recorder);
   ASSERT_TRUE(client != nullptr);
 
   BlobStorageClient::DataLocation location;
@@ -89,7 +98,9 @@ TEST(LocalBlobStorageClientTest, DeleteNotFoundBlob) {
 }
 
 TEST(LocalBlobStorageClientTest, DeleteBlob) {
-  std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  MockMetricsRecorder metrics_recorder;
+  std::unique_ptr<BlobStorageClient> client =
+      BlobStorageClient::Create(metrics_recorder);
   ASSERT_TRUE(client != nullptr);
 
   BlobStorageClient::DataLocation location;
@@ -101,7 +112,9 @@ TEST(LocalBlobStorageClientTest, DeleteBlob) {
 }
 
 TEST(LocalBlobStorageClientTest, PutBlob) {
-  std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  MockMetricsRecorder metrics_recorder;
+  std::unique_ptr<BlobStorageClient> client =
+      BlobStorageClient::Create(metrics_recorder);
   ASSERT_TRUE(client != nullptr);
 
   BlobStorageClient::DataLocation from;

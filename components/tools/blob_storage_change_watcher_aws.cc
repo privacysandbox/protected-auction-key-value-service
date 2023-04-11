@@ -18,11 +18,13 @@
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "components/util/platform_initializer.h"
 
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 
 using kv_server::BlobStorageChangeNotifier;
+using kv_server::TelemetryProvider;
 
 int main(int argc, char** argv) {
   kv_server::PlatformInitializer initializer;
@@ -43,9 +45,12 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  auto status_or_notifier =
-      BlobStorageChangeNotifier::Create(kv_server::CloudNotifierMetadata{
-          .sns_arn = sns_arn, .queue_manager = message_service_status->get()});
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  auto status_or_notifier = BlobStorageChangeNotifier::Create(
+      kv_server::CloudNotifierMetadata{
+          .sns_arn = sns_arn, .queue_manager = message_service_status->get()},
+      *noop_metrics_recorder);
 
   if (!status_or_notifier.ok()) {
     std::cerr << "Unable to create BlobStorageChangeNotifier: "

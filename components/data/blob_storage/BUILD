@@ -25,6 +25,7 @@ cc_library(
     hdrs = ["seeking_input_streambuf.h"],
     deps = [
         "//components/telemetry:metrics_recorder",
+        "//components/telemetry:telemetry_provider",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/status",
@@ -40,6 +41,8 @@ cc_test(
     ],
     deps = [
         ":seeking_input_streambuf",
+        "//components/telemetry:mocks",
+        "//components/telemetry:telemetry_provider",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
     ],
@@ -95,6 +98,7 @@ cc_test(
         ":blob_storage_client_local",
         "//components/data/common:mocks",
         "//components/errors:mocks",
+        "//components/telemetry:mocks",
         "//public/data_loading:filename_utils",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/flags:flag",
@@ -132,6 +136,7 @@ cc_test(
     }),
     deps = [
         ":blob_storage_change_notifier",
+        "//components/telemetry:mocks",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",

@@ -20,14 +20,13 @@
 
 #include "absl/strings/str_join.h"
 #include "components/errors/retry.h"
+#include "public/constants.h"
 
 namespace kv_server {
 
-constexpr std::string_view kParameterPrefix = "kv-server";
-
 ParameterFetcher::ParameterFetcher(std::string environment,
                                    const ParameterClient& parameter_client,
-                                   MetricsRecorder& metrics_recorder)
+                                   MetricsRecorder* metrics_recorder)
     : environment_(std::move(environment)),
       parameter_client_(parameter_client),
       metrics_recorder_(metrics_recorder) {}
@@ -54,7 +53,7 @@ int32_t ParameterFetcher::GetInt32Parameter(
 
 std::string ParameterFetcher::GetParamName(
     std::string_view parameter_suffix) const {
-  const std::vector<std::string_view> v = {kParameterPrefix, environment_,
+  const std::vector<std::string_view> v = {kServiceName, environment_,
                                            parameter_suffix};
   return absl::StrJoin(v, "-");
 }

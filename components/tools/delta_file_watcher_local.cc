@@ -25,6 +25,7 @@
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/common/change_notifier.h"
 #include "components/data/common/thread_notifier.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "components/util/platform_initializer.h"
 
 ABSL_FLAG(std::string, directory, "", "Local directory to watch");
@@ -32,6 +33,7 @@ ABSL_FLAG(std::string, directory, "", "Local directory to watch");
 using kv_server::BlobStorageChangeNotifier;
 using kv_server::BlobStorageClient;
 using kv_server::DeltaFileNotifier;
+using kv_server::TelemetryProvider;
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
@@ -43,12 +45,16 @@ int main(int argc, char** argv) {
     std::cerr << "Must specify local directory" << std::endl;
     return -1;
   }
-  std::unique_ptr<BlobStorageClient> client = BlobStorageClient::Create();
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<BlobStorageClient> client =
+      BlobStorageClient::Create(*noop_metrics_recorder);
   std::unique_ptr<DeltaFileNotifier> notifier =
       DeltaFileNotifier::Create(*client);
-  auto status_or_change_notifier =
-      BlobStorageChangeNotifier::Create(kv_server::LocalNotifierMetadata{
-          .local_directory = std::filesystem::path(directory)});
+  auto status_or_change_notifier = BlobStorageChangeNotifier::Create(
+      kv_server::LocalNotifierMetadata{.local_directory =
+                                           std::filesystem::path(directory)},
+      *noop_metrics_recorder);
 
   if (!status_or_change_notifier.ok()) {
     std::cerr << "Unable to create BlobStorageChangeNotifier: "

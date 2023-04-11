@@ -21,16 +21,22 @@ APP=$(basename "${BASH_SOURCE[0]}")
 readonly APP
 APP_LINK_TARGET=$(readlink "${BASH_SOURCE[0]}") || true
 readonly APP_LINK_TARGET
-if [[ -z ${APP_LINK_TARGET} ]] || [[ ${APP_LINK_TARGET} == test-tool && ${APP} == utils-tool ]]; then
+if [[ -z ${APP_LINK_TARGET} ]] || [[ ${APP_LINK_TARGET} == test-tool && ${APP} =~ ^(release|utils)-tool$ ]]; then
   printf "%s designed for use via symlink with target program name\n" "${APP}" >/dev/stderr
   exit 1
 fi
 
+declare -i APP_AS_ENTRYPOINT=0
+
 case "${APP_LINK_TARGET}" in
-  utils-tool)
-    IMAGE="utils" ;;
+  release-tool)
+    IMAGE="release"
+    APP_AS_ENTRYPOINT=1
+    ;;
   test-tool)
     IMAGE="test-tools" ;;
+  utils-tool)
+    IMAGE="utils" ;;
   *)
     printf "Unsupported image target: %s\n" "${APP_LINK_TARGET}" >/dev/stderr
     exit 1
@@ -64,11 +70,20 @@ fi
 if [[ -t 0 ]] && [[ -t 1 ]]; then
   # stdin and stdout are open, assume it's an interactive tty session
   DOCKER_RUN_ARGS+=(
-    "--tty"
+    --tty
   )
 fi
-
-# shellcheck disable=SC2068
-docker run \
-  "${DOCKER_RUN_ARGS[@]}" \
-  "${IMAGE_TAGGED}" "${APP}" "$@"
+if [[ ${APP_AS_ENTRYPOINT} -eq 1 ]]; then
+  # shellcheck disable=SC2068
+  docker run \
+    "${DOCKER_RUN_ARGS[@]}" \
+    --entrypoint "${APP}" \
+    "${IMAGE_TAGGED}" \
+    "$@"
+else
+  # shellcheck disable=SC2068
+  docker run \
+    "${DOCKER_RUN_ARGS[@]}" \
+    "${IMAGE_TAGGED}" \
+    "${APP}" "$@"
+fi

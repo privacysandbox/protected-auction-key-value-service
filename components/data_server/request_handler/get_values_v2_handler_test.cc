@@ -23,6 +23,7 @@
 #include "components/data_server/cache/mocks.h"
 #include "components/telemetry/metrics_recorder.h"
 #include "components/telemetry/mocks.h"
+#include "components/udf/mocks.h"
 #include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -39,6 +40,7 @@ namespace kv_server {
 namespace {
 
 using grpc::StatusCode;
+using testing::_;
 using testing::Return;
 using testing::ReturnRef;
 using testing::UnorderedElementsAre;
@@ -259,7 +261,7 @@ class GetValuesHandlerTest
     return grpc::Status::OK;
   }
 
-  MockCache mock_cache_;
+  MockUdfClient mock_udf_client_;
   MockMetricsRecorder mock_metrics_recorder_;
 };
 
@@ -269,16 +271,93 @@ INSTANTIATE_TEST_SUITE_P(GetValuesHandlerTest, GetValuesHandlerTest,
                                          ProtocolType::kObliviousHttp));
 
 TEST_P(GetValuesHandlerTest, Success) {
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(UnorderedElementsAre("hello")))
-      .Times(1)
-      .WillRepeatedly(
-          Return(std::vector<std::pair<std::string_view, std::string>>{
-              {"hello", "world"}}));
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(UnorderedElementsAre("hello2")))
-      .Times(1)
-      .WillRepeatedly(
-          Return(std::vector<std::pair<std::string_view, std::string>>{
-              {"hello2", "world2"}}));
+  nlohmann::json udf_input1 = R"({
+    "context": {"subkey": "example.com"},
+    "keyGroups": [
+      {
+        "tags": [
+          "structured",
+          "groupNames"
+        ],
+        "keyList": [
+          "hello"
+        ]
+      },
+      {
+        "tags": [
+          "custom",
+          "keys"
+        ],
+        "keyList": [
+          "hello"
+        ]
+      }
+    ],
+    "udfInputApiVersion": 1
+  })"_json;
+  nlohmann::json udf_output1 = R"({"keyGroupOutputs": [
+          {
+            "keyValues": {
+              "hello": {
+                "value": "world"
+              }
+            },
+            "tags": [
+              "custom",
+              "keys"
+            ]
+          },
+          {
+            "keyValues": {
+              "hello": {
+                "value": "world"
+              }
+            },
+            "tags": [
+              "structured",
+              "groupNames"
+            ]
+          }
+        ],
+      "udfOutputApiVersion": 1
+      })"_json;
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(std::vector<std::string>({udf_input1.dump()})))
+      .WillOnce(Return(udf_output1.dump()));
+
+  nlohmann::json udf_input2 = R"({
+      "context": {"subkey": "example.com"},
+      "keyGroups": [
+        {
+          "tags": [
+            "custom",
+            "keys"
+          ],
+          "keyList": [
+            "hello2"
+          ]
+        }
+      ],
+      "udfInputApiVersion": 1
+    })"_json;
+  nlohmann::json udf_output2 = R"({"keyGroupOutputs": [
+        {
+            "keyValues": {
+              "hello2": {
+                "value": "world2"
+              }
+            },
+            "tags": [
+              "custom",
+              "keys"
+            ]
+        }
+      ],
+      "udfOutputApiVersion": 1
+      })"_json;
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(std::vector<std::string>({udf_input2.dump()})))
+      .WillOnce(Return(udf_output2.dump()));
 
   const std::string core_request_body = R"(
 {
@@ -329,7 +408,7 @@ TEST_P(GetValuesHandlerTest, Success) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_cache_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
   const auto result =
       GetValuesBasedOnProtocol(core_request_body, &response, &handler);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
@@ -351,6 +430,17 @@ TEST_P(GetValuesHandlerTest, Success) {
             "tags": [
               "custom",
               "keys"
+            ]
+          },
+          {
+            "keyValues": {
+              "hello": {
+                "value": "world"
+              }
+            },
+            "tags": [
+              "structured",
+              "groupNames"
             ]
           }
         ]
@@ -376,6 +466,7 @@ TEST_P(GetValuesHandlerTest, Success) {
 ])");
   EXPECT_EQ(response.data(), expected.dump());
 }
+
 TEST_P(GetValuesHandlerTest, InvalidFormat) {
   const std::string core_request_body = R"(
 {
@@ -385,7 +476,7 @@ TEST_P(GetValuesHandlerTest, InvalidFormat) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_cache_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
   const auto result =
       GetValuesBasedOnProtocol(core_request_body, &response, &handler);
   ASSERT_FALSE(result.ok());
@@ -397,7 +488,7 @@ TEST_P(GetValuesHandlerTest, NotADictionary) {
 []
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_cache_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
   const auto result =
       GetValuesBasedOnProtocol(core_request_body, &response, &handler);
   ASSERT_FALSE(result.ok());
@@ -413,7 +504,7 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_cache_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
   const auto result =
       GetValuesBasedOnProtocol(core_request_body, &response, &handler);
   ASSERT_FALSE(result.ok());
@@ -453,7 +544,7 @@ TEST_P(GetValuesHandlerTest, NoContext) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_cache_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
   const auto result =
       GetValuesBasedOnProtocol(core_request_body, &response, &handler);
   ASSERT_FALSE(result.ok());
@@ -495,7 +586,7 @@ TEST_P(GetValuesHandlerTest, NoCompressionGroup) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_cache_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
   const auto result =
       GetValuesBasedOnProtocol(core_request_body, &response, &handler);
   ASSERT_FALSE(result.ok());
@@ -538,11 +629,432 @@ TEST_P(GetValuesHandlerTest, CompressionGroupNotANumber) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_cache_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
   const auto result =
       GetValuesBasedOnProtocol(core_request_body, &response, &handler);
   ASSERT_FALSE(result.ok());
   EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+}
+
+TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
+  nlohmann::json udf_input1 = R"({
+    "context": {"subkey": "example.com"},
+    "keyGroups": [
+      {
+        "tags": [
+          "custom",
+          "keys"
+        ],
+        "keyList": [
+          "hello"
+        ]
+      }
+    ],
+    "udfInputApiVersion": 1
+  })"_json;
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(std::vector<std::string>({udf_input1.dump()})))
+      .WillOnce(Return(absl::InternalError("UDF execution error")));
+
+  nlohmann::json udf_input2 = R"({
+      "context": {"subkey": "example.com"},
+      "keyGroups": [
+        {
+          "tags": [
+            "custom",
+            "keys"
+          ],
+          "keyList": [
+            "hello2"
+          ]
+        }
+      ],
+    "udfInputApiVersion": 1
+    })"_json;
+  nlohmann::json udf_output2 = R"({"keyGroupOutputs": [
+        {
+            "keyValues": {
+              "hello2": {
+                "value": "world2"
+              }
+            },
+            "tags": [
+              "custom",
+              "keys"
+            ]
+        }
+      ],
+      "udfOutputApiVersion": 1
+      })"_json;
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(std::vector<std::string>({udf_input2.dump()})))
+      .WillOnce(Return(udf_output2.dump()));
+
+  const std::string core_request_body = R"(
+{
+  "context": {
+    "subkey": "example.com"
+  },
+  "partitions": [
+    {
+      "id": 0,
+      "compressionGroup": 0,
+      "keyGroups": [
+        {
+          "tags": [
+            "custom",
+            "keys"
+          ],
+          "keyList": [
+            "hello"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "compressionGroup": 0,
+      "keyGroups": [
+        {
+          "tags": [
+            "custom",
+            "keys"
+          ],
+          "keyList": [
+            "hello2"
+          ]
+        }
+      ]
+    }
+  ]
+}
+  )";
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  const auto result =
+      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  nlohmann::json expected = nlohmann::json::parse(R"(
+[
+  {
+    "partitions": [
+      {
+        "id": 1,
+        "keyGroupOutputs": [
+          {
+            "keyValues": {
+              "hello2": {
+                "value": "world2"
+              }
+            },
+            "tags": [
+              "custom",
+              "keys"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+])");
+  EXPECT_EQ(response.data(), expected.dump());
+}
+
+TEST_P(GetValuesHandlerTest, UdfInvalidJsonOutput) {
+  std::string udf_output = R"({"keyGroupOutputs": [
+        {
+            "keyValues": {
+              "hello": {
+                "value": "world"
+              }
+            },
+            "tags": [
+              "custom",
+              "keys"
+            ]
+        },
+      ],
+      "udfOutputApiVersion": 1
+      })";
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_)).WillOnce(Return(udf_output));
+
+  const std::string core_request_body = R"(
+{
+  "context": {
+    "subkey": "example.com"
+  },
+  "partitions": [
+    {
+      "id": 0,
+      "compressionGroup": 0,
+      "keyGroups": [
+        {
+          "tags": [
+            "custom",
+            "keys"
+          ],
+          "keyList": [
+            "hello"
+          ]
+        }
+      ]
+    }
+  ]
+}
+  )";
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  const auto result =
+      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+  EXPECT_EQ(response.data(), "null");
+}
+
+TEST_P(GetValuesHandlerTest, UdfNoKeyGroupOutputs) {
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_)).WillOnce(Return(R"({})"));
+
+  const std::string core_request_body = R"(
+{
+  "context": {
+    "subkey": "example.com"
+  },
+  "partitions": [
+    {
+      "id": 0,
+      "compressionGroup": 0,
+      "keyGroups": [
+        {
+          "tags": [
+            "custom",
+            "keys"
+          ],
+          "keyList": [
+            "hello"
+          ]
+        }
+      ]
+    }
+  ]
+}
+  )";
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  const auto result =
+      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+  EXPECT_EQ(response.data(), "null");
+}
+
+TEST_P(GetValuesHandlerTest, UdfKeyGroupOutputsNotArray) {
+  std::string udf_output = R"({"keyGroupOutputs":
+        {
+            "keyValues": {
+              "hello": {
+                "value": "world"
+              }
+            },
+            "tags": [
+              "custom",
+              "keys"
+            ]
+        },
+      ,
+      "udfOutputApiVersion": 1
+      })";
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_)).WillOnce(Return(udf_output));
+
+  const std::string core_request_body = R"(
+{
+  "context": {
+    "subkey": "example.com"
+  },
+  "partitions": [
+    {
+      "id": 0,
+      "compressionGroup": 0,
+      "keyGroups": [
+        {
+          "tags": [
+            "custom",
+            "keys"
+          ],
+          "keyList": [
+            "hello"
+          ]
+        }
+      ]
+    }
+  ]
+}
+  )";
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  const auto result =
+      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+  EXPECT_EQ(response.data(), "null");
+}
+
+TEST_P(GetValuesHandlerTest, UdfKeyGroupOutputsArrayEmpty) {
+  nlohmann::json udf_output = R"({
+    "keyGroupOutputs": [],
+    "udfOutputApiVersion": 1
+  })"_json;
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_))
+      .WillOnce(Return(udf_output.dump()));
+
+  const std::string core_request_body = R"(
+{
+  "context": {
+    "subkey": "example.com"
+  },
+  "partitions": [
+    {
+      "id": 0,
+      "compressionGroup": 0,
+      "keyGroups": [
+        {
+          "tags": [
+            "custom",
+            "keys"
+          ],
+          "keyList": [
+            "hello"
+          ]
+        }
+      ]
+    }
+  ]
+}
+  )";
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  const auto result =
+      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+  nlohmann::json expected =
+      R"([{"partitions":[{"id":0,"keyGroupOutputs":null}]}])"_json;
+  EXPECT_EQ(response.data(), expected.dump());
+}
+
+TEST_P(GetValuesHandlerTest, NoKeyGroupsInPartition) {
+  const std::string core_request_body = R"({
+      "context": {
+        "subkey": "example.com"
+      },
+      "partitions": [{
+        "id": 0,
+        "compressionGroup": 0
+      }]
+    })";
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  const auto result =
+      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+  EXPECT_EQ(response.data(), "null");
+}
+
+TEST_P(GetValuesHandlerTest, UdfNoOutputApiVersion) {
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_)).WillOnce(Return(R"({
+    "keyGroupOutputs": [{
+            "keyValues": {
+              "hello": {
+                "value": "world"
+              }
+            },
+            "tags": [
+              "custom",
+              "keys"
+            ]
+        }]
+  })"));
+  const std::string core_request_body = R"(
+{
+  "context": {
+    "subkey": "example.com"
+  },
+  "partitions": [
+    {
+      "id": 0,
+      "compressionGroup": 0,
+      "keyGroups": [
+        {
+          "tags": [
+            "custom",
+            "keys"
+          ],
+          "keyList": [
+            "hello"
+          ]
+        }
+      ]
+    }
+  ]
+}
+  )";
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  const auto result =
+      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+  EXPECT_EQ(response.data(), "null");
+}
+
+TEST_P(GetValuesHandlerTest, UdfWrongOutputApiVersion) {
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_)).WillOnce(Return(R"({
+    "keyGroupOutputs": [{
+            "keyValues": {
+              "hello": {
+                "value": "world"
+              }
+            },
+            "tags": [
+              "custom",
+              "keys"
+            ]
+        }],
+    "udfOutputApiVersion": 2
+  })"));
+  const std::string core_request_body = R"(
+{
+  "context": {
+    "subkey": "example.com"
+  },
+  "partitions": [
+    {
+      "id": 0,
+      "compressionGroup": 0,
+      "keyGroups": [
+        {
+          "tags": [
+            "custom",
+            "keys"
+          ],
+          "keyList": [
+            "hello"
+          ]
+        }
+      ]
+    }
+  ]
+}
+  )";
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  const auto result =
+      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+  EXPECT_EQ(response.data(), "null");
 }
 
 }  // namespace

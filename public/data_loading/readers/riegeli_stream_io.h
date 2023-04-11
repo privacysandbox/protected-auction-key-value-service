@@ -31,6 +31,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "components/telemetry/metrics_recorder.h"
+#include "components/telemetry/telemetry_provider.h"
 #include "glog/logging.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "riegeli/bytes/istream_reader.h"
@@ -165,9 +166,9 @@ class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
         };
   };
   ConcurrentStreamRecordReader(
+      MetricsRecorder& metrics_recorder,
       std::function<std::unique_ptr<RecordStream>()> stream_factory,
-      Options options = Options(),
-      MetricsRecorder& metrics_recorder = MetricsRecorder::GetInstance());
+      Options options = Options());
   ~ConcurrentStreamRecordReader() = default;
   ConcurrentStreamRecordReader(const ConcurrentStreamRecordReader&) = delete;
   ConcurrentStreamRecordReader& operator=(const ConcurrentStreamRecordReader&) =
@@ -196,18 +197,19 @@ class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
   absl::StatusOr<std::vector<ShardRange>> BuildShards();
   absl::StatusOr<int64_t> RecordStreamSize();
 
+  MetricsRecorder& metrics_recorder_;
   std::function<std::unique_ptr<RecordStream>()> stream_factory_;
   Options options_;
-  MetricsRecorder& metrics_recorder_;
 };
 
 template <typename RecordT>
 ConcurrentStreamRecordReader<RecordT>::ConcurrentStreamRecordReader(
+    MetricsRecorder& metrics_recorder,
     std::function<std::unique_ptr<RecordStream>()> stream_factory,
-    Options options, MetricsRecorder& metrics_recorder)
-    : stream_factory_(std::move(stream_factory)),
-      options_(std::move(options)),
-      metrics_recorder_(metrics_recorder) {
+    Options options)
+    : metrics_recorder_(metrics_recorder),
+      stream_factory_(std::move(stream_factory)),
+      options_(std::move(options)) {
   CHECK(options.num_worker_threads >= 1)
       << "Number of work threads must be at least 1.";
 }
@@ -396,9 +398,10 @@ class StreamRecordReaderFactory {
   }
 
   virtual std::unique_ptr<StreamRecordReader<RecordT>> CreateConcurrentReader(
+      MetricsRecorder& metrics_recorder,
       std::function<std::unique_ptr<RecordStream>()> stream_factory) const {
     return std::make_unique<ConcurrentStreamRecordReader<RecordT>>(
-        stream_factory, options_);
+        metrics_recorder, stream_factory, options_);
   }
 
  private:

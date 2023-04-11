@@ -30,9 +30,8 @@
 
 namespace kv_server {
 
-struct NotificationsContext {
-  // A list of messages passed through the realtime endpoint in a single call
-  std::vector<std::string> parsed_notifications;
+struct RealtimeMessage {
+  std::string parsed_notification;
 
   // Time set producer side before the message was inserted to the pubsub.
   // since we read a batch of messages from the queue, this will aways be the
@@ -42,7 +41,12 @@ struct NotificationsContext {
   // affect the result. So you should be sending your requests from the same
   // machine on which the server is running -- i.e. cloudtop.
   std::optional<absl::Time> notifications_inserted;
+  absl::Time notifications_sns_inserted;
+};
 
+struct NotificationsContext {
+  //  A list of messages passed through the realtime endpoint in a single call
+  std::vector<RealtimeMessage> realtime_messages;
   // The time when these notifications were received from server side
   absl::Time notifications_received;
   // An open telemetry scope assosiated with the beggining of the trace that
@@ -66,7 +70,8 @@ class DeltaFileRecordChangeNotifier {
       const std::function<bool()>& should_stop_callback) = 0;
 
   static std::unique_ptr<DeltaFileRecordChangeNotifier> Create(
-      std::unique_ptr<ChangeNotifier> change_notifier);
+      std::unique_ptr<ChangeNotifier> change_notifier,
+      MetricsRecorder& metrics_recorder);
 };
 
 }  // namespace kv_server

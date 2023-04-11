@@ -83,7 +83,6 @@ while [[ $# -gt 0 ]]; do
       if [[ $# -lt 2 ]]; then
         usage 1
       fi
-      set -o xtrace
       deploy "$2"
       exit 0
       ;;

@@ -29,7 +29,7 @@ ENV_VARS+=(
   "BAZEL_EXTRA_ARGS"
 )
 
-usage() {
+function usage() {
   local exitval=${1-1}
   cat &>/dev/stderr << USAGE
 usage:
@@ -184,7 +184,8 @@ if [[ -z ${CMD} ]]; then
   # shellcheck disable=SC2068
   docker run \
     ${DOCKER_RUN_ARGS[@]} \
-    ${IMAGE_TAGGED}
+    ${IMAGE_TAGGED} \
+    --login
 else
   # shellcheck disable=SC2068
   docker run \

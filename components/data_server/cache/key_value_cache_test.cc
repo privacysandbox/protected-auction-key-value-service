@@ -34,10 +34,12 @@ class KeyValueCacheTestPeer {
   KeyValueCacheTestPeer() = delete;
   static absl::btree_map<int64_t, std::string> ReadDeletedNodes(
       const KeyValueCache& c) {
+    absl::MutexLock lock(&c.mutex_);
     return c.deleted_nodes_;
   }
   static absl::flat_hash_map<std::string, CacheValue>& ReadNodes(
       KeyValueCache& c) {
+    absl::MutexLock lock(&c.mutex_);
     return c.map_;
   }
 };
@@ -50,7 +52,7 @@ TEST(CacheTest, RetrievesMatchingEntry) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->UpdateKeyValue("my_key", "my_value", 1);
   std::vector<std::string_view> keys = {"my_key"};
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
   std::vector<std::string_view> wrong_keys = {"wrong_key"};
   EXPECT_FALSE(cache->GetKeyValuePairs(keys).empty());
@@ -66,7 +68,7 @@ TEST(CacheTest, GetWithMultipleKeysReturnsMatchingValues) {
 
   std::vector<std::string_view> full_keys = {"key1", "key2"};
 
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 2);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("key1", "value1"),
@@ -79,7 +81,7 @@ TEST(CacheTest, GetAfterUpdateReturnsNewValue) {
 
   std::vector<std::string_view> keys = {"my_key"};
 
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 
@@ -98,7 +100,7 @@ TEST(CacheTest, GetAfterUpdateDifferentKeyReturnsSameValue) {
 
   std::vector<std::string_view> keys = {"my_key"};
 
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 }
@@ -106,7 +108,7 @@ TEST(CacheTest, GetAfterUpdateDifferentKeyReturnsSameValue) {
 TEST(CacheTest, GetForEmptyCacheReturnsEmptyList) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   std::vector<std::string_view> keys = {"my_key"};
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
   EXPECT_EQ(kv_pairs.size(), 0);
 }
@@ -116,7 +118,7 @@ TEST(DeleteKeyTest, RemovesKeyEntry) {
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->DeleteKey("my_key", 2);
   std::vector<std::string_view> full_keys = {"my_key"};
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 0);
 }
@@ -126,7 +128,7 @@ TEST(DeleteKeyTest, WrongkeyDoesNotRemoveEntry) {
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->DeleteKey("wrong_key", 1);
   std::vector<std::string_view> keys = {"my_key"};
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 }
@@ -137,7 +139,7 @@ TEST(CacheTest, OutOfOrderUpdateAfterUpdateWorks) {
 
   std::vector<std::string_view> keys = {"my_key"};
 
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 
@@ -153,7 +155,7 @@ TEST(DeleteKeyTest, OutOfOrderDeleteAfterUpdateWorks) {
   cache->DeleteKey("my_key", 2);
   cache->UpdateKeyValue("my_key", "my_value", 1);
   std::vector<std::string_view> full_keys = {"my_key"};
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 1);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
@@ -164,7 +166,7 @@ TEST(DeleteKeyTest, OutOfOrderUpdateAfterDeleteWorks) {
   cache->UpdateKeyValue("my_key", "my_value", 2);
   cache->DeleteKey("my_key", 1);
   std::vector<std::string_view> full_keys = {"my_key"};
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 1);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
@@ -175,7 +177,7 @@ TEST(DeleteKeyTest, InOrderUpdateAfterDeleteWorks) {
   cache->DeleteKey("my_key", 1);
   cache->UpdateKeyValue("my_key", "my_value", 2);
   std::vector<std::string_view> full_keys = {"my_key"};
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 1);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
@@ -186,7 +188,7 @@ TEST(DeleteKeyTest, InOrderDeleteAfterUpdateWorks) {
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->DeleteKey("my_key", 2);
   std::vector<std::string_view> full_keys = {"my_key"};
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 0);
 }
@@ -247,7 +249,7 @@ TEST(CleanUpTimestamps,
   std::vector<std::string_view> full_keys = {
       "my_key1", "my_key2", "my_key3", "my_key4", "my_key5",
   };
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 2);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key4", "my_value"),
@@ -267,7 +269,7 @@ TEST(CleanUpTimestamps, CantInsertOldRecordsAfterCleanup) {
 
   std::vector<std::string_view> keys = {"my_key1"};
 
-  std::vector<std::pair<std::string_view, std::string>> kv_pairs =
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
   EXPECT_EQ(kv_pairs.size(), 0);
 }

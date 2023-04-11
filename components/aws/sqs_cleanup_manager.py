@@ -124,6 +124,75 @@ class SqsCleanupManager(object):
                     targets_to_subscriptions[target_arn] = subscription_arn
         return targets_to_subscriptions
 
+    def _get_all_subscriptions(self) -> dict:
+        """Find all subscriptions.
+
+        Returns:
+        Dictionary of arns, from subscription target (queue) to subscription.
+        """
+        client = self._sns_resource.meta.client
+        paginator = client.get_paginator("list_subscriptions")
+        targets_to_subscriptions = {}
+        for response in paginator.paginate():
+            for subscription in response.get("Subscriptions", []):
+                subscription_arn = subscription.get("SubscriptionArn")
+                target_arn = subscription.get("Endpoint")
+                if subscription is not None and target_arn is not None:
+                    targets_to_subscriptions[target_arn] = subscription_arn
+        return targets_to_subscriptions
+
+    def _does_queue_exist(self, queue_arn: str) -> bool:
+        """Check if a queue exists.
+
+        Args:
+          queue_arn: SQS ARN string.
+
+        Returns:
+         bool indicating if the SQS exists.
+        """
+        # aws does not provide a better way to get a name from an ARN
+        queue_name = queue_arn.split(":")[-1]
+        sqsclient = self._sqs_resource.meta.client
+        # aws does not provide a better way to check if an SQS exists
+        try:
+            sqsclient.get_queue_url(QueueName=queue_name)
+        except:
+            return False
+
+        return True
+
+    def _get_dangling_subscriptions(self, topic_arn: str) -> list:
+        """Find all subscriptions with missing queues.
+
+        Args:
+          topic_arn: SQS topic ARN string.
+
+        Returns:
+        List of subscription ARNs that have a missing SQS.
+        """
+        client = self._sns_resource.meta.client
+        paginator = client.get_paginator("list_subscriptions_by_topic")
+        dangling_subscriptions = []
+        for response in paginator.paginate(TopicArn=topic_arn):
+            for subscription in response.get("Subscriptions", []):
+                subscription_arn = subscription.get("SubscriptionArn")
+                target_arn = subscription.get("Endpoint")
+                if self._does_queue_exist(target_arn):
+                    continue
+
+                dangling_subscriptions.append(subscription_arn)
+        return dangling_subscriptions
+
+    def _delete_subscriptions(self, subscriptions_to_delete: list) -> None:
+        """Delete subscriptions.
+
+        Args:
+          subscriptions_to_delete: a list of subscriptions to delete.
+        """
+        for subscription_arn in subscriptions_to_delete:
+            subscription = self._sns_resource.Subscription(subscription_arn)
+            subscription.delete()
+
     def _cleanup(
         self,
         expired_queues: list,
@@ -146,8 +215,31 @@ class SqsCleanupManager(object):
                 subscription = self._sns_resource.Subscription(subscription_arn)
                 subscription.delete()
                 subscriptions_deleted += 1
-            queue.delete()
-        return len(expired_queues), subscriptions_deleted
+                queue.delete()
+        return subscriptions_deleted, subscriptions_deleted
+
+    def _cleanup_orphan_queues(
+        self,
+        expired_queues: list,
+        subscriptions: Dict[str, str],
+    ) -> int:
+        """Deletes all expired SQS queues missing an SNS.
+
+        Args:
+          expired_queues: List of expired SQS queues.
+          subscriptions: Subscription arns to subscription.
+
+        Returns:
+          number of queues deleted.
+        """
+        queues_deleted = 0
+        for queue in expired_queues:
+            queue_arn = queue.attributes.get("QueueArn")
+            subscription_arn = subscriptions.get(queue_arn)
+            if subscription_arn is None:
+                queue.delete()
+                queues_deleted += 1
+        return queues_deleted
 
     def find_and_cleanup(
         self,
@@ -155,11 +247,16 @@ class SqsCleanupManager(object):
         queue_prefix: str,
         timeout_secs: int,
     ) -> Tuple[int, int]:
-        """Deletes all expired Queues and associated subscriptions.
+        """Deletes all expired Queues and associated subscriptions. Deletes dangling subscriptions.
 
         Returns:
           Number of deleted queues and subscriptions.
         """
-        target_subscriptions = self._get_target_subscriptions(topic_arn)
+        all_subscriptions = self._get_all_subscriptions()
         expired_queues = self._find_expired_queues(queue_prefix, timeout_secs)
+        self._cleanup_orphan_queues(expired_queues, all_subscriptions)
+        dangling_subscriptions = self._get_dangling_subscriptions(topic_arn)
+        self._delete_subscriptions(dangling_subscriptions)
+        expired_queues = self._find_expired_queues(queue_prefix, timeout_secs)
+        target_subscriptions = self._get_target_subscriptions(topic_arn)
         return self._cleanup(expired_queues, target_subscriptions)

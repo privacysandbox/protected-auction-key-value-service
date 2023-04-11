@@ -17,15 +17,26 @@ load(
     "@google_privacysandbox_functionaltest_system//bazel:rpc_test.bzl",
     "grpc_diff_test_suite",
 )
+load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
 
-package(default_visibility = ["//testing:__subpackages__"])
+package(
+    default_visibility = [
+        "//production/packaging:__subpackages__",
+        "//testing:__subpackages__",
+    ],
+)
 
 # list of test suites, defining name, endpoint and rpc
 grpc_test_suites = [
     (
-        "kvserver_getvalues",
+        "kvserver_getvalues_v1",
         "KVSERVER_ENDPOINT",
         "kv_server.v1.KeyValueService.GetValues",
+    ),
+    (
+        "kvserver_getvalues_v2",
+        "KVSERVER_ENDPOINT",
+        "kv_server.v2.KeyValueService.GetValues",
     ),
 ]
 
@@ -44,9 +55,30 @@ grpc_test_suites = [
     for test_suite, endpoint, rpc in grpc_test_suites
 ]
 
+test_suite(
+    name = "grpcurl_test_suite",
+    tags = [
+        "manual",
+    ],
+    tests = ["grpcurl-{}".format(test_suite) for test_suite, _, _ in grpc_test_suites],
+)
+
 csv_files = [
-    ("delta_abc", "DELTA_0000000000000001", ":data/abc.csv"),
-    ("delta_foo", "DELTA_0000000000000002", ":data/foo.csv"),
+    (
+        "delta_csv_{}".format(idx),
+        delta_file.rsplit("/", 1)[1].rsplit(".")[0],
+        ":{}".format(delta_file),
+    )
+    for idx, delta_file in enumerate(glob(["data/DELTA*.csv"]))
+]
+
+js_files = [
+    (
+        "delta_js_{}".format(idx),
+        delta_file.rsplit("/", 1)[1].rsplit(".")[0],
+        ":{}".format(delta_file),
+    )
+    for idx, delta_file in enumerate(glob(["data/DELTA*.js"]))
 ]
 
 [
@@ -70,10 +102,35 @@ csv_files = [
     for name, outfile, infile in csv_files
 ]
 
+[
+    run_binary(
+        name = name,
+        srcs = [
+            infile,
+        ],
+        outs = [
+            outfile,
+        ],
+        args = [
+            "--udf_file_path",
+            "$(location {})".format(infile),
+            "--output_path",
+            "$(location {})".format(outfile),
+        ],
+        tool = "//tools/udf/udf_generator:udf_delta_file_generator",
+    )
+    for name, outfile, infile in js_files
+]
+
 filegroup(
-    name = "delta_files",
+    name = "delta_files_filegroup",
     srcs = [
         name
-        for name, _, _ in csv_files
+        for name, _, _ in csv_files + js_files
     ],
+)
+
+pkg_zip(
+    name = "delta_files",
+    srcs = [":delta_files_filegroup"],
 )

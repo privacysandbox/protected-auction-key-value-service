@@ -47,7 +47,7 @@ struct CacheValue {
 class KeyValueCache : public Cache {
  public:
   // Looks up and returns key-value pairs for the given keys.
-  std::vector<std::pair<std::string_view, std::string>> GetKeyValuePairs(
+  absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
       const std::vector<std::string_view>& key_list) const override;
 
   // Inserts or updates the key with the new value.

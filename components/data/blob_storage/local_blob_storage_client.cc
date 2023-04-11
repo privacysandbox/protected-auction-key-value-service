@@ -41,7 +41,7 @@ class FileBlobReader : public BlobReader {
 class FileBlobStorageClient : public BlobStorageClient {
  public:
   ~FileBlobStorageClient() = default;
-  static std::unique_ptr<BlobStorageClient> Create() {
+  static std::unique_ptr<BlobStorageClient> Create(MetricsRecorder& unused) {
     return std::make_unique<FileBlobStorageClient>();
   }
   std::unique_ptr<BlobReader> GetBlobReader(DataLocation location) override {
@@ -126,6 +126,7 @@ class FileBlobStorageClient : public BlobStorageClient {
 }  // namespace
 
 std::unique_ptr<BlobStorageClient> BlobStorageClient::Create(
+    MetricsRecorder& metrics_recorder,
     BlobStorageClient::ClientOptions client_options) {
   return std::make_unique<FileBlobStorageClient>();
 }

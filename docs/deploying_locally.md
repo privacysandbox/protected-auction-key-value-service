@@ -44,6 +44,15 @@ From the Key/Value server repo folder, execute the following command:
   --//:instance=local
 ```
 
+## Generate UDF delta file
+
+We provide a default UDF implementation that is loaded into the server at startup.
+
+To use your own UDF, refer to the [UDF Delta file documentation](./generating_udf_files.md) to
+generate a UDF delta file.
+
+Include the delta file in your local delta directory (see below).
+
 # Deployment
 
 ## Create local directories

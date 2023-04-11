@@ -50,9 +50,8 @@ class GetValuesHandlerTest : public ::testing::Test {
 TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
   EXPECT_CALL(mock_cache_, GetKeyValuePairs(UnorderedElementsAre("my_key")))
       .Times(2)
-      .WillRepeatedly(
-          Return(std::vector<std::pair<std::string_view, std::string>>{
-              {"my_key", "my_value"}}));
+      .WillRepeatedly(Return(absl::flat_hash_map<std::string, std::string>{
+          {"my_key", "my_value"}}));
   GetValuesRequest request;
   request.add_keys("my_key");
   GetValuesResponse response;
@@ -81,10 +80,8 @@ TEST_F(GetValuesHandlerTest, RepeatedKeys) {
   EXPECT_CALL(mock_cache_,
               GetKeyValuePairs(UnorderedElementsAre("key1", "key2", "key3")))
       .Times(1)
-      .WillRepeatedly(
-          Return(std::vector<std::pair<std::string_view, std::string>>{
-              {"key1", "value1"}}));
-
+      .WillRepeatedly(Return(
+          absl::flat_hash_map<std::string, std::string>{{"key1", "value1"}}));
   GetValuesRequest request;
   request.add_keys("key1,key2,key3");
   GetValuesResponse response;
@@ -108,9 +105,8 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   EXPECT_CALL(mock_cache_,
               GetKeyValuePairs(UnorderedElementsAre("key1", "key2")))
       .Times(1)
-      .WillOnce(Return(std::vector<std::pair<std::string_view, std::string>>{
+      .WillOnce(Return(absl::flat_hash_map<std::string, std::string>{
           {"key1", "value1"}, {"key2", "value2"}}));
-
   GetValuesRequest request;
   request.add_keys("key1");
   request.add_keys("key2");
@@ -138,12 +134,12 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
   MockCache mock_cache;
   EXPECT_CALL(mock_cache, GetKeyValuePairs(UnorderedElementsAre("key1")))
       .Times(1)
-      .WillOnce(Return(std::vector<std::pair<std::string_view, std::string>>{
-          {"key1", "value1"}}));
+      .WillOnce(Return(
+          absl::flat_hash_map<std::string, std::string>{{"key1", "value1"}}));
   EXPECT_CALL(mock_cache, GetKeyValuePairs(UnorderedElementsAre("key2")))
       .Times(1)
-      .WillOnce(Return(std::vector<std::pair<std::string_view, std::string>>{
-          {"key2", "value2"}}));
+      .WillOnce(Return(
+          absl::flat_hash_map<std::string, std::string>{{"key2", "value2"}}));
   GetValuesRequest request;
   request.add_render_urls("key1");
   request.add_ad_component_render_urls("key2");
@@ -332,7 +328,7 @@ TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
   EXPECT_CALL(mock_cache_,
               GetKeyValuePairs(UnorderedElementsAre("key1", "key2", "key3")))
       .Times(1)
-      .WillOnce(Return(std::vector<std::pair<std::string_view, std::string>>{
+      .WillOnce(Return(absl::flat_hash_map<std::string, std::string>{
           {"key1", value1}, {"key2", value2}, {"key3", value3}}));
 
   GetValuesRequest request;

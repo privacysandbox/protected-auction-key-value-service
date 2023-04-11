@@ -41,12 +41,18 @@ class LocalDeltaFileRecordChangeNotifier
     if (!notifications.ok()) {
       return notifications.status();
     }
+
+    std::vector<RealtimeMessage> realtime_messages;
+    for (auto notification : *notifications) {
+      realtime_messages.push_back({.parsed_notification = notification});
+    }
+
     auto span =
         GetTracer()->StartSpan(RECEIVED_LOW_LATENCY_NOTIFICATIONS_LOCALLY);
     NotificationsContext nc = {
         .scope = opentelemetry::trace::Scope(span),
         .notifications_received = absl::Now(),
-        .parsed_notifications = *notifications,
+        .realtime_messages = realtime_messages,
     };
     return nc;
   }
@@ -59,7 +65,8 @@ class LocalDeltaFileRecordChangeNotifier
 
 std::unique_ptr<DeltaFileRecordChangeNotifier>
 DeltaFileRecordChangeNotifier::Create(
-    std::unique_ptr<ChangeNotifier> change_notifier) {
+    std::unique_ptr<ChangeNotifier> change_notifier,
+    MetricsRecorder& metrics_recorder) {
   return std::make_unique<LocalDeltaFileRecordChangeNotifier>(
       std::move(change_notifier));
 }

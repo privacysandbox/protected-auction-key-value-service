@@ -79,10 +79,12 @@ class MockBlobReader : public BlobReader {
 class MockRealtimeNotifier : public RealtimeNotifier {
  public:
   MockRealtimeNotifier() : RealtimeNotifier() {}
-  MOCK_METHOD(absl::Status, Start,
-              (DeltaFileRecordChangeNotifier & change_notifier,
-               std::function<void(const std::string& key)> callback),
-              (override));
+  MOCK_METHOD(
+      absl::Status, Start,
+      (DeltaFileRecordChangeNotifier & change_notifier,
+       std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
+           callback),
+      (override));
   MOCK_METHOD(absl::Status, Stop, (), (override));
   MOCK_METHOD(bool, IsRunning, (), (const, override));
 };

@@ -111,7 +111,7 @@ class LocalChangeNotifier : public ChangeNotifier {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata, MetricsRecorder& unused) {
   std::error_code error_code;
   auto local_notifier_metadata =
       std::get<LocalNotifierMetadata>(notifier_metadata);

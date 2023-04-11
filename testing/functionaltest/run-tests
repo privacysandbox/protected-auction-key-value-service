@@ -76,7 +76,7 @@ readonly TOOLS_DIR
 
 declare -a TEST_ARGS=(
   "--test_env=KVSERVER_ENDPOINT=${ENDPOINT}"
-  "--test_env=TEST_TOOLS_IMAGE=$("${TOOLS_DIR}"/get-builder-image-tagged --image test-tools --verbose)"
+  "--test_env=TEST_TOOLS_IMAGE=$("${TOOLS_DIR}"/get-builder-image-tagged --image test-tools)"
 )
 
 if [[ -v DOCKER_NETWORK ]]; then
@@ -85,7 +85,9 @@ if [[ -v DOCKER_NETWORK ]]; then
   )
 fi
 
-declare -a -r TESTS=("//testing/functionaltest/test_cases/grpc:all")
+declare -a -r TESTS=(
+  "//testing/functionaltest/test_cases/grpc:grpcurl_test_suite"
+)
 
 # run the tests using bazel, if installed
 if command bazel --help &>/dev/null; then

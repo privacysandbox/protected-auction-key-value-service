@@ -79,7 +79,8 @@ DeltaRecordStreamWriter<DestStreamT>::Create(DestStreamT& dest_stream,
 template <typename DestStreamT>
 absl::Status DeltaRecordStreamWriter<DestStreamT>::WriteRecord(
     const DeltaFileRecordStruct& record) {
-  if (!record_writer_->WriteRecord(ToStringView(record.ToFlatBuffer()))) {
+  if (!record_writer_->WriteRecord(ToStringView(record.ToFlatBuffer())) &&
+      options_.recovery_function) {
     options_.recovery_function(record);
   }
   return record_writer_->status();

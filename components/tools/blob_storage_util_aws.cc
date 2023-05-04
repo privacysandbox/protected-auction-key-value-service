@@ -19,15 +19,15 @@
 #include "absl/flags/usage.h"
 #include "absl/strings/match.h"
 #include "components/data/blob_storage/blob_storage_client.h"
-#include "components/telemetry/telemetry_provider.h"
 #include "components/tools/blob_storage_commands.h"
 #include "components/util/platform_initializer.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
 
 using kv_server::BlobReader;
 using kv_server::BlobStorageClient;
-using kv_server::TelemetryProvider;
+using privacy_sandbox::server_common::TelemetryProvider;
 
 constexpr std::string_view kCloudPrefix = "cloud://";
 

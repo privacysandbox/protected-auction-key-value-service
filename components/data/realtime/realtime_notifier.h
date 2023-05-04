@@ -23,6 +23,7 @@
 #include "components/data/common/thread_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/errors/retry.h"
+#include "components/util/sleepfor.h"
 
 namespace kv_server {
 struct DataLoadingStats {
@@ -56,11 +57,12 @@ class RealtimeNotifier {
   virtual bool IsRunning() const = 0;
 
   static std::unique_ptr<RealtimeNotifier> Create(
-      MetricsRecorder& metrics_recorder);
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
 
   // Used for test
   static std::unique_ptr<RealtimeNotifier> Create(
-      MetricsRecorder& metrics_recorder, std::unique_ptr<SleepFor> sleep_for);
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
+      std::unique_ptr<SleepFor> sleep_for);
 };
 
 }  // namespace kv_server

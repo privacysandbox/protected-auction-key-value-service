@@ -20,13 +20,16 @@
 #include "aws/core/utils/json/JsonSerializer.h"
 #include "components/data/common/change_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
-#include "components/telemetry/telemetry.h"
 #include "glog/logging.h"
+#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 namespace {
 
-constexpr char* RECEIVED_LOW_LATENCY_NOTIFICATIONS =
+using privacy_sandbox::server_common::GetTracer;
+using privacy_sandbox::server_common::MetricsRecorder;
+
+constexpr char* kReceivedLowLatencyNotifications =
     "ReceivedLowLatencyNotifications";
 constexpr char* kDeltaFileRecordChangeNotifierParsingFailure =
     "DeltaFileRecordChangeNotifierParsingFailure";
@@ -55,7 +58,7 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
       return notifications.status();
     }
 
-    auto span = GetTracer()->StartSpan(RECEIVED_LOW_LATENCY_NOTIFICATIONS);
+    auto span = GetTracer()->StartSpan(kReceivedLowLatencyNotifications);
     NotificationsContext nc = {.scope = opentelemetry::trace::Scope(span),
                                .notifications_received = absl::Now()};
     std::vector<std::string> realtime_messages;

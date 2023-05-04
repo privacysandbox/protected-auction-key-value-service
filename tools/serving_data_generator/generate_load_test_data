@@ -18,20 +18,22 @@
 
 WORKSPACE="$(git rev-parse --show-toplevel)"
 readonly WORKSPACE
-readonly DELTAS_DIR=tools/serving_data_generator/deltas
-mkdir -p "${WORKSPACE}/${DELTAS_DIR}"
+readonly TOOLS_DIR="${WORKSPACE}"/builders/tools
+readonly DELTAS_DIR="${WORKSPACE}"/tools/serving_data_generator/deltas
+mkdir -p "${DELTAS_DIR}"
+# shellcheck disable=SC2034
 BAZEL_EXTRA_ARGS=
 
-"${WORKSPACE}"/builders/tools/bazel-debian build //tools/serving_data_generator:test_serving_data_generator
-"${WORKSPACE}"/builders/tools/normalize-bazel-symlinks
+"${TOOLS_DIR}"/bazel-debian build //tools/serving_data_generator:test_serving_data_generator
+"${TOOLS_DIR}"/normalize-bazel-symlinks
 
 declare -i nanosecond
 for _ in {1..3000}
 do
   nanosecond=$(date '+%s%N')
-  ${WORKSPACE}/bazel-bin/tools/serving_data_generator/test_serving_data_generator \
-    --key=${nanosecond} \
+  "${WORKSPACE}"/bazel-bin/tools/serving_data_generator/test_serving_data_generator \
+    --key="${nanosecond}" \
     --num_records=100   \
-    --timestamp=${nanosecond} \
-    --output_dir="${WORKSPACE}/${DELTAS_DIR}"
+    --timestamp="${nanosecond}" \
+    --output_dir="${DELTAS_DIR}"
 done

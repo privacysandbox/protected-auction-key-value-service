@@ -25,11 +25,12 @@
 #include "absl/strings/escaping.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/compression.h"
-#include "components/telemetry/metrics_recorder.h"
 #include "components/udf/udf_client.h"
 #include "grpcpp/grpcpp.h"
 #include "nlohmann/json.hpp"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
+#include "quiche/binary_http/binary_http_message.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -39,7 +40,8 @@ class GetValuesV2Handler {
  public:
   // Accepts a functor to create compression blob builder for testing purposes.
   explicit GetValuesV2Handler(
-      const UdfClient& udf_client, MetricsRecorder& metrics_recorder,
+      const UdfClient& udf_client,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       std::function<CompressionGroupConcatenator::FactoryFunctionType>
           create_compression_group_concatenator =
               &CompressionGroupConcatenator::Create)
@@ -77,6 +79,17 @@ class GetValuesV2Handler {
       std::vector<nlohmann::json> compression_groups);
 
  private:
+  // On success, returns a BinaryHttpResponse with a successful response. The
+  // reason that this is a separate function is so that the error status
+  // returned from here can be encoded as a BinaryHTTP response code. So even if
+  // this function fails, the final grpc code may still be ok.
+  absl::StatusOr<quiche::BinaryHttpResponse>
+  BuildSuccessfulGetValuesBhttpResponse(
+      std::string_view bhttp_request_body) const;
+
+  // Returns error only if the response cannot be serialized into Binary HTTP
+  // response. For all other failures, the error status will be inside the
+  // Binary HTTP message.
   grpc::Status BinaryHttpGetValues(std::string_view bhttp_request_body,
                                    std::string& response) const;
 
@@ -88,7 +101,7 @@ class GetValuesV2Handler {
   const UdfClient& udf_client_;
   std::function<CompressionGroupConcatenator::FactoryFunctionType>
       create_compression_group_concatenator_;
-  MetricsRecorder& metrics_recorder_;
+  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

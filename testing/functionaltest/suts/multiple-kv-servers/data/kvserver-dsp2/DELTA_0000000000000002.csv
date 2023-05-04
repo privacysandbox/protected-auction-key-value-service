@@ -1,0 +1,5 @@
+key,logical_commit_time,mutation_type,value
+foo1,12,UPDATE,AAAAAAAAAAAAAAAAAA
+foo2,12,UPDATE,BBBBBBBBBBBBBBBBBB
+foo3,12,UPDATE,cccccccccccccccccc
+foo4,12,UPDATE,DDDDDDDDDDDDDDDDDD

@@ -2,8 +2,8 @@
 
 The server can be run locally with 2 differt compile time flags.
 
--   default: `--//components/telemetry:local_otel_export=ostream`
--   alternative: `--//components/telemetry:local_otel_export=otlp`
+-   default: `--@google_privacysandbox_servers_common//src/cpp/telemetry:local_otel_export=ostream`
+-   alternative: `--@google_privacysandbox_servers_common//src/cpp/telemetry:local_otel_export=otlp`
 
 ## OTLP
 

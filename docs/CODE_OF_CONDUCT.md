@@ -66,7 +66,7 @@ Reports should be directed to _[PROJECT STEWARD NAME(s) AND EMAIL(s)]_, the Proj
 _[PROJECT NAME]_. It is the Project Steward's duty to receive and address reported violations of the
 code of conduct. They will then work with a committee consisting of representatives from the Open
 Source Programs Office and the Google Open Source Strategy team. If for any reason you are
-uncomfortable reaching out to the Project Steward, please email opensource@google.com.
+uncomfortable reaching out to the Project Steward, please email <opensource@google.com>.
 
 We will investigate every complaint, but you may not receive a direct response. We will use our
 discretion in determining when and how to follow up on reported incidents, which may range from not

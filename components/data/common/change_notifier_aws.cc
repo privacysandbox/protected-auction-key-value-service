@@ -41,12 +41,14 @@
 #include "components/data/common/change_notifier.h"
 #include "components/data/common/msg_svc.h"
 #include "components/errors/error_util_aws.h"
-#include "components/telemetry/metrics_recorder.h"
-#include "components/telemetry/telemetry_provider.h"
 #include "glog/logging.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::MetricsRecorder;
 
 constexpr absl::Duration kMaxLongPollDuration = absl::Seconds(20);
 constexpr absl::Duration kLastUpdatedFrequency = absl::Minutes(2);
@@ -76,12 +78,17 @@ class AwsChangeNotifier : public ChangeNotifier {
       : sns_arn_(std::move(notifier_metadata.sns_arn)),
         queue_manager_(notifier_metadata.queue_manager),
         metrics_recorder_(metrics_recorder) {
-    // request timeout must be > poll timeout
-    // https://github.com/awsdocs/aws-doc-sdk-examples/blob/main/cpp/example_code/sqs/long_polling_on_message_receipt.cpp
-    Aws::Client::ClientConfiguration client_cfg;
-    client_cfg.requestTimeoutMs =
-        absl::ToInt64Milliseconds(kMaxLongPollDuration + absl::Seconds(10));
-    sqs_ = Aws::SQS::SQSClient(client_cfg);
+    if (notifier_metadata.only_for_testing_sqs_client_ != nullptr) {
+      sqs_.reset(notifier_metadata.only_for_testing_sqs_client_);
+    } else {
+      // request timeout must be > poll timeout
+      // https://github.com/awsdocs/aws-doc-sdk-examples/blob/main/cpp/example_code/sqs/long_polling_on_message_receipt.cpp
+      Aws::Client::ClientConfiguration client_cfg;
+      client_cfg.requestTimeoutMs =
+          absl::ToInt64Milliseconds(kMaxLongPollDuration + absl::Seconds(10));
+      sqs_ = std::make_unique<Aws::SQS::SQSClient>(client_cfg);
+    }
+
     metrics_recorder_.RegisterHistogram(
         kAwsSqsReceiveMessageLatency, "AWS SQS ReceiveMessage latency",
         "microsecond", kAwsSqsReceiveMessageLatencyBucketBoundaries);
@@ -157,7 +164,7 @@ class AwsChangeNotifier : public ChangeNotifier {
     // Max valid value
     // https://sdk.amazonaws.com/cpp/api/0.12.9/df/d17/class_aws_1_1_s_q_s_1_1_model_1_1_receive_message_request.html#a13311215b25937625b95c86644d5c466
     request.SetMaxNumberOfMessages(10);
-    const auto outcome = sqs_.ReceiveMessage(request);
+    const auto outcome = sqs_->ReceiveMessage(request);
     if (!outcome.IsSuccess()) {
       LOG(ERROR) << "Failed to receive message from SQS: "
                  << outcome.GetError().GetMessage();
@@ -209,7 +216,7 @@ class AwsChangeNotifier : public ChangeNotifier {
     Aws::SQS::Model::DeleteMessageBatchRequest req;
     req.SetQueueUrl(queue_url);
     req.SetEntries(std::move(delete_message_batch_request_entries));
-    const auto outcome = sqs_.DeleteMessageBatch(req);
+    const auto outcome = sqs_->DeleteMessageBatch(req);
     if (!outcome.IsSuccess()) {
       LOG(ERROR) << "Failed to delete message from SQS: "
                  << outcome.GetError().GetMessage();
@@ -221,7 +228,7 @@ class AwsChangeNotifier : public ChangeNotifier {
   MessageService* queue_manager_;
   const std::string sns_arn_;
   absl::Time last_updated_ = absl::InfinitePast();
-  Aws::SQS::SQSClient sqs_;
+  std::unique_ptr<Aws::SQS::SQSClient> sqs_;
   MetricsRecorder& metrics_recorder_;
 };
 }  // namespace

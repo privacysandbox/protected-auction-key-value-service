@@ -103,6 +103,7 @@ module "load_balancing" {
 }
 
 module "autoscaling" {
+  count                        = var.num_shards
   source                       = "../../services/autoscaling"
   environment                  = var.environment
   region                       = var.region
@@ -123,6 +124,7 @@ module "autoscaling" {
   depends_on                   = [module.iam_role_policies.instance_role_policy_attachment]
   prometheus_service_region    = var.prometheus_service_region
   prometheus_workspace_id      = var.prometheus_workspace_id != "" ? var.prometheus_workspace_id : module.telemetry.prometheus_workspace_id
+  shard_num                    = count.index
 }
 
 module "ssh" {
@@ -149,6 +151,7 @@ module "parameter" {
   data_loading_num_threads_parameter_value       = var.data_loading_num_threads
   s3client_max_connections_parameter_value       = var.s3client_max_connections
   s3client_max_range_bytes_parameter_value       = var.s3client_max_range_bytes
+  num_shards_parameter_value                     = var.num_shards
 }
 
 module "security_group_rules" {
@@ -189,6 +192,7 @@ module "iam_role_policies" {
     module.parameter.data_loading_num_threads_parameter_arn,
     module.parameter.s3client_max_connections_parameter_arn,
     module.parameter.s3client_max_range_bytes_parameter_arn,
+    module.parameter.num_shards_parameter_arn,
   ]
 }
 

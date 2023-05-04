@@ -21,8 +21,6 @@
 
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
-#include "components/telemetry/metrics_recorder.h"
-#include "components/telemetry/mocks.h"
 #include "components/udf/mocks.h"
 #include "glog/logging.h"
 #include "gmock/gmock.h"
@@ -35,11 +33,14 @@
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
 using grpc::StatusCode;
+using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Return;
 using testing::ReturnRef;
@@ -142,6 +143,14 @@ class GetValuesHandlerTest
   class BHTTPResponse {
    public:
     google::api::HttpBody& RawResponse() { return response_; }
+    int16_t ResponseCode() const {
+      const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
+          quiche::BinaryHttpResponse::Create(response_.data());
+      EXPECT_TRUE(maybe_res_bhttp_layer.ok())
+          << "quiche::BinaryHttpResponse::Create failed: "
+          << maybe_res_bhttp_layer.status();
+      return maybe_res_bhttp_layer->status_code();
+    }
 
     CompressedResponse Unwrap() const {
       const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
@@ -225,10 +234,12 @@ class GetValuesHandlerTest
   // to/from the corresponding request/responses.
   grpc::Status GetValuesBasedOnProtocol(std::string request_body,
                                         google::api::HttpBody* response,
+                                        int16_t* bhttp_response_code,
                                         GetValuesV2Handler* handler) {
     PlainRequest plain_request(std::move(request_body));
 
     if (IsUsing<ProtocolType::kPlain>()) {
+      *bhttp_response_code = 200;
       return handler->GetValues(plain_request.Build(), response);
     }
 
@@ -242,6 +253,7 @@ class GetValuesHandlerTest
         LOG(ERROR) << "BinaryHttpGetValues failed: " << s.error_message();
         return s;
       }
+      *bhttp_response_code = bresponse.ResponseCode();
     } else if (IsUsing<ProtocolType::kObliviousHttp>()) {
       OHTTPRequest ohttp_request(std::move(bhttp_request));
       // get ObliviousGetValuesRequest, OHTTPResponseUnwrapper
@@ -253,6 +265,7 @@ class GetValuesHandlerTest
         return s;
       }
       bresponse = response_unwrapper.Unwrap();
+      *bhttp_response_code = bresponse.ResponseCode();
     }
 
     CompressedResponse compressed = bresponse.Unwrap();
@@ -409,8 +422,10 @@ TEST_P(GetValuesHandlerTest, Success) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
+  ASSERT_EQ(bhttp_response_code, 200);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -477,10 +492,16 @@ TEST_P(GetValuesHandlerTest, InvalidFormat) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
-  ASSERT_FALSE(result.ok());
-  EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
+  if (IsUsing<ProtocolType::kPlain>()) {
+    ASSERT_FALSE(result.ok());
+    EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  } else {
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(bhttp_response_code, 500);
+  }
 }
 
 TEST_P(GetValuesHandlerTest, NotADictionary) {
@@ -489,10 +510,16 @@ TEST_P(GetValuesHandlerTest, NotADictionary) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
-  ASSERT_FALSE(result.ok());
-  EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
+  if (IsUsing<ProtocolType::kPlain>()) {
+    ASSERT_FALSE(result.ok());
+    EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  } else {
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(bhttp_response_code, 500);
+  }
 }
 
 TEST_P(GetValuesHandlerTest, NoPartition) {
@@ -505,10 +532,16 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
-  ASSERT_FALSE(result.ok());
-  EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
+  if (IsUsing<ProtocolType::kPlain>()) {
+    ASSERT_FALSE(result.ok());
+    EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  } else {
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(bhttp_response_code, 500);
+  }
 }
 
 TEST_P(GetValuesHandlerTest, NoContext) {
@@ -545,10 +578,16 @@ TEST_P(GetValuesHandlerTest, NoContext) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
-  ASSERT_FALSE(result.ok());
-  EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
+  if (IsUsing<ProtocolType::kPlain>()) {
+    ASSERT_FALSE(result.ok());
+    EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  } else {
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(bhttp_response_code, 500);
+  }
 }
 
 TEST_P(GetValuesHandlerTest, NoCompressionGroup) {
@@ -587,10 +626,16 @@ TEST_P(GetValuesHandlerTest, NoCompressionGroup) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
-  ASSERT_FALSE(result.ok());
-  EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
+  if (IsUsing<ProtocolType::kPlain>()) {
+    ASSERT_FALSE(result.ok());
+    EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  } else {
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(bhttp_response_code, 500);
+  }
 }
 
 TEST_P(GetValuesHandlerTest, CompressionGroupNotANumber) {
@@ -630,10 +675,16 @@ TEST_P(GetValuesHandlerTest, CompressionGroupNotANumber) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
-  ASSERT_FALSE(result.ok());
-  EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
+  if (IsUsing<ProtocolType::kPlain>()) {
+    ASSERT_FALSE(result.ok());
+    EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
+  } else {
+    ASSERT_TRUE(result.ok());
+    EXPECT_EQ(bhttp_response_code, 500);
+  }
 }
 
 TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
@@ -731,8 +782,9 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -806,8 +858,9 @@ TEST_P(GetValuesHandlerTest, UdfInvalidJsonOutput) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
   EXPECT_EQ(response.data(), "null");
@@ -842,8 +895,9 @@ TEST_P(GetValuesHandlerTest, UdfNoKeyGroupOutputs) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
   EXPECT_EQ(response.data(), "null");
@@ -893,8 +947,9 @@ TEST_P(GetValuesHandlerTest, UdfKeyGroupOutputsNotArray) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
   EXPECT_EQ(response.data(), "null");
@@ -934,8 +989,9 @@ TEST_P(GetValuesHandlerTest, UdfKeyGroupOutputsArrayEmpty) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
   nlohmann::json expected =
@@ -955,8 +1011,9 @@ TEST_P(GetValuesHandlerTest, NoKeyGroupsInPartition) {
     })";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
   EXPECT_EQ(response.data(), "null");
@@ -1002,8 +1059,9 @@ TEST_P(GetValuesHandlerTest, UdfNoOutputApiVersion) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
   EXPECT_EQ(response.data(), "null");
@@ -1050,8 +1108,9 @@ TEST_P(GetValuesHandlerTest, UdfWrongOutputApiVersion) {
   )";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
-  const auto result =
-      GetValuesBasedOnProtocol(core_request_body, &response, &handler);
+  int16_t bhttp_response_code = 0;
+  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
+                                               &bhttp_response_code, &handler);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
   EXPECT_EQ(response.data(), "null");

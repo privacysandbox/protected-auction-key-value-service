@@ -18,13 +18,13 @@
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
-#include "components/telemetry/telemetry_provider.h"
 #include "components/util/platform_initializer.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 
 using kv_server::BlobStorageChangeNotifier;
-using kv_server::TelemetryProvider;
+using privacy_sandbox::server_common::TelemetryProvider;
 
 int main(int argc, char** argv) {
   kv_server::PlatformInitializer initializer;

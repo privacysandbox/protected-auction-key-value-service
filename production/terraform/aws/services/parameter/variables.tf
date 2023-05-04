@@ -78,3 +78,8 @@ variable "s3client_max_range_bytes_parameter_value" {
   description = "S3Client max range bytes for reading data files."
   type        = number
 }
+
+variable "num_shards_parameter_value" {
+  description = "Total shards numbers."
+  type        = number
+}

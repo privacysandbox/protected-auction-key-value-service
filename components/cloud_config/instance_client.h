@@ -42,6 +42,10 @@ class InstanceClient {
 
   // Returns machine id.  May use cached value.
   virtual absl::StatusOr<std::string> GetInstanceId() = 0;
+
+  // Retrieves all tags for the current instance and returns the tag with the
+  // key "shard_num".
+  virtual absl::StatusOr<std::string> GetShardNumTag() = 0;
 };
 
 }  // namespace kv_server

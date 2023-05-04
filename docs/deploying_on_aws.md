@@ -1,3 +1,6 @@
+> FLEDGE has been renamed to Protected Audience API. To learn more about the name change, see the
+> [blog post](https://privacysandbox.com/intl/en_us/news/protected-audience-api-our-new-name-for-fledge)
+
 # FLEDGE Key/Value server deployment on AWS
 
 This article is for adtech engineers who will set up the cloud infrastructure and run the Key/Value
@@ -309,16 +312,16 @@ environment will be in the format of: `https://[[ENVIRONMENT]].[[ROOT_DOMAIN]]`,
 Once you have constructed your URL, you can use [curl](https://curl.se/) to query the server:
 
 ```sh
-KV_SERVER_URL="https://demo.kv-server.your-domain.example/v1/getvalues"
+KV_SERVER_URL="https://demo.kv-server.your-domain.example"
 curl ${KV_SERVER_URL}/v1/getvalues?keys=foo1
 ```
 
 Since 7.47.0. curl by default send request via HTTP/2 protocol
 [curl-http2](https://curl.se/docs/http2.html). The terraform setup has the KV load balancer listen
-to HTTP/2 on port 443 and HTTP1.1 on port 8443. To query the server using http1.1 request protocol:
+to HTTP/2 on port 8443 and HTTP1.1 on port 443. To query the server using http1.1 request protocol:
 
 ```sh
-KV_SERVER_URL="https://demo.kv-server.your-domain.example:8443/v1/getvalues"
+KV_SERVER_URL="https://demo.kv-server.your-domain.example"
 curl ${KV_SERVER_URL}/v1/getvalues?keys=foo1 --http1.1
 ```
 
@@ -330,20 +333,18 @@ BODY='{ "context": { "subkey": "example.com" }, "partitions": [{ "id": 0, "compr
 
 HTTP:
 
-> Currently, the HTTP endpoint for V2 does not work. We are working on a fix for the next release.
-> Please use grpcurl instead.
+> Currently, the HTTP2 endpoint (port 8443) for V2 does not work. We are working on a fix for the
+> next release. Please use the HTTP1 endpoint (port 443) instead.
 
 ```sh
-curl -vX PUT -d "$BODY"  http://demo.kv-server.your-domain.example/v2/getvalues
+curl -vX PUT -d "$BODY"  ${KV_SERVER_URL}/v2/getvalues
 ```
 
 Or gRPC (using [grpcurl](https://github.com/fullstorydev/grpcurl)):
 
 ```sh
-grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' -plaintext demo.kv-server.your-domain.example:443 kv_server.v2.KeyValueService/GetValues
+grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' -plaintext demo.kv-server.your-domain.example:8443 kv_server.v2.KeyValueService/GetValues
 ```
-
-For gRPC, you will need to base64 decode the output.
 
 ## SSH into EC2
 

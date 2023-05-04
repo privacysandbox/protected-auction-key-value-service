@@ -34,4 +34,4 @@ source "${SCRIPT_DIR}"/../../builders/tools/builder.sh
 # shellcheck source=production/packaging/lib_local_server.sh
 source "${SCRIPT_DIR}"/lib_local_server.sh
 
-local_server::run_and_test
+local_server::run_and_test "$@"

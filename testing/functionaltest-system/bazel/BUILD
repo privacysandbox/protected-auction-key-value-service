@@ -13,6 +13,8 @@
 # limitations under the License.
 
 exports_files([
+    "curl_diff_test_runner",
     "ghz_test_runner",
     "grpcurl_diff_test_runner",
+    "verify_ssl_cert",
 ])

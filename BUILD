@@ -107,7 +107,7 @@ genrule(
     name = "collect-logs",
     outs = ["collect_logs.bin"],
     cmd_bash = """cat << EOF > '$@'
-tools/collect-logs
+tools/collect-logs "\\$$@"
 EOF""",
     executable = True,
     local = True,

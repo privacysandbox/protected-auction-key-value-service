@@ -16,7 +16,7 @@
 set -o errexit
 
 usage() {
-  local exitval=${1-1}
+  exitval=${1-1}
   cat >&2 << USAGE
 usage:
   $0 [options]... [server flags]...
@@ -26,7 +26,7 @@ usage:
     command line flags will be passed to the server invocation.
     See the server C++ code for available flags.
 USAGE
-  exit ${exitval}
+  exit "${exitval}"
 }
 
 while [ $# -gt 0 ]; do
@@ -35,13 +35,8 @@ while [ $# -gt 0 ]; do
       PROXY=/server/bin/proxify
       shift
       ;;
-    -h | --help)
-      usage 0
-      break
-      ;;
-    *)
-      break
-      ;;
+    -h | --help) usage 0 ;;
+    *) break ;;
   esac
 done
 

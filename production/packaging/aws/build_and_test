@@ -54,7 +54,6 @@ USAGE
 }
 
 declare -a AMI_REGIONS
-declare -i SKIP_PRECOMMIT=0
 declare -a BUILD_AND_TEST_ARGS
 
 while [[ $# -gt 0 ]]; do

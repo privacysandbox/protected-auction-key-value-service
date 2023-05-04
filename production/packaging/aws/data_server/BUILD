@@ -132,14 +132,12 @@ genrule(
         ":server_artifacts",
         ":server_docker_image.tar",
         "//public/query:query_api_descriptor_set",
-        "//testing/functionaltest/test_cases/grpc:delta_files",
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
-mkdir -p dist/debian dist/test_data/deltas
+mkdir -p dist/debian
 cp $(execpath :server_artifacts) $(execpath :server_docker_image.tar) dist/debian
 cp $(execpath //public/query:query_api_descriptor_set) dist
-cp $(execpath //testing/functionaltest/test_cases/grpc:delta_files) dist/test_data/deltas
 builders/tools/normalize-dist
 EOF""",
     executable = True,

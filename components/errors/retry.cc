@@ -16,26 +16,19 @@
 
 #include <algorithm>
 
-#include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::GetTracer;
+using privacy_sandbox::server_common::MetricsRecorder;
+using privacy_sandbox::server_common::TelemetryAttribute;
+using privacy_sandbox::server_common::TraceWithStatus;
+
 constexpr absl::Duration kMaxRetryInterval = absl::Minutes(2);
 constexpr uint32_t kRetryBackoffBase = 2;
 }  // namespace
-
-bool SleepFor::Duration(absl::Duration d) const {
-  return !notification_.WaitForNotificationWithTimeout(d);
-}
-
-absl::Status SleepFor::Stop() {
-  if (notification_.HasBeenNotified()) {
-    return absl::FailedPreconditionError("Already stopped");
-  }
-  notification_.Notify();
-  return absl::OkStatus();
-}
 
 absl::Duration ExponentialBackoffForRetry(uint32_t retries) {
   const absl::Duration backoff = absl::Seconds(pow(kRetryBackoffBase, retries));

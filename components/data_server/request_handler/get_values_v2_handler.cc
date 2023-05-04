@@ -22,7 +22,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/status/statusor.h"
-#include "components/telemetry/telemetry.h"
+#include "absl/strings/ascii.h"
 #include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
@@ -31,10 +31,11 @@
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
+#include "src/cpp/telemetry/telemetry.h"
 
-constexpr char* GET_VALUES_v2_HANDLER_SPAN = "GetValuesV2Handler";
-constexpr char* CACHE_KEY_V2_HIT = "CacheKeyHit";
-constexpr char* CACHE_KEY_V2_MISS = "CacheKeyMiss";
+constexpr char* kGetValuesV2HandlerSpan = "GetValuesV2Handler";
+constexpr char* kCacheKeyV2Hit = "CacheKeyHit";
+constexpr char* kCacheKeyV2Miss = "CacheKeyMiss";
 
 constexpr int kUdfInputApiVersion = 1;
 constexpr int kUdfOutputApiVersion = 1;
@@ -42,6 +43,7 @@ constexpr int kUdfOutputApiVersion = 1;
 namespace kv_server {
 namespace {
 using grpc::StatusCode;
+using privacy_sandbox::server_common::GetTracer;
 using quiche::BinaryHttpRequest;
 using quiche::BinaryHttpResponse;
 using v2::BinaryHttpGetValuesRequest;
@@ -50,6 +52,9 @@ using v2::KeyValueService;
 using v2::ObliviousGetValuesRequest;
 
 const std::string_view kOHTTPResponseContentType = "message/ohttp-res";
+constexpr std::string_view kAcceptEncodingHeader = "accept-encoding";
+constexpr std::string_view kContentEncodingHeader = "content-encoding";
+constexpr std::string_view kBrotliAlgorithmHeader = "br";
 
 absl::StatusOr<nlohmann::json> ExecuteUdfForKeyGroups(
     const UdfClient& udf_client, const nlohmann::json& udf_input) {
@@ -184,6 +189,18 @@ absl::StatusOr<std::vector<nlohmann::json>> ProcessGetValuesCoreRequest(
   return compression_groups;
 }
 
+CompressionGroupConcatenator::CompressionType GetResponseCompressionType(
+    const std::vector<quiche::BinaryHttpMessage::Field>& headers) {
+  for (const quiche::BinaryHttpMessage::Field& header : headers) {
+    if (absl::AsciiStrToLower(header.name) != kAcceptEncodingHeader) continue;
+    // TODO(b/278271389): Right now for simplicity we support Accept-Encoding:
+    // br
+    if (absl::AsciiStrToLower(header.value) == kBrotliAlgorithmHeader) {
+      return CompressionGroupConcatenator::CompressionType::kBrotli;
+    }
+  }
+  return CompressionGroupConcatenator::CompressionType::kUncompressed;
+}
 }  // namespace
 
 nlohmann::json GetValuesV2Handler::BuildCompressionGroupsForDebugging(
@@ -197,7 +214,7 @@ nlohmann::json GetValuesV2Handler::BuildCompressionGroupsForDebugging(
 
 grpc::Status GetValuesV2Handler::GetValues(
     const GetValuesRequest& request, google::api::HttpBody* response) const {
-  auto span = GetTracer()->StartSpan(GET_VALUES_v2_HANDLER_SPAN);
+  auto span = GetTracer()->StartSpan(kGetValuesV2HandlerSpan);
   auto scope = opentelemetry::trace::Scope(span);
 
   absl::StatusOr<nlohmann::json> maybe_core_request_json =
@@ -215,9 +232,9 @@ grpc::Status GetValuesV2Handler::GetValues(
         std::move(maybe_compression_groups).value());
 
     if (response_json.size() > 0)
-      metrics_recorder_.IncrementEventCounter(CACHE_KEY_V2_HIT);
+      metrics_recorder_.IncrementEventCounter(kCacheKeyV2Hit);
     else
-      metrics_recorder_.IncrementEventCounter(CACHE_KEY_V2_MISS);
+      metrics_recorder_.IncrementEventCounter(kCacheKeyV2Miss);
 
     VLOG(5) << "Uncompressed response: " << response_json.dump(1);
     response->set_data(response_json.dump());
@@ -236,8 +253,9 @@ grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
                              *response->mutable_data());
 }
 
-grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
-    std::string_view bhttp_request_body, std::string& response) const {
+absl::StatusOr<quiche::BinaryHttpResponse>
+GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
+    std::string_view bhttp_request_body) const {
   VLOG(9) << "Handling the binary http layer";
   const absl::StatusOr<BinaryHttpRequest> maybe_deserialized_req =
       BinaryHttpRequest::Create(bhttp_request_body);
@@ -245,49 +263,69 @@ grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
     // Deserialization error
     VLOG(1) << "Failed to deserialize binary http request: "
             << maybe_deserialized_req.status();
-    return grpc::Status(StatusCode::INTERNAL,
-                        std::string(maybe_deserialized_req.status().message()));
+    return maybe_deserialized_req.status();
   }
   VLOG(3) << "BinaryHttpGetValues request: "
           << maybe_deserialized_req->DebugString();
   absl::StatusOr<nlohmann::json> maybe_core_request_json =
       Parse(maybe_deserialized_req->body());
   if (!maybe_core_request_json.ok()) {
-    return grpc::Status(
-        StatusCode::INTERNAL,
-        std::string(maybe_core_request_json.status().message()));
+    return maybe_core_request_json.status();
   }
 
+  CompressionGroupConcatenator::CompressionType compression_type =
+      GetResponseCompressionType(maybe_deserialized_req->GetHeaderFields());
   std::unique_ptr<CompressionGroupConcatenator> compression_concatenator =
       create_compression_group_concatenator_(
           CompressionGroupConcatenator::CompressionType::kUncompressed);
-  std::string error_message;
-  if (auto maybe_compression_groups = ProcessGetValuesCoreRequest(
-          udf_client_, maybe_core_request_json.value());
-      maybe_compression_groups.ok()) {
-    VLOG(9) << "Building compressed response with compression group map";
-    // Compress
-    for (auto&& group : std::move(maybe_compression_groups).value()) {
-      compression_concatenator->AddCompressionGroup(group.dump());
-    }
-    std::string compressed_response = compression_concatenator->Build();
-    VLOG(9) << "Built compressed response";
-    quiche::BinaryHttpResponse bhttp_response(200);
-    // Add padding
-    bhttp_response.set_body(std::move(compressed_response));
-    if (auto maybe_serialized_bhttp_response = bhttp_response.Serialize();
-        maybe_serialized_bhttp_response.ok()) {
-      response = std::move(maybe_serialized_bhttp_response).value();
-      VLOG(9) << "BinaryHttpGetValues finished successfully";
-      return grpc::Status::OK;
-    } else {
-      error_message = maybe_serialized_bhttp_response.status().message();
-    }
-  } else {
-    error_message = maybe_compression_groups.status().message();
+  auto maybe_compression_groups =
+      ProcessGetValuesCoreRequest(udf_client_, maybe_core_request_json.value());
+  if (!maybe_compression_groups.ok()) {
+    return maybe_compression_groups.status();
   }
-  VLOG(9) << "BinaryHttpGetValues failed: " << error_message;
-  return grpc::Status(StatusCode::INTERNAL, error_message);
+  VLOG(9) << "Building compressed response with compression group map";
+  // Compress
+  for (auto&& group : std::move(maybe_compression_groups).value()) {
+    compression_concatenator->AddCompressionGroup(group.dump());
+  }
+  absl::StatusOr<std::string> maybe_compressed_response =
+      compression_concatenator->Build();
+  if (!maybe_compressed_response.ok()) {
+    return maybe_compressed_response.status();
+  }
+
+  VLOG(9) << "Built compressed response";
+  quiche::BinaryHttpResponse bhttp_response(200);
+  if (compression_type ==
+      CompressionGroupConcatenator::CompressionType::kBrotli) {
+    bhttp_response.AddHeaderField({std::string(kContentEncodingHeader),
+                                   std::string(kBrotliAlgorithmHeader)});
+  }
+  // Add padding
+  bhttp_response.set_body(std::move(maybe_compressed_response).value());
+  return bhttp_response;
+}
+
+grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
+    std::string_view bhttp_request_body, std::string& response) const {
+  static quiche::BinaryHttpResponse const* kDefaultBhttpResponse =
+      new quiche::BinaryHttpResponse(500);
+  const quiche::BinaryHttpResponse* bhttp_response = kDefaultBhttpResponse;
+  absl::StatusOr<quiche::BinaryHttpResponse> maybe_successful_bhttp_response =
+      BuildSuccessfulGetValuesBhttpResponse(bhttp_request_body);
+  if (maybe_successful_bhttp_response.ok()) {
+    bhttp_response = &(maybe_successful_bhttp_response.value());
+  }
+  if (auto maybe_serialized_bhttp_response = bhttp_response->Serialize();
+      maybe_serialized_bhttp_response.ok()) {
+    response = std::move(maybe_serialized_bhttp_response).value();
+    VLOG(9) << "BinaryHttpGetValues finished successfully";
+    return grpc::Status::OK;
+  } else {
+    return grpc::Status(
+        StatusCode::INTERNAL,
+        std::string(maybe_serialized_bhttp_response.status().message()));
+  }
 }
 
 grpc::Status GetValuesV2Handler::ObliviousGetValues(

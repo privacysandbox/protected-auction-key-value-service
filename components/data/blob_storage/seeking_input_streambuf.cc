@@ -28,6 +28,10 @@
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::MetricsRecorder;
+using privacy_sandbox::server_common::ScopeLatencyRecorder;
+
 constexpr std::string_view kSizeEventName = "SeekingInputStreambuf::Size";
 constexpr std::string_view kUnderflowEventName =
     "SeekingInputStreambuf::underflow";

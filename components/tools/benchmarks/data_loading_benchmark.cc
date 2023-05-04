@@ -30,12 +30,12 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
-#include "components/telemetry/telemetry_provider.h"
 #include "components/tools/benchmarks/benchmark_util.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, data_directory, "",
           "Data directory or bucket to store benchmark input data files in.");
@@ -72,9 +72,9 @@ using kv_server::DeltaFileRecord;
 using kv_server::DeltaMutationType;
 using kv_server::KeyValueCache;
 using kv_server::RecordStream;
-using kv_server::TelemetryProvider;
 using kv_server::benchmark::ParseInt64List;
 using kv_server::benchmark::WriteRecords;
+using privacy_sandbox::server_common::TelemetryProvider;
 
 constexpr std::string_view kNoOpCacheNameFormat =
     "BM_DataLoading_NoOpCache/tds:%d/conns:%d/buf:%d";

@@ -26,9 +26,9 @@ cc_library(
     deps = [
         "//components/data_server/cache",
         "//components/data_server/request_handler:get_values_handler",
-        "//components/telemetry:metrics_recorder",
         "//public/query:get_values_cc_grpc",
         "@com_github_grpc_grpc//:grpc++",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -43,12 +43,12 @@ cc_library(
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_change_notifier",
         "//components/errors:retry",
-        "//components/telemetry:metrics_recorder",
         "//components/util:periodic_closure",
         "//public:constants",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -61,11 +61,11 @@ cc_test(
     }),
     deps = [
         ":parameter_fetcher",
-        "//components/telemetry:mocks",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -77,10 +77,10 @@ cc_library(
         "//components/cloud_config:instance_client",
         "//components/data_server/server:parameter_fetcher",
         "//components/errors:retry",
-        "//components/telemetry:metrics_recorder",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -92,9 +92,9 @@ cc_test(
     ],
     deps = [
         ":lifecycle_heartbeat",
-        "//components/telemetry:mocks",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -109,9 +109,9 @@ cc_library(
     deps = [
         "//components/data_server/cache",
         "//components/data_server/request_handler:get_values_v2_handler",
-        "//components/telemetry:metrics_recorder",
         "//public/query/v2:get_values_v2_cc_grpc",
         "@com_github_grpc_grpc//:grpc++",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -137,11 +137,7 @@ cc_library(
         "//components/internal_lookup:constants",
         "//components/internal_lookup:lookup_client_impl",
         "//components/internal_lookup:lookup_server_impl",
-        "//components/telemetry",
-        "//components/telemetry:init",
         "//components/telemetry:kv_telemetry",
-        "//components/telemetry:metrics_recorder",
-        "//components/telemetry:telemetry_provider",
         "//components/udf:code_fetcher",
         "//components/udf:get_values_hook_impl",
         "//components/udf:udf_client",
@@ -159,6 +155,10 @@ cc_library(
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:init",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
     ],
 )
 
@@ -171,12 +171,12 @@ cc_test(
     }),
     deps = [
         ":server_lib",
-        "//components/telemetry:mocks",
         "//components/udf:mocks",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 

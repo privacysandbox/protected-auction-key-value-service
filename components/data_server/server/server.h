@@ -31,13 +31,14 @@
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
 #include "components/data_server/server/parameter_fetcher.h"
-#include "components/telemetry/metrics_recorder.h"
-#include "components/telemetry/telemetry.h"
 #include "components/udf/code_fetcher.h"
 #include "components/udf/udf_client.h"
+#include "components/util/platform_initializer.h"
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
 #include "public/query/get_values.grpc.pb.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 
@@ -45,10 +46,13 @@ class Server {
  public:
   Server();
 
-  absl::Status Init(const ParameterClient& parameter_client,
-                    InstanceClient& instance_client, CodeFetcher& code_fetcher,
-                    std::unique_ptr<UdfClient> udf_client,
-                    std::string environment, std::string instance_id);
+  // Arguments that are nullptr will be created, they may be passed in for
+  // unit testing purposes.
+  absl::Status Init(
+      std::unique_ptr<const ParameterClient> parameter_client = nullptr,
+      std::unique_ptr<InstanceClient> instance_client = nullptr,
+      std::unique_ptr<CodeFetcher> code_fetcher = nullptr,
+      std::unique_ptr<UdfClient> udf_client = nullptr);
 
   // Wait for the server to shut down. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.
@@ -60,6 +64,15 @@ class Server {
   void ForceShutdown();
 
  private:
+  // If objects were not passed in for unit testing purposes then create them.
+  absl::Status CreateDefaultInstancesIfNecessary(
+      std::unique_ptr<const ParameterClient> parameter_client,
+      std::unique_ptr<InstanceClient> instance_client,
+      std::unique_ptr<CodeFetcher> code_fetcher,
+      std::unique_ptr<UdfClient> udf_client);
+
+  absl::Status InitOnceInstancesAreCreated();
+
   std::unique_ptr<BlobStorageClient> CreateBlobClient(
       const ParameterFetcher& parameter_fetcher);
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
@@ -79,10 +92,21 @@ class Server {
 
   void SetUdfCodeObject(CodeFetcher& code_fetcher);
 
-  std::unique_ptr<MetricsRecorder> metrics_recorder_;
+  void InitializeTelemetry(const ParameterClient& parameter_client,
+                           InstanceClient& instance_client);
+
+  // This must be first, otherwise the AWS SDK will crash when it's called:
+  PlatformInitializer platform_initializer_;
+
+  std::unique_ptr<const ParameterClient> parameter_client_;
+  std::unique_ptr<InstanceClient> instance_client_;
+  std::string environment_;
+  std::unique_ptr<privacy_sandbox::server_common::MetricsRecorder>
+      metrics_recorder_;
   std::vector<std::unique_ptr<grpc::Service>> grpc_services_;
   std::unique_ptr<grpc::Server> grpc_server_;
   std::unique_ptr<Cache> cache_;
+  std::unique_ptr<CodeFetcher> code_fetcher_;
 
   // BlobStorageClient must outlive DeltaFileNotifier
   std::unique_ptr<BlobStorageClient> blob_client_;
@@ -104,9 +128,10 @@ class Server {
   std::unique_ptr<grpc::Server> internal_lookup_server_;
 
   std::unique_ptr<UdfClient> udf_client_;
-};
 
-absl::Status RunServer();
+  int32_t shard_num_;
+  int32_t num_shards_;
+};
 
 }  // namespace kv_server
 

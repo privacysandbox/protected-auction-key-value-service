@@ -68,8 +68,9 @@ USAGE
 
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 readonly SCRIPT_DIR
-# shellcheck source=builders/tools/builder.sh
+# shellcheck disable=SC1090
 source "${SCRIPT_DIR}"/../../builders/tools/builder.sh
+# shellcheck disable=SC1090
 source "${SCRIPT_DIR}"/lib_local_server.sh
 
 while [[ $# -gt 0 ]]; do
@@ -101,10 +102,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -h | --help) usage 0 ;;
-    *)
-      usage
-      break
-      ;;
+    *) usage ;;
   esac
 done
 
@@ -125,19 +123,23 @@ fi
 printf "==== build and test specified targets using bazel-debian ====\n"
 
 builder::cbuild_debian "
+set -o errexit
 trap _collect_logs EXIT
 function _collect_logs() {
-  local -r -i STATUS=\$?
-  printf 'Collecting bazel logs... [status: %d]\n' \${STATUS} &>/dev/stderr
-  if ! bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //:collect-logs; then
-    printf 'Error collecting logs\n'
-  fi
-  exit \${STATUS}
+  declare -r -i status\$?
+  declare -r filename=${INSTANCE}-${PLATFORM}-logs.zip
+  printf 'Collecting bazel logs [%s]... [status: %d]\n' \${filename@Q} \${status} &>/dev/stderr
+  bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //:collect-logs \${filename}
+  exit \${status}
 }
-set -o errexit
+
+# remove any existing test logs
+bazel ${BAZEL_STARTUP_ARGS} info ${BAZEL_EXTRA_ARGS} bazel-testlogs 2>/dev/null | xargs rm -rf
+
 bazel ${BAZEL_STARTUP_ARGS} build ${BAZEL_EXTRA_ARGS} //components/... //public/... //tools/...
 bazel ${BAZEL_STARTUP_ARGS} test ${BAZEL_EXTRA_ARGS} --build_tests_only --test_size_filters=small //...
 bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/aws/data_server:copy_to_dist
+bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //testing/functionaltest:copy_to_dist
 "
 
 readonly DIST="${WORKSPACE}"/dist
@@ -146,8 +148,16 @@ if ! [[ -d ${DIST} ]]; then
 else
   if [[ ${PLATFORM} == local ]]; then
     set -o xtrace
-    EXTRA_DOCKER_RUN_ARGS="--workdir /src/workspace/dist/test_data/deltas" \
-      "${WORKSPACE}"/builders/tools/unzip -u delta_files.zip
+    declare sut_zip
+    declare sut_name
+    for sut_zip in "${DIST}"/test_data/*.zip; do
+      sut_name="$(basename "${sut_zip}" .zip)"
+      EXTRA_DOCKER_RUN_ARGS="--workdir /src/workspace/dist/test_data" \
+        "${WORKSPACE}"/builders/tools/unzip -u -d "${sut_name}" "${sut_name}.zip"
+      "${WORKSPACE}"/builders/tools/normalize-dist
+      find "${DIST}/test_data/${sut_name}" -type d -exec chmod 755 {} \;
+      find "${DIST}/test_data/${sut_name}" -mindepth 2 -type f -exec chmod 644 {} \;
+    done
     docker load --input "${DIST}"/debian/server_docker_image.tar
     local_server::run_and_test
   fi

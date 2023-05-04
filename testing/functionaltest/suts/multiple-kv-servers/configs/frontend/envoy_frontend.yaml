@@ -1,0 +1,174 @@
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This proxy listens on port 300, and routes the following paths:
+#
+#   / -> routes to `kv-server` on port 2000
+
+admin:
+  address:
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9902
+
+static_resources:
+  listeners:
+  - name: frontend_listener_ssp
+    per_connection_buffer_limit_bytes: 52428800
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 3000
+    traffic_direction: OUTBOUND
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: envoy_router
+          codec_type: AUTO
+          route_config:
+            name: proxy_routes
+            virtual_hosts:
+            - name: proxy
+              domains:
+              - "*"
+              routes:
+              - match:
+                  prefix: /
+                route:
+                  cluster: ssp
+                  timeout: 2s
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  - name: frontend_listener_dsp1
+    per_connection_buffer_limit_bytes: 52428800
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 3001
+    traffic_direction: OUTBOUND
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: envoy_router
+          codec_type: AUTO
+          route_config:
+            name: proxy_routes
+            virtual_hosts:
+            - name: proxy
+              domains:
+              - "*"
+              routes:
+              - match:
+                  prefix: /
+                route:
+                  cluster: dsp1
+                  timeout: 2s
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  - name: frontend_listener_dsp2
+    per_connection_buffer_limit_bytes: 52428800
+    address:
+      socket_address:
+        address: 0.0.0.0
+        port_value: 3002
+    traffic_direction: OUTBOUND
+    filter_chains:
+    - filters:
+      - name: envoy.filters.network.http_connection_manager
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+          stat_prefix: envoy_router
+          codec_type: AUTO
+          route_config:
+            name: proxy_routes
+            virtual_hosts:
+            - name: proxy
+              domains:
+              - "*"
+              routes:
+              - match:
+                  prefix: /
+                route:
+                  cluster: dsp2
+                  timeout: 2s
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+  clusters:
+  - name: ssp
+    connect_timeout: 2s
+    type: LOGICAL_DNS
+    lb_policy: ROUND_ROBIN
+    dns_lookup_family: V4_ONLY
+    typed_extension_protocol_options:
+      envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+        "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+        explicit_http_config:
+          http2_protocol_options: { }
+    load_assignment:
+      cluster_name: ssp
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: ssp-kv-envoy
+                port_value: 2002
+  - name: dsp1
+    connect_timeout: 2s
+    type: LOGICAL_DNS
+    lb_policy: ROUND_ROBIN
+    dns_lookup_family: V4_ONLY
+    typed_extension_protocol_options:
+      envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+        "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+        explicit_http_config:
+          http2_protocol_options: { }
+    load_assignment:
+      cluster_name: dsp1
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: dsp1-kv-envoy
+                port_value: 2002
+  - name: dsp2
+    connect_timeout: 2s
+    type: LOGICAL_DNS
+    lb_policy: ROUND_ROBIN
+    dns_lookup_family: V4_ONLY
+    typed_extension_protocol_options:
+      envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+        "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+        explicit_http_config:
+          http2_protocol_options: { }
+    load_assignment:
+      cluster_name: dsp2
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: dsp2-kv-envoy
+                port_value: 2002

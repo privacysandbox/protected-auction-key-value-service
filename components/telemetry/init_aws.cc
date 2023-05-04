@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/telemetry/init.h"
-#include "components/telemetry/trace_generator_aws.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter_factory.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_metric_exporter_factory.h"
 #include "opentelemetry/sdk/trace/random_id_generator_factory.h"
+#include "src/cpp/telemetry/init.h"
+#include "src/cpp/telemetry/trace_generator_aws.h"
 
 namespace kv_server {
 std::unique_ptr<opentelemetry::sdk::trace::SpanExporter> CreateSpanExporter() {

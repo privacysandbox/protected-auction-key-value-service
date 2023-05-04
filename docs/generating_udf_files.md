@@ -1,3 +1,6 @@
+> FLEDGE has been renamed to Protected Audience API. To learn more about the name change, see the
+> [blog post](https://privacysandbox.com/intl/en_us/news/protected-audience-api-our-new-name-for-fledge)
+
 # Generating UDF code configs for the server
 
 During server startup, the server reads in the UDF configuration through existing delta/snapshot
@@ -93,9 +96,9 @@ Flags:
 -   `--subkey`: Subkey of the
     [`context` field](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#schema-of-the-request).
     Defaults to an empty string.
--   `--namespace_tag`: [Namespace tag for key](https://github.com/WICG/turtledove/blob/main/
-    FLEDGE_Key_Value_Server_API.md#available-tags). Defaults to `keys`. Options: `keys`,
-    `renderUrls`, `adComponentRenderUrls`.
+-   `--namespace_tag`:
+    [Namespace tag for key](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#available-tags).
+    Defaults to `keys`. Options: `keys`, `renderUrls`, `adComponentRenderUrls`.
 
 Example:
 

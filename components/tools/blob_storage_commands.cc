@@ -24,11 +24,13 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_client.h"
-#include "components/telemetry/telemetry_provider.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {
 namespace blob_storage_commands {
 namespace {
+
+using privacy_sandbox::server_common::TelemetryProvider;
 
 class FileBlobReader : public BlobReader {
  public:

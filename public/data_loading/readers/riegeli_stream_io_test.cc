@@ -19,7 +19,6 @@
 #include <utility>
 
 #include "absl/status/status.h"
-#include "components/telemetry/mocks.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
@@ -27,11 +26,13 @@
 #include "public/test_util/proto_matcher.h"
 #include "riegeli/bytes/string_writer.h"
 #include "riegeli/records/record_writer.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
+using privacy_sandbox::server_common::MockMetricsRecorder;
 
 enum class ReaderType : int8_t {
   kSequential = 1,

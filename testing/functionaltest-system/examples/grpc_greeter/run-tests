@@ -24,34 +24,30 @@ readonly WORKSPACE_TMPFILE
 
 trap _cleanup EXIT
 function _cleanup() {
-  declare -r -i STATUS=$?
-  if [[ ${STATUS} -ne 0 ]]; then
-    printf "Error: run-tests status code: %d\n" "${STATUS}"
+  declare -r -i status=$?
+  if [[ ${status} -ne 0 ]]; then
+    printf "Error: run-tests status code: %d\n" "${status}"
   fi
+  docker compose --file "${LOCAL_TESTS_DIR}"/docker-compose.yaml down
   rm -f "${WORKSPACE_TMPFILE}"
-  # kokoro has a habit of truncating build logs for scripts, adding a delay
-  # seems to help ensure completeness
-  if [[ -v KOKORO_ARTIFACTS_DIR ]]; then
-    sleep 5s
-  fi
-  exit ${STATUS}
+  exit ${status}
 }
 
 function usage() {
   declare -r -i exitval=$?
   cat &>/dev/stderr <<USAGE
 usage:
-  $0 <options>
-      --network <name>    docker network name
+  $0 [options]
+    --verbose       Produce verbose output
 USAGE
   exit ${exitval}
 }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --network)
-      DOCKER_NETWORK="$2"
-      shift 2
+    --verbose)
+      set -o xtrace
+      shift
       ;;
     -h | --help) usage 0 ;;
     *)
@@ -61,24 +57,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-: "${DOCKER_NETWORK?"--network flag not specified"}"
-
-TEST_REPO="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-readonly TEST_REPO
-cd "${TEST_REPO}"
-
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-readonly REPO_ROOT
-readonly TOOLS_DIR="${REPO_ROOT}"/builders/tools
-
-declare -a -r TEST_ARGS=(
-  "--test_env=GREETER_ENDPOINT=greeter:50051"
-  "--test_env=ROUTEGUIDE_ENDPOINT=route_guide:50051"
-  "--test_env=DOCKER_NETWORK=${DOCKER_NETWORK}"
-  "--test_env=TEST_TOOLS_IMAGE=$("${TOOLS_DIR}"/get-builder-image-tagged --image test-tools --verbose)"
-)
-
-declare -a -r TESTS=("//test_cases/grpc:all")
+function load_image() {
+  # build docker image then load it into local docker client
+  local -r _tmpout=$(mktemp)
+  trap 'rm -f "${_tmpout}"' RETURN
+  declare -r _target=//"${SRV_IMAGE#bazel/}"
+  "${TOOLS_DIR}"/bazel-debian build "${_target}"
+  if ! "${TOOLS_DIR}"/bazel-debian run "${_target}" &>"${_tmpout}"; then
+    printf "bazel build %s failed\n" "${_target}"
+    cat "${_tmpout}"
+    rm -f "${_tmpout}"
+    exit 1
+  fi
+}
 
 function buildozer_filter() {
   "${TOOLS_DIR}"/buildozer -stdout "$@"
@@ -109,6 +100,39 @@ function bazel_run_test() {
   fi
   bazel test "${TESTS[@]}" "${TEST_ARGS[@]}"
 }
+
+function ensure_docker_compose() {
+  if ! docker compose version --short | grep -q ^2\. &>/dev/null; then
+    printf "docker compose v2 is required\n" &>/dev/stderr
+    exit 1
+  fi
+}
+
+ensure_docker_compose
+
+TEST_REPO="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly TEST_REPO
+cd "${TEST_REPO}"
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+readonly REPO_ROOT
+readonly TOOLS_DIR="${REPO_ROOT}"/builders/tools
+LOCAL_TESTS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+declare -r LOCAL_TESTS_DIR
+
+declare -a -r TEST_ARGS=(
+  "--test_env=TEST_TOOLS_IMAGE=$("${TOOLS_DIR}"/get-builder-image-tagged --image test-tools --verbose)"
+)
+declare -a -r TESTS=(
+  //test_cases/grpc:ghz-greeter_tests
+  //test_cases/grpc:grpcurl-greeter_tests
+)
+
+declare -r SRV_IMAGE=bazel/tests/servers:grpc_examples_docker_image
+
+load_image
+
+docker compose --file "${LOCAL_TESTS_DIR}"/docker-compose.yaml up --quiet-pull --detach
 
 container_run_test
 

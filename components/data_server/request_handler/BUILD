@@ -28,8 +28,6 @@ cc_library(
     ],
     deps = [
         "//components/data_server/cache",
-        "//components/telemetry",
-        "//components/telemetry:metrics_recorder",
         "//public:base_types_cc_proto",
         "//public:constants",
         "//public/query:get_values_cc_grpc",
@@ -37,6 +35,8 @@ cc_library(
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -51,12 +51,12 @@ cc_test(
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/cache:mocks",
-        "//components/telemetry:metrics_recorder",
-        "//components/telemetry:mocks",
         "//public/query:get_values_cc_grpc",
         "//public/test_util:proto_matcher",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -71,8 +71,6 @@ cc_library(
     deps = [
         ":compression",
         "//components/data_server/cache",
-        "//components/telemetry",
-        "//components/telemetry:metrics_recorder",
         "//components/udf:udf_client",
         "//public:base_types_cc_proto",
         "//public:constants",
@@ -85,6 +83,8 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@nlohmann_json//:lib",
     ],
 )
@@ -93,15 +93,20 @@ cc_library(
     name = "compression",
     srcs = [
         "compression.cc",
+        "compression_brotli.cc",
         "uncompressed.cc",
     ],
     hdrs = [
         "compression.h",
+        "compression_brotli.h",
         "uncompressed.h",
     ],
     deps = [
+        "@brotli//:brotlidec",
+        "@brotli//:brotlienc",
         "@com_github_google_glog//:glog",
         "@com_github_google_quiche//quiche:quiche_unstable_api",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -110,6 +115,16 @@ cc_test(
     srcs = ["uncompressed_test.cc"],
     deps = [
         ":compression",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "compression_brotli_test",
+    srcs = ["compression_brotli_test.cc"],
+    deps = [
+        ":compression",
+        "@com_github_google_glog//:glog",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -124,8 +139,6 @@ cc_test(
         ":get_values_v2_handler",
         "//components/data_server/cache",
         "//components/data_server/cache:mocks",
-        "//components/telemetry:metrics_recorder",
-        "//components/telemetry:mocks",
         "//components/udf:mocks",
         "//components/udf:udf_client",
         "//public/query/v2:get_values_v2_cc_grpc",
@@ -135,5 +148,42 @@ cc_test(
         "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_library(
+    name = "get_values_adapter",
+    srcs = [
+        "get_values_adapter.cc",
+    ],
+    hdrs = [
+        "get_values_adapter.h",
+    ],
+    deps = [
+        ":get_values_v2_handler",
+        "//public/query:get_values_cc_grpc",
+        "//public/query/v2:get_values_v2_cc_grpc",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//:grpc++",
+    ],
+)
+
+cc_test(
+    name = "get_values_adapter_test",
+    size = "small",
+    srcs = [
+        "get_values_adapter_test.cc",
+    ],
+    deps = [
+        ":get_values_adapter",
+        "//components/udf:mocks",
+        "//public/query:get_values_cc_grpc",
+        "//public/test_util:proto_matcher",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

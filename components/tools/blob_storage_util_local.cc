@@ -23,10 +23,10 @@
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
 #include "components/data/blob_storage/blob_storage_client.h"
-#include "components/telemetry/telemetry_provider.h"
 #include "components/tools/blob_storage_commands.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, directory, "", "Local directory to read from");
 
@@ -34,7 +34,7 @@ namespace {
 
 using kv_server::BlobReader;
 using kv_server::BlobStorageClient;
-using kv_server::TelemetryProvider;
+using privacy_sandbox::server_common::TelemetryProvider;
 
 // Source and Destination files can be local files, and stdin ("-").
 bool CpObjects(std::string directory, std::string source, std::string dest) {

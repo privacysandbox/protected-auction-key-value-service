@@ -35,6 +35,8 @@
 namespace kv_server {
 namespace {
 
+using privacy_sandbox::server_common::MetricsRecorder;
+
 // TODO(b/242313617): Make this a flag or parameter.
 constexpr int64_t kMaxRangeBytes = 1024 * 1024 * 8;
 

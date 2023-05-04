@@ -20,11 +20,11 @@
 
 #include "absl/synchronization/notification.h"
 #include "components/data/common/mocks.h"
-#include "components/errors/mocks.h"
-#include "components/telemetry/mocks.h"
+#include "components/util/sleepfor_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/filename_utils.h"
+#include "src/cpp/telemetry/mocks.h"
 
 using testing::_;
 using testing::Field;
@@ -32,6 +32,9 @@ using testing::Return;
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::GetTracer;
+using privacy_sandbox::server_common::MockMetricsRecorder;
 
 class RealtimeNotifierTest : public ::testing::Test {
  protected:

@@ -26,11 +26,13 @@ namespace kv_server {
 namespace {
 
 using opentelemetry::sdk::resource::Resource;
+using privacy_sandbox::server_common::ConfigureMetrics;
 using testing::_;
 
 class MockInstanceClient : public InstanceClient {
  public:
   MOCK_METHOD(absl::StatusOr<std::string>, GetEnvironmentTag, (), (override));
+  MOCK_METHOD(absl::StatusOr<std::string>, GetShardNumTag, (), (override));
   MOCK_METHOD(absl::Status, RecordLifecycleHeartbeat,
               (std::string_view lifecycle_hook_name), (override));
   MOCK_METHOD(absl::Status, CompleteLifecycle,
@@ -46,6 +48,15 @@ class MockParameterClient : public ParameterClient {
               (std::string_view parameter_name), (const, override));
 
   void RegisterRequiredTelemetryExpectations() {
+    EXPECT_CALL(*this,
+                GetInt32Parameter(
+                    "kv-server-environment-metrics-export-interval-millis"))
+        .WillOnce(::testing::Return(100));
+    EXPECT_CALL(*this,
+                GetInt32Parameter(
+                    "kv-server-environment-metrics-export-timeout-millis"))
+        .WillOnce(::testing::Return(200));
+
     EXPECT_CALL(*this, GetParameter("kv-server-environment-launch-hook"))
         .WillOnce(::testing::Return("mock launch hook"));
     EXPECT_CALL(*this, GetInt32Parameter(
@@ -69,7 +80,7 @@ void InitializeMetrics() {
 TEST(ServerLocalTest, WaitWithoutStart) {
   InitializeMetrics();
   kv_server::Server server;
-  // These should be a no-op as the server was never started:
+  // This should be a no-op as the server was never started:
   server.Wait();
 }
 
@@ -82,125 +93,155 @@ TEST(ServerLocalTest, ShutdownWithoutStart) {
 }
 
 TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
-  MockInstanceClient instance_client;
-  MockParameterClient parameter_client;
-  parameter_client.RegisterRequiredTelemetryExpectations();
+  auto instance_client = std::make_unique<MockInstanceClient>();
+  auto parameter_client = std::make_unique<MockParameterClient>();
+  parameter_client->RegisterRequiredTelemetryExpectations();
 
-  EXPECT_CALL(parameter_client, GetParameter("kv-server-environment-directory"))
+  EXPECT_CALL(*instance_client, GetEnvironmentTag())
+      .WillOnce(::testing::Return("environment"));
+  EXPECT_CALL(*instance_client, GetInstanceId())
+      .WillOnce(::testing::Return("instance id"));
+  EXPECT_CALL(*instance_client, GetShardNumTag())
+      .WillOnce(::testing::Return("1"));
+
+  EXPECT_CALL(*parameter_client,
+              GetParameter("kv-server-environment-directory"))
       .WillOnce(::testing::Return("this is not a directory"));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-s3client-max-connections"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-num-shards"))
+      .WillOnce(::testing::Return(1));
 
-  InitializeMetrics();
   auto mock_udf_client = std::make_unique<MockUdfClient>();
-  MockCodeFetcher code_fetcher;
+  auto mock_code_fetcher = std::make_unique<MockCodeFetcher>();
 
   kv_server::Server server;
   absl::Status status =
-      server.Init(parameter_client, instance_client, code_fetcher,
-                  std::move(mock_udf_client), "environment", "instance id");
+      server.Init(std::move(parameter_client), std::move(instance_client),
+                  std::move(mock_code_fetcher), std::move(mock_udf_client));
   EXPECT_FALSE(status.ok());
 }
 
 TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
-  MockInstanceClient instance_client;
-  MockParameterClient parameter_client;
-  parameter_client.RegisterRequiredTelemetryExpectations();
+  auto instance_client = std::make_unique<MockInstanceClient>();
+  auto parameter_client = std::make_unique<MockParameterClient>();
+  parameter_client->RegisterRequiredTelemetryExpectations();
 
-  EXPECT_CALL(parameter_client, GetParameter("kv-server-environment-directory"))
+  EXPECT_CALL(*instance_client, GetEnvironmentTag())
+      .WillOnce(::testing::Return("environment"));
+  EXPECT_CALL(*instance_client, GetInstanceId())
+      .WillOnce(::testing::Return("instance id"));
+  EXPECT_CALL(*instance_client, GetShardNumTag())
+      .WillOnce(::testing::Return("1"));
+
+  EXPECT_CALL(*parameter_client,
+              GetParameter("kv-server-environment-directory"))
       .WillOnce(::testing::Return(::testing::TempDir()));
-  EXPECT_CALL(parameter_client,
+  EXPECT_CALL(*parameter_client,
               GetParameter("kv-server-environment-data-bucket-id"))
       .WillOnce(::testing::Return(::testing::TempDir()));
-  EXPECT_CALL(parameter_client,
+  EXPECT_CALL(*parameter_client,
               GetParameter("kv-server-environment-realtime-directory"))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-realtime-updater-num-threads"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-s3client-max-connections"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-num-shards"))
+      .WillOnce(::testing::Return(1));
 
-  InitializeMetrics();
   auto mock_udf_client = std::make_unique<MockUdfClient>();
-  MockCodeFetcher code_fetcher;
+  auto mock_code_fetcher = std::make_unique<MockCodeFetcher>();
   CodeConfig code_config{.js = "function SomeUDFCode(){}",
                          .udf_handler_name = "SomeUDFCode"};
 
-  EXPECT_CALL(code_fetcher, FetchCodeConfig(_))
+  EXPECT_CALL(*mock_code_fetcher, FetchCodeConfig(_))
       .WillOnce(testing::Return(code_config));
 
   kv_server::Server server;
   absl::Status status =
-      server.Init(parameter_client, instance_client, code_fetcher,
-                  std::move(mock_udf_client), "environment", "instance id");
+      server.Init(std::move(parameter_client), std::move(instance_client),
+                  std::move(mock_code_fetcher), std::move(mock_udf_client));
   EXPECT_TRUE(status.ok());
 }
 
 TEST(ServerLocalTest, GracefulServerShutdown) {
-  MockInstanceClient instance_client;
-  MockParameterClient parameter_client;
-  parameter_client.RegisterRequiredTelemetryExpectations();
+  auto instance_client = std::make_unique<MockInstanceClient>();
+  auto parameter_client = std::make_unique<MockParameterClient>();
+  parameter_client->RegisterRequiredTelemetryExpectations();
 
-  EXPECT_CALL(parameter_client, GetParameter("kv-server-environment-directory"))
+  EXPECT_CALL(*instance_client, GetEnvironmentTag())
+      .WillOnce(::testing::Return("environment"));
+  EXPECT_CALL(*instance_client, GetInstanceId())
+      .WillOnce(::testing::Return("instance id"));
+  EXPECT_CALL(*instance_client, GetShardNumTag())
+      .WillOnce(::testing::Return("1"));
+
+  EXPECT_CALL(*parameter_client,
+              GetParameter("kv-server-environment-directory"))
       .WillOnce(::testing::Return(::testing::TempDir()));
-  EXPECT_CALL(parameter_client,
+  EXPECT_CALL(*parameter_client,
               GetParameter("kv-server-environment-data-bucket-id"))
       .WillOnce(::testing::Return(::testing::TempDir()));
-  EXPECT_CALL(parameter_client,
+  EXPECT_CALL(*parameter_client,
               GetParameter("kv-server-environment-realtime-directory"))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-realtime-updater-num-threads"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-s3client-max-connections"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-num-shards"))
+      .WillOnce(::testing::Return(1));
 
-  InitializeMetrics();
   auto mock_udf_client = std::make_unique<MockUdfClient>();
-  MockCodeFetcher code_fetcher;
+  auto mock_code_fetcher = std::make_unique<MockCodeFetcher>();
   CodeConfig code_config{.js = "function SomeUDFCode(){}",
                          .udf_handler_name = "SomeUDFCode"};
 
-  EXPECT_CALL(code_fetcher, FetchCodeConfig(_))
+  EXPECT_CALL(*mock_code_fetcher, FetchCodeConfig(_))
       .WillOnce(testing::Return(code_config));
 
   kv_server::Server server;
   absl::Status status =
-      server.Init(parameter_client, instance_client, code_fetcher,
-                  std::move(mock_udf_client), "environment", "instance id");
+      server.Init(std::move(parameter_client), std::move(instance_client),
+                  std::move(mock_code_fetcher), std::move(mock_udf_client));
   ASSERT_TRUE(status.ok());
   std::thread server_thread(&kv_server::Server::Wait, &server);
   server.GracefulShutdown(absl::Seconds(5));
@@ -208,48 +249,58 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
 }
 
 TEST(ServerLocalTest, ForceServerShutdown) {
-  MockInstanceClient instance_client;
-  MockParameterClient parameter_client;
-  parameter_client.RegisterRequiredTelemetryExpectations();
+  auto instance_client = std::make_unique<MockInstanceClient>();
+  auto parameter_client = std::make_unique<MockParameterClient>();
+  parameter_client->RegisterRequiredTelemetryExpectations();
 
-  EXPECT_CALL(parameter_client, GetParameter("kv-server-environment-directory"))
+  EXPECT_CALL(*instance_client, GetEnvironmentTag())
+      .WillOnce(::testing::Return("environment"));
+  EXPECT_CALL(*instance_client, GetInstanceId())
+      .WillOnce(::testing::Return("instance id"));
+  EXPECT_CALL(*instance_client, GetShardNumTag())
+      .WillOnce(::testing::Return("1"));
+
+  EXPECT_CALL(*parameter_client,
+              GetParameter("kv-server-environment-directory"))
       .WillOnce(::testing::Return(::testing::TempDir()));
-  EXPECT_CALL(parameter_client,
+  EXPECT_CALL(*parameter_client,
               GetParameter("kv-server-environment-data-bucket-id"))
       .WillOnce(::testing::Return(::testing::TempDir()));
-  EXPECT_CALL(parameter_client,
+  EXPECT_CALL(*parameter_client,
               GetParameter("kv-server-environment-realtime-directory"))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-realtime-updater-num-threads"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-s3client-max-connections"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(
-      parameter_client,
+      *parameter_client,
       GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-num-shards"))
+      .WillOnce(::testing::Return(1));
 
-  InitializeMetrics();
   auto mock_udf_client = std::make_unique<MockUdfClient>();
-  MockCodeFetcher code_fetcher;
+  auto mock_code_fetcher = std::make_unique<MockCodeFetcher>();
   CodeConfig code_config{.js = "function SomeUDFCode(){}",
                          .udf_handler_name = "SomeUDFCode"};
 
-  EXPECT_CALL(code_fetcher, FetchCodeConfig(_))
+  EXPECT_CALL(*mock_code_fetcher, FetchCodeConfig(_))
       .WillOnce(testing::Return(code_config));
 
   kv_server::Server server;
   absl::Status status =
-      server.Init(parameter_client, instance_client, code_fetcher,
-                  std::move(mock_udf_client), "environment", "instance id");
+      server.Init(std::move(parameter_client), std::move(instance_client),
+                  std::move(mock_code_fetcher), std::move(mock_udf_client));
   ASSERT_TRUE(status.ok());
   std::thread server_thread(&kv_server::Server::Wait, &server);
   server.ForceShutdown();

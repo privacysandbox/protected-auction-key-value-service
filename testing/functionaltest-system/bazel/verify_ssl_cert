@@ -1,0 +1,6 @@
+#!/bin/bash
+
+declare -r ROOT_CA_CERT="$1"
+declare -r SIGNED_CERT="$2"
+
+openssl verify -CAfile "${ROOT_CA_CERT}" "${SIGNED_CERT}"

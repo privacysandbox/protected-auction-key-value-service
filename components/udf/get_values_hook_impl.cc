@@ -23,11 +23,11 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/status/statusor.h"
 #include "components/internal_lookup/lookup.grpc.pb.h"
-#include "components/telemetry/telemetry.h"
 #include "components/udf/get_values_hook.h"
 #include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
 #include "nlohmann/json.hpp"
+#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 namespace {
@@ -37,6 +37,7 @@ constexpr char kProcessClientResponseSpan[] = "ProcessLookupClientResponse";
 constexpr char kProtoToJsonSpan[] = "ProtoToJson";
 
 using google::protobuf::util::MessageToJsonString;
+using privacy_sandbox::server_common::GetTracer;
 
 class GetValuesHookImpl : public GetValuesHook {
  public:

@@ -2,23 +2,68 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
-## [0.2.0](https://team/potassium-engprod-team/functionaltest-system/compare/v0.1.0...v0.2.0) (2023-04-03)
-
-
-### Features
-
-* Add test_tags to test suites ([a9011d2]( ))
-* Create annotated tag in addition to branch for releases ([f5b847f]( ))
-* Switch from cpu:arm64 to cpu:aarch64 ([2457ca6]( ))
-* Upgrade build-system to release-0.21.1 ([8a8dda6]( ))
+## 0.5.1 (2023-05-03)
 
 
 ### Bug Fixes
 
-* Ensure changelog notes use specific version ([b960648]( ))
-* improve usage message for --endpoint-env-var flag in internal bazel grpcurl_diff_test_runner script ([02da2b4]( ))
-* Remove debug output ([18551b0]( ))
-* Remove exit-status flag for post-filter jq ([e9e24e2]( ))
+* Ensure internal files use distinct filenames
+
+## 0.5.0 (2023-05-03)
+
+
+### Features
+
+* Support SSL cert generation
+
+
+### Bug Fixes
+
+* Preclude wildcard matching for functional tests
+* Refactor tests for clarity and simplicity
+
+## 0.4.0 (2023-04-28)
+
+
+### Features
+
+* Add grpc envoy endpoint for tests
+* Pretty-print all json responses
+* Support curl for http rpc requests
+
+## 0.3.0 (2023-04-24)
+
+
+### Features
+
+* Add docs for jq filter options
+* Pass endpoint info directly to grpc_diff_test
+* Remove irrelevant precommit hooks
+* Upgrade build-system to release-0.23.0
+* Upgrade to build-system 0.22.0
+
+
+### Bug Fixes
+
+* Remove docker containers after exit
+
+## 0.2.0 (2023-04-03)
+
+
+### Features
+
+* Add test_tags to test suites
+* Create annotated tag in addition to branch for releases
+* Switch from cpu:arm64 to cpu:aarch64
+* Upgrade build-system to release-0.21.1
+
+
+### Bug Fixes
+
+* Ensure changelog notes use specific version
+* improve usage message for --endpoint-env-var flag in internal bazel grpcurl_diff_test_runner script
+* Remove debug output
+* Remove exit-status flag for post-filter jq
 
 ## 0.1.0 (2023-03-07)
 

@@ -18,17 +18,17 @@
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
-#include "components/telemetry/telemetry_provider.h"
 #include "components/util/platform_initializer.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 
 using kv_server::DeltaFileRecordChangeNotifier;
-using kv_server::TelemetryProvider;
+using privacy_sandbox::server_common::TelemetryProvider;
 
 void Print(std::string string_decoded) {
   std::istringstream is(string_decoded);

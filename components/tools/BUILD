@@ -68,8 +68,6 @@ cc_binary(
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/data_loading:data_orchestrator",
-        "//components/telemetry:metrics_recorder",
-        "//components/telemetry:telemetry_provider",
         "//components/util:platform_initializer",
         "//public:base_types_cc_proto",
         "//public/data_loading:data_loading_fbs",
@@ -79,6 +77,8 @@ cc_binary(
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
     ],
 )
 

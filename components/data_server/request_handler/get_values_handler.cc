@@ -21,19 +21,17 @@
 #include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
 #include "components/data_server/cache/cache.h"
-#include "components/telemetry/metrics_recorder.h"
-#include "components/telemetry/telemetry.h"
 #include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 #include "public/constants.h"
 #include "public/query/get_values.grpc.pb.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry.h"
 #include "src/google/protobuf/message.h"
 #include "src/google/protobuf/struct.pb.h"
 
-constexpr char* GET_VALUES_HANDLER_SPAN = "GetValuesHandler";
-constexpr char* GET_BINARY_VALUES_HANDLER_SPAN = "BinaryGetValuesHandler";
-constexpr char* CACHE_KEY_HIT = "CacheKeyHit";
-constexpr char* CACHE_KEY_MISS = "CacheKeyMiss";
+constexpr char* kCacheKeyHit = "CacheKeyHit";
+constexpr char* kCacheKeyMiss = "CacheKeyMiss";
 
 namespace kv_server {
 namespace {
@@ -41,6 +39,8 @@ using google::protobuf::RepeatedPtrField;
 using google::protobuf::Struct;
 using google::protobuf::Value;
 using grpc::StatusCode;
+using privacy_sandbox::server_common::GetTracer;
+using privacy_sandbox::server_common::MetricsRecorder;
 using v1::GetValuesRequest;
 using v1::GetValuesResponse;
 using v1::KeyValueService;
@@ -95,9 +95,9 @@ void ProcessKeys(const RepeatedPtrField<std::string>& keys, const Cache& cache,
   auto kv_pairs = cache.GetKeyValuePairs(GetKeys(keys));
 
   if (kv_pairs.empty())
-    metrics_recorder.IncrementEventCounter(CACHE_KEY_MISS);
+    metrics_recorder.IncrementEventCounter(kCacheKeyMiss);
   else
-    metrics_recorder.IncrementEventCounter(CACHE_KEY_HIT);
+    metrics_recorder.IncrementEventCounter(kCacheKeyHit);
 
   for (auto&& [k, v] : std::move(kv_pairs)) {
     Value value_proto;
@@ -118,9 +118,6 @@ void ProcessKeys(const RepeatedPtrField<std::string>& keys, const Cache& cache,
 
 grpc::Status GetValuesHandler::GetValues(const GetValuesRequest& request,
                                          GetValuesResponse* response) const {
-  auto span = GetTracer()->StartSpan(GET_VALUES_HANDLER_SPAN);
-  auto scope = opentelemetry::trace::Scope(span);
-
   grpc::Status status = ValidateRequest(request);
   if (!status.ok()) {
     return status;

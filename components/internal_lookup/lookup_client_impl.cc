@@ -20,12 +20,14 @@
 #include "components/internal_lookup/constants.h"
 #include "components/internal_lookup/lookup.grpc.pb.h"
 #include "components/internal_lookup/lookup_client.h"
-#include "components/telemetry/telemetry.h"
 #include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
+#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::GetTracer;
 
 constexpr char kInternalLookupClientSpan[] = "InternalLookupClient";
 

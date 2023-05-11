@@ -1,0 +1,22 @@
+{
+  "context": {
+    "subkey": "example.com"
+  },
+  "partitions": [
+    {
+      "id": 4,
+      "compressionGroup": 2,
+      "keyGroups": [
+        {
+          "tags": [
+            "structured",
+            "groupNames"
+          ],
+          "keyList": [
+            "hi"
+          ]
+        }
+      ]
+    }
+  ]
+}

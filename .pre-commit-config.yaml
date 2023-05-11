@@ -46,14 +46,13 @@ repos:
   rev: 3.0.0
   hooks:
   - id: script-must-not-have-extension
-    exclude: '^google_internal/.*/kokoro_(presubmit|continuous).sh$'
   - id: script-must-have-extension
   - id: require-ascii
   - id: shellcheck
-    exclude: '^(production|tools|google_internal|builders/images)/.*$'
+    exclude: '^(google_internal|builders/images)/.*$'
 
 - repo: https://github.com/pre-commit/mirrors-clang-format
-  rev: v14.0.6
+  rev: v16.0.2
   hooks:
   - id: clang-format
     types_or:
@@ -100,10 +99,13 @@ repos:
     types_or:
     - markdown
     - json
-    exclude: '^testing/functionaltest/test_cases/.*$'
+    exclude: (?x)^(
+                 testing/functionaltest/.*/test_cases/.*|
+                 production/packaging/aws/data_server/nitro-pcr0/.*
+             )$
 
 - repo: https://github.com/DavidAnson/markdownlint-cli2
-  rev: v0.6.0
+  rev: v0.7.1
   hooks:
   - id: markdownlint-cli2
     name: lint markdown
@@ -138,7 +140,7 @@ repos:
     - --quiet
 
 - repo: https://github.com/psf/black
-  rev: 23.1.0
+  rev: 23.3.0
   hooks:
   - id: black
     name: black python formatter

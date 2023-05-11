@@ -34,16 +34,16 @@ cc_library(
     ],
     deps = select({
         "//:aws_platform": [
+            "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:sns",
             "@aws_sdk_cpp//:sqs",
-            "//components/errors:aws_error_util",
         ],
         "//conditions:default": [],
     }) + [
+        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_github_google_glog//:glog",
     ],
 )
 
@@ -54,7 +54,7 @@ cc_library(
             "change_notifier_aws.cc",
         ],
         "//:local_platform": [
-            ":change_notifier_local",
+            "change_notifier_local.cc",
         ],
     }),
     hdrs = [
@@ -62,49 +62,50 @@ cc_library(
     ],
     deps = select({
         "//:aws_platform": [
+            "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:sns",
             "@aws_sdk_cpp//:sqs",
-            "//components/errors:aws_error_util",
         ],
-        "//conditions:default": [],
+        "//:local_platform": [
+            "@com_google_absl//absl/container:flat_hash_set",
+        ],
     }) + [
-        "//components/telemetry:metrics_recorder",
-        "//components/telemetry:telemetry_provider",
         ":message_service",
+        "//components/util:sleepfor",
+        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_github_google_glog//:glog",
-    ],
-)
-
-# This is a separate cc_library so that it can be compiled independent of the
-# "platform" config and used in the unit test below.
-cc_library(
-    name = "change_notifier_local",
-    srcs = ["change_notifier_local.cc"],
-    hdrs = [
-        "change_notifier.h",
-    ],
-    deps = [
-        ":message_service",
-        "//components/telemetry:metrics_recorder",
-        "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
     ],
 )
 
 cc_test(
-    name = "change_notifier_local_test",
+    name = "change_notifier_test",
     size = "small",
-    srcs = ["change_notifier_local_test.cc"],
-    deps = [
-        ":change_notifier_local",
-        "//components/telemetry:mocks",
+    srcs = select({
+        "//:aws_platform": [
+            "change_notifier_aws_test.cc",
+        ],
+        "//:local_platform": [
+            "change_notifier_local_test.cc",
+        ],
+    }),
+    deps = select({
+        "//:aws_platform": [
+            "//components/errors:aws_error_util",
+            "//components/util:platform_initializer",
+            "@aws_sdk_cpp//:sns",
+            "@aws_sdk_cpp//:sqs",
+        ],
+        "//:local_platform": [
+        ],
+    }) + [
+        ":change_notifier",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -118,7 +119,6 @@ cc_library(
     ],
     deps = [
         "//components/errors:retry",
-        "//components/util:duration",
         "//public:constants",
         "//public/data_loading:filename_utils",
         "@com_github_google_glog//:glog",
@@ -127,6 +127,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
+        "@google_privacysandbox_servers_common//src/cpp/util:duration",
     ],
 )
 

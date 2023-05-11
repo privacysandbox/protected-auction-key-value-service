@@ -24,14 +24,17 @@
 #include "components/data/common/thread_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/errors/retry.h"
-#include "components/telemetry/metrics_recorder.h"
-#include "components/telemetry/telemetry.h"
-#include "components/util/duration.h"
 #include "glog/logging.h"
 #include "public/constants.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry.h"
+#include "src/cpp/util/duration.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::MetricsRecorder;
+
 constexpr char* kReceivedLowLatencyNotifications =
     "ReceivedLowLatencyNotifications";
 constexpr char* kReceivedLowLatencyNotificationsE2E =

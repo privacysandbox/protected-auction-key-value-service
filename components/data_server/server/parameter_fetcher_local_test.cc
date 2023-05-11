@@ -17,11 +17,13 @@
 
 #include "absl/status/statusor.h"
 #include "components/data_server/server/parameter_fetcher.h"
-#include "components/telemetry/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
+
+using privacy_sandbox::server_common::MockMetricsRecorder;
 
 class MockParameterClient : public ParameterClient {
  public:

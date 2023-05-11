@@ -1,5 +1,16 @@
 # Functional testing the K/V server
 
+## Requirements
+
+You must have the [Docker Compose v2](https://github.com/docker/compose#where-to-get-docker-compose)
+plugin installed. You can check the version of the plugin you have installed like this (the full
+version string may vary, though the major version must be `v2`):
+
+```sh
+$ docker compose version
+Docker Compose version v2.17.2
+```
+
 ## Build the server
 
 ```sh

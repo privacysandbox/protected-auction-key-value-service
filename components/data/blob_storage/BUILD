@@ -24,13 +24,13 @@ cc_library(
     srcs = ["seeking_input_streambuf.cc"],
     hdrs = ["seeking_input_streambuf.h"],
     deps = [
-        "//components/telemetry:metrics_recorder",
-        "//components/telemetry:telemetry_provider",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
     ],
 )
 
@@ -41,10 +41,10 @@ cc_test(
     ],
     deps = [
         ":seeking_input_streambuf",
-        "//components/telemetry:mocks",
-        "//components/telemetry:telemetry_provider",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
     ],
 )
 
@@ -59,23 +59,23 @@ cc_library(
     ],
     deps = select({
         "//:aws_platform": [
+            "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:s3",
             "@aws_sdk_cpp//:transfer",
-            "//components/errors:aws_error_util",
         ],
         "//conditions:default": [],
     }) + [
         ":seeking_input_streambuf",
+        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@com_github_google_glog//:glog",
     ],
 )
 
 cc_library(
     name = "blob_storage_client_local",
-    srcs = ["local_blob_storage_client.cc"],
+    srcs = ["blob_storage_client_local.cc"],
     hdrs = [
         "blob_storage_client.h",
     ],
@@ -92,17 +92,17 @@ cc_test(
     name = "local_blob_storage_client_test",
     size = "small",
     srcs = [
-        "local_blob_storage_client_test.cc",
+        "blob_storage_client_local_test.cc",
     ],
     deps = [
         ":blob_storage_client_local",
         "//components/data/common:mocks",
-        "//components/errors:mocks",
-        "//components/telemetry:mocks",
+        "//components/util:sleepfor_mock",
         "//public/data_loading:filename_utils",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/flags:flag",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -136,10 +136,10 @@ cc_test(
     }),
     deps = [
         ":blob_storage_change_notifier",
-        "//components/telemetry:mocks",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -156,7 +156,7 @@ cc_library(
         ":blob_storage_client",
         "//components/data/common:thread_notifier",
         "//components/errors:retry",
-        "//components/util:duration",
+        "//components/util:sleepfor",
         "//public:constants",
         "//public/data_loading:filename_utils",
         "@com_github_google_glog//:glog",
@@ -165,6 +165,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
+        "@google_privacysandbox_servers_common//src/cpp/util:duration",
     ],
 )
 
@@ -177,7 +178,7 @@ cc_test(
     deps = [
         ":delta_file_notifier",
         "//components/data/common:mocks",
-        "//components/errors:mocks",
+        "//components/util:sleepfor_mock",
         "//public/data_loading:filename_utils",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",

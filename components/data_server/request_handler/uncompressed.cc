@@ -20,7 +20,7 @@
 
 namespace kv_server {
 
-std::string UncompressedConcatenator::Build() const {
+absl::StatusOr<std::string> UncompressedConcatenator::Build() const {
   std::string output;
   int output_size = sizeof(u_int32_t) * Partitions().size();
   for (const auto& partition : Partitions()) {

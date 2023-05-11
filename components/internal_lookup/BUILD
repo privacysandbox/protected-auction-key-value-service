@@ -32,12 +32,12 @@ cc_library(
     deps = [
         ":constants",
         ":internal_lookup_cc_grpc",
-        "//components/telemetry",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
     ],
 )
 
@@ -52,9 +52,9 @@ cc_library(
     deps = [
         ":internal_lookup_cc_grpc",
         "//components/data_server/cache",
-        "//components/telemetry",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
     ],
 )
 

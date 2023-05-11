@@ -28,27 +28,31 @@
 #include "components/internal_lookup/constants.h"
 #include "components/internal_lookup/lookup_client.h"
 #include "components/internal_lookup/lookup_server_impl.h"
-#include "components/telemetry/init.h"
 #include "components/telemetry/kv_telemetry.h"
-#include "components/telemetry/telemetry.h"
-#include "components/telemetry/telemetry_provider.h"
-#include "components/udf/code_fetcher.h"
 #include "components/udf/get_values_hook_impl.h"
-#include "components/udf/udf_client.h"
 #include "components/util/build_info.h"
-#include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
 #include "grpcpp/health_check_service_interface.h"
 #include "public/constants.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/udf/constants.h"
+#include "src/cpp/telemetry/init.h"
+#include "src/cpp/telemetry/telemetry.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 #include "src/google/protobuf/struct.pb.h"
 
 ABSL_FLAG(uint16_t, port, 50051,
           "Port the server is listening on. Defaults to 50051.");
 
 namespace kv_server {
+namespace {
+
+using privacy_sandbox::server_common::ConfigureMetrics;
+using privacy_sandbox::server_common::ConfigureTracer;
+using privacy_sandbox::server_common::GetTracer;
+using privacy_sandbox::server_common::InitTelemetry;
+using privacy_sandbox::server_common::TelemetryProvider;
 
 // TODO: Use config cpio client to get this from the environment
 constexpr absl::string_view kModeParameterSuffix = "mode";
@@ -67,6 +71,33 @@ constexpr absl::string_view kS3ClientMaxConnectionsParameterSuffix =
     "s3client-max-connections";
 constexpr absl::string_view kS3ClientMaxRangeBytesParameterSuffix =
     "s3client-max-range-bytes";
+constexpr absl::string_view kNumShardsParameterSuffix = "num-shards";
+
+opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
+GetMetricsOptions(const ParameterClient& parameter_client,
+                  const std::string environment) {
+  opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
+      metrics_options;
+
+  ParameterFetcher parameter_fetcher(environment, parameter_client, nullptr);
+
+  uint32_t export_interval_millis = parameter_fetcher.GetInt32Parameter(
+      kMetricsExportIntervalMillisParameterSuffix);
+  LOG(INFO) << "Retrieved " << kMetricsExportIntervalMillisParameterSuffix
+            << " parameter: " << export_interval_millis;
+  uint32_t export_timeout_millis = parameter_fetcher.GetInt32Parameter(
+      kMetricsExportTimeoutMillisParameterSuffix);
+  LOG(INFO) << "Retrieved " << kMetricsExportTimeoutMillisParameterSuffix
+            << " parameter: " << export_timeout_millis;
+  metrics_options.export_interval_millis =
+      std::chrono::milliseconds(export_interval_millis);
+  metrics_options.export_timeout_millis =
+      std::chrono::milliseconds(export_timeout_millis);
+
+  return metrics_options;
+}
+
+}  // namespace
 
 Server::Server()
     : metrics_recorder_(
@@ -81,26 +112,116 @@ Server::Server()
   cache_->UpdateKeyValue(kUdfHandlerNameKey, kDefaultUdfHandlerName, 1);
 }
 
-absl::Status Server::Init(const ParameterClient& parameter_client,
-                          InstanceClient& instance_client,
-                          CodeFetcher& code_fetcher,
-                          std::unique_ptr<UdfClient> udf_client,
-                          std::string environment, std::string instance_id) {
-  ConfigureTracer(CreateKVAttributes(std::move(instance_id), environment));
+void Server::InitializeTelemetry(const ParameterClient& parameter_client,
+                                 InstanceClient& instance_client) {
+  std::string instance_id = RetryUntilOk(
+      [&instance_client]() { return instance_client.GetInstanceId(); },
+      "GetInstanceId", nullptr);
+
+  InitTelemetry(std::string(kServiceName), std::string(BuildVersion()));
+  auto metrics_options = GetMetricsOptions(parameter_client, environment_);
+  ConfigureMetrics(CreateKVAttributes(instance_id, environment_),
+                   metrics_options);
+  ConfigureTracer(CreateKVAttributes(std::move(instance_id), environment_));
+
+  metrics_recorder_ = TelemetryProvider::GetInstance().CreateMetricsRecorder();
+}
+
+absl::Status Server::CreateDefaultInstancesIfNecessary(
+    std::unique_ptr<const ParameterClient> parameter_client,
+    std::unique_ptr<InstanceClient> instance_client,
+    std::unique_ptr<CodeFetcher> code_fetcher,
+    std::unique_ptr<UdfClient> udf_client) {
+  if (parameter_client == nullptr) {
+    parameter_client_ = std::move(ParameterClient::Create());
+  } else {
+    parameter_client_ = std::move(parameter_client);
+  }
+
+  if (instance_client == nullptr) {
+    instance_client_ = std::move(InstanceClient::Create());
+  } else {
+    instance_client_ = std::move(instance_client);
+  }
+
+  if (code_fetcher == nullptr) {
+    code_fetcher_ = std::move(CodeFetcher::Create());
+  } else {
+    code_fetcher_ = std::move(code_fetcher);
+  }
+  if (udf_client == nullptr) {
+    absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
+        UdfClient::Create(UdfClient::ConfigWithGetValuesHook(
+            *NewGetValuesHook(&LookupClient::GetSingleton)));
+    if (!udf_client_or_status.ok()) {
+      return udf_client_or_status.status();
+    }
+    udf_client_ = std::move(*udf_client_or_status);
+  } else {
+    udf_client_ = std::move(udf_client);
+  }
+
+  return absl::OkStatus();
+}
+
+absl::Status Server::Init(
+    std::unique_ptr<const ParameterClient> parameter_client,
+    std::unique_ptr<InstanceClient> instance_client,
+    std::unique_ptr<CodeFetcher> code_fetcher,
+    std::unique_ptr<UdfClient> udf_client) {
+  {
+    absl::Status status = CreateDefaultInstancesIfNecessary(
+        std::move(parameter_client), std::move(instance_client),
+        std::move(code_fetcher), std::move(udf_client));
+    if (!status.ok()) {
+      return status;
+    }
+  }
+
+  // This code is a separate block so that it can't rely on the arguments to
+  // this function, which might be nullptr.
+  return InitOnceInstancesAreCreated();
+}
+
+absl::Status Server::InitOnceInstancesAreCreated() {
+  {
+    InstanceClient* instance_client_ptr = instance_client_.get();
+    environment_ = TraceRetryUntilOk(
+        [instance_client_ptr]() {
+          return instance_client_ptr->GetEnvironmentTag();
+        },
+        "GetEnvironment", nullptr);
+  }
+  LOG(INFO) << "Retrieved environment: " << environment_;
+  InitializeTelemetry(*parameter_client_, *instance_client_);
+
   auto span = GetTracer()->StartSpan("InitServer");
   auto scope = opentelemetry::trace::Scope(span);
 
-  udf_client_ = std::move(udf_client);
-
   std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
-      LifecycleHeartbeat::Create(instance_client, *metrics_recorder_);
+      LifecycleHeartbeat::Create(*instance_client_, *metrics_recorder_);
 
-  ParameterFetcher parameter_fetcher(std::move(environment), parameter_client,
+  ParameterFetcher parameter_fetcher(environment_, *parameter_client_,
                                      metrics_recorder_.get());
   if (absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
       status != absl::OkStatus()) {
     return status;
   }
+  const auto shard_num_status = instance_client_->GetShardNumTag();
+  if (!shard_num_status.ok()) {
+    return shard_num_status.status();
+  }
+  if (!absl::SimpleAtoi(*shard_num_status, &shard_num_)) {
+    std::string error =
+        absl::StrFormat("Failed converting shard id parameter: %s to int32.",
+                        *shard_num_status);
+    LOG(ERROR) << error;
+    return absl::InvalidArgumentError(error);
+  }
+  LOG(INFO) << "Retrieved shard num: " << shard_num_;
+  num_shards_ = parameter_fetcher.GetInt32Parameter(kNumShardsParameterSuffix);
+  LOG(INFO) << "Retrieved " << kNumShardsParameterSuffix
+            << " parameter: " << num_shards_;
   blob_client_ = CreateBlobClient(parameter_fetcher);
   delta_stream_reader_factory_ =
       CreateStreamRecordReaderFactory(parameter_fetcher);
@@ -157,7 +278,7 @@ absl::Status Server::Init(const ParameterClient& parameter_client,
   data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher, *udf_client_);
   TraceRetryUntilOk([this] { return data_orchestrator_->Start(); },
                     "StartDataOrchestrator", metrics_recorder_.get());
-  SetUdfCodeObject(code_fetcher);
+  SetUdfCodeObject(*code_fetcher_);
 
   return absl::OkStatus();
 }
@@ -281,6 +402,8 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
                 .delta_stream_reader_factory = *delta_stream_reader_factory_,
                 .realtime_options = realtime_options_,
                 .udf_update_callback = udf_update_callback,
+                .shard_num = shard_num_,
+                .num_shards = num_shards_,
             },
             *metrics_recorder_);
       },
@@ -357,69 +480,4 @@ std::unique_ptr<DeltaFileNotifier> Server::CreateDeltaFileNotifier(
                                    absl::Seconds(backup_poll_frequency_secs));
 }
 
-opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
-GetMetricsOptions(const ParameterClient& parameter_client,
-                  const std::string environment) {
-  opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
-      metrics_options;
-
-  ParameterFetcher parameter_fetcher(environment, parameter_client, nullptr);
-
-  uint32_t export_interval_millis = parameter_fetcher.GetInt32Parameter(
-      kMetricsExportIntervalMillisParameterSuffix);
-  LOG(INFO) << "Retrieved " << kMetricsExportIntervalMillisParameterSuffix
-            << " parameter: " << export_interval_millis;
-  uint32_t export_timeout_millis = parameter_fetcher.GetInt32Parameter(
-      kMetricsExportTimeoutMillisParameterSuffix);
-  LOG(INFO) << "Retrieved " << kMetricsExportTimeoutMillisParameterSuffix
-            << " parameter: " << export_timeout_millis;
-  metrics_options.export_interval_millis =
-      std::chrono::milliseconds(export_interval_millis);
-  metrics_options.export_timeout_millis =
-      std::chrono::milliseconds(export_timeout_millis);
-
-  return metrics_options;
-}
-
-absl::Status RunServer() {
-  kv_server::PlatformInitializer initializer;
-
-  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
-      UdfClient::Create(UdfClient::ConfigWithGetValuesHook(
-          *NewGetValuesHook(&LookupClient::GetSingleton)));
-  if (!udf_client_or_status.ok()) {
-    return udf_client_or_status.status();
-  }
-
-  auto instance_client = InstanceClient::Create();
-  std::string environment = TraceRetryUntilOk(
-      [&instance_client]() { return instance_client->GetEnvironmentTag(); },
-      "GetEnvironment", nullptr);
-  LOG(INFO) << "Retrieved environment: " << environment;
-  auto parameter_client = ParameterClient::Create();
-  auto metrics_options = GetMetricsOptions(*parameter_client, environment);
-  auto code_fetcher = CodeFetcher::Create();
-
-  // Retrying getting instance id because it is cached and required
-  // for other retryable steps below.  We want it early for metrics.
-  std::string instance_id = RetryUntilOk(
-      [&instance_client]() { return instance_client->GetInstanceId(); },
-      "GetInstanceId", nullptr);
-  // Metrics configuration must be called prior to instantiating Server
-  InitTelemetry(std::string(kServiceName), std::string(BuildVersion()));
-  ConfigureMetrics(CreateKVAttributes(instance_id, environment),
-                   metrics_options);
-  Server server;
-  if (const absl::Status status =
-          server.Init(*parameter_client, *instance_client, *code_fetcher,
-                      std::move(udf_client_or_status.value()),
-                      std::move(environment), std::move(instance_id));
-      status != absl::OkStatus()) {
-    return status;
-  }
-  server.Wait();
-  server.GracefulShutdown(absl::Seconds(1));
-  server.ForceShutdown();
-  return absl::OkStatus();
-}
 }  // namespace kv_server

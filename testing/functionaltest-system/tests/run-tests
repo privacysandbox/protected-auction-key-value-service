@@ -25,6 +25,12 @@ function _cleanup() {
   if [[ ${STATUS} -ne 0 ]]; then
     printf "Error: run-tests status code: %d\n" "${STATUS}" &>/dev/stderr
   fi
+  if [[ ${#DOCKER_COMPOSE_ARGS} -gt 0 ]]; then
+    docker compose "${DOCKER_COMPOSE_ARGS[@]}" down || true
+  fi
+  if [[ -d ${DATA_DIR} ]]; then
+    rm -rf "${DATA_DIR}"
+  fi
   exit ${STATUS}
 }
 
@@ -32,17 +38,24 @@ function usage() {
   declare -r -i exitval=$?
   cat &>/dev/stderr <<USAGE
 usage:
-  $0 <options>
-      --network <name>    docker network name
+  $0 [options]
+    --verbose        Produce verbose output
+    --no-load-image  Skip building and loading image
 USAGE
   exit ${exitval}
 }
 
+declare -i SKIP_LOAD_IMAGE=0
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --network)
-      DOCKER_NETWORK="$2"
-      shift 2
+    --no-load-image)
+      SKIP_LOAD_IMAGE=1
+      shift
+      ;;
+    --verbose)
+      set -o xtrace
+      shift
       ;;
     -h | --help) usage 0 ;;
     *)
@@ -52,18 +65,74 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-: "${DOCKER_NETWORK?"--network flag not specified"}"
+function load_image() {
+  if [[ ${SKIP_LOAD_IMAGE} -eq 1 ]]; then
+    return
+  fi
+  # build docker image then load it into local docker client
+  local -r _tmpout=$(mktemp)
+  trap 'rm -f "${_tmpout}"' RETURN
+  declare -r _target=//"${SRV_IMAGE#bazel/}"
+  "${TOOLS_DIR}"/bazel-debian build "${_target}"
+  if ! "${TOOLS_DIR}"/bazel-debian run "${_target}" &>"${_tmpout}"; then
+    printf "bazel build %s failed\n" "${_target}"
+    cat "${_tmpout}"
+    rm -f "${_tmpout}"
+    exit 1
+  fi
+}
+
+function get_sut_data_configs() {
+  declare -r target_dir="$1"
+  "${TOOLS_DIR}"/bazel-debian run //tests:copy_to_dist
+  cp "${WORKSPACE}"/dist/sut_data.zip "${target_dir}"
+  EXTRA_DOCKER_RUN_ARGS="--volume ${target_dir}:/data --workdir /data" \
+    "${TOOLS_DIR}"/unzip sut_data.zip
+  rm -f "${target_dir}"/sut_data.zip
+  cp "${TESTS_DIR}"/docker-compose.{env,yaml} "${target_dir}"
+  cat <<EOF >"${target_dir}"/docker-compose-data.env
+DATA_DIR="${target_dir}"
+EOF
+  chmod 444 "${target_dir}"/*
+}
+
+function ensure_docker_compose() {
+  if ! docker compose version --short | grep -q ^2\. &>/dev/null; then
+    printf "docker compose v2 is required\n" &>/dev/stderr
+    exit 1
+  fi
+}
+
+ensure_docker_compose
 
 TESTS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 readonly TESTS_DIR
-readonly TOOLS_DIR="${TESTS_DIR}"/../builders/tools
+readonly WORKSPACE="${TESTS_DIR}"/..
+readonly TOOLS_DIR="${WORKSPACE}"/builders/tools
 
-declare -a TEST_ARGS=(
-  "--test_env=GREETER_ENDPOINT=greeter:50051"
-  "--test_env=ROUTEGUIDE_ENDPOINT=route_guide:50051"
-  "--test_env=DOCKER_NETWORK=${DOCKER_NETWORK}"
+declare -a -r TEST_ARGS=(
   "--test_env=TEST_TOOLS_IMAGE=$("${TOOLS_DIR}"/get-builder-image-tagged --image test-tools)"
 )
+declare -a TESTS=(
+  //tests:all_tests
+)
+declare -r SRV_IMAGE=bazel/tests/servers:grpc_examples_docker_image
 
-declare -a TESTS=("//tests/test_cases/grpc:all")
+load_image
+
+DATA_DIR="$(mktemp --directory)"
+readonly DATA_DIR
+get_sut_data_configs "${DATA_DIR}"
+
+declare -a -r DOCKER_COMPOSE_ARGS=(
+  --file "${DATA_DIR}"/docker-compose.yaml
+  --env-file "${DATA_DIR}"/docker-compose.env
+  --env-file "${DATA_DIR}"/docker-compose-data.env
+)
+
+docker compose "${DOCKER_COMPOSE_ARGS[@]}" up --quiet-pull --detach
+
+if command bazel --help &>/dev/null; then
+  bazel test "${TESTS[@]}" "${TEST_ARGS[@]}"
+fi
 "${TOOLS_DIR}"/bazel-debian test "${TESTS[@]}" "${TEST_ARGS[@]}"

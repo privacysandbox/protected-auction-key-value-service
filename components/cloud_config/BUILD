@@ -44,7 +44,7 @@ cc_test(
     deps = [
         ":parameter_client_local",
         "//components/data/common:mocks",
-        "//components/errors:mocks",
+        "//components/util:sleepfor_mock",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",

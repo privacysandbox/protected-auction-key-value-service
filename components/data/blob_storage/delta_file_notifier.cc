@@ -23,13 +23,16 @@
 #include "absl/status/status.h"
 #include "components/data/common/thread_notifier.h"
 #include "components/errors/retry.h"
-#include "components/util/duration.h"
 #include "glog/logging.h"
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
+#include "src/cpp/util/duration.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::ExpiringFlag;
+using privacy_sandbox::server_common::SteadyClock;
 
 class DeltaFileNotifierImpl : public DeltaFileNotifier {
  public:

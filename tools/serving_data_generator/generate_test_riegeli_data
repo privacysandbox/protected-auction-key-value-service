@@ -19,9 +19,11 @@ set -o errexit
 # Generate test riegeli file with keys "foo" and values "foo_value".
 WORKSPACE="$(git rev-parse --show-toplevel)"
 
+# shellcheck disable=SC2034
 BAZEL_EXTRA_ARGS=
 "${WORKSPACE}"/builders/tools/bazel-debian run -c opt //tools/serving_data_generator:test_serving_data_generator -- --output_dir="/src/workspace"
 
+# shellcheck disable=SC1090
 source "${WORKSPACE}"/builders/tools/builder.sh
 GROUP="$(builder::id g)"
 USER="$(builder::id u)"

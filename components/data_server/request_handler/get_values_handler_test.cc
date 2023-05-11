@@ -22,19 +22,20 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/cache/mocks.h"
-#include "components/telemetry/metrics_recorder.h"
-#include "components/telemetry/mocks.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
 using grpc::StatusCode;
+using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::Return;
 using testing::ReturnRef;
 using testing::UnorderedElementsAre;

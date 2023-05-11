@@ -20,10 +20,13 @@
 #include "absl/status/statusor.h"
 #include "absl/time/clock.h"
 #include "components/data/common/change_notifier.h"
+#include "components/util/sleepfor.h"
 #include "glog/logging.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::MetricsRecorder;
 
 // TODO(b/237669491): This is arbitrary, consider changing it.
 constexpr absl::Duration kPollInterval = absl::Seconds(5);
@@ -42,6 +45,8 @@ class LocalChangeNotifier : public ChangeNotifier {
     files_in_directory_ = std::move(status_or.value());
     VLOG(1) << "Found " << files_in_directory_.size() << " files.";
   }
+
+  ~LocalChangeNotifier() { sleep_for_.Stop(); }
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
@@ -73,7 +78,7 @@ class LocalChangeNotifier : public ChangeNotifier {
       }
 
       max_wait -= kPollInterval;
-      absl::SleepFor((kPollInterval));
+      sleep_for_.Duration(kPollInterval);
     }
   }
 
@@ -101,6 +106,8 @@ class LocalChangeNotifier : public ChangeNotifier {
 
     return new_files;
   }
+
+  SleepFor sleep_for_;
 
   std::filesystem::path local_directory_;
   // We can't store std::filesystem::path objects in the set because the paths

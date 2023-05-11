@@ -39,6 +39,8 @@ ABSL_FLAG(std::string, output_path, "",
           "Output path. If specified, output_dir is ignored. If '-', output is "
           "written to "
           "console.");
+ABSL_FLAG(int64_t, timestamp, 123123123,
+          "Record timestamp. Default is 123123123.");
 
 using kv_server::DeltaFileRecordStruct;
 using kv_server::DeltaMutationType;
@@ -61,6 +63,7 @@ absl::StatusOr<std::string> ReadCodeSnippetAsString(std::string udf_file_path) {
 absl::Status WriteRecord(std::string udf_file_path,
                          std::string_view udf_handler_name,
                          riegeli::RecordWriterBase& writer) {
+  const int64_t timestamp = absl::GetFlag(FLAGS_timestamp);
   absl::StatusOr<std::string> code_snippet =
       ReadCodeSnippetAsString(std::move(udf_file_path));
   if (!code_snippet.ok()) {
@@ -68,11 +71,11 @@ absl::Status WriteRecord(std::string udf_file_path,
   }
 
   writer.WriteRecord(ToStringView(
-      DeltaFileRecordStruct{DeltaMutationType::Update, 123123123,
+      DeltaFileRecordStruct{DeltaMutationType::Update, timestamp,
                             kUdfCodeSnippetKey, std::move(code_snippet.value())}
           .ToFlatBuffer()));
   writer.WriteRecord(
-      ToStringView(DeltaFileRecordStruct{DeltaMutationType::Update, 123123123,
+      ToStringView(DeltaFileRecordStruct{DeltaMutationType::Update, timestamp,
                                          kUdfHandlerNameKey, udf_handler_name}
                        .ToFlatBuffer()));
   LOG(INFO) << "write done";

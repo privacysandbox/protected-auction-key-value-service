@@ -13,22 +13,12 @@
 # limitations under the License.
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("//third_party:scp_repositories.bzl", "scp_repositories")
+load("@google_privacysandbox_servers_common//:cpp_deps.bzl", shared_cpp_dependencies = "cpp_dependencies")
 
 def cpp_repositories():
     """Entry point for all external repositories used for C++/C dependencies."""
 
-    scp_repositories()
-
-    ### Abseil
-    http_archive(
-        name = "com_google_absl",
-        sha256 = "dcf71b9cba8dc0ca9940c4b316a0c796be8fab42b070bb6b7cab62b48f0e66c4",  # SHARED_ABSL_SHA
-        strip_prefix = "abseil-cpp-20211102.0",
-        urls = [
-            "https://github.com/abseil/abseil-cpp/archive/refs/tags/20211102.0.tar.gz",
-        ],
-    )
+    shared_cpp_dependencies()
 
     http_archive(
         name = "aws-checksums",
@@ -94,19 +84,15 @@ def cpp_repositories():
     #riegeli
     http_archive(
         name = "com_google_riegeli",
+        repo_mapping = {
+            "@org_brotli": "@brotli",
+        },
         sha256 = "32f303a9b0b6e07101a7a95a4cc364fb4242f0f7431de5da1a2e0ee61f5924c5",
         strip_prefix = "riegeli-562f26cbb685aae10b7d32e32fb53d2e42a5d8c2",
         url = "https://github.com/google/riegeli/archive/562f26cbb685aae10b7d32e32fb53d2e42a5d8c2.zip",
     )
 
     #external deps for riegeli
-    http_archive(
-        name = "org_brotli",
-        sha256 = "79edf11c219ee05fa57f5ec7b2a224d1d945679c457f4585bb834a6e2c321b8f",
-        strip_prefix = "brotli-9801a2c5d6c67c467ffad676ac301379bb877fc3",
-        urls = ["https://github.com/google/brotli/archive/9801a2c5d6c67c467ffad676ac301379bb877fc3.zip"],
-    )
-
     http_archive(
         name = "net_zstd",
         build_file = "//third_party:zstd.BUILD",
@@ -129,21 +115,6 @@ def cpp_repositories():
         sha256 = "cf891e024699c82aabce528a024adbe16e529f2b4e57f954455e0bf53efae585",
         strip_prefix = "highwayhash-276dd7b4b6d330e4734b756e97ccfb1b69cc2e12",
         urls = ["https://github.com/google/highwayhash/archive/276dd7b4b6d330e4734b756e97ccfb1b69cc2e12.zip"],
-    )
-
-    ### glog
-    http_archive(
-        name = "com_github_gflags_gflags",
-        sha256 = "34af2f15cf7367513b352bdcd2493ab14ce43692d2dcd9dfc499492966c64dcf",
-        strip_prefix = "gflags-2.2.2",
-        urls = ["https://github.com/gflags/gflags/archive/v2.2.2.tar.gz"],
-    )
-
-    http_archive(
-        name = "com_github_google_glog",
-        sha256 = "21bc744fb7f2fa701ee8db339ded7dce4f975d0d55837a97be7d46e8382dea5a",
-        strip_prefix = "glog-0.5.0",
-        urls = ["https://github.com/google/glog/archive/v0.5.0.zip"],
     )
 
     http_archive(
@@ -170,15 +141,5 @@ def cpp_repositories():
         strip_prefix = "benchmark-1.7.1",
         urls = [
             "https://github.com/google/benchmark/archive/refs/tags/v1.7.1.zip",
-        ],
-    )
-
-    http_archive(
-        name = "nlohmann_json",
-        build_file = "//third_party:nlohmann_json.BUILD",
-        sha256 = "5daca6ca216495edf89d167f808d1d03c4a4d929cef7da5e10f135ae1540c7e4",
-        strip_prefix = "json-3.10.5",
-        urls = [
-            "https://github.com/nlohmann/json/archive/v3.10.5.tar.gz",
         ],
     )

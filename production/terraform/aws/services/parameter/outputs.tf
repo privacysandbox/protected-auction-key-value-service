@@ -65,3 +65,7 @@ output "s3client_max_connections_parameter_arn" {
 output "s3client_max_range_bytes_parameter_arn" {
   value = aws_ssm_parameter.s3client_max_range_bytes_parameter.arn
 }
+
+output "num_shards_parameter_arn" {
+  value = aws_ssm_parameter.num_shards_parameter.arn
+}

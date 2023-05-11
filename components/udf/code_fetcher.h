@@ -27,6 +27,8 @@ namespace kv_server {
 
 class CodeFetcher {
  public:
+  virtual ~CodeFetcher() {}
+
   // Fetches untrusted code for UDF execution from the lookup server.
   virtual absl::StatusOr<CodeConfig> FetchCodeConfig(
       const LookupClient& lookup_client) = 0;

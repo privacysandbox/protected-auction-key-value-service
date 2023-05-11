@@ -28,26 +28,41 @@ function _cleanup() {
   exit ${STATUS}
 }
 
-SCRIPT_DIR="$(dirname $(readlink -f "$0"))"
+ZIP_FILENAME="$1"
+if [[ ${ZIP_FILENAME##*.} != zip ]]; then
+  ZIP_FILENAME=logs.zip
+fi
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 WORKSPACE="${WORKSPACE-"$(readlink -f "${SCRIPT_DIR}"/..)"}"
-TMPDIR=$(mktemp --directory)
+TMPDIR="$(mktemp --directory)"
 readonly TMPDIR
-mkdir -p ${TMPDIR}/{test,other}
+mkdir -p "${TMPDIR}"/{test,other}
 # copy all test.log and test.xml files to the testlogs dir
 if [[ -d "${WORKSPACE}"/bazel-testlogs ]]; then
-  find -L "${WORKSPACE}"/bazel-testlogs -name "test.log" -exec cp --parents {} ${TMPDIR}/test ';'
-  find -L "${WORKSPACE}"/bazel-testlogs -name "test.xml" -exec cp --parents {} ${TMPDIR}/test ';'
+  find -L "${WORKSPACE}"/bazel-testlogs -name test.log -exec cp --parents {} "${TMPDIR}"/test ';'
+  find -L "${WORKSPACE}"/bazel-testlogs -name test.xml -exec cp --parents {} "${TMPDIR}"/test ';'
 fi
 # copy log files under bazel-out (other than test.log) to the buildlogs dir
 if [[ -d "${WORKSPACE}"/bazel-out ]]; then
-  find -L "${WORKSPACE}"/bazel-out -name "*.log" ! -name "test.log" -exec cp --parents {} ${TMPDIR}/other ';'
+  find -L "${WORKSPACE}"/bazel-out -name "*.log" ! -name "test.log" -exec cp --parents {} "${TMPDIR}"/other ';'
+fi
+if compgen -G "${TMPDIR}/test/src/workspace/bazel-testlogs/*" &>/dev/null; then
+  mv --target-directory="${TMPDIR}"/test "${TMPDIR}"/test/src/workspace/bazel-testlogs/*
+  rmdir "${TMPDIR}"/test/{src/workspace/bazel-testlogs,src/workspace,src}
 fi
 
-# Rename the copied test.log and test.xml files to sponge_log.log and sponge_log.xml
-find -L ${TMPDIR} -name "test.log" -exec rename 's/test.log/sponge_log.log/' {} ';'
-find -L ${TMPDIR} -name "test.xml" -exec rename 's/test.xml/sponge_log.xml/' {} ';'
+if command -v rename &>/dev/null; then
+  # Rename the copied test.log and test.xml files to sponge_log.log and sponge_log.xml
+  find -L "${TMPDIR}" -name test.log -exec rename 's/test.log/sponge_log.log/' {} ';'
+  find -L "${TMPDIR}" -name test.xml -exec rename 's/test.xml/sponge_log.xml/' {} ';'
+fi
 
-readonly DISTDIR="${WORKSPACE}"/dist
+declare -r DISTDIR="${WORKSPACE}"/dist
 mkdir -p "${DISTDIR}"
-pushd ${TMPDIR} &>/dev/null && zip -r "${DISTDIR}"/logs.zip * && popd &>/dev/null
-rm -rf ${TMPDIR}
+(
+  cd "${TMPDIR}"
+  zip -r -q "${DISTDIR}/${ZIP_FILENAME}" -- *
+)
+printf "stored bazel logs to %s\n" "${DISTDIR}/${ZIP_FILENAME}" &>/dev/stderr
+unzip -Z -h "${DISTDIR}/${ZIP_FILENAME}" &>/dev/stderr
+rm -rf "${TMPDIR}"

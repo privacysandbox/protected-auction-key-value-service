@@ -17,11 +17,13 @@
 #include <string>
 #include <utility>
 
-#include "components/telemetry/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
+
+using privacy_sandbox::server_common::MockMetricsRecorder;
 
 class FakePeriodicClosure : public PeriodicClosure {
  public:
@@ -54,6 +56,7 @@ class FakePeriodicClosure : public PeriodicClosure {
 class MockInstanceClient : public InstanceClient {
  public:
   MOCK_METHOD(absl::StatusOr<std::string>, GetEnvironmentTag, (), (override));
+  MOCK_METHOD(absl::StatusOr<std::string>, GetShardNumTag, (), (override));
   MOCK_METHOD(absl::Status, RecordLifecycleHeartbeat,
               (std::string_view lifecycle_hook_name), (override));
   MOCK_METHOD(absl::Status, CompleteLifecycle,

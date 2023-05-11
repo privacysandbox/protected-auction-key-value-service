@@ -64,9 +64,11 @@ go_rules_dependencies()
 ### gRPC
 http_archive(
     name = "com_github_grpc_grpc",
-    sha256 = "b55696fb249669744de3e71acc54a9382bea0dce7cd5ba379b356b12b82d4229",
-    strip_prefix = "grpc-1.51.1",
-    urls = ["https://github.com/grpc/grpc/archive/refs/tags/v1.51.1.tar.gz"],
+    sha256 = "ec125d7fdb77ecc25b01050a0d5d32616594834d3fe163b016768e2ae42a2df6",
+    strip_prefix = "grpc-1.52.1",
+    urls = [
+        "https://github.com/grpc/grpc/archive/v1.52.1.tar.gz",
+    ],
 )
 
 load("@com_github_grpc_grpc//bazel:grpc_deps.bzl", "grpc_deps")
@@ -92,13 +94,6 @@ http_archive(
 load("@rules_pkg//:deps.bzl", "rules_pkg_dependencies")
 
 rules_pkg_dependencies()
-
-### googletest
-http_archive(
-    name = "com_google_googletest",
-    strip_prefix = "googletest-e2239ee6043f73722e7aa812a459f54a28552929",
-    urls = ["https://github.com/google/googletest/archive/e2239ee6043f73722e7aa812a459f54a28552929.zip"],
-)
 
 ### rules_buf (https://docs.buf.build/build-systems/bazel)
 http_archive(
@@ -135,13 +130,26 @@ load("//third_party:container_deps.bzl", "container_deps")
 
 container_deps()
 
+http_archive(
+    name = "google_privacysandbox_servers_common",
+    sha256 = "4158164f52e719e5948e5b43bae01b111e5f1cc38e66516d35e37927b0316ff1",
+    strip_prefix = "data-plane-shared-libraries-5f9c6fc89e32f944ca208ed4ee1a2c71777cc483",
+    urls = [
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/5f9c6fc89e32f944ca208ed4ee1a2c71777cc483.zip",
+    ],
+)
+
 load("//third_party:cpp_repositories.bzl", "cpp_repositories")
 
 cpp_repositories()
 
-load("//third_party:scp_deps.bzl", "scp_deps")
+load("@google_privacysandbox_servers_common//third_party:scp_deps.bzl", "scp_deps")
 
 scp_deps()
+
+load("@google_privacysandbox_servers_common//third_party:scp_deps2.bzl", "scp_deps2")
+
+scp_deps2()
 
 load("@v8_python_deps//:requirements.bzl", install_v8_python_deps = "install_deps")
 
@@ -192,3 +200,10 @@ opentelemetry_cpp_deps()
 load("@rules_foreign_cc//foreign_cc:repositories.bzl", "rules_foreign_cc_dependencies")
 
 rules_foreign_cc_dependencies()
+
+http_archive(
+    name = "distributed_point_functions",
+    sha256 = "19cd27b36b0ceba683c02fc6c80e61339397afc3385b91d54210c5db0a254ef8",
+    strip_prefix = "distributed_point_functions-45da5f54836c38b73a1392e846c9db999c548711",
+    urls = ["https://github.com/google/distributed_point_functions/archive/45da5f54836c38b73a1392e846c9db999c548711.tar.gz"],
+)

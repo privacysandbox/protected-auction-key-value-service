@@ -22,7 +22,7 @@ namespace kv_server {
 // Builds compression groups that are not using any compression algorithm.
 class UncompressedConcatenator : public CompressionGroupConcatenator {
  public:
-  std::string Build() const override;
+  absl::StatusOr<std::string> Build() const override;
 };
 
 // Reads compression groups built with UncompressedConcatenator.

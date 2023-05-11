@@ -22,7 +22,6 @@
 #include "components/data/common/mocks.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
-#include "components/telemetry/mocks.h"
 #include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -32,6 +31,7 @@
 #include "public/data_loading/records_utils.h"
 #include "public/test_util/mocks.h"
 #include "public/test_util/proto_matcher.h"
+#include "src/cpp/telemetry/mocks.h"
 
 using kv_server::BlobStorageChangeNotifier;
 using kv_server::BlobStorageClient;
@@ -47,13 +47,13 @@ using kv_server::MockBlobStorageClient;
 using kv_server::MockCache;
 using kv_server::MockDeltaFileNotifier;
 using kv_server::MockDeltaFileRecordChangeNotifier;
-using kv_server::MockMetricsRecorder;
 using kv_server::MockRealtimeNotifier;
 using kv_server::MockStreamRecordReader;
 using kv_server::MockStreamRecordReaderFactory;
 using kv_server::ToDeltaFileName;
 using kv_server::ToSnapshotFileName;
 using kv_server::ToStringView;
+using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::AllOf;
 using testing::ByMove;
@@ -337,6 +337,77 @@ TEST_F(DataOrchestratorTest, CreateOrchestratorWithRealtimeDisabled) {
       .WillByDefault(Return(std::vector<std::string>({})));
   auto maybe_orchestrator =
       DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  ASSERT_TRUE(maybe_orchestrator.ok());
+}
+
+TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
+  testing::StrictMock<MockCache> strict_cache;
+
+  const std::vector<std::string> fnames(
+      {ToDeltaFileName(1).value(), ToDeltaFileName(2).value()});
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .Times(1)
+      .WillOnce(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::DELTA>()))))
+      .WillOnce(Return(fnames));
+
+  KVFileMetadata metadata;
+  auto update_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*update_reader, ReadStreamRecords)
+      .Times(1)
+      .WillOnce(
+          [](const std::function<absl::Status(std::string_view)>& callback) {
+            // key: "shard2" -> shard num: 0
+            const auto fb = DeltaFileRecordStruct{DeltaMutationType::Update, 3,
+                                                  "shard1", "bar value"}
+                                .ToFlatBuffer();
+            callback(ToStringView(fb)).IgnoreError();
+            return absl::OkStatus();
+          });
+  auto delete_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*delete_reader, ReadStreamRecords)
+      .Times(1)
+      .WillOnce(
+          [](const std::function<absl::Status(std::string_view)>& callback) {
+            // key: "shard2" -> shard num: 1
+            const auto fb = DeltaFileRecordStruct{DeltaMutationType::Delete, 3,
+                                                  "shard2", "bar value"}
+                                .ToFlatBuffer();
+            callback(ToStringView(fb)).IgnoreError();
+            return absl::OkStatus();
+          });
+  EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
+      .Times(2)
+      .WillOnce(Return(ByMove(std::move(update_reader))))
+      .WillOnce(Return(ByMove(std::move(delete_reader))));
+
+  EXPECT_CALL(strict_cache, RemoveDeletedKeys(0)).Times(1);
+  EXPECT_CALL(strict_cache, DeleteKey("shard2", 3)).Times(1);
+  EXPECT_CALL(strict_cache, RemoveDeletedKeys(3)).Times(1);
+
+  auto sharded_options = DataOrchestrator::Options{
+      .data_bucket = GetTestLocation().bucket,
+      .cache = strict_cache,
+      .blob_client = blob_client_,
+      .delta_notifier = notifier_,
+      .change_notifier = change_notifier_,
+      .delta_stream_reader_factory = delta_stream_reader_factory_,
+      .realtime_options = realtime_options_,
+      .num_shards = 2,
+      .shard_num = 1};
+
+  auto maybe_orchestrator =
+      DataOrchestrator::TryCreate(sharded_options, metrics_recorder_);
   ASSERT_TRUE(maybe_orchestrator.ok());
 }
 

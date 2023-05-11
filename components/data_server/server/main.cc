@@ -31,8 +31,7 @@ int main(int argc, char** argv) {
   //    arguments to any of the functions - no user data is present in function
   //    names.
   // 2. Stacktraces of UDF failures are not printed here, this is only K/V
-  // Server
-  //    framework code, which is all Open Source.
+  //    Server framework code, which is all Open Source.
   // 3. Production versions of the K/V Server run inside Trusted Execution
   //    Environments, which restrict where STDOUT and STDERR are visible to.
   absl::InitializeSymbolizer(argv[0]);
@@ -51,9 +50,12 @@ int main(int argc, char** argv) {
     return 0;
   }
 
-  const absl::Status status = kv_server::RunServer();
-  if (!status.ok()) {
+  kv_server::Server server;
+  if (const absl::Status status = server.Init(); status != absl::OkStatus()) {
     LOG(FATAL) << "Failed to run server: " << status;
   }
+  server.Wait();
+  server.GracefulShutdown(absl::Seconds(1));
+  server.ForceShutdown();
   return 0;
 }

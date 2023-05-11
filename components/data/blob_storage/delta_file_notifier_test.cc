@@ -20,7 +20,7 @@
 
 #include "absl/synchronization/notification.h"
 #include "components/data/common/mocks.h"
-#include "components/errors/mocks.h"
+#include "components/util/sleepfor_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/filename_utils.h"
@@ -31,6 +31,8 @@ using testing::Return;
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::SimulatedSteadyClock;
 
 class DeltaFileNotifierTest : public ::testing::Test {
  protected:

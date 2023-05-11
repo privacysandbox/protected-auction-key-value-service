@@ -15,7 +15,7 @@
  */
 
 resource "aws_launch_template" "instance_launch_template" {
-  name          = "${var.service}-${var.environment}-instance-lt"
+  name          = "${var.service}-${var.environment}-${var.shard_num}-instance-lt"
   image_id      = var.instance_ami_id
   instance_type = var.instance_type
 
@@ -52,16 +52,17 @@ resource "aws_launch_template" "instance_launch_template" {
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name        = "${var.service}-${var.environment}-instance"
+      Name        = "${var.service}-${var.environment}-${var.shard_num}-instance"
       service     = var.service
       environment = var.environment
+      shard-num   = var.shard_num
     }
   }
 }
 
 # Create auto scaling group for EC2 instances
 resource "aws_autoscaling_group" "instance_asg" {
-  name                = "${var.service}-${var.environment}-instance-asg"
+  name                = "${var.service}-${var.environment}-${var.shard_num}-instance-asg"
   max_size            = var.autoscaling_max_size
   min_size            = var.autoscaling_min_size
   desired_capacity    = var.autoscaling_desired_capacity

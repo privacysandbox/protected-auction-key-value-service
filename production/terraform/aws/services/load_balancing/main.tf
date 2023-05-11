@@ -46,7 +46,7 @@ resource "aws_route53_record" "alb_alias_record" {
 
 resource "aws_lb_listener" "public_alb_listener" {
   load_balancer_arn = aws_lb.public_alb.arn
-  port              = 443
+  port              = 8443
   protocol          = "HTTPS"
   certificate_arn   = var.certificate_arn
 
@@ -64,7 +64,7 @@ resource "aws_lb_listener" "public_alb_listener" {
 
 resource "aws_lb_listener" "public_alb_h1_listener" {
   load_balancer_arn = aws_lb.public_alb.arn
-  port              = 8443
+  port              = 443
   protocol          = "HTTPS"
   certificate_arn   = var.certificate_arn
 

@@ -30,12 +30,12 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
-#include "components/telemetry/metrics_recorder.h"
-#include "components/telemetry/telemetry_provider.h"
 #include "glog/logging.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "riegeli/bytes/istream_reader.h"
 #include "riegeli/records/record_reader.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {
 
@@ -166,7 +166,7 @@ class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
         };
   };
   ConcurrentStreamRecordReader(
-      MetricsRecorder& metrics_recorder,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       std::function<std::unique_ptr<RecordStream>()> stream_factory,
       Options options = Options());
   ~ConcurrentStreamRecordReader() = default;
@@ -197,14 +197,14 @@ class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
   absl::StatusOr<std::vector<ShardRange>> BuildShards();
   absl::StatusOr<int64_t> RecordStreamSize();
 
-  MetricsRecorder& metrics_recorder_;
+  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   std::function<std::unique_ptr<RecordStream>()> stream_factory_;
   Options options_;
 };
 
 template <typename RecordT>
 ConcurrentStreamRecordReader<RecordT>::ConcurrentStreamRecordReader(
-    MetricsRecorder& metrics_recorder,
+    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     std::function<std::unique_ptr<RecordStream>()> stream_factory,
     Options options)
     : metrics_recorder_(metrics_recorder),
@@ -282,7 +282,7 @@ ConcurrentStreamRecordReader<RecordT>::BuildShards() {
 template <typename RecordT>
 absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     const std::function<absl::Status(const RecordT&)>& callback) {
-  ScopeLatencyRecorder latency_recorder(
+  privacy_sandbox::server_common::ScopeLatencyRecorder latency_recorder(
       std::string(kReadStreamRecordsLatencyEvent), metrics_recorder_);
   auto shards = BuildShards();
   if (!shards.ok() || shards->empty()) {
@@ -334,7 +334,7 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
     const std::function<absl::Status(const RecordT&)>& record_callback) {
   VLOG(2) << "Reading shard: "
           << "[" << shard.start_pos << "," << shard.end_pos << "]";
-  ScopeLatencyRecorder latency_recorder(
+  privacy_sandbox::server_common::ScopeLatencyRecorder latency_recorder(
       std::string(kReadShardRecordsLatencyEvent), metrics_recorder_);
   auto record_stream = stream_factory_();
   riegeli::RecordReader<riegeli::IStreamReader<>> record_reader(
@@ -398,7 +398,7 @@ class StreamRecordReaderFactory {
   }
 
   virtual std::unique_ptr<StreamRecordReader<RecordT>> CreateConcurrentReader(
-      MetricsRecorder& metrics_recorder,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       std::function<std::unique_ptr<RecordStream>()> stream_factory) const {
     return std::make_unique<ConcurrentStreamRecordReader<RecordT>>(
         metrics_recorder, stream_factory, options_);

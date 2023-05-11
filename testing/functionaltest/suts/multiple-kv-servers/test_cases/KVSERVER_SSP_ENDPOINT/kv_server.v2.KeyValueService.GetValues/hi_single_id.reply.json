@@ -1,0 +1,22 @@
+[
+  {
+    "partitions": [
+      {
+        "id": 4,
+        "keyGroupOutputs": [
+          {
+            "keyValues": {
+              "hi": {
+                "value": "Hello, world! If you are seeing this, it means you can query me successfully"
+              }
+            },
+            "tags": [
+              "structured",
+              "groupNames"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

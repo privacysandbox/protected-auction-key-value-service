@@ -14,39 +14,44 @@
 
 load(
     "@google_privacysandbox_functionaltest_system//bazel:rpc_test.bzl",
-    "grpc_diff_test_suite",
-    "grpc_perf_test_suite",
+    "rpc_diff_test_suite",
+    "rpc_perf_test_suite",
+)
+load(
+    "@google_privacysandbox_functionaltest_system//sut:endpoint.bzl",
+    "endpoint",
 )
 
-rpcs = [
-    ("greeter_tests", "GREETER_ENDPOINT", "helloworld.Greeter.SayHello", ":helloworld_descriptor_set.pb"),
-]
+greeter_endpoint = endpoint(
+    docker_network = "greeter-example",
+    endpoint_type = "grpc",
+    host = "greeter",
+    port = 50051,
+    protoset = ":helloworld_descriptor_set.pb",
+    rpc = "helloworld.Greeter.SayHello",
+)
 
-[
-    grpc_diff_test_suite(
-        name = "grpcurl-{}".format(test_suite_name),
-        endpoint = endpoint,
-        protoset = protoset,
-        rpc = rpc,
-        test_files_glob_spec = "{}/{}/**/*".format(endpoint, rpc),
-        test_tags = [
-            "external",
-        ],
-    )
-    for test_suite_name, endpoint, rpc, protoset in rpcs
-]
+rpc_diff_test_suite(
+    name = "grpcurl-greeter_tests",
+    endpoint = greeter_endpoint,
+    protoset = greeter_endpoint.protoset,
+    rpc = greeter_endpoint.rpc,
+    test_files_glob_spec = "GREETER_ENDPOINT/{}/**/*".format(greeter_endpoint.rpc),
+    test_tags = [
+        "external",
+        "manual",
+    ],
+)
 
-[
-    grpc_perf_test_suite(
-        name = "ghz-{}".format(test_suite_name),
-        endpoint = endpoint,
-        protoset = protoset,
-        rpc = rpc,
-        test_files_glob_spec = "{}/{}/**/*".format(endpoint, rpc),
-        test_tags = [
-            "exclusive",
-            "external",
-        ],
-    )
-    for test_suite_name, endpoint, rpc, protoset in rpcs
-]
+rpc_perf_test_suite(
+    name = "ghz-greeter_tests",
+    endpoint = greeter_endpoint,
+    protoset = greeter_endpoint.protoset,
+    rpc = greeter_endpoint.rpc,
+    test_files_glob_spec = "GREETER_ENDPOINT/{}/**/*".format(greeter_endpoint.rpc),
+    test_tags = [
+        "exclusive",
+        "external",
+        "manual",
+    ],
+)

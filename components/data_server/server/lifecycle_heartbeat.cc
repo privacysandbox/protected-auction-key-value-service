@@ -23,6 +23,9 @@
 namespace kv_server {
 
 namespace {
+
+using privacy_sandbox::server_common::MetricsRecorder;
+
 constexpr absl::string_view kLaunchHookParameterSuffix = "launch-hook";
 constexpr absl::Duration kLifecycleHeartbeatFrequency = absl::Seconds(30);
 

@@ -20,6 +20,8 @@
 namespace kv_server {
 namespace {
 
+using privacy_sandbox::server_common::MetricsRecorder;
+
 class LocalBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   explicit LocalBlobStorageChangeNotifier(

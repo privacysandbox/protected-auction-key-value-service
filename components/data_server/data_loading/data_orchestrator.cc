@@ -22,14 +22,22 @@
 #include "absl/functional/bind_front.h"
 #include "absl/strings/str_cat.h"
 #include "components/errors/retry.h"
-#include "components/telemetry/tracing.h"
 #include "glog/logging.h"
+#include "pir/hashing/sha256_hash_family.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
+#include "src/cpp/telemetry/tracing.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::MetricsRecorder;
+using privacy_sandbox::server_common::TraceWithStatusOr;
+
+constexpr char* kTotalRowsDroppedIncorrectShardNumber =
+    "kTotalRowsDroppedIncorrectShardNumber";
+
 // Holds an input stream pointing to a blob of Riegeli records.
 class BlobRecordStream : public RecordStream {
  public:
@@ -43,10 +51,17 @@ class BlobRecordStream : public RecordStream {
 
 absl::StatusOr<DataLoadingStats> LoadCacheWithData(
     StreamRecordReader<std::string_view>& record_reader, Cache& cache,
-    int64_t& max_timestamp) {
+    int64_t& max_timestamp, const int32_t server_shard_num,
+    const int32_t num_shards, MetricsRecorder& metrics_recorder) {
   DataLoadingStats data_loading_stats;
+  // TODO: propagate this from terraform parameters
+  std::string hashing_seed = "";
+  auto hash_function =
+      distributed_point_functions::SHA256HashFunction(hashing_seed);
+
   auto status = record_reader.ReadStreamRecords(
-      [&cache, &max_timestamp, &data_loading_stats](std::string_view raw) {
+      [&cache, &max_timestamp, &data_loading_stats, server_shard_num,
+       num_shards, &hash_function, &metrics_recorder](std::string_view raw) {
         auto record = flatbuffers::GetRoot<DeltaFileRecord>(raw.data());
         auto recordVerifier = flatbuffers::Verifier(
             reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
@@ -54,6 +69,26 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
           // TODO(b/239061954): Publish metrics for alerting
           return absl::InvalidArgumentError("Invalid flatbuffer format");
         }
+
+        if (num_shards > 1) {
+          int32_t shard_num =
+              hash_function(record->key()->string_view(), num_shards);
+
+          if (shard_num != server_shard_num) {
+            metrics_recorder.IncrementEventCounter(
+                kTotalRowsDroppedIncorrectShardNumber);
+
+            auto error_message = absl::StrFormat(
+                "Data does not belong to this shard replica. Key: %s, Actual "
+                "shard id: %d, Server's shard id: %d.",
+                record->key()->string_view(), shard_num, server_shard_num);
+            LOG(ERROR) << error_message;
+            // NOTE: currently upstream logic retries on non-ok status
+            // this will get us in a loop
+            return absl::OkStatus();
+          }
+        }
+
         switch (record->mutation_type()) {
           case DeltaMutationType::Update: {
             cache.UpdateKeyValue(record->key()->string_view(),
@@ -102,7 +137,9 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
             return std::make_unique<BlobRecordStream>(
                 options.blob_client.GetBlobReader(location));
           });
-  auto status = LoadCacheWithData(*record_reader, cache, max_timestamp);
+  auto status =
+      LoadCacheWithData(*record_reader, cache, max_timestamp, options.shard_num,
+                        options.num_shards, metrics_recorder);
   if (status.ok()) {
     cache.RemoveDeletedKeys(max_timestamp);
   }
@@ -342,7 +379,9 @@ class DataOrchestratorImpl : public DataOrchestrator {
     std::istringstream is(record_string);
     int64_t max_timestamp = 0;
     auto record_reader = delta_stream_reader_factory.CreateReader(is);
-    return LoadCacheWithData(*record_reader, cache, max_timestamp);
+    return LoadCacheWithData(*record_reader, cache, max_timestamp,
+                             options_.shard_num, options_.num_shards,
+                             metrics_recorder_);
   }
 
   const Options options_;

@@ -31,14 +31,16 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "components/data/blob_storage/blob_storage_client.h"
-#include "components/telemetry/telemetry_provider.h"
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::TelemetryProvider;
 
 // The working_dir is always on local disk but the BlobStorageClient that this
 // CLI is compiled with may support either S3 or local, not both.  So we need a

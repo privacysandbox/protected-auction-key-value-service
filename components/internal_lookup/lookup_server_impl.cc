@@ -21,15 +21,16 @@
 #include "absl/status/status.h"
 #include "components/data_server/cache/cache.h"
 #include "components/internal_lookup/lookup.grpc.pb.h"
-#include "components/telemetry/telemetry.h"
 #include "google/protobuf/message.h"
 #include "grpcpp/grpcpp.h"
+#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 
 constexpr char kInternalLookupServerSpan[] = "InternalLookupServerHandler";
 
 using google::protobuf::RepeatedPtrField;
+using privacy_sandbox::server_common::GetTracer;
 
 void ProcessKeys(RepeatedPtrField<std::string> keys, const Cache& cache,
                  InternalLookupResponse& response) {

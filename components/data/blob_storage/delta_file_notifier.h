@@ -24,7 +24,8 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/common/thread_notifier.h"
 #include "components/errors/retry.h"
-#include "components/util/duration.h"
+#include "components/util/sleepfor.h"
+#include "src/cpp/util/duration.h"
 
 namespace kv_server {
 
@@ -62,7 +63,8 @@ class DeltaFileNotifier {
   // Used for test
   static std::unique_ptr<DeltaFileNotifier> Create(
       BlobStorageClient& client, const absl::Duration poll_frequency,
-      std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock);
+      std::unique_ptr<SleepFor> sleep_for,
+      privacy_sandbox::server_common::SteadyClock& clock);
 };
 
 }  // namespace kv_server

@@ -23,7 +23,10 @@
 namespace kv_server {
 namespace {
 
-constexpr char* RECEIVED_LOW_LATENCY_NOTIFICATIONS_LOCALLY =
+using privacy_sandbox::server_common::GetTracer;
+using privacy_sandbox::server_common::MetricsRecorder;
+
+constexpr char* kReceivedLowLatencyNotificationsLocally =
     "ReceivedLowLatencyNotificationsLocally";
 
 class LocalDeltaFileRecordChangeNotifier
@@ -47,8 +50,7 @@ class LocalDeltaFileRecordChangeNotifier
       realtime_messages.push_back({.parsed_notification = notification});
     }
 
-    auto span =
-        GetTracer()->StartSpan(RECEIVED_LOW_LATENCY_NOTIFICATIONS_LOCALLY);
+    auto span = GetTracer()->StartSpan(kReceivedLowLatencyNotificationsLocally);
     NotificationsContext nc = {
         .scope = opentelemetry::trace::Scope(span),
         .notifications_received = absl::Now(),

@@ -27,12 +27,12 @@
 #include "absl/time/time.h"
 #include "components/errors/retry.h"
 #include "components/internal_lookup/lookup_client.h"
-#include "components/telemetry/telemetry.h"
 #include "components/udf/get_values_hook.h"
 #include "glog/logging.h"
 #include "roma/config/src/config.h"
 #include "roma/config/src/function_binding_object.h"
 #include "roma/interface/roma.h"
+#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 
@@ -47,6 +47,7 @@ using google::scp::roma::ResponseObject;
 using google::scp::roma::RomaInit;
 using google::scp::roma::RomaStop;
 using google::scp::roma::WasmDataType;
+using privacy_sandbox::server_common::GetTracer;
 
 constexpr char kExecuteCodeSpan[] = "UdfClientExecuteCode";
 constexpr char kUpdateCodeObjectSpan[] = "UdfUpdateCodeObject";

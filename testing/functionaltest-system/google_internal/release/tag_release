@@ -64,7 +64,7 @@ function __assert_release_branch_not_exists() {
 
 function __find_and_assert_release_commit() {
   local VER="$1"
-  COMMIT="$(git log --basic-regexp --grep "^Release ${VER}$" --pretty=%H)"
+  COMMIT="$(git log --basic-regexp --grep "^Release ${VER} " --pretty=%H --max-count=1)"
   if [[ -z ${COMMIT} ]]; then
     printf "Error: Release commit not found for [%s]. Exiting\n" "${VER}" &>/dev/stderr
     exit 1
@@ -94,7 +94,7 @@ fi
 
 # create release tag ${RELEASE_TAG}
 git tag --annotate "${RELEASE_TAG}" -m "Release ${VERSION}" "${RELEASE_COMMIT}"
-git branch "${RELEASE_TAG}" "${RELEASE_BRANCH}"
+git branch "${RELEASE_BRANCH}" "${RELEASE_TAG}"
 
 cat << EOF
 Run the following command to push the release tag and branch to the gerrit repo:

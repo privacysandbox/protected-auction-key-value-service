@@ -40,12 +40,12 @@ cc_library(
         ":code_config",
         ":get_values_hook_impl",
         "//components/errors:retry",
-        "//components/telemetry",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
         "@control_plane_shared//cc/roma/interface:roma_interface_lib",
         "@control_plane_shared//cc/roma/roma_service/src:roma_service_lib",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
     ],
 )
 
@@ -99,12 +99,12 @@ cc_library(
         ":get_values_hook",
         "//components/internal_lookup:internal_lookup_cc_proto",
         "//components/internal_lookup:lookup_client_impl",
-        "//components/telemetry",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
         "@nlohmann_json//:lib",
     ],
 )

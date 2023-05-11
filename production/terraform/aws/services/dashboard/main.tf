@@ -33,7 +33,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                 "stacked": false,
                 "region": "us-east-1",
                 "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} CacheKey', 'Average', 300)", "id": "e1", "period": 300, "region": "us-east-1" } ]
+                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} CacheKey', 'Average', 300)", "id": "e1", "period": 300, "label": "$${PROP('Dim.event')} $${PROP('Dim.service.instance.id')}" } ]
                 ],
                 "title": "Cache hits",
                 "period": 300,
@@ -56,7 +56,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                 "stacked": false,
                 "region": "us-east-1",
                 "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,status,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} GetValuesSuccess', 'Average', 300)", "id": "e1", "period": 300, "region": "us-east-1" } ]
+                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,status,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} GetValuesSuccess', 'Average', 300)", "id": "e1", "period": 300, "label": "$${PROP('Dim.service.instance.id')}" } ]
                 ],
                 "title": "GetValuesSuccess",
                 "period": 300,
@@ -76,7 +76,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} GetValuesV1Latency', 'Average', 1)", "id": "e1", "region": "us-east-1" } ]
+                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} GetValuesV1Latency', 'Average', 1)", "id": "e1", "label": "$${PROP('Dim.service.instance.id')}" } ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,

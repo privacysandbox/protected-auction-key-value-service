@@ -172,3 +172,8 @@ variable "s3client_max_range_bytes" {
   description = "S3Client max range bytes for reading data files."
   type        = number
 }
+
+variable "num_shards" {
+  description = "Number of shards."
+  type        = number
+}

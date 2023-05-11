@@ -34,8 +34,6 @@ cc_library(
         "//components/data/realtime:realtime_notifier",
         "//components/data_server/cache",
         "//components/errors:retry",
-        "//components/telemetry:metrics_recorder",
-        "//components/telemetry:tracing",
         "//public:constants",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:filename_utils",
@@ -46,6 +44,9 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
+        "@distributed_point_functions//pir/hashing:sha256_hash_family",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:tracing",
     ],
 )
 
@@ -59,7 +60,6 @@ cc_test(
         ":data_orchestrator",
         "//components/data/common:mocks",
         "//components/data_server/cache:mocks",
-        "//components/telemetry:mocks",
         "//public/data_loading:filename_utils",
         "//public/data_loading:records_utils",
         "//public/test_util:mocks",
@@ -68,5 +68,6 @@ cc_test(
         "@com_google_absl//absl/synchronization",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

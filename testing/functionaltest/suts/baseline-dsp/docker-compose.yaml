@@ -1,0 +1,78 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+services:
+  # K/V server instance
+  kvserver:
+    image: bazel/production/packaging/aws/data_server:server_docker_image
+    entrypoint:
+    - /server/bin/init_server_basic
+    - --port=2000
+    - --delta_directory=/srvdata/deltas
+    - --realtime_directory=/srvdata/realtime_data
+    - --mode=DSP
+    hostname: kv-server
+    networks:
+    - kvserver-net
+    volumes:
+    - type: bind
+      read_only: true
+      source: ${SUT_DATA_DIR}/kvserver/data
+      target: /srvdata/deltas
+    - type: tmpfs
+      target: /srvdata/realtime_data
+      tmpfs:
+        size: 1MB
+  # envoy proxy specific to the K/V server instance
+  kv-envoy-proxy:
+    image: envoyproxy/envoy:distroless-v1.26-latest
+    command:
+    - -c
+    - /etc/envoy.yaml
+    depends_on:
+      kvserver:
+        condition: service_started
+    hostname: kv-server-envoy
+    networks:
+    - kvserver-net
+    volumes:
+    - type: bind
+      source: ${SUT_DATA_DIR}/kvserver/etc/envoy_kvserver.yaml
+      target: /etc/envoy.yaml
+  # frontend envoy proxy routing to the K/V envoy proxy
+  frontend-envoy-proxy:
+    image: envoyproxy/envoy:distroless-v1.26-latest
+    command:
+    - -c
+    - /etc/envoy.yaml
+    depends_on:
+      kvserver:
+        condition: service_started
+      kv-envoy-proxy:
+        condition: service_started
+    hostname: frontend-envoy
+    networks:
+    - frontend-net
+    - kvserver-net
+    volumes:
+    - type: bind
+      source: ${SUT_DATA_DIR}/frontend/etc/envoy_frontend.yaml
+      target: /etc/envoy.yaml
+networks:
+  kvserver-net:
+    name: baseline-dsp-kvserver
+    driver: bridge
+  frontend-net:
+    name: baseline-dsp-frontend
+    driver: bridge

@@ -41,7 +41,7 @@ class CompressionGroupConcatenator {
  public:
   virtual ~CompressionGroupConcatenator() = default;
 
-  enum class CompressionType { kUncompressed = 0, /* TODO: kGzip, kBrotli */ };
+  enum class CompressionType { kUncompressed = 0, kBrotli /* TODO: kGzip */ };
 
   static std::unique_ptr<CompressionGroupConcatenator> Create(
       CompressionType type);
@@ -53,7 +53,7 @@ class CompressionGroupConcatenator {
 
   // Compresses the input and generates the byte string that concatenates all
   // the compressed input.
-  virtual std::string Build() const = 0;
+  virtual absl::StatusOr<std::string> Build() const = 0;
 
  protected:
   const std::vector<std::string>& Partitions() const { return partitions_; }

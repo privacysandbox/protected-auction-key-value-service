@@ -24,13 +24,15 @@
 #include "components/data/common/change_notifier.h"
 #include "components/data/common/mocks.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
-#include "components/telemetry/mocks.h"
 #include "gtest/gtest.h"
+#include "src/cpp/telemetry/mocks.h"
 
 using testing::_;
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::MockMetricsRecorder;
 
 constexpr std::string_view kX64EncodedMessage =
     "g69w0Q2ISj8AAAAAAAAAAEAAAAAAAAAAkbrCPJKH4akAAAAAAAAAAOGfE8DpscNycwAAAAAA"

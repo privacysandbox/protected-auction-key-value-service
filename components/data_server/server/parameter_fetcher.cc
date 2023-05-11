@@ -24,6 +24,8 @@
 
 namespace kv_server {
 
+using privacy_sandbox::server_common::MetricsRecorder;
+
 ParameterFetcher::ParameterFetcher(std::string environment,
                                    const ParameterClient& parameter_client,
                                    MetricsRecorder* metrics_recorder)

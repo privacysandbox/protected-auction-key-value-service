@@ -25,16 +25,16 @@
 #include "absl/status/statusor.h"
 #include "components/cloud_config/parameter_client.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
-#include "components/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
 class ParameterFetcher {
  public:
   // `metrics_recorder` is optional
-  ParameterFetcher(std::string environment,
-                   const ParameterClient& parameter_client,
-                   MetricsRecorder* metrics_recorder);
+  ParameterFetcher(
+      std::string environment, const ParameterClient& parameter_client,
+      privacy_sandbox::server_common::MetricsRecorder* metrics_recorder);
 
   virtual ~ParameterFetcher() = default;
 
@@ -53,7 +53,7 @@ class ParameterFetcher {
 
   const std::string environment_;
   const ParameterClient& parameter_client_;
-  MetricsRecorder* const metrics_recorder_;
+  privacy_sandbox::server_common::MetricsRecorder* const metrics_recorder_;
 };
 
 }  // namespace kv_server

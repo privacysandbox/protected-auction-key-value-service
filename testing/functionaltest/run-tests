@@ -35,26 +35,28 @@ function _cleanup() {
 }
 
 function usage() {
-  declare -r -i exitval=$?
+  declare -r exitval="$1"
   cat &>/dev/stderr <<USAGE
 usage:
   $0 <options>
-      --network <name>       docker network name
-      --endpoint <host:port> host:port for service
+      --sut-name <name>      name of SUT (must match directory name within suts path)
+      --fast                 only run a single set of tests per SUT
       --verbose              verbose output
 USAGE
-  exit ${exitval}
+  exit "${exitval}"
 }
+
+declare -i SHORT_CIRCUIT=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --network)
-      DOCKER_NETWORK="$2"
+    --sut-name)
+      SUT_NAME="$2"
       shift 2
       ;;
-    --endpoint)
-      ENDPOINT="$2"
-      shift 2
+    --fast)
+      SHORT_CIRCUIT=1
+      shift
       ;;
     --verbose)
       set -o xtrace
@@ -63,35 +65,39 @@ while [[ $# -gt 0 ]]; do
     -h | --help) usage 0 ;;
     *)
       printf "unrecognized arg: %s\n" "$1"
-      usage
+      usage 1
       ;;
   esac
 done
 
-: "${DOCKER_NETWORK?"--network flag not specified"}"
-: "${ENDPOINT?"--endpoint flag not specified"}"
+: "${SUT_NAME?"--sut-name flag not specified"}"
 
-TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/../../builders/tools
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly SCRIPT_DIR
+TOOLS_DIR="${SCRIPT_DIR}"/../../builders/tools
 readonly TOOLS_DIR
-
-declare -a TEST_ARGS=(
-  "--test_env=KVSERVER_ENDPOINT=${ENDPOINT}"
-  "--test_env=TEST_TOOLS_IMAGE=$("${TOOLS_DIR}"/get-builder-image-tagged --image test-tools)"
-)
-
-if [[ -v DOCKER_NETWORK ]]; then
-  TEST_ARGS+=(
-    "--test_env=DOCKER_NETWORK=${DOCKER_NETWORK}"
-  )
+SUTS_DIR="${SCRIPT_DIR}"/suts
+readonly SUTS_DIR
+declare -r SUT_DIR="${SUTS_DIR}/${SUT_NAME}"
+if ! [[ -d ${SUT_DIR} ]]; then
+  printf "SUT directory not found: [%s]\n" "${SUT_DIR}" &>/dev/stderr
+  exit 1
 fi
 
+readonly TOOLS_DIR
+declare -a -r TEST_ARGS=(
+  "--test_env=TEST_TOOLS_IMAGE=$("${TOOLS_DIR}"/get-builder-image-tagged --image test-tools)"
+)
 declare -a -r TESTS=(
-  "//testing/functionaltest/test_cases/grpc:grpcurl_test_suite"
+  "//testing/functionaltest/suts/${SUT_NAME}:grpcurl_test_suite"
 )
 
 # run the tests using bazel, if installed
 if command bazel --help &>/dev/null; then
   bazel test "${TESTS[@]}" "${TEST_ARGS[@]}"
+  if [[ ${SHORT_CIRCUIT} -eq 1 ]]; then
+    exit
+  fi
 fi
 
 # also run the test suites using bazel-debian container

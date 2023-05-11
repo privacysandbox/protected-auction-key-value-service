@@ -23,6 +23,8 @@
 namespace kv_server {
 namespace {
 
+using privacy_sandbox::server_common::MetricsRecorder;
+
 class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   explicit S3BlobStorageChangeNotifier(std::unique_ptr<ChangeNotifier> notifier)

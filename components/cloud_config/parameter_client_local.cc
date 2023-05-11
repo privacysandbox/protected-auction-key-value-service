@@ -75,6 +75,7 @@ ABSL_FLAG(int32_t, s3client_max_connections, 1,
           "S3Client max connections for reading data files.");
 ABSL_FLAG(int32_t, s3client_max_range_bytes, 1,
           "S3Client max range bytes for reading data files.");
+ABSL_FLAG(int32_t, num_shards, 1, "Total number of shards.");
 
 namespace kv_server {
 namespace {
@@ -121,6 +122,8 @@ class LocalParameterClient : public ParameterClient {
     int32_t_flag_values_.insert(
         {"kv-server-local-s3client-max-range-bytes",
          absl::GetFlag(FLAGS_s3client_max_range_bytes)});
+    int32_t_flag_values_.insert(
+        {"kv-server-local-num-shards", absl::GetFlag(FLAGS_num_shards)});
     // Insert more int32 flag values here.
   }
 

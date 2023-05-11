@@ -23,6 +23,7 @@
 #include "glog/logging.h"
 
 ABSL_FLAG(std::string, environment, "local", "Environment name.");
+ABSL_FLAG(std::string, shard_num, "0", "Shard number.");
 
 namespace kv_server {
 namespace {
@@ -31,6 +32,10 @@ class LocalInstanceClient : public InstanceClient {
  public:
   absl::StatusOr<std::string> GetEnvironmentTag() override {
     return absl::GetFlag(FLAGS_environment);
+  }
+
+  absl::StatusOr<std::string> GetShardNumTag() override {
+    return absl::GetFlag(FLAGS_shard_num);
   }
 
   absl::Status RecordLifecycleHeartbeat(

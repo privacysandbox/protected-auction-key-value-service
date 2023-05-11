@@ -13,6 +13,7 @@
 // limitations under the License.
 #include "components/data_server/request_handler/compression.h"
 
+#include "components/data_server/request_handler/compression_brotli.h"
 #include "components/data_server/request_handler/uncompressed.h"
 #include "glog/logging.h"
 #include "quiche/common/quiche_data_writer.h"
@@ -27,13 +28,21 @@ void CompressionGroupConcatenator::AddCompressionGroup(
 
 std::unique_ptr<CompressionGroupConcatenator>
 CompressionGroupConcatenator::Create(CompressionType type) {
-  return std::make_unique<UncompressedConcatenator>();
+  if (type == CompressionType::kUncompressed) {
+    return std::make_unique<UncompressedConcatenator>();
+  } else {
+    return std::make_unique<BrotliCompressionGroupConcatenator>();
+  }
 }
 
 std::unique_ptr<CompressedBlobReader> CompressedBlobReader::Create(
     CompressionGroupConcatenator::CompressionType type,
     std::string_view compressed) {
-  return std::make_unique<UncompressedBlobReader>(compressed);
+  if (type == CompressionGroupConcatenator::CompressionType::kUncompressed) {
+    return std::make_unique<UncompressedBlobReader>(compressed);
+  } else {
+    return std::make_unique<BrotliCompressionBlobReader>(compressed);
+  }
 }
 
 }  // namespace kv_server

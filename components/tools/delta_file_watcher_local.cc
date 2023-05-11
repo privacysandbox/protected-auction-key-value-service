@@ -25,15 +25,15 @@
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/common/change_notifier.h"
 #include "components/data/common/thread_notifier.h"
-#include "components/telemetry/telemetry_provider.h"
 #include "components/util/platform_initializer.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, directory, "", "Local directory to watch");
 
 using kv_server::BlobStorageChangeNotifier;
 using kv_server::BlobStorageClient;
 using kv_server::DeltaFileNotifier;
-using kv_server::TelemetryProvider;
+using privacy_sandbox::server_common::TelemetryProvider;
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);

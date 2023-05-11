@@ -39,11 +39,12 @@ cc_library(
         "retry.h",
     ],
     deps = [
-        "//components/telemetry:metrics_recorder",
-        "//components/telemetry:tracing",
+        "//components/util:sleepfor",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/time",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:tracing",
     ],
 )
 
@@ -54,19 +55,9 @@ cc_test(
         "retry_test.cc",
     ],
     deps = [
-        ":mocks",
         ":retry",
-        "//components/telemetry:mocks",
+        "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_library(
-    name = "mocks",
-    testonly = 1,
-    hdrs = ["mocks.h"],
-    deps = [
-        ":retry",
-        "@com_google_googletest//:gtest",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

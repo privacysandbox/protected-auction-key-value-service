@@ -97,3 +97,10 @@ resource "aws_ssm_parameter" "s3client_max_range_bytes_parameter" {
   value     = var.s3client_max_range_bytes_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "num_shards_parameter" {
+  name      = "${var.service}-${var.environment}-num-shards"
+  type      = "String"
+  value     = var.num_shards_parameter_value
+  overwrite = true
+}

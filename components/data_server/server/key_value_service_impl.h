@@ -22,9 +22,9 @@
 
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/get_values_handler.h"
-#include "components/telemetry/metrics_recorder.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/get_values.grpc.pb.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -34,8 +34,9 @@ constexpr char* kGetValuesV1Latency = "GetValuesV1Latency";
 class KeyValueServiceImpl final
     : public kv_server::v1::KeyValueService::CallbackService {
  public:
-  explicit KeyValueServiceImpl(GetValuesHandler handler,
-                               MetricsRecorder& metrics_recorder)
+  explicit KeyValueServiceImpl(
+      GetValuesHandler handler,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
       : handler_(std::move(handler)), metrics_recorder_(metrics_recorder) {
     metrics_recorder_.RegisterHistogram(
         kGetValuesV1Latency, "GetValues V1 service latency", "nanosecond");
@@ -48,7 +49,7 @@ class KeyValueServiceImpl final
 
  private:
   GetValuesHandler handler_;
-  MetricsRecorder& metrics_recorder_;
+  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

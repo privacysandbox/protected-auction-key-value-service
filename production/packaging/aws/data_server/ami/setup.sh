@@ -26,7 +26,7 @@ sudo cp /home/ec2-user/vsockproxy.service /etc/systemd/system/vsockproxy.service
 sudo cp /home/ec2-user/proxy /opt/privacysandbox/proxy
 sudo cp /home/ec2-user/server_enclave_image.eif /opt/privacysandbox/server_enclave_image.eif
 OTEL_COL_CONF=/opt/aws/aws-otel-collector/etc/otel_collector_config.yaml
-sudo mkdir -p $(dirname "${OTEL_COL_CONF}")
+sudo mkdir -p "$(dirname "${OTEL_COL_CONF}")"
 sudo cp /home/ec2-user/otel_collector_config.yaml "${OTEL_COL_CONF}"
 
 # Install necessary dependencies

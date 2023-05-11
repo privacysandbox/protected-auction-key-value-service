@@ -15,28 +15,15 @@ if ! command -v git; then
   exit 0
 fi
 
-GIT_REV=$(git rev-parse HEAD) || exit 1
-readonly GIT_REV
-
-# Check whether there are any uncommitted changes
-git diff-index --quiet HEAD -- && { TREE_STATUS="CLEAN"; } || { TREE_STATUS="MODIFIED"; }
-readonly TREE_STATUS
-
 TOPLEVEL_DIR=$(git rev-parse --show-toplevel)
 readonly TOPLEVEL_DIR
 VERSION=$(cat "${TOPLEVEL_DIR}"/version.txt)
 readonly VERSION
-
-RELEASE_COMMIT=$(git log --basic-regexp --grep "^Release ${VERSION}" --pretty=%H)
-COMMITS_SINCE_RELEASE=$(git log ${RELEASE_COMMIT}..HEAD --pretty=%H | wc -l)
-if [[ ${COMMITS_SINCE_RELEASE} -gt 0 ]]; then
-  EXTENDED_VERSION="plus ${COMMITS_SINCE_RELEASE} commits"
-fi
 
 cat <<EOF
 STABLE_VERSION ${VERSION}
 EOF
 
 if [[ -s /etc/bazel.bazelrc ]]; then
-  printf "STABLE_%s\n" "$(grep -o TOOLCHAINS_HASH.*$ /etc/bazel.bazelrc | tr '=' ' ')"
+  printf "STABLE_%s\n" "$(grep -o 'TOOLCHAINS_HASH.*$' /etc/bazel.bazelrc | tr '=' ' ')"
 fi

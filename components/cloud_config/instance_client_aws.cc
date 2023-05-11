@@ -41,6 +41,7 @@ namespace kv_server {
 namespace {
 
 constexpr char kEnvironmentTag[] = "environment";
+constexpr char kShardNumTag[] = "shard-num";
 constexpr char kResourceIdFilter[] = "resource-id";
 constexpr char kKeyFilter[] = "key";
 constexpr char kImdsTokenHeader[] = "x-aws-ec2-metadata-token";
@@ -119,36 +120,11 @@ absl::StatusOr<std::string> GetAutoScalingGroupName(
 class AwsInstanceClient : public InstanceClient {
  public:
   absl::StatusOr<std::string> GetEnvironmentTag() override {
-    absl::StatusOr<std::string> instance_id = GetInstanceId();
-    if (!instance_id.ok()) {
-      LOG(ERROR) << "Failed to get instance_id: " << instance_id.status();
-      return instance_id;
-    }
-    LOG(INFO) << "Retrieved instance id: " << *instance_id;
+    return GetTag(kEnvironmentTag);
+  }
 
-    Aws::EC2::Model::Filter resource_id_filter;
-    resource_id_filter.SetName(kResourceIdFilter);
-    resource_id_filter.AddValues(*instance_id);
-    Aws::EC2::Model::Filter key_filter;
-    key_filter.SetName(kKeyFilter);
-    key_filter.AddValues(kEnvironmentTag);
-
-    Aws::EC2::Model::DescribeTagsRequest request;
-    request.SetFilters({resource_id_filter, key_filter});
-
-    const auto outcome = ec2_client_->DescribeTags(request);
-    if (!outcome.IsSuccess()) {
-      return AwsErrorToStatus(outcome.GetError());
-    }
-    if (outcome.GetResult().GetTags().size() != 1) {
-      const std::string error_msg =
-          absl::StrCat("Could not get tag ", kEnvironmentTag, " for instance ",
-                       *instance_id);
-      LOG(ERROR) << error_msg << "; Retrieved "
-                 << outcome.GetResult().GetTags().size() << " tags";
-      return absl::NotFoundError(error_msg);
-    }
-    return outcome.GetResult().GetTags()[0].GetValue();
+  absl::StatusOr<std::string> GetShardNumTag() override {
+    return GetTag(kShardNumTag);
   }
 
   absl::Status RecordLifecycleHeartbeat(
@@ -246,6 +222,38 @@ class AwsInstanceClient : public InstanceClient {
   std::unique_ptr<Aws::Internal::EC2MetadataClient> ec2_metadata_client_;
   std::unique_ptr<Aws::AutoScaling::AutoScalingClient> auto_scaling_client_;
   std::string machine_id_;
+  int32_t shard_num_;
+
+  absl::StatusOr<std::string> GetTag(std::string tag) {
+    absl::StatusOr<std::string> instance_id = GetInstanceId();
+    if (!instance_id.ok()) {
+      LOG(ERROR) << "Failed to get instance_id: " << instance_id.status();
+      return instance_id;
+    }
+    LOG(INFO) << "Retrieved instance id: " << *instance_id;
+    Aws::EC2::Model::Filter resource_id_filter;
+    resource_id_filter.SetName(kResourceIdFilter);
+    resource_id_filter.AddValues(*instance_id);
+    Aws::EC2::Model::Filter key_filter;
+    key_filter.SetName(kKeyFilter);
+    key_filter.AddValues(tag);
+
+    Aws::EC2::Model::DescribeTagsRequest request;
+    request.SetFilters({resource_id_filter, key_filter});
+
+    const auto outcome = ec2_client_->DescribeTags(request);
+    if (!outcome.IsSuccess()) {
+      return AwsErrorToStatus(outcome.GetError());
+    }
+    if (outcome.GetResult().GetTags().size() != 1) {
+      const std::string error_msg = absl::StrCat(
+          "Could not get tag ", tag, " for instance ", *instance_id);
+      LOG(ERROR) << error_msg << "; Retrieved "
+                 << outcome.GetResult().GetTags().size() << " tags";
+      return absl::NotFoundError(error_msg);
+    }
+    return outcome.GetResult().GetTags()[0].GetValue();
+  }
 };
 
 }  // namespace

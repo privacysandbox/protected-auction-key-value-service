@@ -24,15 +24,5 @@ set -o errexit
 RELEASE_TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 readonly RELEASE_TOOLS_DIR
 readonly TOOLS_DIR="${RELEASE_TOOLS_DIR}"/../../builders/tools
-# shellcheck disable=SC1091
-source "${TOOLS_DIR}"/builder.sh
 
-RELEASE_IMAGE="$("${TOOLS_DIR}"/get-builder-image-tagged --image release)"
-readonly RELEASE_IMAGE
-
-docker run -it --rm \
-  --entrypoint=commit-and-tag-version \
-  --user "$(id -u):$(id -g)" \
-  --volume "${WORKSPACE}":/src/workspace \
-  --workdir /src/workspace \
-  ${RELEASE_IMAGE} "$@"
+"${TOOLS_DIR}"/commit-and-tag-version "$@"

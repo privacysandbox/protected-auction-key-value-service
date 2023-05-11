@@ -91,6 +91,12 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
     ASSERT_TRUE(statusor.ok());
     EXPECT_EQ(1, *statusor);
   }
+  {
+    const auto statusor =
+        client->GetInt32Parameter("kv-server-local-num-shards");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(1, *statusor);
+  }
 }
 
 }  // namespace

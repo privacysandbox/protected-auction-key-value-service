@@ -1,3 +1,6 @@
+> FLEDGE has been renamed to Protected Audience API. To learn more about the name change, see the
+> [blog post](https://privacysandbox.com/intl/en_us/news/protected-audience-api-our-new-name-for-fledge)
+
 # Load data into the FLEDGE Key/Value server
 
 The FLEDGE Key/Value server is used to send real-time signals to the buyers and the sellers during a
@@ -279,5 +282,5 @@ aws sns publish --topic-arn "$topic_arn" --message "$file"
 ### AWS cpp
 
 Check out this sample
-[tool](https://github.com/privacysandbox/fledge-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/components/tools/realtime_updates_publisher.cc)
+[tool](https://github.com/privacysandbox/fledge-key-value-service/blob/d65103e3944cfb8de6e70136a2066b38b56ce82c/components/tools/realtime_updates_publisher.cc)
 on how to insert the low latency updates.

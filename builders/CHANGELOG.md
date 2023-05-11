@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [0.23.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.22.0...release-0.23.0) (2023-04-13)
+
+
+### Features
+
+* Add wrapper for commit-and-tag-version ([9a996c0]( ))
+* Upgrade curl to version 8 ([9f30521]( ))
+* Upgrade to amazonlinux 2.0.20230320.0 ([e5f9c1d]( ))
+
+
+### Bug Fixes
+
+* Use commit-and-tag-version wrapper ([a5125a4]( ))
+
 ## [0.22.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.21.1...release-0.22.0) (2023-04-03)
 
 

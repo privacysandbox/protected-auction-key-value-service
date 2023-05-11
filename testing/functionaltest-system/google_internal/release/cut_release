@@ -115,13 +115,11 @@ function __cut_release() {
 
 function __collect_changelog() {
   declare -r VERSION="$1"
-  {
-    # generate changelog for this release
-    "${RELEASE_TOOLS_DIR}"/commit-and-tag-version --release-as="${VERSION}" --dry-run --silent |
-    # collect the changelog between the two --- markers
-    awk '/^---/ {f = !f; next} f == 1 {print}' |
-    sed --file "${STRIP_COMMIT_LINKS}"
-  }
+  # generate changelog for this release
+  # awk: collect the changelog between the two --- markers
+  "${RELEASE_TOOLS_DIR}"/commit-and-tag-version --release-as="${VERSION}" --dry-run --silent \
+    | awk '/^---/ {f = !f; next} f == 1 {print}' \
+    | sed --file "${STRIP_COMMIT_LINKS}"
 }
 
 CURR_BRANCH="$(git branch --show-current)"
@@ -140,7 +138,6 @@ NEW_VERSION="$(__determine_version_bump)"
 printf "new version: %s\n" "${NEW_VERSION}"
 
 TMP_LATEST_RELEASE_MD=$(mktemp)
-TMP_COMMIT_MSG=$(mktemp)
 __collect_changelog "${NEW_VERSION}" >"${TMP_LATEST_RELEASE_MD}"
 printf "\n\n==== begin release changelog ====\n"
 cat "${TMP_LATEST_RELEASE_MD}"
@@ -161,15 +158,22 @@ fi
 
 readonly LATEST_RELEASE_MD="${WORKSPACE}"/google_internal/LATEST_RELEASE.md
 mv "${TMP_LATEST_RELEASE_MD}" "${LATEST_RELEASE_MD}"
+TMP_COMMIT_MSG=$(mktemp)
 # tidy up the commit message
 {
-  sed 's/^## Release /Release /' "${LATEST_RELEASE_MD}"
+  sed 's/^## \([[:digit:]]\)/Release \1/' "${LATEST_RELEASE_MD}"
   printf '\nBug: N/A\n'
 } >"${TMP_COMMIT_MSG}"
 # download and execute gerrit commit-msg hook, which explicitly adds a gerrit Change-Id trailer to the specified file
 /usr/bin/env bash <(curl --silent --location https://gerrit-review.googlesource.com/tools/hooks/commit-msg) "${TMP_COMMIT_MSG}"
 
-UPDATED_FILES=("${WORKSPACE}"/{version.txt,CHANGELOG.md} "${LATEST_RELEASE_MD}")
+# tidy up the changelog
+sed --in-place --file "${STRIP_COMMIT_LINKS}" "${WORKSPACE}"/CHANGELOG.md
+
+declare -a -r UPDATED_FILES=(
+  "${WORKSPACE}"/{version.txt,CHANGELOG.md}
+  "${LATEST_RELEASE_MD}"
+)
 git add "${UPDATED_FILES[@]}"
 
 # add full changelog, using incremental changelog as commit comment

@@ -29,9 +29,10 @@ TEST(CompressionGroupConcatenatorTest, Success) {
       CompressionGroupConcatenator::CompressionType::kUncompressed);
   concatenator->AddCompressionGroup(std::string(kTestString));
   concatenator->AddCompressionGroup(std::string(kTestString2));
-  std::string output = concatenator->Build();
+  absl::StatusOr<std::string> maybe_output = concatenator->Build();
+  EXPECT_TRUE(maybe_output.ok());
 
-  quiche::QuicheDataReader data_reader(output);
+  quiche::QuicheDataReader data_reader(*maybe_output);
 
   for (const auto& test_string : {kTestString, kTestString2}) {
     uint32_t compression_group_size = 0;
@@ -49,10 +50,12 @@ TEST(CompressionBlobReaderTest, Success) {
       CompressionGroupConcatenator::CompressionType::kUncompressed);
   concatenator->AddCompressionGroup(std::string(kTestString));
   concatenator->AddCompressionGroup(std::string(kTestString2));
-  std::string output = concatenator->Build();
+  absl::StatusOr<std::string> maybe_output = concatenator->Build();
+  EXPECT_TRUE(maybe_output.ok());
 
   auto blob_reader = CompressedBlobReader::Create(
-      CompressionGroupConcatenator::CompressionType::kUncompressed, output);
+      CompressionGroupConcatenator::CompressionType::kUncompressed,
+      *maybe_output);
 
   EXPECT_FALSE(blob_reader->IsDoneReading());
 

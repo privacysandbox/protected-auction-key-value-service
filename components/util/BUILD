@@ -20,27 +20,6 @@ package(default_visibility = [
 ])
 
 cc_library(
-    name = "duration",
-    srcs = ["duration.cc"],
-    hdrs = ["duration.h"],
-    deps = [
-        "@com_google_absl//absl/synchronization",
-        "@com_google_absl//absl/time",
-    ],
-)
-
-cc_test(
-    name = "duration_test",
-    size = "small",
-    srcs = ["duration_test.cc"],
-    deps = [
-        ":duration",
-        "@com_google_absl//absl/time",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_library(
     name = "periodic_closure",
     srcs = [
         "periodic_closure.cc",
@@ -67,7 +46,7 @@ selects.config_setting_group(
     name = "local_otel_otlp",
     match_all = [
         "//:local_instance",
-        "//components/telemetry:local_otel_export_otlp",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:local_otel_export_otlp",
     ],
 )
 
@@ -75,7 +54,7 @@ selects.config_setting_group(
     name = "local_otel_ostream",
     match_all = [
         "//:local_instance",
-        "//components/telemetry:local_otel_export_ostream",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:local_otel_export_ostream",
     ],
 )
 
@@ -144,14 +123,14 @@ cc_library(
     ],
     deps = select({
         "//:aws_platform": [
-            "@aws_sdk_cpp//:core",
             "//components/errors:aws_error_util",
+            "@aws_sdk_cpp//:core",
         ],
         "//conditions:default": [],
     }) + [
+        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_github_google_glog//:glog",
     ],
 )
 
@@ -164,4 +143,41 @@ cc_library(
     ],
     deps = [":build_flags"],
     alwayslink = 1,
+)
+
+cc_library(
+    name = "sleepfor",
+    srcs = [
+        "sleepfor.cc",
+    ],
+    hdrs = [
+        "sleepfor.h",
+    ],
+    deps = [
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+cc_test(
+    name = "sleepfor_test",
+    size = "small",
+    srcs = [
+        "sleepfor_test.cc",
+    ],
+    deps = [
+        ":sleepfor",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "sleepfor_mock",
+    testonly = 1,
+    hdrs = ["sleepfor_mock.h"],
+    deps = [
+        ":sleepfor",
+        "@com_google_googletest//:gtest",
+    ],
 )

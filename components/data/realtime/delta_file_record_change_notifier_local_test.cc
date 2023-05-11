@@ -22,11 +22,13 @@
 #include "components/data/common/change_notifier.h"
 #include "components/data/common/mocks.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
-#include "components/telemetry/mocks.h"
 #include "gtest/gtest.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::MockMetricsRecorder;
 
 // We don't need to test the watching of files as that's covered in tests
 // for the ChangeNotifier that this class delegates to.

@@ -25,13 +25,13 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
-#include "components/telemetry/metrics_recorder.h"
-#include "components/telemetry/telemetry_provider.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "public/base_types.pb.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::vector<std::string>, operations,
           std::vector<std::string>({"PASS_THROUGH", "READ_ONLY", "CACHE"}),
@@ -41,6 +41,11 @@ ABSL_FLAG(std::string, bucket, "performance-test-data-bucket",
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::GetTracer;
+using privacy_sandbox::server_common::MetricsRecorder;
+using privacy_sandbox::server_common::TelemetryProvider;
+
 class NoopBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   absl::StatusOr<std::vector<std::string>> GetNotifications(

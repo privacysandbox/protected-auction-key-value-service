@@ -22,12 +22,14 @@
 
 #include "absl/status/statusor.h"
 #include "components/data/common/change_notifier.h"
-#include "components/telemetry/mocks.h"
 #include "glog/logging.h"
 #include "gtest/gtest.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::MockMetricsRecorder;
 
 class ChangeNotifierLocalTest : public ::testing::Test {
  protected:

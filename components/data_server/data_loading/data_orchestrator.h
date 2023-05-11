@@ -28,8 +28,8 @@
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/data/realtime/realtime_notifier.h"
 #include "components/data_server/cache/cache.h"
-#include "components/telemetry/metrics_recorder.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -56,12 +56,15 @@ class DataOrchestrator {
     StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory;
     std::vector<RealtimeOptions>& realtime_options;
     const absl::AnyInvocable<void()>& udf_update_callback = []() {};
+    const int32_t shard_num = 0;
+    const int32_t num_shards = 1;
   };
 
   // Creates initial state. Scans the bucket and initializes the cache with data
   // read from the files in the bucket.
   static absl::StatusOr<std::unique_ptr<DataOrchestrator>> TryCreate(
-      Options options, MetricsRecorder& metrics_recorder);
+      Options options,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
 
   // Starts a separate thread to monitor and load new data until the returned
   // this object is destructed.

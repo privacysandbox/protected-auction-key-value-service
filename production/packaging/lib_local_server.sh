@@ -21,54 +21,49 @@ if ! (return 0 2>/dev/null); then
   exit 1
 fi
 
-function local_server::find_unused_port() {
-  declare -i port
-  for port in {50051..50150}; do
-    if ! echo "" >/dev/tcp/127.0.0.1/${port}; then
-      printf "%d" ${port}
-      return
-    fi
-  done 2>/dev/null
-  exit 1
-}
-
-function local_server::create_network() {
-  declare -r network_name="$(mktemp --dry-run --suffix=-net kvsrv-local-XXX)"
-  docker network create "${network_name}" >/dev/null
-  printf "%s" "${network_name}"
-}
-
-function local_server::run_docker_script() {
-  declare -r network="$1"
-  DOCKER_NETWORK="${network}" \
-    "${WORKSPACE}"/testing/functionaltest/run-server-docker
-}
-
-function local_server::run_docker() {
-  declare -r _network="$1"
-  declare -r _host="$2"
-  declare -r -i _port="$3"
-  declare -r WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
-  declare -r container_name="${_network}-${_host}"
-  docker run \
-    --rm \
-    --detach \
-    --network "${_network}" \
-    --name "${container_name}" \
-    --hostname "${_host}" \
-    --entrypoint=/server/bin/init_server_basic \
-    --volume "${WORKSPACE_MOUNT}"/dist/test_data/deltas:/deltas \
-    --tmpfs /realtime_data \
-    bazel/production/packaging/aws/data_server:server_docker_image \
-      --port ${_port} \
-      --delta_directory /deltas \
-      --realtime_directory /realtime_data \
-    >/dev/null
-  printf "%s" "${_network}-${_host}"
-  printf "running server on docker network: %s\n" "${_network}" &>/dev/stderr
-  if [[ -t 0 ]] && [[ -t 1 ]]; then
-    docker container ls --filter network="${_network}"
+function local_server::_sut_cleanup() {
+  declare -r -i STATUS=$?
+  declare -n _cleanup_args=$1
+  if [[ ${_cleanup_args[0]} ]]; then
+    docker compose "${_cleanup_args[@]}" down
   fi
+  return ${STATUS}
+}
+
+function local_server::run_and_test_sut() {
+  declare -r sut_dir="$1"
+  declare -r sut_name="${sut_dir##*/}"
+
+  set -o errexit
+  if [[ -z ${WORKSPACE} ]]; then
+    printf "error: WORKSPACE variable not defined\n" &>/dev/stderr
+    exit 1
+  fi
+
+  declare -r compose_yaml="${sut_dir}"/docker-compose.yaml
+  declare -r compose_env="${sut_dir}"/docker-compose.env
+  if ! [[ -s ${compose_yaml} ]]; then
+    printf "SUT yaml file [%s] must be non-empty and readable\n" "${compose_yaml}"
+    exit 1
+  fi
+  if ! [[ -s ${compose_env} ]]; then
+    printf "SUT env file [%s] must be non-empty and readable\n" "${compose_env}"
+    exit 1
+  fi
+
+  local -r tmp_env=$(mktemp)
+  cat <<EOF >"${tmp_env}"
+SUT_DATA_DIR="${WORKSPACE}/dist/test_data/${sut_name}"
+EOF
+  declare -a -r docker_compose_args=(
+    --file "${sut_dir}"/docker-compose.yaml
+    --env-file "${sut_dir}"/docker-compose.env
+    --env-file "${tmp_env}"
+  )
+
+  trap "local_server::_sut_cleanup docker_compose_args && rm -f \${tmp_env@Q}" ERR RETURN
+  docker compose "${docker_compose_args[@]}" up --quiet-pull --detach
+  "${WORKSPACE}"/testing/functionaltest/run-tests --sut-name "${sut_name}"
 }
 
 function local_server::run_and_test() {
@@ -76,10 +71,20 @@ function local_server::run_and_test() {
     printf "error: WORKSPACE variable not defined\n" &>/dev/stderr
     return 1
   fi
-  trap "docker container rm --force \${container_name} >/dev/null && docker network rm \${network} >/dev/null" ERR RETURN
-  declare -r network="$(local_server::create_network)"
-  declare -r host=srv
-  declare -r -i port=2000
-  declare -r container_name="$(local_server::run_docker "${network}" "${host}" ${port})"
-  "${WORKSPACE}"/testing/functionaltest/run-tests --network "${network}" --endpoint "${host}:${port}" --verbose
+  declare -r selected_test="$1"
+  declare -a selected_test_filter
+  if [[ -n ${selected_test} ]]; then
+    selected_test_filter+=(
+      grep -w "${selected_test}"
+    )
+  else
+    selected_test_filter+=(cat)
+  fi
+  declare -a suts
+  readarray -t suts <<< "$(find "${WORKSPACE}"/testing/functionaltest/suts -mindepth 1 -maxdepth 1 -type d | "${selected_test_filter[@]}" | sort)"
+  declare sut_dir
+  for sut_dir in "${suts[@]}"; do
+    local_server::run_and_test_sut "${sut_dir}"
+  done
+  "${WORKSPACE}"/builders/tools/bazel-debian run //:collect-logs local-local-logs.zip
 }

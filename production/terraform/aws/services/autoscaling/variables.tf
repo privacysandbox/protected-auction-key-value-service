@@ -101,6 +101,11 @@ variable "prometheus_workspace_id" {
   type        = string
 }
 
+variable "shard_num" {
+  description = "Shard number."
+  type        = string
+}
+
 locals {
   validate_prometheus_workspace_id = (
   var.prometheus_service_region == var.region || var.prometheus_workspace_id != null) ? true : tobool("If Prometheus service runs in a different region, please create the workspace first and specify the workspace id in var file.")

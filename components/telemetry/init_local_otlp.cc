@@ -12,16 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/telemetry/init.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter_factory.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_metric_exporter_factory.h"
 #include "opentelemetry/sdk/trace/random_id_generator_factory.h"
+#include "src/cpp/telemetry/init.h"
 
 // To use Jaeger first run a local instance of the collector
 // https://www.jaegertracing.io/docs/1.42/getting-started/
 // Then build run server with flags for local and otlp.  Ex:
 // `bazel run //components/data_server/server:server --//:instance=local
-// --//:platform=aws --//components/telemetry:local_otel_export=otlp --
+// --//:platform=aws
+// --@google_privacysandbox_servers_common//src/cpp/telemetry:local_otel_export=otlp
+// --
 // --environment="test"`
 namespace kv_server {
 

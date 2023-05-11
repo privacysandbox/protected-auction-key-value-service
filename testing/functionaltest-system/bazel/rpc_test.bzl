@@ -36,39 +36,44 @@ def functional_test_files_for(
     }
     return test_files
 
-# Envoy shell tests that need to be included in coverage run should be specified with this function.
-def grpc_diff_test(
+def rpc_diff_test(
         name,
         request,
         golden_reply,
-        endpoint_env_var,
+        endpoint,
         rpc,
-        protoset,
+        protoset = "",
         jq_pre_filter = "",
         jq_post_filter = "",
         jq_post_slurp = False,
-        runner = Label("//bazel:grpcurl_diff_test_runner"),
         tags = [],
         **kwargs):
-    """Generate a diff test for a grpc request/reply.
+    """Generates a diff test for a grpc request/reply.
 
     Args:
       name: test suite name
       request: label of request file
       golden_reply: label of reply file
-      endpoint_env_var: env var containing endpoint host:port string
+      endpoint: struct for endpoint defining the protocol, host, port etc
       rpc: gRPC qualified rpc name
       protoset: protobuf descriptor set label or file
       jq_pre_filter: jq filter program as string to apply to the rpc request
       jq_post_filter: jq filter program as string to apply to the rpc response
       jq_post_slurp: boolean to indicate use of jq --slurp for the rpc response
-      runner: the test runner shell script
       tags: tag list for the tests
       **kwargs: additional test args
     """
+    if endpoint.endpoint_type == "grpc":
+        runner = Label("//bazel:grpcurl_diff_test_runner")
+    elif endpoint.endpoint_type == "http":
+        runner = Label("//bazel:curl_diff_test_runner")
+    else:
+        fail("[rpc_diff_test] unsupported endpoint type:", endpoint.endpoint_type)
     args = [
-        "--endpoint-env-var",
-        endpoint_env_var,
+        "--endpoint-hostport",
+        "{}:{}".format(endpoint.host, endpoint.port),
+        "--endpoint-type",
+        endpoint.endpoint_type,
         "--rpc",
         rpc,
         "--protoset",
@@ -78,6 +83,12 @@ def grpc_diff_test(
         "--reply",
         "$(execpath {})".format(golden_reply),
     ]
+    if endpoint.docker_network:
+        args.extend([
+            "--docker-network",
+            endpoint.docker_network,
+        ])
+
     data = [
         request,
         golden_reply,
@@ -100,12 +111,12 @@ def grpc_diff_test(
         **kwargs
     )
 
-def grpc_diff_test_suite(
+def rpc_diff_test_suite(
         name,
         endpoint,
         rpc,
         test_files_glob_spec,
-        protoset,
+        protoset = "",
         test_tags = [],
         **kwargs):
     """Generate a test suite for test cases within the specified directory tree.
@@ -134,9 +145,9 @@ def grpc_diff_test_suite(
         elif testcase_files["post-filter-slurp"]:
             extra_kwargs["jq_post_filter"] = ":{}".format(testcase_files["post-filter-slurp"])
             extra_kwargs["jq_post_slurp"] = True
-        grpc_diff_test(
+        rpc_diff_test(
             name = qual_test_name,
-            endpoint_env_var = endpoint,
+            endpoint = endpoint,
             golden_reply = ":{}".format(testcase_files["reply"]),
             protoset = protoset,
             request = ":{}".format(testcase_files["request"]),
@@ -144,20 +155,18 @@ def grpc_diff_test_suite(
             tags = test_tags,
             **extra_kwargs
         )
-
     native.test_suite(
         name = name,
         tests = test_labels,
         tags = test_tags,
     )
 
-def grpc_perf_test(
+def rpc_perf_test(
         name,
         request,
-        endpoint_env_var,
+        endpoint,
         rpc,
         protoset,
-        runner = Label("//bazel:ghz_test_runner"),
         tags = [],
         **kwargs):
     """Generate a ghz report for a grpc request.
@@ -165,26 +174,39 @@ def grpc_perf_test(
     Args:
       name: test suite name
       request: label of request file
-      endpoint_env_var: env var containing endpoint host:port string
+      endpoint: struct for endpoint defining the protocol, host, port etc
       rpc: gRPC qualified rpc name
       protoset: protobuf descriptor set label or file
-      runner: the test runner shell script
       tags: tag list for the tests
       **kwargs: additional test args
     """
+    if endpoint.endpoint_type == "grpc":
+        runner = Label("//bazel:ghz_test_runner")
+        #elif endpoint.endpoint_type == "http":
+        #    runner = Label("//bazel:ab_test_runner")
+
+    else:
+        fail("[rpc_perf_test] unsupported endpoint type:", endpoint.endpoint_type)
+
+    args = [
+        "--endpoint-hostport",
+        "{}:{}".format(endpoint.host, endpoint.port),
+        "--rpc",
+        rpc,
+        "--protoset",
+        "$(rootpath {})".format(protoset),
+        "--request",
+        "$(execpath {})".format(request),
+    ]
+    if endpoint.docker_network:
+        args.extend([
+            "--docker-network",
+            endpoint.docker_network,
+        ])
     native.sh_test(
         name = name,
         srcs = [runner],
-        args = [
-            "--endpoint-env-var",
-            endpoint_env_var,
-            "--rpc",
-            rpc,
-            "--protoset",
-            "$(rootpath {})".format(protoset),
-            "--request",
-            "$(execpath {})".format(request),
-        ],
+        args = args,
         data = [
             request,
             protoset,
@@ -193,7 +215,7 @@ def grpc_perf_test(
         **kwargs
     )
 
-def grpc_perf_test_suite(
+def rpc_perf_test_suite(
         name,
         endpoint,
         rpc,
@@ -201,7 +223,7 @@ def grpc_perf_test_suite(
         protoset,
         test_tags = [],
         **kwargs):
-    """Generate a test suite for test cases within the specified directory tree.
+    """Generates a test suite for test cases within the specified directory tree.
 
     Args:
       name: test suite name
@@ -220,9 +242,9 @@ def grpc_perf_test_suite(
         qual_test_name = "{}-{}".format(name, test_name)
         test_labels.append(":{}".format(qual_test_name))
         extra_kwargs = dict(kwargs)
-        grpc_perf_test(
+        rpc_perf_test(
             name = qual_test_name,
-            endpoint_env_var = endpoint,
+            endpoint = endpoint,
             protoset = protoset,
             request = ":{}".format(testcase_files["request"]),
             rpc = rpc,

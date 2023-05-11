@@ -26,7 +26,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "components/data/common/change_notifier.h"
-#include "components/telemetry/telemetry.h"
+#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 
@@ -71,7 +71,7 @@ class DeltaFileRecordChangeNotifier {
 
   static std::unique_ptr<DeltaFileRecordChangeNotifier> Create(
       std::unique_ptr<ChangeNotifier> change_notifier,
-      MetricsRecorder& metrics_recorder);
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
 };
 
 }  // namespace kv_server

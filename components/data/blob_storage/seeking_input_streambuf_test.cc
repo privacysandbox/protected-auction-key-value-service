@@ -25,11 +25,14 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
-#include "components/telemetry/mocks.h"
 #include "gtest/gtest.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
+
+using privacy_sandbox::server_common::MockMetricsRecorder;
+using privacy_sandbox::server_common::TelemetryProvider;
 
 SeekingInputStreambuf::Options GetOptions(int64_t buffer_size) {
   SeekingInputStreambuf::Options options;

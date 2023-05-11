@@ -21,9 +21,9 @@
 #include <string>
 
 #include "components/data_server/cache/cache.h"
-#include "components/telemetry/metrics_recorder.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/get_values.grpc.pb.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/google/protobuf/struct.pb.h"
 
 namespace kv_server {
@@ -32,8 +32,10 @@ namespace kv_server {
 // See the Service proto definition for details.
 class GetValuesHandler {
  public:
-  explicit GetValuesHandler(const Cache& cache,
-                            MetricsRecorder& metrics_recorder, bool dsp_mode)
+  explicit GetValuesHandler(
+      const Cache& cache,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
+      bool dsp_mode)
       : cache_(cache),
         metrics_recorder_(metrics_recorder),
         dsp_mode_(dsp_mode) {}
@@ -46,7 +48,7 @@ class GetValuesHandler {
   grpc::Status ValidateRequest(const v1::GetValuesRequest& request) const;
 
   const Cache& cache_;
-  MetricsRecorder& metrics_recorder_;
+  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 
   // Use DSP mode for request validation. If false, then automatically assumes
   // SSP mode.

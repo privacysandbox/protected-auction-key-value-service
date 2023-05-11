@@ -1,101 +1,178 @@
+load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
 load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
-    "container_layer",
+    "//bazel:rpc_test.bzl",
+    "rpc_diff_test_suite",
+    "rpc_perf_test_suite",
 )
+load("//bazel:ssl_cert.bzl", "generate_ssl_certificate")
 load(
-    "@rules_pkg//pkg:mappings.bzl",
-    "pkg_attributes",
-    "pkg_files",
-)
-load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
-load("@rules_proto//proto:defs.bzl", "proto_descriptor_set")
-
-package(
-    default_visibility = ["//visibility:private"],
+    "//sut:endpoint.bzl",
+    "endpoint",
 )
 
-alias(
-    name = "helloworld_server",
-    actual = "@com_github_grpc_grpc//examples/cpp/helloworld:greeter_server",
+generate_ssl_certificate("test_cert", "test_domain")
+
+generate_ssl_certificate("test1a_cert", "test_domain1")
+
+generate_ssl_certificate("test1b_cert", "test_domain1")
+
+generate_ssl_certificate("test2_cert", "test_domain2")
+
+generate_ssl_certificate("test3_cert", "test_domain3")
+
+generate_ssl_certificate("test4_cert", "test_domain4")
+
+generate_ssl_certificate("test5_cert", "test_domain5")
+
+greeter_envoy_endpoints = [
+    endpoint(
+        docker_network = "functest-local",
+        endpoint_type = endpoint_type,
+        host = "greeter-envoy",
+        port = 50060,
+        rpcs = [
+            (
+                "greeter-sayhello-envoy",
+                "helloworld.Greeter.SayHello",
+                "//tests/servers:helloworld_descriptor_set",
+            ),
+        ],
+        test_files_glob_spec_prefix = "test_cases/GREETER_ENVOY_{}".format(endpoint_type.upper()),
+    )
+    for endpoint_type in ("http", "grpc")
+]
+
+server_endpoints = [
+    endpoint(
+        docker_network = "functest-local",
+        endpoint_type = "grpc",
+        host = "greeter",
+        port = 50051,
+        rpcs = [
+            (
+                "greeter-sayhello",
+                "helloworld.Greeter.SayHello",
+                "//tests/servers:helloworld_descriptor_set",
+            ),
+        ],
+        test_files_glob_spec_prefix = "test_cases/GREETER_ENDPOINT",
+    ),
+    endpoint(
+        docker_network = "functest-local",
+        endpoint_type = "grpc",
+        host = "routeguide",
+        port = 50051,
+        rpcs = [
+            (
+                "routeguide-getfeature",
+                "routeguide.RouteGuide.GetFeature",
+                "//tests/servers:routeguide_descriptor_set",
+            ),
+            (
+                "routeguide-listfeature",
+                "routeguide.RouteGuide.ListFeatures",
+                "//tests/servers:routeguide_descriptor_set",
+            ),
+        ],
+        test_files_glob_spec_prefix = "test_cases/ROUTEGUIDE_ENDPOINT",
+    ),
+]
+
+exposed_endpoints = greeter_envoy_endpoints + server_endpoints
+
+[
+    rpc_diff_test_suite(
+        name = "{}-{}-diff".format(
+            test_suite_name,
+            endpoint.endpoint_type,
+        ),
+        endpoint = endpoint,
+        protoset = protoset,
+        rpc = rpc,
+        test_files_glob_spec = "{}/{}/**/*".format(
+            endpoint.test_files_glob_spec_prefix,
+            rpc,
+        ),
+        test_tags = [
+            "external",
+            "manual",
+        ],
+    )
+    for endpoint in exposed_endpoints
+    for test_suite_name, rpc, protoset in endpoint.rpcs
+]
+
+[
+    rpc_perf_test_suite(
+        name = "{}-{}-perf".format(
+            test_suite_name,
+            endpoint.endpoint_type,
+        ),
+        endpoint = endpoint,
+        protoset = protoset,
+        rpc = rpc,
+        test_files_glob_spec = "{}/{}/**/*".format(
+            endpoint.test_files_glob_spec_prefix,
+            rpc,
+        ),
+        test_tags = [
+            "exclusive",
+            "external",
+            "manual",
+        ],
+    )
+    for endpoint in exposed_endpoints
+    for test_suite_name, rpc, protoset in endpoint.rpcs
+    if endpoint.endpoint_type == "grpc"
+]
+
+test_types = {
+    "grpc": [
+        "diff",
+        "perf",
+    ],
+    "http": ["diff"],
+}
+
+test_suite(
+    name = "all_tests",
+    tags = [
+        "manual",
+    ],
+    tests = [
+        "{}-{}-{}".format(
+            test_suite_name,
+            endpoint.endpoint_type,
+            test_type,
+        )
+        for endpoint in exposed_endpoints
+        for test_suite_name, rpc, protoset in endpoint.rpcs
+        for test_type in test_types[endpoint.endpoint_type]
+    ],
 )
 
-alias(
-    name = "keyvaluestore_server",
-    actual = "@com_github_grpc_grpc//examples/cpp/keyvaluestore:keyvaluestore_server",
-)
-
-alias(
-    name = "route_guide_server",
-    actual = "@com_github_grpc_grpc//examples/cpp/route_guide:route_guide_server",
-)
-
-proto_descriptor_set(
-    name = "helloworld_descriptor_set",
-    visibility = ["//visibility:public"],
-    deps = ["@com_github_grpc_grpc//examples/protos:helloworld_proto"],
-)
-
-proto_descriptor_set(
-    name = "routeguide_descriptor_set",
-    visibility = ["//visibility:public"],
-    deps = ["@com_github_grpc_grpc//examples/protos:route_guide_proto"],
-)
-
-proto_descriptor_set(
-    name = "keyvaluestore_descriptor_set",
-    visibility = ["//visibility:public"],
-    deps = ["@com_github_grpc_grpc//examples/protos:keyvaluestore_proto"],
-)
-
-pkg_files(
-    name = "server_executables",
+pkg_zip(
+    name = "sut_data",
     srcs = [
-        ":helloworld_server",
-        ":keyvaluestore_server",
-        ":route_guide_server",
+        ":envoy_greeter.yaml",
+        ":test_cert",
+        "//tests/servers:helloworld_descriptor_set",
+        "//tests/servers:routeguide_descriptor_set",
     ],
-    attributes = pkg_attributes(mode = "0755"),
-    prefix = "/server/bin",
 )
 
-pkg_files(
-    name = "server_data",
+genrule(
+    name = "copy_to_dist",
     srcs = [
-        "@com_github_grpc_grpc//examples/cpp/route_guide:route_guide_db.json",
+        ":sut_data",
     ],
-    attributes = pkg_attributes(mode = "0644"),
-    prefix = "/server/data",
-)
-
-pkg_tar(
-    name = "server_binaries_tar",
-    srcs = [
-        ":server_data",
-        ":server_executables",
-    ],
-)
-
-container_layer(
-    name = "server_binary_layer",
-    directory = "/",
-    tars = [
-        ":server_binaries_tar",
-    ],
-)
-
-container_image(
-    name = "grpc_examples_docker_image",
-    architecture = select({
-        "@platforms//cpu:aarch64": "arm64",
-        "@platforms//cpu:x86_64": "amd64",
-    }),
-    base = select({
-        "@platforms//cpu:aarch64": "@runtime-debian-arm64//image",
-        "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
-    }),
-    entrypoint = ["/bin/bash"],
-    layers = [
-        ":server_binary_layer",
-    ],
+    outs = ["copy_to_dist.bin"],
+    cmd_bash = """cat << EOF > '$@'
+mkdir -p dist
+cp $(execpath :sut_data) dist
+builders/tools/normalize-dist
+EOF""",
+    executable = True,
+    local = True,
+    message = "copying sut data and configs to the dist directory",
 )

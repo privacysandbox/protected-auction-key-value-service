@@ -34,9 +34,9 @@ cc_library(
     ],
     deps = [
         "//components/data/common:change_notifier",
-        "//components/telemetry",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
     ],
 )
 
@@ -56,10 +56,10 @@ cc_test(
         ":delta_file_record_change_notifier",
         "//components/data/common:change_notifier",
         "//components/data/common:mocks",
-        "//components/telemetry:mocks",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -75,7 +75,7 @@ cc_library(
         ":delta_file_record_change_notifier",
         "//components/data/common:thread_notifier",
         "//components/errors:retry",
-        "//components/util:duration",
+        "//components/util:sleepfor",
         "//public:constants",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -83,6 +83,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
+        "@google_privacysandbox_servers_common//src/cpp/util:duration",
     ],
 )
 
@@ -95,10 +96,10 @@ cc_test(
     deps = [
         ":realtime_notifier",
         "//components/data/common:mocks",
-        "//components/errors:mocks",
-        "//components/telemetry:mocks",
+        "//components/util:sleepfor_mock",
         "//public/data_loading:filename_utils",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

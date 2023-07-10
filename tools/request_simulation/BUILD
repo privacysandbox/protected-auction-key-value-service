@@ -42,7 +42,20 @@ cc_library(
     deps = [
         "//components/util:sleepfor",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@google_privacysandbox_servers_common//src/cpp/util:duration",
+    ],
+)
+
+cc_library(
+    name = "synthetic_request_generator",
+    srcs = ["synthetic_request_generator.cc"],
+    hdrs = ["synthetic_request_generator.h"],
+    deps = [
+        ":message_queue",
+        ":rate_limiter",
+        "//components/data/common:thread_manager",
+        "@com_google_absl//absl/functional:any_invocable",
     ],
 )
 
@@ -74,6 +87,18 @@ cc_test(
     srcs = ["rate_limiter_test.cc"],
     deps = [
         ":rate_limiter",
+        "//components/util:sleepfor_mock",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "synthetic_request_generator_test",
+    size = "small",
+    srcs = ["synthetic_request_generator_test.cc"],
+    deps = [
+        ":request_generation_util",
+        ":synthetic_request_generator",
         "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
     ],

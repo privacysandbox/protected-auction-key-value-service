@@ -22,6 +22,7 @@
 #include <memory>
 #include <utility>
 
+#include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
 #include "components/util/sleepfor.h"
 #include "src/cpp/util/duration.h"
@@ -33,18 +34,19 @@ class RateLimiter {
  public:
   RateLimiter(int64_t initial_permits, int64_t permits_per_second,
               privacy_sandbox::server_common::SteadyClock& clock,
-              SleepFor& sleep_for)
+              SleepFor& sleep_for, absl::Duration timeout)
       : permits_fill_rate_(permits_per_second),
         last_refill_time_(clock),
         clock_(clock),
-        sleep_for_(sleep_for) {
+        sleep_for_(sleep_for),
+        timeout_(std::move(timeout)) {
     permits_.store(initial_permits, std::memory_order_relaxed);
   }
   ~RateLimiter() = default;
-  // Acquires a single permit, returns waiting duration
-  absl::Duration Acquire() ABSL_LOCKS_EXCLUDED(mu_);
-  // Acquires a number of permits, returns waiting duration
-  absl::Duration Acquire(int permits) ABSL_LOCKS_EXCLUDED(mu_);
+  // Acquires a single permit, returns waiting duration or error message
+  absl::StatusOr<absl::Duration> Acquire() ABSL_LOCKS_EXCLUDED(mu_);
+  // Acquires a number of permits, returns waiting duration or error message
+  absl::StatusOr<absl::Duration> Acquire(int permits) ABSL_LOCKS_EXCLUDED(mu_);
   // Sets the fill rate
   void SetFillRate(int64_t permits_per_second) ABSL_LOCKS_EXCLUDED(mu_);
 
@@ -64,6 +66,8 @@ class RateLimiter {
   mutable std::atomic<int64_t> permits_;
   privacy_sandbox::server_common::SteadyClock& clock_;
   SleepFor& sleep_for_;
+  // Timeout period for acquiring permits
+  absl::Duration timeout_;
   friend class RateLimiterTestPeer;
 };
 

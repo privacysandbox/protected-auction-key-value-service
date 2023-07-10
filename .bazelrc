@@ -46,6 +46,7 @@ build:asan --copt -O1
 build:asan --copt -g
 build:asan --copt -fno-omit-frame-pointer
 build:asan --linkopt -fsanitize=address
+build:asan --compilation_mode=dbg
 
 # Thread sanitizer
 # bazel build --config tsan

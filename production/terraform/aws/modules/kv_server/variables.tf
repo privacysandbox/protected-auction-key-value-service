@@ -76,11 +76,6 @@ variable "autoscaling_min_size" {
   type = number
 }
 
-variable "autoscaling_wait_for_capacity_timeout" {
-  type    = string
-  default = "10m"
-}
-
 variable "sqs_cleanup_image_uri" {
   description = "Uri for the SQS cleanup image."
   type        = string

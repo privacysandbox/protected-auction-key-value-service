@@ -116,7 +116,6 @@ module "autoscaling" {
   autoscaling_desired_capacity = var.autoscaling_desired_capacity
   autoscaling_max_size         = var.autoscaling_max_size
   autoscaling_min_size         = var.autoscaling_min_size
-  wait_for_capacity_timeout    = var.autoscaling_wait_for_capacity_timeout
   instance_profile_arn         = module.iam_roles.instance_profile_arn
   enclave_cpu_count            = var.enclave_cpu_count
   enclave_memory_mib           = var.enclave_memory_mib

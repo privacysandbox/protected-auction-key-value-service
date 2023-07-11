@@ -53,8 +53,8 @@ namespace kv_server {
 //   "logical_commit_time", "key", "value", "value_type"]`. If
 //   DataRecordType::kUserDefinedFunctionsConfig, records are assumed to be
 //   user-defined function configs with the following header:
-//   `["code_snippet", "handler_name", "language", "logical_commit_time"]`.
-//   Default `DataRecordType::kKeyValueMutationRecord`.
+//   `["code_snippet", "handler_name", "language", "logical_commit_time",
+//   "version"]`. Default `DataRecordType::kKeyValueMutationRecord`.
 //
 // - `field_separator`: CSV delimiter
 //   Default ','.

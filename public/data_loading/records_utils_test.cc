@@ -38,6 +38,7 @@ UserDefinedFunctionsConfigStruct GetUdfConfigStruct(
   udf_config_struct.code_snippet = code_snippet;
   udf_config_struct.handler_name = "my_handler";
   udf_config_struct.logical_commit_time = 1234567890;
+  udf_config_struct.version = 1;
   return udf_config_struct;
 }
 
@@ -121,8 +122,9 @@ void ExpectEqual(const UserDefinedFunctionsConfigStruct& record,
                  const UserDefinedFunctionsConfig& fbs_record) {
   EXPECT_EQ(record.language, fbs_record.language());
   EXPECT_EQ(record.logical_commit_time, fbs_record.logical_commit_time());
-  EXPECT_EQ(record.code_snippet, fbs_record.code_snippet()->string_view());
+  EXPECT_EQ(record.version, fbs_record.version());
   EXPECT_EQ(record.handler_name, fbs_record.handler_name()->string_view());
+  EXPECT_EQ(record.code_snippet, fbs_record.code_snippet()->string_view());
 }
 
 void ExpectEqual(const DataRecordStruct& record, const DataRecord& fbs_record) {

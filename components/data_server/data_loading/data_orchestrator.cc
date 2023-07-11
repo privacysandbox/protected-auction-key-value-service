@@ -162,7 +162,8 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
           return udf_client.SetCodeObject(CodeConfig{
               .js = udf_config->code_snippet()->str(),
               .udf_handler_name = udf_config->handler_name()->str(),
-              .logical_commit_time = udf_config->logical_commit_time()});
+              .logical_commit_time = udf_config->logical_commit_time(),
+              .version = udf_config->version()});
         }
         LOG(ERROR) << "Received unsupported record ";
         return absl::InvalidArgumentError("Record type not supported.");

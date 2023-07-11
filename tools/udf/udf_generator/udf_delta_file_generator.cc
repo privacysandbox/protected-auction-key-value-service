@@ -41,16 +41,15 @@ ABSL_FLAG(std::string, output_path, "",
           "Output path. If specified, output_dir is ignored. If '-', output is "
           "written to "
           "console.");
-ABSL_FLAG(int64_t, timestamp, 123123123,
-          "Record timestamp. Default is 123123123.");
+ABSL_FLAG(int64_t, logical_commit_time, 123123123,
+          "Record logical_commit_time. Default is 123123123.");
+ABSL_FLAG(int64_t, code_snippet_version, 2, "UDF version. Default is 2.");
 
 using kv_server::DataRecordStruct;
 using kv_server::DeltaRecordStreamWriter;
 using kv_server::DeltaRecordWriter;
 using kv_server::KeyValueMutationRecordStruct;
 using kv_server::KeyValueMutationType;
-using kv_server::kUdfCodeSnippetKey;
-using kv_server::kUdfHandlerNameKey;
 using kv_server::KVFileMetadata;
 using kv_server::ToDeltaFileName;
 using kv_server::ToFlatBufferBuilder;
@@ -74,7 +73,8 @@ absl::Status WriteUdfConfig(std::ostream* output_stream) {
   }
   const std::string udf_file_path = absl::GetFlag(FLAGS_udf_file_path);
   const std::string udf_handler_name = absl::GetFlag(FLAGS_udf_handler_name);
-  int64_t logical_commit_time = absl::GetFlag(FLAGS_timestamp);
+  int64_t logical_commit_time = absl::GetFlag(FLAGS_logical_commit_time);
+  int64_t version = absl::GetFlag(FLAGS_code_snippet_version);
   absl::StatusOr<std::string> code_snippet =
       ReadCodeSnippetAsString(std::move(udf_file_path));
   if (!code_snippet.ok()) {
@@ -92,6 +92,7 @@ absl::Status WriteUdfConfig(std::ostream* output_stream) {
       .code_snippet = std::move(*code_snippet),
       .handler_name = std::move(udf_handler_name),
       .logical_commit_time = logical_commit_time,
+      .version = version,
       .language = UserDefinedFunctionsLanguage::Javascript};
   if (absl::Status status = delta_record_writer.value()->WriteRecord(
           DataRecordStruct{.record = std::move(udf_config)});

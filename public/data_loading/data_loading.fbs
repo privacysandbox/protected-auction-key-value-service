@@ -49,6 +49,9 @@ table UserDefinedFunctionsConfig {
   // is considered newer. There is no constraints on what format the time must
   // be other than that a larger number represents a newer timestamp.
   logical_commit_time:int64;
+
+  // Required. Version number.
+  version:int64;
 }
 
 union Record { KeyValueMutationRecord, UserDefinedFunctionsConfig }

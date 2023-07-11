@@ -54,8 +54,11 @@ Tools to generate UDF delta files and test them are in the `tools/udf` directory
 
     Flags:
 
+    - `--udf_handler_name` &mdash; UDF handler name/entry point
     - `--output_dir` &mdash; output directory for the generated delta file
     - `--udf_file_path` &mdash; path to the UDF JavaScript file
+    - `--logical_commit_time` &mdash; logical commit time of the UDF config
+    - `--code_snippet_version` &mdash; UDF version. For telemetry, should be > 1.
 
     Example:
 

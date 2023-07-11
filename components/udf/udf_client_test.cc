@@ -60,7 +60,8 @@ TEST(UdfClientTest, JsCallSucceeds) {
     function hello() { return "Hello world!"; }
   )",
                                                    .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode({});
@@ -80,7 +81,8 @@ TEST(UdfClientTest, RepeatedJsCallsSucceed) {
     function hello() { return "Hello world!"; }
   )",
                                                    .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result1 = udf_client.value()->ExecuteCode({});
@@ -109,6 +111,7 @@ TEST(UdfClientTest, WasmCallSucceeds) {
   code_config.wasm.assign(wasm_bin, sizeof(wasm_bin));
   code_config.udf_handler_name = "add";
   code_config.logical_commit_time = 1;
+  code_config.version = 1;
 
   absl::Status code_obj_status = udf_client.value()->SetWasmCodeObject(
       std::move(code_config),
@@ -136,6 +139,7 @@ TEST(UdfClientTest, WasmFromFileSucceeds) {
   code_config.wasm = content;
   code_config.udf_handler_name = "add";
   code_config.logical_commit_time = 1;
+  code_config.version = 1;
   absl::Status code_obj_status = udf_client.value()->SetWasmCodeObject(
       std::move(code_config),
       /*wasm_return_type=*/WasmDataType::kUint32);
@@ -159,7 +163,8 @@ TEST(UdfClientTest, JsEchoCallSucceeds) {
     function hello(input) { return "Hello world! " + JSON.stringify(input); }
   )",
                                                    .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
@@ -194,7 +199,8 @@ TEST(UdfClientTest, JsEchoHookCallSucceeds) {
 function hello(input) { return "Hello world! " + echo(input); }
   )",
                                                    .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
@@ -241,7 +247,8 @@ function hello(input) {
             return output;
           }  )",
                                                    .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
@@ -290,7 +297,8 @@ TEST(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
     }
   )",
                                                    .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
@@ -328,7 +336,8 @@ TEST(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
     }
   )",
                                                    .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
@@ -349,7 +358,8 @@ TEST(UdfClientTest, UpdatesCodeObjectTwice) {
     function hello1() { return "1"; }
   )",
                                                    .udf_handler_name = "hello1",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
 
   EXPECT_TRUE(status.ok());
   status =
@@ -358,7 +368,8 @@ TEST(UdfClientTest, UpdatesCodeObjectTwice) {
   )",
 
                                                    .udf_handler_name = "hello2",
-                                                   .logical_commit_time = 2});
+                                                   .logical_commit_time = 2,
+                                                   .version = 1});
   EXPECT_TRUE(status.ok());
 
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode({});
@@ -378,7 +389,8 @@ TEST(UdfClientTest, IgnoresCodeObjectWithSameCommitTime) {
     function hello1() { return "1"; }
   )",
                                                    .udf_handler_name = "hello1",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
 
   EXPECT_TRUE(status.ok());
   status =
@@ -387,7 +399,8 @@ TEST(UdfClientTest, IgnoresCodeObjectWithSameCommitTime) {
   )",
 
                                                    .udf_handler_name = "hello2",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
   EXPECT_TRUE(status.ok());
 
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode({});
@@ -407,7 +420,8 @@ TEST(UdfClientTest, IgnoresCodeObjectWithSmallerCommitTime) {
     function hello1() { return "1"; }
   )",
                                                    .udf_handler_name = "hello1",
-                                                   .logical_commit_time = 2});
+                                                   .logical_commit_time = 2,
+                                                   .version = 1});
 
   EXPECT_TRUE(status.ok());
   status =
@@ -415,7 +429,8 @@ TEST(UdfClientTest, IgnoresCodeObjectWithSmallerCommitTime) {
     function hello2() { return "2"; }
   )",
                                                    .udf_handler_name = "hello2",
-                                                   .logical_commit_time = 1});
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
   EXPECT_TRUE(status.ok());
 
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode({});

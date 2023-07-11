@@ -44,6 +44,7 @@ UserDefinedFunctionsConfigStruct GetUserDefinedFunctionsConfig() {
   udf_config_record.code_snippet = "function hello(){}";
   udf_config_record.handler_name = "hello";
   udf_config_record.logical_commit_time = 1234567890;
+  udf_config_record.version = 1;
   return udf_config_record;
 }
 
@@ -81,7 +82,7 @@ TEST(CsvDeltaRecordStreamReaderTest,
       [](const DataRecordStruct&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_STREQ(std::string(status.message()).c_str(),
-               "Cannot convert timestamp:invalid_time to a number.")
+               "Cannot convert logical_commit_time:invalid_time to a number.")
       << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -188,8 +189,8 @@ TEST(CsvDeltaRecordStreamReaderTest,
 TEST(CsvDeltaRecordStreamReaderTest,
      ValidateReadingCsvRecords_UdfConfig_InvalidTimestamps_Failure) {
   const char invalid_data[] =
-      R"csv(code_snippet,handler_name,logical_commit_time,language
-  function hello(){},hello,invalid_time,javascript)csv";
+      R"csv(code_snippet,handler_name,logical_commit_time,language,version
+  function hello(){},hello,invalid_time,javascript,1)csv";
   std::stringstream csv_stream;
   csv_stream.str(invalid_data);
   CsvDeltaRecordStreamReader record_reader(
@@ -200,7 +201,27 @@ TEST(CsvDeltaRecordStreamReaderTest,
       [](const DataRecordStruct&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_STREQ(std::string(status.message()).c_str(),
-               "Cannot convert timestamp:invalid_time to a number.")
+               "Cannot convert logical_commit_time:invalid_time to a number.")
+      << status;
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
+}
+
+TEST(CsvDeltaRecordStreamReaderTest,
+     ValidateReadingCsvRecords_UdfConfig_InvalidVersion_Failure) {
+  const char invalid_data[] =
+      R"csv(code_snippet,handler_name,logical_commit_time,language,version
+  function hello(){},hello,1,javascript,invalid_version)csv";
+  std::stringstream csv_stream;
+  csv_stream.str(invalid_data);
+  CsvDeltaRecordStreamReader record_reader(
+      csv_stream,
+      CsvDeltaRecordStreamReader<std::stringstream>::Options{
+          .record_type = DataRecordType::kUserDefinedFunctionsConfig});
+  absl::Status status = record_reader.ReadRecords(
+      [](const DataRecordStruct&) { return absl::OkStatus(); });
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_STREQ(std::string(status.message()).c_str(),
+               "Cannot convert version:invalid_version to a number.")
       << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -208,8 +229,8 @@ TEST(CsvDeltaRecordStreamReaderTest,
 TEST(CsvDeltaRecordStreamReaderTest,
      ValidateReadingCsvRecords_UdfConfig_InvalidLanguage_Failure) {
   const char invalid_data[] =
-      R"csv(code_snippet,handler_name,logical_commit_time,language
-  function hello(){},hello,1000000,invalid_language)csv";
+      R"csv(code_snippet,handler_name,logical_commit_time,language,version
+  function hello(){},hello,1000000,invalid_language,1)csv";
   std::stringstream csv_stream;
   csv_stream.str(invalid_data);
   CsvDeltaRecordStreamReader record_reader(

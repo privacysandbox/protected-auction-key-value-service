@@ -49,6 +49,7 @@ struct UserDefinedFunctionsConfigStruct {
   std::string_view code_snippet;
   std::string_view handler_name;
   int64_t logical_commit_time;
+  int64_t version;
 };
 
 using RecordT = std::variant<std::monostate, KeyValueMutationRecordStruct,

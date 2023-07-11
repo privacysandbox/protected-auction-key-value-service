@@ -127,6 +127,8 @@ absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithUdfConfig(
   csv_record[kHandlerNameColumn] = udf_config.handler_name;
   csv_record[kLogicalCommitTimeColumn] =
       absl::StrCat(udf_config.logical_commit_time);
+  csv_record[kVersionColumn] = absl::StrCat(udf_config.version);
+
   auto udf_language = GetUdfLanguage(udf_config);
   if (!udf_language.ok()) {
     return udf_language.status();

@@ -29,6 +29,7 @@ struct CodeConfig {
   std::string wasm;
   std::string udf_handler_name;
   int64_t logical_commit_time;
+  int64_t version;
 };
 
 bool operator==(const CodeConfig& lhs_config, const CodeConfig& rhs_config);

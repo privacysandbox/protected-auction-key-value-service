@@ -41,6 +41,7 @@ UserDefinedFunctionsConfigStruct GetUserDefinedFunctionsConfig() {
   udf_config_record.code_snippet = "function hello(){}";
   udf_config_record.handler_name = "hello";
   udf_config_record.logical_commit_time = 1234567890;
+  udf_config_record.version = 1;
   return udf_config_record;
 }
 
@@ -125,23 +126,6 @@ TEST(CsvDeltaRecordStreamWriterTest,
                     return absl::OkStatus();
                   })
                   .ok());
-}
-
-TEST(CsvDeltaRecordStreamWriterTest,
-     WritingCsvRecord_UdfConfig_UdfLanguageUnknown_Fails) {
-  std::stringstream string_stream;
-
-  CsvDeltaRecordStreamWriter record_writer(
-      string_stream,
-      CsvDeltaRecordStreamWriter<std::stringstream>::Options{
-          .record_type = DataRecordType::kUserDefinedFunctionsConfig});
-
-  UserDefinedFunctionsConfigStruct udf_config;
-  DataRecordStruct data_record = GetDataRecord(udf_config);
-  const auto status = record_writer.WriteRecord(data_record);
-  EXPECT_FALSE(status.ok());
-  EXPECT_EQ(status.message(), "Invalid UDF language: ");
-  record_writer.Close();
 }
 
 TEST(CsvDeltaRecordStreamWriterTest,

@@ -14,10 +14,9 @@
 
 namespace kv_server {
 
-constexpr char kUdfCodeSnippetKey[] = "udf_code_snippet";
-constexpr char kUdfHandlerNameKey[] = "udf_handler_name";
-
 constexpr int64_t kDefaultLogicalCommitTime = 0;
+// Roma only allows version_num > 0;
+constexpr int64_t kDefaultVersion = 1;
 
 constexpr char kDefaultUdfCodeSnippet[] = R"(
   function HandleRequest(input) {

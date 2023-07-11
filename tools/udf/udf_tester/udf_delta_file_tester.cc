@@ -87,6 +87,7 @@ void ReadCodeConfigFromUdfConfig(
   code_config.js = udf_config.code_snippet;
   code_config.logical_commit_time = udf_config.logical_commit_time;
   code_config.udf_handler_name = udf_config.handler_name;
+  code_config.version = udf_config.version;
 }
 
 absl::Status ReadCodeConfigFromFile(std::string file_path,

@@ -540,7 +540,8 @@ void Server::SetDefaultUdfCodeObject() {
   const absl::Status status = udf_client_->SetCodeObject(
       CodeConfig{.js = kDefaultUdfCodeSnippet,
                  .udf_handler_name = kDefaultUdfHandlerName,
-                 .logical_commit_time = kDefaultLogicalCommitTime});
+                 .logical_commit_time = kDefaultLogicalCommitTime,
+                 .version = kDefaultVersion});
   if (!status.ok()) {
     LOG(ERROR) << "Error setting code object: " << status;
   }

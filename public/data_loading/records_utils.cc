@@ -77,7 +77,7 @@ flatbuffers::Offset<UserDefinedFunctionsConfig> UdfConfigFromStruct(
       builder, udf_config_struct.language,
       udf_config_struct.code_snippet.data(),
       udf_config_struct.handler_name.data(),
-      udf_config_struct.logical_commit_time);
+      udf_config_struct.logical_commit_time, udf_config_struct.version);
 }
 
 RecordUnion BuildRecordUnion(const RecordT& record,
@@ -162,9 +162,10 @@ bool operator!=(const KeyValueMutationRecordStruct& lhs_record,
 bool operator==(const UserDefinedFunctionsConfigStruct& lhs_record,
                 const UserDefinedFunctionsConfigStruct& rhs_record) {
   return lhs_record.logical_commit_time == rhs_record.logical_commit_time &&
+         lhs_record.version == rhs_record.version &&
+         lhs_record.handler_name == rhs_record.handler_name &&
          lhs_record.language == rhs_record.language &&
-         lhs_record.code_snippet == rhs_record.code_snippet &&
-         lhs_record.handler_name == rhs_record.handler_name;
+         lhs_record.code_snippet == rhs_record.code_snippet;
 }
 
 bool operator!=(const UserDefinedFunctionsConfigStruct& lhs_record,
@@ -303,6 +304,7 @@ UserDefinedFunctionsConfigStruct GetTypedRecordStruct(
   udf_config_struct.logical_commit_time = udf_config->logical_commit_time();
   udf_config_struct.code_snippet = udf_config->code_snippet()->string_view();
   udf_config_struct.handler_name = udf_config->handler_name()->string_view();
+  udf_config_struct.version = udf_config->version();
   return udf_config_struct;
 }
 

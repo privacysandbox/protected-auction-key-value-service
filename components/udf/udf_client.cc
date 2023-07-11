@@ -111,7 +111,8 @@ class UdfClientImpl : public UdfClient {
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();
     CodeObject code_object =
-        BuildCodeObject(std::move(code_config.js), std::move(code_config.wasm));
+        BuildCodeObject(std::move(code_config.js), std::move(code_config.wasm),
+                        code_config.version);
     absl::Status load_status =
         LoadCodeObj(std::make_unique<CodeObject>(code_object),
                     [notification, response_status](
@@ -136,6 +137,7 @@ class UdfClientImpl : public UdfClient {
     }
     handler_name_ = std::move(code_config.udf_handler_name);
     logical_commit_time_ = code_config.logical_commit_time;
+    version_ = code_config.version;
     return absl::OkStatus();
   }
 
@@ -153,21 +155,23 @@ class UdfClientImpl : public UdfClient {
   InvocationRequestStrInput BuildInvocationRequest(
       std::vector<std::string> keys) const {
     return {.id = kInvocationRequestId,
-            .version_num = kVersionNum,
+            .version_num = static_cast<uint64_t>(version_),
             .handler_name = handler_name_,
             .wasm_return_type = wasm_return_type_,
             .input = std::move(keys)};
   }
 
-  CodeObject BuildCodeObject(std::string js, std::string wasm) {
+  CodeObject BuildCodeObject(std::string js, std::string wasm,
+                             int64_t version) {
     return {.id = kCodeObjectId,
-            .version_num = kVersionNum,
+            .version_num = static_cast<uint64_t>(version),
             .js = std::move(js),
             .wasm = std::move(wasm)};
   }
 
   std::string handler_name_;
   int64_t logical_commit_time_ = -1;
+  int64_t version_ = 1;
   WasmDataType wasm_return_type_;
 };
 

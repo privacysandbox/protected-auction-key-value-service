@@ -24,13 +24,14 @@
 
 namespace kv_server {
 namespace {
-absl::StatusOr<int64_t> GetLogicalCommitTime(
-    absl::string_view logical_commit_time) {
-  if (int64_t result; absl::SimpleAtoi(logical_commit_time, &result)) {
+absl::StatusOr<int64_t> GetInt64Column(const riegeli::CsvRecord& csv_record,
+                                       std::string_view column_name) {
+  if (int64_t result; absl::SimpleAtoi(csv_record[column_name], &result)) {
     return result;
   }
-  return absl::InvalidArgumentError(absl::StrCat(
-      "Cannot convert timestamp:", logical_commit_time, " to a number."));
+  return absl::InvalidArgumentError(absl::StrCat("Cannot convert ", column_name,
+                                                 ":", csv_record[column_name],
+                                                 " to a number."));
 }
 
 absl::StatusOr<KeyValueMutationType> GetDeltaMutationType(
@@ -69,7 +70,7 @@ absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithKVMutation(
   }
   record.value = *value;
   absl::StatusOr<int64_t> commit_time =
-      GetLogicalCommitTime(csv_record[kLogicalCommitTimeColumn]);
+      GetInt64Column(csv_record, kLogicalCommitTimeColumn);
   if (!commit_time.ok()) {
     return commit_time.status();
   }
@@ -103,11 +104,17 @@ absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithUdfConfig(
   udf_config.handler_name = csv_record[kHandlerNameColumn];
 
   absl::StatusOr<int64_t> commit_time =
-      GetLogicalCommitTime(csv_record[kLogicalCommitTimeColumn]);
+      GetInt64Column(csv_record, kLogicalCommitTimeColumn);
   if (!commit_time.ok()) {
     return commit_time.status();
   }
   udf_config.logical_commit_time = *commit_time;
+
+  absl::StatusOr<int64_t> version = GetInt64Column(csv_record, kVersionColumn);
+  if (!version.ok()) {
+    return version.status();
+  }
+  udf_config.version = *version;
 
   auto language = GetUdfLanguage(csv_record);
   if (!language.ok()) {

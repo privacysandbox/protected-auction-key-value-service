@@ -37,7 +37,7 @@ class GetValuesAdapter {
       v1::GetValuesResponse& v1_response) const = 0;
 
   static std::unique_ptr<GetValuesAdapter> Create(
-      const GetValuesV2Handler& v2_handler);
+      std::unique_ptr<GetValuesV2Handler> v2_handler);
 };
 
 }  // namespace kv_server

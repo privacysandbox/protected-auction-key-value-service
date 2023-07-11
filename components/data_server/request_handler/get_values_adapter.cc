@@ -19,17 +19,26 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "components/data_server/request_handler/v2_response_data.pb.h"
 #include "glog/logging.h"
+#include "google/protobuf/util/json_util.h"
 
 namespace kv_server {
 namespace {
 using google::protobuf::RepeatedPtrField;
+using google::protobuf::Struct;
+using google::protobuf::Value;
+using google::protobuf::util::JsonStringToMessage;
 
 constexpr char kKeysTag[] = "keys";
 constexpr char kRenderUrlsTag[] = "renderUrls";
 constexpr char kAdComponentRenderUrlsTag[] = "adComponentRenderUrls";
 constexpr char kKvInternalTag[] = "kvInternal";
+constexpr char kCustomTag[] = "custom";
+
+constexpr int kUdfInputApiVersion = 1;
 
 nlohmann::json BuildKeyGroup(const RepeatedPtrField<std::string>& keys,
                              std::string namespace_tag) {
@@ -73,70 +82,149 @@ v2::GetValuesRequest BuildV2Request(const v1::GetValuesRequest& v1_request) {
   partition["keyGroups"] = keyGroups;
 
   get_values_v2["partitions"] = nlohmann::json::array({partition});
+  get_values_v2["udfInputApiVersion"] = kUdfInputApiVersion;
 
   v2::GetValuesRequest v2_request;
   v2_request.mutable_raw_body()->set_data(get_values_v2.dump());
   return v2_request;
 }
 
-absl::Status ProcessV2ResponseJson(const nlohmann::json& v2_response_json,
-                                   v1::GetValuesResponse& v1_response) {
-  // Process the partitions in the response
-  nlohmann::json partitions;
-  if (const auto iter = v2_response_json.find("partitions");
-      iter == v2_response_json.end()) {
-    // V2 does not require partitions, so ignore missing partitions.
-    return absl::OkStatus();
-  } else {
-    partitions = std::move(iter.value());
+// Add key value pairs to the result struct
+void ProcessKeyValues(KeyGroupOutput key_group_output, Struct& result_struct) {
+  for (auto&& [k, v] : std::move(key_group_output.key_values())) {
+    if (v.value().has_string_value()) {
+      Value value_proto;
+      google::protobuf::util::Status status =
+          google::protobuf::util::JsonStringToMessage(v.value().string_value(),
+                                                      &value_proto);
+      if (status.ok()) {
+        (*result_struct.mutable_fields())[std::move(k)] = value_proto;
+      }
+    }
+    (*result_struct.mutable_fields())[std::move(k)] = v.value();
+  }
+}
+
+// Find the namespace tag that is paired with the "custom" tag.
+absl::StatusOr<std::string> FindNamespace(RepeatedPtrField<std::string> tags) {
+  if (tags.size() != 2) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Expected 2 tags, found ", tags.size()));
   }
 
-  // TODO(b/278764114): Implement
+  bool has_custom_tag = false;
+  std::string maybe_namespace_tag;
+  for (auto&& tag : std::move(tags)) {
+    if (tag == kCustomTag) {
+      has_custom_tag = true;
+    } else {
+      maybe_namespace_tag = std::move(tag);
+    }
+  }
+
+  if (has_custom_tag) {
+    return maybe_namespace_tag;
+  }
+  return absl::InvalidArgumentError("No namespace tags found");
+}
+
+absl::Status ProcessKeyGroupOutput(KeyGroupOutput key_group_output,
+                                   v1::GetValuesResponse& v1_response) {
+  // Ignore if no valid namespace tag that is paired with a 'custom' tag
+  auto tag_namespace_status_or =
+      FindNamespace(std::move(key_group_output.tags()));
+  if (!tag_namespace_status_or.ok()) {
+    return tag_namespace_status_or.status();
+  }
+  if (tag_namespace_status_or.value() == kKeysTag) {
+    ProcessKeyValues(std::move(key_group_output), *v1_response.mutable_keys());
+  }
+  if (tag_namespace_status_or.value() == kRenderUrlsTag) {
+    ProcessKeyValues(std::move(key_group_output),
+                     *v1_response.mutable_render_urls());
+  }
+  if (tag_namespace_status_or.value() == kAdComponentRenderUrlsTag) {
+    ProcessKeyValues(std::move(key_group_output),
+                     *v1_response.mutable_ad_component_render_urls());
+  }
+  if (tag_namespace_status_or.value() == kKvInternalTag) {
+    ProcessKeyValues(std::move(key_group_output),
+                     *v1_response.mutable_kv_internal());
+  }
   return absl::OkStatus();
 }
 
-absl::Status BuildV1Response(const google::api::HttpBody& v2_response,
+// Process a V2 response object. The response JSON consists of an array of
+// compression groups, each of which is a group of partition outputs.
+absl::Status BuildV1Response(const nlohmann::json& v2_response_json,
                              v1::GetValuesResponse& v1_response) {
-  nlohmann::json v2_response_json =
-      nlohmann::json::parse(v2_response.data(), nullptr,
-                            /*allow_exceptions=*/false,
-                            /*ignore_comments=*/true);
-  if (v2_response_json.is_discarded()) {
+  if (v2_response_json.is_null()) {
+    return absl::InternalError("v2 GetValues response is null");
+  }
+  if (!v2_response_json.is_array()) {
     return absl::InvalidArgumentError(
-        "Error while parsing v2 GetValues response body.");
+        "Response should be an array of compression groups.");
   }
 
-  return ProcessV2ResponseJson(v2_response_json, v1_response);
+  for (const auto& compression_group_json : v2_response_json) {
+    V2CompressionGroup compression_group_proto;
+    auto status = JsonStringToMessage(compression_group_json.dump(),
+                                      &compression_group_proto);
+    if (!status.ok()) {
+      return absl::InternalError(
+          absl::StrCat("Could not convert compression group json to proto: ",
+                       status.message().as_string()));
+    }
+    for (auto&& partition_proto : compression_group_proto.partitions()) {
+      for (auto&& key_group_output_proto :
+           partition_proto.key_group_outputs()) {
+        const auto key_group_output_status = ProcessKeyGroupOutput(
+            std::move(key_group_output_proto), v1_response);
+        if (!key_group_output_status.ok()) {
+          // Skip and log failed key group outputs
+          LOG(ERROR) << "Error processing key group output: "
+                     << key_group_output_status;
+        }
+      }
+    }
+  }
+  return absl::OkStatus();
 }
 
 }  // namespace
 
 class GetValuesAdapterImpl : public GetValuesAdapter {
  public:
-  explicit GetValuesAdapterImpl(const GetValuesV2Handler& v2_handler)
-      : v2_handler_(v2_handler) {}
+  explicit GetValuesAdapterImpl(std::unique_ptr<GetValuesV2Handler> v2_handler)
+      : v2_handler_(std::move(v2_handler)) {}
 
   grpc::Status CallV2Handler(const v1::GetValuesRequest& v1_request,
                              v1::GetValuesResponse& v1_response) const {
     v2::GetValuesRequest v2_request = BuildV2Request(v1_request);
-    google::api::HttpBody v2_response;
-    auto v2_response_status = v2_handler_.GetValues(v2_request, &v2_response);
-    if (!v2_response_status.ok()) {
-      return v2_response_status;
+    auto maybe_v2_response_json =
+        v2_handler_->GetValuesJsonResponse(v2_request);
+    if (!maybe_v2_response_json.ok()) {
+      return grpc::Status(
+          grpc::StatusCode::INTERNAL,
+          std::string(maybe_v2_response_json.status().message()));
     }
 
-    BuildV1Response(v2_response, v1_response);
-    // TODO(b/278764114): process response status
+    auto build_response_status =
+        BuildV1Response(maybe_v2_response_json.value(), v1_response);
+    if (!build_response_status.ok()) {
+      return grpc::Status(grpc::StatusCode::INTERNAL,
+                          std::string(build_response_status.message()));
+    }
     return grpc::Status::OK;
   }
 
  private:
-  const GetValuesV2Handler& v2_handler_;
+  std::unique_ptr<GetValuesV2Handler> v2_handler_;
 };
 
 std::unique_ptr<GetValuesAdapter> GetValuesAdapter::Create(
-    const GetValuesV2Handler& v2_handler) {
-  return std::make_unique<GetValuesAdapterImpl>(v2_handler);
+    std::unique_ptr<GetValuesV2Handler> v2_handler) {
+  return std::make_unique<GetValuesAdapterImpl>(std::move(v2_handler));
 }
 
 }  // namespace kv_server

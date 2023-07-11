@@ -35,7 +35,7 @@ class DeltaKeyValueWriter {
       std::ostream& output_stream);
   absl::Status Write(
       const absl::flat_hash_map<std::string, std::string>& key_value_map,
-      int64_t logical_commit_time, DeltaMutationType mutation_type);
+      int64_t logical_commit_time, KeyValueMutationType mutation_type);
 
  private:
   explicit DeltaKeyValueWriter(

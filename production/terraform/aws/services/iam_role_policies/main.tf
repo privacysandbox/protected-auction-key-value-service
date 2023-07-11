@@ -52,6 +52,12 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     resources = ["*"]
   }
   statement {
+    sid       = "AllowInstancesToDescribeAutoScalingGroups"
+    actions   = ["autoscaling:DescribeAutoScalingGroups"]
+    effect    = "Allow"
+    resources = ["*"]
+  }
+  statement {
     sid       = "AllowInstancesToReadParameters"
     actions   = ["ssm:GetParameter"]
     effect    = "Allow"

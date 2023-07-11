@@ -17,17 +17,22 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
+#include "absl/strings/str_join.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/util/platform_initializer.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/records_utils.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 
 using kv_server::DeltaFileRecordChangeNotifier;
+using kv_server::GetRecordValue;
+using kv_server::KeyValueMutationRecord;
+using kv_server::Value;
 using privacy_sandbox::server_common::TelemetryProvider;
 
 void Print(std::string string_decoded) {
@@ -39,7 +44,8 @@ void Print(std::string string_decoded) {
   auto record_reader = delta_stream_reader_factory->CreateReader(is);
 
   auto result = record_reader->ReadStreamRecords([](std::string_view raw) {
-    auto record = flatbuffers::GetRoot<kv_server::DeltaFileRecord>(raw.data());
+    auto record =
+        flatbuffers::GetRoot<kv_server::KeyValueMutationRecord>(raw.data());
 
     auto recordVerifier = flatbuffers::Verifier(
         reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
@@ -52,14 +58,25 @@ void Print(std::string string_decoded) {
 
     auto update_type = "update";
     switch (record->mutation_type()) {
-      case kv_server::DeltaMutationType::Delete: {
+      case kv_server::KeyValueMutationType::Delete: {
         update_type = "delete";
         break;
       }
     }
 
+    auto format_value_func =
+        [](const KeyValueMutationRecord& record) -> std::string {
+      if (record.value_type() == Value::String) {
+        return std::string(GetRecordValue<std::string_view>(record));
+      }
+      if (record.value_type() == Value::StringSet) {
+        return absl::StrJoin(
+            GetRecordValue<std::vector<std::string_view>>(record), ",");
+      }
+      return "";
+    };
     std::cout << "key: " << record->key()->string_view() << std::endl;
-    std::cout << "value: " << record->value()->string_view() << std::endl;
+    std::cout << "value: " << format_value_func(*record) << std::endl;
     std::cout << "logical_commit_time: " << record->logical_commit_time()
               << std::endl;
     std::cout << "update_type: " << update_type << std::endl;

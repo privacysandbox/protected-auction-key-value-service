@@ -28,6 +28,12 @@
 #include "absl/status/statusor.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
+namespace Aws {
+namespace S3 {
+class S3Client;
+}  // namespace S3
+}  // namespace Aws
+
 namespace kv_server {
 
 // Contains a stream of content data read from a cloud object.
@@ -60,6 +66,9 @@ class BlobStorageClient {
     ClientOptions() {}
     int64_t max_connections = std::thread::hardware_concurrency();
     int64_t max_range_bytes = 8 * 1024 * 1024;  // 8MB
+
+    // BlobStorageClient takes ownership of this if it's set:
+    ::Aws::S3::S3Client* s3_client_for_unit_testing_ = nullptr;
   };
 
   // TODO(b/237669491): Replace these factory methods with one based off the

@@ -20,7 +20,7 @@
 #include <memory>
 #include <string>
 
-#include "components/data/common/thread_notifier.h"
+#include "components/data/common/thread_manager.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/errors/retry.h"
 #include "components/util/sleepfor.h"

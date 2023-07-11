@@ -44,6 +44,9 @@ class ParameterFetcher {
   // This function will retry any necessary requests until it succeeds.
   virtual int32_t GetInt32Parameter(std::string_view parameter_suffix) const;
 
+  // This function will retry any necessary requests until it succeeds.
+  virtual bool GetBoolParameter(std::string_view parameter_suffix) const;
+
   virtual NotifierMetadata GetBlobStorageNotifierMetadata() const;
 
   virtual NotifierMetadata GetRealtimeNotifierMetadata() const;

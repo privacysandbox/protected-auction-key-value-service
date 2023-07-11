@@ -14,22 +14,30 @@
 
 #include "components/data_server/server/server.h"
 
+#include <optional>
+
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
+#include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "components/data_server/request_handler/get_values_adapter.h"
 #include "components/data_server/request_handler/get_values_handler.h"
 #include "components/data_server/request_handler/get_values_v2_handler.h"
 #include "components/data_server/server/key_value_service_impl.h"
 #include "components/data_server/server/key_value_service_v2_impl.h"
-#include "components/data_server/server/lifecycle_heartbeat.h"
 #include "components/errors/retry.h"
-#include "components/internal_lookup/constants.h"
-#include "components/internal_lookup/lookup_client.h"
-#include "components/internal_lookup/lookup_server_impl.h"
+#include "components/internal_server/constants.h"
+#include "components/internal_server/lookup_client.h"
+#include "components/internal_server/lookup_server_impl.h"
+#include "components/internal_server/run_query_client.h"
+#include "components/internal_server/sharded_lookup_server_impl.h"
+#include "components/sharding/cluster_mappings_manager.h"
 #include "components/telemetry/kv_telemetry.h"
-#include "components/udf/get_values_hook_impl.h"
+#include "components/udf/get_values_hook.h"
+#include "components/udf/run_query_hook.h"
+#include "components/udf/udf_config_builder.h"
 #include "components/util/build_info.h"
 #include "glog/logging.h"
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
@@ -44,6 +52,8 @@
 
 ABSL_FLAG(uint16_t, port, 50051,
           "Port the server is listening on. Defaults to 50051.");
+ABSL_FLAG(std::string, internal_server_address, "0.0.0.0:50099",
+          "Internal server address. Defaults to 0.0.0.0:50099.");
 
 namespace kv_server {
 namespace {
@@ -72,6 +82,8 @@ constexpr absl::string_view kS3ClientMaxConnectionsParameterSuffix =
 constexpr absl::string_view kS3ClientMaxRangeBytesParameterSuffix =
     "s3client-max-range-bytes";
 constexpr absl::string_view kNumShardsParameterSuffix = "num-shards";
+constexpr absl::string_view kUdfNumWorkersParameterSuffix = "udf-num-workers";
+constexpr absl::string_view kRouteV1ToV2Suffix = "route-v1-to-v2";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -102,14 +114,17 @@ GetMetricsOptions(const ParameterClient& parameter_client,
 Server::Server()
     : metrics_recorder_(
           TelemetryProvider::GetInstance().CreateMetricsRecorder()),
-      cache_(KeyValueCache::Create()) {
+      cache_(KeyValueCache::Create()),
+      get_values_hook_(GetValuesHook::Create(absl::bind_front(
+          LookupClient::Create, absl::GetFlag(FLAGS_internal_server_address)))),
+      run_query_hook_(RunQueryHook::Create(
+          absl::bind_front(RunQueryClient::Create,
+                           absl::GetFlag(FLAGS_internal_server_address)))) {
   cache_->UpdateKeyValue(
       "hi",
       "Hello, world! If you are seeing this, it means you can "
       "query me successfully",
       /*logical_commit_time = */ 1);
-  cache_->UpdateKeyValue(kUdfCodeSnippetKey, kDefaultUdfCodeSnippet, 1);
-  cache_->UpdateKeyValue(kUdfHandlerNameKey, kDefaultUdfHandlerName, 1);
 }
 
 void Server::InitializeTelemetry(const ParameterClient& parameter_client,
@@ -127,52 +142,52 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
   metrics_recorder_ = TelemetryProvider::GetInstance().CreateMetricsRecorder();
 }
 
-absl::Status Server::CreateDefaultInstancesIfNecessary(
+absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
     std::unique_ptr<const ParameterClient> parameter_client,
     std::unique_ptr<InstanceClient> instance_client,
-    std::unique_ptr<CodeFetcher> code_fetcher,
     std::unique_ptr<UdfClient> udf_client) {
-  if (parameter_client == nullptr) {
-    parameter_client_ = std::move(ParameterClient::Create());
-  } else {
-    parameter_client_ = std::move(parameter_client);
-  }
+  parameter_client_ = parameter_client == nullptr ? ParameterClient::Create()
+                                                  : std::move(parameter_client);
+  instance_client_ = instance_client == nullptr
+                         ? InstanceClient::Create(*metrics_recorder_)
+                         : std::move(instance_client);
+  environment_ = TraceRetryUntilOk(
+      [this]() { return instance_client_->GetEnvironmentTag(); },
+      "GetEnvironment", nullptr);
+  LOG(INFO) << "Retrieved environment: " << environment_;
+  ParameterFetcher parameter_fetcher(environment_, *parameter_client_,
+                                     metrics_recorder_.get());
 
-  if (instance_client == nullptr) {
-    instance_client_ = std::move(InstanceClient::Create());
-  } else {
-    instance_client_ = std::move(instance_client);
-  }
+  int32_t number_of_workers =
+      parameter_fetcher.GetInt32Parameter(kUdfNumWorkersParameterSuffix);
 
-  if (code_fetcher == nullptr) {
-    code_fetcher_ = std::move(CodeFetcher::Create());
-  } else {
-    code_fetcher_ = std::move(code_fetcher);
-  }
-  if (udf_client == nullptr) {
-    absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
-        UdfClient::Create(UdfClient::ConfigWithGetValuesHook(
-            *NewGetValuesHook(&LookupClient::GetSingleton)));
-    if (!udf_client_or_status.ok()) {
-      return udf_client_or_status.status();
-    }
-    udf_client_ = std::move(*udf_client_or_status);
-  } else {
+  if (udf_client != nullptr) {
     udf_client_ = std::move(udf_client);
+    return absl::OkStatus();
   }
-
-  return absl::OkStatus();
+  UdfConfigBuilder config_builder;
+  // TODO(b/289244673): Once roma interface is updated, internal lookup client
+  // can be removed and we can own the unique ptr to the hooks.
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
+      UdfClient::Create(config_builder.RegisterGetValuesHook(*get_values_hook_)
+                            .RegisterRunQueryHook(*run_query_hook_)
+                            .RegisterLoggingHook()
+                            .SetNumberOfWorkers(number_of_workers)
+                            .Config());
+  if (udf_client_or_status.ok()) {
+    udf_client_ = std::move(*udf_client_or_status);
+  }
+  return udf_client_or_status.status();
 }
 
 absl::Status Server::Init(
     std::unique_ptr<const ParameterClient> parameter_client,
     std::unique_ptr<InstanceClient> instance_client,
-    std::unique_ptr<CodeFetcher> code_fetcher,
     std::unique_ptr<UdfClient> udf_client) {
   {
-    absl::Status status = CreateDefaultInstancesIfNecessary(
+    absl::Status status = CreateDefaultInstancesIfNecessaryAndGetEnvironment(
         std::move(parameter_client), std::move(instance_client),
-        std::move(code_fetcher), std::move(udf_client));
+        std::move(udf_client));
     if (!status.ok()) {
       return status;
     }
@@ -184,15 +199,6 @@ absl::Status Server::Init(
 }
 
 absl::Status Server::InitOnceInstancesAreCreated() {
-  {
-    InstanceClient* instance_client_ptr = instance_client_.get();
-    environment_ = TraceRetryUntilOk(
-        [instance_client_ptr]() {
-          return instance_client_ptr->GetEnvironmentTag();
-        },
-        "GetEnvironment", nullptr);
-  }
-  LOG(INFO) << "Retrieved environment: " << environment_;
   InitializeTelemetry(*parameter_client_, *instance_client_);
 
   auto span = GetTracer()->StartSpan("InitServer");
@@ -207,6 +213,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       status != absl::OkStatus()) {
     return status;
   }
+
+  SetDefaultUdfCodeObject();
+
   const auto shard_num_status = instance_client_->GetShardNumTag();
   if (!shard_num_status.ok()) {
     return shard_num_status.status();
@@ -222,6 +231,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   num_shards_ = parameter_fetcher.GetInt32Parameter(kNumShardsParameterSuffix);
   LOG(INFO) << "Retrieved " << kNumShardsParameterSuffix
             << " parameter: " << num_shards_;
+
   blob_client_ = CreateBlobClient(parameter_fetcher);
   delta_stream_reader_factory_ =
       CreateStreamRecordReaderFactory(parameter_fetcher);
@@ -236,8 +246,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   SetQueueManager(metadata, message_service_blob_.get());
 
   grpc_server_ = CreateAndStartGrpcServer();
-  internal_lookup_server_ = CreateAndStartInternalLookupServer();
-
+  remote_lookup_server_ = CreateAndStartRemoteLookupServer();
   {
     auto status_or_notifier = BlobStorageChangeNotifier::Create(
         std::move(metadata), *metrics_recorder_);
@@ -250,8 +259,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   }
   auto realtime_notifier_metadata =
       parameter_fetcher.GetRealtimeNotifierMetadata();
-  auto realtime_message_service_status =
-      MessageService::Create(realtime_notifier_metadata);
+  auto realtime_message_service_status = MessageService::Create(
+      realtime_notifier_metadata,
+      (num_shards_ > 1 ? std::optional<int32_t>(shard_num_) : std::nullopt));
   if (!realtime_message_service_status.ok()) {
     return realtime_message_service_status.status();
   }
@@ -275,11 +285,22 @@ absl::Status Server::InitOnceInstancesAreCreated() {
         RealtimeNotifier::Create(*metrics_recorder_);
     realtime_options_.push_back(std::move(realtime_options));
   }
-  data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher, *udf_client_);
+  data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher);
   TraceRetryUntilOk([this] { return data_orchestrator_->Start(); },
                     "StartDataOrchestrator", metrics_recorder_.get());
-  SetUdfCodeObject(*code_fetcher_);
-
+  if (num_shards_ > 1) {
+    // At this point the server is healthy and the initialization is over.
+    // The only missing piece is having a shard map, which is dependent on
+    // other instances being `healthy`. Mark this instance as healthy so that
+    // other instances can pull it in for their mapping.
+    lifecycle_heartbeat->Finish();
+  }
+  absl::StatusOr<std::unique_ptr<grpc::Server>> lookup_server_or =
+      CreateAndStartInternalLookupServer();
+  if (!lookup_server_or.ok()) {
+    return lookup_server_or.status();
+  }
+  internal_lookup_server_ = std::move(*lookup_server_or);
   return absl::OkStatus();
 }
 
@@ -307,7 +328,9 @@ void Server::GracefulShutdown(absl::Duration timeout) {
   if (internal_lookup_server_) {
     internal_lookup_server_->Shutdown();
   }
-
+  if (remote_lookup_server_) {
+    remote_lookup_server_->Shutdown();
+  }
   if (grpc_server_) {
     grpc_server_->Shutdown(absl::ToChronoTime(absl::Now() + timeout));
   } else {
@@ -319,7 +342,12 @@ void Server::GracefulShutdown(absl::Duration timeout) {
       LOG(ERROR) << "Failed to stop UDF client: " << status;
     }
   }
-
+  if (cluster_mappings_manager_ && cluster_mappings_manager_->IsRunning()) {
+    const absl::Status status = cluster_mappings_manager_->Stop();
+    if (!status.ok()) {
+      LOG(ERROR) << "Failed to stop cluster mappings manager: " << status;
+    }
+  }
   const absl::Status status = MaybeShutdownNotifiers();
   if (!status.ok()) {
     LOG(ERROR) << "Failed to shutdown notifiers.  Got status " << status;
@@ -331,7 +359,9 @@ void Server::ForceShutdown() {
   if (internal_lookup_server_) {
     internal_lookup_server_->Shutdown();
   }
-
+  if (remote_lookup_server_) {
+    remote_lookup_server_->Shutdown();
+  }
   if (grpc_server_) {
     grpc_server_->Shutdown();
   } else {
@@ -345,6 +375,12 @@ void Server::ForceShutdown() {
     const absl::Status status = udf_client_->Stop();
     if (!status.ok()) {
       LOG(ERROR) << "Failed to stop UDF client: " << status;
+    }
+  }
+  if (cluster_mappings_manager_ && cluster_mappings_manager_->IsRunning()) {
+    const absl::Status status = cluster_mappings_manager_->Stop();
+    if (!status.ok()) {
+      LOG(ERROR) << "Failed to stop cluster mappings manager: " << status;
     }
   }
 }
@@ -378,18 +414,11 @@ Server::CreateStreamRecordReaderFactory(
 }
 
 std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
-    const ParameterFetcher& parameter_fetcher, UdfClient& udf_client) {
+    const ParameterFetcher& parameter_fetcher) {
   const std::string data_bucket =
       parameter_fetcher.GetParameter(kDataBucketParameterSuffix);
   LOG(INFO) << "Retrieved " << kDataBucketParameterSuffix
             << " parameter: " << data_bucket;
-  auto udf_update_callback = [&udf_client]() {
-    const absl::Status status = udf_client.SetCodeObject({});
-    if (!status.ok()) {
-      LOG(ERROR) << "Error setting code object: " << status;
-    }
-  };
-
   return TraceRetryUntilOk(
       [&] {
         return DataOrchestrator::TryCreate(
@@ -401,7 +430,7 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
                 .change_notifier = *change_notifier_,
                 .delta_stream_reader_factory = *delta_stream_reader_factory_,
                 .realtime_options = realtime_options_,
-                .udf_update_callback = udf_update_callback,
+                .udf_client = *udf_client_,
                 .shard_num = shard_num_,
                 .num_shards = num_shards_,
             },
@@ -413,7 +442,12 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
 void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
   const std::string mode = parameter_fetcher.GetParameter(kModeParameterSuffix);
   LOG(INFO) << "Retrieved " << kModeParameterSuffix << " parameter: " << mode;
-  GetValuesHandler handler(*cache_, *metrics_recorder_, mode == "DSP");
+  const bool use_v2 = parameter_fetcher.GetBoolParameter(kRouteV1ToV2Suffix);
+  LOG(INFO) << "Retrieved " << kRouteV1ToV2Suffix << " parameter: " << use_v2;
+  get_values_adapter_ = GetValuesAdapter::Create(
+      std::make_unique<GetValuesV2Handler>(*udf_client_, *metrics_recorder_));
+  GetValuesHandler handler(*cache_, *get_values_adapter_, *metrics_recorder_,
+                           mode == "DSP", use_v2);
   grpc_services_.push_back(std::make_unique<KeyValueServiceImpl>(
       std::move(handler), *metrics_recorder_));
   GetValuesV2Handler v2handler(*udf_client_, *metrics_recorder_);
@@ -439,31 +473,74 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
   return builder.BuildAndStart();
 }
 
-std::unique_ptr<grpc::Server> Server::CreateAndStartInternalLookupServer() {
-  internal_lookup_service_ = std::make_unique<LookupServiceImpl>(*cache_);
+absl::Status Server::CreateShardManager() {
+  cluster_mappings_manager_ = std::make_unique<ClusterMappingsManager>(
+      environment_, num_shards_, *metrics_recorder_, *instance_client_);
+  auto& num_shards = num_shards_;
+  auto& cluster_mappings_manager = *cluster_mappings_manager_;
+  shard_manager_ = TraceRetryUntilOk(
+      [&cluster_mappings_manager, &num_shards] {
+        // It might be that the cluster mappings that are passed don't pass
+        // validation. E.g. a particular cluster might not have any replicas
+        // specified. In that case, we need to retry the creation. After an
+        // exponential backoff, that will trigger`GetClusterMappings` which
+        // at that point in time might have new replicas spun up.
+        return ShardManager::Create(
+            num_shards, cluster_mappings_manager.GetClusterMappings());
+      },
+      "GetShardManager", metrics_recorder_.get());
+  return cluster_mappings_manager_->Start(*shard_manager_);
+}
+
+absl::StatusOr<std::unique_ptr<grpc::Server>>
+Server::CreateAndStartInternalLookupServer() {
+  if (num_shards_ <= 1) {
+    internal_lookup_service_ = std::make_unique<LookupServiceImpl>(*cache_);
+  } else {
+    if (const absl::Status status = CreateShardManager(); !status.ok()) {
+      return status;
+    }
+    internal_lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
+        *metrics_recorder_, *cache_, num_shards_, shard_num_, *shard_manager_);
+  }
 
   grpc::ServerBuilder internal_lookup_server_builder;
+  const std::string internal_server_address =
+      absl::GetFlag(FLAGS_internal_server_address);
   internal_lookup_server_builder.AddListeningPort(
-      kInternalLookupServerAddress, grpc::InsecureServerCredentials());
+      internal_server_address, grpc::InsecureServerCredentials());
   internal_lookup_server_builder.RegisterService(
       internal_lookup_service_.get());
 
-  LOG(INFO) << "Internal lookup server listening on "
-            << kInternalLookupServerAddress << std::endl;
+  LOG(INFO) << "Internal lookup server listening on " << internal_server_address
+            << std::endl;
   return internal_lookup_server_builder.BuildAndStart();
 }
 
-void Server::SetUdfCodeObject(CodeFetcher& code_fetcher) {
-  LOG(INFO) << "Fetching UDF Code Snippet";
-  auto code_config = TraceRetryUntilOk(
-      [&code_fetcher] {
-        return code_fetcher.FetchCodeConfig(LookupClient::GetSingleton());
-      },
-      "FetchUntrustedCodeConfig", metrics_recorder_.get());
+std::unique_ptr<grpc::Server> Server::CreateAndStartRemoteLookupServer() {
+  if (num_shards_ <= 1) {
+    return nullptr;
+  }
 
-  LOG(INFO) << "Setting UDF Code Snippet";
-  const absl::Status status =
-      udf_client_->SetCodeObject(std::move(code_config));
+  remote_lookup_service_ = std::make_unique<LookupServiceImpl>(*cache_);
+  grpc::ServerBuilder remote_lookup_server_builder;
+  auto remoteLookupServerAddress =
+      absl::StrCat(kLocalIp, ":", kRemoteLookupServerPort);
+  remote_lookup_server_builder.AddListeningPort(
+      remoteLookupServerAddress, grpc::InsecureServerCredentials());
+  remote_lookup_server_builder.RegisterService(remote_lookup_service_.get());
+  LOG(INFO) << "Remote lookup server listening on " << remoteLookupServerAddress
+            << std::endl;
+  return remote_lookup_server_builder.BuildAndStart();
+}
+
+void Server::SetDefaultUdfCodeObject() {
+  VLOG(8) << "Setting default UDF code config. Snippet: "
+          << kDefaultUdfCodeSnippet;
+  const absl::Status status = udf_client_->SetCodeObject(
+      CodeConfig{.js = kDefaultUdfCodeSnippet,
+                 .udf_handler_name = kDefaultUdfHandlerName,
+                 .logical_commit_time = kDefaultLogicalCommitTime});
   if (!status.ok()) {
     LOG(ERROR) << "Error setting code object: " << status;
   }

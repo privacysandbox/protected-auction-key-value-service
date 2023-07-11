@@ -32,12 +32,14 @@ function builder::set_workspace() {
   if [[ -v WORKSPACE ]]; then
     return
   fi
-  declare -r GIT_TOPLEVEL="$(git rev-parse --show-superproject-working-tree)"
+  local -r GIT_TOPLEVEL="$(git rev-parse --show-superproject-working-tree)"
   if [[ -n ${GIT_TOPLEVEL} ]]; then
     WORKSPACE="${GIT_TOPLEVEL}"
   else
     WORKSPACE="$(git rev-parse --show-toplevel)"
   fi
+  local -r ws_path="$(realpath "${WORKSPACE}"/WORKSPACE)"
+  WORKSPACE="$(dirname "${ws_path}")"
 }
 
 #######################################
@@ -59,7 +61,7 @@ function builder::get_docker_workspace_mount() {
   # determined by git or bazel or inspecting the filesystem itself. Instead, we
   # need to use docker to expose its mount info for the /src/workspace path.
   # determine the current container's ID
-  declare -r CONTAINER_ID="$(uname --nodename)"
+  local -r CONTAINER_ID="$(uname --nodename)"
   # use docker inspect to extract the current mount path for /src/workspace
   # this format string is a golang template (https://pkg.go.dev/text/template) processed
   # by docker's --format flag, per https://docs.docker.com/config/formatting/
@@ -72,7 +74,7 @@ function builder::get_docker_workspace_mount() {
       {{end -}}
     {{end -}}
   '
-  declare -r MOUNT_PATH="$(docker inspect --format "${FORMAT_STR}" "${CONTAINER_ID}")"
+  local -r MOUNT_PATH="$(docker inspect --format "${FORMAT_STR}" "${CONTAINER_ID}")"
   if [[ -z ${MOUNT_PATH} ]]; then
     printf "Error: Unable to determine mount point for /src/workspace. Exiting\n" &>/dev/stderr
     exit 1
@@ -88,7 +90,7 @@ function builder::get_tools_dir() {
 # Invoke cbuild tool in a build-debian container
 #######################################
 function builder::cbuild_debian() {
-  declare -r CBUILD="$(builder::get_tools_dir)"/cbuild
+  local -r CBUILD="$(builder::get_tools_dir)"/cbuild
   printf "=== cbuild debian action envs ===\n"
   # shellcheck disable=SC2086
   "${CBUILD}" ${CBUILD_ARGS} --image build-debian --cmd "grep -o 'action_env.*' /etc/bazel.bazelrc 1>/dev/stderr 2>/dev/null"
@@ -117,13 +119,12 @@ function builder::add_aws_env_vars() {
 # Invoke cbuild tool in a build-amazonlinux2 container
 #######################################
 function builder::cbuild_al2() {
-  declare -r CBUILD="$(builder::get_tools_dir)"/cbuild
+  local -r CBUILD="$(builder::get_tools_dir)"/cbuild
   declare -a env_vars
   builder::add_aws_env_vars env_vars
   declare env_args
-  for evar in "${env_vars[@]}"
-  do
-    env_args+=("--env" "${evar}")
+  for evar in "${env_vars[@]}"; do
+    env_args+=(--env "${evar}")
   done
   printf "=== cbuild amazonlinux2 action envs ===\n"
   # shellcheck disable=SC2086

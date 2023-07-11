@@ -1,8 +1,8 @@
-#!/bin/sh
+#!/bin/busybox sh
 
 set -o errexit
 
-function install_packages() {
+install_packages() {
   apk --no-cache add \
     bash~=5 \
     curl~=8 \
@@ -10,31 +10,19 @@ function install_packages() {
     libstdc++
 }
 
-function install_ghz() {
-  go install github.com/bojand/ghz/cmd/ghz@v0.114.0
-  ghz --help
-}
-
-function install_nghttp2() {
+install_nghttp2() {
   apk --no-cache add \
     nghttp2~=1
   h2load --version
 }
 
-function install_apache2_utils() {
+install_apache2_utils() {
   apk --no-cache add \
     apache2-utils~=2.4
   ab -V
 }
 
-function install_cassowary() {
-  go install github.com/rogerwelin/cassowary/cmd/cassowary@v0.16.0
-  cassowary --help
-}
-
 apk --no-cache update
 install_packages
-install_ghz
 install_nghttp2
 install_apache2_utils
-install_cassowary

@@ -19,8 +19,9 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
-#include "components/data_server/cache/cache.h"
+#include "components/data_server/request_handler/get_values_adapter.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
@@ -33,12 +34,14 @@ namespace kv_server {
 class GetValuesHandler {
  public:
   explicit GetValuesHandler(
-      const Cache& cache,
+      const Cache& cache, const GetValuesAdapter& adapter,
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      bool dsp_mode)
-      : cache_(cache),
+      bool dsp_mode, bool use_v2)
+      : cache_(std::move(cache)),
+        adapter_(std::move(adapter)),
         metrics_recorder_(metrics_recorder),
-        dsp_mode_(dsp_mode) {}
+        dsp_mode_(dsp_mode),
+        use_v2_(use_v2) {}
 
   // TODO: Implement subkey, ad/render url lookups.
   grpc::Status GetValues(const v1::GetValuesRequest& request,
@@ -48,11 +51,15 @@ class GetValuesHandler {
   grpc::Status ValidateRequest(const v1::GetValuesRequest& request) const;
 
   const Cache& cache_;
+  const GetValuesAdapter& adapter_;
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 
   // Use DSP mode for request validation. If false, then automatically assumes
   // SSP mode.
   const bool dsp_mode_;
+
+  // If true, routes requests through V2 (UDF). Otherwise, calls cache.
+  const bool use_v2_;
 };
 
 }  // namespace kv_server

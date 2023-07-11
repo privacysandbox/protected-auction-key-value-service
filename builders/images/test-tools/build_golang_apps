@@ -1,0 +1,16 @@
+#!/bin/busybox sh
+
+set -o errexit
+
+install_ghz() {
+  go install github.com/bojand/ghz/cmd/ghz@v0.114.0
+  ghz --help
+}
+
+install_cassowary() {
+  go install github.com/rogerwelin/cassowary/cmd/cassowary@v0.16.0
+  cassowary --help
+}
+
+install_ghz
+install_cassowary

@@ -25,6 +25,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
+#include "components/udf/noop_udf_client.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "public/base_types.pb.h"
@@ -100,7 +101,7 @@ class ReadonlyStreamReaderFactory : public StreamRecordReaderFactory<RecordT> {
     absl::Cleanup reader_closer([&reader] { reader.Close(); });
     std::string_view raw;
     while (reader.ReadRecord(raw)) {
-      auto record = flatbuffers::GetRoot<DeltaFileRecord>(raw.data());
+      auto record = flatbuffers::GetRoot<KeyValueMutationRecord>(raw.data());
       if (record->logical_commit_time() == 0) {
         LOG(INFO) << "This is a dummy log line (that should not be called) in "
                      "order to read the record. A logical commit time of 0 is "
@@ -135,6 +136,7 @@ std::vector<Operation> OperationsFromFlag() {
 }
 
 absl::Status InitOnce(Operation operation) {
+  std::unique_ptr<UdfClient> noop_udf_client = NewNoopUdfClient();
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   std::unique_ptr<MetricsRecorder> metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
@@ -175,7 +177,6 @@ absl::Status InitOnce(Operation operation) {
   realtime_option.realtime_notifier =
       RealtimeNotifier::Create(*metrics_recorder);
   realtime_options.push_back(std::move(realtime_option));
-
   maybe_data_orchestrator = DataOrchestrator::TryCreate(
       {
           .data_bucket = absl::GetFlag(FLAGS_bucket),
@@ -185,6 +186,7 @@ absl::Status InitOnce(Operation operation) {
           .change_notifier = change_notifier,
           .delta_stream_reader_factory = *delta_stream_reader_factory,
           .realtime_options = realtime_options,
+          .udf_client = *noop_udf_client,
       },
       *metrics_recorder);
   absl::Time end_time = absl::Now();

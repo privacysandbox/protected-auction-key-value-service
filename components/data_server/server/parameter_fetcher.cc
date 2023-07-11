@@ -53,6 +53,16 @@ int32_t ParameterFetcher::GetInt32Parameter(
       "GetParameter", metrics_recorder_, {{"param", param_name}});
 }
 
+bool ParameterFetcher::GetBoolParameter(
+    std::string_view parameter_suffix) const {
+  const std::string param_name = GetParamName(parameter_suffix);
+  return TraceRetryUntilOk(
+      [this, &param_name] {
+        return parameter_client_.GetBoolParameter(param_name);
+      },
+      "GetParameter", metrics_recorder_, {{"param", param_name}});
+}
+
 std::string ParameterFetcher::GetParamName(
     std::string_view parameter_suffix) const {
   const std::vector<std::string_view> v = {kServiceName, environment_,

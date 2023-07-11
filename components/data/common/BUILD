@@ -110,12 +110,12 @@ cc_test(
 )
 
 cc_library(
-    name = "thread_notifier",
+    name = "thread_manager",
     srcs = [
-        "thread_notifier.cc",
+        "thread_manager.cc",
     ],
     hdrs = [
-        "thread_notifier.h",
+        "thread_manager.h",
     ],
     deps = [
         "//components/errors:retry",

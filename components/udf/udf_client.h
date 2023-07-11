@@ -24,7 +24,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/udf/code_config.h"
-#include "components/udf/get_values_hook.h"
 #include "roma/config/src/config.h"
 #include "roma/interface/roma.h"
 
@@ -53,12 +52,6 @@ class UdfClient {
   // Creates a UDF executor. This calls Roma::Init, which forks.
   static absl::StatusOr<std::unique_ptr<UdfClient>> Create(
       const google::scp::roma::Config& config = google::scp::roma::Config());
-
-  // Creates a config with the get value hook. Caller needs to make sure
-  // the hook object stays alive for UDF execution.
-  // TODO(b/260874772): Pass hook as unique_ptr.
-  static google::scp::roma::Config ConfigWithGetValuesHook(
-      GetValuesHook& get_values_hook, int number_of_workers = 0);
 };
 
 }  // namespace kv_server

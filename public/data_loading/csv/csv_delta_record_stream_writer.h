@@ -30,27 +30,46 @@
 
 namespace kv_server {
 
-// A `CsvDeltaRecordStreamWriter` writes `DeltaFileRecordStruct` records as CSV
-// records to a `std::iostream` or `std::ostream.` or other subclasses of these
-// two streams.
+// A `CsvDeltaRecordStreamWriter` writes `DataRecordStruct` records
+// as CSV records to a `std::iostream` or `std::ostream.` or other subclasses of
+// these two streams.
 //
 // A `CsvDeltaRecordStreamWriter` can be used to write CSV records as follows:
 // ```
 // std::stringstream ostream;
 // CsvDeltaRecordStreamWriter record_writer(ostream);
-// DeltaFileRecordStruct record = ...;
+// DataRecordStruct record = ...;
 // if (absl::Status status = record_writer.WriteRecord(); !status.ok()) {
 //   LOG(ERROR) << "Failed to write record: " << status;
 // }
 // ```
+//
+// The record writer has the following default options, which can be overriden
+// by specifying `Options` when initializing the record writer.
+//
+// - `record_type`:
+//   If DataRecordType::kKeyValueMutationRecord, records are assumed to be key
+//   value mutation records with the following header: ["mutation_type",
+//   "logical_commit_time", "key", "value", "value_type"]`. If
+//   DataRecordType::kUserDefinedFunctionsConfig, records are assumed to be
+//   user-defined function configs with the following header:
+//   `["code_snippet", "handler_name", "language", "logical_commit_time"]`.
+//   Default `DataRecordType::kKeyValueMutationRecord`.
+//
+// - `field_separator`: CSV delimiter
+//   Default ','.
+//
+// - `value_separator`: For set values, the delimiter for values in a set.
+//   Default `|`.
+
 template <typename DestStreamT = std::iostream>
 class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
  public:
   struct Options : public DeltaRecordWriter::Options {
     char field_separator = ',';
-    std::vector<std::string_view> header = {kKeyColumn,
-                                            kLogicalCommitTimeColumn,
-                                            kMutationTypeColumn, kValueColumn};
+    // Used as a separator for set value elements.
+    char value_separator = '|';
+    DataRecordType record_type = DataRecordType::kKeyValueMutationRecord;
   };
 
   CsvDeltaRecordStreamWriter(DestStreamT& dest_stream,
@@ -60,7 +79,7 @@ class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
   CsvDeltaRecordStreamWriter& operator=(const CsvDeltaRecordStreamWriter&) =
       delete;
 
-  absl::Status WriteRecord(const DeltaFileRecordStruct& record) override;
+  absl::Status WriteRecord(const DataRecordStruct& record) override;
   absl::Status Flush() override;
   const Options& GetOptions() const override { return options_; }
   void Close() override { record_writer_.Close(); }
@@ -74,15 +93,28 @@ class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
 
 namespace internal {
 absl::StatusOr<riegeli::CsvRecord> MakeCsvRecord(
-    const DeltaFileRecordStruct& record,
-    const std::vector<std::string_view>& header);
+    const DataRecordStruct& data_record, const DataRecordType& record_type,
+    char value_separator);
 
 template <typename DestStreamT>
 riegeli::CsvWriterBase::Options GetRecordWriterOptions(
     const typename CsvDeltaRecordStreamWriter<DestStreamT>::Options& options) {
   riegeli::CsvWriterBase::Options writer_options;
   writer_options.set_field_separator(options.field_separator);
-  writer_options.set_header(options.header);
+  std::vector<std::string_view> header;
+  switch (options.record_type) {
+    case DataRecordType::kKeyValueMutationRecord:
+      header =
+          std::vector<std::string_view>(kKeyValueMutationRecordHeader.begin(),
+                                        kKeyValueMutationRecordHeader.end());
+      break;
+    case DataRecordType::kUserDefinedFunctionsConfig:
+      header = std::vector<std::string_view>(
+          kUserDefinedFunctionsConfigHeader.begin(),
+          kUserDefinedFunctionsConfigHeader.end());
+      break;
+  }
+  writer_options.set_header(std::move(header));
   return writer_options;
 }
 }  // namespace internal
@@ -97,14 +129,14 @@ CsvDeltaRecordStreamWriter<DestStreamT>::CsvDeltaRecordStreamWriter(
 
 template <typename DestStreamT>
 absl::Status CsvDeltaRecordStreamWriter<DestStreamT>::WriteRecord(
-    const DeltaFileRecordStruct& record) {
-  absl::StatusOr<riegeli::CsvRecord> csv_record =
-      internal::MakeCsvRecord(record, options_.header);
+    const DataRecordStruct& data_record) {
+  absl::StatusOr<riegeli::CsvRecord> csv_record = internal::MakeCsvRecord(
+      data_record, options_.record_type, options_.value_separator);
   if (!csv_record.ok()) {
     return csv_record.status();
   }
   if (!record_writer_.WriteRecord(*csv_record) && options_.recovery_function) {
-    options_.recovery_function(record);
+    options_.recovery_function(data_record);
   }
   return record_writer_.status();
 }

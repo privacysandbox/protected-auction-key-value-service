@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <optional>
+
 #include "components/data/common/msg_svc.h"
 
 namespace kv_server {
@@ -28,7 +30,7 @@ class LocalMessageService : public MessageService {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata, std::optional<int32_t> shard_num) {
   auto metadata = std::get<LocalNotifierMetadata>(notifier_metadata);
   return std::make_unique<LocalMessageService>(
       std::move(metadata.local_directory));

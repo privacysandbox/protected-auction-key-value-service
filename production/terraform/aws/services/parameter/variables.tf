@@ -83,3 +83,13 @@ variable "num_shards_parameter_value" {
   description = "Total shards numbers."
   type        = number
 }
+
+variable "udf_num_workers_parameter_value" {
+  description = "Total number of workers for UDF execution."
+  type        = number
+}
+
+variable "route_v1_requests_to_v2_parameter_value" {
+  description = "Whether to route V1 requests through V2."
+  type        = bool
+}

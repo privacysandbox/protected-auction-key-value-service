@@ -28,7 +28,7 @@ proto_library(
 buf_lint_test(
     name = "base_types_proto_lint",
     size = "small",
-    config = "//public:buf.yaml",
+    config = "//:buf.yaml",
     targets = [":base_types_proto"],
 )
 
@@ -51,10 +51,6 @@ cc_library(
         "@com_google_absl//absl/strings",
     ],
 )
-
-exports_files([
-    "buf.yaml",
-])
 
 cc_test(
     name = "constants_test",

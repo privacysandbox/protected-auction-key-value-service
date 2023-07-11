@@ -68,6 +68,7 @@ cc_binary(
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/data_loading:data_orchestrator",
+        "//components/udf:noop_udf_client",
         "//components/util:platform_initializer",
         "//public:base_types_cc_proto",
         "//public/data_loading:data_loading_fbs",
@@ -145,7 +146,7 @@ cc_binary(
     deps = [
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",
-        "//components/data/common:thread_notifier",
+        "//components/data/common:thread_manager",
         "//components/util:platform_initializer",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
@@ -163,10 +164,12 @@ cc_binary(
         "//components/util:platform_initializer",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:filename_utils",
+        "//public/data_loading:records_utils",
         "//public/data_loading/readers:riegeli_stream_io",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/flags:usage",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -204,6 +207,21 @@ cc_binary(
         "//components/util:platform_initializer",
         "//public/data_loading:filename_utils",
         "@aws_sdk_cpp//:sns",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "query_toy",
+    srcs = ["query_toy.cc"],
+    visibility = ["//production/packaging:__subpackages__"],
+    deps = [
+        "//components/query:driver",
+        "//components/query:scanner",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/strings",

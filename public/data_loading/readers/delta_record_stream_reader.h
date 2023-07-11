@@ -24,15 +24,15 @@
 
 namespace kv_server {
 
-// A `DeltaRecordStreamReader` reads records as `DeltaFileRecordStruct`s from a
-// delta record input stream source.
+// A `DeltaRecordStreamReader` reads records as `DataRecordStruct`s
+// from a delta record input stream source.
 //
 // A `DeltaRecordStreamReader` can be used to read records as follows:
 // ```
 // std::ifstream delta_file(my_filename);
 // DeltaRecordStreamReader record_reader(delta_file);
 // absl::Status status = record_reader.ReadRecords(
-//  [](const DeltaFileRecordStruct& record) {
+//  [](const DataRecordStruct& record) {
 //    UseRecord(record);
 //    return absl::OkStatus();
 //  }
@@ -52,9 +52,8 @@ class DeltaRecordStreamReader : public DeltaRecordReader {
   DeltaRecordStreamReader(const DeltaRecordStreamReader&) = delete;
   DeltaRecordStreamReader& operator=(const DeltaRecordStreamReader&) = delete;
 
-  absl::Status ReadRecords(
-      const std::function<absl::Status(DeltaFileRecordStruct)>& record_callback)
-      override;
+  absl::Status ReadRecords(const std::function<absl::Status(DataRecordStruct)>&
+                               record_callback) override;
   bool IsOpen() const override { return stream_reader_.IsOpen(); };
   absl::Status Status() const override { return stream_reader_.Status(); }
   absl::StatusOr<KVFileMetadata> ReadMetadata() {
@@ -67,16 +66,11 @@ class DeltaRecordStreamReader : public DeltaRecordReader {
 
 template <typename SrcStreamT>
 absl::Status DeltaRecordStreamReader<SrcStreamT>::ReadRecords(
-    const std::function<absl::Status(DeltaFileRecordStruct)>& record_callback) {
-  return stream_reader_.ReadStreamRecords([&](std::string_view record_string) {
-    auto fbs_record =
-        flatbuffers::GetRoot<DeltaFileRecord>(record_string.data());
-    return record_callback(DeltaFileRecordStruct{
-        .mutation_type = fbs_record->mutation_type(),
-        .logical_commit_time = fbs_record->logical_commit_time(),
-        .key = fbs_record->key()->string_view(),
-        .value = fbs_record->value()->string_view()});
-  });
+    const std::function<absl::Status(DataRecordStruct)>& record_callback) {
+  return stream_reader_.ReadStreamRecords(
+      [&record_callback](std::string_view record_string) {
+        return DeserializeDataRecord(record_string, record_callback);
+      });
 }
 
 }  // namespace kv_server

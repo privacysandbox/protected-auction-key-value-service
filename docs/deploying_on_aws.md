@@ -164,58 +164,10 @@ For your Terraform configuration, you can use the template under
 your environment name such as dev/staging/prod, name the files inside according to the region you
 want to deploy to, and update the following file content.
 
-In `[[REGION]].tfvars.json`:
+Update the `[[REGION]].tfvars.json` with Terraform variables for your environment. The description
+of each variable is described in [AWS Terraform Vars doc](/docs/AWS_Terraform_vars.md).
 
--   Environment
-    -   `environment` - The default is `demo`. The value can be any arbitrary unique string, and for
-        example, strings like `staging` and `prod` can be used to represent the environment that the
-        Key/Value server will run in.
-    -   `region` - Update the region that the Key/Value server will operate in. The default is
-        `us-east-1`.
--   Network
-    -   `root_domain` - Set the root domain for the server.
-        -   If your domain is managed by [AWS Route 53](https://aws.amazon.com/route53/), then you
-            can simply set your domain value to the `root_domain` property in the Terraform
-            configuration that will be described in the next section. If your domain is not managed
-            by Route 53, and you do not wish to migrate your domain to Route 53, you can
-            [delegate subdomain management to Route 53](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/CreatingNewSubdomain.html).
-    -   `root_domain_zone_id` - Set the hosted zone ID. The ID can be found in the details of the
-        hosted zone in Route 53.
-    -   `certificate_arn`
-        -   If you want to create a public AWS ACM certificate for a domain from scratch, follow
-            [these steps to request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html).
-        -   If you want to import an existing public certificate into ACM, follow these steps to
-            [import the certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html).
--   EC2 instance
-    -   `instance_type` - Set the instance type. Use instances with at least four vCPUs. Learn more
-        about which types are supported from the
-        [AWS article](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
-    -   `instance_ami_id` - Set the value to the AMI ID that was generated when the image was built.
--   Server configuration
-    -   `mode` - Set the server mode. The acceptable values are "DSP" or "SSP".
-    -   `server_port` - Set the port of the EC2 parent instance (that hosts the Nitro Enclave
-        instance).
-    -   `enclave_cpu_count` - Set how many CPUs the server will use.
-    -   `enclave_memory_mib` - Set how much RAM the server will use.
--   Data storage
-    -   `sqs_cleanup_image_uri` - The image built previously in the ECR. Example:
-        `123456789.dkr.ecr.us-east-1.amazonaws.com/sqs_lambda:latest`
-    -   `s3_delta_file_bucket_name` - Set a name for the bucket that the server will read data from.
-        The bucket name must be globally unique. This bucket is different from the one that was
-        manually created for Terraform states earlier.
-    -   `backup_poll_frequency_secs` - Interval between attempts to check if there are new data
-        files on S3, as a backup to listening to new data files.
--   Peripheral features
-    -   `prometheus_service_region` - Specifies which region to find Prometheus service and use.
-        [Not all regions have Prometheus service.](See
-        <https://docs.aws.amazon.com/general/latest/gr/prometheus-service.html> for supported
-        regions). If this region does not have Prometheus service, it must be created beforehand
-        either manually or by deploying this system in that region. At this time Prometheus service
-        is needed. In the future it can be refactored to become optional.
-    -   `prometheus_workspace_id` - If the target Prometheus service runs in a different region than
-        this deployment, the workspace id must be specified.
-
-In `[[REGION]].backend.conf`:
+Update the `[[REGION]].backend.conf`:
 
 -   `bucket` - Set the bucket name that Terraform will use. The bucket was created in the previous
     [Setup S3 bucket for Terraform states](#setup-s3-bucket-for-terraform-states) step.
@@ -343,7 +295,7 @@ curl -vX PUT -d "$BODY"  ${KV_SERVER_URL}/v2/getvalues
 Or gRPC (using [grpcurl](https://github.com/fullstorydev/grpcurl)):
 
 ```sh
-grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' -plaintext demo.kv-server.your-domain.example:8443 kv_server.v2.KeyValueService/GetValues
+grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' demo.kv-server.your-domain.example:8443 kv_server.v2.KeyValueService/GetValues
 ```
 
 ## SSH into EC2

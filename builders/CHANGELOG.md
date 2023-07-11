@@ -2,52 +2,157 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
-## [0.23.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.22.0...release-0.23.0) (2023-04-13)
-
-
-### Features
-
-* Add wrapper for commit-and-tag-version ([9a996c0]( ))
-* Upgrade curl to version 8 ([9f30521]( ))
-* Upgrade to amazonlinux 2.0.20230320.0 ([e5f9c1d]( ))
+## 0.30.1 (2023-06-27)
 
 
 ### Bug Fixes
 
-* Use commit-and-tag-version wrapper ([a5125a4]( ))
+* Use = for --env flag
+* Use = for --env flag for all tools
 
-## [0.22.0](https://team/kiwi-air-force-eng-team/build-system/compare/release-0.21.1...release-0.22.0) (2023-04-03)
+## 0.30.0 (2023-06-26)
 
 
 ### Features
 
-* Add awscurl wrapper script ([58b2ce1]( ))
-* Add tests for misc CLI wrappers ([105c7ee]( ))
-* Correctly quote bash args ([d57a0de]( ))
-* Extend test-tool to support the release image ([61129e8]( ))
-* Use login shell for interactive container ([67fe3e0]( ))
+* Install numpy for python3.9
+* Set PYTHON_BIN_PATH/PYTHON_LIB_PATH in build-debian
+* Upgrade AmazonLinux2 to 20230530
+* Upgrade packer to v1.9.1
+
+
+### Bug Fixes
+
+* Add links for llvm-{cov,profdata}
+
+## 0.29.0 (2023-06-05)
+
+
+### Features
+
+* Update pre-commit hook versions
+
+
+### Bug Fixes
+
+* Catch error when shifting multiple args
+* Remove golang from test-tools image
+* Resolve WORKSPACE using realpath
+* Use correct exit code in --fast mode
+
+## 0.28.0 (2023-05-24)
+
+
+### Features
+
+* Update ca-certificates
+
+
+### Bug Fixes
+
+* Downgrade to clang v15
+* Use builders version.txt for tarfile tag
+
+## 0.27.0 (2023-05-23)
+
+
+### Features
+
+* Add buf to presubmit image
 
 
 ### Documentation
 
-* Add section on tools to README ([d572517]( ))
-* Remove section on building images directly ([19d47ec]( ))
+* Add CONTRIBUTING.md
 
-### [0.21.1] (2023-03-07)
+## 0.26.0 (2023-05-16)
+
+
+### Features
+
+* Remove zlib-dev package
+* Upgrade clang to v16
+* Upgrade go to v1.20.4
+
+## 0.25.0 (2023-05-11)
+
+
+### Features
+
+* Update default bazel version to 5.4.1
+* Upgrade rules_python to 0.21.0
+
+
+### Bug Fixes
+
+* Add file utility to build-debian image
+
+## 0.24.0 (2023-05-05)
+
+
+### Features
+
+* Add --build-images flag to tests/run-tests
+* Reuse tar image if available
+
+
+### Bug Fixes
+
+* Address linter warnings
+* Address linter warnings for tools
+* Correct mangled usage text
+* Pin pre-commit to 3.x
+* Remove .gz suffix from tar file
+* Remove function keyword for busybox sh script
+* Remove Release in changelog title
+* Upgrade pre-commit hooks
+
+## 0.23.0 (2023-04-13)
+
+
+### Features
+
+* Add wrapper for commit-and-tag-version
+* Upgrade curl to version 8
+* Upgrade to amazonlinux 2.0.20230320.0
+
+
+### Bug Fixes
+
+* Use commit-and-tag-version wrapper
+
+## 0.22.0 (2023-04-03)
+
+
+### Features
+
+* Add awscurl wrapper script
+* Add tests for misc CLI wrappers
+* Correctly quote bash args
+* Extend test-tool to support the release image
+* Use login shell for interactive container
+
+
+### Documentation
+
+* Add section on tools to README
+* Remove section on building images directly
+
+## 0.21.1 (2023-03-07)
 
 
 ### Bug Fixes
 
 * Relax pinned version for apache2-utils
 
-## [0.21.0] (2023-03-06)
+## 0.21.0 (2023-03-06)
 
 
 ### Features
 
 * Add wrapper scripts for utils
 
-## [0.20.0] (2023-03-01)
+## 0.20.0 (2023-03-01)
 
 
 ### Features
@@ -57,7 +162,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Permit testing of a single image
 * Relax pinned versions in build-debian, presubmit and test-tools
 
-## [0.19.0] (2023-03-01)
+## 0.19.0 (2023-03-01)
 
 
 ### Features
@@ -69,14 +174,14 @@ All notable changes to this project will be documented in this file. See [commit
 
 * Relax pinned version of openjdk to 11.0.*
 
-## [0.18.0] (2023-02-23)
+## 0.18.0 (2023-02-23)
 
 
 ### Features
 
 * Relax pinned versions for apk and yum packages to semver
 
-## [0.17.0] (2023-02-21)
+## 0.17.0 (2023-02-21)
 
 
 ### Features
@@ -91,21 +196,21 @@ All notable changes to this project will be documented in this file. See [commit
 * Minor code cleanup in images/presubmit/install_apps
 * Upgrade ghz to 0.114.0
 
-## [0.16.0] (2023-02-05)
+## 0.16.0 (2023-02-05)
 
 
 ### Features
 
 * Run test tools in docker interactive mode to admit std streams
 
-### [0.15.1] (2023-02-04)
+## 0.15.1 (2023-02-04)
 
 
 ### Bug Fixes
 
 * Return value from get_docker_workspace_mount()
 
-## [0.15.0] (2023-02-03)
+## 0.15.0 (2023-02-03)
 
 
 ### Features
@@ -117,21 +222,21 @@ All notable changes to this project will be documented in this file. See [commit
 
 * Pin commit-and-tag-version to v10.1.0
 
-## [0.14.0] (2023-01-27)
+## 0.14.0 (2023-01-27)
 
 
 ### Features
 
 * Improve verbose output for get-builder-image-tagged
 
-### [0.13.1] (2023-01-26)
+## 0.13.1 (2023-01-26)
 
 
 ### Bug Fixes
 
 * Upgrade software-properties-common
 
-## [0.13.0] (2023-01-23)
+## 0.13.0 (2023-01-23)
 
 
 ### Features
@@ -151,7 +256,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Upgrade amazonlinux2 base image
 * Upgrade git on amazonlinux2
 
-## [0.12.0] (2023-01-10)
+## 0.12.0 (2023-01-10)
 
 
 ### Features
@@ -159,7 +264,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Modify ghz wrapper for generic use. Add curl
 * Use test-tools image for grpcurl
 
-## [0.11.0] (2023-01-09)
+## 0.11.0 (2023-01-09)
 
 
 ### Features
@@ -171,14 +276,14 @@ All notable changes to this project will be documented in this file. See [commit
 
 * Clean up tmpdir via RETURN trap
 
-## [0.10.0] (2023-01-06)
+## 0.10.0 (2023-01-06)
 
 
 ### Features
 
 * Drop ubuntu package version minor for curl
 
-## [0.9.0] (2023-01-04)
+## 0.9.0 (2023-01-04)
 
 
 ### Features
@@ -193,7 +298,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Elide warnings from bazel info
 * Revert from clang-format v15 to v14
 
-## [0.8.0] (2022-12-29)
+## 0.8.0 (2022-12-29)
 
 
 ### Features
@@ -203,7 +308,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Ensure run-tests includes all images
 * Skip symlinks that resolve in normalize-bazel-symlink
 
-## [0.7.0] (2022-12-27)
+## 0.7.0 (2022-12-27)
 
 
 ### Features
@@ -211,7 +316,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Add ghz wrapper script
 * Add test-tools image
 
-## [0.6.0] (2022-12-12)
+## 0.6.0 (2022-12-12)
 
 
 ### Features
@@ -224,7 +329,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Emit docker build output only on non-zero exit
 * Remove tempfile before exiting
 
-## [0.5.0] (2022-12-06)
+## 0.5.0 (2022-12-06)
 
 
 ### Features
@@ -238,14 +343,14 @@ All notable changes to this project will be documented in this file. See [commit
 * Update version pin for ca-certificates
 * Use images subdirs for image list
 
-### [0.4.4] (2022-11-18)
+## 0.4.4 (2022-11-18)
 
 
 ### Bug Fixes
 
 * Retain execute permissions when normalizing dist
 
-### [0.4.3] (2022-11-17)
+## 0.4.3 (2022-11-17)
 
 
 ### Bug Fixes
@@ -255,14 +360,14 @@ All notable changes to this project will be documented in this file. See [commit
 * Improve verbose output for get-builder-image-tagged
 * Pin apt and yum package versions
 
-### [0.4.2] (2022-11-17)
+## 0.4.2 (2022-11-17)
 
 
 ### Bug Fixes
 
 * Generate SHA within docker container
 
-### [0.4.1] (2022-11-15)
+## 0.4.1 (2022-11-15)
 
 
 ### Bug Fixes
@@ -270,7 +375,7 @@ All notable changes to this project will be documented in this file. See [commit
 * Reduce noise creating presubmit image
 * Remove docker run --interactive flag
 
-## [0.4.0] (2022-11-14)
+## 0.4.0 (2022-11-14)
 
 
 ### Features
@@ -288,14 +393,14 @@ All notable changes to this project will be documented in this file. See [commit
 * Add xz to build-debian
 * Explicitly add machine type and OS release to toolchains hash
 
-### [0.3.1] (2022-11-01)
+## 0.3.1 (2022-11-01)
 
 
 ### Bug Fixes
 
 * Add OpenJDK 11 in build-amazonlinux2
 
-## [0.3.0] (2022-11-01)
+## 0.3.0 (2022-11-01)
 
 
 ### Features
@@ -310,7 +415,7 @@ All notable changes to this project will be documented in this file. See [commit
 
 * Ensure builder::set_workspace does not overwrite WORKSPACE
 
-## [0.2.0] (2022-10-26)
+## 0.2.0 (2022-10-26)
 
 
 ### Features

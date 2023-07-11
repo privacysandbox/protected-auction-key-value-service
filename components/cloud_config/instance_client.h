@@ -16,16 +16,35 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 
 // TODO: Replace config cpio client once ready
 namespace kv_server {
 
+// State to indicate whether an instance is servicing requests or not.
+enum class InstanceServiceStatus : int8_t {
+  kUnknown = 0,
+  kPreService,
+  kInService,
+  kPostService,
+};
+
+struct InstanceInfo {
+  std::string id;
+  InstanceServiceStatus service_status;
+  std::string instance_group;
+  std::string private_ip_address;
+};
+
 // Client to perform instance-specific operations.
 class InstanceClient {
  public:
-  static std::unique_ptr<InstanceClient> Create();
+  static std::unique_ptr<InstanceClient> Create(
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
   virtual ~InstanceClient() = default;
 
   // Retrieves all tags for the current instance and returns the tag with the
@@ -46,6 +65,17 @@ class InstanceClient {
   // Retrieves all tags for the current instance and returns the tag with the
   // key "shard_num".
   virtual absl::StatusOr<std::string> GetShardNumTag() = 0;
+
+  // Retrieves descriptive information about all instances managed by the
+  // specified by instance_groups, e.g., on AWS, instance groups would map to
+  // auto scaling groups.
+  virtual absl::StatusOr<std::vector<InstanceInfo>>
+  DescribeInstanceGroupInstances(
+      const absl::flat_hash_set<std::string>& instance_group_names) = 0;
+
+  // Retrieves descriptive information about the given instances.
+  virtual absl::StatusOr<std::vector<InstanceInfo>> DescribeInstances(
+      const absl::flat_hash_set<std::string>& instance_ids) = 0;
 };
 
 }  // namespace kv_server

@@ -203,9 +203,14 @@ class S3BlobStorageClient : public BlobStorageClient {
                                BlobStorageClient::ClientOptions client_options)
       : metrics_recorder_(metrics_recorder),
         client_options_(std::move(client_options)) {
-    Aws::Client::ClientConfiguration config;
-    config.maxConnections = client_options_.max_connections;
-    client_ = std::make_shared<Aws::S3::S3Client>(config);
+    if (client_options.s3_client_for_unit_testing_ != nullptr) {
+      client_.reset(client_options.s3_client_for_unit_testing_);
+    } else {
+      Aws::Client::ClientConfiguration config;
+      config.maxConnections = client_options_.max_connections;
+      client_ = std::make_shared<Aws::S3::S3Client>(config);
+    }
+
     executor_ = std::make_unique<Aws::Utils::Threading::PooledThreadExecutor>(
         std::thread::hardware_concurrency());
     Aws::Transfer::TransferManagerConfiguration transfer_config(

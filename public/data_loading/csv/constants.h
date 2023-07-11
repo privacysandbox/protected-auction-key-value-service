@@ -30,6 +30,28 @@ inline constexpr std::string_view kLogicalCommitTimeColumn =
     "logical_commit_time";
 inline constexpr std::string_view kKeyColumn = "key";
 inline constexpr std::string_view kValueColumn = "value";
+inline constexpr std::string_view kValueTypeColumn = "value_type";
+inline constexpr std::string_view kValueTypeString = "string";
+inline constexpr std::string_view kValueTypeStringSet = "string_set";
+
+inline constexpr std::string_view kRecordTypeColumn = "record_type";
+inline constexpr std::string_view kRecordTypeKVMutation = "key_value_mutation";
+inline constexpr std::string_view kRecordTypeUdfConfig =
+    "user_defined_functions_config";
+
+inline constexpr std::string_view kCodeSnippetColumn = "code_snippet";
+inline constexpr std::string_view kHandlerNameColumn = "handler_name";
+inline constexpr std::string_view kLanguageColumn = "language";
+inline constexpr std::string_view kLanguageJavascript = "javascript";
+
+inline constexpr std::array<std::string_view, 5> kKeyValueMutationRecordHeader =
+    {kKeyColumn, kLogicalCommitTimeColumn, kMutationTypeColumn, kValueColumn,
+     kValueTypeColumn};
+
+inline constexpr std::array<std::string_view, 4>
+    kUserDefinedFunctionsConfigHeader = {kCodeSnippetColumn, kHandlerNameColumn,
+                                         kLogicalCommitTimeColumn,
+                                         kLanguageColumn};
 
 }  //  namespace kv_server
 

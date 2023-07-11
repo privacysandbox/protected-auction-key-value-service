@@ -32,10 +32,11 @@ module "kv_server" {
   instance_ami_id = var.instance_ami_id
 
   # Variables related to server configuration.
-  mode               = var.mode
-  server_port        = var.server_port
-  enclave_cpu_count  = var.enclave_cpu_count
-  enclave_memory_mib = var.enclave_memory_mib
+  mode                    = var.mode
+  route_v1_requests_to_v2 = var.route_v1_requests_to_v2
+  server_port             = var.server_port
+  enclave_cpu_count       = var.enclave_cpu_count
+  enclave_memory_mib      = var.enclave_memory_mib
 
   # Variables related to autoscaling and load balancing.
   autoscaling_desired_capacity = var.autoscaling_desired_capacity
@@ -73,6 +74,9 @@ module "kv_server" {
 
   # Variables related to sharding.
   num_shards = var.num_shards
+
+  # Variables related to UDF exeuction.
+  udf_num_workers = var.udf_num_workers
 }
 
 output "kv_server_url" {

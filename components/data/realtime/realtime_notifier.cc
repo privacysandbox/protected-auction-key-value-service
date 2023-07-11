@@ -21,7 +21,7 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
-#include "components/data/common/thread_notifier.h"
+#include "components/data/common/thread_manager.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/errors/retry.h"
 #include "glog/logging.h"
@@ -56,7 +56,7 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
  public:
   explicit RealtimeNotifierImpl(MetricsRecorder& metrics_recorder,
                                 std::unique_ptr<SleepFor> sleep_for)
-      : thread_notifier_(ThreadNotifier::Create("Realtime notifier")),
+      : thread_manager_(TheadManager::Create("Realtime notifier")),
         metrics_recorder_(metrics_recorder),
         sleep_for_(std::move(sleep_for)) {
     metrics_recorder.RegisterHistogram(kReceivedLowLatencyNotificationsE2E,
@@ -72,7 +72,7 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
       DeltaFileRecordChangeNotifier& change_notifier,
       std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
           callback) override {
-    return thread_notifier_->Start(
+    return thread_manager_->Start(
         [this, callback = std::move(callback), &change_notifier]() mutable {
           Watch(change_notifier, std::move(callback));
         });
@@ -80,11 +80,11 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
 
   absl::Status Stop() override {
     absl::Status status = sleep_for_->Stop();
-    status.Update(thread_notifier_->Stop());
+    status.Update(thread_manager_->Stop());
     return status;
   }
 
-  bool IsRunning() const override { return thread_notifier_->IsRunning(); }
+  bool IsRunning() const override { return thread_manager_->IsRunning(); }
 
  private:
   void Watch(
@@ -95,9 +95,9 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
     // Later polls are long polls.
     auto max_wait = absl::ZeroDuration();
     uint32_t sequential_failures = 0;
-    while (!thread_notifier_->ShouldStop()) {
+    while (!thread_manager_->ShouldStop()) {
       auto updates = change_notifier.GetNotifications(
-          max_wait, [this]() { return thread_notifier_->ShouldStop(); });
+          max_wait, [this]() { return thread_manager_->ShouldStop(); });
 
       if (absl::IsDeadlineExceeded(updates.status())) {
         sequential_failures = 0;
@@ -154,7 +154,7 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
     }
   }
 
-  std::unique_ptr<ThreadNotifier> thread_notifier_;
+  std::unique_ptr<TheadManager> thread_manager_;
   MetricsRecorder& metrics_recorder_;
   std::unique_ptr<SleepFor> sleep_for_;
 };

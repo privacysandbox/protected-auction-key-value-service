@@ -22,6 +22,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/cache/mocks.h"
+#include "components/data_server/request_handler/mocks.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/grpcpp.h"
@@ -36,8 +37,11 @@ namespace {
 using google::protobuf::TextFormat;
 using grpc::StatusCode;
 using privacy_sandbox::server_common::MockMetricsRecorder;
+using testing::_;
+using testing::DoAll;
 using testing::Return;
 using testing::ReturnRef;
+using testing::SetArgReferee;
 using testing::UnorderedElementsAre;
 using v1::GetValuesRequest;
 using v1::GetValuesResponse;
@@ -46,6 +50,7 @@ class GetValuesHandlerTest : public ::testing::Test {
  protected:
   MockCache mock_cache_;
   MockMetricsRecorder mock_metrics_recorder_;
+  MockGetValuesAdapter mock_get_values_adapter_;
 };
 
 TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
@@ -56,8 +61,9 @@ TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
   GetValuesRequest request;
   request.add_keys("my_key");
   GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_metrics_recorder_,
-                           /*dsp_mode=*/true);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_,
+                           /*dsp_mode=*/true, /*use_v2=*/false);
   const auto result = handler.GetValues(request, &response);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
@@ -77,7 +83,6 @@ TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
 }
 
 TEST_F(GetValuesHandlerTest, RepeatedKeys) {
-  MockCache mock_cache_;
   EXPECT_CALL(mock_cache_,
               GetKeyValuePairs(UnorderedElementsAre("key1", "key2", "key3")))
       .Times(1)
@@ -86,8 +91,9 @@ TEST_F(GetValuesHandlerTest, RepeatedKeys) {
   GetValuesRequest request;
   request.add_keys("key1,key2,key3");
   GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_metrics_recorder_,
-                           /*dsp_mode=*/true);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_,
+                           /*dsp_mode=*/true, /*use_v2=*/false);
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
@@ -102,7 +108,6 @@ TEST_F(GetValuesHandlerTest, RepeatedKeys) {
 }
 
 TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
-  MockCache mock_cache;
   EXPECT_CALL(mock_cache_,
               GetKeyValuePairs(UnorderedElementsAre("key1", "key2")))
       .Times(1)
@@ -112,8 +117,9 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   request.add_keys("key1");
   request.add_keys("key2");
   GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_metrics_recorder_,
-                           /*dsp_mode=*/true);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_,
+                           /*dsp_mode=*/true, /*use_v2=*/false);
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
@@ -132,12 +138,11 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
 }
 
 TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
-  MockCache mock_cache;
-  EXPECT_CALL(mock_cache, GetKeyValuePairs(UnorderedElementsAre("key1")))
+  EXPECT_CALL(mock_cache_, GetKeyValuePairs(UnorderedElementsAre("key1")))
       .Times(1)
       .WillOnce(Return(
           absl::flat_hash_map<std::string, std::string>{{"key1", "value1"}}));
-  EXPECT_CALL(mock_cache, GetKeyValuePairs(UnorderedElementsAre("key2")))
+  EXPECT_CALL(mock_cache_, GetKeyValuePairs(UnorderedElementsAre("key2")))
       .Times(1)
       .WillOnce(Return(
           absl::flat_hash_map<std::string, std::string>{{"key2", "value2"}}));
@@ -145,8 +150,9 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
   request.add_render_urls("key1");
   request.add_ad_component_render_urls("key2");
   GetValuesResponse response;
-  GetValuesHandler handler(mock_cache, mock_metrics_recorder_,
-                           /*dsp_mode=*/false);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_,
+                           /*dsp_mode=*/false, /*use_v2=*/false);
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
@@ -167,33 +173,36 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
 }
 
 TEST_F(GetValuesHandlerTest, DspModeErrorOnMissingKeysNamespace) {
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.set_subkey("my_subkey");
   GetValuesResponse response;
-  GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/true);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_, /*dsp_mode=*/true,
+                           /*use_v2=*/false);
   grpc::Status status = handler.GetValues(request, &response);
   EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
   EXPECT_EQ(status.error_details(), "Missing field 'keys'");
 }
 
 TEST_F(GetValuesHandlerTest, ErrorOnMissingKeysInDspMode) {
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   GetValuesResponse response;
-  GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/true);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_, /*dsp_mode=*/true,
+                           /*use_v2=*/false);
   grpc::Status status = handler.GetValues(request, &response);
   EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
   EXPECT_EQ(status.error_details(), "Missing field 'keys'");
 }
 
 TEST_F(GetValuesHandlerTest, ErrorOnRenderUrlInDspMode) {
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.add_keys("my_key");
   request.add_render_urls("my_render_url");
   GetValuesResponse response;
-  GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/true);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_, /*dsp_mode=*/true,
+                           /*use_v2=*/false);
 
   grpc::Status status = handler.GetValues(request, &response);
   EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -201,12 +210,13 @@ TEST_F(GetValuesHandlerTest, ErrorOnRenderUrlInDspMode) {
 }
 
 TEST_F(GetValuesHandlerTest, ErrorOnAdComponentRenderUrlInDspMode) {
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.add_keys("my_key");
   request.add_ad_component_render_urls("my_ad_component_render_url");
   GetValuesResponse response;
-  GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/true);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_, /*dsp_mode=*/true,
+                           /*use_v2=*/false);
 
   grpc::Status status = handler.GetValues(request, &response);
   EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -214,11 +224,12 @@ TEST_F(GetValuesHandlerTest, ErrorOnAdComponentRenderUrlInDspMode) {
 }
 
 TEST_F(GetValuesHandlerTest, ErrorOnMissingRenderUrlInSspMode) {
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.add_ad_component_render_urls("my_ad_component_render_url");
   GetValuesResponse response;
-  GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/false);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_, /*dsp_mode=*/false,
+                           /*use_v2=*/false);
 
   grpc::Status status = handler.GetValues(request, &response);
   EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -226,12 +237,13 @@ TEST_F(GetValuesHandlerTest, ErrorOnMissingRenderUrlInSspMode) {
 }
 
 TEST_F(GetValuesHandlerTest, ErrorOnKeysInSspMode) {
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.add_render_urls("my_render_url");
   request.add_keys("my_key");
   GetValuesResponse response;
-  GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/false);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_, /*dsp_mode=*/false,
+                           /*use_v2=*/false);
 
   grpc::Status status = handler.GetValues(request, &response);
   EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -239,12 +251,13 @@ TEST_F(GetValuesHandlerTest, ErrorOnKeysInSspMode) {
 }
 
 TEST_F(GetValuesHandlerTest, ErrorOnSubkeysInSspMode) {
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   GetValuesRequest request;
   request.add_render_urls("my_render_url");
   request.set_subkey("my_subkey");
   GetValuesResponse response;
-  GetValuesHandler handler(*cache, mock_metrics_recorder_, /*dsp_mode=*/false);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_, /*dsp_mode=*/false,
+                           /*use_v2=*/false);
 
   grpc::Status status = handler.GetValues(request, &response);
   EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
@@ -252,7 +265,6 @@ TEST_F(GetValuesHandlerTest, ErrorOnSubkeysInSspMode) {
 }
 
 TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
-  MockCache mock_cache;
   std::string value1 = R"json([
       [[1, 2, 3, 4]],
       null,
@@ -337,8 +349,9 @@ TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
   request.add_keys("key2");
   request.add_keys("key3");
   GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_metrics_recorder_,
-                           /*dsp_mode=*/true);
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_,
+                           /*dsp_mode=*/true, /*use_v2=*/false);
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
   GetValuesResponse expected_from_pb;
   TextFormat::ParseFromString(response_pb_string, &expected_from_pb);
@@ -347,6 +360,29 @@ TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
   google::protobuf::util::JsonStringToMessage(response_json_string,
                                               &expected_from_json);
   EXPECT_THAT(response, EqualsProto(expected_from_json));
+}
+
+TEST_F(GetValuesHandlerTest, CallsV2Adapter) {
+  GetValuesResponse adapter_response;
+  TextFormat::ParseFromString(R"pb(keys {
+                                     fields {
+                                       key: "key1"
+                                       value { string_value: "value1" }
+                                     }
+                                   })pb",
+                              &adapter_response);
+  EXPECT_CALL(mock_get_values_adapter_, CallV2Handler(_, _))
+      .WillOnce(
+          DoAll(SetArgReferee<1>(adapter_response), Return(grpc::Status::OK)));
+
+  GetValuesRequest request;
+  request.add_keys("key1");
+  GetValuesResponse response;
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           mock_metrics_recorder_,
+                           /*dsp_mode=*/true, /*use_v2=*/true);
+  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  EXPECT_THAT(response, EqualsProto(adapter_response));
 }
 
 }  // namespace

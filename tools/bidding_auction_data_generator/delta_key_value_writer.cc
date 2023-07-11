@@ -34,15 +34,19 @@ DeltaKeyValueWriter::Create(std::ostream& output_stream) {
 
 absl::Status DeltaKeyValueWriter::Write(
     const absl::flat_hash_map<std::string, std::string>& key_value_map,
-    int64_t logical_commit_time, DeltaMutationType mutation_type) {
+    int64_t logical_commit_time, KeyValueMutationType mutation_type) {
   for (const auto& [k, v] : key_value_map) {
-    DeltaFileRecordStruct record_struct;
-    record_struct.key = k;
-    record_struct.value = v;
-    record_struct.logical_commit_time = logical_commit_time;
-    record_struct.mutation_type = mutation_type;
+    KeyValueMutationRecordStruct kv_mutation_struct;
+    kv_mutation_struct.key = k;
+    kv_mutation_struct.value = v;
+    kv_mutation_struct.logical_commit_time = logical_commit_time;
+    kv_mutation_struct.mutation_type = mutation_type;
 
-    if (const auto status = delta_record_writer_->WriteRecord(record_struct);
+    DataRecordStruct data_record_struct;
+    data_record_struct.record = kv_mutation_struct;
+
+    if (const auto status =
+            delta_record_writer_->WriteRecord(data_record_struct);
         !status.ok()) {
       LOG(ERROR) << "Failed to write a delta record with key: " << k
                  << " and value: " << v << status;

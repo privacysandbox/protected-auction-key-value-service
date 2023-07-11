@@ -22,6 +22,7 @@ services:
     - --delta_directory=/srvdata/deltas
     - --realtime_directory=/srvdata/realtime_data
     - --mode=DSP
+    - --internal_lookup_deadline_duration=1s
     hostname: kv-server
     networks:
     - kvserver-net

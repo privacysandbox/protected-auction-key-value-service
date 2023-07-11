@@ -22,7 +22,7 @@ import "riegeli/records/records_metadata.proto";
 // Metadata specific to DELTA files.
 message DeltaMetadata {}
 
-//Metadata specific to SNAPSHOT files.
+// Metadata specific to SNAPSHOT files.
 message SnapshotMetadata {
   // [Required]
   // (1) Name of the previous snapshot file used to generate this snapshot or
@@ -34,6 +34,26 @@ message SnapshotMetadata {
   optional string ending_delta_file = 2;
 }
 
+// Defines boundaries for a logical shard in a data file. All shard records are
+// strictly contained by the byte range specified by `start_index` and
+// `end_index`.
+message Shard {
+  // Byte index where the shard starts.
+  optional int64 start_index = 1;
+
+  // Byte index where the shard ends.
+  optional int64 end_index = 2;
+}
+
+// Metadata specifying whether the file is sharded and if so, shard boundaries.
+message ShardsMetadata {
+  // Whether the file is logically sharded or not.
+  optional bool is_sharded_file = 1;
+
+  // Metadata about logical shards in the file.
+  repeated Shard shards = 2;
+}
+
 // All K/V server metadata related to one riegeli file.
 message KVFileMetadata {
   // All records in one file are from this namespace.
@@ -43,6 +63,8 @@ message KVFileMetadata {
     DeltaMetadata delta = 2;
     SnapshotMetadata snapshot = 3;
   }
+
+  optional ShardsMetadata shards_metadata = 4;
 }
 
 extend riegeli.RecordsMetadata {

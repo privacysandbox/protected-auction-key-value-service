@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <optional>
+
 #include "absl/random/random.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -54,6 +56,10 @@ constexpr char kPolicyTemplate[] = R"({
   ]
 })";
 
+constexpr char kFilterPolicyTemplate[] = R"({
+  "shard_num": ["%d"]
+})";
+
 constexpr std::string_view alphanum =
     "_-0123456789"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -63,8 +69,11 @@ class AwsMessageService : public MessageService {
  public:
   // `prefix` is the prefix of randomly generated SQS Queue name.
   // The queue is subscribed to the topic at `sns_arn`.
-  AwsMessageService(std::string prefix, std::string sns_arn)
-      : prefix_(std::move(prefix)), sns_arn_(std::move(sns_arn)) {}
+  AwsMessageService(std::string prefix, std::string sns_arn,
+                    std::optional<int32_t> shard_num)
+      : prefix_(std::move(prefix)),
+        sns_arn_(std::move(sns_arn)),
+        shard_num_(shard_num) {}
 
   bool IsSetupComplete() const {
     absl::ReaderMutexLock lock(&mutex_);
@@ -174,6 +183,10 @@ class AwsMessageService : public MessageService {
     req.SetTopicArn(sns_arn);
     req.SetProtocol("sqs");
     req.SetEndpoint(queue_url);
+    if (prefix_ == "QueueNotifier_" && shard_num_.has_value()) {
+      req.AddAttributes("FilterPolicy", absl::StrFormat(kFilterPolicyTemplate,
+                                                        shard_num_.value()));
+    }
     const auto outcome = sns.Subscribe(req);
     return outcome.IsSuccess() ? absl::OkStatus()
                                : AwsErrorToStatus(outcome.GetError());
@@ -188,15 +201,16 @@ class AwsMessageService : public MessageService {
   std::string sqs_url_;
   std::string sqs_arn_;
   bool are_attributes_set_ = false;
+  std::optional<int32_t> shard_num_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata, std::optional<int32_t> shard_num) {
   auto metadata = std::get<CloudNotifierMetadata>(notifier_metadata);
 
-  return std::make_unique<AwsMessageService>(std::move(metadata.queue_prefix),
-                                             std::move(metadata.sns_arn));
+  return std::make_unique<AwsMessageService>(
+      std::move(metadata.queue_prefix), std::move(metadata.sns_arn), shard_num);
 }
 }  // namespace kv_server

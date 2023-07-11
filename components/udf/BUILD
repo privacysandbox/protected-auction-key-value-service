@@ -22,8 +22,9 @@ package(default_visibility = [
 cc_library(
     name = "code_config",
     srcs = [
-        "code_config.h",
+        "code_config.cc",
     ],
+    hdrs = ["code_config.h"],
     deps = [
     ],
 )
@@ -38,32 +39,49 @@ cc_library(
     ],
     deps = [
         ":code_config",
-        ":get_values_hook_impl",
+        ":get_values_hook",
+        ":run_query_hook",
         "//components/errors:retry",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
         "@control_plane_shared//cc/roma/interface:roma_interface_lib",
         "@control_plane_shared//cc/roma/roma_service/src:roma_service_lib",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry",
     ],
 )
 
 cc_library(
-    name = "code_fetcher",
+    name = "noop_udf_client",
     srcs = [
-        "code_fetcher.cc",
+        "noop_udf_client.cc",
     ],
     hdrs = [
-        "code_fetcher.h",
+        "noop_udf_client.h",
+    ],
+    visibility = ["//components/tools:__subpackages__"],
+    deps = [
+        ":code_config",
+        ":udf_client",
+        "//components/errors:retry",
+        "@com_google_absl//absl/status",
+    ],
+)
+
+cc_library(
+    name = "udf_config_builder",
+    srcs = [
+        "udf_config_builder.cc",
+    ],
+    hdrs = [
+        "udf_config_builder.h",
     ],
     deps = [
         ":code_config",
-        "//components/internal_lookup:lookup_client_impl",
-        "//public/udf:constants",
-        "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/status",
+        ":get_values_hook",
+        ":logging_hook",
+        ":run_query_hook",
         "@control_plane_shared//cc/roma/interface:roma_interface_lib",
+        "@control_plane_shared//cc/roma/roma_service/src:roma_service_lib",
     ],
 )
 
@@ -78,7 +96,7 @@ cc_library(
     deps = [
         ":get_values_hook",
         "//components/data_server/cache",
-        "//components/internal_lookup:internal_lookup_cc_proto",
+        "//components/internal_server:internal_lookup_cc_proto",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -88,17 +106,16 @@ cc_library(
 )
 
 cc_library(
-    name = "get_values_hook_impl",
+    name = "get_values_hook",
     srcs = [
-        "get_values_hook_impl.cc",
+        "get_values_hook.cc",
     ],
     hdrs = [
-        "get_values_hook_impl.h",
+        "get_values_hook.h",
     ],
     deps = [
-        ":get_values_hook",
-        "//components/internal_lookup:internal_lookup_cc_proto",
-        "//components/internal_lookup:lookup_client_impl",
+        "//components/internal_server:internal_lookup_cc_proto",
+        "//components/internal_server:lookup_client_impl",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/status",
@@ -110,9 +127,30 @@ cc_library(
 )
 
 cc_library(
-    name = "get_values_hook",
+    name = "run_query_hook",
+    srcs = [
+        "run_query_hook.cc",
+    ],
     hdrs = [
-        "get_values_hook.h",
+        "run_query_hook.h",
+    ],
+    deps = [
+        "//components/internal_server:internal_lookup_cc_proto",
+        "//components/internal_server:run_query_client_impl",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name = "logging_hook",
+    srcs = [
+        "logging_hook.h",
+    ],
+    deps = [
+        "@com_github_google_glog//:glog",
     ],
 )
 
@@ -129,8 +167,10 @@ cc_test(
         ":code_config",
         ":mocks",
         ":udf_client",
-        "//components/internal_lookup:mocks",
-        "//components/udf:get_values_hook_impl",
+        ":udf_config_builder",
+        "//components/internal_server:mocks",
+        "//components/udf:get_values_hook",
+        "//components/udf:run_query_hook",
         "//public/test_util:proto_matcher",
         "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest",
@@ -141,32 +181,14 @@ cc_test(
 )
 
 cc_test(
-    name = "code_fetcher_test",
+    name = "get_values_hook_test",
     size = "small",
     srcs = [
-        "code_fetcher_test.cc",
+        "get_values_hook_test.cc",
     ],
     deps = [
-        ":code_fetcher",
-        "//components/internal_lookup:mocks",
-        "//public/test_util:proto_matcher",
-        "@com_google_absl//absl/status",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-        "@control_plane_shared//cc/roma/interface:roma_interface_lib",
-        "@control_plane_shared//cc/roma/roma_service/src:roma_service_lib",
-    ],
-)
-
-cc_test(
-    name = "get_values_hook_impl_test",
-    size = "small",
-    srcs = [
-        "get_values_hook_impl_test.cc",
-    ],
-    deps = [
-        ":get_values_hook_impl",
-        "//components/internal_lookup:mocks",
+        ":get_values_hook",
+        "//components/internal_server:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest",
@@ -190,15 +212,30 @@ cc_test(
     ],
 )
 
+cc_test(
+    name = "run_query_hook_test",
+    size = "small",
+    srcs = [
+        "run_query_hook_test.cc",
+    ],
+    deps = [
+        ":run_query_hook",
+        "//components/internal_server:mocks",
+        "//public/test_util:proto_matcher",
+        "@com_google_absl//absl/status",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "mocks",
     testonly = 1,
     hdrs = ["mocks.h"],
     deps = [
         ":code_config",
-        ":code_fetcher",
         ":udf_client",
-        "//components/internal_lookup:lookup_client_impl",
+        "//components/internal_server:lookup_client_impl",
         "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest",
         "@control_plane_shared//cc/roma/interface:roma_interface_lib",

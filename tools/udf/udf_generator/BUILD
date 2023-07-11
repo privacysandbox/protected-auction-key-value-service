@@ -28,6 +28,8 @@ cc_binary(
         "//public/data_loading:filename_utils",
         "//public/data_loading:records_utils",
         "//public/data_loading:riegeli_metadata_cc_proto",
+        "//public/data_loading/writers:delta_record_stream_writer",
+        "//public/data_loading/writers:delta_record_writer",
         "//public/udf:constants",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",

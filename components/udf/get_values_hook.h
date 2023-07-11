@@ -22,6 +22,9 @@
 #include <tuple>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
+#include "components/internal_server/lookup_client.h"
+
 namespace kv_server {
 
 // Functor that acts as a wrapper for the internal lookup client call.
@@ -33,6 +36,10 @@ class GetValuesHook {
   // the internal lookup client.
   virtual std::string operator()(
       std::tuple<std::vector<std::string>>& input) = 0;
+
+  static std::unique_ptr<GetValuesHook> Create(
+      absl::AnyInvocable<std::unique_ptr<LookupClient>()>
+          lookup_client_supplier);
 };
 
 }  // namespace kv_server

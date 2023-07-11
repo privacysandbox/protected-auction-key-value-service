@@ -26,13 +26,9 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
 #include "components/errors/retry.h"
-#include "components/internal_lookup/lookup_client.h"
-#include "components/udf/get_values_hook.h"
 #include "glog/logging.h"
 #include "roma/config/src/config.h"
-#include "roma/config/src/function_binding_object.h"
 #include "roma/interface/roma.h"
-#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 
@@ -40,19 +36,13 @@ namespace {
 using google::scp::roma::CodeObject;
 using google::scp::roma::Config;
 using google::scp::roma::Execute;
-using google::scp::roma::FunctionBindingObject;
 using google::scp::roma::InvocationRequestStrInput;
 using google::scp::roma::LoadCodeObj;
 using google::scp::roma::ResponseObject;
 using google::scp::roma::RomaInit;
 using google::scp::roma::RomaStop;
 using google::scp::roma::WasmDataType;
-using privacy_sandbox::server_common::GetTracer;
 
-constexpr char kExecuteCodeSpan[] = "UdfClientExecuteCode";
-constexpr char kUpdateCodeObjectSpan[] = "UdfUpdateCodeObject";
-
-constexpr char kGetValuesHookJsName[] = "getValues";
 constexpr absl::Duration kCallbackTimeout = absl::Seconds(1);
 constexpr absl::Duration kCodeUpdateTimeout = absl::Seconds(1);
 
@@ -68,37 +58,40 @@ class UdfClientImpl : public UdfClient {
   UdfClientImpl() = default;
 
   absl::StatusOr<std::string> ExecuteCode(std::vector<std::string> keys) const {
-    auto span = GetTracer()->StartSpan(kExecuteCodeSpan);
-    auto scope = opentelemetry::trace::Scope(span);
-
-    absl::Status response_status;
-    std::string result;
-    absl::Notification notification;
+    std::shared_ptr<absl::Status> response_status =
+        std::make_shared<absl::Status>();
+    std::shared_ptr<std::string> result = std::make_shared<std::string>();
+    std::shared_ptr<absl::Notification> notification =
+        std::make_shared<absl::Notification>();
     InvocationRequestStrInput invocation_request =
         BuildInvocationRequest(std::move(keys));
+    VLOG(9) << "Executing UDF";
     const auto status =
         Execute(std::make_unique<InvocationRequestStrInput>(invocation_request),
-                [&notification, &response_status, &result](
+                [notification, response_status, result](
                     std::unique_ptr<absl::StatusOr<ResponseObject>> response) {
                   if (response->ok()) {
                     auto& code_response = **response;
-                    result = std::move(code_response.resp);
+                    *result = std::move(code_response.resp);
                   } else {
-                    response_status.Update(std::move(response->status()));
+                    response_status->Update(std::move(response->status()));
                   }
-                  notification.Notify();
+                  notification->Notify();
                 });
     if (!status.ok()) {
-      LOG(ERROR) << "Error executing UDF: " << status;
+      LOG(ERROR) << "Error sending UDF for execution: " << status;
       return status;
     }
 
-    notification.WaitForNotificationWithTimeout(kCallbackTimeout);
-    if (!response_status.ok()) {
-      LOG(ERROR) << "Error executing UDF: " << response_status;
-      return response_status;
+    notification->WaitForNotificationWithTimeout(kCallbackTimeout);
+    if (!notification->HasBeenNotified()) {
+      return absl::InternalError("Timed out waiting for UDF result.");
     }
-    return result;
+    if (!response_status->ok()) {
+      LOG(ERROR) << "Error executing UDF: " << *response_status;
+      return *response_status;
+    }
+    return *result;
   }
 
   static absl::Status Init(const Config& config) { return RomaInit(config); }
@@ -106,32 +99,43 @@ class UdfClientImpl : public UdfClient {
   absl::Status Stop() { return RomaStop(); }
 
   absl::Status SetCodeObject(CodeConfig code_config) {
-    auto span = GetTracer()->StartSpan(kUpdateCodeObjectSpan);
-    auto scope = opentelemetry::trace::Scope(span);
-
-    absl::Status response_status;
-    absl::Notification notification;
+    // Only update code if logical commit time is larger.
+    if (logical_commit_time_ >= code_config.logical_commit_time) {
+      VLOG(1) << "Not updating code object. logical_commit_time "
+              << code_config.logical_commit_time
+              << " too small, should be greater than " << logical_commit_time_;
+      return absl::OkStatus();
+    }
+    std::shared_ptr<absl::Status> response_status =
+        std::make_shared<absl::Status>();
+    std::shared_ptr<absl::Notification> notification =
+        std::make_shared<absl::Notification>();
     CodeObject code_object =
         BuildCodeObject(std::move(code_config.js), std::move(code_config.wasm));
     absl::Status load_status =
         LoadCodeObj(std::make_unique<CodeObject>(code_object),
-                    [&](std::unique_ptr<absl::StatusOr<ResponseObject>> resp) {
+                    [notification, response_status](
+                        std::unique_ptr<absl::StatusOr<ResponseObject>> resp) {
                       if (!resp->ok()) {
-                        response_status.Update(std::move(resp->status()));
+                        response_status->Update(std::move(resp->status()));
                       }
-                      notification.Notify();
+                      notification->Notify();
                     });
     if (!load_status.ok()) {
       LOG(ERROR) << "Error setting UDF Code object: " << load_status;
       return load_status;
     }
 
-    notification.WaitForNotificationWithTimeout(kCodeUpdateTimeout);
-    if (!response_status.ok()) {
-      LOG(ERROR) << "Error setting UDF Code object: " << response_status;
-      return response_status;
+    notification->WaitForNotificationWithTimeout(kCodeUpdateTimeout);
+    if (!notification->HasBeenNotified()) {
+      return absl::InternalError("Timed out setting UDF code object.");
+    }
+    if (!response_status->ok()) {
+      LOG(ERROR) << "Error setting UDF Code object: " << *response_status;
+      return *response_status;
     }
     handler_name_ = std::move(code_config.udf_handler_name);
+    logical_commit_time_ = code_config.logical_commit_time;
     return absl::OkStatus();
   }
 
@@ -163,6 +167,7 @@ class UdfClientImpl : public UdfClient {
   }
 
   std::string handler_name_;
+  int64_t logical_commit_time_ = -1;
   WasmDataType wasm_return_type_;
 };
 
@@ -175,24 +180,6 @@ absl::StatusOr<std::unique_ptr<UdfClient>> UdfClient::Create(
     return init_status;
   }
   return std::make_unique<UdfClientImpl>();
-}
-
-Config UdfClient::ConfigWithGetValuesHook(GetValuesHook& get_values_hook,
-                                          const int number_of_workers) {
-  auto function_object = std::make_unique<
-      FunctionBindingObject<std::string, std::vector<std::string>>>();
-  function_object->function_name = kGetValuesHookJsName;
-  // TODO(b/260874774): Investigate other options
-  function_object->function =
-      [&get_values_hook](
-          std::tuple<std::vector<std::string>>& in) -> std::string {
-    return get_values_hook(in);
-  };
-
-  Config config;
-  config.RegisterFunctionBinding(std::move(function_object));
-  config.NumberOfWorkers = number_of_workers;
-  return config;
 }
 
 }  // namespace kv_server

@@ -23,8 +23,6 @@
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 
-constexpr char* kGetValuesSpan = "GetValues";
-constexpr char* kBinaryGetValuesSpan = "BinaryHttpGetValues";
 constexpr char* kGetValuesSuccess = "GetValuesSuccess";
 
 namespace kv_server {

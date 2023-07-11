@@ -28,7 +28,11 @@ struct CodeConfig {
   std::string js;
   std::string wasm;
   std::string udf_handler_name;
+  int64_t logical_commit_time;
 };
+
+bool operator==(const CodeConfig& lhs_config, const CodeConfig& rhs_config);
+bool operator!=(const CodeConfig& lhs_config, const CodeConfig& rhs_config);
 
 }  // namespace kv_server
 

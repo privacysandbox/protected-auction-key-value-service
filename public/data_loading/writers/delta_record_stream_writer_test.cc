@@ -89,8 +89,9 @@ TEST_P(DeltaRecordStreamWriterTest,
   auto record_writer = CreateDeltaRecordStreamWriter(string_stream);
   EXPECT_TRUE(record_writer.ok());
 
-  DataRecordStruct expected = GetDataRecord(GetKeyValueMutationRecord());
-  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok())
+  KeyValueMutationRecordStruct expected_kv = GetKeyValueMutationRecord();
+  DataRecordStruct data_record = GetDataRecord(expected_kv);
+  EXPECT_TRUE((*record_writer)->WriteRecord(data_record).ok())
       << "Failed to write delta record.";
   (*record_writer)->Close();
   EXPECT_FALSE((*record_writer)->IsOpen());
@@ -102,12 +103,16 @@ TEST_P(DeltaRecordStreamWriterTest,
   EXPECT_TRUE(
       stream_reader
           ->ReadStreamRecords(
-              [&expected](std::string_view record_string) -> absl::Status {
-                return DeserializeDataRecord(
-                    record_string, [&expected](DataRecordStruct record) {
-                      EXPECT_EQ(record, expected);
-                      return absl::OkStatus();
-                    });
+              [&expected_kv](std::string_view record_string) -> absl::Status {
+                const auto* data_record =
+                    flatbuffers::GetRoot<DataRecord>(record_string.data());
+                EXPECT_EQ(data_record->record_type(),
+                          Record::KeyValueMutationRecord);
+                const auto kv_record =
+                    GetTypedRecordStruct<KeyValueMutationRecordStruct>(
+                        *data_record);
+                EXPECT_EQ(kv_record, expected_kv);
+                return absl::OkStatus();
               })
           .ok());
 }
@@ -118,8 +123,10 @@ TEST_P(DeltaRecordStreamWriterTest,
   auto record_writer = CreateDeltaRecordStreamWriter(string_stream);
   EXPECT_TRUE(record_writer.ok());
 
-  DataRecordStruct expected = GetDataRecord(GetUserDefinedFunctionsConfig());
-  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok())
+  UserDefinedFunctionsConfigStruct expected_udf_config =
+      GetUserDefinedFunctionsConfig();
+  DataRecordStruct data_record = GetDataRecord(expected_udf_config);
+  EXPECT_TRUE((*record_writer)->WriteRecord(data_record).ok())
       << "Failed to write delta record.";
   (*record_writer)->Close();
   EXPECT_FALSE((*record_writer)->IsOpen());
@@ -131,13 +138,17 @@ TEST_P(DeltaRecordStreamWriterTest,
   EXPECT_TRUE(
       stream_reader
           ->ReadStreamRecords(
-              [&expected](std::string_view record_string) -> absl::Status {
-                return DeserializeDataRecord(
-                    record_string,
-                    [&expected](const DataRecordStruct& data_record) {
-                      EXPECT_EQ(data_record, expected);
-                      return absl::OkStatus();
-                    });
+              [&expected_udf_config](
+                  std::string_view record_string) -> absl::Status {
+                const auto* data_record =
+                    flatbuffers::GetRoot<DataRecord>(record_string.data());
+                EXPECT_EQ(data_record->record_type(),
+                          Record::UserDefinedFunctionsConfig);
+                const auto udf_config =
+                    GetTypedRecordStruct<UserDefinedFunctionsConfigStruct>(
+                        *data_record);
+                EXPECT_EQ(udf_config, expected_udf_config);
+                return absl::OkStatus();
               })
           .ok());
 }

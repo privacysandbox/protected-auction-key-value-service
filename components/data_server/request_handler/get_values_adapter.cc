@@ -94,9 +94,8 @@ void ProcessKeyValues(KeyGroupOutput key_group_output, Struct& result_struct) {
   for (auto&& [k, v] : std::move(key_group_output.key_values())) {
     if (v.value().has_string_value()) {
       Value value_proto;
-      google::protobuf::util::Status status =
-          google::protobuf::util::JsonStringToMessage(v.value().string_value(),
-                                                      &value_proto);
+      absl::Status status =
+          JsonStringToMessage(v.value().string_value(), &value_proto);
       if (status.ok()) {
         (*result_struct.mutable_fields())[std::move(k)] = value_proto;
       }
@@ -173,7 +172,7 @@ absl::Status BuildV1Response(const nlohmann::json& v2_response_json,
     if (!status.ok()) {
       return absl::InternalError(
           absl::StrCat("Could not convert compression group json to proto: ",
-                       status.message().as_string()));
+                       status.message()));
     }
     for (auto&& partition_proto : compression_group_proto.partitions()) {
       for (auto&& key_group_output_proto :

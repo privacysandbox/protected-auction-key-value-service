@@ -75,7 +75,7 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterLoggingHook() {
 
 UdfConfigBuilder& UdfConfigBuilder::SetNumberOfWorkers(
     const int number_of_workers) {
-  config_.NumberOfWorkers = number_of_workers;
+  config_.number_of_workers = number_of_workers;
   return *this;
 }
 

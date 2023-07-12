@@ -70,7 +70,7 @@ void ProcessKeys(const RepeatedPtrField<std::string>& keys, const Cache& cache,
 
   for (auto&& [k, v] : std::move(kv_pairs)) {
     Value value_proto;
-    google::protobuf::util::Status status =
+    absl::Status status =
         google::protobuf::util::JsonStringToMessage(v, &value_proto);
     if (status.ok()) {
       (*result_struct.mutable_fields())[std::move(k)] = value_proto;

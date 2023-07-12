@@ -47,7 +47,7 @@ namespace {
 
 absl::StatusOr<std::unique_ptr<UdfClient>> CreateUdfClient() {
   Config config;
-  config.NumberOfWorkers = 1;
+  config.number_of_workers = 1;
   return UdfClient::Create(config);
 }
 
@@ -187,7 +187,7 @@ TEST(UdfClientTest, JsEchoHookCallSucceeds) {
   function_object->function = Echo;
 
   Config config;
-  config.NumberOfWorkers = 1;
+  config.number_of_workers = 1;
   config.RegisterFunctionBinding(std::move(function_object));
 
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =

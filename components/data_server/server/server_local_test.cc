@@ -54,8 +54,6 @@ class MockParameterClient : public ParameterClient {
     EXPECT_CALL(*this, GetInt32Parameter(
                            "kv-server-environment-backup-poll-frequency-secs"))
         .WillOnce(::testing::Return(123));
-    EXPECT_CALL(*this, GetParameter("kv-server-environment-mode"))
-        .WillOnce(::testing::Return("DSP"));
   }
 };
 

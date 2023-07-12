@@ -21,7 +21,6 @@ services:
     - --port=2000
     - --delta_directory=/srvdata/deltas
     - --realtime_directory=/srvdata/realtime_data
-    - --mode=SSP
     - --internal_lookup_deadline_duration=1s
     hostname: kv-server
     networks:

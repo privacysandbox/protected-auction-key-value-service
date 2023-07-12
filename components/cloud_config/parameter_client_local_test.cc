@@ -45,11 +45,6 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
     EXPECT_EQ("", *statusor);
   }
   {
-    const auto statusor = client->GetParameter("kv-server-local-mode");
-    ASSERT_TRUE(statusor.ok());
-    EXPECT_EQ("DSP", *statusor);
-  }
-  {
     const auto statusor = client->GetInt32Parameter(
         "kv-server-local-metrics-export-interval-millis");
     ASSERT_TRUE(statusor.ok());

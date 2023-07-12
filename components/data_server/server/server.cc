@@ -65,7 +65,6 @@ using privacy_sandbox::server_common::InitTelemetry;
 using privacy_sandbox::server_common::TelemetryProvider;
 
 // TODO: Use config cpio client to get this from the environment
-constexpr absl::string_view kModeParameterSuffix = "mode";
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
 constexpr absl::string_view kBackupPollFrequencySecsParameterSuffix =
     "backup-poll-frequency-secs";
@@ -440,8 +439,6 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
 }
 
 void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
-  const std::string mode = parameter_fetcher.GetParameter(kModeParameterSuffix);
-  LOG(INFO) << "Retrieved " << kModeParameterSuffix << " parameter: " << mode;
   const bool use_v2 = parameter_fetcher.GetBoolParameter(kRouteV1ToV2Suffix);
   LOG(INFO) << "Retrieved " << kRouteV1ToV2Suffix << " parameter: " << use_v2;
   get_values_adapter_ = GetValuesAdapter::Create(

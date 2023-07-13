@@ -23,10 +23,11 @@
 #include "absl/strings/str_cat.h"
 #include "components/errors/retry.h"
 #include "glog/logging.h"
-#include "pir/hashing/sha256_hash_family.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
+#include "public/data_loading/records_utils.h"
+#include "public/sharding/sharding_function.h"
 #include "src/cpp/telemetry/tracing.h"
 
 namespace kv_server {
@@ -35,7 +36,7 @@ namespace {
 using privacy_sandbox::server_common::MetricsRecorder;
 using privacy_sandbox::server_common::TraceWithStatusOr;
 
-constexpr char* kTotalRowsDroppedIncorrectShardNumber =
+constexpr char kTotalRowsDroppedIncorrectShardNumber[] =
     "kTotalRowsDroppedIncorrectShardNumber";
 
 // Holds an input stream pointing to a blob of Riegeli records.
@@ -49,76 +50,131 @@ class BlobRecordStream : public RecordStream {
   std::unique_ptr<BlobReader> blob_reader_;
 };
 
+absl::Status ApplyUpdateMutation(const KeyValueMutationRecord& record,
+                                 Cache& cache) {
+  if (record.value_type() == Value::String) {
+    cache.UpdateKeyValue(record.key()->string_view(),
+                         GetRecordValue<std::string_view>(record),
+                         record.logical_commit_time());
+    return absl::OkStatus();
+  }
+  if (record.value_type() == Value::StringSet) {
+    auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    cache.UpdateKeyValueSet(record.key()->string_view(), absl::MakeSpan(values),
+                            record.logical_commit_time());
+    return absl::OkStatus();
+  }
+  return absl::InvalidArgumentError(
+      absl::StrCat("Record with key: ", record.key()->string_view(),
+                   " has unsupported value type: ", record.value_type()));
+}
+
+absl::Status ApplyDeleteMutation(const KeyValueMutationRecord& record,
+                                 Cache& cache) {
+  if (record.value_type() == Value::String) {
+    cache.DeleteKey(record.key()->string_view(), record.logical_commit_time());
+    return absl::OkStatus();
+  }
+  if (record.value_type() == Value::StringSet) {
+    auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    cache.DeleteValuesInSet(record.key()->string_view(), absl::MakeSpan(values),
+                            record.logical_commit_time());
+    return absl::OkStatus();
+  }
+  return absl::InvalidArgumentError(
+      absl::StrCat("Record with key: ", record.key()->string_view(),
+                   " has unsupported value type: ", record.value_type()));
+}
+
+bool ShouldProcessRecord(const KeyValueMutationRecord& record,
+                         int64_t num_shards, int64_t server_shard_num,
+                         MetricsRecorder& metrics_recorder) {
+  if (num_shards <= 1) {
+    return true;
+  }
+  auto shard_num =
+      ShardingFunction(/*seed=*/"")
+          .GetShardNumForKey(record.key()->string_view(), num_shards);
+  if (shard_num == server_shard_num) {
+    return true;
+  }
+  metrics_recorder.IncrementEventCounter(kTotalRowsDroppedIncorrectShardNumber);
+  auto error_message = absl::StrFormat(
+      "Data does not belong to this shard replica. Key: %s, Actual "
+      "shard id: %d, Server's shard id: %d.",
+      record.key()->string_view(), shard_num, server_shard_num);
+  LOG(ERROR) << error_message;
+  return false;
+}
+
+absl::Status ApplyKeyValueMutationToCache(
+    const KeyValueMutationRecord& record, Cache& cache, int64_t& max_timestamp,
+    DataLoadingStats& data_loading_stats) {
+  switch (record.mutation_type()) {
+    case KeyValueMutationType::Update: {
+      if (auto status = ApplyUpdateMutation(record, cache); !status.ok()) {
+        return status;
+      }
+      max_timestamp = std::max(max_timestamp, record.logical_commit_time());
+      data_loading_stats.total_updated_records++;
+      break;
+    }
+    case KeyValueMutationType::Delete: {
+      if (auto status = ApplyDeleteMutation(record, cache); !status.ok()) {
+        return status;
+      }
+      max_timestamp = std::max(max_timestamp, record.logical_commit_time());
+      data_loading_stats.total_deleted_records++;
+      break;
+    }
+    default:
+      return absl::InvalidArgumentError(
+          absl::StrCat("Invalid mutation type: ",
+                       EnumNameKeyValueMutationType(record.mutation_type())));
+  }
+  return absl::OkStatus();
+}
+
 absl::StatusOr<DataLoadingStats> LoadCacheWithData(
     StreamRecordReader<std::string_view>& record_reader, Cache& cache,
     int64_t& max_timestamp, const int32_t server_shard_num,
-    const int32_t num_shards, MetricsRecorder& metrics_recorder) {
+    const int32_t num_shards, MetricsRecorder& metrics_recorder,
+    UdfClient& udf_client) {
   DataLoadingStats data_loading_stats;
-  // TODO: propagate this from terraform parameters
-  std::string hashing_seed = "";
-  auto hash_function =
-      distributed_point_functions::SHA256HashFunction(hashing_seed);
-
-  auto status = record_reader.ReadStreamRecords(
+  const auto process_data_record_fn =
       [&cache, &max_timestamp, &data_loading_stats, server_shard_num,
-       num_shards, &hash_function, &metrics_recorder](std::string_view raw) {
-        auto record = flatbuffers::GetRoot<DeltaFileRecord>(raw.data());
-        auto recordVerifier = flatbuffers::Verifier(
-            reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
-        if (!record->Verify(recordVerifier)) {
-          // TODO(b/239061954): Publish metrics for alerting
-          return absl::InvalidArgumentError("Invalid flatbuffer format");
-        }
-
-        if (num_shards > 1) {
-          int32_t shard_num =
-              hash_function(record->key()->string_view(), num_shards);
-
-          if (shard_num != server_shard_num) {
-            metrics_recorder.IncrementEventCounter(
-                kTotalRowsDroppedIncorrectShardNumber);
-
-            auto error_message = absl::StrFormat(
-                "Data does not belong to this shard replica. Key: %s, Actual "
-                "shard id: %d, Server's shard id: %d.",
-                record->key()->string_view(), shard_num, server_shard_num);
-            LOG(ERROR) << error_message;
+       num_shards, &metrics_recorder,
+       &udf_client](const DataRecord& data_record) {
+        if (data_record.record_type() == Record::KeyValueMutationRecord) {
+          const auto* record = data_record.record_as_KeyValueMutationRecord();
+          if (!ShouldProcessRecord(*record, num_shards, server_shard_num,
+                                   metrics_recorder)) {
             // NOTE: currently upstream logic retries on non-ok status
             // this will get us in a loop
             return absl::OkStatus();
           }
+          return ApplyKeyValueMutationToCache(*record, cache, max_timestamp,
+                                              data_loading_stats);
+        } else if (data_record.record_type() ==
+                   Record::UserDefinedFunctionsConfig) {
+          const auto* udf_config =
+              data_record.record_as_UserDefinedFunctionsConfig();
+          return udf_client.SetCodeObject(CodeConfig{
+              .js = udf_config->code_snippet()->str(),
+              .udf_handler_name = udf_config->handler_name()->str(),
+              .logical_commit_time = udf_config->logical_commit_time()});
         }
+        LOG(ERROR) << "Received unsupported record ";
+        return absl::InvalidArgumentError("Record type not supported.");
+      };
 
-        switch (record->mutation_type()) {
-          case DeltaMutationType::Update: {
-            cache.UpdateKeyValue(record->key()->string_view(),
-                                 record->value()->string_view(),
-                                 record->logical_commit_time());
-            max_timestamp =
-                std::max(max_timestamp, record->logical_commit_time());
-            data_loading_stats.total_updated_records++;
-            break;
-          }
-          case DeltaMutationType::Delete: {
-            cache.DeleteKey(record->key()->string_view(),
-                            record->logical_commit_time());
-            max_timestamp =
-                std::max(max_timestamp, record->logical_commit_time());
-            data_loading_stats.total_deleted_records++;
-            break;
-          }
-          default:
-            return absl::InvalidArgumentError(absl::StrCat(
-                "Invalid mutation type: ",
-                EnumNameDeltaMutationType(record->mutation_type())));
-        }
-        return absl::OkStatus();
+  auto status = record_reader.ReadStreamRecords(
+      [&process_data_record_fn](std::string_view raw) {
+        return DeserializeDataRecord(raw, process_data_record_fn);
       });
-
   if (!status.ok()) {
     return status;
   }
-
   return data_loading_stats;
 }
 
@@ -137,9 +193,9 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
             return std::make_unique<BlobRecordStream>(
                 options.blob_client.GetBlobReader(location));
           });
-  auto status =
-      LoadCacheWithData(*record_reader, cache, max_timestamp, options.shard_num,
-                        options.num_shards, metrics_recorder);
+  auto status = LoadCacheWithData(*record_reader, cache, max_timestamp,
+                                  options.shard_num, options.num_shards,
+                                  metrics_recorder, options.udf_client);
   if (status.ok()) {
     cache.RemoveDeletedKeys(max_timestamp);
   }
@@ -160,8 +216,8 @@ absl::StatusOr<DataLoadingStats> TraceLoadCacheWithDataFromFile(
 
 class DataOrchestratorImpl : public DataOrchestrator {
  public:
-  // `last_basename` is the last file seen during init. The cache is up to date
-  // until this file.
+  // `last_basename` is the last file seen during init. The cache is up to
+  // date until this file.
   DataOrchestratorImpl(Options options, std::string last_basename,
                        MetricsRecorder& metrics_recorder)
       : options_(std::move(options)),
@@ -279,8 +335,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
   // Reads new files, if any, from the `unprocessed_basenames_` queue and
   // processes them one by one.
   //
-  // On failure, puts the file back to the end of the queue and retry at a later
-  // point.
+  // On failure, puts the file back to the end of the queue and retry at a
+  // later point.
   void ProcessNewFiles() {
     LOG(INFO) << "Thread for new file processing started";
     absl::Condition has_new_event(this,
@@ -381,14 +437,14 @@ class DataOrchestratorImpl : public DataOrchestrator {
     auto record_reader = delta_stream_reader_factory.CreateReader(is);
     return LoadCacheWithData(*record_reader, cache, max_timestamp,
                              options_.shard_num, options_.num_shards,
-                             metrics_recorder_);
+                             metrics_recorder_, options_.udf_client);
   }
 
   const Options options_;
   absl::Mutex mu_;
-  std::deque<std::string> unprocessed_basenames_ GUARDED_BY(mu_);
+  std::deque<std::string> unprocessed_basenames_ ABSL_GUARDED_BY(mu_);
   std::unique_ptr<std::thread> data_loader_thread_;
-  bool stop_ GUARDED_BY(mu_) = false;
+  bool stop_ ABSL_GUARDED_BY(mu_) = false;
   // last basename of file in initialization.
   const std::string last_basename_of_init_;
   MetricsRecorder& metrics_recorder_;

@@ -14,15 +14,348 @@
  * limitations under the License.
  */
 
+#include "absl/status/statusor.h"
+#include "aws/sqs/SQSClient.h"
+#include "aws/sqs/model/ReceiveMessageRequest.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
+#include "components/data/common/msg_svc.h"
+#include "components/util/platform_initializer.h"
+#include "glog/logging.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
-TEST(BlobStorageChangeNotifierS3Test, NotImplemented) {
-  // TODO(b/237669491): Add unit tests for the S3 BlobStorageChangeNotifier.
-  EXPECT_TRUE(true);
+class MockMessageService : public MessageService {
+ public:
+  MOCK_METHOD(bool, IsSetupComplete, (), (const));
+
+  MOCK_METHOD(const std::string&, GetSqsUrl, (), (const));
+
+  MOCK_METHOD(absl::Status, SetupQueue, (), ());
+
+  MOCK_METHOD(void, Reset, (), ());
+};
+
+class MockSqsClient : public ::Aws::SQS::SQSClient {
+ public:
+  MOCK_METHOD(Aws::SQS::Model::ReceiveMessageOutcome, ReceiveMessage,
+              (const Aws::SQS::Model::ReceiveMessageRequest& request),
+              (const, override));
+
+  MOCK_METHOD(Aws::SQS::Model::DeleteMessageBatchOutcome, DeleteMessageBatch,
+              (const Aws::SQS::Model::DeleteMessageBatchRequest& request),
+              (const, override));
+};
+
+// See this link for the JSON format of AWS S3 notifications to SQS that're
+// parsing:
+// https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html
+class BlobStorageChangeNotifierS3Test : public ::testing::Test {
+ protected:
+  void CreateRequiredSqsCallExpectations() {
+    static const std::string mock_sqs_url("mock sqs url");
+    EXPECT_CALL(mock_message_service_, IsSetupComplete)
+        .WillOnce(::testing::Return(true));
+    EXPECT_CALL(mock_message_service_, GetSqsUrl())
+        .WillRepeatedly(::testing::ReturnRef(mock_sqs_url));
+  }
+
+  void SetMockMessage(const std::string& mock_message, MockSqsClient& client) {
+    Aws::SQS::Model::ReceiveMessageResult result;
+    Aws::SQS::Model::Message message;
+    message.SetBody(mock_message);
+    result.AddMessages(message);
+    // Because we populate the Outcome with a Result that means that IsSuccess()
+    // will return true.
+    Aws::SQS::Model::ReceiveMessageOutcome outcome(result);
+    EXPECT_CALL(client, ReceiveMessage(::testing::_))
+        .WillOnce(::testing::Return(outcome));
+  }
+
+  PlatformInitializer initializer_;
+  privacy_sandbox::server_common::MockMetricsRecorder metrics_recorder_;
+  MockMessageService mock_message_service_;
+};
+
+TEST_F(BlobStorageChangeNotifierS3Test, AwsSqsUnavailable) {
+  CreateRequiredSqsCallExpectations();
+
+  CloudNotifierMetadata notifier_metadata;
+  notifier_metadata.queue_manager = &mock_message_service_;
+  auto mock_sqs_client = std::make_unique<MockSqsClient>();
+  // A default ReceiveMessageOutcome will be returned for calls to
+  // mock_sqs_client.ReceiveMessage(_).
+  notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
+      BlobStorageChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+  ASSERT_TRUE(notifier.status().ok());
+
+  const absl::StatusOr<std::vector<std::string>> notifications =
+      (*notifier)->GetNotifications(absl::Seconds(1), [] { return false; });
+  EXPECT_EQ(::absl::StatusCode::kUnavailable, notifications.status().code());
+}
+
+TEST_F(BlobStorageChangeNotifierS3Test, InvalidJsonMessage) {
+  CreateRequiredSqsCallExpectations();
+
+  auto mock_sqs_client = std::make_unique<MockSqsClient>();
+  SetMockMessage("this is not valid json", *mock_sqs_client);
+
+  // Make sure that the metric for this error is incremented but ignore any
+  // other metrics.
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
+      .Times(::testing::AnyNumber());
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
+      .Times(1);
+
+  CloudNotifierMetadata notifier_metadata;
+  notifier_metadata.queue_manager = &mock_message_service_;
+  notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
+      BlobStorageChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+  ASSERT_TRUE(notifier.status().ok());
+
+  const absl::StatusOr<std::vector<std::string>> notifications =
+      (*notifier)->GetNotifications(absl::Seconds(1), [] { return false; });
+  ASSERT_TRUE(notifications.ok());
+  // The invalid json message is dropped.
+  EXPECT_EQ(0, notifications->size());
+}
+
+TEST_F(BlobStorageChangeNotifierS3Test, JsonHasNoMessageObject) {
+  CreateRequiredSqsCallExpectations();
+
+  auto mock_sqs_client = std::make_unique<MockSqsClient>();
+  SetMockMessage("{}", *mock_sqs_client);
+
+  // Make sure that the metric for this error is incremented but ignore any
+  // other metrics.
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
+      .Times(::testing::AnyNumber());
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
+      .Times(1);
+
+  CloudNotifierMetadata notifier_metadata;
+  notifier_metadata.queue_manager = &mock_message_service_;
+  notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
+      BlobStorageChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+  ASSERT_TRUE(notifier.status().ok());
+
+  const absl::StatusOr<std::vector<std::string>> notifications =
+      (*notifier)->GetNotifications(absl::Seconds(1), [] { return false; });
+  ASSERT_TRUE(notifications.ok());
+  // The invalid json message is dropped.
+  EXPECT_EQ(0, notifications->size());
+}
+
+TEST_F(BlobStorageChangeNotifierS3Test, MessageObjectIsNotAString) {
+  CreateRequiredSqsCallExpectations();
+
+  auto mock_sqs_client = std::make_unique<MockSqsClient>();
+  SetMockMessage(R"({
+   "Message": {}
+  })",
+                 *mock_sqs_client);
+
+  // Make sure that the metric for this error is incremented but ignore any
+  // other metrics.
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
+      .Times(::testing::AnyNumber());
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
+      .Times(1);
+
+  CloudNotifierMetadata notifier_metadata;
+  notifier_metadata.queue_manager = &mock_message_service_;
+  notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
+      BlobStorageChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+  ASSERT_TRUE(notifier.status().ok());
+
+  const absl::StatusOr<std::vector<std::string>> notifications =
+      (*notifier)->GetNotifications(absl::Seconds(1), [] { return false; });
+  ASSERT_TRUE(notifications.ok());
+  // The invalid json message is dropped.
+  EXPECT_EQ(0, notifications->size());
+}
+
+TEST_F(BlobStorageChangeNotifierS3Test, RecordsIsNotAList) {
+  CreateRequiredSqsCallExpectations();
+
+  auto mock_sqs_client = std::make_unique<MockSqsClient>();
+  SetMockMessage(R"({
+   "Message": "{\"Records\": {} }"
+  })",
+                 *mock_sqs_client);
+
+  // Make sure that the metric for this error is incremented but ignore any
+  // other metrics.
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
+      .Times(::testing::AnyNumber());
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
+      .Times(1);
+
+  CloudNotifierMetadata notifier_metadata;
+  notifier_metadata.queue_manager = &mock_message_service_;
+  notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
+      BlobStorageChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+  ASSERT_TRUE(notifier.status().ok());
+
+  const absl::StatusOr<std::vector<std::string>> notifications =
+      (*notifier)->GetNotifications(absl::Seconds(1), [] { return false; });
+  ASSERT_TRUE(notifications.ok());
+  // The invalid json message is dropped.
+  EXPECT_EQ(0, notifications->size());
+}
+
+TEST_F(BlobStorageChangeNotifierS3Test, NoS3RecordPresent) {
+  CreateRequiredSqsCallExpectations();
+
+  auto mock_sqs_client = std::make_unique<MockSqsClient>();
+  SetMockMessage(R"({
+   "Message": "{\"Records\":[]}"
+  })",
+                 *mock_sqs_client);
+
+  // Make sure that the metric for this error is incremented but ignore any
+  // other metrics.
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
+      .Times(::testing::AnyNumber());
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
+      .Times(1);
+
+  CloudNotifierMetadata notifier_metadata;
+  notifier_metadata.queue_manager = &mock_message_service_;
+  notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
+      BlobStorageChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+  ASSERT_TRUE(notifier.status().ok());
+
+  const absl::StatusOr<std::vector<std::string>> notifications =
+      (*notifier)->GetNotifications(absl::Seconds(1), [] { return false; });
+  ASSERT_TRUE(notifications.ok());
+  // The invalid json message is dropped.
+  EXPECT_EQ(0, notifications->size());
+}
+
+TEST_F(BlobStorageChangeNotifierS3Test, S3RecordIsNull) {
+  CreateRequiredSqsCallExpectations();
+
+  auto mock_sqs_client = std::make_unique<MockSqsClient>();
+  SetMockMessage(R"({
+   "Message": "{\"Records\":[ {\"s3\":null}]}"
+  })",
+                 *mock_sqs_client);
+
+  CloudNotifierMetadata notifier_metadata;
+  notifier_metadata.queue_manager = &mock_message_service_;
+  notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
+      BlobStorageChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+  ASSERT_TRUE(notifier.status().ok());
+
+  const absl::StatusOr<std::vector<std::string>> notifications =
+      (*notifier)->GetNotifications(absl::Seconds(1), [] { return false; });
+  ASSERT_TRUE(notifications.ok());
+  // The invalid json message is dropped.
+  EXPECT_EQ(0, notifications->size());
+}
+
+TEST_F(BlobStorageChangeNotifierS3Test, S3ObjectIsNull) {
+  CreateRequiredSqsCallExpectations();
+
+  auto mock_sqs_client = std::make_unique<MockSqsClient>();
+  SetMockMessage(R"({
+   "Message": "{\"Records\":[ {\"s3\":{\"object\":null}}]}"
+  })",
+                 *mock_sqs_client);
+
+  // Make sure that the metric for this error is incremented but ignore any
+  // other metrics.
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
+      .Times(::testing::AnyNumber());
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
+      .Times(1);
+
+  CloudNotifierMetadata notifier_metadata;
+  notifier_metadata.queue_manager = &mock_message_service_;
+  notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
+      BlobStorageChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+  ASSERT_TRUE(notifier.status().ok());
+
+  const absl::StatusOr<std::vector<std::string>> notifications =
+      (*notifier)->GetNotifications(absl::Seconds(1), [] { return false; });
+  ASSERT_TRUE(notifications.ok());
+  // The invalid json message is dropped.
+  EXPECT_EQ(0, notifications->size());
+}
+
+TEST_F(BlobStorageChangeNotifierS3Test, S3KeyIsNotAString) {
+  CreateRequiredSqsCallExpectations();
+
+  auto mock_sqs_client = std::make_unique<MockSqsClient>();
+  SetMockMessage(R"({
+   "Message": "{\"Records\":[ {\"s3\":{\"object\":{\"key\":{}}}}}]}"
+  })",
+                 *mock_sqs_client);
+
+  // Make sure that the metric for this error is incremented but ignore any
+  // other metrics.
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
+      .Times(::testing::AnyNumber());
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
+      .Times(1);
+
+  CloudNotifierMetadata notifier_metadata;
+  notifier_metadata.queue_manager = &mock_message_service_;
+  notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
+      BlobStorageChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+  ASSERT_TRUE(notifier.status().ok());
+
+  const absl::StatusOr<std::vector<std::string>> notifications =
+      (*notifier)->GetNotifications(absl::Seconds(1), [] { return false; });
+  ASSERT_TRUE(notifications.ok());
+  // The invalid json message is dropped.
+  EXPECT_EQ(0, notifications->size());
+}
+
+TEST_F(BlobStorageChangeNotifierS3Test, ValidJson) {
+  CreateRequiredSqsCallExpectations();
+
+  auto mock_sqs_client = std::make_unique<MockSqsClient>();
+  SetMockMessage(R"({
+   "Message": "{\"Records\":[ {\"s3\":{\"object\":{\"key\":\"HappyFace.jpg\"}}}]}"
+  })",
+                 *mock_sqs_client);
+
+  CloudNotifierMetadata notifier_metadata;
+  notifier_metadata.queue_manager = &mock_message_service_;
+  notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
+
+  absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
+      BlobStorageChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+  ASSERT_TRUE(notifier.status().ok());
+
+  const absl::StatusOr<std::vector<std::string>> notifications =
+      (*notifier)->GetNotifications(absl::Seconds(1), [] { return false; });
+  ASSERT_TRUE(notifications.ok());
+  EXPECT_THAT(*notifications,
+              testing::UnorderedElementsAreArray({"HappyFace.jpg"}));
 }
 
 }  // namespace

@@ -25,10 +25,14 @@ namespace {
 
 using privacy_sandbox::server_common::MetricsRecorder;
 
+constexpr char* kAwsJsonParseError = "AwsJsonParseError";
+
 class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
-  explicit S3BlobStorageChangeNotifier(std::unique_ptr<ChangeNotifier> notifier)
-      : change_notifier_(std::move(notifier)) {}
+  explicit S3BlobStorageChangeNotifier(std::unique_ptr<ChangeNotifier> notifier,
+                                       MetricsRecorder& metrics_recorder)
+      : change_notifier_(std::move(notifier)),
+        metrics_recorder_(metrics_recorder) {}
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
@@ -37,6 +41,7 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
         change_notifier_->GetNotifications(max_wait, should_stop_callback);
 
     if (!notifications.ok()) {
+      // No need to increment metrics here, that happens in ChangeNotifier.
       return notifications.status();
     }
 
@@ -45,7 +50,9 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
       const absl::StatusOr<std::string> parsedMessage =
           ParseObjectKeyFromJson(message);
       if (!parsedMessage.ok()) {
-        LOG(ERROR) << "Failed to parse JSON: " << message;
+        LOG(ERROR) << "Failed to parse JSON. Error: " << parsedMessage.status()
+                   << " Message:" << message;
+        metrics_recorder_.IncrementEventCounter(kAwsJsonParseError);
         continue;
       }
       parsed_notifications.push_back(std::move(*parsedMessage));
@@ -95,6 +102,7 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
   }
 
   std::unique_ptr<ChangeNotifier> change_notifier_;
+  MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace
@@ -113,7 +121,8 @@ BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata,
     return status_or.status();
   }
 
-  return std::make_unique<S3BlobStorageChangeNotifier>(std::move(*status_or));
+  return std::make_unique<S3BlobStorageChangeNotifier>(std::move(*status_or),
+                                                       metrics_recorder);
 }
 
 }  // namespace kv_server

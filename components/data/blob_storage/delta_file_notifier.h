@@ -22,7 +22,7 @@
 
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/blob_storage/blob_storage_client.h"
-#include "components/data/common/thread_notifier.h"
+#include "components/data/common/thread_manager.h"
 #include "components/errors/retry.h"
 #include "components/util/sleepfor.h"
 #include "src/cpp/util/duration.h"

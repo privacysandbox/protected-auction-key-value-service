@@ -24,10 +24,11 @@
 namespace kv_server {
 namespace {
 constexpr int64_t kTestLogicalCommitTime = 1234567890;
-constexpr DeltaMutationType kTestDeltaMutationType = DeltaMutationType::Update;
+constexpr KeyValueMutationType kTestDeltaMutationType =
+    KeyValueMutationType::Update;
 
-DeltaFileRecordStruct GetDeltaRecord() {
-  DeltaFileRecordStruct record;
+KeyValueMutationRecordStruct GetKVMutationRecord() {
+  KeyValueMutationRecordStruct record;
   record.key = "key1";
   record.value = R"({"field": "test"})";
   record.logical_commit_time = kTestLogicalCommitTime;
@@ -56,15 +57,15 @@ TEST(DeltaKeyValueWriterTest, ValidateDeltaDataTest) {
   EXPECT_TRUE(stream_reader
                   ->ReadStreamRecords(
                       [](std::string_view record_string) -> absl::Status {
-                        DeltaFileRecordStruct record;
-                        auto fbs_record = flatbuffers::GetRoot<DeltaFileRecord>(
-                            record_string.data());
-                        record.key = fbs_record->key()->string_view();
-                        record.value = fbs_record->value()->string_view();
-                        record.mutation_type = fbs_record->mutation_type();
-                        record.logical_commit_time =
-                            fbs_record->logical_commit_time();
-                        EXPECT_EQ(record, GetDeltaRecord());
+                        const auto* data_record =
+                            flatbuffers::GetRoot<DataRecord>(
+                                record_string.data());
+                        EXPECT_EQ(data_record->record_type(),
+                                  Record::KeyValueMutationRecord);
+                        const auto kv_record =
+                            GetTypedRecordStruct<KeyValueMutationRecordStruct>(
+                                *data_record);
+                        EXPECT_EQ(kv_record, GetKVMutationRecord());
                         return absl::OkStatus();
                       })
                   .ok());

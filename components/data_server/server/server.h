@@ -30,8 +30,13 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
+#include "components/data_server/request_handler/get_values_adapter.h"
+#include "components/data_server/server/lifecycle_heartbeat.h"
 #include "components/data_server/server/parameter_fetcher.h"
-#include "components/udf/code_fetcher.h"
+#include "components/sharding/cluster_mappings_manager.h"
+#include "components/sharding/shard_manager.h"
+#include "components/udf/get_values_hook.h"
+#include "components/udf/run_query_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/util/platform_initializer.h"
 #include "grpcpp/grpcpp.h"
@@ -51,7 +56,6 @@ class Server {
   absl::Status Init(
       std::unique_ptr<const ParameterClient> parameter_client = nullptr,
       std::unique_ptr<InstanceClient> instance_client = nullptr,
-      std::unique_ptr<CodeFetcher> code_fetcher = nullptr,
       std::unique_ptr<UdfClient> udf_client = nullptr);
 
   // Wait for the server to shut down. Note that some other thread must be
@@ -65,10 +69,9 @@ class Server {
 
  private:
   // If objects were not passed in for unit testing purposes then create them.
-  absl::Status CreateDefaultInstancesIfNecessary(
+  absl::Status CreateDefaultInstancesIfNecessaryAndGetEnvironment(
       std::unique_ptr<const ParameterClient> parameter_client,
       std::unique_ptr<InstanceClient> instance_client,
-      std::unique_ptr<CodeFetcher> code_fetcher,
       std::unique_ptr<UdfClient> udf_client);
 
   absl::Status InitOnceInstancesAreCreated();
@@ -78,7 +81,7 @@ class Server {
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
   CreateStreamRecordReaderFactory(const ParameterFetcher& parameter_fetcher);
   std::unique_ptr<DataOrchestrator> CreateDataOrchestrator(
-      const ParameterFetcher& parameter_fetcher, UdfClient& udf_client);
+      const ParameterFetcher& parameter_fetcher);
 
   void CreateGrpcServices(const ParameterFetcher& parameter_fetcher);
   absl::Status MaybeShutdownNotifiers();
@@ -88,12 +91,15 @@ class Server {
   std::unique_ptr<DeltaFileNotifier> CreateDeltaFileNotifier(
       const ParameterFetcher& parameter_fetcher);
 
-  std::unique_ptr<grpc::Server> CreateAndStartInternalLookupServer();
+  absl::StatusOr<std::unique_ptr<grpc::Server>>
+  CreateAndStartInternalLookupServer();
+  std::unique_ptr<grpc::Server> CreateAndStartRemoteLookupServer();
 
-  void SetUdfCodeObject(CodeFetcher& code_fetcher);
+  void SetDefaultUdfCodeObject();
 
   void InitializeTelemetry(const ParameterClient& parameter_client,
                            InstanceClient& instance_client);
+  absl::Status CreateShardManager();
 
   // This must be first, otherwise the AWS SDK will crash when it's called:
   PlatformInitializer platform_initializer_;
@@ -106,7 +112,9 @@ class Server {
   std::vector<std::unique_ptr<grpc::Service>> grpc_services_;
   std::unique_ptr<grpc::Server> grpc_server_;
   std::unique_ptr<Cache> cache_;
-  std::unique_ptr<CodeFetcher> code_fetcher_;
+  std::unique_ptr<GetValuesAdapter> get_values_adapter_;
+  std::unique_ptr<GetValuesHook> get_values_hook_;
+  std::unique_ptr<RunQueryHook> run_query_hook_;
 
   // BlobStorageClient must outlive DeltaFileNotifier
   std::unique_ptr<BlobStorageClient> blob_client_;
@@ -123,11 +131,22 @@ class Server {
 
   std::unique_ptr<DataOrchestrator> data_orchestrator_;
 
-  // Internal Lookup Server
+  // Internal Lookup Server -- lookup requests to this server originate (from
+  // UDF sandbox) and terminate on the same machine.
   std::unique_ptr<grpc::Service> internal_lookup_service_;
   std::unique_ptr<grpc::Server> internal_lookup_server_;
 
+  std::unique_ptr<ShardManager> shard_manager_;
+  // Internal Sharded Lookup Server --
+  // if `num_shards` > 1, then serves requests originating from servers with
+  // a different `shard_num`. Only has data for `shard_num` assigned to the
+  // server at the start up. if `num_shards` == 1, then null, since no remote
+  // lookups are necessray
+  std::unique_ptr<grpc::Service> remote_lookup_service_;
+  std::unique_ptr<grpc::Server> remote_lookup_server_;
+
   std::unique_ptr<UdfClient> udf_client_;
+  std::unique_ptr<ClusterMappingsManager> cluster_mappings_manager_;
 
   int32_t shard_num_;
   int32_t num_shards_;

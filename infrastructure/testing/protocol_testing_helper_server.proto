@@ -32,16 +32,13 @@ service ProtocolTestingHelper {
 
   // Given a cleartext http message body in bytes format, wraps it in BinaryHTTP
   // format.
-  rpc BHTTPEncapsulate(BHTTPEncapsulateRequest)
-      returns (BHTTPEncapsulateResponse) {}
+  rpc BHTTPEncapsulate(BHTTPEncapsulateRequest) returns (BHTTPEncapsulateResponse) {}
 
   // Given a BinaryHTTP message, unwraps it into a cleartext message.
-  rpc BHTTPDecapsulate(BHTTPDecapsulateRequest)
-      returns (BHTTPDecapsulateResponse) {}
+  rpc BHTTPDecapsulate(BHTTPDecapsulateRequest) returns (BHTTPDecapsulateResponse) {}
 
   // Wraps a byte string with Oblivious HTTP encryption.
-  rpc OHTTPEncapsulate(OHTTPEncapsulateRequest)
-      returns (OHTTPEncapsulateResponse) {}
+  rpc OHTTPEncapsulate(OHTTPEncapsulateRequest) returns (OHTTPEncapsulateResponse) {}
 
   // Decrypts a ciphertext encrypted by OHTTP. This is specifically for
   // decrypting response from the OHTTP gateway (server). That is, if you need
@@ -53,8 +50,7 @@ service ProtocolTestingHelper {
   // OHTTPEncapsulate on this particular helper server process for this RPC to
   // work. The context_token used as input to this RPC should be from the
   // response of the earlier call.
-  rpc OHTTPDecapsulate(OHTTPDecapsulateRequest)
-      returns (OHTTPDecapsulateResponse) {}
+  rpc OHTTPDecapsulate(OHTTPDecapsulateRequest) returns (OHTTPDecapsulateResponse) {}
 }
 
 message GetTestConfigRequest {}

@@ -1,3 +1,4 @@
+build --announce_rc
 build --verbose_failures
 build --client_env=CC=clang
 build --cxxopt=-std=c++17
@@ -61,3 +62,7 @@ build:ubsan --copt -O1
 build:ubsan --copt -fno-omit-frame-pointer
 build:ubsan --linkopt -fsanitize=undefined
 build:ubsan --linkopt -lubsan
+
+# --config local_instance: builds the service to run with the instance=local flag
+build:local_instance --//:instance=local
+build:local_instance --@google_privacysandbox_servers_common//:instance=local

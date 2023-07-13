@@ -20,8 +20,10 @@
 #include <functional>
 #include <istream>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -30,9 +32,10 @@
 #include "sqlite3.h"
 
 namespace kv_server {
-// A `RecordAggregator` aggregates `DeltaFileRecordStruct` records added to an
-// aggregator instance from potentially multiple record streams. Records can
-// be aggregated by repeatedly calling `InsertOrUpdateRecord(...)` as follows:
+// A `RecordAggregator` aggregates `KeyValueMutationRecordStruct` records added
+// to an aggregator instance from potentially multiple record streams. Records
+// can be aggregated by repeatedly calling `InsertOrUpdateRecord(...)` as
+// follows:
 //
 //```
 // auto record_aggregator = RecordAggregator::CreateInMemoryAggregator();
@@ -42,7 +45,7 @@ namespace kv_server {
 // for (auto record_stream : records_streams) {
 //   DeltaRecordStreamReader record_reader(record_stream);
 //   absl::Status status = record_reader.ReadRecords(
-//   [&](const DeltaFileRecordStruct& record) {
+//   [&](const KeyValueMutationRecordStruct& record) {
 //      return record_aggregator->InsertOrUpdateRecord(GetRecordKey(record),
 //        record);
 //   });
@@ -80,7 +83,7 @@ class RecordAggregator {
   // - !absl::OkStatus() - if there are any errors. The returned status
   // contains a detailed error message.
   absl::Status InsertOrUpdateRecord(int64_t record_key,
-                                    const DeltaFileRecordStruct& record);
+                                    const KeyValueMutationRecordStruct& record);
   // Reads a record keyed by `record_key` and calls the provided
   // `record_callback` function with the record. If no record keyed by
   // `record_key` exists, then `record_callback` is never called.
@@ -91,7 +94,8 @@ class RecordAggregator {
   // contains a detailed error message.
   absl::Status ReadRecord(
       int64_t record_key,
-      std::function<absl::Status(DeltaFileRecordStruct)> record_callback);
+      std::function<absl::Status(KeyValueMutationRecordStruct)>
+          record_callback);
   // Reads all records currently in the aggregator. The `record_callback`
   // function is called exactly once for each record.
   //
@@ -100,7 +104,8 @@ class RecordAggregator {
   // - !absl::OkStatus() - if there are any errors. The returned status
   // contains a detailed error message.
   absl::Status ReadRecords(
-      std::function<absl::Status(DeltaFileRecordStruct)> record_callback);
+      std::function<absl::Status(KeyValueMutationRecordStruct)>
+          record_callback);
   // Deletes record keyed by `record_key`. Silently succeeds if the record
   // does not exist.
   //
@@ -125,6 +130,9 @@ class RecordAggregator {
   };
   explicit RecordAggregator(std::unique_ptr<sqlite3, DbDeleter> db)
       : db_(std::move(db)) {}
+
+  absl::StatusOr<std::vector<std::string>> MergeSetValueIfRecordExists(
+      int64_t record_key, const KeyValueMutationRecordStruct& record);
 
   std::unique_ptr<sqlite3, DbDeleter> db_;
 };

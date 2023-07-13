@@ -17,6 +17,7 @@
 #include "components/tools/benchmarks/benchmark_util.h"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/numbers.h"
@@ -26,11 +27,10 @@
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 
 namespace kv_server::benchmark {
-namespace {
+
 std::string GenerateRandomString(const int64_t char_count) {
   return std::string(char_count, 'A' + (std::rand() % 15));
 }
-}  // namespace
 
 absl::Status WriteRecords(int64_t num_records, const int64_t record_size,
                           std::iostream& output_stream) {
@@ -42,14 +42,15 @@ absl::Status WriteRecords(int64_t num_records, const int64_t record_size,
   while (num_records > 0) {
     const std::string key = absl::StrCat("foo", num_records);
     const std::string value = GenerateRandomString(record_size);
-    auto status =
-        (*record_writer)
-            ->WriteRecord(DeltaFileRecordStruct{
-                .mutation_type = DeltaMutationType::Update,
-                .logical_commit_time = absl::ToUnixSeconds(absl::Now()),
-                .key = key,
-                .value = value,
-            });
+    auto kv_mutation_record = KeyValueMutationRecordStruct{
+        .mutation_type = KeyValueMutationType::Update,
+        .logical_commit_time = absl::ToUnixSeconds(absl::Now()),
+        .key = key,
+        .value = value,
+    };
+    auto status = (*record_writer)
+                      ->WriteRecord(DataRecordStruct{
+                          .record = std::move(kv_mutation_record)});
     if (!status.ok()) {
       return status;
     }

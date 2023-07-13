@@ -19,27 +19,139 @@
 
 #include <string_view>
 #include <utility>
+#include <variant>
+#include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "public/data_loading/data_loading_generated.h"
 
 namespace kv_server {
 
-std::string_view ToStringView(const flatbuffers::FlatBufferBuilder& fb_buffer);
-
-struct DeltaFileRecordStruct {
-  kv_server::DeltaMutationType mutation_type;
-  int64_t logical_commit_time;
-  std::string_view key;
-  std::string_view value;
-
-  flatbuffers::FlatBufferBuilder ToFlatBuffer() const;
+enum class DataRecordType : int {
+  kKeyValueMutationRecord,
+  kUserDefinedFunctionsConfig
 };
 
-bool operator==(const DeltaFileRecordStruct& lhs_record,
-                const DeltaFileRecordStruct& rhs_record);
+using KeyValueMutationRecordValueT =
+    std::variant<std::monostate, std::string_view,
+                 std::vector<std::string_view>>;
 
-bool operator!=(const DeltaFileRecordStruct& lhs_record,
-                const DeltaFileRecordStruct& rhs_record);
+struct KeyValueMutationRecordStruct {
+  KeyValueMutationType mutation_type;
+  int64_t logical_commit_time;
+  std::string_view key;
+  KeyValueMutationRecordValueT value;
+};
+
+struct UserDefinedFunctionsConfigStruct {
+  UserDefinedFunctionsLanguage language;
+  std::string_view code_snippet;
+  std::string_view handler_name;
+  int64_t logical_commit_time;
+};
+
+using RecordT = std::variant<std::monostate, KeyValueMutationRecordStruct,
+                             UserDefinedFunctionsConfigStruct>;
+
+struct DataRecordStruct {
+  RecordT record;
+};
+
+bool operator==(const KeyValueMutationRecordStruct& lhs_record,
+                const KeyValueMutationRecordStruct& rhs_record);
+bool operator!=(const KeyValueMutationRecordStruct& lhs_record,
+                const KeyValueMutationRecordStruct& rhs_record);
+
+bool operator==(const UserDefinedFunctionsConfigStruct& lhs_record,
+                const UserDefinedFunctionsConfigStruct& rhs_record);
+bool operator!=(const UserDefinedFunctionsConfigStruct& lhs_record,
+                const UserDefinedFunctionsConfigStruct& rhs_record);
+
+bool operator==(const DataRecordStruct& lhs_record,
+                const DataRecordStruct& rhs_record);
+bool operator!=(const DataRecordStruct& lhs_record,
+                const DataRecordStruct& rhs_record);
+
+// Returns true if the value has been default initialized and no variant was
+// set.
+bool IsEmptyValue(const KeyValueMutationRecordValueT& value);
+
+// Casts the flat buffer `record_buffer` into a string representation.
+std::string_view ToStringView(
+    const flatbuffers::FlatBufferBuilder& record_buffer);
+
+// Serializes the record struct to a flat buffer builder using format defined by
+// `data_loading.fbs:KeyValueMutationRecord` table.
+flatbuffers::FlatBufferBuilder ToFlatBufferBuilder(
+    const KeyValueMutationRecordStruct& record);
+
+// Serializes the file record struct to a flat buffer builder using format
+// defined by `data_loading.fbs:DataRecord` table.
+flatbuffers::FlatBufferBuilder ToFlatBufferBuilder(
+    const DataRecordStruct& data_record);
+
+// Deserializes "data_loading.fbs:KeyValueMutationRecord" raw flatbuffer record
+// bytes and calls `record_callback` with the resulting `KeyValueMutationRecord`
+// object.
+// Returns `absl::InvalidArgumentError` if deserilization fails, otherwise
+// returns the result of calling `record_callback`.
+absl::Status DeserializeRecord(
+    std::string_view record_bytes,
+    const std::function<absl::Status(const KeyValueMutationRecord&)>&
+        record_callback);
+
+// Deserializes "data_loading.fbs:KeyValueMutationRecord" raw flatbuffer record
+// bytes and calls `record_callback` with the resulting
+// `KeyValueMutationRecordStruct` object.
+// Returns `absl::InvalidArgumentError` if deserilization fails, otherwise
+// returns the result of calling `record_callback`.
+absl::Status DeserializeRecord(
+    std::string_view record_bytes,
+    const std::function<absl::Status(const KeyValueMutationRecordStruct&)>&
+        record_callback);
+
+// Deserializes "data_loading.fbs:DataRecord" raw flatbuffer record
+// bytes and calls `record_callback` with the resulting `DataRecord`
+// object.
+// Returns `absl::InvalidArgumentError` if deserialization fails, otherwise
+// returns the result of calling `record_callback`.
+absl::Status DeserializeDataRecord(
+    std::string_view record_bytes,
+    const std::function<absl::Status(const DataRecord&)>& record_callback);
+
+// Deserializes "data_loading.fbs:DataRecord" raw flatbuffer record
+// bytes and calls `record_callback` with the resulting
+// `DataRecordStruct` object.
+// Returns `absl::InvalidArgumentError` if deserilization fails, otherwise
+// returns the result of calling `record_callback`.
+absl::Status DeserializeDataRecord(
+    std::string_view record_bytes,
+    const std::function<absl::Status(const DataRecordStruct&)>&
+        record_callback);
+
+// Utility function to get the union value set on the `record`. Must
+// be called after checking the type of the union value using
+// `record.value_type()` function.
+template <typename ValueT>
+ValueT GetRecordValue(const KeyValueMutationRecord& record);
+template <>
+std::string_view GetRecordValue(const KeyValueMutationRecord& record);
+template <>
+std::vector<std::string_view> GetRecordValue(
+    const KeyValueMutationRecord& record);
+
+// Utility function to get the union record set on the `data_record`. Must
+// be called after checking the type of the union record using
+// `data_record.record_type()` function.
+template <typename RecordT>
+RecordT GetTypedRecordStruct(const DataRecord& data_record);
+template <>
+KeyValueMutationRecordStruct GetTypedRecordStruct(
+    const DataRecord& data_record);
+template <>
+UserDefinedFunctionsConfigStruct GetTypedRecordStruct(
+    const DataRecord& data_record);
 
 }  // namespace kv_server
 

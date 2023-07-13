@@ -73,7 +73,7 @@ function install_misc() {
 function install_packer() {
   yum install -y "yum-utils-1.1.31*"
   yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
-  yum -y install "packer-1.8.5*"
+  yum -y install "packer-1.9.1*"
   update-alternatives --install /usr/local/bin/packer packer /usr/bin/packer 100
 
   /usr/local/bin/packer version

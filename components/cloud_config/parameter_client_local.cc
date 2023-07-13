@@ -76,6 +76,9 @@ ABSL_FLAG(int32_t, s3client_max_connections, 1,
 ABSL_FLAG(int32_t, s3client_max_range_bytes, 1,
           "S3Client max range bytes for reading data files.");
 ABSL_FLAG(int32_t, num_shards, 1, "Total number of shards.");
+ABSL_FLAG(int32_t, udf_num_workers, 2, "Number of workers for UDF execution.");
+ABSL_FLAG(bool, route_v1_to_v2, false,
+          "Whether to route V1 requests through V2.");
 
 namespace kv_server {
 namespace {
@@ -124,7 +127,13 @@ class LocalParameterClient : public ParameterClient {
          absl::GetFlag(FLAGS_s3client_max_range_bytes)});
     int32_t_flag_values_.insert(
         {"kv-server-local-num-shards", absl::GetFlag(FLAGS_num_shards)});
+    int32_t_flag_values_.insert({"kv-server-local-udf-num-workers",
+                                 absl::GetFlag(FLAGS_udf_num_workers)});
     // Insert more int32 flag values here.
+
+    bool_flag_values_.insert({"kv-server-local-route-v1-to-v2",
+                              absl::GetFlag(FLAGS_route_v1_to_v2)});
+    // Insert more bool flag values here.
   }
 
   absl::StatusOr<std::string> GetParameter(
@@ -149,14 +158,27 @@ class LocalParameterClient : public ParameterClient {
     }
   }
 
+  absl::StatusOr<bool> GetBoolParameter(
+      std::string_view parameter_name) const override {
+    const auto& it = bool_flag_values_.find(parameter_name);
+    if (it != bool_flag_values_.end()) {
+      return it->second;
+    } else {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Unknown local bool parameter: ", parameter_name));
+    }
+  }
+
  private:
   absl::flat_hash_map<std::string, int32_t> int32_t_flag_values_;
   absl::flat_hash_map<std::string, std::string> string_flag_values_;
+  absl::flat_hash_map<std::string, bool> bool_flag_values_;
 };
 
 }  // namespace
 
-std::unique_ptr<ParameterClient> ParameterClient::Create() {
+std::unique_ptr<ParameterClient> ParameterClient::Create(
+    ParameterClient::ClientOptions client_options) {
   return std::make_unique<LocalParameterClient>();
 }
 

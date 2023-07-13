@@ -139,3 +139,21 @@ resource "aws_security_group_rule" "allow_ssh_instance_to_vpce_ingress" {
   type                     = "ingress"
   source_security_group_id = var.ssh_security_group_id
 }
+
+resource "aws_security_group_rule" "allow_ec2_to_ec2_endpoint_egress" {
+  from_port                = 50100
+  protocol                 = "TCP"
+  security_group_id        = var.instances_security_group_id
+  to_port                  = 50100
+  type                     = "egress"
+  source_security_group_id = var.instances_security_group_id
+}
+
+resource "aws_security_group_rule" "allow_ec2_to_ec2_endpoint_ingress" {
+  from_port                = 50100
+  protocol                 = "TCP"
+  security_group_id        = var.instances_security_group_id
+  to_port                  = 50100
+  type                     = "ingress"
+  source_security_group_id = var.instances_security_group_id
+}

@@ -43,7 +43,7 @@ proto_library(
 buf_lint_test(
     name = "riegeli_metadata_proto_lint",
     size = "small",
-    config = "//public:buf.yaml",
+    config = "//:buf.yaml",
     targets = [":riegeli_metadata_proto"],
 )
 
@@ -53,6 +53,9 @@ cc_library(
     hdrs = ["records_utils.h"],
     deps = [
         ":data_loading_fbs",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 

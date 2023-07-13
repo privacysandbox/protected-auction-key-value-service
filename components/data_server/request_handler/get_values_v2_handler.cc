@@ -23,6 +23,7 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
+#include "components/data_server/request_handler/ohttp_server_encryptor.h"
 #include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
@@ -33,7 +34,6 @@
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
 #include "src/cpp/telemetry/telemetry.h"
 
-constexpr char* kGetValuesV2HandlerSpan = "GetValuesV2Handler";
 constexpr char* kCacheKeyV2Hit = "CacheKeyHit";
 constexpr char* kCacheKeyV2Miss = "CacheKeyMiss";
 
@@ -63,6 +63,7 @@ absl::StatusOr<nlohmann::json> ExecuteUdfForKeyGroups(
   if (!maybe_udf_output_string.ok()) {
     return maybe_udf_output_string.status();
   }
+  VLOG(5) << "UDF output: " << maybe_udf_output_string.value();
   nlohmann::json key_group_outputs =
       nlohmann::json::parse(std::move(maybe_udf_output_string.value()), nullptr,
                             /*allow_exceptions=*/false,
@@ -212,38 +213,34 @@ nlohmann::json GetValuesV2Handler::BuildCompressionGroupsForDebugging(
   return output;
 }
 
-grpc::Status GetValuesV2Handler::GetValues(
-    const GetValuesRequest& request, google::api::HttpBody* response) const {
-  auto span = GetTracer()->StartSpan(kGetValuesV2HandlerSpan);
-  auto scope = opentelemetry::trace::Scope(span);
-
+absl::StatusOr<nlohmann::json> GetValuesV2Handler::GetValuesJsonResponse(
+    const v2::GetValuesRequest& request) const {
   absl::StatusOr<nlohmann::json> maybe_core_request_json =
       Parse(request.raw_body().data());
   if (!maybe_core_request_json.ok()) {
-    return grpc::Status(
-        StatusCode::INTERNAL,
-        std::string(maybe_core_request_json.status().message()));
+    return maybe_core_request_json.status();
   }
 
-  if (auto maybe_compression_groups = ProcessGetValuesCoreRequest(
-          udf_client_, maybe_core_request_json.value());
-      maybe_compression_groups.ok()) {
-    nlohmann::json response_json = BuildCompressionGroupsForDebugging(
-        std::move(maybe_compression_groups).value());
+  auto maybe_compression_groups =
+      ProcessGetValuesCoreRequest(udf_client_, maybe_core_request_json.value());
+  if (!maybe_compression_groups.ok()) {
+    return maybe_compression_groups.status();
+  }
+  nlohmann::json response_json = BuildCompressionGroupsForDebugging(
+      std::move(maybe_compression_groups).value());
+  VLOG(5) << "Uncompressed response: " << response_json.dump(1);
+  return response_json;
+}
 
-    if (response_json.size() > 0)
-      metrics_recorder_.IncrementEventCounter(kCacheKeyV2Hit);
-    else
-      metrics_recorder_.IncrementEventCounter(kCacheKeyV2Miss);
-
-    VLOG(5) << "Uncompressed response: " << response_json.dump(1);
-    response->set_data(response_json.dump());
+grpc::Status GetValuesV2Handler::GetValues(
+    const GetValuesRequest& request, google::api::HttpBody* response) const {
+  const auto maybe_response_json = GetValuesJsonResponse(request);
+  if (maybe_response_json.ok()) {
+    response->set_data(maybe_response_json.value().dump());
     return grpc::Status::OK;
-  } else {
-    return grpc::Status(
-        StatusCode::INTERNAL,
-        std::string(maybe_compression_groups.status().message()));
   }
+  return grpc::Status(StatusCode::INTERNAL,
+                      std::string(maybe_response_json.status().message()));
 }
 
 grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
@@ -332,54 +329,28 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
     const ObliviousGetValuesRequest& oblivious_request,
     google::api::HttpBody* oblivious_response) const {
   VLOG(9) << "Received ObliviousGetValues request. ";
-
-  const absl::StatusOr<uint8_t> maybe_req_key_id = quiche::
-      ObliviousHttpHeaderKeyConfig::ParseKeyIdFromObliviousHttpRequestPayload(
-          oblivious_request.raw_body().data());
-  if (!maybe_req_key_id.ok()) {
+  OhttpServerEncryptor encryptor;
+  auto maybe_plain_text =
+      encryptor.DecryptRequest(oblivious_request.raw_body().data());
+  if (!maybe_plain_text.ok()) {
     return grpc::Status(StatusCode::INTERNAL,
-                        absl::StrCat("Unable to get OHTTP key id: ",
-                                     maybe_req_key_id.status().message()));
+                        absl::StrCat(maybe_plain_text.status().code(), " : ",
+                                     maybe_plain_text.status().message()));
   }
-  const auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
-      *maybe_req_key_id, kKEMParameter, kKDFParameter, kAEADParameter);
-  if (!maybe_config.ok()) {
-    return grpc::Status(StatusCode::INTERNAL,
-                        absl::StrCat("Unable to build OHTTP config: ",
-                                     maybe_config.status().message()));
-  }
-
-  const auto ohttp_instance =
-      quiche::ObliviousHttpGateway::Create(test_private_key_, *maybe_config);
-
-  auto decrypted_req = ohttp_instance->DecryptObliviousHttpRequest(
-      oblivious_request.raw_body().data());
-
-  if (!decrypted_req.ok()) {
-    return grpc::Status(StatusCode::INTERNAL,
-                        std::string(decrypted_req.status().message()));
-  }
-  absl::string_view request_text = decrypted_req->GetPlaintextData();
-
   // Now process the binary http request
   std::string response;
-  if (const auto s = BinaryHttpGetValues(request_text, response); !s.ok()) {
+  if (const auto s = BinaryHttpGetValues(*maybe_plain_text, response);
+      !s.ok()) {
     return s;
   }
-
-  // encrypt/encapsulate the response
-  google::api::HttpBody bhttp_response;
-  auto server_request_context =
-      std::move(decrypted_req).value().ReleaseContext();
-  const auto encapsulate_resp = ohttp_instance->CreateObliviousHttpResponse(
-      response, server_request_context);
-  if (!encapsulate_resp.ok()) {
-    return grpc::Status(StatusCode::INTERNAL,
-                        std::string(encapsulate_resp.status().message()));
+  auto encrypted_response = encryptor.EncryptResponse(std::move(response));
+  if (!encrypted_response.ok()) {
+    return grpc::Status(grpc::StatusCode::INTERNAL,
+                        absl::StrCat(encrypted_response.status().code(), " : ",
+                                     encrypted_response.status().message()));
   }
   oblivious_response->set_content_type(std::string(kOHTTPResponseContentType));
-  oblivious_response->set_data(encapsulate_resp->EncapsulateAndSerialize());
-
+  oblivious_response->set_data(*encrypted_response);
   return grpc::Status::OK;
 }
 

@@ -69,3 +69,11 @@ output "s3client_max_range_bytes_parameter_arn" {
 output "num_shards_parameter_arn" {
   value = aws_ssm_parameter.num_shards_parameter.arn
 }
+
+output "udf_num_workers_parameter_arn" {
+  value = aws_ssm_parameter.udf_num_workers_parameter.arn
+}
+
+output "route_v1_requests_to_v2_parameter_arn" {
+  value = aws_ssm_parameter.route_v1_requests_to_v2_parameter.arn
+}

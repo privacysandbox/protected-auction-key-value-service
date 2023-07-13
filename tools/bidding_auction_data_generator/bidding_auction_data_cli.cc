@@ -49,8 +49,8 @@ ABSL_FLAG(int64_t, logical_commit_time, absl::ToUnixMicros(absl::Now()),
 ABSL_FLAG(int, num_keys_per_batch, 50,
           "The number of keys in one batch of http request");
 
-constexpr kv_server::DeltaMutationType kMutationType =
-    kv_server::DeltaMutationType::Update;
+constexpr kv_server::KeyValueMutationType kMutationType =
+    kv_server::KeyValueMutationType::Update;
 
 using kv_server::HttpValueRetriever;
 using Output = std::vector<absl::flat_hash_map<std::string, std::string>>;

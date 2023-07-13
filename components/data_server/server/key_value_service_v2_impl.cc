@@ -20,8 +20,6 @@
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 
-constexpr char* kGetValuesV2Span = "GetValuesv2";
-
 namespace kv_server {
 namespace {
 
@@ -39,9 +37,6 @@ grpc::ServerUnaryReactor* HandleRequest(
     CallbackServerContext* context, const RequestT* request,
     ResponseT* response, const GetValuesV2Handler& handler,
     HandlerFunctionT<RequestT, ResponseT> handler_function) {
-  auto span = GetTracer()->StartSpan(kGetValuesV2Span);
-  auto scope = opentelemetry::trace::Scope(span);
-
   grpc::Status status = (handler.*handler_function)(*request, response);
 
   auto* reactor = context->DefaultReactor();

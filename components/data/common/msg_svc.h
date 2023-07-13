@@ -18,6 +18,7 @@
 #define COMPONENTS_DATA_COMMON_MSG_SVC_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -46,7 +47,8 @@ class MessageService {
   virtual void Reset() = 0;
 
   static absl::StatusOr<std::unique_ptr<MessageService>> Create(
-      NotifierMetadata notifier_metadata);
+      NotifierMetadata notifier_metadata,
+      std::optional<int32_t> shard_num = std::nullopt);
 };
 
 }  // namespace kv_server

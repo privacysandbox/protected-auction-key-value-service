@@ -26,6 +26,9 @@
 
 namespace kv_server::benchmark {
 
+// Generates a random string with `char_count` characters.
+std::string GenerateRandomString(const int64_t char_count);
+
 // Write num_records, each with a size of record_size, to output_stream.
 absl::Status WriteRecords(int64_t num_records, int64_t record_size,
                           std::iostream& output_stream);

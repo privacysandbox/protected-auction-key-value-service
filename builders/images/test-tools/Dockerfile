@@ -19,12 +19,17 @@ WORKDIR /build
 ADD https://github.com/shekyan/slowhttptest/archive/refs/tags/v1.9.0.tar.gz /build
 RUN tar xz --strip-components 1 -f v1.9.0.tar.gz && ls -l && ./configure && make
 
-FROM golang:1.19.4-alpine3.17 AS golang-1.19
+FROM golang:1.19.4-alpine3.17 AS golang
+ENV BUILD_ARCH="${TARGETARCH}" \
+    GOBIN=/usr/local/go/bin
+COPY build_golang_apps /scripts/
+RUN /scripts/build_golang_apps
+
 FROM fullstorydev/grpcurl:v1.8.7 AS grpcurl
 FROM alpine:3.17.2
 
-COPY --from=golang-1.19 /usr/local/go/ /usr/local/go/
-COPY --from=grpcurl /bin/grpcurl /usr/bin
+COPY --from=golang /usr/local/go/bin/* /usr/local/bin/
+COPY --from=grpcurl /bin/grpcurl /usr/local/bin/
 
 ARG TARGETARCH
 ENV BUILD_ARCH="${TARGETARCH}" \

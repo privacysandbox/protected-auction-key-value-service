@@ -92,6 +92,7 @@ cc_test(
     ],
     deps = [
         ":lifecycle_heartbeat",
+        ":mocks",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
@@ -131,16 +132,19 @@ cc_library(
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/data_loading:data_orchestrator",
+        "//components/data_server/request_handler:get_values_adapter",
         "//components/data_server/request_handler:get_values_handler",
         "//components/data_server/request_handler:get_values_v2_handler",
         "//components/errors:retry",
-        "//components/internal_lookup:constants",
-        "//components/internal_lookup:lookup_client_impl",
-        "//components/internal_lookup:lookup_server_impl",
+        "//components/internal_server:constants",
+        "//components/internal_server:lookup_client_impl",
+        "//components/internal_server:lookup_server_impl",
+        "//components/internal_server:sharded_lookup_server_impl",
+        "//components/sharding:cluster_mappings_manager",
         "//components/telemetry:kv_telemetry",
-        "//components/udf:code_fetcher",
-        "//components/udf:get_values_hook_impl",
+        "//components/udf:get_values_hook",
         "//components/udf:udf_client",
+        "//components/udf:udf_config_builder",
         "//components/util:periodic_closure",
         "//components/util:platform_initializer",
         "//components/util:version_linkstamp",
@@ -154,6 +158,7 @@ cc_library(
         "@com_github_grpc_grpc//:grpc++_reflection",  # for grpc_cli
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/strings",
         "@google_privacysandbox_servers_common//src/cpp/telemetry",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:init",
@@ -170,6 +175,7 @@ cc_test(
         "//:local_platform": ["server_local_test.cc"],
     }),
     deps = [
+        ":mocks",
         ":server_lib",
         "//components/udf:mocks",
         "@com_google_absl//absl/flags:flag",
@@ -186,6 +192,7 @@ cc_binary(
     visibility = ["//production/packaging:__subpackages__"],
     deps = [
         ":server_lib",
+        "//components/sharding:shard_manager",
         "//components/util:version_linkstamp",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/debugging:failure_signal_handler",
@@ -213,5 +220,15 @@ sh_test(
     tags = [
         "local",  # local precludes remote caching
         "smoke",
+    ],
+)
+
+cc_library(
+    name = "mocks",
+    testonly = 1,
+    hdrs = ["mocks.h"],
+    visibility = ["//components/sharding:__subpackages__"],
+    deps = [
+        "@com_google_googletest//:gtest",
     ],
 )

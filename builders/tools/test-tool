@@ -43,7 +43,7 @@ case "${APP_LINK_TARGET}" in
 esac
 readonly IMAGE
 
-# shellcheck disable=SC1091
+# shellcheck disable=SC1090
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
 TOOLS_DIR="$(builder::get_tools_dir)"
 readonly TOOLS_DIR
@@ -63,6 +63,7 @@ declare -a DOCKER_RUN_ARGS=(
   --workdir /src/workspace/"${REL_PWD}"
 )
 if [[ -n ${EXTRA_DOCKER_RUN_ARGS} ]]; then
+  # shellcheck disable=SC2207
   DOCKER_RUN_ARGS+=(
     $(echo "${EXTRA_DOCKER_RUN_ARGS}" | envsubst)
   )

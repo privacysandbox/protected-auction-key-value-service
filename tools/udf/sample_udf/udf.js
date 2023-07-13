@@ -20,15 +20,20 @@ function HandleRequest(input) {
     const keyGroupOutput = {};
     keyGroupOutput.tags = keyGroup.tags;
 
-    const kvPairs = JSON.parse(getValues(keyGroup.keyList)).kvPairs;
-    const keyValuesOutput = {};
-    for (const key in kvPairs) {
-      if (kvPairs[key].hasOwnProperty("value")) {
-        keyValuesOutput[key] = { "value": kvPairs[key].value };
+    const getValuesResult = JSON.parse(getValues(keyGroup.keyList));
+    // getValuesResult returns "kvPairs" when successful and "code" on failure.
+    // Ignore failures and only add successful getValuesResult lookups to output.
+    if (getValuesResult.hasOwnProperty("kvPairs")) {
+      const kvPairs = getValuesResult.kvPairs;
+      const keyValuesOutput = {};
+      for (const key in kvPairs) {
+        if (kvPairs[key].hasOwnProperty("value")) {
+          keyValuesOutput[key] = { "value": kvPairs[key].value };
+        }
       }
+      keyGroupOutput.keyValues = keyValuesOutput;
+      keyGroupOutputs.push(keyGroupOutput);
     }
-    keyGroupOutput.keyValues = keyValuesOutput;
-    keyGroupOutputs.push(keyGroupOutput);
   }
   return {keyGroupOutputs, udfOutputApiVersion: 1};
 }

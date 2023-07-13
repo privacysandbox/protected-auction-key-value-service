@@ -48,15 +48,21 @@ TEST(BenchmarkUtilTest, VerifyParseInt64ListFailsWithInvalidList) {
 TEST(BenchmarkUtilTest, VerifyWriteRecords) {
   std::stringstream data_stream;
   int64_t num_records = 1000;
-  int64_t record_size = 100;
+  int64_t record_size = 2048;
   auto status = WriteRecords(num_records, record_size, data_stream);
   EXPECT_TRUE(status.ok()) << status;
   DeltaRecordStreamReader record_reader(data_stream);
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(num_records)
-      .WillRepeatedly([record_size](DeltaFileRecordStruct record) {
-        EXPECT_EQ(record.value.size(), record_size);
+      .WillRepeatedly([record_size](DataRecordStruct data_record) {
+        if (std::holds_alternative<KeyValueMutationRecordStruct>(
+                data_record.record)) {
+          auto kv_record =
+              std::get<KeyValueMutationRecordStruct>(data_record.record);
+          EXPECT_EQ(std::get<std::string_view>(kv_record.value).size(),
+                    record_size);
+        }
         return absl::OkStatus();
       });
   status = record_reader.ReadRecords(record_callback.AsStdFunction());

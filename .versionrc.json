@@ -16,6 +16,36 @@
   "tagPrefix": "release-",
   "types": [
     {
+      "section": "API: Features",
+      "type": "feat",
+      "scope": "api"
+    },
+    {
+      "section": "API: Fixes",
+      "type": "fix",
+      "scope": "api"
+    },
+    {
+      "section": "Terraform",
+      "type": "feat",
+      "scope": "terraform"
+    },
+    {
+      "section": "Terraform",
+      "type": "fix",
+      "scope": "terraform"
+    },
+    {
+      "section": "Build Tools: Features",
+      "type": "feat",
+      "scope": "build"
+    },
+    {
+      "section": "Build Tools: Fixes",
+      "type": "fix",
+      "scope": "build"
+    },
+    {
       "section": "Features",
       "type": "feat"
     },
@@ -26,10 +56,6 @@
     {
       "section": "Documentation",
       "type": "docs"
-    },
-    {
-      "section": "Terraform",
-      "type": "terraform"
     },
     {
       "hidden": true,

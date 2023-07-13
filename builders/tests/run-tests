@@ -21,7 +21,7 @@ set -o errexit
 
 trap _cleanup EXIT
 function _cleanup() {
-  declare -r -i STATUS=$?
+  local -r -i STATUS=$?
   if [[ -d ${TMP_HASHES_DIR1} ]]; then
     rm -rf "${TMP_HASHES_DIR1}" "${TMP_HASHES_DIR2}"
   fi
@@ -33,8 +33,9 @@ function _cleanup() {
 }
 
 function get_image_list() {
-  declare -r _images_dir="$1"
-  find "${_images_dir}" -maxdepth 1 -mindepth 1 -type d -printf "%P\n" | sort
+  local -r _images_dir="$1"
+  find "${_images_dir}" -maxdepth 1 -mindepth 1 -type d -printf "%P\n" \
+    | sort
 }
 
 function usage() {
@@ -44,6 +45,7 @@ usage:
   $0 <options>
     --image <name>  Run tests only for specified image
     --fast          Only generate hashes directly rather than also using cbuild
+    --build-images  Build the images
     --verbose       Produce verbose output
 USAGE
   # shellcheck disable=SC2086
@@ -52,6 +54,7 @@ USAGE
 
 declare -i FAST=0
 declare -i VERBOSE=0
+declare -i BUILD_IMAGES=0
 declare IMAGE
 
 while [[ $# -gt 0 ]]; do
@@ -61,10 +64,14 @@ while [[ $# -gt 0 ]]; do
       if [[ -z ${IMAGE} ]]; then
         usage
       fi
-      shift 2
+      shift 2 || usage
       ;;
     --fast)
       FAST=1
+      shift
+      ;;
+    --build-images)
+      BUILD_IMAGES=1
       shift
       ;;
     --verbose)
@@ -116,7 +123,7 @@ function cli_tests_test-tools() {
 
 function cli_tests_misc() {
   declare -a -r TOOLS=(
-    "${TOOLS_DIR}/aws-cli --help"
+    "${TOOLS_DIR}/aws-cli help"
     "${TOOLS_DIR}/awscurl --help"
   )
   printf "Testing utils CLI tool wrappers\n"
@@ -158,70 +165,82 @@ function cli_tests_release() {
 }
 
 function create_temp_hash_dir() {
-  declare -r DIR=$(mktemp --directory)
+  local -r DIR="$(mktemp --directory)"
   cp "${HASHES_DIR}"/* "${DIR}"
   printf "%s" "${DIR}"
 }
-
-TMP_HASHES_DIR1=$(create_temp_hash_dir)
 
 # warning when running inside a docker container
 if [[ -f /.dockerenv ]]; then
   printf "warning: Executing within docker container, which obviates testing in a non-docker environment\n" &>/dev/stderr
 fi
-printf "Generating image hashes (direct mode)\n"
-declare -a -r GET_BUILDER_IMAGE_ARGS=(
-  --no-build
+
+declare -a GET_BUILDER_IMAGE_ARGS=(
   --sha-only
 )
-for img in ${IMAGE_LIST}; do
-  # shellcheck disable=SC2086
-  if ! "${TOOLS_DIR}"/get-builder-image-tagged "${GET_BUILDER_IMAGE_ARGS[@]}" --image ${img} >"${TMP_HASHES_DIR1}/${img}"; then
-    printf "Error generating image hash: %s\n" "${img}" &>/dev/stderr
-    RETCODE+=1
-  fi
-done
-
-BASELINE_UPDATES="$(diff --brief "${HASHES_DIR}" "${TMP_HASHES_DIR1}" || true)"
-readonly BASELINE_UPDATES
-if [[ -n $BASELINE_UPDATES ]]; then
-  # shellcheck disable=SC2086
-  printf "detected shift in baseline files:\n%s\n" "${BASELINE_UPDATES}"
-  if [[ ${VERBOSE} -eq 1 ]]; then
-    diff "${HASHES_DIR}" "${TMP_HASHES_DIR1}" || true
-  fi
-  cp --force "${TMP_HASHES_DIR1}"/* "${HASHES_DIR}"
-  RETCODE+=10
-else
-  printf "hashes unchanged\n"
+if [[ ${BUILD_IMAGES} -eq 0 ]]; then
+  GET_BUILDER_IMAGE_ARGS+=(--no-build)
 fi
+
+function generate_hashes_direct() {
+  TMP_HASHES_DIR1=$(create_temp_hash_dir)
+  printf "Generating image hashes (direct mode)\n"
+
+  for img in ${IMAGE_LIST}; do
+    # shellcheck disable=SC2086
+    if ! "${TOOLS_DIR}"/get-builder-image-tagged "${GET_BUILDER_IMAGE_ARGS[@]}" --image ${img} >"${TMP_HASHES_DIR1}/${img}"; then
+      printf "Error generating image hash: %s\n" "${img}" &>/dev/stderr
+      RETCODE+=1
+    fi
+  done
+
+  BASELINE_UPDATES="$(diff --brief "${HASHES_DIR}" "${TMP_HASHES_DIR1}" || true)"
+  readonly BASELINE_UPDATES
+  if [[ -n $BASELINE_UPDATES ]]; then
+    # shellcheck disable=SC2086
+    printf "detected shift in baseline files:\n%s\n" "${BASELINE_UPDATES}"
+    if [[ ${VERBOSE} -eq 1 ]]; then
+      diff "${HASHES_DIR}" "${TMP_HASHES_DIR1}" || true
+    fi
+    cp --force "${TMP_HASHES_DIR1}"/* "${HASHES_DIR}"
+    RETCODE+=10
+  else
+    printf "hashes unchanged\n"
+  fi
+}
+
+function generate_hashes_cbuild() {
+  TMP_HASHES_DIR2=$(create_temp_hash_dir)
+
+  printf "Generating image hashes (cbuild mode)\n"
+  for img in ${IMAGE_LIST}; do
+    if ! "${TOOLS_DIR}"/cbuild --image build-debian --cmd "tools/get-builder-image-tagged ${GET_BUILDER_IMAGE_ARGS[*]} --image ${img}" >"${TMP_HASHES_DIR2}/${img}"; then
+      printf "Error generating image hash: %s\n" "${img}" &>/dev/stderr
+      RETCODE+=1
+    fi
+  done
+
+  MODE_MISMATCH="$(diff --brief "${TMP_HASHES_DIR1}" "${TMP_HASHES_DIR2}" || true)"
+  readonly MODE_MISMATCH
+  if [[ -n $MODE_MISMATCH ]]; then
+    # shellcheck disable=SC2086
+    printf "Error: mismatch between direct and cbuild modes\n%s" "${MODE_MISMATCH}" &>/dev/stderr
+    if [[ ${VERBOSE} -eq 1 ]]; then
+      diff "${TMP_HASHES_DIR1}" "${TMP_HASHES_DIR2}" || true
+    fi
+    RETCODE+=100
+  else
+    printf "hashes unchanged\n"
+  fi
+}
+
+generate_hashes_direct
 
 if [[ ${FAST} -eq 1 ]]; then
   exit ${RETCODE}
 fi
 
-TMP_HASHES_DIR2=$(create_temp_hash_dir)
-
-printf "Generating image hashes (cbuild mode)\n"
-for img in ${IMAGE_LIST}; do
-  if ! "${TOOLS_DIR}"/cbuild --image build-debian --cmd "tools/get-builder-image-tagged ${GET_BUILDER_IMAGE_ARGS[*]} --image ${img}" >"${TMP_HASHES_DIR2}/${img}"; then
-    printf "Error generating image hash: %s\n" "${img}" &>/dev/stderr
-    RETCODE+=1
-  fi
-done
-
-MODE_MISMATCH="$(diff --brief "${TMP_HASHES_DIR1}" "${TMP_HASHES_DIR2}" || true)"
-readonly MODE_MISMATCH
-if [[ -n $MODE_MISMATCH ]]; then
-  # shellcheck disable=SC2086
-  printf "Error: mismatch between direct and cbuild modes\n%s" "${MODE_MISMATCH}" &>/dev/stderr
-  if [[ ${VERBOSE} -eq 1 ]]; then
-    diff "${TMP_HASHES_DIR1}" "${TMP_HASHES_DIR2}" || true
-  fi
-  RETCODE+=100
-else
-  printf "hashes unchanged\n"
-fi
+generate_hashes_cbuild
 
 # CLI tests
 

@@ -79,3 +79,29 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "sharded_record_buffer",
+    srcs = ["sharded_record_buffer.cc"],
+    hdrs = ["sharded_record_buffer.h"],
+    deps = [
+        "//public/data_loading:records_utils",
+        "//public/sharding:sharding_function",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_riegeli//riegeli/bytes:ostream_writer",
+        "@com_google_riegeli//riegeli/records:record_writer",
+    ],
+)
+
+cc_test(
+    name = "sharded_record_buffer_test",
+    srcs = ["sharded_record_buffer_test.cc"],
+    deps = [
+        ":sharded_record_buffer",
+        "//public/data_loading/readers:delta_record_stream_reader",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

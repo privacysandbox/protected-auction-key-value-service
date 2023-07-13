@@ -43,8 +43,7 @@ service KeyValueService {
   // The response will be a binary Http response. The response will return 200
   // code as long as the binary Http response can be encoded. The actual status
   // code of the processing can be extracted from the binary Http response.
-  rpc BinaryHttpGetValues(BinaryHttpGetValuesRequest)
-      returns (google.api.HttpBody) {
+  rpc BinaryHttpGetValues(BinaryHttpGetValuesRequest) returns (google.api.HttpBody) {
     option (google.api.http) = {
       post: "/v2/bhttp_getvalues"
       body: "raw_body"
@@ -52,8 +51,7 @@ service KeyValueService {
   }
 
   // V2 GetValues API based on the Oblivious HTTP protocol.
-  rpc ObliviousGetValues(ObliviousGetValuesRequest)
-      returns (google.api.HttpBody) {
+  rpc ObliviousGetValues(ObliviousGetValuesRequest) returns (google.api.HttpBody) {
     option (google.api.http) = {
       post: "/v2/oblivious_getvalues"
       body: "raw_body"

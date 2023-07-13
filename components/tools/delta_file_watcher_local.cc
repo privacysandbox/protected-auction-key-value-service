@@ -24,7 +24,7 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/common/change_notifier.h"
-#include "components/data/common/thread_notifier.h"
+#include "components/data/common/thread_manager.h"
 #include "components/util/platform_initializer.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 

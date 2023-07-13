@@ -31,16 +31,18 @@
 namespace kv_server {
 namespace {
 
-size_t GetRecordKey(const DeltaFileRecordStruct& record) {
+size_t GetRecordKey(const KeyValueMutationRecordStruct& record) {
   return absl::HashOf(record.key);
 }
 
-DeltaFileRecordStruct GetDeltaRecord(std::string_view key = "key") {
-  DeltaFileRecordStruct record;
+KeyValueMutationRecordStruct GetDeltaRecord(
+    std::string_view key = "key",
+    KeyValueMutationRecordValueT value = "value") {
+  KeyValueMutationRecordStruct record;
   record.key = key;
-  record.value = "value";
+  record.value = value;
   record.logical_commit_time = 1234567890;
-  record.mutation_type = DeltaMutationType::Update;
+  record.mutation_type = KeyValueMutationType::Update;
   return record;
 }
 
@@ -75,10 +77,11 @@ TEST_P(RecordAggregatorTest, ValidateReadRecord) {
   status =
       (*record_aggregator)->InsertOrUpdateRecord(GetRecordKey(record), record);
   EXPECT_TRUE(status.ok()) << status;
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback1;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback1;
   EXPECT_CALL(record_callback1, Call)
       .Times(1)
-      .WillRepeatedly([](DeltaFileRecordStruct record) {
+      .WillRepeatedly([](KeyValueMutationRecordStruct record) {
         EXPECT_EQ(record, GetDeltaRecord());
         return absl::OkStatus();
       });
@@ -87,7 +90,8 @@ TEST_P(RecordAggregatorTest, ValidateReadRecord) {
           ->ReadRecord(GetRecordKey(record), record_callback1.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
   // We don't expect calls to our callback for records that do not exist.
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback2;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback2;
   EXPECT_CALL(record_callback2, Call).Times(0);
   status = (*record_aggregator)
                ->ReadRecord(std::hash<std::string>{}("non-existing-record-key"),
@@ -103,10 +107,11 @@ TEST_P(RecordAggregatorTest, ValidateDeleteRecord) {
   status =
       (*record_aggregator)->InsertOrUpdateRecord(GetRecordKey(record), record);
   EXPECT_TRUE(status.ok()) << status;
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback1;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback1;
   EXPECT_CALL(record_callback1, Call)
       .Times(1)
-      .WillRepeatedly([](DeltaFileRecordStruct record) {
+      .WillRepeatedly([](KeyValueMutationRecordStruct record) {
         EXPECT_EQ(record, GetDeltaRecord());
         return absl::OkStatus();
       });
@@ -116,7 +121,8 @@ TEST_P(RecordAggregatorTest, ValidateDeleteRecord) {
   EXPECT_TRUE(status.ok()) << status;
   status = (*record_aggregator)->DeleteRecord(GetRecordKey(record));
   EXPECT_TRUE(status.ok()) << status;
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback2;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback2;
   EXPECT_CALL(record_callback2, Call).Times(0);
   status =
       (*record_aggregator)
@@ -134,7 +140,8 @@ TEST_P(RecordAggregatorTest, ValidateDeleteRecords) {
   EXPECT_TRUE(status.ok()) << status;
   status = (*record_aggregator)->DeleteRecords();
   EXPECT_TRUE(status.ok()) << status;
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback;
   EXPECT_CALL(record_callback, Call).Times(0);
   status =
       (*record_aggregator)
@@ -150,10 +157,11 @@ TEST_P(RecordAggregatorTest, ValidateInsertingNonExistingRecord) {
   status =
       (*record_aggregator)->InsertOrUpdateRecord(GetRecordKey(record), record);
   EXPECT_TRUE(status.ok()) << status;
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(1)
-      .WillRepeatedly([](DeltaFileRecordStruct record) {
+      .WillRepeatedly([](KeyValueMutationRecordStruct record) {
         EXPECT_EQ(record, GetDeltaRecord());
         return absl::OkStatus();
       });
@@ -174,14 +182,16 @@ TEST_P(RecordAggregatorTest, ValidateInsertingMoreRecentRecord) {
   // Update record to be more recent and verify that updates are reflected in
   // stored record.
   record.logical_commit_time = record.logical_commit_time + 1;
-  std::string updated_value = absl::StrCat("Updated ", record.value);
+  std::string updated_value =
+      absl::StrCat("Updated ", std::get<std::string_view>(record.value));
   record.value = updated_value;
   status =
       (*record_aggregator)->InsertOrUpdateRecord(GetRecordKey(record), record);
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(1)
-      .WillRepeatedly([&](DeltaFileRecordStruct existing_record) {
+      .WillRepeatedly([&](KeyValueMutationRecordStruct existing_record) {
         EXPECT_EQ(existing_record, record);
         return absl::OkStatus();
       });
@@ -201,14 +211,16 @@ TEST_P(RecordAggregatorTest, ValidateInsertingOlderRecord) {
   EXPECT_TRUE(status.ok()) << status;
   // Update record to be older and verify that stored record is not updated.
   record.logical_commit_time = record.logical_commit_time - 1;
-  std::string updated_value = absl::StrCat("Updated ", record.value);
+  std::string updated_value =
+      absl::StrCat("Updated ", std::get<std::string_view>(record.value));
   record.value = updated_value;
   status =
       (*record_aggregator)->InsertOrUpdateRecord(GetRecordKey(record), record);
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(1)
-      .WillRepeatedly([](DeltaFileRecordStruct existing_record) {
+      .WillRepeatedly([](KeyValueMutationRecordStruct existing_record) {
         EXPECT_EQ(existing_record, GetDeltaRecord());
         return absl::OkStatus();
       });
@@ -229,14 +241,16 @@ TEST_P(RecordAggregatorTest, ValidateInsertingUpdatedRecordWithSameTimestamp) {
   // Update record and verify that stored record is updated.
   // Since updated record has the same timestamp, new values should be
   // reflected in store.
-  std::string updated_value = absl::StrCat("Updated ", record.value);
+  std::string updated_value =
+      absl::StrCat("Updated ", std::get<std::string_view>(record.value));
   record.value = updated_value;
   status =
       (*record_aggregator)->InsertOrUpdateRecord(GetRecordKey(record), record);
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(1)
-      .WillRepeatedly([&](DeltaFileRecordStruct existing_record) {
+      .WillRepeatedly([&](KeyValueMutationRecordStruct existing_record) {
         EXPECT_EQ(existing_record, record);
         return absl::OkStatus();
       });
@@ -254,10 +268,11 @@ TEST_P(RecordAggregatorTest, ValidateInsertingMultipleRecords) {
   status =
       (*record_aggregator)->InsertOrUpdateRecord(GetRecordKey(record), record);
   EXPECT_TRUE(status.ok()) << status;
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback1;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback1;
   EXPECT_CALL(record_callback1, Call)
       .Times(1)
-      .WillRepeatedly([](DeltaFileRecordStruct existing_record) {
+      .WillRepeatedly([](KeyValueMutationRecordStruct existing_record) {
         EXPECT_EQ(existing_record, GetDeltaRecord());
         return absl::OkStatus();
       });
@@ -270,10 +285,11 @@ TEST_P(RecordAggregatorTest, ValidateInsertingMultipleRecords) {
   status =
       (*record_aggregator)->InsertOrUpdateRecord(GetRecordKey(record), record);
   EXPECT_TRUE(status.ok()) << status;
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback2;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback2;
   EXPECT_CALL(record_callback2, Call)
       .Times(1)
-      .WillRepeatedly([&](DeltaFileRecordStruct existing_record) {
+      .WillRepeatedly([&](KeyValueMutationRecordStruct existing_record) {
         EXPECT_EQ(existing_record, record);
         return absl::OkStatus();
       });
@@ -286,7 +302,7 @@ TEST_P(RecordAggregatorTest, ValidateInsertingInvalidRecords) {
   auto record_aggregator = RecordAggregatorTest::CreateAggregator();
   auto status = (*record_aggregator)->DeleteRecords();
   EXPECT_TRUE(status.ok()) << status;
-  DeltaFileRecordStruct record;
+  KeyValueMutationRecordStruct record;
   status = (*record_aggregator)
                ->InsertOrUpdateRecord(std::hash<std::string>{}("key1"), record);
   EXPECT_FALSE(status.ok()) << status;
@@ -308,7 +324,8 @@ TEST_P(RecordAggregatorTest, ValidateReadingRecords) {
   EXPECT_TRUE(status.ok()) << status;
   constexpr std::array<std::string_view, 5> kRecordKeys = {
       "key1", "key2", "key3", "key4", "key5"};
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback;
   for (std::string_view key : kRecordKeys) {
     auto record = GetDeltaRecord(key);
     auto status = (*record_aggregator)
@@ -318,7 +335,8 @@ TEST_P(RecordAggregatorTest, ValidateReadingRecords) {
     // inserted records and each call should be with a record that matches an
     // inserted record.
     EXPECT_CALL(record_callback, Call(record))
-        .WillOnce([](DeltaFileRecordStruct) { return absl::OkStatus(); });
+        .WillOnce(
+            [](KeyValueMutationRecordStruct) { return absl::OkStatus(); });
   }
   EXPECT_TRUE(
       (*record_aggregator)->ReadRecords(record_callback.AsStdFunction()).ok());
@@ -328,7 +346,8 @@ TEST_P(RecordAggregatorTest, ValidateReadingRecordsFromEmptyAggregator) {
   auto record_aggregator = RecordAggregatorTest::CreateAggregator();
   auto status = (*record_aggregator)->DeleteRecords();
   EXPECT_TRUE(status.ok()) << status;
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback;
   EXPECT_CALL(record_callback, Call).Times(0);
   EXPECT_TRUE(
       (*record_aggregator)->ReadRecords(record_callback.AsStdFunction()).ok());
@@ -342,16 +361,45 @@ TEST_P(RecordAggregatorTest, ValidateReadingRecordsWhenCallbackFails) {
   status =
       (*record_aggregator)->InsertOrUpdateRecord(GetRecordKey(record), record);
   EXPECT_TRUE(status.ok()) << status;
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(1)
-      .WillOnce([&](DeltaFileRecordStruct record) {
+      .WillOnce([&](KeyValueMutationRecordStruct record) {
         return absl::InvalidArgumentError("Callback failed.");
       });
   status = (*record_aggregator)->ReadRecords(record_callback.AsStdFunction());
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
   EXPECT_STREQ(status.message().data(), "Callback failed.");
+}
+
+TEST_P(RecordAggregatorTest, ValidateAggregatingRecordsWithSetValues) {
+  auto record_aggregator = RecordAggregatorTest::CreateAggregator();
+  auto status = (*record_aggregator)->DeleteRecords();
+  EXPECT_TRUE(status.ok()) << status;
+  testing::MockFunction<absl::Status(KeyValueMutationRecordStruct)>
+      record_callback;
+  auto record1 = GetDeltaRecord(
+      "key1",
+      std::vector<std::string_view>{"value1", "value2", "value3", "value4"});
+  status = (*record_aggregator)
+               ->InsertOrUpdateRecord(GetRecordKey(record1), record1);
+  EXPECT_TRUE(status.ok()) << status;
+  auto record2 = GetDeltaRecord(
+      "key1", std::vector<std::string_view>{"value3", "value4", "value5"});
+  status = (*record_aggregator)
+               ->InsertOrUpdateRecord(GetRecordKey(record2), record2);
+  EXPECT_TRUE(status.ok()) << status;
+  EXPECT_CALL(record_callback, Call)
+      .WillOnce([](KeyValueMutationRecordStruct record) {
+        EXPECT_THAT(std::get<std::vector<std::string_view>>(record.value),
+                    testing::UnorderedElementsAre("value1", "value2", "value3",
+                                                  "value4", "value5"));
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(
+      (*record_aggregator)->ReadRecords(record_callback.AsStdFunction()).ok());
 }
 
 }  // namespace

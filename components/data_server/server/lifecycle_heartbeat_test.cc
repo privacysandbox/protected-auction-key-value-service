@@ -16,7 +16,9 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "components/data_server/server/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "src/cpp/telemetry/mocks.h"
@@ -53,22 +55,13 @@ class FakePeriodicClosure : public PeriodicClosure {
   std::function<void()> closure_;
 };
 
-class MockInstanceClient : public InstanceClient {
- public:
-  MOCK_METHOD(absl::StatusOr<std::string>, GetEnvironmentTag, (), (override));
-  MOCK_METHOD(absl::StatusOr<std::string>, GetShardNumTag, (), (override));
-  MOCK_METHOD(absl::Status, RecordLifecycleHeartbeat,
-              (std::string_view lifecycle_hook_name), (override));
-  MOCK_METHOD(absl::Status, CompleteLifecycle,
-              (std::string_view lifecycle_hook_name), (override));
-  MOCK_METHOD(absl::StatusOr<std::string>, GetInstanceId, (), (override));
-};
-
 class MockParameterClient : public ParameterClient {
  public:
   MOCK_METHOD(absl::StatusOr<std::string>, GetParameter,
               (std::string_view parameter_name), (const, override));
   MOCK_METHOD(absl::StatusOr<int32_t>, GetInt32Parameter,
+              (std::string_view parameter_name), (const, override));
+  MOCK_METHOD(absl::StatusOr<bool>, GetBoolParameter,
               (std::string_view parameter_name), (const, override));
 };
 
@@ -79,6 +72,8 @@ class MockParameterFetcher : public ParameterFetcher {
   MOCK_METHOD(std::string, GetParameter, (std::string_view parameter_suffix),
               (const, override));
   MOCK_METHOD(int32_t, GetInt32Parameter, (std::string_view parameter_suffix),
+              (const, override));
+  MOCK_METHOD(bool, GetBoolParameter, (std::string_view parameter_suffix),
               (const, override));
 
  private:

@@ -19,8 +19,8 @@
 #include "public/data_loading/aggregation/record_aggregator.h"
 #include "public/data_loading/records_utils.h"
 
-using kv_server::DeltaFileRecordStruct;
-using kv_server::DeltaMutationType;
+using kv_server::KeyValueMutationRecordStruct;
+using kv_server::KeyValueMutationType;
 using kv_server::RecordAggregator;
 
 static std::string GenerateRecordValue(int64_t char_count) {
@@ -30,9 +30,10 @@ static std::string GenerateRecordValue(int64_t char_count) {
 static void BM_InMemoryRecordAggregator_InsertRecord(benchmark::State& state) {
   auto record_aggregator = RecordAggregator::CreateInMemoryAggregator();
   std::string record_value = GenerateRecordValue(state.range(0));
-  DeltaFileRecordStruct record{.mutation_type = DeltaMutationType::Update,
-                               .logical_commit_time = 1234567890,
-                               .value = record_value};
+  KeyValueMutationRecordStruct record{
+      .mutation_type = KeyValueMutationType::Update,
+      .logical_commit_time = 1234567890,
+      .value = record_value};
   for (auto _ : state) {
     state.PauseTiming();
     std::string record_key = absl::StrCat("key", std::rand() % 10'000);

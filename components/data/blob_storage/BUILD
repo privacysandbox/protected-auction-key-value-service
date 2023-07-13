@@ -52,7 +52,7 @@ cc_library(
     name = "blob_storage_client",
     srcs = select({
         "//:aws_platform": ["blob_storage_client_s3.cc"],
-        "//:local_platform": [":blob_storage_client_local"],
+        "//:local_platform": ["blob_storage_client_local.cc"],
     }),
     hdrs = [
         "blob_storage_client.h",
@@ -73,29 +73,23 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "blob_storage_client_local",
-    srcs = ["blob_storage_client_local.cc"],
-    hdrs = [
-        "blob_storage_client.h",
-    ],
-    deps = [
-        ":seeking_input_streambuf",
-        "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-    ],
-)
-
 cc_test(
-    name = "local_blob_storage_client_test",
+    name = "blob_storage_client_test",
     size = "small",
-    srcs = [
-        "blob_storage_client_local_test.cc",
-    ],
-    deps = [
-        ":blob_storage_client_local",
+    srcs = select({
+        "//:aws_platform": ["blob_storage_client_s3_test.cc"],
+        "//:local_platform": ["blob_storage_client_local_test.cc"],
+    }),
+    deps = select({
+        "//:aws_platform": [
+            "//components/errors:aws_error_util",
+            "//components/util:platform_initializer",
+            "@aws_sdk_cpp//:s3",
+            "@aws_sdk_cpp//:transfer",
+        ],
+        "//conditions:default": [],
+    }) + [
+        ":blob_storage_client",
         "//components/data/common:mocks",
         "//components/util:sleepfor_mock",
         "//public/data_loading:filename_utils",
@@ -134,7 +128,15 @@ cc_test(
         ],
         "//:local_platform": ["blob_storage_change_notifier_local_test.cc"],
     }),
-    deps = [
+    deps = select({
+        "//:aws_platform": [
+            "//components/errors:aws_error_util",
+            "//components/util:platform_initializer",
+            "@aws_sdk_cpp//:sqs",
+        ],
+        "//:local_platform": [
+        ],
+    }) + [
         ":blob_storage_change_notifier",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
@@ -154,7 +156,7 @@ cc_library(
     deps = [
         ":blob_storage_change_notifier",
         ":blob_storage_client",
-        "//components/data/common:thread_notifier",
+        "//components/data/common:thread_manager",
         "//components/errors:retry",
         "//components/util:sleepfor",
         "//public:constants",

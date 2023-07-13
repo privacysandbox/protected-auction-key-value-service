@@ -38,15 +38,30 @@ cc_library(
 )
 
 cc_test(
-    name = "parameter_client_local_test",
+    name = "parameter_client_test",
     size = "small",
-    srcs = ["parameter_client_local_test.cc"],
-    deps = [
-        ":parameter_client_local",
-        "//components/data/common:mocks",
-        "//components/util:sleepfor_mock",
-        "@com_github_google_glog//:glog",
-        "@com_github_grpc_grpc//:grpc++",
+    srcs = select({
+        "//:aws_platform": [
+            "parameter_client_aws_test.cc",
+        ],
+        "//:local_platform": [
+            ":parameter_client_local_test.cc",
+        ],
+    }),
+    deps = select({
+        "//:aws_platform": [
+            "//components/util:platform_initializer",
+            "@aws_sdk_cpp//:core",
+            "@aws_sdk_cpp//:ssm",
+        ],
+        "//:local_platform": [
+            "//components/data/common:mocks",
+            "//components/util:sleepfor_mock",
+            "@com_github_google_glog//:glog",
+            "@com_github_grpc_grpc//:grpc++",
+        ],
+    }) + [
+        ":parameter_client",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -62,15 +77,15 @@ cc_library(
     ],
     deps = select({
         "//:aws_platform": [
+            "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:ssm",
-            "//components/errors:aws_error_util",
         ],
         "//conditions:default": [],
     }) + [
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/status",
         "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -85,18 +100,20 @@ cc_library(
     ],
     deps = select({
         "//:aws_instance": [
+            "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:autoscaling",
             "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:ec2",
-            "//components/errors:aws_error_util",
         ],
         "//:local_instance": [
             "@com_google_absl//absl/flags:flag",
         ],
         "//conditions:default": [],
     }) + [
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/status",
         "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )

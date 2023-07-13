@@ -113,3 +113,7 @@ EOF""",
     local = True,
     message = "copy bazel build and test logs",
 )
+
+exports_files([
+    "buf.yaml",
+])

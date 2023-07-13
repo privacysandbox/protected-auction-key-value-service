@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/compression.h"
@@ -49,6 +50,9 @@ class GetValuesV2Handler {
         metrics_recorder_(metrics_recorder),
         create_compression_group_concatenator_(
             std::move(create_compression_group_concatenator)) {}
+
+  absl::StatusOr<nlohmann::json> GetValuesJsonResponse(
+      const v2::GetValuesRequest& request) const;
 
   grpc::Status GetValues(const v2::GetValuesRequest& request,
                          google::api::HttpBody* response) const;
@@ -92,11 +96,6 @@ class GetValuesV2Handler {
   // Binary HTTP message.
   grpc::Status BinaryHttpGetValues(std::string_view bhttp_request_body,
                                    std::string& response) const;
-
-  // X25519 Secret key (private key).
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-2
-  const std::string test_private_key_ = absl::HexStringToBytes(
-      "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
 
   const UdfClient& udf_client_;
   std::function<CompressionGroupConcatenator::FactoryFunctionType>

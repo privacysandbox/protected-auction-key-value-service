@@ -31,6 +31,8 @@ class MockParameterClient : public ParameterClient {
               (std::string_view parameter_name), (const, override));
   MOCK_METHOD(absl::StatusOr<int32_t>, GetInt32Parameter,
               (std::string_view parameter_name), (const, override));
+  MOCK_METHOD(absl::StatusOr<bool>, GetBoolParameter,
+              (std::string_view parameter_name), (const, override));
 };
 
 TEST(ParameterFetcherTest, CreateChangeNotifierSmokeTest) {

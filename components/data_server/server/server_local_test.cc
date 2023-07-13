@@ -16,6 +16,7 @@
 
 #include <thread>
 
+#include "components/data_server/server/mocks.h"
 #include "components/data_server/server/server.h"
 #include "components/udf/mocks.h"
 #include "gmock/gmock.h"
@@ -29,22 +30,13 @@ using opentelemetry::sdk::resource::Resource;
 using privacy_sandbox::server_common::ConfigureMetrics;
 using testing::_;
 
-class MockInstanceClient : public InstanceClient {
- public:
-  MOCK_METHOD(absl::StatusOr<std::string>, GetEnvironmentTag, (), (override));
-  MOCK_METHOD(absl::StatusOr<std::string>, GetShardNumTag, (), (override));
-  MOCK_METHOD(absl::Status, RecordLifecycleHeartbeat,
-              (std::string_view lifecycle_hook_name), (override));
-  MOCK_METHOD(absl::Status, CompleteLifecycle,
-              (std::string_view lifecycle_hook_name), (override));
-  MOCK_METHOD(absl::StatusOr<std::string>, GetInstanceId, (), (override));
-};
-
 class MockParameterClient : public ParameterClient {
  public:
   MOCK_METHOD(absl::StatusOr<std::string>, GetParameter,
               (std::string_view parameter_name), (const, override));
   MOCK_METHOD(absl::StatusOr<int32_t>, GetInt32Parameter,
+              (std::string_view parameter_name), (const, override));
+  MOCK_METHOD(absl::StatusOr<bool>, GetBoolParameter,
               (std::string_view parameter_name), (const, override));
 
   void RegisterRequiredTelemetryExpectations() {
@@ -96,6 +88,7 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
   parameter_client->RegisterRequiredTelemetryExpectations();
+  auto mock_udf_client = std::make_unique<MockUdfClient>();
 
   EXPECT_CALL(*instance_client, GetEnvironmentTag())
       .WillOnce(::testing::Return("environment"));
@@ -122,14 +115,17 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
       .WillOnce(::testing::Return(1));
-
-  auto mock_udf_client = std::make_unique<MockUdfClient>();
-  auto mock_code_fetcher = std::make_unique<MockCodeFetcher>();
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-num-workers"))
+      .WillOnce(::testing::Return(2));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
 
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
-                  std::move(mock_code_fetcher), std::move(mock_udf_client));
+                  std::move(mock_udf_client));
   EXPECT_FALSE(status.ok());
 }
 
@@ -137,6 +133,7 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
   parameter_client->RegisterRequiredTelemetryExpectations();
+  auto mock_udf_client = std::make_unique<MockUdfClient>();
 
   EXPECT_CALL(*instance_client, GetEnvironmentTag())
       .WillOnce(::testing::Return("environment"));
@@ -173,19 +170,20 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
       .WillOnce(::testing::Return(1));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-num-workers"))
+      .WillOnce(::testing::Return(2));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
 
-  auto mock_udf_client = std::make_unique<MockUdfClient>();
-  auto mock_code_fetcher = std::make_unique<MockCodeFetcher>();
-  CodeConfig code_config{.js = "function SomeUDFCode(){}",
-                         .udf_handler_name = "SomeUDFCode"};
-
-  EXPECT_CALL(*mock_code_fetcher, FetchCodeConfig(_))
-      .WillOnce(testing::Return(code_config));
+  EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
+      .WillOnce(testing::Return(absl::OkStatus()));
 
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
-                  std::move(mock_code_fetcher), std::move(mock_udf_client));
+                  std::move(mock_udf_client));
   EXPECT_TRUE(status.ok());
 }
 
@@ -193,6 +191,7 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
   parameter_client->RegisterRequiredTelemetryExpectations();
+  auto mock_udf_client = std::make_unique<MockUdfClient>();
 
   EXPECT_CALL(*instance_client, GetEnvironmentTag())
       .WillOnce(::testing::Return("environment"));
@@ -229,19 +228,20 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
       .WillOnce(::testing::Return(1));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-num-workers"))
+      .WillOnce(::testing::Return(2));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
 
-  auto mock_udf_client = std::make_unique<MockUdfClient>();
-  auto mock_code_fetcher = std::make_unique<MockCodeFetcher>();
-  CodeConfig code_config{.js = "function SomeUDFCode(){}",
-                         .udf_handler_name = "SomeUDFCode"};
-
-  EXPECT_CALL(*mock_code_fetcher, FetchCodeConfig(_))
-      .WillOnce(testing::Return(code_config));
+  EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
+      .WillOnce(testing::Return(absl::OkStatus()));
 
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
-                  std::move(mock_code_fetcher), std::move(mock_udf_client));
+                  std::move(mock_udf_client));
   ASSERT_TRUE(status.ok());
   std::thread server_thread(&kv_server::Server::Wait, &server);
   server.GracefulShutdown(absl::Seconds(5));
@@ -252,6 +252,7 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
   parameter_client->RegisterRequiredTelemetryExpectations();
+  auto mock_udf_client = std::make_unique<MockUdfClient>();
 
   EXPECT_CALL(*instance_client, GetEnvironmentTag())
       .WillOnce(::testing::Return("environment"));
@@ -288,19 +289,20 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
       .WillOnce(::testing::Return(1));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-num-workers"))
+      .WillOnce(::testing::Return(2));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
 
-  auto mock_udf_client = std::make_unique<MockUdfClient>();
-  auto mock_code_fetcher = std::make_unique<MockCodeFetcher>();
-  CodeConfig code_config{.js = "function SomeUDFCode(){}",
-                         .udf_handler_name = "SomeUDFCode"};
-
-  EXPECT_CALL(*mock_code_fetcher, FetchCodeConfig(_))
-      .WillOnce(testing::Return(code_config));
+  EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
+      .WillOnce(testing::Return(absl::OkStatus()));
 
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
-                  std::move(mock_code_fetcher), std::move(mock_udf_client));
+                  std::move(mock_udf_client));
   ASSERT_TRUE(status.ok());
   std::thread server_thread(&kv_server::Server::Wait, &server);
   server.ForceShutdown();

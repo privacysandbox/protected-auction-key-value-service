@@ -28,41 +28,60 @@ function _cleanup() {
   exit ${STATUS}
 }
 
-ZIP_FILENAME="$1"
+function copy_log_outputs() {
+  declare -r _rootdest="$1"
+  declare -r _prune_to_dir="$2"
+  declare -r _filepath="$3"
+  declare -r _logpath="${_filepath##*/${_prune_to_dir}/}"
+  declare -r _destdir="${_rootdest}/${_logpath%/*}"
+  declare -r _fname="${_filepath##*/}"
+  declare -r _destfname="${_fname/#test./sponge_log.}"
+  mkdir -p "${_destdir}"
+  cp "${_filepath}" "${_destdir}/${_destfname}"
+}
+export -f copy_log_outputs
+
+function extract_test_outputs() {
+  declare -r _rootdest="$1"
+  declare -r _filepath="$2"
+  declare -r _logpath="${_filepath##*bazel-testlogs/}"
+  declare -r _destdir="${_rootdest}/${_logpath%/*/*}"
+  mkdir -p "${_destdir}"
+  unzip  -q -d "${_destdir}" "${_filepath}"
+}
+export -f extract_test_outputs
+
+
+declare ZIP_FILENAME="$1"
 if [[ ${ZIP_FILENAME##*.} != zip ]]; then
   ZIP_FILENAME=logs.zip
 fi
 SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly SCRIPT_DIR
 WORKSPACE="${WORKSPACE-"$(readlink -f "${SCRIPT_DIR}"/..)"}"
-TMPDIR="$(mktemp --directory)"
-readonly TMPDIR
-mkdir -p "${TMPDIR}"/{test,other}
-# copy all test.log and test.xml files to the testlogs dir
-if [[ -d "${WORKSPACE}"/bazel-testlogs ]]; then
-  find -L "${WORKSPACE}"/bazel-testlogs -name test.log -exec cp --parents {} "${TMPDIR}"/test ';'
-  find -L "${WORKSPACE}"/bazel-testlogs -name test.xml -exec cp --parents {} "${TMPDIR}"/test ';'
-fi
-# copy log files under bazel-out (other than test.log) to the buildlogs dir
-if [[ -d "${WORKSPACE}"/bazel-out ]]; then
-  find -L "${WORKSPACE}"/bazel-out -name "*.log" ! -name "test.log" -exec cp --parents {} "${TMPDIR}"/other ';'
-fi
-if compgen -G "${TMPDIR}/test/src/workspace/bazel-testlogs/*" &>/dev/null; then
-  mv --target-directory="${TMPDIR}"/test "${TMPDIR}"/test/src/workspace/bazel-testlogs/*
-  rmdir "${TMPDIR}"/test/{src/workspace/bazel-testlogs,src/workspace,src}
-fi
+readonly WORKSPACE
+OUTDIR="$(mktemp --directory)"
+readonly OUTDIR
+export OUTDIR
+mkdir -p "${OUTDIR}"/{test,other}
 
-if command -v rename &>/dev/null; then
-  # Rename the copied test.log and test.xml files to sponge_log.log and sponge_log.xml
-  find -L "${TMPDIR}" -name test.log -exec rename 's/test.log/sponge_log.log/' {} ';'
-  find -L "${TMPDIR}" -name test.xml -exec rename 's/test.xml/sponge_log.xml/' {} ';'
+if [[ -d "${WORKSPACE}"/bazel-testlogs ]]; then
+  # copy all test.log and test.xml files
+  find -L "${WORKSPACE}"/bazel-testlogs -type f '(' -name test.log -o -name test.xml ')' -exec bash -c 'copy_log_outputs "${OUTDIR}"/test bazel-testlogs "$0"' {} ';'
+  # extract test outputs
+  find -L "${WORKSPACE}"/bazel-testlogs -type f -name outputs.zip -exec bash -c 'extract_test_outputs "${OUTDIR}"/test "$0"' {} ';'
+fi
+if [[ -d "${WORKSPACE}"/bazel-out ]]; then
+  # copy log files under bazel-out (except for test.log)
+  find -L "${WORKSPACE}"/bazel-out -type f -name "*.log" ! -name test.log -exec bash -c 'copy_log_outputs "${OUTDIR}"/other bazel-out "$0"' {} ';'
 fi
 
 declare -r DISTDIR="${WORKSPACE}"/dist
 mkdir -p "${DISTDIR}"
 (
-  cd "${TMPDIR}"
+  cd "${OUTDIR}"
   zip -r -q "${DISTDIR}/${ZIP_FILENAME}" -- *
 )
 printf "stored bazel logs to %s\n" "${DISTDIR}/${ZIP_FILENAME}" &>/dev/stderr
 unzip -Z -h "${DISTDIR}/${ZIP_FILENAME}" &>/dev/stderr
-rm -rf "${TMPDIR}"
+rm -rf "${OUTDIR}"

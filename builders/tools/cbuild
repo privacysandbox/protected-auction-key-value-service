@@ -119,7 +119,7 @@ fi
 
 TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 readonly TOOLS_DIR
-# shellcheck disable=SC1091
+# shellcheck disable=SC1090
 source "${TOOLS_DIR}"/builder.sh
 
 WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
@@ -138,10 +138,10 @@ readonly IMAGE_TAGGED
 
 declare -a DOCKER_RUN_ARGS
 DOCKER_RUN_ARGS+=(
-  "--rm"
-  "--entrypoint=/bin/bash"
-  "--volume ${WORKSPACE_MOUNT}:/src/workspace"
-  "--workdir /src/workspace"
+  --rm
+  --entrypoint /bin/bash
+  --volume "${WORKSPACE_MOUNT}":/src/workspace
+  --workdir /src/workspace
   "$(echo "${EXTRA_DOCKER_RUN_ARGS}" | envsubst)"
 )
 
@@ -166,14 +166,14 @@ fi
 for evar in "${ENV_VARS[@]}"
 do
   DOCKER_RUN_ARGS+=(
-    "--env ${evar}"
+    "--env=${evar}"
   )
 done
 if [[ -t 0 ]] && [[ -t 1 ]]; then
   # stdin and stdout are open, assume it's an interactive tty session
   DOCKER_RUN_ARGS+=(
-    "--interactive"
-    "--tty"
+    --interactive
+    --tty
   )
 fi
 
@@ -184,12 +184,12 @@ if [[ -z ${CMD} ]]; then
   # shellcheck disable=SC2068
   docker run \
     ${DOCKER_RUN_ARGS[@]} \
-    ${IMAGE_TAGGED} \
+    "${IMAGE_TAGGED}" \
     --login
 else
   # shellcheck disable=SC2068
   docker run \
     ${DOCKER_RUN_ARGS[@]} \
-    ${IMAGE_TAGGED} \
+    "${IMAGE_TAGGED}" \
     --login -c "$CMD"
 fi

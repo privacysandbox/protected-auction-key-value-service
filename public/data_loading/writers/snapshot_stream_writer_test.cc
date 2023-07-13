@@ -46,13 +46,28 @@ KVFileMetadata GetSnapshotMetadata() {
   return metadata;
 }
 
-DeltaFileRecordStruct GetDeltaRecord(std::string_view key = "key") {
-  DeltaFileRecordStruct record;
+KeyValueMutationRecordStruct GetKVMutationRecord(std::string_view key = "key") {
+  KeyValueMutationRecordStruct record;
   record.key = key;
   record.value = "value";
   record.logical_commit_time = 1234567890;
-  record.mutation_type = DeltaMutationType::Update;
+  record.mutation_type = KeyValueMutationType::Update;
   return record;
+}
+
+UserDefinedFunctionsConfigStruct GetUserDefinedFunctionsConfig() {
+  UserDefinedFunctionsConfigStruct udf_config_record;
+  udf_config_record.language = UserDefinedFunctionsLanguage::Javascript;
+  udf_config_record.code_snippet = "function hello(){}";
+  udf_config_record.handler_name = "hello";
+  udf_config_record.logical_commit_time = 1234567890;
+  return udf_config_record;
+}
+
+DataRecordStruct GetDataRecord(const RecordT& record) {
+  DataRecordStruct data_record;
+  data_record.record = record;
+  return data_record;
 }
 
 std::filesystem::path GetRecordAggregatorDbFile() {
@@ -95,22 +110,23 @@ TEST_P(SnapshotStreamWriterTest, ValidateThatRecordsAreDedupedInSnapshot) {
   auto snapshot_writer =
       SnapshotStreamWriterTest::CreateSnapshotWriter(dest_stream);
   EXPECT_TRUE(snapshot_writer.ok()) << snapshot_writer.status();
-  auto record = GetDeltaRecord();
+  auto data_record = GetDataRecord(GetKVMutationRecord());
   // Write the same record to snapshot 3 times.
-  std::vector records{record, record, record};
-  for (const auto& recd : records) {
+  std::vector data_records{data_record, data_record, data_record};
+  for (const auto& recd : data_records) {
     auto status = (*snapshot_writer)->WriteRecord(recd);
     EXPECT_TRUE(status.ok()) << status;
   }
   auto status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
+
   DeltaRecordStreamReader record_reader(dest_stream);
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
   // We expect one call to record_callback because records will be deduped in
   // the snapshot stream.
-  EXPECT_CALL(record_callback, Call(record))
+  EXPECT_CALL(record_callback, Call(data_record))
       .Times(1)
-      .WillOnce([](DeltaFileRecordStruct) { return absl::OkStatus(); });
+      .WillOnce([](DataRecordStruct) { return absl::OkStatus(); });
   status = record_reader.ReadRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
@@ -120,19 +136,22 @@ TEST_P(SnapshotStreamWriterTest, ValidateThatDeletedRecordsAreNotInSnapshot) {
   auto snapshot_writer =
       SnapshotStreamWriterTest::CreateSnapshotWriter(dest_stream);
   EXPECT_TRUE(snapshot_writer.ok()) << snapshot_writer.status();
-  auto record = GetDeltaRecord();
-  auto status = (*snapshot_writer)->WriteRecord(record);
+  auto kv_record = GetKVMutationRecord();
+  auto data_record = GetDataRecord(kv_record);
+  auto status = (*snapshot_writer)->WriteRecord(data_record);
   EXPECT_TRUE(status.ok()) << status;
   // Delete the record written above.
-  record.mutation_type = DeltaMutationType::Delete;
-  record.logical_commit_time++;
-  status = (*snapshot_writer)->WriteRecord(record);
+  kv_record.mutation_type = KeyValueMutationType::Delete;
+  kv_record.logical_commit_time++;
+  auto data_record_with_deletion = GetDataRecord(kv_record);
+  status = (*snapshot_writer)->WriteRecord(data_record_with_deletion);
   EXPECT_TRUE(status.ok()) << status;
   status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
+
   DeltaRecordStreamReader record_reader(dest_stream);
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
-  EXPECT_CALL(record_callback, Call(record)).Times(0);
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  EXPECT_CALL(record_callback, Call(data_record)).Times(0);
   status = record_reader.ReadRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
@@ -143,22 +162,25 @@ TEST_P(SnapshotStreamWriterTest,
   auto snapshot_writer =
       SnapshotStreamWriterTest::CreateSnapshotWriter(dest_stream);
   EXPECT_TRUE(snapshot_writer.ok()) << snapshot_writer.status();
-  auto record = GetDeltaRecord();
-  auto status = (*snapshot_writer)->WriteRecord(record);
+  auto kv_record = GetKVMutationRecord();
+  auto data_record = GetDataRecord(kv_record);
+  auto status = (*snapshot_writer)->WriteRecord(data_record);
   EXPECT_TRUE(status.ok()) << status;
   // Update the record written above.
-  std::string value = absl::StrCat(record.value, "-updated");
-  record.value = value;
-  record.logical_commit_time++;
-  status = (*snapshot_writer)->WriteRecord(record);
+  std::string value =
+      absl::StrCat(std::get<std::string_view>(kv_record.value), "-updated");
+  kv_record.value = value;
+  kv_record.logical_commit_time++;
+  status = (*snapshot_writer)->WriteRecord(data_record);
   EXPECT_TRUE(status.ok()) << status;
   status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
+
   DeltaRecordStreamReader record_reader(dest_stream);
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
-  EXPECT_CALL(record_callback, Call(record))
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  EXPECT_CALL(record_callback, Call(data_record))
       .Times(1)
-      .WillOnce([](DeltaFileRecordStruct) { return absl::OkStatus(); });
+      .WillOnce([](DataRecordStruct) { return absl::OkStatus(); });
   status = record_reader.ReadRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
@@ -169,39 +191,43 @@ TEST_P(SnapshotStreamWriterTest,
   auto snapshot_writer =
       SnapshotStreamWriterTest::CreateSnapshotWriter(dest_stream);
   EXPECT_TRUE(snapshot_writer.ok()) << snapshot_writer.status();
-  auto record = GetDeltaRecord();
-  auto status = (*snapshot_writer)->WriteRecord(record);
+  auto kv_record = GetKVMutationRecord();
+  auto data_record = GetDataRecord(kv_record);
+  auto status = (*snapshot_writer)->WriteRecord(data_record);
   EXPECT_TRUE(status.ok()) << status;
   // Update the record written above, but also with an older
   // logical_commit_time.
-  std::string value = absl::StrCat(record.value, "-updated");
-  record.value = value;
-  record.logical_commit_time--;
-  status = (*snapshot_writer)->WriteRecord(record);
+  std::string value =
+      absl::StrCat(std::get<std::string_view>(kv_record.value), "-updated");
+  kv_record.value = value;
+  kv_record.logical_commit_time--;
+  auto old_data_record = GetDataRecord(kv_record);
+  status = (*snapshot_writer)->WriteRecord(data_record);
   EXPECT_TRUE(status.ok()) << status;
   status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
+
   DeltaRecordStreamReader record_reader(dest_stream);
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
-  EXPECT_CALL(record_callback, Call(GetDeltaRecord()))
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  EXPECT_CALL(record_callback, Call(data_record))
       .Times(1)
-      .WillOnce([](DeltaFileRecordStruct) { return absl::OkStatus(); });
+      .WillOnce([](DataRecordStruct) { return absl::OkStatus(); });
   status = record_reader.ReadRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST_P(SnapshotStreamWriterTest,
        ValidateWritingMultipleRecordsUsingASrcStream) {
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
   std::stringstream src_stream;
   auto record_writer = DeltaRecordStreamWriter<>::Create(
       src_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
   EXPECT_TRUE(record_writer.ok());
   for (std::string_view key : std::vector{"key1", "key2", "key3", "key4"}) {
-    auto record = GetDeltaRecord(key);
-    EXPECT_TRUE((*record_writer)->WriteRecord(record).ok());
-    EXPECT_CALL(record_callback, Call(record))
-        .WillOnce([](DeltaFileRecordStruct) { return absl::OkStatus(); });
+    auto data_record = GetDataRecord(GetKVMutationRecord(key));
+    EXPECT_TRUE((*record_writer)->WriteRecord(data_record).ok());
+    EXPECT_CALL(record_callback, Call(data_record))
+        .WillOnce([](DataRecordStruct) { return absl::OkStatus(); });
   }
   (*record_writer)->Close();
   std::stringstream dest_stream;
@@ -230,6 +256,89 @@ TEST_P(SnapshotStreamWriterTest,
   EXPECT_TRUE(metadata.ok()) << metadata.status();
   EXPECT_TRUE(google::protobuf::util::MessageDifferencer::Equals(
       GetSnapshotMetadata(), *metadata));
+}
+
+TEST_P(SnapshotStreamWriterTest, UdfConfig_DedupedInSnapshot) {
+  std::stringstream dest_stream;
+  auto snapshot_writer =
+      SnapshotStreamWriterTest::CreateSnapshotWriter(dest_stream);
+  EXPECT_TRUE(snapshot_writer.ok()) << snapshot_writer.status();
+  auto data_record = GetDataRecord(GetUserDefinedFunctionsConfig());
+  // Write the same record to snapshot 3 times.
+  std::vector data_records{data_record, data_record, data_record};
+  for (const auto& recd : data_records) {
+    auto status = (*snapshot_writer)->WriteRecord(recd);
+    EXPECT_TRUE(status.ok()) << status;
+  }
+  auto status = (*snapshot_writer)->Finalize();
+  EXPECT_TRUE(status.ok()) << status;
+
+  DeltaRecordStreamReader record_reader(dest_stream);
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  // We expect one call to record_callback because records will be deduped in
+  // the snapshot stream.
+  EXPECT_CALL(record_callback, Call(data_record))
+      .Times(1)
+      .WillOnce([](DataRecordStruct) { return absl::OkStatus(); });
+  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST_P(SnapshotStreamWriterTest,
+       UdfConfig_UpdatesWithLargestCommitTimestampInSnapshot) {
+  std::stringstream dest_stream;
+  auto snapshot_writer =
+      SnapshotStreamWriterTest::CreateSnapshotWriter(dest_stream);
+  EXPECT_TRUE(snapshot_writer.ok()) << snapshot_writer.status();
+  auto udf_config = GetUserDefinedFunctionsConfig();
+  auto data_record = GetDataRecord(udf_config);
+  auto status = (*snapshot_writer)->WriteRecord(data_record);
+  EXPECT_TRUE(status.ok()) << status;
+  // Update the udf config written above.
+  std::string handler_name = absl::StrCat(udf_config.handler_name, "-updated");
+  udf_config.handler_name = handler_name;
+  udf_config.logical_commit_time++;
+  status = (*snapshot_writer)->WriteRecord(data_record);
+  EXPECT_TRUE(status.ok()) << status;
+  status = (*snapshot_writer)->Finalize();
+  EXPECT_TRUE(status.ok()) << status;
+
+  DeltaRecordStreamReader record_reader(dest_stream);
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  EXPECT_CALL(record_callback, Call(data_record))
+      .Times(1)
+      .WillOnce([](DataRecordStruct) { return absl::OkStatus(); });
+  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST_P(SnapshotStreamWriterTest,
+       UdfConfig_IgnoresSameCommitTimestampInSnapshot) {
+  std::stringstream dest_stream;
+  auto snapshot_writer =
+      SnapshotStreamWriterTest::CreateSnapshotWriter(dest_stream);
+  EXPECT_TRUE(snapshot_writer.ok()) << snapshot_writer.status();
+  auto udf_config = GetUserDefinedFunctionsConfig();
+  auto data_record = GetDataRecord(udf_config);
+  auto status = (*snapshot_writer)->WriteRecord(data_record);
+  EXPECT_TRUE(status.ok()) << status;
+  // Update the udf config written above.
+  auto old_data_record = GetDataRecord(udf_config);
+  std::string handler_name = absl::StrCat(udf_config.handler_name, "-updated");
+  udf_config.handler_name = handler_name;
+  udf_config.logical_commit_time;
+  status = (*snapshot_writer)->WriteRecord(old_data_record);
+  EXPECT_TRUE(status.ok()) << status;
+  status = (*snapshot_writer)->Finalize();
+  EXPECT_TRUE(status.ok()) << status;
+
+  DeltaRecordStreamReader record_reader(dest_stream);
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  EXPECT_CALL(record_callback, Call(data_record))
+      .Times(1)
+      .WillOnce([](DataRecordStruct) { return absl::OkStatus(); });
+  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST(SnapshotStreamWriterTest,

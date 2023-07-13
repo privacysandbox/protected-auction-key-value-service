@@ -73,7 +73,7 @@ cc_library(
     ],
     deps = [
         ":delta_file_record_change_notifier",
-        "//components/data/common:thread_notifier",
+        "//components/data/common:thread_manager",
         "//components/errors:retry",
         "//components/util:sleepfor",
         "//public:constants",

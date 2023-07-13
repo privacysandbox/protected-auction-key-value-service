@@ -3,18 +3,21 @@
 
 # Generating UDF code configs for the server
 
-During server startup, the server reads in the UDF configuration through existing delta/snapshot
-files in the bucket. The UDF delta file must be in the delta storage before the server starts. If
-not, it will default to a simple pass-through implementation at `public/udf/constants.h`.
+The server starts with a simple pass-through implementation at `public/udf/constants.h`.
 
-Currently, the server does not support code updates.
+UDF configurations can be updated as the server is running using delta/snapshot files as per the
+[data loading guide](generating_udf_files.md).
 
-Depending on the environment, you will need to either include the delta file with the code configs
-in the terraform or the local directory.
+-   To override an existing UDF, the delta/snapshot file must have a
+    [`DataRecord`](/public/data_loading/data_loading.fbs) with a `UserDefinedFunctionsConfig`.
+
+-   Similar to a `KeyValueMutationRecord`, the `UserDefinedFunctionsConfig` has a
+    `logical_commit_time`. The UDF will only be updated for configs with a higher
+    `logical_commit_time` than the existing one. The minimum `logical_commit_time` is 1.
 
 Please read through the
-[UDF explainer](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_user_defined_functions.md#keyvalue-service-user-defined-functions-udfs)
-for requirements and APIs.
+[UDF explainer](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_user_defined_functions.md#keyvalue-service-user-defined-functions-udfs)
+for more requirements and APIs.
 
 # Steps for including the UDF delta file
 
@@ -23,13 +26,13 @@ for requirements and APIs.
 ### Option A. Write a custom UDF
 
 Write the UDF according to the
-[API in the UDF explainer](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_user_defined_functions.md#apis).
+[API in the UDF explainer](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_user_defined_functions.md#apis).
 
 Note that the UDF should be in JavaScript (and optionally JavaScript + inline WASM).
 
 ### Option B. Use the reference UDF
 
-We provide a [simple reference implementation](tools/udf/udf.js):
+We provide a [simple reference implementation](/tools/udf/sample_udf/udf.js):
 
 -   The implementation ignores part of the request, e.g. the `context` field.
 -   For each `keyGroup` in the request, it calls `getValues(keyGroup.keyList)` to retrieve the keys
@@ -65,12 +68,7 @@ Tools to generate UDF delta files and test them are in the `tools/udf` directory
 You can use other options to generate delta files, e.g. using the
 [`data_cli` tool](./loading_data.md).
 
-The delta file must have the following key value records with an `UPDATE` mutation type:
-
-| Key              | Value                                                                 |
-| ---------------- | --------------------------------------------------------------------- |
-| udf_handler_name | Name of the handler function that serves as the execution entry point |
-| udf_code_snippet | UDF code snippet that contains the handler                            |
+The delta file must have a `DataRecord` with a `UserDefinedFunctionsConfig` as its record.
 
 ### Option 3. Using sample UDF configurations
 

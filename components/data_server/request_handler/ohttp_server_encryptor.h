@@ -22,6 +22,7 @@
 #include "absl/strings/escaping.h"
 #include "public/constants.h"
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
+#include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
 
 namespace kv_server {
 
@@ -29,6 +30,10 @@ namespace kv_server {
 // Not thread safe. Supports serial decryption/encryption per request.
 class OhttpServerEncryptor {
  public:
+  explicit OhttpServerEncryptor(
+      privacy_sandbox::server_common::KeyFetcherManagerInterface&
+          key_fetcher_manager)
+      : key_fetcher_manager_(key_fetcher_manager) {}
   // Decrypts incoming request.
   // The return value points to a string stored in decrypted_request_, so its
   // lifetime is tied to that object, which lifetime is in turn tied to the
@@ -42,11 +47,8 @@ class OhttpServerEncryptor {
  private:
   std::optional<quiche::ObliviousHttpGateway> ohttp_gateway_;
   std::optional<quiche::ObliviousHttpRequest> decrypted_request_;
-
-  // X25519 Secret key (private key).
-  // https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-2
-  const std::string test_private_key_ = absl::HexStringToBytes(
-      "3c168975674b2fa8e465970b79c8dcf09f1c741626480bd4c6162fc5b6a98e1a");
+  privacy_sandbox::server_common::KeyFetcherManagerInterface&
+      key_fetcher_manager_;
 };
 
 }  // namespace kv_server

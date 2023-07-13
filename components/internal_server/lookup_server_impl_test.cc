@@ -29,6 +29,7 @@
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
+#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
 
 namespace kv_server {
 namespace {
@@ -41,7 +42,8 @@ using testing::ReturnRef;
 class LookupServiceImplTest : public ::testing::Test {
  protected:
   LookupServiceImplTest() {
-    lookup_service_ = std::make_unique<LookupServiceImpl>(mock_cache_);
+    lookup_service_ = std::make_unique<LookupServiceImpl>(
+        mock_cache_, fake_key_fetcher_manager_);
     grpc::ServerBuilder builder;
     builder.RegisterService(lookup_service_.get());
     server_ = (builder.BuildAndStart());
@@ -55,6 +57,8 @@ class LookupServiceImplTest : public ::testing::Test {
     server_->Wait();
   }
   MockCache mock_cache_;
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager_;
   std::unique_ptr<LookupServiceImpl> lookup_service_;
   std::unique_ptr<grpc::Server> server_;
   std::unique_ptr<InternalLookupService::Stub> stub_;

@@ -16,18 +16,49 @@
 
 #include <utility>
 
+#include "absl/strings/escaping.h"
+#include "glog/logging.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace kv_server {
+namespace {
+absl::StatusOr<uint8_t> StringToUint8(absl::string_view str) {
+  if (str.empty()) {
+    return absl::InvalidArgumentError("Empty string.");
+  }
+  // SimpleAtoi doesn't support 8 bit conversion.
+  uint8_t val8 = 0;
+  uint32_t val = 0;
+  if (absl::SimpleAtoi(str, &val) && (val8 = val) == val) {
+    return val8;
+  }
+  return absl::InvalidArgumentError("String is not a uint8.");
+}
+}  // namespace
+
 absl::StatusOr<std::string> OhttpClientEncryptor::EncryptRequest(
     std::string payload) {
+  auto key = key_fetcher_manager_.GetPublicKey();
+  if (!key.ok()) {
+    const std::string error =
+        absl::StrCat("Could not get public key to use for HPKE encryption: ",
+                     key.status().message());
+    LOG(ERROR) << error;
+    return absl::InternalError(error);
+  }
+  auto key_id = StringToUint8(key->key_id());
+  if (!key_id.ok()) {
+    return key_id.status();
+  }
   auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
-      test_key_id, kKEMParameter, kKDFParameter, kAEADParameter);
+      *key_id, kKEMParameter, kKDFParameter, kAEADParameter);
   if (!maybe_config.ok()) {
     return absl::InternalError(std::string(maybe_config.status().message()));
   }
+  std::string public_key;
+  absl::Base64Unescape(key->public_key(), &public_key);
   auto http_client_maybe =
-      quiche::ObliviousHttpClient::Create(test_public_key_, *maybe_config);
+      quiche::ObliviousHttpClient::Create(public_key, *maybe_config);
   if (!http_client_maybe.ok()) {
     return absl::InternalError(
         std::string(http_client_maybe.status().message()));

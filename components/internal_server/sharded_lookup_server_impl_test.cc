@@ -29,6 +29,7 @@
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
+#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
 #include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
@@ -215,8 +216,10 @@ TEST_F(ShardedLookupServiceImplTest, MissingKeys) {
   for (int i = 0; i < 2; i++) {
     cluster_mappings.push_back({std::to_string(i)});
   }
-  auto shard_manager =
-      ShardManager::Create(num_shards_, std::move(cluster_mappings));
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager;
+  auto shard_manager = ShardManager::Create(
+      num_shards_, fake_key_fetcher_manager, std::move(cluster_mappings));
   lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
       mock_metrics_recorder_, mock_cache_, num_shards_, shard_num_,
       **shard_manager);

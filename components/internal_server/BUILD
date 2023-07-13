@@ -79,6 +79,7 @@ cc_test(
         "//public/test_util:proto_matcher",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
     ],
 )
 
@@ -194,6 +195,7 @@ cc_test(
         "//components/sharding:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
@@ -260,5 +262,6 @@ cc_test(
         "//components/data_server/cache:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
     ],
 )

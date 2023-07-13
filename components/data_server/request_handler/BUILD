@@ -152,6 +152,7 @@ cc_test(
         "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
@@ -190,6 +191,7 @@ cc_test(
         "//public/test_util:proto_matcher",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
@@ -246,6 +248,7 @@ cc_library(
         "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:key_fetcher_manager",
     ],
 )
 
@@ -262,6 +265,7 @@ cc_library(
         "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:key_fetcher_manager",
     ],
 )
 
@@ -275,5 +279,6 @@ cc_test(
         ":ohttp_client_encryptor",
         ":ohttp_server_encryptor",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
     ],
 )

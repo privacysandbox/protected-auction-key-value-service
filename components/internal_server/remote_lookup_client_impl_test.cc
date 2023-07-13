@@ -21,6 +21,7 @@
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
+#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
 
 namespace kv_server {
 namespace {
@@ -28,13 +29,15 @@ namespace {
 class RemoteLookupClientImplTest : public ::testing::Test {
  protected:
   RemoteLookupClientImplTest() {
-    lookup_service_ = std::make_unique<LookupServiceImpl>(mock_cache_);
+    lookup_service_ = std::make_unique<LookupServiceImpl>(
+        mock_cache_, fake_key_fetcher_manager_);
     grpc::ServerBuilder builder;
     builder.RegisterService(lookup_service_.get());
     server_ = (builder.BuildAndStart());
-    remote_lookup_client_ =
-        RemoteLookupClient::Create(InternalLookupService::NewStub(
-            server_->InProcessChannel(grpc::ChannelArguments())));
+    remote_lookup_client_ = RemoteLookupClient::Create(
+        InternalLookupService::NewStub(
+            server_->InProcessChannel(grpc::ChannelArguments())),
+        fake_key_fetcher_manager_);
   }
 
   ~RemoteLookupClientImplTest() {
@@ -42,6 +45,8 @@ class RemoteLookupClientImplTest : public ::testing::Test {
     server_->Wait();
   }
   MockCache mock_cache_;
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager_;
   std::unique_ptr<LookupServiceImpl> lookup_service_;
   std::unique_ptr<grpc::Server> server_;
   std::unique_ptr<RemoteLookupClient> remote_lookup_client_;

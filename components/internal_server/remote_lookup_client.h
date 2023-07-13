@@ -23,6 +23,7 @@
 
 #include "absl/status/statusor.h"
 #include "components/internal_server/lookup.grpc.pb.h"
+#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 namespace kv_server {
 
@@ -37,9 +38,14 @@ class RemoteLookupClient {
   virtual absl::StatusOr<InternalLookupResponse> GetValues(
       std::string_view serialized_message, int32_t padding_length) const = 0;
   virtual std::string_view GetIpAddress() const = 0;
-  static std::unique_ptr<RemoteLookupClient> Create(std::string ip_address);
   static std::unique_ptr<RemoteLookupClient> Create(
-      std::unique_ptr<InternalLookupService::Stub> stub);
+      std::string ip_address,
+      privacy_sandbox::server_common::KeyFetcherManagerInterface&
+          key_fetcher_manager);
+  static std::unique_ptr<RemoteLookupClient> Create(
+      std::unique_ptr<InternalLookupService::Stub> stub,
+      privacy_sandbox::server_common::KeyFetcherManagerInterface&
+          key_fetcher_manager);
 };
 
 }  // namespace kv_server

@@ -52,15 +52,15 @@ class ShardManager {
   virtual RemoteLookupClient* Get(int64_t shard_num) const = 0;
   static absl::StatusOr<std::unique_ptr<ShardManager>> Create(
       int32_t num_shards,
+      privacy_sandbox::server_common::KeyFetcherManagerInterface&
+          key_fetcher_manager,
       const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings);
   static absl::StatusOr<std::unique_ptr<ShardManager>> Create(
       int32_t num_shards,
       const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings,
       std::unique_ptr<RandomGenerator> random_generator,
       std::function<std::unique_ptr<RemoteLookupClient>(const std::string& ip)>
-          client_factory = [](const std::string& ip) {
-            return RemoteLookupClient::Create(ip);
-          });
+          client_factory);
 };
 }  // namespace kv_server
 #endif  // COMPONENTS_SHARDING_SHARD_MANAGER_H_

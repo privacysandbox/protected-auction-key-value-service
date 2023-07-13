@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "glog/logging.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace kv_server {
@@ -34,8 +35,17 @@ absl::StatusOr<absl::string_view> OhttpServerEncryptor::DecryptRequest(
     return absl::InternalError(absl::StrCat(
         "Unable to build OHTTP config: ", maybe_req_key_id.status().message()));
   }
-  auto maybe_ohttp_gateway =
-      quiche::ObliviousHttpGateway::Create(test_private_key_, *maybe_config);
+  auto private_key_id = std::to_string(*maybe_req_key_id);
+  auto private_key = key_fetcher_manager_.GetPrivateKey(private_key_id);
+  if (!private_key.has_value()) {
+    const std::string error = absl::StrCat(
+        "Unable to retrieve private key for key ID: ", *maybe_req_key_id);
+    LOG(ERROR) << error;
+    return absl::InternalError(error);
+  }
+
+  auto maybe_ohttp_gateway = quiche::ObliviousHttpGateway::Create(
+      private_key->private_key, *maybe_config);
   if (!maybe_ohttp_gateway.ok()) {
     return maybe_ohttp_gateway.status();
   }

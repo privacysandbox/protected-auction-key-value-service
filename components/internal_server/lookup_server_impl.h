@@ -20,13 +20,17 @@
 #include "components/data_server/cache/cache.h"
 #include "components/internal_server/lookup.grpc.pb.h"
 #include "grpcpp/grpcpp.h"
+#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 namespace kv_server {
 // Implements the internal lookup service for the data store.
 class LookupServiceImpl final
     : public kv_server::InternalLookupService::Service {
  public:
-  LookupServiceImpl(const Cache& cache) : cache_(cache) {}
+  LookupServiceImpl(const Cache& cache,
+                    privacy_sandbox::server_common::KeyFetcherManagerInterface&
+                        key_fetcher_manager)
+      : cache_(cache), key_fetcher_manager_(key_fetcher_manager) {}
 
   ~LookupServiceImpl() override = default;
 
@@ -46,6 +50,8 @@ class LookupServiceImpl final
 
  private:
   const Cache& cache_;
+  privacy_sandbox::server_common::KeyFetcherManagerInterface&
+      key_fetcher_manager_;
 };
 
 }  // namespace kv_server

@@ -13,6 +13,9 @@ build --per_file_copt=.*boost.*@-fexceptions
 build --per_file_copt=.*cc/aws/proxy.*@-fexceptions
 build --per_file_copt=.*cc/roma.*@-fexceptions
 build --per_file_copt=.*oneTBB.*@-fexceptions
+build --per_file_copt=.*com_github_nghttp2_nghttp2.*@-fexceptions
+build --per_file_copt=.*cc/core.*@-fexceptions
+build --per_file_copt=.*cc/cpio.*@-fexceptions
 
 build -c opt
 build --output_filter='^//((?!(third_party):).)*$'`

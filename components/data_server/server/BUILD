@@ -121,6 +121,7 @@ cc_library(
     srcs = ["server.cc"],
     hdrs = ["server.h"],
     deps = [
+        ":key_fetcher_factory",
         ":key_value_service_impl",
         ":key_value_service_v2_impl",
         ":lifecycle_heartbeat",
@@ -191,6 +192,7 @@ cc_binary(
     srcs = ["main.cc"],
     visibility = ["//production/packaging:__subpackages__"],
     deps = [
+        ":key_fetcher_factory",
         ":server_lib",
         "//components/sharding:shard_manager",
         "//components/util:version_linkstamp",
@@ -230,5 +232,19 @@ cc_library(
     visibility = ["//components/sharding:__subpackages__"],
     deps = [
         "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "key_fetcher_factory",
+    srcs = [
+        "key_fetcher_factory.cc",
+    ],
+    hdrs = [
+        "key_fetcher_factory.h",
+    ],
+    deps = [
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:key_fetcher_manager",
     ],
 )

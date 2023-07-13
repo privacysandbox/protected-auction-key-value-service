@@ -150,6 +150,9 @@ class Server {
 
   int32_t shard_num_;
   int32_t num_shards_;
+
+  std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
+      key_fetcher_manager_;
 };
 
 }  // namespace kv_server

@@ -17,14 +17,18 @@
 #include "components/data_server/request_handler/ohttp_client_encryptor.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
 #include "gtest/gtest.h"
+#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
+#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
 
 namespace kv_server {
 namespace {
 
 TEST(OhttpEncryptorTest, FullCircleSuccess) {
   const std::string kTestRequest = "request to encrypt";
-  OhttpClientEncryptor client_encryptor;
-  OhttpServerEncryptor server_encryptor;
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager;
+  OhttpClientEncryptor client_encryptor(fake_key_fetcher_manager);
+  OhttpServerEncryptor server_encryptor(fake_key_fetcher_manager);
   auto request_encrypted_status = client_encryptor.EncryptRequest(kTestRequest);
   ASSERT_TRUE(request_encrypted_status.ok());
   auto request_decrypted_status =
@@ -43,14 +47,18 @@ TEST(OhttpEncryptorTest, FullCircleSuccess) {
 }
 
 TEST(OhttpEncryptorTest, ServerDecryptRequestFails) {
-  OhttpServerEncryptor server_encryptor;
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager;
+  OhttpServerEncryptor server_encryptor(fake_key_fetcher_manager);
   auto request_decrypted_status = server_encryptor.DecryptRequest("garbage");
   ASSERT_FALSE(request_decrypted_status.ok());
 }
 
 TEST(OhttpEncryptorTest, ClientDecryptFails) {
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager;
   const std::string kTestRequest = "request to encrypt";
-  OhttpClientEncryptor client_encryptor;
+  OhttpClientEncryptor client_encryptor(fake_key_fetcher_manager);
   auto request_encrypted_status = client_encryptor.EncryptRequest(kTestRequest);
   ASSERT_TRUE(request_encrypted_status.ok());
   auto response_decrypted_status = client_encryptor.DecryptResponse("garbage");
@@ -58,8 +66,10 @@ TEST(OhttpEncryptorTest, ClientDecryptFails) {
 }
 
 TEST(OhttpEncryptorTest, ServerEncryptResponseFails) {
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager;
   const std::string kTestRequest = "request to encrypt";
-  OhttpServerEncryptor server_encryptor;
+  OhttpServerEncryptor server_encryptor(fake_key_fetcher_manager);
   auto request_encrypted_status =
       server_encryptor.EncryptResponse(kTestRequest);
   ASSERT_FALSE(request_encrypted_status.ok());
@@ -70,8 +80,10 @@ TEST(OhttpEncryptorTest, ServerEncryptResponseFails) {
 }
 
 TEST(OhttpEncryptorTest, ClientDecryptResponseFails) {
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager;
   const std::string kTestRequest = "request to decrypt";
-  OhttpClientEncryptor client_encryptor;
+  OhttpClientEncryptor client_encryptor(fake_key_fetcher_manager);
   auto request_encrypted_status =
       client_encryptor.DecryptResponse(kTestRequest);
   ASSERT_FALSE(request_encrypted_status.ok());

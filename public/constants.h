@@ -67,10 +67,11 @@ const std::regex& SnapshotFileFormatRegex();
 
 // X25519 public key used to test/debug/demo the ObliviousGetValues query API.
 // ObliviousGetValues requests encrypted with this key can be processed by the
-// server. Key originates from
-// https://www.ietf.org/archive/id/draft-ietf-ohai-ohttp-03.html#appendix-A-2
+// server.
+// For cross code base consistency, matches the test key we use in the commong
+// repo, see ../encryption/key_fetcher/src/fake_key_fetcher_manager.h
 constexpr std::string_view kTestPublicKey =
-    "31e1f05a740102115220e9af918f738674aec95f54db6e04eb705aae8e798155";
+    "f3b7b2f1764f5c077effecad2afd86154596e63f7375ea522761b881e6c3c323";
 
 // Parameters used to configure Oblivious HTTP according to
 // https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#encryption

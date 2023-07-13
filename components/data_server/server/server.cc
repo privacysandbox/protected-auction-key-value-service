@@ -25,6 +25,7 @@
 #include "components/data_server/request_handler/get_values_adapter.h"
 #include "components/data_server/request_handler/get_values_handler.h"
 #include "components/data_server/request_handler/get_values_v2_handler.h"
+#include "components/data_server/server/key_fetcher_factory.h"
 #include "components/data_server/server/key_value_service_impl.h"
 #include "components/data_server/server/key_value_service_v2_impl.h"
 #include "components/errors/retry.h"
@@ -235,6 +236,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   delta_stream_reader_factory_ =
       CreateStreamRecordReaderFactory(parameter_fetcher);
   notifier_ = CreateDeltaFileNotifier(parameter_fetcher);
+
+  key_fetcher_manager_ = CreateKeyFetcherManager();
+
   CreateGrpcServices(parameter_fetcher);
   auto metadata = parameter_fetcher.GetBlobStorageNotifierMetadata();
   auto message_service_status = MessageService::Create(metadata);
@@ -441,13 +445,15 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
 void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
   const bool use_v2 = parameter_fetcher.GetBoolParameter(kRouteV1ToV2Suffix);
   LOG(INFO) << "Retrieved " << kRouteV1ToV2Suffix << " parameter: " << use_v2;
-  get_values_adapter_ = GetValuesAdapter::Create(
-      std::make_unique<GetValuesV2Handler>(*udf_client_, *metrics_recorder_));
+  get_values_adapter_ =
+      GetValuesAdapter::Create(std::make_unique<GetValuesV2Handler>(
+          *udf_client_, *metrics_recorder_, *key_fetcher_manager_));
   GetValuesHandler handler(*cache_, *get_values_adapter_, *metrics_recorder_,
                            use_v2);
   grpc_services_.push_back(std::make_unique<KeyValueServiceImpl>(
       std::move(handler), *metrics_recorder_));
-  GetValuesV2Handler v2handler(*udf_client_, *metrics_recorder_);
+  GetValuesV2Handler v2handler(*udf_client_, *metrics_recorder_,
+                               *key_fetcher_manager_);
   grpc_services_.push_back(std::make_unique<KeyValueServiceV2Impl>(
       std::move(v2handler), *metrics_recorder_));
 }
@@ -475,15 +481,17 @@ absl::Status Server::CreateShardManager() {
       environment_, num_shards_, *metrics_recorder_, *instance_client_);
   auto& num_shards = num_shards_;
   auto& cluster_mappings_manager = *cluster_mappings_manager_;
+  auto& key_fetcher_manager = *key_fetcher_manager_;
   shard_manager_ = TraceRetryUntilOk(
-      [&cluster_mappings_manager, &num_shards] {
+      [&cluster_mappings_manager, &num_shards, &key_fetcher_manager] {
         // It might be that the cluster mappings that are passed don't pass
         // validation. E.g. a particular cluster might not have any replicas
         // specified. In that case, we need to retry the creation. After an
         // exponential backoff, that will trigger`GetClusterMappings` which
         // at that point in time might have new replicas spun up.
         return ShardManager::Create(
-            num_shards, cluster_mappings_manager.GetClusterMappings());
+            num_shards, key_fetcher_manager,
+            cluster_mappings_manager.GetClusterMappings());
       },
       "GetShardManager", metrics_recorder_.get());
   return cluster_mappings_manager_->Start(*shard_manager_);
@@ -492,7 +500,8 @@ absl::Status Server::CreateShardManager() {
 absl::StatusOr<std::unique_ptr<grpc::Server>>
 Server::CreateAndStartInternalLookupServer() {
   if (num_shards_ <= 1) {
-    internal_lookup_service_ = std::make_unique<LookupServiceImpl>(*cache_);
+    internal_lookup_service_ =
+        std::make_unique<LookupServiceImpl>(*cache_, *key_fetcher_manager_);
   } else {
     if (const absl::Status status = CreateShardManager(); !status.ok()) {
       return status;
@@ -519,7 +528,8 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartRemoteLookupServer() {
     return nullptr;
   }
 
-  remote_lookup_service_ = std::make_unique<LookupServiceImpl>(*cache_);
+  remote_lookup_service_ =
+      std::make_unique<LookupServiceImpl>(*cache_, *key_fetcher_manager_);
   grpc::ServerBuilder remote_lookup_server_builder;
   auto remoteLookupServerAddress =
       absl::StrCat(kLocalIp, ":", kRemoteLookupServerPort);

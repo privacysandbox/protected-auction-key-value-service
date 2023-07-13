@@ -110,7 +110,7 @@ grpc::Status LookupServiceImpl::SecureLookup(
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
   }
-  OhttpServerEncryptor encryptor;
+  OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto padded_serialized_request_maybe =
       encryptor.DecryptRequest(secure_lookup_request->ohttp_request());
   if (!padded_serialized_request_maybe.ok()) {

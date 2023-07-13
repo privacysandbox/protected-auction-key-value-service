@@ -20,12 +20,28 @@ package(default_visibility = [
 ])
 
 cc_library(
+    name = "get_key_value_set_result_impl",
+    srcs = [
+        "get_key_value_set_result_impl.cc",
+    ],
+    hdrs = [
+        "get_key_value_set_result.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+    ],
+)
+
+cc_library(
     name = "cache",
     hdrs = [
         "cache.h",
     ],
     deps = [
+        ":get_key_value_set_result_impl",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
     ],
 )
 
@@ -39,6 +55,7 @@ cc_library(
     ],
     deps = [
         ":cache",
+        ":get_key_value_set_result_impl",
         "//public:base_types_cc_proto",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",

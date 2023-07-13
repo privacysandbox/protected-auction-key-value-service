@@ -20,7 +20,7 @@
 
 #include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
-#include "components/data_server/cache/cache.h"
+#include "components/data_server/request_handler/get_values_adapter.h"
 #include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 #include "public/constants.h"
@@ -121,6 +121,11 @@ grpc::Status GetValuesHandler::GetValues(const GetValuesRequest& request,
   grpc::Status status = ValidateRequest(request);
   if (!status.ok()) {
     return status;
+  }
+
+  if (use_v2_) {
+    VLOG(5) << "Using V2 adapter for " << request.DebugString();
+    return adapter_.CallV2Handler(request, *response);
   }
 
   VLOG(5) << "Processing kv_internal for " << request.DebugString();

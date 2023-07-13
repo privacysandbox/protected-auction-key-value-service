@@ -29,47 +29,109 @@ KVFileMetadata GetMetadata() {
   return metadata;
 }
 
-DeltaFileRecordStruct GetDeltaRecord() {
-  DeltaFileRecordStruct record;
+KeyValueMutationRecordStruct GetKVMutationRecord() {
+  KeyValueMutationRecordStruct record;
   record.key = "key";
   record.value = "value";
   record.logical_commit_time = 1234567890;
-  record.mutation_type = DeltaMutationType::Update;
+  record.mutation_type = KeyValueMutationType::Update;
   return record;
 }
 
-TEST(DeltaRecordStreamReaderTest, ValidateReadingRecords) {
+UserDefinedFunctionsConfigStruct GetUserDefinedFunctionsConfig() {
+  UserDefinedFunctionsConfigStruct udf_config_record;
+  udf_config_record.language = UserDefinedFunctionsLanguage::Javascript;
+  udf_config_record.code_snippet = "function hello(){}";
+  udf_config_record.handler_name = "hello";
+  udf_config_record.logical_commit_time = 1234567890;
+  return udf_config_record;
+}
+
+DataRecordStruct GetDataRecord(const RecordT& record) {
+  DataRecordStruct data_record;
+  data_record.record = record;
+  return data_record;
+}
+
+TEST(DeltaRecordStreamReaderTest, KVRecord_ValidateReadingRecords) {
   std::stringstream string_stream;
   auto record_writer = DeltaRecordStreamWriter<>::Create(
       string_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
   EXPECT_TRUE(record_writer.ok());
-  EXPECT_TRUE((*record_writer)->WriteRecord(GetDeltaRecord()).ok());
+
+  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok());
   (*record_writer)->Close();
   DeltaRecordStreamReader record_reader(string_stream);
   EXPECT_TRUE(record_reader
-                  .ReadRecords([](DeltaFileRecordStruct record) {
-                    EXPECT_EQ(record, GetDeltaRecord());
+                  .ReadRecords([&expected](DataRecordStruct data_record) {
+                    EXPECT_EQ(data_record, expected);
                     return absl::OkStatus();
                   })
                   .ok());
 }
 
-TEST(DeltaRecordStreamReaderTest, ValidateReadingRecordCallsRecordCallback) {
+TEST(DeltaRecordStreamReaderTest,
+     KVRecord_ValidateReadingRecordCallsRecordCallback) {
   std::stringstream string_stream;
   auto record_writer = DeltaRecordStreamWriter<>::Create(
       string_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
   EXPECT_TRUE(record_writer.ok());
-  EXPECT_TRUE((*record_writer)->WriteRecord(GetDeltaRecord()).ok());
-  EXPECT_TRUE((*record_writer)->WriteRecord(GetDeltaRecord()).ok());
-  EXPECT_TRUE((*record_writer)->WriteRecord(GetDeltaRecord()).ok());
-  EXPECT_TRUE((*record_writer)->WriteRecord(GetDeltaRecord()).ok());
+
+  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok());
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok());
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok());
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok());
   (*record_writer)->Close();
   DeltaRecordStreamReader record_reader(string_stream);
-  testing::MockFunction<absl::Status(DeltaFileRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(4)
-      .WillRepeatedly([](DeltaFileRecordStruct record) {
-        EXPECT_EQ(record, GetDeltaRecord());
+      .WillRepeatedly([&expected](DataRecordStruct record) {
+        EXPECT_EQ(record, expected);
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(record_reader.ReadRecords(record_callback.AsStdFunction()).ok());
+}
+
+TEST(DeltaRecordStreamReaderTest, UdfConfig_ValidateReadingRecords) {
+  std::stringstream string_stream;
+  auto record_writer = DeltaRecordStreamWriter<>::Create(
+      string_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
+  EXPECT_TRUE(record_writer.ok());
+
+  DataRecordStruct expected = GetDataRecord(GetUserDefinedFunctionsConfig());
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok());
+  (*record_writer)->Close();
+  DeltaRecordStreamReader record_reader(string_stream);
+  EXPECT_TRUE(record_reader
+                  .ReadRecords([&expected](DataRecordStruct data_record) {
+                    EXPECT_EQ(data_record, expected);
+                    return absl::OkStatus();
+                  })
+                  .ok());
+}
+
+TEST(DeltaRecordStreamReaderTest,
+     UdfConfig_ValidateReadingRecordCallsRecordCallback) {
+  std::stringstream string_stream;
+  auto record_writer = DeltaRecordStreamWriter<>::Create(
+      string_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
+  EXPECT_TRUE(record_writer.ok());
+
+  DataRecordStruct expected = GetDataRecord(GetUserDefinedFunctionsConfig());
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok());
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok());
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok());
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok());
+  (*record_writer)->Close();
+  DeltaRecordStreamReader record_reader(string_stream);
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(4)
+      .WillRepeatedly([&expected](const DataRecordStruct& data_record) {
+        EXPECT_EQ(data_record, expected);
         return absl::OkStatus();
       });
   EXPECT_TRUE(record_reader.ReadRecords(record_callback.AsStdFunction()).ok());

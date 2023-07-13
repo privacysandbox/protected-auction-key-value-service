@@ -54,7 +54,26 @@ cc_binary(
         "//components/data_server/cache:key_value_cache",
         "//components/util:platform_initializer",
         "//public/data_loading:data_loading_fbs",
+        "//public/data_loading:records_utils",
         "//public/data_loading/readers:riegeli_stream_io",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/time",
+        "@com_google_benchmark//:benchmark",
+    ],
+)
+
+cc_binary(
+    name = "cache_benchmark",
+    srcs = ["cache_benchmark.cc"],
+    deps = [
+        ":benchmark_util",
+        "//components/data_server/cache",
+        "//components/data_server/cache:key_value_cache",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/flags:flag",

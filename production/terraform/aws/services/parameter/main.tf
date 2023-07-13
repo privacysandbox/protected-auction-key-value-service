@@ -104,3 +104,17 @@ resource "aws_ssm_parameter" "num_shards_parameter" {
   value     = var.num_shards_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "udf_num_workers_parameter" {
+  name      = "${var.service}-${var.environment}-udf-num-workers"
+  type      = "String"
+  value     = var.udf_num_workers_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "route_v1_requests_to_v2_parameter" {
+  name      = "${var.service}-${var.environment}-route-v1-to-v2"
+  type      = "String"
+  value     = var.route_v1_requests_to_v2_parameter_value
+  overwrite = true
+}

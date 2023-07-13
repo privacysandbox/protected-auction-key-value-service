@@ -35,6 +35,7 @@ cc_library(
         "//public/data_loading/writers:delta_record_writer",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@com_google_riegeli//riegeli/bytes:ostream_writer",
         "@com_google_riegeli//riegeli/csv:csv_record",
         "@com_google_riegeli//riegeli/csv:csv_writer",

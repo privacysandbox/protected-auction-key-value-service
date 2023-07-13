@@ -24,8 +24,12 @@ fi
 function local_server::_sut_cleanup() {
   declare -r -i STATUS=$?
   declare -n _cleanup_args=$1
+  declare -i _pid=$2
   if [[ ${_cleanup_args[0]} ]]; then
     docker compose "${_cleanup_args[@]}" down
+  fi
+  if [[ ${_pid} -gt 0 ]]; then
+    kill "${_pid}" &>/dev/null
   fi
   return ${STATUS}
 }
@@ -61,8 +65,14 @@ EOF
     --env-file "${tmp_env}"
   )
 
-  trap "local_server::_sut_cleanup docker_compose_args && rm -f \${tmp_env@Q}" ERR RETURN
+  trap "local_server::_sut_cleanup docker_compose_args \${docker_compose_logs_pid} && rm -f \${tmp_env@Q}" ERR RETURN
   docker compose "${docker_compose_args[@]}" up --quiet-pull --detach
+  mkdir -p "${WORKSPACE}"/dist/logs
+  declare logfile
+  logfile="$(mktemp --tmpdir="${WORKSPACE}/dist/logs" --dry-run "${sut_name}-dcompose-XXXX" --suffix=".log")"
+  docker compose "${docker_compose_args[@]}" logs --follow >"${logfile}" &
+  declare -r -i docker_compose_logs_pid=$!
+
   "${WORKSPACE}"/testing/functionaltest/run-tests --sut-name "${sut_name}"
 }
 

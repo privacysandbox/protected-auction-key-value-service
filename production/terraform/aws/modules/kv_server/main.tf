@@ -152,6 +152,8 @@ module "parameter" {
   s3client_max_connections_parameter_value       = var.s3client_max_connections
   s3client_max_range_bytes_parameter_value       = var.s3client_max_range_bytes
   num_shards_parameter_value                     = var.num_shards
+  udf_num_workers_parameter_value                = var.udf_num_workers
+  route_v1_requests_to_v2_parameter_value        = var.route_v1_requests_to_v2
 }
 
 module "security_group_rules" {
@@ -193,6 +195,8 @@ module "iam_role_policies" {
     module.parameter.s3client_max_connections_parameter_arn,
     module.parameter.s3client_max_range_bytes_parameter_arn,
     module.parameter.num_shards_parameter_arn,
+    module.parameter.udf_num_workers_parameter_arn,
+    module.parameter.route_v1_requests_to_v2_parameter_arn,
   ]
 }
 

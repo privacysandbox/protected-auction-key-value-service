@@ -83,15 +83,7 @@ will correct the symlink target paths. _It must be run after each call compilati
 ## Start the server
 
 ```sh
-./bazel-bin/components/data_server/server/server \
-  --delta_directory=/tmp/deltas \
-  --realtime_directory=/tmp/realtime
-```
-
-To have server logs and telemetry written to _STDOUT_ you can prepend this flag:
-
-```sh
-GLOG_logtostderr=1 \
+GLOG_alsologtostderr=1 \
   ./bazel-bin/components/data_server/server/server \
   --delta_directory=/tmp/deltas \
   --realtime_directory=/tmp/realtime

@@ -38,4 +38,6 @@ RUN \
   /scripts/install_golang_apps && \
   rm -rf /scripts
 
-ENV PATH="${PATH}:/usr/local/go/bin:/opt/bin"
+ENV PATH="${PATH}:/usr/local/go/bin:/opt/bin" \
+    PYTHON_BIN_PATH="/opt/bin/python3" \
+    PYTHON_LIB_PATH="/usr/lib/python3.9"

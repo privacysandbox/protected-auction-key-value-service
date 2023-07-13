@@ -22,7 +22,7 @@
 
 #include "absl/strings/str_join.h"
 #include "components/data_server/cache/cache.h"
-#include "components/internal_lookup/lookup.pb.h"
+#include "components/internal_server/lookup.pb.h"
 #include "components/udf/get_values_hook.h"
 #include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"

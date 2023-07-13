@@ -34,6 +34,10 @@ namespace {
 
 constexpr std::string_view kDeltaFormat = "delta";
 constexpr std::string_view kCsvFormat = "csv";
+constexpr std::string_view kKeyValueMutationRecord =
+    "key_value_mutation_record";
+constexpr std::string_view kUserDefinedFunctionsConfig =
+    "user_defined_functions_config";
 
 absl::Status ValidateParams(const FormatDataCommand::Params& params) {
   if (params.input_format.empty()) {
@@ -41,6 +45,9 @@ absl::Status ValidateParams(const FormatDataCommand::Params& params) {
   }
   if (params.output_format.empty()) {
     return absl::InvalidArgumentError("Output format cannot be empty.");
+  }
+  if (params.record_type.empty()) {
+    return absl::InvalidArgumentError("Record type cannot be empty.");
   }
   std::string lw_output_format = absl::AsciiStrToLower(params.output_format);
   if (absl::AsciiStrToLower(params.input_format) == lw_output_format) {
@@ -51,12 +58,32 @@ absl::Status ValidateParams(const FormatDataCommand::Params& params) {
   return absl::OkStatus();
 }
 
+absl::StatusOr<DataRecordType> GetRecordType(std::string_view record_type) {
+  std::string lw_record_type = absl::AsciiStrToLower(record_type);
+  if (lw_record_type == kKeyValueMutationRecord) {
+    return DataRecordType::kKeyValueMutationRecord;
+  }
+  if (lw_record_type == kUserDefinedFunctionsConfig) {
+    return DataRecordType::kUserDefinedFunctionsConfig;
+  }
+  return absl::InvalidArgumentError(
+      absl::StrCat("Record type ", record_type, " is not supported."));
+}
+
 absl::StatusOr<std::unique_ptr<DeltaRecordReader>> CreateRecordReader(
     const FormatDataCommand::Params& params, std::istream& input_stream) {
   std::string lw_input_format = absl::AsciiStrToLower(params.input_format);
   if (lw_input_format == kCsvFormat) {
+    const auto record_type = GetRecordType(params.record_type);
+    if (!record_type.ok()) {
+      return record_type.status();
+    }
     return std::make_unique<CsvDeltaRecordStreamReader<std::istream>>(
-        input_stream);
+        input_stream, CsvDeltaRecordStreamReader<std::istream>::Options{
+                          .field_separator = params.csv_column_delimiter,
+                          .value_separator = params.csv_value_delimiter,
+                          .record_type = std::move(record_type.value()),
+                      });
   }
   if (lw_input_format == kDeltaFormat) {
     return std::make_unique<DeltaRecordStreamReader<std::istream>>(
@@ -70,8 +97,16 @@ absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
     const FormatDataCommand::Params& params, std::ostream& output_stream) {
   std::string lw_output_format = absl::AsciiStrToLower(params.output_format);
   if (lw_output_format == kCsvFormat) {
+    const auto record_type = GetRecordType(params.record_type);
+    if (!record_type.ok()) {
+      return record_type.status();
+    }
     return std::make_unique<CsvDeltaRecordStreamWriter<std::ostream>>(
-        output_stream);
+        output_stream, CsvDeltaRecordStreamWriter<std::ostream>::Options{
+                           .field_separator = params.csv_column_delimiter,
+                           .value_separator = params.csv_value_delimiter,
+                           .record_type = std::move(record_type.value()),
+                       });
   }
   if (lw_output_format == kDeltaFormat) {
     KVFileMetadata metadata;
@@ -108,8 +143,8 @@ absl::StatusOr<std::unique_ptr<FormatDataCommand>> FormatDataCommand::Create(
 
 absl::Status FormatDataCommand::Execute() {
   absl::Status status = record_reader_->ReadRecords(
-      [record_writer = record_writer_.get()](DeltaFileRecordStruct record) {
-        return record_writer->WriteRecord(record);
+      [record_writer = record_writer_.get()](DataRecordStruct data_record) {
+        return record_writer->WriteRecord(data_record);
       });
   record_writer_->Close();
   return status;

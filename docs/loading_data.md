@@ -35,11 +35,10 @@ Delta filename must conform to the regular expression `DELTA_\d{16}`. See
 [constants.h](../public/constants.h) for the most up-to-date format. More recent delta files are
 lexicographically greater than older delta files. Delta files have the following properties:
 
--   Consists of key/value mutation events (updates/deletes) for a fixed time window.
+-   Consists of key/value mutation events (updates/deletes) for a fixed time window. The events are
+    in the format of Flatbuffers ([Schema](/public/data_loading/data_loading.fbs)).
 -   Each mutation event is associated with a `logical_commit_timestamp`, larger timestamp indicates
     a more recent record.
--   Mutation events are ordered by their `logical_commit_timestamp` and this order is important at
-    read time to make sure that mutations are applied correctly.
 -   `logical_commit_timestamp` of the records have no relation with their file's name. It is
     acceptable to also use timestamps in file names for ordering purposes for your convenience but
     the system makes no assumption on the relation between the record timestamps and the file names.
@@ -115,6 +114,10 @@ Commands:
     [--input_format]   (Optional) Defaults to "CSV". Possible options=(CSV|DELTA)
     [--output_file]    (Optional) Defaults to stdout. Output file to write converted records to.
     [--output_format]  (Optional) Defaults to "DELTA". Possible options=(CSV|DELTA).
+    [--record_type]    (Optional) Defaults to "KEY_VALUE_MUTATION_RECORD". Possible
+                                  options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG).
+                                  If reading/writing a UDF config, use "USER_DEFINED_FUNCTIONS_CONFIG".
+
   Examples:
 ...
 
@@ -144,6 +147,29 @@ As an example, to convert a CSV file to a DELTA file, run the following command:
     --output_file="$PWD/DELTA_0000000000000001" \
     --output_format=DELTA
 ```
+
+Here are samples of a valid csv files that can be used as input to the cli:
+
+```sh
+# The following csv example shows csv with simple string value.
+key,mutation_type,logical_commit_time,value,value_type
+key1,UPDATE,1680815895468055,value1,string
+key2,UPDATE,1680815895468056,value2,string
+key1,UPDATE,1680815895468057,value11,string
+key2,DELETE,1680815895468058,value2,string
+
+# The following csv example shows csv with set values.
+# By default, column delimiter = "," and value delimiter = "|"
+key,mutation_type,logical_commit_time,value,value_type
+key1,UPDATE,1680815895468055,elem1|elem2,string_set
+key2,UPDATE,1680815895468056,elem3|elem4,string_set
+key1,UPDATE,1680815895468057,elem6|elem7|elem8,string_set
+key2,DELETE,1680815895468058,elem10,string_set
+```
+
+Note that the csv delimiters for set values can be changed to any character combination, but if the
+defaults are not used, then the chosen delimiters should be passed to the data_cli using the
+`--csv_column_delimiter` and `--csv_value_delimiter` flags.
 
 And to generate a snapshot from a set of delta files, run the following command (replacing flag
 values with your own values):
@@ -199,6 +225,9 @@ data library. Keep the following things in mind:
 The server watches an S3 bucket for new files. The bucket name is provided by you in the Terraform
 config and is globally unique.
 
+> Note: Access control of the S3 bucket is managed by your IAM system on the cloud platform. Make
+> sure to set the right permissions.
+
 You can use the AWS CLI to upload the sample data to S3, or you can also use the UI.
 
 ```sh
@@ -206,7 +235,7 @@ You can use the AWS CLI to upload the sample data to S3, or you can also use the
 -$ aws s3 cp riegeli_data s3://${S3_BUCKET}/DELTA_001
 ```
 
-> Cauition: The filename must start with `DELTA_` prefix, followed by a 16-digit number.
+> Caution: The filename must start with `DELTA_` prefix, followed by a 16-digit number.
 
 Confirm that the file is present in the S3 bucket:
 

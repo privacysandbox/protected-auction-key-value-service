@@ -21,16 +21,22 @@ declare -r BAZEL_CACHE_DIR="${HOME}/.cache/bazel"
 
 function normalize_symlink() {
   declare -r link_name="$1"
-  if readlink --canonicalize-existing ${link_name} &>/dev/null ; then
-    printf "symlink %s resolves fully, skipping\n" ${link_name}
+  if readlink --canonicalize-existing "${link_name}" &>/dev/null ; then
+    printf "symlink %s resolves fully, skipping\n" "${link_name}"
     return
   fi
-  local -r link_path=$(readlink ${link_name})
-  local -r output_user_root=${link_path///bazel_root\/}
-  rm -f ${link_name}
-  ln -s "${BAZEL_CACHE_DIR}/${output_user_root}" ${link_name}
+  local -r link_path="$(readlink "${link_name}")"
+  local -r output_user_root="${link_path///bazel_root\/}"
+  rm -f "${link_name}"
+  ln -s "${BAZEL_CACHE_DIR}/${output_user_root}" "${link_name}"
 }
 
-for link in bazel-{bin,out,testlogs,workspace}; do
-  normalize_symlink ${link}
+declare -a -r LINK_DIRS=(
+  bazel-bin
+  bazel-out
+  bazel-testlogs
+  bazel-workspace
+)
+for link in "${LINK_DIRS[@]}"; do
+  normalize_symlink "${link}"
 done

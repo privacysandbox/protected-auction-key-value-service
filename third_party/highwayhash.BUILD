@@ -259,8 +259,8 @@ cc_library(
     deps = [
         ":arch_specific",
         ":compiler_specific",
-        ":hh_types",
         ":hh_portable",
+        ":hh_types",
     ] + select({
         ":cpu_ppc": [":hh_vsx"],
         "//conditions:default": [

@@ -25,9 +25,7 @@ service KeyValueService {
   // V1 Query API as described in
   // https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md
   rpc GetValues(GetValuesRequest) returns (GetValuesResponse) {
-    option (google.api.http) = {
-      get: "/v1/getvalues"
-    };
+    option (google.api.http) = {get: "/v1/getvalues"};
   }
 }
 

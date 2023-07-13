@@ -20,19 +20,36 @@
 
 #include "absl/status/statusor.h"
 
+namespace Aws {
+namespace SSM {
+class SSMClient;
+}  // namespace SSM
+}  // namespace Aws
+
 // TODO: Replace config cpio client once ready
 namespace kv_server {
 
 // Client to interact with Parameter storage.
 class ParameterClient {
  public:
-  static std::unique_ptr<ParameterClient> Create();
+  struct ClientOptions {
+    ClientOptions() {}
+    // ParameterClient takes ownership of this if it's set:
+    ::Aws::SSM::SSMClient* ssm_client_for_unit_testing_ = nullptr;
+  };
+
+  static std::unique_ptr<ParameterClient> Create(
+      ClientOptions client_options = ClientOptions());
+
   virtual ~ParameterClient() = default;
 
   virtual absl::StatusOr<std::string> GetParameter(
       std::string_view parameter_name) const = 0;
 
   virtual absl::StatusOr<int32_t> GetInt32Parameter(
+      std::string_view parameter_name) const = 0;
+
+  virtual absl::StatusOr<bool> GetBoolParameter(
       std::string_view parameter_name) const = 0;
 };
 }  // namespace kv_server

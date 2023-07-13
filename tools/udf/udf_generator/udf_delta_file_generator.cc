@@ -27,6 +27,8 @@
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
+#include "public/data_loading/writers/delta_record_stream_writer.h"
+#include "public/data_loading/writers/delta_record_writer.h"
 #include "public/udf/constants.h"
 #include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/records/record_writer.h"
@@ -42,13 +44,19 @@ ABSL_FLAG(std::string, output_path, "",
 ABSL_FLAG(int64_t, timestamp, 123123123,
           "Record timestamp. Default is 123123123.");
 
-using kv_server::DeltaFileRecordStruct;
-using kv_server::DeltaMutationType;
+using kv_server::DataRecordStruct;
+using kv_server::DeltaRecordStreamWriter;
+using kv_server::DeltaRecordWriter;
+using kv_server::KeyValueMutationRecordStruct;
+using kv_server::KeyValueMutationType;
 using kv_server::kUdfCodeSnippetKey;
 using kv_server::kUdfHandlerNameKey;
 using kv_server::KVFileMetadata;
 using kv_server::ToDeltaFileName;
+using kv_server::ToFlatBufferBuilder;
 using kv_server::ToStringView;
+using kv_server::UserDefinedFunctionsConfigStruct;
+using kv_server::UserDefinedFunctionsLanguage;
 
 absl::StatusOr<std::string> ReadCodeSnippetAsString(std::string udf_file_path) {
   std::ifstream ifs(udf_file_path);
@@ -60,26 +68,47 @@ absl::StatusOr<std::string> ReadCodeSnippetAsString(std::string udf_file_path) {
   return udf;
 }
 
-absl::Status WriteRecord(std::string udf_file_path,
-                         std::string_view udf_handler_name,
-                         riegeli::RecordWriterBase& writer) {
-  const int64_t timestamp = absl::GetFlag(FLAGS_timestamp);
+absl::Status WriteUdfConfig(std::ostream* output_stream) {
+  if (!*output_stream) {
+    return absl::NotFoundError("Invalid output");
+  }
+  const std::string udf_file_path = absl::GetFlag(FLAGS_udf_file_path);
+  const std::string udf_handler_name = absl::GetFlag(FLAGS_udf_handler_name);
+  int64_t logical_commit_time = absl::GetFlag(FLAGS_timestamp);
   absl::StatusOr<std::string> code_snippet =
       ReadCodeSnippetAsString(std::move(udf_file_path));
   if (!code_snippet.ok()) {
     return code_snippet.status();
   }
 
-  writer.WriteRecord(ToStringView(
-      DeltaFileRecordStruct{DeltaMutationType::Update, timestamp,
-                            kUdfCodeSnippetKey, std::move(code_snippet.value())}
-          .ToFlatBuffer()));
-  writer.WriteRecord(
-      ToStringView(DeltaFileRecordStruct{DeltaMutationType::Update, timestamp,
-                                         kUdfHandlerNameKey, udf_handler_name}
-                       .ToFlatBuffer()));
-  LOG(INFO) << "write done";
+  KVFileMetadata metadata;
+  auto delta_record_writer = DeltaRecordStreamWriter<std::ostream>::Create(
+      *output_stream, DeltaRecordWriter::Options{.metadata = metadata});
+  if (!delta_record_writer.ok()) {
+    return delta_record_writer.status();
+  }
+
+  UserDefinedFunctionsConfigStruct udf_config = {
+      .code_snippet = std::move(*code_snippet),
+      .handler_name = std::move(udf_handler_name),
+      .logical_commit_time = logical_commit_time,
+      .language = UserDefinedFunctionsLanguage::Javascript};
+  if (absl::Status status = delta_record_writer.value()->WriteRecord(
+          DataRecordStruct{.record = std::move(udf_config)});
+      !status.ok()) {
+    return status;
+  }
+  delta_record_writer.value()->Close();
   return absl::OkStatus();
+}
+
+absl::StatusOr<std::string> CreateDeltaFileName(std::string_view output_dir) {
+  absl::Time now = absl::Now();
+  const auto maybe_name = ToDeltaFileName(absl::ToUnixMicros(now));
+  if (!maybe_name.ok()) {
+    return maybe_name.status();
+  }
+  return absl::StrCat(output_dir, "/", maybe_name.value());
 }
 
 int main(int argc, char** argv) {
@@ -87,31 +116,9 @@ int main(int argc, char** argv) {
   const std::string output_path = absl::GetFlag(FLAGS_output_path);
   const std::string output_dir = absl::GetFlag(FLAGS_output_dir);
 
-  auto write_records = [](std::ostream* os) {
-    if (!*os) {
-      return absl::NotFoundError("Invalid output path");
-    }
-    const std::string udf_file_path = absl::GetFlag(FLAGS_udf_file_path);
-    const std::string udf_handler_name = absl::GetFlag(FLAGS_udf_handler_name);
-
-    auto os_writer = riegeli::OStreamWriter(os);
-    riegeli::RecordWriterBase::Options options;
-    options.set_uncompressed();
-    riegeli::RecordsMetadata metadata;
-    KVFileMetadata file_metadata;
-    *metadata.MutableExtension(kv_server::kv_file_metadata) = file_metadata;
-    options.set_metadata(std::move(metadata));
-    auto record_writer = riegeli::RecordWriter(std::move(os_writer), options);
-    const auto write_status =
-        WriteRecord(std::move(udf_file_path), udf_handler_name, record_writer);
-    record_writer.Close();
-    return write_status;
-  };
-
-  absl::Status write_status;
   if (output_path == "-" || (output_path.empty() && output_dir.empty())) {
     LOG(INFO) << "Writing records to console";
-    write_status = write_records(&std::cout);
+    const auto write_status = WriteUdfConfig(&std::cout);
     if (!write_status.ok()) {
       LOG(ERROR) << "Error writing records: " << write_status;
       return -1;
@@ -132,9 +139,10 @@ int main(int argc, char** argv) {
       outfile = absl::StrCat(output_dir, "/", maybe_name.value());
     }
   }
+
   LOG(INFO) << "Writing records to " << outfile;
   std::ofstream ofs(outfile);
-  write_status = write_records(&ofs);
+  const auto write_status = WriteUdfConfig(&ofs);
   ofs.close();
   if (!write_status.ok()) {
     LOG(ERROR) << "Error writing records: " << write_status;

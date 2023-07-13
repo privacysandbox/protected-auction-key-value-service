@@ -3,8 +3,8 @@
 set -o pipefail
 set -o errexit
 
-VERBOSE=0
-INSTALL_LOCALE=en_US.UTF-8
+declare -i VERBOSE=0
+declare INSTALL_LOCALE=en_US.UTF-8
 
 usage() {
   local exitval=${1-1}
@@ -22,17 +22,13 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --locale)
       INSTALL_LOCALE="$2"
-      shift
-      shift
+      shift 2 || usage
       ;;
     --verbose)
       VERBOSE=1
       shift
       ;;
-    -h | --help)
-      usage 0
-      break
-      ;;
+    -h | --help) usage 0 ;;
     *) usage 0 ;;
   esac
 done
@@ -46,18 +42,31 @@ function apt_update() {
   apt-get --quiet -o 'Acquire::https::No-Cache=True' -o 'Acquire::http::No-Cache=True' update
 }
 
+function install_python() {
+  mkdir -p /opt/bin
+  update-alternatives --install /opt/bin/python3 python3 /usr/bin/python3.9 100
+  update-alternatives --install /opt/bin/python python /usr/bin/python3.9 100
+  curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+  /usr/bin/python3.9 /tmp/get-pip.py
+  rm -f /tmp/get-pip.py
+  /usr/bin/python3.9 -m pip --version
+  /usr/bin/python3.9 -m pip install \
+    "numpy~=1.25"
+}
+
 function install_misc() {
   DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y --no-install-recommends \
     apt-transport-https="2.0.*" \
-    ca-certificates="20211016ubuntu0.20.04.1" \
+    ca-certificates \
     chrpath="0.16-*" \
     libcurl4="7.68.*" \
     curl="7.68.*" \
+    file="1:5*" \
     gettext="0.19.*" \
     git="1:2.25.*" \
     gnupg="2.2.*" \
     locales="2.31-*" \
-    lsb-release="11.1.0*" \
+    lsb-release="11.1.*" \
     openjdk-11-jdk="11.0.*" \
     python3.9-venv="3.9.*" \
     rename="1.10-*" \
@@ -65,11 +74,8 @@ function install_misc() {
     unzip="6.0-*" \
     wget="1.20.*" \
     xz-utils="5.2.*" \
-    zip="3.0-*" \
-    zlib1g-dev="1:1.2.*"
-  mkdir -p /opt/bin
-  update-alternatives --install /opt/bin/python3 python3 /usr/bin/python3.9 100
-  update-alternatives --install /opt/bin/python python /usr/bin/python3.9 100
+    zip="3.0-*"
+  install_python
   if [[ -n ${INSTALL_LOCALE} ]]; then
     printf "\nSetting locale to: %s\n" "${INSTALL_LOCALE}"
     locale-gen "${INSTALL_LOCALE}"
@@ -78,15 +84,19 @@ function install_misc() {
 }
 
 function install_clang() {
-  declare -r VERSION="14"
+  declare -r -i clang_ver=15
   curl --silent --fail --show-error --location --remote-name https://apt.llvm.org/llvm.sh
   chmod +x llvm.sh
-  ./llvm.sh ${VERSION}
-  apt-get --quiet install -y --no-install-recommends libc++-${VERSION}-dev
-  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${VERSION} 100
+  ./llvm.sh ${clang_ver}
+  apt-get --quiet install -y --no-install-recommends libc++-${clang_ver}-dev
+  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${clang_ver} 100
+  update-alternatives --install /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${clang_ver} 100
+  update-alternatives --install /usr/bin/llvm-profdata llvm-profdata /usr/bin/llvm-profdata-${clang_ver} 100
   rm -f llvm.sh
 
   clang --version
+  llvm-cov --version
+  llvm-profdata show --version
 }
 
 # Install Docker (https://docs.docker.com/engine/install/debian/)
@@ -94,9 +104,11 @@ function install_docker() {
   declare -r arch="$1"
   apt-get --quiet remove docker docker.io containerd runc
   mkdir -p /etc/apt/keyrings
-  declare -r DIST=ubuntu
-  curl --silent --fail --show-error --location https://download.docker.com/linux/${DIST}/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=${arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${DIST} $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list
+  declare -r dist=ubuntu
+  curl --silent --fail --show-error --location https://download.docker.com/linux/${dist}/gpg \
+    | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=${arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${dist} $(lsb_release -cs) stable" \
+    | tee /etc/apt/sources.list.d/docker.list
   apt_update
   apt-get --quiet install -y --no-install-recommends docker-ce docker-ce-cli containerd.io
 }

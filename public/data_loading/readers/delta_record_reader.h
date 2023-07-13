@@ -32,7 +32,7 @@ namespace kv_server {
 // ```
 // DeltaRecordReader record_reader = ...
 // absl::Status status = record_reader.ReadRecords(
-//     [](const DeltaFileRecordStruct& record) {
+//     [](const DataRecordStruct& record) {
 //        UseRecord(record);
 //        return absl::OkStatus();
 //     }
@@ -44,11 +44,10 @@ namespace kv_server {
 class DeltaRecordReader {
  public:
   virtual ~DeltaRecordReader() = default;
-  // Reads `DeltaFileRecordStruct` records from the underlying record source and
-  // passes them to `record_callback` function.
+  // Reads `DataRecordStruct` records from the underlying record
+  // source and passes them to `record_callback` function.
   virtual absl::Status ReadRecords(
-      const std::function<absl::Status(DeltaFileRecordStruct)>&
-          record_callback) = 0;
+      const std::function<absl::Status(DataRecordStruct)>& record_callback) = 0;
   // Returns true if the reader is open for reading records.
   virtual bool IsOpen() const = 0;
   // Returns status of the `DeltaRecordReader`.

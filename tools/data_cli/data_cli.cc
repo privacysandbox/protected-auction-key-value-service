@@ -51,6 +51,13 @@ ABSL_FLAG(
 ABSL_FLAG(
     bool, in_memory_compaction, true,
     "If true, delta file compaction to generate snapshots is done in memory.");
+ABSL_FLAG(std::string, csv_column_delimiter, ",",
+          "Column delimiter for csv files");
+ABSL_FLAG(std::string, csv_value_delimiter, "|",
+          "Value delimiter for csv files");
+ABSL_FLAG(std::string, record_type, "key_value_mutation_record",
+          "Data record type. Possible "
+          "options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG).");
 
 constexpr std::string_view kUsageMessage = R"(
 Usage: data_cli <command> <flags>
@@ -61,6 +68,9 @@ Commands:
     [--input_format]   (Optional) Defaults to "CSV". Possible options=(CSV|DELTA)
     [--output_file]    (Optional) Defaults to stdout. Output file to write converted records to.
     [--output_format]  (Optional) Defaults to "DELTA". Possible options=(CSV|DELTA).
+    [--record_type]    (Optional) Defaults to "KEY_VALUE_MUTATION_RECORD". Possible
+                                  options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG).
+                                  If reading/writing a UDF config, use "USER_DEFINED_FUNCTIONS_CONFIG".
   Examples:
     (1) Generate a csv file to a delta file and write output records to std::cout.
     - data_cli format_data --input_file="$PWD/data.csv"
@@ -70,6 +80,9 @@ Commands:
 
     (3) Pipe csv records and generate delta file records and write to std cout.
     - cat "$PWD/data.csv" | data_cli format_data --input_format=CSV
+
+    (4) Generate a delta file with UDF configs back to csv file and write output to a file.
+    - data_cli format_data --input_file="$PWD/delta" --input_format=DELTA --output_file="$PWD/delta.csv" --output_format=CSV --record_type=USER_DEFINED_FUNCTIONS_CONFIG
 
 - generate_snapshot             Compacts a range of delta files into a single snapshot file.
     [--starting_file]           (Required) Oldest delta file or base snapshot to include in compaction.
@@ -134,7 +147,12 @@ int main(int argc, char** argv) {
     auto format_data_command = FormatDataCommand::Create(
         FormatDataCommand::Params{
             .input_format = absl::GetFlag(FLAGS_input_format),
-            .output_format = absl::GetFlag(FLAGS_output_format)},
+            .output_format = absl::GetFlag(FLAGS_output_format),
+            .csv_column_delimiter =
+                absl::GetFlag(FLAGS_csv_column_delimiter)[0],
+            .csv_value_delimiter = absl::GetFlag(FLAGS_csv_value_delimiter)[0],
+            .record_type = absl::GetFlag(FLAGS_record_type),
+        },
         *i_stream, *o_stream);
     if (!format_data_command.ok()) {
       LOG(ERROR) << "Failed to create command to format data. "

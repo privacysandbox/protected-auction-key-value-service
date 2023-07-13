@@ -1,0 +1,125 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_bison//bison:bison.bzl", "bison_cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_flex//flex:flex.bzl", "flex_cc_library")
+
+package(default_visibility = [
+    "//components:__subpackages__",
+])
+
+cc_library(
+    name = "sets",
+    srcs = [
+    ],
+    hdrs = [
+        "sets.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/container:flat_hash_set",
+    ],
+)
+
+cc_library(
+    name = "ast",
+    srcs = [
+        "ast.cc",
+    ],
+    hdrs = [
+        "ast.h",
+    ],
+    deps = [
+        ":sets",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/functional:bind_front",
+    ],
+)
+
+cc_test(
+    name = "ast_test",
+    size = "small",
+    srcs = [
+        "ast_test.cc",
+    ],
+    deps = [
+        ":ast",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "driver",
+    srcs = [
+        "driver.cc",
+    ],
+    hdrs = [
+        "driver.h",
+        "scanner.h",
+    ],
+    deps = [
+        ":ast",
+        ":sets",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@rules_flex//flex:current_flex_toolchain",
+    ],
+)
+
+cc_test(
+    name = "driver_test",
+    size = "small",
+    srcs = [
+        "driver_test.cc",
+    ],
+    deps = [
+        ":driver",
+        ":parser",
+        ":scanner",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+# yy extension required to produce .cc files instead of .c.
+bison_cc_library(
+    name = "parser",
+    src = "parser.yy",
+    deps = [
+        ":driver",
+    ],
+)
+
+flex_cc_library(
+    name = "scanner",
+    src = "scanner.ll",
+    deps = [
+        ":parser",
+    ],
+)
+
+cc_test(
+    name = "scanner_test",
+    size = "small",
+    srcs = [
+        "scanner_test.cc",
+    ],
+    deps = [
+        ":scanner",
+        "@com_google_absl//absl/strings",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

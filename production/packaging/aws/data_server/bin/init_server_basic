@@ -15,6 +15,8 @@
 
 set -o errexit
 
+readonly INTERNAL_SERVER_ADDRESS="unix:///server/socket/internal.sock"
+
 usage() {
   exitval=${1-1}
   cat >&2 << USAGE
@@ -41,4 +43,4 @@ while [ $# -gt 0 ]; do
 done
 
 # Start the server.
-GLOG_logtostderr=1 $PROXY /server/bin/server "$@"
+GLOG_logtostderr=1 $PROXY /server/bin/server "$@"  --internal_server_address=${INTERNAL_SERVER_ADDRESS}

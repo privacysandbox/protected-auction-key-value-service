@@ -22,9 +22,8 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "components/internal_lookup/lookup_client.h"
+#include "components/internal_server/lookup_client.h"
 #include "components/udf/code_config.h"
-#include "components/udf/code_fetcher.h"
 #include "components/udf/udf_client.h"
 #include "gmock/gmock.h"
 #include "roma/interface/roma.h"
@@ -39,12 +38,6 @@ class MockUdfClient : public UdfClient {
   MOCK_METHOD((absl::Status), SetCodeObject, (CodeConfig), (override));
   MOCK_METHOD((absl::Status), SetWasmCodeObject,
               (CodeConfig, google::scp::roma::WasmDataType), (override));
-};
-
-class MockCodeFetcher : public CodeFetcher {
- public:
-  MOCK_METHOD((absl::StatusOr<CodeConfig>), FetchCodeConfig,
-              (const LookupClient&), (override));
 };
 
 }  // namespace kv_server

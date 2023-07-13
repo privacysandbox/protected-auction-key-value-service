@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library", "cc_test")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 
 package(default_visibility = [
     "//components/data_server:__subpackages__",
+    "//components/internal_server:__subpackages__",
 ])
 
 cc_library(
@@ -27,6 +29,7 @@ cc_library(
         "get_values_handler.h",
     ],
     deps = [
+        ":get_values_adapter",
         "//components/data_server/cache",
         "//public:base_types_cc_proto",
         "//public:constants",
@@ -48,6 +51,7 @@ cc_test(
     ],
     deps = [
         ":get_values_handler",
+        ":mocks",
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/cache:mocks",
@@ -70,14 +74,13 @@ cc_library(
     ],
     deps = [
         ":compression",
+        ":ohttp_server_encryptor",
         "//components/data_server/cache",
         "//components/udf:udf_client",
         "//public:base_types_cc_proto",
-        "//public:constants",
         "//public/query/v2:get_values_v2_cc_grpc",
         "@com_github_google_glog//:glog",
         "@com_github_google_quiche//quiche:binary_http_unstable_api",
-        "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/algorithm:container",
         "@com_google_absl//absl/status:statusor",
@@ -163,10 +166,12 @@ cc_library(
     ],
     deps = [
         ":get_values_v2_handler",
+        ":v2_response_data_cc_proto",
         "//public/query:get_values_cc_grpc",
         "//public/query/v2:get_values_v2_cc_grpc",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
+        "@com_google_protobuf//:protobuf",
     ],
 )
 
@@ -178,6 +183,7 @@ cc_test(
     ],
     deps = [
         ":get_values_adapter",
+        ":mocks",
         "//components/udf:mocks",
         "//public/query:get_values_cc_grpc",
         "//public/test_util:proto_matcher",
@@ -185,5 +191,88 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_test(
+    name = "v2_response_data_proto_test",
+    size = "small",
+    srcs = [
+        "v2_response_data_proto_test.cc",
+    ],
+    deps = [
+        ":v2_response_data_cc_proto",
+        "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_protobuf//:protobuf",
+    ],
+)
+
+proto_library(
+    name = "v2_response_data_proto",
+    srcs = ["v2_response_data.proto"],
+    deps = [
+        "@com_google_protobuf//:struct_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "v2_response_data_cc_proto",
+    deps = [":v2_response_data_proto"],
+)
+
+cc_library(
+    name = "mocks",
+    testonly = 1,
+    hdrs = ["mocks.h"],
+    deps = [
+        ":get_values_adapter",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "ohttp_client_encryptor",
+    srcs = [
+        "ohttp_client_encryptor.cc",
+    ],
+    hdrs = [
+        "ohttp_client_encryptor.h",
+    ],
+    deps = [
+        "//public:constants",
+        "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "ohttp_server_encryptor",
+    srcs = [
+        "ohttp_server_encryptor.cc",
+    ],
+    hdrs = [
+        "ohttp_server_encryptor.h",
+    ],
+    deps = [
+        "//public:constants",
+        "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "ohttp_encryptor_test",
+    size = "small",
+    srcs = [
+        "ohttp_encryptor_test.cc",
+    ],
+    deps = [
+        ":ohttp_client_encryptor",
+        ":ohttp_server_encryptor",
+        "@com_google_googletest//:gtest_main",
     ],
 )

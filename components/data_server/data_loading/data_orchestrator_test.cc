@@ -22,6 +22,8 @@
 #include "components/data/common/mocks.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
+#include "components/udf/code_config.h"
+#include "components/udf/mocks.h"
 #include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -35,11 +37,13 @@
 
 using kv_server::BlobStorageChangeNotifier;
 using kv_server::BlobStorageClient;
+using kv_server::CodeConfig;
 using kv_server::DataOrchestrator;
-using kv_server::DeltaFileRecordStruct;
-using kv_server::DeltaMutationType;
+using kv_server::DataRecordStruct;
 using kv_server::FilePrefix;
 using kv_server::FileType;
+using kv_server::KeyValueMutationRecordStruct;
+using kv_server::KeyValueMutationType;
 using kv_server::KVFileMetadata;
 using kv_server::MockBlobReader;
 using kv_server::MockBlobStorageChangeNotifier;
@@ -50,9 +54,13 @@ using kv_server::MockDeltaFileRecordChangeNotifier;
 using kv_server::MockRealtimeNotifier;
 using kv_server::MockStreamRecordReader;
 using kv_server::MockStreamRecordReaderFactory;
+using kv_server::MockUdfClient;
 using kv_server::ToDeltaFileName;
+using kv_server::ToFlatBufferBuilder;
 using kv_server::ToSnapshotFileName;
 using kv_server::ToStringView;
+using kv_server::UserDefinedFunctionsConfigStruct;
+using kv_server::UserDefinedFunctionsLanguage;
 using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::AllOf;
@@ -80,12 +88,14 @@ class DataOrchestratorTest : public ::testing::Test {
             .blob_client = blob_client_,
             .delta_notifier = notifier_,
             .change_notifier = change_notifier_,
+            .udf_client = udf_client_,
             .delta_stream_reader_factory = delta_stream_reader_factory_,
             .realtime_options = realtime_options_}) {}
 
   MockBlobStorageClient blob_client_;
   MockDeltaFileNotifier notifier_;
   MockBlobStorageChangeNotifier change_notifier_;
+  MockUdfClient udf_client_;
   MockStreamRecordReaderFactory delta_stream_reader_factory_;
   MockCache cache_;
   std::vector<DataOrchestrator::RealtimeOptions> realtime_options_;
@@ -233,10 +243,12 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
       .Times(1)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
-            const auto fb = DeltaFileRecordStruct{DeltaMutationType::Update, 3,
-                                                  "bar", "bar value"}
-                                .ToFlatBuffer();
-            callback(ToStringView(fb)).IgnoreError();
+            callback(ToStringView(ToFlatBufferBuilder(
+                         DataRecordStruct{.record =
+                                              KeyValueMutationRecordStruct{
+                                                  KeyValueMutationType::Update,
+                                                  3, "bar", "bar value"}})))
+                .IgnoreError();
             return absl::OkStatus();
           });
   auto delete_reader = std::make_unique<MockStreamRecordReader>();
@@ -244,10 +256,12 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
       .Times(1)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
-            const auto fb = DeltaFileRecordStruct{DeltaMutationType::Delete, 3,
-                                                  "bar", "bar value"}
-                                .ToFlatBuffer();
-            callback(ToStringView(fb)).IgnoreError();
+            callback(ToStringView(ToFlatBufferBuilder(
+                         DataRecordStruct{.record =
+                                              KeyValueMutationRecordStruct{
+                                                  KeyValueMutationType::Delete,
+                                                  3, "bar", "bar value"}})))
+                .IgnoreError();
             return absl::OkStatus();
           });
   EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
@@ -264,6 +278,108 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
   ASSERT_TRUE(maybe_orchestrator.ok());
 
   const std::string last_basename = ToDeltaFileName(2).value();
+  EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
+      .WillOnce(Return(absl::UnknownError("")));
+  EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
+}
+
+TEST_F(DataOrchestratorTest, UpdateUdfCodeSuccess) {
+  const std::vector<std::string> fnames({ToDeltaFileName(1).value()});
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .WillOnce(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::DELTA>()))))
+      .WillOnce(Return(fnames));
+
+  KVFileMetadata metadata;
+  auto reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*reader, ReadStreamRecords)
+      .WillOnce(
+          [](const std::function<absl::Status(std::string_view)>& callback) {
+            callback(ToStringView(ToFlatBufferBuilder(DataRecordStruct{
+                         .record =
+                             UserDefinedFunctionsConfigStruct{
+                                 .code_snippet = "function hello(){}",
+                                 .handler_name = "hello",
+                                 .language =
+                                     UserDefinedFunctionsLanguage::Javascript,
+                                 .logical_commit_time = 1}})))
+                .IgnoreError();
+            return absl::OkStatus();
+          });
+  auto delete_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
+      .WillOnce(Return(ByMove(std::move(reader))));
+
+  EXPECT_CALL(udf_client_, SetCodeObject(CodeConfig{.js = "function hello(){}",
+                                                    .udf_handler_name = "hello",
+                                                    .logical_commit_time = 1}))
+      .WillOnce(Return(absl::OkStatus()));
+  auto maybe_orchestrator =
+      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  ASSERT_TRUE(maybe_orchestrator.ok());
+
+  const std::string last_basename = ToDeltaFileName(1).value();
+  EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
+      .WillOnce(Return(absl::UnknownError("")));
+  EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
+}
+
+TEST_F(DataOrchestratorTest, UpdateUdfCodeFails_OrchestratorContinues) {
+  const std::vector<std::string> fnames({ToDeltaFileName(1).value()});
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .WillOnce(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::DELTA>()))))
+      .WillOnce(Return(fnames));
+
+  KVFileMetadata metadata;
+  auto reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*reader, ReadStreamRecords)
+      .WillOnce(
+          [](const std::function<absl::Status(std::string_view)>& callback) {
+            callback(ToStringView(ToFlatBufferBuilder(DataRecordStruct{
+                         .record =
+                             UserDefinedFunctionsConfigStruct{
+                                 .code_snippet = "function hello(){}",
+                                 .handler_name = "hello",
+                                 .language =
+                                     UserDefinedFunctionsLanguage::Javascript,
+                                 .logical_commit_time = 1}})))
+                .IgnoreError();
+            return absl::OkStatus();
+          });
+  auto delete_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
+      .WillOnce(Return(ByMove(std::move(reader))));
+
+  EXPECT_CALL(udf_client_, SetCodeObject(CodeConfig{.js = "function hello(){}",
+                                                    .udf_handler_name = "hello",
+                                                    .logical_commit_time = 1}))
+      .WillOnce(Return(absl::UnknownError("Some error.")));
+  auto maybe_orchestrator =
+      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  ASSERT_TRUE(maybe_orchestrator.ok());
+
+  const std::string last_basename = ToDeltaFileName(1).value();
   EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
       .WillOnce(Return(absl::UnknownError("")));
   EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
@@ -299,10 +415,12 @@ TEST_F(DataOrchestratorTest, StartLoading) {
       .Times(1)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
-            const auto fb = DeltaFileRecordStruct{DeltaMutationType::Update, 3,
-                                                  "bar", "bar value"}
-                                .ToFlatBuffer();
-            callback(ToStringView(fb)).IgnoreError();
+            callback(ToStringView(ToFlatBufferBuilder(
+                         DataRecordStruct{.record =
+                                              KeyValueMutationRecordStruct{
+                                                  KeyValueMutationType::Update,
+                                                  3, "bar", "bar value"}})))
+                .IgnoreError();
             return absl::OkStatus();
           });
   auto delete_reader = std::make_unique<MockStreamRecordReader>();
@@ -311,10 +429,12 @@ TEST_F(DataOrchestratorTest, StartLoading) {
       .WillOnce(
           [&all_records_loaded](
               const std::function<absl::Status(std::string_view)>& callback) {
-            const auto fb = DeltaFileRecordStruct{DeltaMutationType::Delete, 3,
-                                                  "bar", "bar value"}
-                                .ToFlatBuffer();
-            callback(ToStringView(fb)).IgnoreError();
+            callback(ToStringView(ToFlatBufferBuilder(
+                         DataRecordStruct{.record =
+                                              KeyValueMutationRecordStruct{
+                                                  KeyValueMutationType::Delete,
+                                                  3, "bar", "bar value"}})))
+                .IgnoreError();
             all_records_loaded.Notify();
             return absl::OkStatus();
           });
@@ -367,11 +487,13 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .Times(1)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
-            // key: "shard2" -> shard num: 0
-            const auto fb = DeltaFileRecordStruct{DeltaMutationType::Update, 3,
-                                                  "shard1", "bar value"}
-                                .ToFlatBuffer();
-            callback(ToStringView(fb)).IgnoreError();
+            // key: "shard1" -> shard num: 0
+            callback(ToStringView(ToFlatBufferBuilder(
+                         DataRecordStruct{.record =
+                                              KeyValueMutationRecordStruct{
+                                                  KeyValueMutationType::Update,
+                                                  3, "shard1", "bar value"}})))
+                .IgnoreError();
             return absl::OkStatus();
           });
   auto delete_reader = std::make_unique<MockStreamRecordReader>();
@@ -380,10 +502,12 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
             // key: "shard2" -> shard num: 1
-            const auto fb = DeltaFileRecordStruct{DeltaMutationType::Delete, 3,
-                                                  "shard2", "bar value"}
-                                .ToFlatBuffer();
-            callback(ToStringView(fb)).IgnoreError();
+            callback(ToStringView(ToFlatBufferBuilder(
+                         DataRecordStruct{.record =
+                                              KeyValueMutationRecordStruct{
+                                                  KeyValueMutationType::Delete,
+                                                  3, "shard2", "bar value"}})))
+                .IgnoreError();
             return absl::OkStatus();
           });
   EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
@@ -391,6 +515,7 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .WillOnce(Return(ByMove(std::move(update_reader))))
       .WillOnce(Return(ByMove(std::move(delete_reader))));
 
+  EXPECT_CALL(metrics_recorder_, IncrementEventCounter).Times(1);
   EXPECT_CALL(strict_cache, RemoveDeletedKeys(0)).Times(1);
   EXPECT_CALL(strict_cache, DeleteKey("shard2", 3)).Times(1);
   EXPECT_CALL(strict_cache, RemoveDeletedKeys(3)).Times(1);
@@ -401,10 +526,12 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .blob_client = blob_client_,
       .delta_notifier = notifier_,
       .change_notifier = change_notifier_,
+      .udf_client = udf_client_,
       .delta_stream_reader_factory = delta_stream_reader_factory_,
       .realtime_options = realtime_options_,
+      .shard_num = 1,
       .num_shards = 2,
-      .shard_num = 1};
+  };
 
   auto maybe_orchestrator =
       DataOrchestrator::TryCreate(sharded_options, metrics_recorder_);

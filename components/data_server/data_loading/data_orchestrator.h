@@ -28,6 +28,7 @@
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/data/realtime/realtime_notifier.h"
 #include "components/data_server/cache/cache.h"
+#include "components/udf/udf_client.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
@@ -53,9 +54,9 @@ class DataOrchestrator {
     BlobStorageClient& blob_client;
     DeltaFileNotifier& delta_notifier;
     BlobStorageChangeNotifier& change_notifier;
+    UdfClient& udf_client;
     StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory;
     std::vector<RealtimeOptions>& realtime_options;
-    const absl::AnyInvocable<void()>& udf_update_callback = []() {};
     const int32_t shard_num = 0;
     const int32_t num_shards = 1;
   };

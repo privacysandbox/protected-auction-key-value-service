@@ -18,7 +18,7 @@ set -o errexit
 
 TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 readonly TOOLS_DIR
-# shellcheck disable=SC1091
+# shellcheck disable=SC1090
 source "${TOOLS_DIR}"/builder.sh
 
 trap __cleanup EXIT
@@ -34,7 +34,7 @@ function __cleanup() {
     exit ${STATUS}
   fi
   # shellcheck disable=SC2086
-  "${TOOLS_DIR}"/cbuild ${CBUILD_COMMON_ARGS} --cmd $"
+  "${TOOLS_DIR}"/cbuild "${CBUILD_COMMON_ARGS[@]}" --cmd $"
 # change file ownership back to user
 {
   git ls-files . --modified
@@ -111,9 +111,13 @@ function __init() {
   SKIP_ENV="SKIP=${SKIP_HOOKS}"
 }
 
-CLEANUP=0
-
-CBUILD_COMMON_ARGS="--without-shared-cache --image presubmit"
+declare -i CLEANUP=0
+declare -a -r CBUILD_COMMON_ARGS=(
+  "--without-shared-cache"
+  "--image"
+  presubmit
+)
+declare -r PRECOMMIT=/usr/pre-commit-venv/bin/pre-commit
 
 # TODO: run bazel //:precommit-hooks rather than just the pre-commit tool
 if [[ $# -gt 0 ]]; then
@@ -127,7 +131,7 @@ if [[ $# -gt 0 ]]; then
       shift
       __init
       # shellcheck disable=SC2086
-      "${TOOLS_DIR}"/cbuild ${CBUILD_COMMON_ARGS} --env "${SKIP_ENV}" --cmd "/usr/pre-commit-venv/bin/pre-commit ${PRECOMMIT_CMD} --config ./.pre-commit-config.yaml $*"
+      "${TOOLS_DIR}"/cbuild "${CBUILD_COMMON_ARGS[@]}" --env "${SKIP_ENV}" --cmd "${PRECOMMIT} ${PRECOMMIT_CMD} --config ./.pre-commit-config.yaml $*"
       ;;
 
     hook-impl)
@@ -139,7 +143,7 @@ if [[ $# -gt 0 ]]; then
         --entrypoint=/usr/pre-commit-venv/bin/pre-commit \
         --volume "${WORKSPACE}":/src/workspace \
         -v /var/run/docker.sock:/var/run/docker.sock \
-        --env "${SKIP_ENV}" \
+        --env="${SKIP_ENV}" \
         --workdir /src/workspace \
         "${IMAGE_TAGGED}" \
         "${PRECOMMIT_CMD}" --config ./.pre-commit-config.yaml "$@"
@@ -150,12 +154,12 @@ if [[ $# -gt 0 ]]; then
       CLEANUP=1
       for HOOK in "$@"; do
         # shellcheck disable=SC2086
-        "${TOOLS_DIR}"/cbuild ${CBUILD_COMMON_ARGS} --env "${SKIP_ENV}" --cmd "/usr/pre-commit-venv/bin/pre-commit run --config ./.pre-commit-config.yaml --all-files ${HOOK}"
+        "${TOOLS_DIR}"/cbuild "${CBUILD_COMMON_ARGS[@]}" --env "${SKIP_ENV}" --cmd "${PRECOMMIT} run --config ./.pre-commit-config.yaml --all-files ${HOOK}"
       done
   esac
 else
   __init
   CLEANUP=1
   # shellcheck disable=SC2086
-  "${TOOLS_DIR}"/cbuild ${CBUILD_COMMON_ARGS} --env "${SKIP_ENV}" --cmd "/usr/pre-commit-venv/bin/pre-commit run --config ./.pre-commit-config.yaml --all-files"
+  "${TOOLS_DIR}"/cbuild "${CBUILD_COMMON_ARGS[@]}" --env "${SKIP_ENV}" --cmd "${PRECOMMIT} run --config ./.pre-commit-config.yaml --all-files"
 fi

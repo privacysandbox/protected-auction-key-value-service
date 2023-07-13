@@ -20,6 +20,9 @@ package(default_visibility = [
 
 cc_library(
     name = "aws_error_util",
+    srcs = [
+        "error_util_aws.cc",
+    ],
     hdrs = [
         "error_util_aws.h",
     ],
@@ -27,6 +30,20 @@ cc_library(
         "@aws_sdk_cpp//:core",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings:cord",
+    ],
+)
+
+cc_test(
+    name = "error_util_aws_test",
+    size = "small",
+    srcs = [
+        "error_util_aws_test.cc",
+    ],
+    deps = [
+        ":aws_error_util",
+        "@aws_sdk_cpp//:core",
+        "@com_google_absl//absl/status",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

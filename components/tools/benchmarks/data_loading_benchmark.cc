@@ -35,6 +35,8 @@
 #include "glog/logging.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/records_utils.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, data_directory, "",
@@ -68,12 +70,19 @@ using kv_server::BlobReader;
 using kv_server::BlobStorageClient;
 using kv_server::Cache;
 using kv_server::ConcurrentStreamRecordReader;
-using kv_server::DeltaFileRecord;
-using kv_server::DeltaMutationType;
+using kv_server::DataRecord;
+using kv_server::DeserializeDataRecord;
+using kv_server::GetKeyValueSetResult;
+using kv_server::GetRecordValue;
 using kv_server::KeyValueCache;
+using kv_server::KeyValueMutationRecord;
+using kv_server::KeyValueMutationType;
+using kv_server::Record;
 using kv_server::RecordStream;
+using kv_server::Value;
 using kv_server::benchmark::ParseInt64List;
 using kv_server::benchmark::WriteRecords;
+using privacy_sandbox::server_common::MetricsRecorder;
 using privacy_sandbox::server_common::TelemetryProvider;
 
 constexpr std::string_view kNoOpCacheNameFormat =
@@ -119,13 +128,34 @@ class NoOpCache : public Cache {
       const std::vector<std::string_view>& key_list) const override {
     return {};
   };
+  std::unique_ptr<kv_server::GetKeyValueSetResult> GetKeyValueSet(
+      const absl::flat_hash_set<std::string_view>& key_set) const override {
+    return std::make_unique<NoOpGetKeyValueSetResult>();
+  }
   void UpdateKeyValue(std::string_view key, std::string_view value,
                       int64_t logical_commit_time) override {}
+  void UpdateKeyValueSet(std::string_view key,
+                         absl::Span<std::string_view> value_set,
+                         int64_t logical_commit_time) override {}
   void DeleteKey(std::string_view key, int64_t logical_commit_time) override {}
+  void DeleteValuesInSet(std::string_view key,
+                         absl::Span<std::string_view> value_set,
+                         int64_t logical_commit_time) override {}
   void RemoveDeletedKeys(int64_t logical_commit_time) override {}
   static std::unique_ptr<Cache> Create() {
     return std::make_unique<NoOpCache>();
   }
+
+ private:
+  class NoOpGetKeyValueSetResult : public kv_server::GetKeyValueSetResult {
+    absl::flat_hash_set<std::string_view> GetValueSet(
+        std::string_view key) const override {
+      return {};
+    }
+    void AddKeyValueSet(
+        absl::Mutex& key_mutex, std::string_view key,
+        const absl::flat_hash_set<std::string_view>& value_set) override {}
+  };
 };
 
 BlobStorageClient::DataLocation GetBlobLocation() {
@@ -143,11 +173,14 @@ int64_t GetBlobSize(BlobStorageClient& blob_client,
   return stream.tellg();
 }
 
-void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args);
+void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args,
+                          MetricsRecorder& metrics_recorder);
 
-void RegisterBenchmark(std::string_view benchmark_name, BenchmarkArgs args) {
-  auto b = benchmark::RegisterBenchmark(benchmark_name.data(),
-                                        BM_LoadDataIntoCache, args);
+void RegisterBenchmark(std::string_view benchmark_name, BenchmarkArgs args,
+                       MetricsRecorder& metrics_recorder) {
+  auto b =
+      benchmark::RegisterBenchmark(benchmark_name.data(), BM_LoadDataIntoCache,
+                                   args, std::ref(metrics_recorder));
   b->MeasureProcessCPUTime();
   b->UseRealTime();
   if (absl::GetFlag(FLAGS_args_benchmark_iterations) > 0) {
@@ -156,7 +189,7 @@ void RegisterBenchmark(std::string_view benchmark_name, BenchmarkArgs args) {
 }
 
 // Registers benchmark
-void RegisterBenchmarks() {
+void RegisterBenchmarks(MetricsRecorder& metrics_recorder) {
   auto num_worker_threads =
       ParseInt64List(absl::GetFlag(FLAGS_args_reader_worker_threads));
   auto client_max_conns =
@@ -174,25 +207,60 @@ void RegisterBenchmarks() {
         };
         RegisterBenchmark(absl::StrFormat(kNoOpCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),
-                          args);
+                          args, metrics_recorder);
         args.create_cache_fn = []() { return KeyValueCache::Create(); };
         RegisterBenchmark(absl::StrFormat(kMutexCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),
-                          args);
+                          args, metrics_recorder);
       }
     }
   }
 }
 
-void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
+absl::Status ApplyUpdateMutation(const KeyValueMutationRecord& record,
+                                 Cache& cache) {
+  if (record.value_type() == Value::String) {
+    cache.UpdateKeyValue(record.key()->string_view(),
+                         GetRecordValue<std::string_view>(record),
+                         record.logical_commit_time());
+    return absl::OkStatus();
+  }
+  if (record.value_type() == Value::StringSet) {
+    auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    cache.UpdateKeyValueSet(record.key()->string_view(), absl::MakeSpan(values),
+                            record.logical_commit_time());
+    return absl::OkStatus();
+  }
+  return absl::InvalidArgumentError(
+      absl::StrCat("Record with key: ", record.key()->string_view(),
+                   " has unsupported value type: ", record.value_type()));
+}
+
+absl::Status ApplyDeleteMutation(const KeyValueMutationRecord& record,
+                                 Cache& cache) {
+  if (record.value_type() == Value::String) {
+    cache.DeleteKey(record.key()->string_view(), record.logical_commit_time());
+    return absl::OkStatus();
+  }
+  if (record.value_type() == Value::StringSet) {
+    auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    cache.DeleteValuesInSet(record.key()->string_view(), absl::MakeSpan(values),
+                            record.logical_commit_time());
+    return absl::OkStatus();
+  }
+  return absl::InvalidArgumentError(
+      absl::StrCat("Record with key: ", record.key()->string_view(),
+                   " has unsupported value type: ", record.value_type()));
+}
+
+void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args,
+                          MetricsRecorder& metrics_recorder) {
   BlobStorageClient::ClientOptions options;
   options.max_range_bytes = args.client_max_range_mb * 1024 * 1024;
   options.max_connections = args.client_max_connections;
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto blob_client = BlobStorageClient::Create(*noop_metrics_recorder, options);
+  auto blob_client = BlobStorageClient::Create(metrics_recorder, options);
   ConcurrentStreamRecordReader<std::string_view> record_reader(
-      *noop_metrics_recorder,
+      metrics_recorder,
       /*stream_factory=*/
       [blob_client = blob_client.get()]() {
         return std::make_unique<BlobRecordStream>(
@@ -208,34 +276,37 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
     state.PauseTiming();
     auto cache = args.create_cache_fn();
     state.ResumeTiming();
-    auto status = record_reader.ReadStreamRecords(
-        [&num_records_read, cache = cache.get()](std::string_view raw) {
-          num_records_read++;
-          auto record = flatbuffers::GetRoot<DeltaFileRecord>(raw.data());
-          auto recordVerifier = flatbuffers::Verifier(
-              reinterpret_cast<const uint8_t*>(raw.data()), raw.size());
-          if (!record->Verify(recordVerifier)) {
-            return absl::InvalidArgumentError("Invalid flatbuffer format");
-          }
+    auto status = record_reader.ReadStreamRecords([&num_records_read,
+                                                   cache = cache.get()](
+                                                      std::string_view raw) {
+      num_records_read++;
+      return DeserializeDataRecord(raw, [cache](const DataRecord& data_record) {
+        if (data_record.record_type() == Record::KeyValueMutationRecord) {
+          const auto* record = data_record.record_as_KeyValueMutationRecord();
           switch (record->mutation_type()) {
-            case DeltaMutationType::Update: {
-              cache->UpdateKeyValue(record->key()->string_view(),
-                                    record->value()->string_view(),
-                                    record->logical_commit_time());
+            case KeyValueMutationType::Update: {
+              if (auto status = ApplyUpdateMutation(*record, *cache);
+                  status.ok()) {
+                return status;
+              }
               break;
             }
-            case DeltaMutationType::Delete: {
-              cache->DeleteKey(record->key()->string_view(),
-                               record->logical_commit_time());
-              break;
+            case KeyValueMutationType::Delete: {
+              if (auto status = ApplyDeleteMutation(*record, *cache);
+                  status.ok()) {
+                return status;
+              }
             }
             default:
-              return absl::InvalidArgumentError(absl::StrCat(
-                  "Invalid mutation type: ",
-                  EnumNameDeltaMutationType(record->mutation_type())));
+              return absl::InvalidArgumentError(
+                  absl::StrCat("Invalid mutation type: ",
+                               kv_server::EnumNameKeyValueMutationType(
+                                   record->mutation_type())));
           }
-          return absl::OkStatus();
-        });
+        }
+        return absl::OkStatus();
+      });
+    });
     benchmark::DoNotOptimize(status);
   }
   state.SetItemsProcessed(num_records_read);
@@ -292,7 +363,7 @@ int main(int argc, char** argv) {
     }
     LOG(INFO) << "Done creating input file: " << GetBlobLocation();
   }
-  RegisterBenchmarks();
+  RegisterBenchmarks(*noop_metrics_recorder);
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
   if (absl::GetFlag(FLAGS_create_input_file)) {

@@ -73,8 +73,10 @@ changes.
 -   [Local server quickstart guide](/docs/developing_the_server.md)
 -   [AWS server user deployment documentation](/docs/deploying_on_aws.md)
 -   [Integrating the K/V server with FLEDGE](/docs/integrating_with_fledge.md)
+-   [FLEDGE K/V server sharding explainer](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_sharding.md)
 -   Operating documentation
     -   [Data loading API and operations](/docs/loading_data.md)
+    -   [Generating and loading UDF files](/docs/generating_udf_files.md)
     -   Error handling explainer (_to be published_)
 -   Developer guide
     -   [Codebase structure](/docs/repo_layout.md)

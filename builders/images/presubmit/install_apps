@@ -55,7 +55,7 @@ function apt_update() {
 function install_packages() {
   DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y --no-install-recommends \
     apt-transport-https="2.0.*" \
-    ca-certificates="20211016ubuntu0.20.04.1" \
+    ca-certificates \
     libcurl4="7.68.*" \
     curl="7.68.*" \
     gnupg="2.2.*" \
@@ -85,7 +85,7 @@ function install_docker() {
 
 function install_precommit() {
   /usr/bin/python3.9 -m venv "${PRE_COMMIT_VENV_DIR}"
-  "${PRE_COMMIT_VENV_DIR}"/bin/pip install pre-commit
+  "${PRE_COMMIT_VENV_DIR}"/bin/pip install pre-commit~=3.1
   "${PRE_COMMIT_TOOL}" --version
 
   # initialize pre-commit cache, which needs a git repo (a temporary will suffice)

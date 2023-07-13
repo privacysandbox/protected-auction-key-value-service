@@ -28,6 +28,8 @@ ABSL_FLAG(std::string, shard_num, "0", "Shard number.");
 namespace kv_server {
 namespace {
 
+using privacy_sandbox::server_common::MetricsRecorder;
+
 class LocalInstanceClient : public InstanceClient {
  public:
   absl::StatusOr<std::string> GetEnvironmentTag() override {
@@ -60,11 +62,27 @@ class LocalInstanceClient : public InstanceClient {
     hostname.resize(strlen(hostname.c_str()));
     return hostname;
   }
+
+  absl::StatusOr<std::vector<InstanceInfo>> DescribeInstanceGroupInstances(
+      const absl::flat_hash_set<std::string>& instance_groups) override {
+    auto id = GetInstanceId();
+    return DescribeInstances({});
+  }
+
+  absl::StatusOr<std::vector<InstanceInfo>> DescribeInstances(
+      const absl::flat_hash_set<std::string>& instance_ids) {
+    auto id = GetInstanceId();
+    if (!id.ok()) {
+      return id.status();
+    }
+    return std::vector<InstanceInfo>{InstanceInfo{.id = *id}};
+  }
 };
 
 }  // namespace
 
-std::unique_ptr<InstanceClient> InstanceClient::Create() {
+std::unique_ptr<InstanceClient> InstanceClient::Create(
+    MetricsRecorder& metrics_recorder) {
   return std::make_unique<LocalInstanceClient>();
 }
 

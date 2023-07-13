@@ -13,73 +13,9 @@
 # limitations under the License.
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("@google_privacysandbox_servers_common//:cpp_deps.bzl", shared_cpp_dependencies = "cpp_dependencies")
 
 def cpp_repositories():
     """Entry point for all external repositories used for C++/C dependencies."""
-
-    shared_cpp_dependencies()
-
-    http_archive(
-        name = "aws-checksums",
-        build_file = "//third_party:aws_checksums.BUILD",
-        sha256 = "6e6bed6f75cf54006b6bafb01b3b96df19605572131a2260fddaf0e87949ced0",
-        strip_prefix = "aws-checksums-0.1.5",
-        urls = [
-            "https://github.com/awslabs/aws-checksums/archive/v0.1.5.tar.gz",
-        ],
-    )
-
-    http_archive(
-        name = "aws-c-common",
-        build_file = "//third_party:aws_c_common.BUILD",
-        sha256 = "01c2a58553a37b3aa5914d9e0bf7bf14507ff4937bc5872a678892ca20fcae1f",
-        strip_prefix = "aws-c-common-0.4.29",
-        urls = [
-            "https://github.com/awslabs/aws-c-common/archive/v0.4.29.tar.gz",
-        ],
-    )
-
-    http_archive(
-        name = "aws-c-event-stream",
-        build_file = "//third_party:aws_c_event_stream.BUILD",
-        sha256 = "31d880d1c868d3f3df1e1f4b45e56ac73724a4dc3449d04d47fc0746f6f077b6",
-        strip_prefix = "aws-c-event-stream-0.1.4",
-        urls = [
-            "https://github.com/awslabs/aws-c-event-stream/archive/v0.1.4.tar.gz",
-        ],
-    )
-
-    http_archive(
-        name = "aws_sdk_cpp",
-        build_file = "//third_party:aws_sdk_cpp.BUILD",
-        patch_cmds = [
-            """sed -i.bak 's/UUID::RandomUUID/Aws::Utils::UUID::RandomUUID/g' aws-cpp-sdk-core/source/client/AWSClient.cpp""",
-            # Apply fix in https://github.com/aws/aws-sdk-cpp/commit/9669a1c1d9a96621cd0846679cbe973c648a64b3
-            """sed -i.bak 's/Tags\\.entry/Tag/g' aws-cpp-sdk-sqs/source/model/TagQueueRequest.cpp""",
-        ],
-        sha256 = "749322a8be4594472512df8a21d9338d7181c643a00e08a0ff12f07e831e3346",
-        strip_prefix = "aws-sdk-cpp-1.8.186",
-        urls = [
-            "https://github.com/aws/aws-sdk-cpp/archive/1.8.186.tar.gz",
-        ],
-    )
-
-    http_archive(
-        name = "curl",
-        build_file = "//third_party:curl.BUILD",
-        sha256 = "ff3e80c1ca6a068428726cd7dd19037a47cc538ce58ef61c59587191039b2ca6",
-        strip_prefix = "curl-7.49.1",
-        urls = ["https://mirror.bazel.build/curl.haxx.se/download/curl-7.49.1.tar.gz"],
-    )
-
-    http_archive(
-        name = "zlib_archive",
-        build_file = "//third_party:zlib.BUILD",
-        sha256 = "91844808532e5ce316b3c010929493c0244f3d37593afd6de04f71821d5136d9",
-        strip_prefix = "zlib-1.2.12",
-        urls = ["https://mirror.bazel.build/zlib.net/zlib-1.2.12.tar.gz"],
-    )
 
     #riegeli
     http_archive(

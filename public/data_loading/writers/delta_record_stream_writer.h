@@ -41,7 +41,7 @@ class DeltaRecordStreamWriter : public DeltaRecordWriter {
 
   static absl::StatusOr<std::unique_ptr<DeltaRecordStreamWriter>> Create(
       DestStreamT& dest_stream, Options options);
-  absl::Status WriteRecord(const DeltaFileRecordStruct& record) override;
+  absl::Status WriteRecord(const DataRecordStruct& data_record) override;
   const Options& GetOptions() const override { return options_; }
   absl::Status Flush() override;
   void Close() override { record_writer_->Close(); }
@@ -78,10 +78,11 @@ DeltaRecordStreamWriter<DestStreamT>::Create(DestStreamT& dest_stream,
 
 template <typename DestStreamT>
 absl::Status DeltaRecordStreamWriter<DestStreamT>::WriteRecord(
-    const DeltaFileRecordStruct& record) {
-  if (!record_writer_->WriteRecord(ToStringView(record.ToFlatBuffer())) &&
+    const DataRecordStruct& data_record) {
+  if (!record_writer_->WriteRecord(
+          ToStringView(ToFlatBufferBuilder(data_record))) &&
       options_.recovery_function) {
-    options_.recovery_function(record);
+    options_.recovery_function(data_record);
   }
   return record_writer_->status();
 }

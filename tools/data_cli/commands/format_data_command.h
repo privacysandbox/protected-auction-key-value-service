@@ -57,6 +57,9 @@ class FormatDataCommand : public Command {
   struct Params {
     std::string_view input_format;
     std::string_view output_format;
+    char csv_column_delimiter;
+    char csv_value_delimiter;
+    std::string_view record_type;
   };
 
   static absl::StatusOr<std::unique_ptr<FormatDataCommand>> Create(

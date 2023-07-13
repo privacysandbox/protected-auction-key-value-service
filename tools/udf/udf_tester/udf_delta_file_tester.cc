@@ -21,6 +21,7 @@
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/udf/cache_get_values_hook.h"
 #include "components/udf/udf_client.h"
+#include "components/udf/udf_config_builder.h"
 #include "glog/logging.h"
 #include "nlohmann/json.hpp"
 #include "public/data_loading/data_loading_generated.h"
@@ -40,32 +41,52 @@ ABSL_FLAG(std::string, namespace_tag, "keys",
 
 namespace kv_server {
 
+absl::Status LoadCacheFromKVMutationRecord(
+    const KeyValueMutationRecordStruct& record, Cache& cache) {
+  switch (record.mutation_type) {
+    case KeyValueMutationType::Update: {
+      LOG(INFO) << "Updating cache with key " << record.key << ", value "
+                << std::get<std::string_view>(record.value)
+                << ", logical commit time " << record.logical_commit_time;
+      cache.UpdateKeyValue(record.key, std::get<std::string_view>(record.value),
+                           record.logical_commit_time);
+      break;
+    }
+    case KeyValueMutationType::Delete: {
+      cache.DeleteKey(record.key, record.logical_commit_time);
+      break;
+    }
+    default:
+      return absl::InvalidArgumentError(
+          absl::StrCat("Invalid mutation type: ",
+                       EnumNameKeyValueMutationType(record.mutation_type)));
+  }
+  return absl::OkStatus();
+}
+
 absl::Status LoadCacheFromFile(std::string file_path, Cache& cache) {
   std::ifstream delta_file(file_path);
   DeltaRecordStreamReader record_reader(delta_file);
   absl::Status status =
-      record_reader.ReadRecords([&cache](const DeltaFileRecordStruct& record) {
-        switch (record.mutation_type) {
-          case DeltaMutationType::Update: {
-            LOG(INFO) << "Updating cache with key " << record.key << ", value "
-                      << record.value << ", logical commit time "
-                      << record.logical_commit_time;
-            cache.UpdateKeyValue(record.key, record.value,
-                                 record.logical_commit_time);
-            break;
-          }
-          case DeltaMutationType::Delete: {
-            cache.DeleteKey(record.key, record.logical_commit_time);
-            break;
-          }
-          default:
-            return absl::InvalidArgumentError(
-                absl::StrCat("Invalid mutation type: ",
-                             EnumNameDeltaMutationType(record.mutation_type)));
+      record_reader.ReadRecords([&cache](const DataRecordStruct& data_record) {
+        // Only load KVMutationRecords into cache.
+        if (std::holds_alternative<KeyValueMutationRecordStruct>(
+                data_record.record)) {
+          return LoadCacheFromKVMutationRecord(
+              std::get<KeyValueMutationRecordStruct>(data_record.record),
+              cache);
         }
         return absl::OkStatus();
       });
   return status;
+}
+
+void ReadCodeConfigFromUdfConfig(
+    const UserDefinedFunctionsConfigStruct& udf_config,
+    CodeConfig& code_config) {
+  code_config.js = udf_config.code_snippet;
+  code_config.logical_commit_time = udf_config.logical_commit_time;
+  code_config.udf_handler_name = udf_config.handler_name;
 }
 
 absl::Status ReadCodeConfigFromFile(std::string file_path,
@@ -73,30 +94,18 @@ absl::Status ReadCodeConfigFromFile(std::string file_path,
   std::ifstream delta_file(file_path);
   DeltaRecordStreamReader record_reader(delta_file);
   absl::Status status = record_reader.ReadRecords(
-      [&code_config](const DeltaFileRecordStruct& record) {
-        if (record.mutation_type != DeltaMutationType::Update) {
-          // Ignore non-updates
+      [&code_config](const DataRecordStruct& data_record) {
+        if (std::holds_alternative<UserDefinedFunctionsConfigStruct>(
+                data_record.record)) {
+          ReadCodeConfigFromUdfConfig(
+              std::get<UserDefinedFunctionsConfigStruct>(data_record.record),
+              code_config);
           return absl::OkStatus();
         }
-        if (record.key == kUdfHandlerNameKey) {
-          code_config.udf_handler_name = record.value;
-        }
-        if (record.key == kUdfCodeSnippetKey) {
-          code_config.js = record.value;
-        }
-        return absl::OkStatus();
+        return absl::InvalidArgumentError("Invalid record type.");
       });
   if (!status.ok()) {
     return status;
-  }
-
-  if (code_config.udf_handler_name.empty()) {
-    return absl::InvalidArgumentError(
-        "Missing `udf_handler_name` key in delta file.");
-  }
-  if (code_config.js.empty()) {
-    return absl::InvalidArgumentError(
-        "Missing `udf_code_snippet` key in delta file.");
   }
   return absl::OkStatus();
 }
@@ -155,8 +164,12 @@ absl::Status TestUdf(std::string kv_delta_file_path,
   }
 
   LOG(INFO) << "Starting UDF client";
-  auto udf_client = UdfClient::Create(
-      UdfClient::ConfigWithGetValuesHook(*NewCacheGetValuesHook(*cache), 1));
+  UdfConfigBuilder config_builder;
+  auto hook = NewCacheGetValuesHook(*cache);
+  auto udf_client =
+      UdfClient::Create(config_builder.RegisterGetValuesHook(*hook)
+                            .SetNumberOfWorkers(1)
+                            .Config());
   if (!udf_client.ok()) {
     LOG(ERROR) << "Error starting UDF execution engine: "
                << udf_client.status();

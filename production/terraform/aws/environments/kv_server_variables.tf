@@ -187,3 +187,13 @@ variable "num_shards" {
   description = "Total number of shards."
   type        = number
 }
+
+variable "udf_num_workers" {
+  description = "Total number of workers for UDF execution."
+  type        = number
+}
+
+variable "route_v1_requests_to_v2" {
+  description = "Whether to route V1 requests through V2."
+  type        = bool
+}

@@ -1,0 +1,100 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package kv_server;
+
+import "google/rpc/status.proto";
+
+// Internal Lookup Service API.
+service InternalLookupService {
+  // Endpoint for querying the server's internal datastore. Should only be used
+  // within TEEs.
+  rpc InternalLookup(InternalLookupRequest) returns (InternalLookupResponse) {}
+
+  // Endpoint for querying the datastore over the network.
+  rpc SecureLookup(SecureLookupRequest) returns (SecureLookupResponse) {}
+
+  // Endpoint for running a query on the server's internal datastore. Should
+  // only be used within TEEs.
+  rpc InternalRunQuery(InternalRunQueryRequest) returns (InternalRunQueryResponse) {}
+}
+
+// Lookup request for internal datastore.
+message InternalLookupRequest {
+  // List of keys to look up.
+  repeated string keys = 1;
+}
+
+// Encryption key type
+enum EncryptionKeyType {
+  // Taken from the coordinator
+  PRODUCTION = 0;
+  // Hardcoded well known test key
+  TEST = 1;
+}
+
+// Encrypted and padded lookup request for internal datastore.
+// We are sending out `num_shards` of these at the same time. Only payload size
+// is observable from the outside. So it has to be the same, but the actual
+// keys we are looking up can be different.
+// If we padded `InternalLookupRequest`s, based of the total length of all keys
+// we can end up having different _serialized_ message payload sizes, due to how
+// the over wire format for protobuf is constructed.
+// If we serialize InternalLookupRequest, and then pad the resulting string,
+// then we are guarnteed to serialize to the same length.
+message SecureLookupRequest {
+  bytes ohttp_request = 1;
+  EncryptionKeyType encryption_key_type = 2;
+}
+
+// Lookup response from internal datastore.
+//
+// Each key in the request has a corresponding map entry in the response.
+
+// The value of the entry is a SingleLookupResult, which is either the value
+// from the datastore or a status in case of an error.
+//
+// Examples of possible error scenarios:
+// - Key is missing from internal datastore
+// - Error during lookup from a sharded datastore
+message InternalLookupResponse {
+  map<string, SingleLookupResult> kv_pairs = 1;
+}
+
+// Encrypted InternalLookupResponse
+message SecureLookupResponse {
+  bytes ohttp_response = 1;
+}
+
+// Lookup result for a single key that is either a string value or a status.
+message SingleLookupResult {
+  oneof single_lookup_result {
+    string value = 1;
+    google.rpc.Status status = 2;
+  }
+}
+
+// Run Query request.
+message InternalRunQueryRequest {
+  // Query to run.
+  optional string query = 1;
+}
+
+// Run Query response.
+message InternalRunQueryResponse {
+  // Set of elements returned.
+  repeated string elements = 1;
+}

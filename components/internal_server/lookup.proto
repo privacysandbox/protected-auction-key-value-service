@@ -40,10 +40,11 @@ message InternalLookupRequest {
 
 // Encryption key type
 enum EncryptionKeyType {
+  KEY_TYPE_UNSPECIFIED = 0;
   // Taken from the coordinator
-  PRODUCTION = 0;
+  PRODUCTION = 1;
   // Hardcoded well known test key
-  TEST = 1;
+  TEST = 2;
 }
 
 // Encrypted and padded lookup request for internal datastore.

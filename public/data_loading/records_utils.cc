@@ -120,6 +120,65 @@ absl::StatusOr<const FbsRecordT*> DeserializeAndVerifyRecord(
   return fbs_record;
 }
 
+absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
+  if (kv_mutation_record.value() == nullptr) {
+    return absl::InvalidArgumentError("Value not set.");
+  }
+  if (kv_mutation_record.value_type() == Value::String &&
+      (kv_mutation_record.value_as_String() == nullptr ||
+       kv_mutation_record.value_as_String()->value() == nullptr)) {
+    return absl::InvalidArgumentError("String value not set.");
+  }
+  if (kv_mutation_record.value_type() == Value::StringSet &&
+      (kv_mutation_record.value_as_StringSet() == nullptr ||
+       kv_mutation_record.value_as_StringSet()->value() == nullptr)) {
+    return absl::InvalidArgumentError("StringSet value not set.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateKeyValueMutationRecord(
+    const KeyValueMutationRecord& kv_mutation_record) {
+  if (kv_mutation_record.key() == nullptr) {
+    return absl::InvalidArgumentError("Key not set.");
+  }
+  return ValidateValue(kv_mutation_record);
+}
+
+absl::Status ValidateUserDefinedFunctionsConfig(
+    const UserDefinedFunctionsConfig& udf_config) {
+  if (udf_config.code_snippet() == nullptr) {
+    return absl::InvalidArgumentError("code_snippet not set.");
+  }
+  if (udf_config.handler_name() == nullptr) {
+    return absl::InvalidArgumentError("handler_name not set.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateData(const DataRecord& data_record) {
+  if (data_record.record() == nullptr) {
+    return absl::InvalidArgumentError("Record not set.");
+  }
+
+  if (data_record.record_type() == Record::KeyValueMutationRecord) {
+    if (const auto status = ValidateKeyValueMutationRecord(
+            *data_record.record_as_KeyValueMutationRecord());
+        !status.ok()) {
+      return status;
+    }
+  }
+
+  if (data_record.record_type() == Record::UserDefinedFunctionsConfig) {
+    if (const auto status = ValidateUserDefinedFunctionsConfig(
+            *data_record.record_as_UserDefinedFunctionsConfig());
+        !status.ok()) {
+      return status;
+    }
+  }
+  return absl::OkStatus();
+}
+
 KeyValueMutationRecordValueT GetRecordStructValue(
     const KeyValueMutationRecord& fbs_record) {
   KeyValueMutationRecordValueT value;
@@ -247,10 +306,14 @@ absl::Status DeserializeDataRecord(
     const std::function<absl::Status(const DataRecord&)>& record_callback) {
   auto fbs_record = DeserializeAndVerifyRecord<DataRecord>(record_bytes);
   if (!fbs_record.ok()) {
+    LOG_FIRST_N(ERROR, 3) << "Record deserialization failed: "
+                          << fbs_record.status();
     return fbs_record.status();
   }
-  // TODO(b/269472380): Add data validation. Not
-  // necessarily here.
+  if (const auto status = ValidateData(**fbs_record); !status.ok()) {
+    LOG_FIRST_N(ERROR, 3) << "Data validation failed: " << status;
+    return status;
+  }
   return record_callback(**fbs_record);
 }
 

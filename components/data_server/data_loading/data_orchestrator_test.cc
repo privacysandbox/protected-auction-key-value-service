@@ -55,12 +55,14 @@ using kv_server::MockRealtimeNotifier;
 using kv_server::MockStreamRecordReader;
 using kv_server::MockStreamRecordReaderFactory;
 using kv_server::MockUdfClient;
+using kv_server::Record;
 using kv_server::ToDeltaFileName;
 using kv_server::ToFlatBufferBuilder;
 using kv_server::ToSnapshotFileName;
 using kv_server::ToStringView;
 using kv_server::UserDefinedFunctionsConfigStruct;
 using kv_server::UserDefinedFunctionsLanguage;
+using kv_server::Value;
 using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::AllOf;
@@ -219,6 +221,68 @@ TEST_F(DataOrchestratorTest, InitCacheFiltersDeltasUsingSnapshotEndingFile) {
                             FilePrefix<FileType::DELTA>()))))
       .WillOnce(Return(std::vector<std::string>()));
   EXPECT_TRUE(DataOrchestrator::TryCreate(options_, metrics_recorder_).ok());
+}
+
+TEST_F(DataOrchestratorTest, InitCache_SkipsInvalidKVMutation) {
+  const std::vector<std::string> fnames({ToDeltaFileName(1).value()});
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .Times(1)
+      .WillOnce(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::DELTA>()))))
+      .WillOnce(Return(fnames));
+
+  KVFileMetadata metadata;
+  auto update_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*update_reader, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
+
+  flatbuffers::FlatBufferBuilder builder;
+  const auto kv_mutation_fbs = CreateKeyValueMutationRecordDirect(
+      builder,
+      /*mutation_type=*/KeyValueMutationType::Update,
+      /*logical_commit_time=*/0,
+      /*key=*/nullptr,
+      /*value_type=*/Value::String,
+      /*value=*/0);
+  const auto data_record_fbs =
+      CreateDataRecord(builder, /*record_type=*/Record::KeyValueMutationRecord,
+                       kv_mutation_fbs.Union());
+  builder.Finish(data_record_fbs);
+  EXPECT_CALL(*update_reader, ReadStreamRecords)
+      .Times(1)
+      .WillOnce(
+          [&builder](
+              const std::function<absl::Status(std::string_view)>& callback) {
+            callback(ToStringView(builder)).IgnoreError();
+            return absl::OkStatus();
+          });
+  auto delete_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*delete_reader, ReadStreamRecords).Times(0);
+  EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
+      .Times(1)
+      .WillOnce(Return(ByMove(std::move(update_reader))));
+
+  EXPECT_CALL(cache_, UpdateKeyValue).Times(0);
+
+  auto maybe_orchestrator =
+      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  ASSERT_TRUE(maybe_orchestrator.ok());
+
+  const std::string last_basename = ToDeltaFileName(1).value();
+  EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
+      .WillOnce(Return(absl::UnknownError("")));
+  EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
 }
 
 TEST_F(DataOrchestratorTest, InitCacheSuccess) {

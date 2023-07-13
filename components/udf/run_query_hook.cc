@@ -24,9 +24,12 @@
 #include "absl/status/statusor.h"
 #include "components/internal_server/run_query_client.h"
 #include "glog/logging.h"
+#include "nlohmann/json.hpp"
 
 namespace kv_server {
 namespace {
+
+using google::scp::roma::proto::FunctionBindingIoProto;
 
 class RunQueryHookImpl : public RunQueryHook {
  public:
@@ -35,28 +38,37 @@ class RunQueryHookImpl : public RunQueryHook {
           query_client_supplier)
       : query_client_supplier_(std::move(query_client_supplier)) {}
 
-  // TODO(b/283091615): Add tests.
-  std::vector<std::string> operator()(std::tuple<std::string>& input) {
+  void operator()(FunctionBindingIoProto& io) {
+    VLOG(9) << "runQuery request: " << io.DebugString();
+    if (!io.has_input_string()) {
+      nlohmann::json status;
+      status["code"] = absl::StatusCode::kInvalidArgument;
+      status["message"] = "runQuery input must be a string";
+      io.mutable_output_list_of_string()->add_data(status.dump());
+      VLOG(1) << "runQuery result: " << io.DebugString();
+      return;
+    }
+
     if (query_client_ == nullptr) {
       query_client_ = query_client_supplier_();
     }
     // TODO(b/261181061): Determine where to InitTracer.
     VLOG(9) << "Calling internal run query client";
     absl::StatusOr<InternalRunQueryResponse> response_or_status =
-        query_client_->RunQuery(std::get<0>(input));
+        query_client_->RunQuery(io.input_string());
 
-    VLOG(9) << "Processing internal run query response";
     if (!response_or_status.ok()) {
       LOG(ERROR) << "Internal run query returned error: "
                  << response_or_status.status();
-      return std::vector<std::string>();
+      io.mutable_output_list_of_string()->mutable_data();
+      VLOG(1) << "runQuery result: " << io.DebugString();
+      return;
     }
-    std::vector<std::string> result;
-    for (auto&& element :
-         *std::move(response_or_status).value().mutable_elements()) {
-      result.push_back(std::move(element));
-    }
-    return result;
+
+    VLOG(9) << "Processing internal run query response";
+    *io.mutable_output_list_of_string()->mutable_data() =
+        *std::move(response_or_status.value().mutable_elements());
+    VLOG(9) << "runQuery result: " << io.DebugString();
   }
 
  private:

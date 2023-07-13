@@ -25,12 +25,13 @@
 #include "components/udf/logging_hook.h"
 #include "components/udf/run_query_hook.h"
 #include "roma/config/src/config.h"
-#include "roma/config/src/function_binding_object.h"
+#include "roma/config/src/function_binding_object_v2.h"
 #include "roma/interface/roma.h"
 
 namespace kv_server {
 using google::scp::roma::Config;
-using google::scp::roma::FunctionBindingObject;
+using google::scp::roma::FunctionBindingObjectV2;
+using google::scp::roma::proto::FunctionBindingIoProto;
 
 constexpr char kGetValuesHookJsName[] = "getValues";
 constexpr char kRunQueryHookJsName[] = "runQuery";
@@ -38,35 +39,26 @@ constexpr char kLoggingHookJsName[] = "logMessage";
 
 UdfConfigBuilder& UdfConfigBuilder::RegisterGetValuesHook(
     GetValuesHook& get_values_hook) {
-  auto get_values_function_object = std::make_unique<
-      FunctionBindingObject<std::string, std::vector<std::string>>>();
+  auto get_values_function_object = std::make_unique<FunctionBindingObjectV2>();
   get_values_function_object->function_name = kGetValuesHookJsName;
   get_values_function_object->function =
-      [&get_values_hook](
-          std::tuple<std::vector<std::string>>& in) -> std::string {
-    return get_values_hook(in);
-  };
+      [&get_values_hook](FunctionBindingIoProto& in) { get_values_hook(in); };
   config_.RegisterFunctionBinding(std::move(get_values_function_object));
   return *this;
 }
 
 UdfConfigBuilder& UdfConfigBuilder::RegisterRunQueryHook(
     RunQueryHook& run_query_hook) {
-  auto run_query_function_object = std::make_unique<
-      FunctionBindingObject<std::vector<std::string>, std::string>>();
+  auto run_query_function_object = std::make_unique<FunctionBindingObjectV2>();
   run_query_function_object->function_name = kRunQueryHookJsName;
   run_query_function_object->function =
-      [&run_query_hook](
-          std::tuple<std::string>& in) -> std::vector<std::string> {
-    return run_query_hook(in);
-  };
+      [&run_query_hook](FunctionBindingIoProto& in) { run_query_hook(in); };
   config_.RegisterFunctionBinding(std::move(run_query_function_object));
   return *this;
 }
 
 UdfConfigBuilder& UdfConfigBuilder::RegisterLoggingHook() {
-  auto logging_function_object =
-      std::make_unique<FunctionBindingObject<std::string, std::string>>();
+  auto logging_function_object = std::make_unique<FunctionBindingObjectV2>();
   logging_function_object->function_name = kLoggingHookJsName;
   logging_function_object->function = LogMessage;
   config_.RegisterFunctionBinding(std::move(logging_function_object));

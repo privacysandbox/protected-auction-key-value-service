@@ -26,10 +26,10 @@ namespace kv_server {
 
 // UDF hook for logging a string.
 // TODO(b/285331079): Disable for production builds.
-inline std::string LogMessage(std::tuple<std::string>& input) {
-  LOG(INFO) << std::get<0>(input);
-  // void is not allowed as an output type, so return an empty string.
-  return "";
+inline void LogMessage(google::scp::roma::proto::FunctionBindingIoProto& io) {
+  if (io.has_input_string()) {
+    LOG(INFO) << io.input_string();
+  }
 }
 
 }  // namespace kv_server

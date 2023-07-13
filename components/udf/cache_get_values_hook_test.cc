@@ -23,12 +23,15 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "gmock/gmock.h"
+#include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
 
 namespace kv_server {
 namespace {
 
+using google::protobuf::TextFormat;
+using google::scp::roma::proto::FunctionBindingIoProto;
 using testing::_;
 using testing::Return;
 
@@ -39,9 +42,16 @@ TEST(GetValuesHookTest, SuccessfullyReturnsKVPairs) {
 
   auto get_values_hook = NewCacheGetValuesHook(*cache);
 
-  auto input = std::make_tuple(std::vector<std::string>({"key1", "key2"}));
-  std::string result = (*get_values_hook)(input);
-  nlohmann::json result_json = nlohmann::json::parse(result);
+  FunctionBindingIoProto io;
+  TextFormat::ParseFromString(
+      R"pb(input_list_of_string { data: "key1" data: "key2" })pb", &io);
+  (*get_values_hook)(io);
+
+  nlohmann::json result_json =
+      nlohmann::json::parse(io.output_string(), nullptr,
+                            /*allow_exceptions=*/false,
+                            /*ignore_comments=*/true);
+  EXPECT_FALSE(result_json.is_discarded());
   nlohmann::json expected_value1 = R"({"value":"value1"})"_json;
   nlohmann::json expected_value2 = R"({"value":"value2"})"_json;
   EXPECT_TRUE(result_json.contains("kvPairs"));

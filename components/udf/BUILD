@@ -121,6 +121,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_protobuf//:protobuf",
+        "@control_plane_shared//cc/roma/interface:roma_interface_lib",
         "@google_privacysandbox_servers_common//src/cpp/telemetry",
         "@nlohmann_json//:lib",
     ],
@@ -141,6 +142,9 @@ cc_library(
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@control_plane_shared//cc/roma/interface:roma_function_binding_io_cc_proto",
+        "@control_plane_shared//cc/roma/interface:roma_interface_lib",
+        "@nlohmann_json//:lib",
     ],
 )
 
@@ -206,6 +210,7 @@ cc_test(
         ":cache_get_values_hook",
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
+        "//public/test_util:proto_matcher",
         "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",

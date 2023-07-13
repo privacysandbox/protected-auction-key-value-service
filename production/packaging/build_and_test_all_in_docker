@@ -108,6 +108,9 @@ done
 
 BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:instance=${INSTANCE} --//:platform=${PLATFORM}"
 
+# required to run Roma sandboxed in Docker.
+export EXTRA_DOCKER_RUN_ARGS=${EXTRA_DOCKER_RUN_ARGS}" --security-opt seccomp=unconfined "
+
 if [[ ${VERBOSE} -eq 1 ]]; then
   set -o xtrace
   CBUILD_ARGS="${CBUILD_ARGS} --verbose"

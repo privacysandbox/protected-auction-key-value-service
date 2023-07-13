@@ -41,7 +41,6 @@ using google::scp::roma::LoadCodeObj;
 using google::scp::roma::ResponseObject;
 using google::scp::roma::RomaInit;
 using google::scp::roma::RomaStop;
-using google::scp::roma::WasmDataType;
 
 constexpr absl::Duration kCallbackTimeout = absl::Seconds(1);
 constexpr absl::Duration kCodeUpdateTimeout = absl::Seconds(1);
@@ -141,13 +140,11 @@ class UdfClientImpl : public UdfClient {
     return absl::OkStatus();
   }
 
-  absl::Status SetWasmCodeObject(CodeConfig code_config,
-                                 WasmDataType wasm_return_type) {
-    auto code_object_status = SetCodeObject(std::move(code_config));
+  absl::Status SetWasmCodeObject(CodeConfig code_config) {
+    const auto code_object_status = SetCodeObject(std::move(code_config));
     if (!code_object_status.ok()) {
       return code_object_status;
     }
-    wasm_return_type_ = wasm_return_type;
     return absl::OkStatus();
   }
 
@@ -157,7 +154,6 @@ class UdfClientImpl : public UdfClient {
     return {.id = kInvocationRequestId,
             .version_num = static_cast<uint64_t>(version_),
             .handler_name = handler_name_,
-            .wasm_return_type = wasm_return_type_,
             .input = std::move(keys)};
   }
 
@@ -172,7 +168,6 @@ class UdfClientImpl : public UdfClient {
   std::string handler_name_;
   int64_t logical_commit_time_ = -1;
   int64_t version_ = 1;
-  WasmDataType wasm_return_type_;
 };
 
 }  // namespace

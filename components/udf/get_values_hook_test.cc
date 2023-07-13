@@ -25,11 +25,13 @@
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
+#include "public/test_util/proto_matcher.h"
 
 namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
+using google::scp::roma::proto::FunctionBindingIoProto;
 using testing::_;
 using testing::Return;
 
@@ -45,18 +47,23 @@ TEST(GetValuesHookTest, SuccessfullyProcessesValue) {
                                      value { value: "value2" }
                                    })pb",
                               &lookup_response);
-
-  auto input = std::make_tuple(keys);
   auto mlc = std::make_unique<MockLookupClient>();
   MockLookupClient* mock_lookup_client = mlc.get();
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
-
   EXPECT_CALL(*mock_lookup_client, GetValues(keys))
       .WillOnce(Return(lookup_response));
 
-  std::string result = (*get_values_hook)(input);
-  nlohmann::json result_json = nlohmann::json::parse(result);
+  FunctionBindingIoProto io;
+  TextFormat::ParseFromString(
+      R"pb(input_list_of_string { data: "key1" data: "key2" })pb", &io);
+  auto get_values_hook = GetValuesHook::Create(
+      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
+  (*get_values_hook)(io);
+
+  nlohmann::json result_json =
+      nlohmann::json::parse(io.output_string(), nullptr,
+                            /*allow_exceptions=*/false,
+                            /*ignore_comments=*/true);
+  EXPECT_FALSE(result_json.is_discarded());
   nlohmann::json expected_value1 = R"({"value":"value1"})"_json;
   nlohmann::json expected_value2 = R"({"value":"value2"})"_json;
   EXPECT_TRUE(result_json.contains("kvPairs"));
@@ -73,35 +80,55 @@ TEST(GetValuesHookTest, SuccessfullyProcessesResultsWithStatus) {
              value { status { code: 2, message: "Some error" } }
            })pb",
       &lookup_response);
+
   auto mlc = std::make_unique<MockLookupClient>();
   MockLookupClient* mock_lookup_client = mlc.get();
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
-
   EXPECT_CALL(*mock_lookup_client, GetValues(keys))
       .WillOnce(Return(lookup_response));
 
-  auto input = std::make_tuple(keys);
-  std::string result = (*get_values_hook)(input);
+  FunctionBindingIoProto io;
+  TextFormat::ParseFromString(R"pb(input_list_of_string { data: "key1" })pb",
+                              &io);
+  auto get_values_hook = GetValuesHook::Create(
+      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
+  (*get_values_hook)(io);
+
   nlohmann::json expected =
       R"({"kvPairs":{"key1":{"status":{"code":2,"message":"Some error"}}}})"_json;
-  EXPECT_EQ(result, expected.dump());
+  EXPECT_EQ(io.output_string(), expected.dump());
 }
 
 TEST(GetValuesHookTest, LookupClientReturnsError) {
   std::vector<std::string> keys = {"key1"};
   auto mlc = std::make_unique<MockLookupClient>();
   MockLookupClient* mock_lookup_client = mlc.get();
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
-
   EXPECT_CALL(*mock_lookup_client, GetValues(keys))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
-  auto input = std::make_tuple(keys);
-  std::string result = (*get_values_hook)(input);
+  FunctionBindingIoProto io;
+  TextFormat::ParseFromString(R"pb(input_list_of_string { data: "key1" })pb",
+                              &io);
+  auto get_values_hook = GetValuesHook::Create(
+      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
+  (*get_values_hook)(io);
+
   nlohmann::json expected = R"({"code":2,"message":"Some error"})"_json;
-  EXPECT_EQ(result, expected.dump());
+  EXPECT_EQ(io.output_string(), expected.dump());
+}
+
+TEST(GetValuesHookTest, InputIsNotListOfStrings) {
+  std::vector<std::string> keys = {"key1"};
+  auto mlc = std::make_unique<MockLookupClient>();
+
+  FunctionBindingIoProto io;
+  TextFormat::ParseFromString(R"pb(input_string: "key1")pb", &io);
+  auto get_values_hook = GetValuesHook::Create(
+      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
+  (*get_values_hook)(io);
+
+  nlohmann::json expected =
+      R"({"code":3,"message":"getValues input must be list of strings"})"_json;
+  EXPECT_EQ(io.output_string(), expected.dump());
 }
 
 }  // namespace

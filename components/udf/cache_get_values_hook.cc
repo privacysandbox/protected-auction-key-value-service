@@ -32,6 +32,7 @@ namespace kv_server {
 namespace {
 
 using google::protobuf::util::MessageToJsonString;
+using google::scp::roma::proto::FunctionBindingIoProto;
 
 // GetValues hook implementation that directly has access to the cache.
 // Use for testing purposes only.
@@ -39,15 +40,15 @@ class CacheGetValuesHookImpl : public GetValuesHook {
  public:
   explicit CacheGetValuesHookImpl(const Cache& cache) : cache_(cache) {}
 
-  std::string operator()(std::tuple<std::vector<std::string>>& input) {
-    std::vector<std::string> keys = std::get<0>(input);
-    std::vector<std::string_view> keys2(keys.begin(), keys.end());
-    auto kv_pairs = cache_.GetKeyValuePairs(keys2);
+  void operator()(FunctionBindingIoProto& io) {
+    std::vector<std::string_view> keys;
+    for (const auto& key : io.input_list_of_string().data()) {
+      keys.emplace_back(key);
+    }
+
+    auto kv_pairs = cache_.GetKeyValuePairs(keys);
 
     // TODO(b/270549052): Add kv pairs with errors
-
-    // TODO(b/263858988): Change cache API to return map and set status for
-    // missing keys.
     InternalLookupResponse response;
     for (auto&& [k, v] : std::move(kv_pairs)) {
       VLOG(9) << "Processing kv pair:" << k << ", " << v;
@@ -57,10 +58,18 @@ class CacheGetValuesHookImpl : public GetValuesHook {
     }
 
     std::string kv_pairs_json;
-    MessageToJsonString(response, &kv_pairs_json);
+    if (const auto json_status = MessageToJsonString(response, &kv_pairs_json);
+        !json_status.ok()) {
+      nlohmann::json status;
+      status["code"] = json_status.code();
+      status["message"] = json_status.message();
+      io.set_output_string(status.dump());
+      LOG(ERROR) << "MessageToJsonString failed with " << json_status;
+      return;
+    }
 
     VLOG(5) << "Get values hook response: " << kv_pairs_json;
-    return kv_pairs_json;
+    io.set_output_string(kv_pairs_json);
   }
 
  private:

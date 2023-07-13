@@ -36,9 +36,9 @@
 
 using google::protobuf::TextFormat;
 using google::scp::roma::Config;
-using google::scp::roma::FunctionBindingObject;
-using google::scp::roma::FunctionBindingObjectBase;
+using google::scp::roma::FunctionBindingObjectV2;
 using google::scp::roma::WasmDataType;
+using google::scp::roma::proto::FunctionBindingIoProto;
 using testing::_;
 using testing::Return;
 
@@ -49,6 +49,13 @@ absl::StatusOr<std::unique_ptr<UdfClient>> CreateUdfClient() {
   Config config;
   config.number_of_workers = 1;
   return UdfClient::Create(config);
+}
+
+TEST(UdfClientTest, UdfClient_Create_Success) {
+  auto udf_client = CreateUdfClient();
+  EXPECT_TRUE(udf_client.ok());
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
 }
 
 TEST(UdfClientTest, JsCallSucceeds) {
@@ -97,70 +104,13 @@ TEST(UdfClientTest, RepeatedJsCallsSucceed) {
   EXPECT_TRUE(stop.ok());
 }
 
-TEST(UdfClientTest, WasmCallSucceeds) {
-  auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
-
-  CodeConfig code_config;
-  // https://github.com/v8/v8/blob/5fe0aa3bc79c0a9d3ad546b79211f07105f09585/samples/hello-world.cc#L66
-  char wasm_bin[] = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01,
-                     0x07, 0x01, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03,
-                     0x02, 0x01, 0x00, 0x07, 0x07, 0x01, 0x03, 0x61, 0x64,
-                     0x64, 0x00, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0x20,
-                     0x00, 0x20, 0x01, 0x6a, 0x0b};
-  code_config.wasm.assign(wasm_bin, sizeof(wasm_bin));
-  code_config.udf_handler_name = "add";
-  code_config.logical_commit_time = 1;
-  code_config.version = 1;
-
-  absl::Status code_obj_status = udf_client.value()->SetWasmCodeObject(
-      std::move(code_config),
-      /*wasm_return_type=*/WasmDataType::kUint32);
-  EXPECT_TRUE(code_obj_status.ok());
-
-  absl::StatusOr<std::string> result =
-      udf_client.value()->ExecuteCode({"1", "2"});
-  EXPECT_TRUE(result.ok());
-  EXPECT_EQ(*result, "3");
-
-  absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
-}
-
-TEST(UdfClientTest, WasmFromFileSucceeds) {
-  auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
-
-  std::ifstream ifs("components/test_data/add.wasm");
-  std::string content((std::istreambuf_iterator<char>(ifs)),
-                      (std::istreambuf_iterator<char>()));
-
-  CodeConfig code_config;
-  code_config.wasm = content;
-  code_config.udf_handler_name = "add";
-  code_config.logical_commit_time = 1;
-  code_config.version = 1;
-  absl::Status code_obj_status = udf_client.value()->SetWasmCodeObject(
-      std::move(code_config),
-      /*wasm_return_type=*/WasmDataType::kUint32);
-  EXPECT_TRUE(code_obj_status.ok());
-
-  absl::StatusOr<std::string> result =
-      udf_client.value()->ExecuteCode({"1", "2"});
-  EXPECT_TRUE(result.ok());
-  EXPECT_EQ(*result, "3");
-
-  absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
-}
-
 TEST(UdfClientTest, JsEchoCallSucceeds) {
   auto udf_client = CreateUdfClient();
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status =
       udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello(input) { return "Hello world! " + JSON.stringify(input); }
+  function hello(input) { return "Hello world! " + JSON.stringify(input); }
   )",
                                                    .udf_handler_name = "hello",
                                                    .logical_commit_time = 1,
@@ -176,13 +126,12 @@ TEST(UdfClientTest, JsEchoCallSucceeds) {
   EXPECT_TRUE(stop.ok());
 }
 
-static std::string Echo(std::tuple<std::string>& input) {
-  return "Echo: " + std::get<0>(input);
+static void Echo(FunctionBindingIoProto& io) {
+  io.set_output_string("Echo: " + io.input_string());
 }
 
 TEST(UdfClientTest, JsEchoHookCallSucceeds) {
-  auto function_object =
-      std::make_unique<FunctionBindingObject<std::string, std::string>>();
+  auto function_object = std::make_unique<FunctionBindingObjectV2>();
   function_object->function_name = "echo";
   function_object->function = Echo;
 
@@ -369,7 +318,7 @@ TEST(UdfClientTest, UpdatesCodeObjectTwice) {
 
                                                    .udf_handler_name = "hello2",
                                                    .logical_commit_time = 2,
-                                                   .version = 1});
+                                                   .version = 2});
   EXPECT_TRUE(status.ok());
 
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode({});

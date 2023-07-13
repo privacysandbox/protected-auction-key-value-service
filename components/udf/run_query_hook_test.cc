@@ -30,9 +30,10 @@ namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
+using google::scp::roma::proto::FunctionBindingIoProto;
 using testing::_;
 using testing::Return;
-using testing::UnorderedElementsAre;
+using testing::UnorderedElementsAreArray;
 
 TEST(RunQueryHookTest, SuccessfullyProcessesValue) {
   std::string query = "Q";
@@ -44,12 +45,14 @@ TEST(RunQueryHookTest, SuccessfullyProcessesValue) {
   EXPECT_CALL(*mock_run_query_client, RunQuery(query))
       .WillOnce(Return(run_query_response));
 
-  auto input = std::make_tuple(query);
+  FunctionBindingIoProto io;
+  TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
   auto run_query_hook = RunQueryHook::Create(
       [mrq = std::move(mrq)]() mutable { return std::move(mrq); });
 
-  std::vector<std::string> result = (*run_query_hook)(input);
-  EXPECT_THAT(result, UnorderedElementsAre("a", "b"));
+  (*run_query_hook)(io);
+  EXPECT_THAT(io.output_list_of_string().data(),
+              UnorderedElementsAreArray({"a", "b"}));
 }
 
 TEST(GetValuesHookTest, RunQueryClientReturnsError) {
@@ -59,12 +62,29 @@ TEST(GetValuesHookTest, RunQueryClientReturnsError) {
   EXPECT_CALL(*mock_run_query_client, RunQuery(query))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
-  auto input = std::make_tuple(query);
+  FunctionBindingIoProto io;
+  TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
   auto run_query_hook = RunQueryHook::Create(
       [mrq = std::move(mrq)]() mutable { return std::move(mrq); });
 
-  std::vector<std::string> result = (*run_query_hook)(input);
-  EXPECT_TRUE(result.empty());
+  (*run_query_hook)(io);
+  EXPECT_TRUE(io.output_list_of_string().data().empty());
+}
+
+TEST(GetValuesHookTest, InputIsNotString) {
+  auto mrq = std::make_unique<MockRunQueryClient>();
+
+  FunctionBindingIoProto io;
+  TextFormat::ParseFromString(R"pb(input_list_of_string { data: "key1" })pb",
+                              &io);
+  auto run_query_hook = RunQueryHook::Create(
+      [mrq = std::move(mrq)]() mutable { return std::move(mrq); });
+  (*run_query_hook)(io);
+
+  EXPECT_THAT(
+      io.output_list_of_string().data(),
+      UnorderedElementsAreArray(
+          {R"({"code":3,"message":"runQuery input must be a string"})"}));
 }
 
 }  // namespace

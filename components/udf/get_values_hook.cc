@@ -32,6 +32,7 @@ namespace kv_server {
 namespace {
 
 using google::protobuf::util::MessageToJsonString;
+using google::scp::roma::proto::FunctionBindingIoProto;
 using privacy_sandbox::server_common::GetTracer;
 
 class GetValuesHookImpl : public GetValuesHook {
@@ -40,28 +41,54 @@ class GetValuesHookImpl : public GetValuesHook {
                                  lookup_client_supplier)
       : lookup_client_supplier_(std::move(lookup_client_supplier)) {}
 
-  std::string operator()(std::tuple<std::vector<std::string>>& input) {
+  void operator()(FunctionBindingIoProto& io) {
+    VLOG(9) << "getValues request: " << io.DebugString();
+    if (!io.has_input_list_of_string()) {
+      nlohmann::json status;
+      status["code"] = absl::StatusCode::kInvalidArgument;
+      status["message"] = "getValues input must be list of strings";
+      io.set_output_string(status.dump());
+      VLOG(1) << "getValues result: " << io.DebugString();
+      return;
+    }
+
     // Lazy load lookup client on first call.
     if (lookup_client_ == nullptr) {
       lookup_client_ = lookup_client_supplier_();
     }
-    // TODO(b/261181061): Determine where to InitTracer.
+
+    std::vector<std::string> keys;
+    for (const auto& key : io.input_list_of_string().data()) {
+      keys.emplace_back(key);
+    }
+
     VLOG(9) << "Calling internal lookup client";
     absl::StatusOr<InternalLookupResponse> response_or_status =
-        lookup_client_->GetValues(std::get<0>(input));
-
-    VLOG(9) << "Processing internal lookup response";
+        lookup_client_->GetValues(keys);
     if (!response_or_status.ok()) {
       nlohmann::json status;
       status["code"] = response_or_status.status().code();
       status["message"] = response_or_status.status().message();
-      return status.dump();
+      io.set_output_string(status.dump());
+      VLOG(1) << "getValues result: " << io.DebugString();
+      return;
     }
 
+    VLOG(9) << "Processing internal lookup response";
     std::string kv_pairs_json;
-    MessageToJsonString(response_or_status.value(), &kv_pairs_json);
-
-    return kv_pairs_json;
+    if (const auto json_status =
+            MessageToJsonString(response_or_status.value(), &kv_pairs_json);
+        !json_status.ok()) {
+      nlohmann::json status;
+      status["code"] = json_status.code();
+      status["message"] = json_status.message();
+      io.set_output_string(status.dump());
+      LOG(ERROR) << "MessageToJsonString failed with " << json_status;
+      VLOG(1) << "getValues result: " << io.DebugString();
+      return;
+    }
+    io.set_output_string(kv_pairs_json);
+    VLOG(9) << "getValues result: " << io.DebugString();
   }
 
  private:

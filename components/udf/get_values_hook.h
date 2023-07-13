@@ -24,6 +24,7 @@
 
 #include "absl/functional/any_invocable.h"
 #include "components/internal_server/lookup_client.h"
+#include "roma/interface/function_binding_io.pb.h"
 
 namespace kv_server {
 
@@ -34,8 +35,8 @@ class GetValuesHook {
 
   // This is registered with v8 and is exposed to the UDF. Internally, it calls
   // the internal lookup client.
-  virtual std::string operator()(
-      std::tuple<std::vector<std::string>>& input) = 0;
+  virtual void operator()(
+      google::scp::roma::proto::FunctionBindingIoProto& io) = 0;
 
   static std::unique_ptr<GetValuesHook> Create(
       absl::AnyInvocable<std::unique_ptr<LookupClient>()>

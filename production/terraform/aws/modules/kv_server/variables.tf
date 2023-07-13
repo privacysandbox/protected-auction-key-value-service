@@ -92,11 +92,6 @@ variable "sqs_queue_timeout_secs" {
   type        = number
 }
 
-variable "mode" {
-  description = "DSP or SSP."
-  type        = string
-}
-
 variable "enclave_memory_mib" {
   description = "Amount of memory to allocate to the enclave."
   type        = number

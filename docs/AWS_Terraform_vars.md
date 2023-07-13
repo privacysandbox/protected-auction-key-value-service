@@ -73,10 +73,6 @@
 
     Export timeout for metrics in milliseconds.
 
--   **mode**
-
-    Set the server mode. The acceptable values are [DSP] or [SSP]
-
 -   **num_shards**
 
     Total number of shards

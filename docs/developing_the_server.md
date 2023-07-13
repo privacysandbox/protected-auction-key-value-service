@@ -36,7 +36,6 @@ The data server provides the read API for the KV service.
 > | kv-server-local-data-loading-file-channel-bucket-sns-arn | ARN of the Simple Notification Service (SNS) for the S3 bucket    |
 > | kv-server-local-data-loading-realtime-channel-sns-arn    | ARN of the Simple Notification Service (SNS) for realtime updates |
 > | kv-server-local-launch-hook                              | Any value, this won't be needed for                               |
-> | kv-server-local-mode                                     | "DSP" or "SSP"                                                    |
 >
 > If you have a UDF delta file, you will also need to include it in your delta file S3 bucket. Refer to the [UDF Delta file documentation](./generating_udf_files.md) for how to generate a UDF delta file and upload it to S3 before starting the server.
 <!-- markdownlint-enable line-length -->

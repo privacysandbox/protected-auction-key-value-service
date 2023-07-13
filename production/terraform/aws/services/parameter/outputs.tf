@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-output "mode_parameter_arn" {
-  value = aws_ssm_parameter.mode_parameter.arn
-}
-
 output "s3_bucket_parameter_arn" {
   value = aws_ssm_parameter.s3_bucket_parameter.arn
 }

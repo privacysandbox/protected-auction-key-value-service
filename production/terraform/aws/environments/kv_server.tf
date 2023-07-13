@@ -32,7 +32,6 @@ module "kv_server" {
   instance_ami_id = var.instance_ami_id
 
   # Variables related to server configuration.
-  mode                    = var.mode
   route_v1_requests_to_v2 = var.route_v1_requests_to_v2
   server_port             = var.server_port
   enclave_cpu_count       = var.enclave_cpu_count

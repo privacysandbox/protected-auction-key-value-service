@@ -14,17 +14,6 @@
  * limitations under the License.
  */
 
-variable "mode" {
-  description = "DSP or SSP."
-  type        = string
-  validation {
-    condition = contains([
-      "DSP",
-    "SSP"], var.mode)
-    error_message = "The mode value must be either \"DSP\" or \"SSP\"."
-  }
-}
-
 variable "region" {
   description = "AWS region to deploy to."
   type        = string

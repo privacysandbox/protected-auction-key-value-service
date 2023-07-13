@@ -140,7 +140,6 @@ module "parameter" {
   source                                         = "../../services/parameter"
   service                                        = local.service
   environment                                    = var.environment
-  mode_parameter_value                           = var.mode
   s3_bucket_parameter_value                      = module.data_storage.s3_data_bucket_id
   bucket_update_sns_arn_parameter_value          = module.data_storage.sns_data_updates_topic_arn
   realtime_sns_arn_parameter_value               = module.data_storage.sns_realtime_topic_arn
@@ -182,7 +181,6 @@ module "iam_role_policies" {
   sns_realtime_topic_arn       = module.data_storage.sns_realtime_topic_arn
   ssh_instance_role_name       = module.iam_roles.ssh_instance_role_name
   server_parameter_arns = [
-    module.parameter.mode_parameter_arn,
     module.parameter.s3_bucket_parameter_arn,
     module.parameter.bucket_update_sns_arn_parameter_arn,
     module.parameter.realtime_sns_arn_parameter_arn,

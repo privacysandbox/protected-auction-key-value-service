@@ -14,13 +14,6 @@
  * limitations under the License.
  */
 
-resource "aws_ssm_parameter" "mode_parameter" {
-  name      = "${var.service}-${var.environment}-mode"
-  type      = "String"
-  value     = var.mode_parameter_value
-  overwrite = true
-}
-
 resource "aws_ssm_parameter" "s3_bucket_parameter" {
   name      = "${var.service}-${var.environment}-data-bucket-id"
   type      = "String"

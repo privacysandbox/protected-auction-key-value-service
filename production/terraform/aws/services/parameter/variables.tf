@@ -24,11 +24,6 @@ variable "environment" {
   type        = string
 }
 
-variable "mode_parameter_value" {
-  description = "DSP or SSP."
-  type        = string
-}
-
 variable "s3_bucket_parameter_value" {
   description = "Value for S3 data bucket parameter stored in Parameter Store."
   type        = string

@@ -194,6 +194,21 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
             return std::make_unique<BlobRecordStream>(
                 options.blob_client.GetBlobReader(location));
           });
+  auto metadata = record_reader->GetKVFileMetadata();
+  if (!metadata.ok()) {
+    return metadata.status();
+  }
+  if (metadata->has_sharding_metadata() &&
+      metadata->sharding_metadata().shard_num() != options.shard_num) {
+    LOG(INFO) << "Blob " << location << " belongs to shard num "
+              << metadata->sharding_metadata().shard_num()
+              << " but server shard num is " << options.shard_num
+              << " Skipping it.";
+    return DataLoadingStats{
+        .total_updated_records = 0,
+        .total_deleted_records = 0,
+    };
+  }
   auto status = LoadCacheWithData(*record_reader, cache, max_timestamp,
                                   options.shard_num, options.num_shards,
                                   metrics_recorder, options.udf_client);
@@ -360,8 +375,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
       }
       RetryUntilOk(
           [this, &basename] {
-            // TODO: distinguish status. Some can be retried while others are
-            // fatal.
+            // TODO: distinguish status. Some can be retried while others
+            // are fatal.
             return TraceLoadCacheWithDataFromFile(
                 metrics_recorder_,
                 {.bucket = options_.data_bucket, .key = basename}, options_);
@@ -392,7 +407,6 @@ class DataOrchestratorImpl : public DataOrchestrator {
     LOG(INFO) << "Initializing cache with snapshot file(s) from: "
               << options.data_bucket;
     std::string ending_delta_file;
-
     for (int64_t s = snapshots->size() - 1; s >= 0; s--) {
       std::string_view snapshot = snapshots->at(s);
       if (!IsSnapshotFilename(snapshot)) {
@@ -413,8 +427,15 @@ class DataOrchestratorImpl : public DataOrchestrator {
       if (!metadata.ok()) {
         return metadata.status();
       }
-      LOG(INFO) << "Loading snapshot file: " << location.bucket << "/"
-                << location.key;
+      if (metadata->has_sharding_metadata() &&
+          metadata->sharding_metadata().shard_num() != options.shard_num) {
+        LOG(INFO) << "Snapshot " << location << " belongs to shard num "
+                  << metadata->sharding_metadata().shard_num()
+                  << " but server shard num is " << options.shard_num
+                  << ". Skipping it.";
+        continue;
+      }
+      LOG(INFO) << "Loading snapshot file: " << location;
       if (auto status = TraceLoadCacheWithDataFromFile(metrics_recorder,
                                                        location, options);
           !status.ok()) {
@@ -423,8 +444,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
       if (metadata->snapshot().ending_delta_file() > ending_delta_file) {
         ending_delta_file = std::move(metadata->snapshot().ending_delta_file());
       }
-      LOG(INFO) << "Done loading snapshot file: " << location.bucket << "/"
-                << location.key;
+      LOG(INFO) << "Done loading snapshot file: " << location;
       break;
     }
     return ending_delta_file;

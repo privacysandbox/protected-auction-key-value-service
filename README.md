@@ -117,3 +117,7 @@ chromium.org and the
 on the Android developer site, if needed, an accompanying article will be published on the
 [Chrome Developers blog](https://developer.chrome.com/tags/privacy/) and
 [Android Developers blog](https://android-developers.googleblog.com/).
+
+---
+
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/privacysandbox/fledge-key-value-service/badge)](https://securityscorecards.dev/viewer/?uri=github.com/privacysandbox/fledge-key-value-service)

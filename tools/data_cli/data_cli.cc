@@ -118,6 +118,16 @@ bool IsSupportedCommand(std::string_view command) {
   return exists != kSupportedCommands.end();
 }
 
+// Sample run using bazel:
+//
+// GLOG_logtostderr=1 GLOG_v=3 bazel run \
+//   //tools/data_cli:data_cli \
+//   --//:instance=local --//:platform=local -- \
+//   format_data \
+//    --input_file=/data/DELTA_1689344645643610 \
+//    --input_format=DELTA \
+//    --output_format=CSV \
+//    --output_file=/data/DELTA_1689344645643610.csv
 int main(int argc, char** argv) {
   kv_server::PlatformInitializer initializer;
 

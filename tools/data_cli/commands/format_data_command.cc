@@ -38,6 +38,7 @@ constexpr std::string_view kKeyValueMutationRecord =
     "key_value_mutation_record";
 constexpr std::string_view kUserDefinedFunctionsConfig =
     "user_defined_functions_config";
+constexpr double kSamplingThreshold = 0.02;
 
 absl::Status ValidateParams(const FormatDataCommand::Params& params) {
   if (params.input_format.empty()) {
@@ -142,11 +143,19 @@ absl::StatusOr<std::unique_ptr<FormatDataCommand>> FormatDataCommand::Create(
 }
 
 absl::Status FormatDataCommand::Execute() {
+  VLOG(3) << "Formatting records ...";
+  int64_t records_count = 0;
   absl::Status status = record_reader_->ReadRecords(
-      [record_writer = record_writer_.get()](DataRecordStruct data_record) {
+      [record_writer = record_writer_.get(),
+       &records_count](DataRecordStruct data_record) {
+        records_count++;
+        if ((double)std::rand() / RAND_MAX <= kSamplingThreshold) {
+          VLOG(3) << "Formatting record: " << records_count;
+        }
         return record_writer->WriteRecord(data_record);
       });
   record_writer_->Close();
+  VLOG(3) << "Sucessfully formated records.";
   return status;
 }
 

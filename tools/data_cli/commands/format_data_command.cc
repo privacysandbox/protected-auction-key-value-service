@@ -143,19 +143,19 @@ absl::StatusOr<std::unique_ptr<FormatDataCommand>> FormatDataCommand::Create(
 }
 
 absl::Status FormatDataCommand::Execute() {
-  VLOG(3) << "Formatting records ...";
+  LOG(INFO) << "Formatting records ...";
   int64_t records_count = 0;
   absl::Status status = record_reader_->ReadRecords(
       [record_writer = record_writer_.get(),
        &records_count](DataRecordStruct data_record) {
         records_count++;
         if ((double)std::rand() / RAND_MAX <= kSamplingThreshold) {
-          VLOG(3) << "Formatting record: " << records_count;
+          LOG(INFO) << "Formatting record: " << records_count;
         }
         return record_writer->WriteRecord(data_record);
       });
   record_writer_->Close();
-  VLOG(3) << "Sucessfully formated records.";
+  LOG(INFO) << "Sucessfully formated records.";
   return status;
 }
 

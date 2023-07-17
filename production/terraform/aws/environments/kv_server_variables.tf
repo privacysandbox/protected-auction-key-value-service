@@ -186,3 +186,44 @@ variable "route_v1_requests_to_v2" {
   description = "Whether to route V1 requests through V2."
   type        = bool
 }
+
+
+variable "use_real_coordinators" {
+  description = "Use real coordinators."
+  type        = bool
+}
+
+variable "public_key_endpoint" {
+  description = "An endpoint to retrieve public keys for coordinators."
+  type        = string
+}
+
+variable "primary_coordinator_private_key_endpoint" {
+  description = "A primary endpoint to retrieve private keys for coordinators."
+  type        = string
+}
+
+variable "secondary_coordinator_private_key_endpoint" {
+  description = "A secondary endpoint to retrieve private keys for coordinators."
+  type        = string
+}
+
+variable "primary_coordinator_account_identity" {
+  description = "Account identity for the primary coordinator."
+  type        = string
+}
+
+variable "secondary_coordinator_account_identity" {
+  description = "Account identity for the secondary coordinator."
+  type        = string
+}
+
+variable "primary_coordinator_region" {
+  description = "An region for primary coordinator."
+  type        = string
+}
+
+variable "secondary_coordinator_region" {
+  description = "An region for secondary coordinator."
+  type        = string
+}

@@ -19,15 +19,14 @@
 #ifndef COMPONENTS_DATA_SERVER_SERVER_KEY_FETCHER_FACTORY_H_
 #define COMPONENTS_DATA_SERVER_SERVER_KEY_FETCHER_FACTORY_H_
 
+#include "components/data_server/server/parameter_fetcher.h"
 #include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 namespace kv_server {
 
-// Constructs a KeyFetcherManager instance. Currently it sets up a dummy
-// instance. The next step is to pass through parameters based on which a real
-// KeyFetcherManagerInterface will be set up.
+// Constructs a KeyFetcherManager instance.
 std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
-CreateKeyFetcherManager();
+CreateKeyFetcherManager(const ParameterFetcher& parameter_fetcher);
 
 }  // namespace kv_server
 

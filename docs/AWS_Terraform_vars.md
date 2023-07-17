@@ -77,6 +77,18 @@
 
     Total number of shards
 
+-   **primary_coordinator_account_identity**
+
+    Primary coordinator account identity.
+
+-   **primary_coordinator_private_key_endpoint**
+
+    Primary coordinator private key endpoint.
+
+-   **primary_coordinator_region**
+
+    Primary coordinator region.
+
 -   **prometheus_service_region**
 
     Specifies which region to find Prometheus service and use. Not all regions have Prometheus
@@ -91,6 +103,10 @@
     existing workspace id from another region should be provided. It is expected that the workspace
     from that region is created before this terraform file is applied. That can be done by running
     the Key Value service terraform file in that region.
+
+-   **public_key_endpoint**
+
+    Public key endpoint.
 
 -   **realtime_updater_num_threads**
 
@@ -131,6 +147,18 @@
 
     S3 Client max range bytes for reading data files.
 
+-   **secondary_coordinator_account_identity**
+
+    Secondary coordinator account identity.
+
+-   **secondary_coordinator_private_key_endpoint**
+
+    Secondary coordinator private key endpoint.
+
+-   **secondary_coordinator_region**
+
+    Secondary coordinator region.
+
 -   **server_port**
 
     Set the port of the EC2 parent instance (that hosts the Nitro Enclave instance).
@@ -155,6 +183,14 @@
 -   **udf_num_workers**
 
     Total number of workers for UDF execution
+
+-   **use_real_coordinators**
+
+    Whether to use real coordinators. Please refer to our trust model:
+    <https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_trust_model.md> on
+    details about coordinators. For non-production testing it's better to set this to false to begin
+    with and then set this to true before enabling production. For processing production requests
+    this flag must be true, otherwise requests will not be decrypted successfully.
 
 -   **vpc_cidr_block**
 

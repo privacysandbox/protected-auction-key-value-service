@@ -73,3 +73,35 @@ output "udf_num_workers_parameter_arn" {
 output "route_v1_requests_to_v2_parameter_arn" {
   value = aws_ssm_parameter.route_v1_requests_to_v2_parameter.arn
 }
+
+output "use_real_coordinators_parameter_arn" {
+  value = aws_ssm_parameter.use_real_coordinators_parameter.arn
+}
+
+output "public_key_endpoint_parameter_arn" {
+  value = aws_ssm_parameter.public_key_endpoint_parameter.arn
+}
+
+output "primary_coordinator_private_key_endpoint_parameter_arn" {
+  value = aws_ssm_parameter.primary_coordinator_private_key_endpoint_parameter.arn
+}
+
+output "secondary_coordinator_private_key_endpoint_parameter_arn" {
+  value = aws_ssm_parameter.secondary_coordinator_private_key_endpoint_parameter.arn
+}
+
+output "primary_coordinator_account_identity_parameter_arn" {
+  value = aws_ssm_parameter.primary_coordinator_account_identity_parameter.arn
+}
+
+output "secondary_coordinator_account_identity_parameter_arn" {
+  value = aws_ssm_parameter.secondary_coordinator_account_identity_parameter.arn
+}
+
+output "primary_coordinator_region_parameter_arn" {
+  value = aws_ssm_parameter.primary_coordinator_region_parameter.arn
+}
+
+output "secondary_coordinator_region_parameter_arn" {
+  value = aws_ssm_parameter.secondary_coordinator_region_parameter.arn
+}

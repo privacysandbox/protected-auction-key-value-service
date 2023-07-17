@@ -126,6 +126,7 @@ cc_library(
         "//:aws_platform": [
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:core",
+            "@control_plane_shared//cc/public/cpio/interface:cpio",
         ],
         "//conditions:default": [],
     }) + [

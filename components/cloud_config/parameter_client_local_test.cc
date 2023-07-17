@@ -104,6 +104,12 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
     ASSERT_TRUE(statusor.ok());
     EXPECT_EQ(false, *statusor);
   }
+  {
+    const auto statusor =
+        client->GetBoolParameter("kv-server-local-use-real-coordinators");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(false, *statusor);
+  }
 }
 
 }  // namespace

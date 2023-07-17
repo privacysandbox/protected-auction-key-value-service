@@ -244,7 +244,13 @@ cc_library(
         "key_fetcher_factory.h",
     ],
     deps = [
+        ":parameter_fetcher",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/time",
+        "@google_privacysandbox_servers_common//src/cpp/concurrent:executor",
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:private_key_fetcher",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:public_key_fetcher",
     ],
 )

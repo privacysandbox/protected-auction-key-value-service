@@ -111,3 +111,59 @@ resource "aws_ssm_parameter" "route_v1_requests_to_v2_parameter" {
   value     = var.route_v1_requests_to_v2_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "use_real_coordinators_parameter" {
+  name      = "${var.service}-${var.environment}-use-real-coordinators"
+  type      = "String"
+  value     = var.use_real_coordinators_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "public_key_endpoint_parameter" {
+  name      = "${var.service}-${var.environment}-public-key-endpoint"
+  type      = "String"
+  value     = var.public_key_endpoint_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "primary_coordinator_private_key_endpoint_parameter" {
+  name      = "${var.service}-${var.environment}-primary-coordinator-private-key-endpoint"
+  type      = "String"
+  value     = var.primary_coordinator_private_key_endpoint_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "secondary_coordinator_private_key_endpoint_parameter" {
+  name      = "${var.service}-${var.environment}-secondary-coordinator-private-key-endpoint"
+  type      = "String"
+  value     = var.secondary_coordinator_private_key_endpoint_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "primary_coordinator_account_identity_parameter" {
+  name      = "${var.service}-${var.environment}-primary-coordinator-account-identity"
+  type      = "String"
+  value     = var.primary_coordinator_account_identity_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "secondary_coordinator_account_identity_parameter" {
+  name      = "${var.service}-${var.environment}-secondary-coordinator-account-identity"
+  type      = "String"
+  value     = var.secondary_coordinator_account_identity_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "primary_coordinator_region_parameter" {
+  name      = "${var.service}-${var.environment}-primary-coordinator-region"
+  type      = "String"
+  value     = var.primary_coordinator_region_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "secondary_coordinator_region_parameter" {
+  name      = "${var.service}-${var.environment}-secondary-coordinator-region"
+  type      = "String"
+  value     = var.secondary_coordinator_region_parameter_value
+  overwrite = true
+}

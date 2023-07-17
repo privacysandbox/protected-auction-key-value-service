@@ -237,7 +237,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       CreateStreamRecordReaderFactory(parameter_fetcher);
   notifier_ = CreateDeltaFileNotifier(parameter_fetcher);
 
-  key_fetcher_manager_ = CreateKeyFetcherManager();
+  key_fetcher_manager_ = CreateKeyFetcherManager(parameter_fetcher);
 
   CreateGrpcServices(parameter_fetcher);
   auto metadata = parameter_fetcher.GetBlobStorageNotifierMetadata();

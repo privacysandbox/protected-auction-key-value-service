@@ -88,3 +88,43 @@ variable "route_v1_requests_to_v2_parameter_value" {
   description = "Whether to route V1 requests through V2."
   type        = bool
 }
+
+variable "use_real_coordinators_parameter_value" {
+  description = "Number of parallel threads for reading and loading data files."
+  type        = bool
+}
+
+variable "public_key_endpoint_parameter_value" {
+  description = "An endpoint to retrieve public keys for coordinators."
+  type        = string
+}
+
+variable "primary_coordinator_private_key_endpoint_parameter_value" {
+  description = "A primary endpoint to retrieve private keys for coordinators."
+  type        = string
+}
+
+variable "secondary_coordinator_private_key_endpoint_parameter_value" {
+  description = "A secondary endpoint to retrieve private keys for coordinators."
+  type        = string
+}
+
+variable "primary_coordinator_account_identity_parameter_value" {
+  description = "Account identity for the primary coordinator."
+  type        = string
+}
+
+variable "secondary_coordinator_account_identity_parameter_value" {
+  description = "Account identity for the secondary coordinator."
+  type        = string
+}
+
+variable "primary_coordinator_region_parameter_value" {
+  description = "An region for primary coordinator."
+  type        = string
+}
+
+variable "secondary_coordinator_region_parameter_value" {
+  description = "An region for secondary coordinator."
+  type        = string
+}

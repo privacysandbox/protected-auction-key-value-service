@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-function HandleRequest(input) {
+function getKeyGroupOutputs(input) {
   const keyGroupOutputs = [];
   for (const keyGroup of input.keyGroups) {
     const keyGroupOutput = {};
@@ -35,5 +35,11 @@ function HandleRequest(input) {
       keyGroupOutputs.push(keyGroupOutput);
     }
   }
+  return keyGroupOutputs;
+}
+
+
+function handleRequest(input) {
+  const keyGroupOutputs = getKeyGroupOutputs(input);
   return {keyGroupOutputs, udfOutputApiVersion: 1};
 }

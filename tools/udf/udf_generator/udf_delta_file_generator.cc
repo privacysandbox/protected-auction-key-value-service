@@ -34,7 +34,7 @@
 #include "riegeli/records/record_writer.h"
 
 ABSL_FLAG(std::string, udf_file_path, "", "UDF file path");
-ABSL_FLAG(std::string, udf_handler_name, "HandleRequest", "UDF handler_name");
+ABSL_FLAG(std::string, udf_handler_name, "handleRequest", "UDF handler_name");
 ABSL_FLAG(std::string, output_dir, "",
           "Output file directory. Ignored if output_path is specified.");
 ABSL_FLAG(std::string, output_path, "",

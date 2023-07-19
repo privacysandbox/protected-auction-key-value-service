@@ -16,6 +16,8 @@
 
 #include "tools/data_cli/commands/format_data_command.h"
 
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/csv/csv_delta_record_stream_reader.h"
@@ -37,10 +39,11 @@ FormatDataCommand::Params GetParams(
   };
 }
 
-KeyValueMutationRecordStruct GetKVMutationRecord() {
+KeyValueMutationRecordStruct GetKVMutationRecord(
+    KeyValueMutationRecordValueT value = "value") {
   KeyValueMutationRecordStruct record;
   record.key = "key";
-  record.value = "value";
+  record.value = value;
   record.logical_commit_time = 1234567890;
   record.mutation_type = KeyValueMutationType::Update;
   return record;
@@ -67,16 +70,25 @@ KVFileMetadata GetMetadata() {
   return metadata;
 }
 
-TEST(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData_KVMutations) {
+class FormatDataCommandTest
+    : public testing::TestWithParam<KeyValueMutationRecordValueT> {
+ protected:
+  KeyValueMutationRecordValueT GetValue() { return GetParam(); }
+};
+
+INSTANTIATE_TEST_SUITE_P(KVMutationValue, FormatDataCommandTest,
+                         testing::Values("value",
+                                         std::vector<std::string_view>{
+                                             "value1", "value2", "value3"}));
+
+TEST_P(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData_KVMutations) {
   std::stringstream csv_stream;
   std::stringstream delta_stream;
   CsvDeltaRecordStreamWriter csv_writer(csv_stream);
-  EXPECT_TRUE(
-      csv_writer.WriteRecord(GetDataRecord(GetKVMutationRecord())).ok());
-  EXPECT_TRUE(
-      csv_writer.WriteRecord(GetDataRecord(GetKVMutationRecord())).ok());
-  EXPECT_TRUE(
-      csv_writer.WriteRecord(GetDataRecord(GetKVMutationRecord())).ok());
+  const auto& record = GetDataRecord(GetKVMutationRecord(GetValue()));
+  EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
+  EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
+  EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
   csv_writer.Close();
   EXPECT_FALSE(csv_stream.str().empty());
   auto command =
@@ -87,29 +99,25 @@ TEST(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData_KVMutations) {
   testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(3)
-      .WillRepeatedly([](DataRecordStruct record) {
-        EXPECT_EQ(record, GetDataRecord(GetKVMutationRecord()));
+      .WillRepeatedly([&record](DataRecordStruct actual_record) {
+        EXPECT_EQ(actual_record, record);
         return absl::OkStatus();
       });
   EXPECT_TRUE(delta_reader.ReadRecords(record_callback.AsStdFunction()).ok());
 }
 
-TEST(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_KvMutations) {
+TEST_P(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_KvMutations) {
   std::stringstream delta_stream;
   std::stringstream csv_stream;
   auto delta_writer = DeltaRecordStreamWriter<std::stringstream>::Create(
       delta_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
+  const auto& record = GetDataRecord(GetKVMutationRecord(GetValue()));
   EXPECT_TRUE(delta_writer.ok()) << delta_writer.status();
-  EXPECT_TRUE(
-      (*delta_writer)->WriteRecord(GetDataRecord(GetKVMutationRecord())).ok());
-  EXPECT_TRUE(
-      (*delta_writer)->WriteRecord(GetDataRecord(GetKVMutationRecord())).ok());
-  EXPECT_TRUE(
-      (*delta_writer)->WriteRecord(GetDataRecord(GetKVMutationRecord())).ok());
-  EXPECT_TRUE(
-      (*delta_writer)->WriteRecord(GetDataRecord(GetKVMutationRecord())).ok());
-  EXPECT_TRUE(
-      (*delta_writer)->WriteRecord(GetDataRecord(GetKVMutationRecord())).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
   (*delta_writer)->Close();
   auto command = FormatDataCommand::Create(
       FormatDataCommand::Params{
@@ -126,8 +134,8 @@ TEST(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_KvMutations) {
   testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(5)
-      .WillRepeatedly([](DataRecordStruct record) {
-        EXPECT_EQ(record, GetDataRecord(GetKVMutationRecord()));
+      .WillRepeatedly([&record](DataRecordStruct actual_record) {
+        EXPECT_EQ(actual_record, record);
         return absl::OkStatus();
       });
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());

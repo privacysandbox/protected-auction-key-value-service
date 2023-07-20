@@ -226,14 +226,17 @@ TEST(DeleteKeyValueSetTest, WrongKeyDoesNotRemoveKeyValueEntry) {
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
   cache->DeleteValuesInSet("wrong_key",
                            absl::Span<std::string_view>(values_to_delete), 2);
-
-  EXPECT_THAT(
-      cache->GetKeyValueSet({"my_key", "wrong_key"})->GetValueSet("my_key"),
-      UnorderedElementsAre("v1", "v2", "v3"));
-  EXPECT_EQ(cache->GetKeyValueSet({"my_key", "wrong_key"})
-                ->GetValueSet("wrong_key")
-                .size(),
-            0);
+  std::unique_ptr<GetKeyValueSetResult> result =
+      cache->GetKeyValueSet({"my_key", "wrong_key"});
+  EXPECT_THAT(result->GetValueSet("my_key"),
+              UnorderedElementsAre("v1", "v2", "v3"));
+  EXPECT_EQ(result->GetValueSet("wrong_key").size(), 0);
+  // Reset the unique pointer to destroy the GetKeyValueSetResult object which
+  // holds the key locks in the cache map. This reset is required before calling
+  // the GetSetValueMeta to avoid potential deadlocks,
+  // as the "GetSetValueMeta" call will need to acquire the
+  // cache map lock in the same thread.
+  result.reset();
 
   auto value_meta_v1 =
       KeyValueCacheTestPeer::GetSetValueMeta(*cache, "my_key", "v1");

@@ -59,6 +59,16 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "grpc_client",
+    hdrs = ["grpc_client.h"],
+    deps = [
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 cc_test(
     name = "request_generation_util_test",
     size = "small",
@@ -100,6 +110,18 @@ cc_test(
         ":request_generation_util",
         ":synthetic_request_generator",
         "//components/util:sleepfor_mock",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "grpc_client_test",
+    size = "small",
+    srcs = ["grpc_client_test.cc"],
+    deps = [
+        ":grpc_client",
+        "//public/testing:fake_key_value_service_impl",
+        "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",
     ],
 )

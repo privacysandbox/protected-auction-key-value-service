@@ -104,6 +104,30 @@ resource "aws_route_table_association" "public_rt_assoc" {
 }
 
 # Create private route tables required for gateway endpoints.
+resource "aws_eip" "private_subnet_eip" {
+  count = length(aws_subnet.private_subnet)
+  vpc   = true
+  depends_on = [
+    aws_internet_gateway.igw
+  ]
+}
+
+resource "aws_nat_gateway" "nat_gateway" {
+  count         = length(aws_subnet.private_subnet)
+  subnet_id     = aws_subnet.public_subnet[count.index].id
+  allocation_id = aws_eip.private_subnet_eip[count.index].id
+
+  depends_on = [
+    aws_internet_gateway.igw
+  ]
+
+  tags = {
+    Name        = "${var.service}-${var.environment}-nat-gw${count.index}"
+    service     = var.service
+    environment = var.environment
+  }
+}
+
 resource "aws_route_table" "private_rt" {
   count  = length(aws_subnet.private_subnet)
   vpc_id = aws_vpc.vpc.id
@@ -113,6 +137,13 @@ resource "aws_route_table" "private_rt" {
     service     = var.service
     environment = var.environment
   }
+}
+
+resource "aws_route" "private_route" {
+  count                  = length(aws_subnet.private_subnet)
+  route_table_id         = aws_route_table.private_rt[count.index].id
+  nat_gateway_id         = aws_nat_gateway.nat_gateway[count.index].id
+  destination_cidr_block = "0.0.0.0/0"
 }
 
 resource "aws_route_table_association" "private_rt_assoc" {

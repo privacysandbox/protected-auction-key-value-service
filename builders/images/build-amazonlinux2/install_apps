@@ -67,6 +67,7 @@ function install_misc() {
     "git-2.38*" \
     "tar-1.26*" \
     "unzip-6.0*" \
+    "which-2.*" \
     "zip-3.0*"
 }
 

@@ -23,7 +23,7 @@
 set -o pipefail
 set -o errexit
 
-SCRIPT_NAME=$(basename "$0")
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 readonly SCRIPT_NAME
 readonly IMAGE=build-"${SCRIPT_NAME/bazel-}"
 CBUILD=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/cbuild

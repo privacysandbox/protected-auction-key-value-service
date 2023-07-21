@@ -34,8 +34,8 @@ function usage() {
   cat &>/dev/stderr << USAGE
 usage:
   $0 <options>
-    --cmd                      Command(s) to execute within the docker container, via \`bash -c\`
-    --image                    Image name for the build runtime. Valid names:
+    --cmd <string>             bash command string to execute within the docker container
+    --image <string>           Image name for the build runtime. Valid names:
 USAGE
 
   for elem in "${IMAGE_LIST[@]}"
@@ -47,6 +47,7 @@ USAGE
     --env <key>[=<value>]      Name (or name=value) of exported environment variable, propagated into container
     --without-shared-cache     Containers will not mount ${HOME}/.cache/bazel
     --without-embedded-docker  Disable docker client within container
+    --docker-network <value>   Specify docker network type or name, value passed to docker run --network
     --verbose                  Enable verbose output
 
 Environment variables (all optional):
@@ -65,23 +66,21 @@ USAGE
 
 WITH_SHARED_CACHE=1
 WITH_DOCKER_SOCK=1
+DOCKER_NETWORK=bridge
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cmd)
       CMD="$2"
-      shift
-      shift
+      shift 2 || usage
       ;;
     --env)
       ENV_VARS+=("$2")
-      shift
-      shift
+      shift 2 || usage
       ;;
     --image)
       IMAGE="$2"
-      shift
-      shift
+      shift 2 || usage
       ;;
     --without-shared-cache)
       WITH_SHARED_CACHE=0
@@ -91,18 +90,18 @@ while [[ $# -gt 0 ]]; do
       WITH_DOCKER_SOCK=0
       shift
       ;;
+    --docker-network)
+      DOCKER_NETWORK="$2"
+      shift 2 || usage
+      ;;
     --verbose)
       VERBOSE=1
       shift
       ;;
-    -h | --help)
-      usage 0
-      break
-      ;;
+    -h | --help) usage 0 ;;
     *)
       printf "unrecognized arg: %s\n" "$1"
       usage
-      break
       ;;
   esac
 done
@@ -138,10 +137,11 @@ readonly IMAGE_TAGGED
 
 declare -a DOCKER_RUN_ARGS
 DOCKER_RUN_ARGS+=(
-  --rm
-  --entrypoint /bin/bash
-  --volume "${WORKSPACE_MOUNT}":/src/workspace
-  --workdir /src/workspace
+  "--rm"
+  "--entrypoint=/bin/bash"
+  "--volume=${WORKSPACE_MOUNT}:/src/workspace"
+  "--workdir=/src/workspace"
+  "--network=${DOCKER_NETWORK}"
   "$(echo "${EXTRA_DOCKER_RUN_ARGS}" | envsubst)"
 )
 

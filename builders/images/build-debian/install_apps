@@ -5,6 +5,7 @@ set -o errexit
 
 declare -i VERBOSE=0
 declare INSTALL_LOCALE=en_US.UTF-8
+declare -r -i CLANG_VER=15
 
 usage() {
   local exitval=${1-1}
@@ -51,6 +52,7 @@ function install_python() {
   rm -f /tmp/get-pip.py
   /usr/bin/python3.9 -m pip --version
   /usr/bin/python3.9 -m pip install \
+    "libclang~=${CLANG_VER}.0" \
     "numpy~=1.25"
 }
 
@@ -84,14 +86,13 @@ function install_misc() {
 }
 
 function install_clang() {
-  declare -r -i clang_ver=15
   curl --silent --fail --show-error --location --remote-name https://apt.llvm.org/llvm.sh
   chmod +x llvm.sh
-  ./llvm.sh ${clang_ver}
-  apt-get --quiet install -y --no-install-recommends libc++-${clang_ver}-dev
-  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${clang_ver} 100
-  update-alternatives --install /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${clang_ver} 100
-  update-alternatives --install /usr/bin/llvm-profdata llvm-profdata /usr/bin/llvm-profdata-${clang_ver} 100
+  ./llvm.sh ${CLANG_VER}
+  apt-get --quiet install -y --no-install-recommends libc++-${CLANG_VER}-dev
+  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${CLANG_VER} 100
+  update-alternatives --install /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${CLANG_VER} 100
+  update-alternatives --install /usr/bin/llvm-profdata llvm-profdata /usr/bin/llvm-profdata-${CLANG_VER} 100
   rm -f llvm.sh
 
   clang --version

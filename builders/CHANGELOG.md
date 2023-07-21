@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.33.0 (2023-07-20)
+
+
+### Features
+
+* Install python libclang 15 in build-debian
+* Add OSSF Scorecard GitHub Action
+
+## 0.32.0 (2023-07-14)
+
+
+### Features
+
+* Set PYTHON_BIN_PATH/PYTHON_LIB_PATH in build-amazonlinux2
+
+## 0.31.0 (2023-07-12)
+
+
+### Features
+
+* Add cbuild --docker-network flag
+* Add coverage-tool image plus lcov scripts
+* Mount gcloud config dir into container
+
+
+### Bug Fixes
+
+* Add hash for coverage-tools
+* Add hash for coverage-tools
+* Improve error handling for flag values
+* Print build log path on error condition
+* Specify latest image tag explicitly
+* Upgrade pre-commit hooks
+
 ## 0.30.1 (2023-06-27)
 
 

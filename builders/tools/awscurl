@@ -68,4 +68,4 @@ docker run \
   --volume "${HOME}"/.aws/:/home/.aws/ \
   --volume "${WORKSPACE}":/src/workspace \
   --workdir /src/workspace/"${REL_PWD}" \
-  ghcr.io/okigan/awscurl "$@"
+  ghcr.io/okigan/awscurl:latest "$@"

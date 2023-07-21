@@ -22,20 +22,23 @@ set -o errexit
 
 trap _cleanup EXIT
 function _cleanup() {
-  declare -r -i STATUS=$?
+  declare -r -i status=$?
   if [[ -n ${TEMPTAR} ]]; then
     rm -f "${TEMPTAR}" "${SHAFILE}"
   fi
-  if [[ ${STATUS} -ne 0 ]]; then
+  if [[ ${status} -ne 0 ]]; then
     if [[ -s ${BUILD_OUTPUT} ]] && [[ ${VERBOSE} -eq 1 ]]; then
       cat "${BUILD_OUTPUT}"
     fi
-    printf "Error: get-builder-image-tagged status code: %d\n" ${STATUS} &>/dev/stderr
-    sleep 5s
+    printf "Error: get-builder-image-tagged status code: %d\n" ${status} &>/dev/stderr
+    printf "Docker build log: %s\n" "${BUILD_OUTPUT}" &>/dev/stderr
+    if [[ -v KOKORO_ARTIFACTS_DIR ]]; then
+      sleep 5s
+    fi
   elif [[ -f ${BUILD_OUTPUT} ]] && [[ ${VERBOSE} -eq 0 ]]; then
     rm -f "${BUILD_OUTPUT}"
   fi
-  exit ${STATUS}
+  exit ${status}
 }
 
 function make_temp() {
@@ -248,7 +251,6 @@ if [[ ${BUILD_IMAGE_IF_NEEDED} -eq 1 ]]; then
   # build container image and load it into the local docker client
   if ! docker image inspect "${IMAGE_TAGGED}" &>/dev/null; then
     printf "generating docker image %s\n" "${IMAGE_TAGGED}" &>/dev/stderr
-    # shellcheck disable=SC2086
     docker buildx build "${DOCKER_BUILD_ARGS[@]}" --output=type=docker --tag "${IMAGE_TAGGED}" - <"${TEMPTAR}" &>"${BUILD_OUTPUT}"
   fi
 fi

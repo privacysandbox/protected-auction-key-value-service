@@ -67,4 +67,4 @@ docker run \
   --volume "${HOME}"/.aws/:/home/.aws/ \
   --volume "${WORKSPACE}":/src/workspace \
   --workdir /src/workspace/"${REL_PWD}" \
-  amazon/aws-cli "$@"
+  amazon/aws-cli:latest "$@"

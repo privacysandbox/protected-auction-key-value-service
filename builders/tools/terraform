@@ -61,11 +61,17 @@ readonly REL_PWD
 WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
 readonly WORKSPACE_MOUNT
 
+if [[ -d ${HOME}/.aws ]]; then
+  DOCKER_RUN_ARGS+=("--volume=${HOME}/.aws/:/home/.aws/")
+fi
+if [[ -d ${HOME}/.config/gcloud ]]; then
+  DOCKER_RUN_ARGS+=("--volume=${HOME}/.config/gcloud/:/home/.config/gcloud/")
+fi
+
 DOCKER_RUN_ARGS+=(
-  --user "$(id -u):$(id -g)"
-  --volume "${HOME}"/.aws/:/home/.aws/
-  --volume "${WORKSPACE_MOUNT}":/src/workspace
-  --workdir /src/workspace/"${REL_PWD}"
+  "--user=$(id -u):$(id -g)"
+  "--volume=${WORKSPACE_MOUNT}:/src/workspace"
+  "--workdir=/src/workspace/${REL_PWD}"
 )
 
 # shellcheck disable=SC2068

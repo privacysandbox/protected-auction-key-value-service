@@ -15,10 +15,8 @@
 
 set -o errexit
 
-TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
-readonly TOOLS_DIR
 # shellcheck disable=SC1090
-source "${TOOLS_DIR}"/builder.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
 
 declare -a DOCKER_RUN_ARGS
 DOCKER_RUN_ARGS+=(
@@ -37,8 +35,8 @@ readonly WORKSPACE_MOUNT
 
 docker run \
   "${DOCKER_RUN_ARGS[@]}" \
-  --user "$(id -u):$(id -g)" \
-  --volume "${WORKSPACE_MOUNT}":/src \
-  --workdir /src \
-  ghcr.io/hadolint/hadolint:v2.10.0 \
+  --user="$(id -u):$(id -g)" \
+  --volume="${WORKSPACE_MOUNT}":/src \
+  --workdir=/src \
+  ghcr.io/hadolint/hadolint:v2.12.0 \
   hadolint "$@"

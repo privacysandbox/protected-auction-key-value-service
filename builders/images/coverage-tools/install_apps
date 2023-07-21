@@ -1,0 +1,53 @@
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+
+declare -i VERBOSE=0
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --verbose                     Emit verbose info. Default: false
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -h | --help) usage 0 ;;
+    *) usage 0 ;;
+  esac
+done
+
+function apt_update() {
+  apt-get --quiet -o 'Acquire::https::No-Cache=True' -o 'Acquire::http::No-Cache=True' update
+}
+
+function install_misc() {
+  DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y --no-install-recommends \
+    lcov="1.*"
+}
+
+function clean_debian() {
+  apt-get --quiet autoremove -y
+  apt-get autoclean
+  apt-get clean
+  rm -rf /var/lib/apt/lists
+}
+
+if [[ ${VERBOSE} -eq 1 ]]; then
+  printf "=== SHELL ENVIRONMENT ===\n"
+  env
+fi
+
+apt_update
+install_misc
+clean_debian

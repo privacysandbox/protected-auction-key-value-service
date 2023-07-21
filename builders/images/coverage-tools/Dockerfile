@@ -12,24 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM amazonlinux:2.0.20230530.0
+FROM ubuntu:20.04
 
-COPY /install_apps install_golang_apps install_go.sh generate_system_bazelrc .bazelversion /scripts/
-COPY get_workspace_mount /usr/local/bin
-COPY gitconfig /etc
+COPY install_apps /scripts/
 
-ARG TARGETARCH
-ENV BUILD_ARCH="${TARGETARCH}" \
-    WORKSPACE=/src/workspace \
-    CC=clang
-
-RUN  \
-  chmod 644 /etc/gitconfig && \
+RUN \
   /scripts/install_apps && \
-  /scripts/generate_system_bazelrc --user-root-name amazonlinux2 && \
-  /scripts/install_golang_apps && \
   rm -rf /scripts
-
-ENV PATH="${PATH}:/usr/local/go/bin:/opt/bin" \
-    PYTHON_BIN_PATH="/opt/bin/python3" \
-    PYTHON_LIB_PATH="/usr/lib/python3.8"

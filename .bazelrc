@@ -1,9 +1,7 @@
 build --announce_rc
 build --verbose_failures
-build --client_env=CC=clang
-build --cxxopt=-std=c++17
-build --host_cxxopt=-std=c++17
-build --copt=-Werror=return-type
+build --config=clang
+build --config=roma_legacy
 
 # Broadly disable C++ Exceptions
 # https://google.github.io/styleguide/cppguide.html#Exceptions
@@ -28,6 +26,16 @@ test --test_output=errors
 # Disable ICU linking for googleurl.
 build --@com_google_googleurl//build_config:system_icu=0
 build --@io_opentelemetry_cpp//api:with_abseil=true
+
+build:clang --cxxopt=-fbracket-depth=512
+build:clang --client_env=CC=clang
+build:clang --cxxopt=-std=c++17
+build:clang --host_cxxopt=-std=c++17
+build:clang --client_env=BAZEL_CXXOPTS=-std=c++17
+
+build:roma_legacy --@control_plane_shared//cc/roma/roma_service/src:service=legacy
+
+build:roma_sandboxed --@control_plane_shared//cc/roma/roma_service/src:service=sandboxed
 
 # Address sanitizer
 # To use it: bazel build --config asan

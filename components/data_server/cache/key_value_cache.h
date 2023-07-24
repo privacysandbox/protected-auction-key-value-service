@@ -107,7 +107,7 @@ class KeyValueCache : public Cache {
 
   // Sorted mapping from the logical timestamp to a key, for nodes that were
   // deleted We keep this to do proper and efficient clean up in map_.
-  absl::btree_map<int64_t, std::string> deleted_nodes_ ABSL_GUARDED_BY(mutex_);
+  std::multimap<int64_t, std::string> deleted_nodes_ ABSL_GUARDED_BY(mutex_);
 
   // The maximum value that was passed to RemoveDeletedKeys.
   int64_t max_cleanup_logical_commit_time_ ABSL_GUARDED_BY(mutex_) = 0;

@@ -36,7 +36,7 @@ namespace kv_server {
 class KeyValueCacheTestPeer {
  public:
   KeyValueCacheTestPeer() = delete;
-  static absl::btree_map<int64_t, std::string> ReadDeletedNodes(
+  static std::multimap<int64_t, std::string> ReadDeletedNodes(
       const KeyValueCache& c) {
     absl::MutexLock lock(&c.mutex_);
     return c.deleted_nodes_;
@@ -455,7 +455,9 @@ TEST(CleanUpTimestamps, RemoveDeletedKeysDoesntAffectNewRecords) {
 
   auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
   EXPECT_EQ(deleted_nodes.size(), 1);
-  EXPECT_EQ(deleted_nodes.at(6), "my_key");
+  auto range = deleted_nodes.equal_range(6);
+  ASSERT_NE(range.first, range.second);
+  EXPECT_EQ(range.first->second, "my_key");
 }
 
 TEST(CleanUpTimestamps,
@@ -468,14 +470,20 @@ TEST(CleanUpTimestamps,
   cache->UpdateKeyValue("my_key5", "my_value", 5);
 
   cache->DeleteKey("my_key3", 8);
+  cache->DeleteKey("key_tombstone", 8);
   cache->DeleteKey("my_key1", 6);
   cache->DeleteKey("my_key2", 7);
 
   cache->RemoveDeletedKeys(7);
 
   auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
-  EXPECT_EQ(deleted_nodes.size(), 1);
-  EXPECT_EQ(deleted_nodes.at(8), "my_key3");
+  EXPECT_EQ(deleted_nodes.size(), 2);
+  auto range = deleted_nodes.equal_range(8);
+  std::vector<std::string> deleted_values;
+  for (auto it = range.first; it != range.second; ++it) {
+    deleted_values.push_back(it->second);
+  }
+  EXPECT_THAT(deleted_values, UnorderedElementsAre("key_tombstone", "my_key3"));
 
   std::vector<std::string_view> full_keys = {
       "my_key1", "my_key2", "my_key3", "my_key4", "my_key5",
@@ -518,11 +526,17 @@ TEST(CleanUpTimestampsForSetCache, DeleteKeyValueSetExpectUpdateDeletedNodes) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 1);
+  cache->DeleteValuesInSet("another_key", absl::Span<std::string_view>(values),
+                           1);
   int deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
   EXPECT_EQ(deleted_nodes_map_size, 1);
   EXPECT_EQ(KeyValueCacheTestPeer::ReadDeletedSetNodesForTimestamp(*cache, 1,
                                                                    "my_key")
+                .size(),
+            1);
+  EXPECT_EQ(KeyValueCacheTestPeer::ReadDeletedSetNodesForTimestamp(
+                *cache, 1, "another_key")
                 .size(),
             1);
 }

@@ -182,13 +182,7 @@ void KeyValueCache::DeleteKey(std::string_view key,
         key,
         {.value = nullptr, .last_logical_commit_time = logical_commit_time});
 
-    auto result = deleted_nodes_.insert_or_assign(logical_commit_time, key);
-    if (!result.second) {
-      // assignment took place -- this should never happen as the
-      // logical_commit_time is globally unique
-      LOG(ERROR) << "Assignment happened for logical commit time "
-                 << logical_commit_time << " key " << key;
-    }
+    auto result = deleted_nodes_.emplace(logical_commit_time, key);
   }
 }
 

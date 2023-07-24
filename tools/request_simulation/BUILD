@@ -69,6 +69,21 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "client_worker",
+    hdrs = ["client_worker.h"],
+    deps = [
+        ":grpc_client",
+        ":message_queue",
+        ":rate_limiter",
+        "//components/data/common:thread_manager",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 cc_test(
     name = "request_generation_util_test",
     size = "small",
@@ -120,6 +135,20 @@ cc_test(
     srcs = ["grpc_client_test.cc"],
     deps = [
         ":grpc_client",
+        "//public/testing:fake_key_value_service_impl",
+        "//tools/request_simulation/request:raw_request_cc_proto",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "client_worker_test",
+    size = "small",
+    srcs = ["client_worker_test.cc"],
+    deps = [
+        ":client_worker",
+        ":request_generation_util",
+        "//components/util:sleepfor_mock",
         "//public/testing:fake_key_value_service_impl",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",

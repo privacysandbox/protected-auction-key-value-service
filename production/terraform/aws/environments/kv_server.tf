@@ -78,14 +78,9 @@ module "kv_server" {
   udf_num_workers = var.udf_num_workers
 
   # Variables related to coordinators
-  use_real_coordinators                      = var.use_real_coordinators
-  public_key_endpoint                        = var.public_key_endpoint
-  primary_coordinator_private_key_endpoint   = var.primary_coordinator_private_key_endpoint
-  secondary_coordinator_private_key_endpoint = var.secondary_coordinator_private_key_endpoint
-  primary_coordinator_account_identity       = var.primary_coordinator_account_identity
-  secondary_coordinator_account_identity     = var.secondary_coordinator_account_identity
-  primary_coordinator_region                 = var.primary_coordinator_region
-  secondary_coordinator_region               = var.secondary_coordinator_region
+  use_real_coordinators                  = var.use_real_coordinators
+  primary_coordinator_account_identity   = var.primary_coordinator_account_identity
+  secondary_coordinator_account_identity = var.secondary_coordinator_account_identity
 }
 
 output "kv_server_url" {

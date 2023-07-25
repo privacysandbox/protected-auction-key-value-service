@@ -17,6 +17,14 @@ set -o errexit
 
 readonly INTERNAL_SERVER_ADDRESS="unix:///server/socket/internal.sock"
 
+# These affect PCR0, so changing these would result in the loss of access to
+# private keys for decryption
+readonly PUBLIC_KEY_ENDPOINT="https://d3gf5400xe31j1.cloudfront.net/v1alpha/publicKeys"
+readonly PRIMARY_COORDINATOR_PRIVATE_KEY_ENDPOINT="https://uun5qzrqvj.execute-api.us-east-1.amazonaws.com/stage/v1alpha/encryptionKeys"
+readonly SECONDARY_COORDINATOR_PRIVATE_KEY_ENDPOINT="https://ddqkl8ay59.execute-api.us-east-1.amazonaws.com/stage/v1alpha/encryptionKeys"
+readonly PRIMARY_COORDINATOR_REGION="us-east-1"
+readonly SECONDARY_COORDINATOR_REGION="us-east-1"
+
 usage() {
   exitval=${1-1}
   cat >&2 << USAGE
@@ -43,4 +51,4 @@ while [ $# -gt 0 ]; do
 done
 
 # Start the server.
-GLOG_logtostderr=1 $PROXY /server/bin/server "$@"  --internal_server_address=${INTERNAL_SERVER_ADDRESS}
+GLOG_logtostderr=1 $PROXY /server/bin/server "$@"  --internal_server_address=${INTERNAL_SERVER_ADDRESS} --public_key_endpoint=${PUBLIC_KEY_ENDPOINT} --primary_coordinator_private_key_endpoint=${PRIMARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --secondary_coordinator_private_key_endpoint=${SECONDARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --primary_coordinator_region=${PRIMARY_COORDINATOR_REGION} --secondary_coordinator_region=${SECONDARY_COORDINATOR_REGION}

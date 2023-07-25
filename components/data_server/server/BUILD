@@ -245,6 +245,8 @@ cc_library(
     ],
     deps = [
         ":parameter_fetcher",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
         "@google_privacysandbox_servers_common//src/cpp/concurrent:executor",

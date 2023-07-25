@@ -81,14 +81,6 @@
 
     Primary coordinator account identity.
 
--   **primary_coordinator_private_key_endpoint**
-
-    Primary coordinator private key endpoint.
-
--   **primary_coordinator_region**
-
-    Primary coordinator region.
-
 -   **prometheus_service_region**
 
     Specifies which region to find Prometheus service and use. Not all regions have Prometheus
@@ -103,10 +95,6 @@
     existing workspace id from another region should be provided. It is expected that the workspace
     from that region is created before this terraform file is applied. That can be done by running
     the Key Value service terraform file in that region.
-
--   **public_key_endpoint**
-
-    Public key endpoint.
 
 -   **realtime_updater_num_threads**
 
@@ -150,14 +138,6 @@
 -   **secondary_coordinator_account_identity**
 
     Secondary coordinator account identity.
-
--   **secondary_coordinator_private_key_endpoint**
-
-    Secondary coordinator private key endpoint.
-
--   **secondary_coordinator_region**
-
-    Secondary coordinator region.
 
 -   **server_port**
 

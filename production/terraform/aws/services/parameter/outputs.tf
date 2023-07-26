@@ -79,29 +79,29 @@ output "use_real_coordinators_parameter_arn" {
 }
 
 output "public_key_endpoint_parameter_arn" {
-  value = aws_ssm_parameter.public_key_endpoint_parameter.arn
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.public_key_endpoint_parameter[0].arn : ""
 }
 
 output "primary_coordinator_private_key_endpoint_parameter_arn" {
-  value = aws_ssm_parameter.primary_coordinator_private_key_endpoint_parameter.arn
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.primary_coordinator_private_key_endpoint_parameter[0].arn : ""
 }
 
 output "secondary_coordinator_private_key_endpoint_parameter_arn" {
-  value = aws_ssm_parameter.secondary_coordinator_private_key_endpoint_parameter.arn
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.secondary_coordinator_private_key_endpoint_parameter[0].arn : ""
 }
 
 output "primary_coordinator_account_identity_parameter_arn" {
-  value = aws_ssm_parameter.primary_coordinator_account_identity_parameter.arn
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.primary_coordinator_account_identity_parameter[0].arn : ""
 }
 
 output "secondary_coordinator_account_identity_parameter_arn" {
-  value = aws_ssm_parameter.secondary_coordinator_account_identity_parameter.arn
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.secondary_coordinator_account_identity_parameter[0].arn : ""
 }
 
 output "primary_coordinator_region_parameter_arn" {
-  value = aws_ssm_parameter.primary_coordinator_region_parameter.arn
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.primary_coordinator_region_parameter[0].arn : ""
 }
 
 output "secondary_coordinator_region_parameter_arn" {
-  value = aws_ssm_parameter.secondary_coordinator_region_parameter.arn
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.secondary_coordinator_region_parameter[0].arn : ""
 }

@@ -120,6 +120,7 @@ resource "aws_ssm_parameter" "use_real_coordinators_parameter" {
 }
 
 resource "aws_ssm_parameter" "public_key_endpoint_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
   name      = "${var.service}-${var.environment}-public-key-endpoint"
   type      = "String"
   value     = var.public_key_endpoint_parameter_value
@@ -127,6 +128,7 @@ resource "aws_ssm_parameter" "public_key_endpoint_parameter" {
 }
 
 resource "aws_ssm_parameter" "primary_coordinator_private_key_endpoint_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
   name      = "${var.service}-${var.environment}-primary-coordinator-private-key-endpoint"
   type      = "String"
   value     = var.primary_coordinator_private_key_endpoint_parameter_value
@@ -134,6 +136,7 @@ resource "aws_ssm_parameter" "primary_coordinator_private_key_endpoint_parameter
 }
 
 resource "aws_ssm_parameter" "secondary_coordinator_private_key_endpoint_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
   name      = "${var.service}-${var.environment}-secondary-coordinator-private-key-endpoint"
   type      = "String"
   value     = var.secondary_coordinator_private_key_endpoint_parameter_value
@@ -141,6 +144,7 @@ resource "aws_ssm_parameter" "secondary_coordinator_private_key_endpoint_paramet
 }
 
 resource "aws_ssm_parameter" "primary_coordinator_account_identity_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
   name      = "${var.service}-${var.environment}-primary-coordinator-account-identity"
   type      = "String"
   value     = var.primary_coordinator_account_identity_parameter_value
@@ -148,6 +152,7 @@ resource "aws_ssm_parameter" "primary_coordinator_account_identity_parameter" {
 }
 
 resource "aws_ssm_parameter" "secondary_coordinator_account_identity_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
   name      = "${var.service}-${var.environment}-secondary-coordinator-account-identity"
   type      = "String"
   value     = var.secondary_coordinator_account_identity_parameter_value
@@ -155,6 +160,7 @@ resource "aws_ssm_parameter" "secondary_coordinator_account_identity_parameter" 
 }
 
 resource "aws_ssm_parameter" "primary_coordinator_region_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
   name      = "${var.service}-${var.environment}-primary-coordinator-region"
   type      = "String"
   value     = var.primary_coordinator_region_parameter_value
@@ -162,6 +168,7 @@ resource "aws_ssm_parameter" "primary_coordinator_region_parameter" {
 }
 
 resource "aws_ssm_parameter" "secondary_coordinator_region_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
   name      = "${var.service}-${var.environment}-secondary-coordinator-region"
   type      = "String"
   value     = var.secondary_coordinator_region_parameter_value

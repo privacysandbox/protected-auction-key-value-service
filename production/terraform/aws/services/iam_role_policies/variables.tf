@@ -44,6 +44,11 @@ variable "server_parameter_arns" {
   type        = set(string)
 }
 
+variable "coordinator_parameter_arns" {
+  description = "A set of arns for server parameters."
+  type        = set(string)
+}
+
 variable "sns_data_updates_topic_arn" {
   description = "ARN for the sns topic that receives s3 delta file updates."
   type        = string

@@ -61,7 +61,7 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     sid       = "AllowInstancesToReadParameters"
     actions   = ["ssm:GetParameter"]
     effect    = "Allow"
-    resources = var.server_parameter_arns
+    resources = setunion(var.server_parameter_arns, var.coordinator_parameter_arns)
   }
   statement {
     sid = "AllowInstancesToManageSqsQueues"

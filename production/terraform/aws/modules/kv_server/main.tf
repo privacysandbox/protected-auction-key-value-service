@@ -203,15 +203,18 @@ module "iam_role_policies" {
     module.parameter.num_shards_parameter_arn,
     module.parameter.udf_num_workers_parameter_arn,
     module.parameter.route_v1_requests_to_v2_parameter_arn,
-    module.parameter.use_real_coordinators_parameter_arn,
-    module.parameter.public_key_endpoint_parameter_arn,
-    module.parameter.primary_coordinator_private_key_endpoint_parameter_arn,
-    module.parameter.secondary_coordinator_private_key_endpoint_parameter_arn,
-    module.parameter.primary_coordinator_account_identity_parameter_arn,
-    module.parameter.secondary_coordinator_account_identity_parameter_arn,
-    module.parameter.primary_coordinator_region_parameter_arn,
-    module.parameter.secondary_coordinator_region_parameter_arn,
-  ]
+  module.parameter.use_real_coordinators_parameter_arn]
+  coordinator_parameter_arns = (
+    var.use_real_coordinators ? [
+      module.parameter.public_key_endpoint_parameter_arn,
+      module.parameter.primary_coordinator_private_key_endpoint_parameter_arn,
+      module.parameter.secondary_coordinator_private_key_endpoint_parameter_arn,
+      module.parameter.primary_coordinator_account_identity_parameter_arn,
+      module.parameter.secondary_coordinator_account_identity_parameter_arn,
+      module.parameter.primary_coordinator_region_parameter_arn,
+      module.parameter.secondary_coordinator_region_parameter_arn
+    ] : []
+  )
 }
 
 module "iam_group_policies" {

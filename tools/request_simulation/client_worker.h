@@ -31,40 +31,6 @@
 
 namespace kv_server {
 
-enum class GrpcAuthenticationMode {
-  // Google token-based authentication
-  // More information https://grpc.io/docs/guides/auth/
-  kGoogleDefaultCredential = 0,
-  // ALTS authentication for application running on GCP
-  // More information https://grpc.io/docs/languages/cpp/alts/
-  kALTS,
-  // SSL/TLS authentication
-  kSsl,
-  // Plaintext authentication
-  kPlainText,
-};
-
-// Creates a grpc channel from server address and authentication mode.
-std::shared_ptr<grpc::Channel> CreateGrpcChannel(
-    const std::string& server_address,
-    const GrpcAuthenticationMode& auth_mode) {
-  switch (auth_mode) {
-    case GrpcAuthenticationMode::kGoogleDefaultCredential:
-      return grpc::CreateChannel(server_address,
-                                 grpc::GoogleDefaultCredentials());
-    case GrpcAuthenticationMode::kALTS:
-      return grpc::CreateChannel(
-          server_address, grpc::experimental::AltsCredentials(
-                              grpc::experimental::AltsCredentialsOptions()));
-    case GrpcAuthenticationMode::kSsl:
-      return grpc::CreateChannel(
-          server_address, grpc::SslCredentials(grpc::SslCredentialsOptions()));
-    default:
-      return grpc::CreateChannel(server_address,
-                                 grpc::InsecureChannelCredentials());
-  }
-}
-
 template <typename RequestT, typename ResponseT>
 class ClientWorker {
  public:
@@ -72,7 +38,7 @@ class ClientWorker {
   //
   // Worker id to make the worker identifiable for logging/debugging purpose
   //
-  // Server address to send requests to
+  // Grpc channel connect to the service under test
   //
   // The api name supported by the service under test, an example method name
   // for grpc service can be "/PackageName.ExampleService/APIName"
@@ -88,28 +54,6 @@ class ClientWorker {
   // Message queue to read and send requests from
   //
   // Rate limiter to control the rate of the requests sent.
-  ClientWorker(int id, const std::string& server_address,
-               std::string_view service_method,
-               const GrpcAuthenticationMode& auth_mode,
-               absl::Duration request_timeout,
-               absl::AnyInvocable<RequestT(std::string)> request_converter,
-               MessageQueue& message_queue, RateLimiter& rate_limiter) {
-    ClientWorker(id, CreateGrpcChannel(server_address, auth_mode),
-                 service_method, request_timeout, request_converter,
-                 message_queue, rate_limiter);
-  }
-  // Starts the thread of sending requests.
-  absl::Status Start();
-  // Stops the thread of sending requests.
-  absl::Status Stop();
-  // Checks if the thread of sending requests is running.
-  bool IsRunning() const;
-  ~ClientWorker() = default;
-  // ClientWorker is neither copyable nor movable.
-  ClientWorker(const ClientWorker&) = delete;
-  ClientWorker& operator=(const ClientWorker&) = delete;
-
- private:
   ClientWorker(int id, std::shared_ptr<grpc::Channel> channel,
                std::string_view service_method, absl::Duration request_timeout,
                absl::AnyInvocable<RequestT(std::string)> request_converter,
@@ -123,6 +67,18 @@ class ClientWorker {
     grpc_client_ = std::make_unique<GrpcClient<RequestT, ResponseT>>(
         channel, request_timeout);
   }
+  // Starts the thread of sending requests.
+  absl::Status Start();
+  // Stops the thread of sending requests.
+  absl::Status Stop();
+  // Checks if the thread of sending requests is running.
+  bool IsRunning() const;
+  ~ClientWorker() = default;
+  // ClientWorker is neither copyable nor movable.
+  ClientWorker(const ClientWorker&) = delete;
+  ClientWorker& operator=(const ClientWorker&) = delete;
+
+ private:
   // The actual function that sends requests.
   void SendRequests();
   std::string service_method_;
@@ -133,7 +89,6 @@ class ClientWorker {
   absl::AnyInvocable<RequestT(std::string)> request_converter_;
   // Thread manager to start or stop the request sending thread.
   std::unique_ptr<TheadManager> thread_manager_;
-  friend class ClientWorkerTestPeer;
 };
 
 template <typename RequestT, typename ResponseT>

@@ -36,21 +36,6 @@ using privacy_sandbox::server_common::SteadyTime;
 using testing::_;
 using testing::Return;
 
-class ClientWorkerTestPeer {
- public:
-  ClientWorkerTestPeer() = delete;
-  static std::unique_ptr<ClientWorker<RawRequest, google::api::HttpBody>>
-  CreateClientWorker(
-      int id, std::shared_ptr<grpc::Channel> channel,
-      std::string_view service_method, absl::Duration request_timeout,
-      absl::AnyInvocable<RawRequest(std::string)> request_converter,
-      MessageQueue& message_queue, RateLimiter& rate_limiter) {
-    return absl::WrapUnique(new ClientWorker<RawRequest, google::api::HttpBody>(
-        id, std::move(channel), service_method, request_timeout,
-        std::move(request_converter), message_queue, rate_limiter));
-  }
-};
-
 namespace {
 
 void PrefillMessageQueue(MessageQueue& queue, int num_of_messages,
@@ -100,9 +85,10 @@ TEST_F(ClientWorkerTest, SingleClientWorkerTest) {
   EXPECT_CALL(sleep_for_, Duration(_)).WillRepeatedly(Return(true));
   RateLimiter rate_limiter(0, requests_per_second, sim_clock_, sleep_for_,
                            absl::Seconds(0));
-  auto worker = ClientWorkerTestPeer::CreateClientWorker(
-      0, server_->InProcessChannel(grpc::ChannelArguments()), method,
-      absl::Seconds(1), request_converter, message_queue, rate_limiter);
+  auto worker =
+      std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
+          0, server_->InProcessChannel(grpc::ChannelArguments()), method,
+          absl::Seconds(1), request_converter, message_queue, rate_limiter);
   sim_clock_.AdvanceTime(absl::Seconds(1));
   EXPECT_TRUE(worker->Start().ok());
   EXPECT_TRUE(worker->IsRunning());
@@ -134,9 +120,10 @@ TEST_F(ClientWorkerTest, MultipleClientWorkersTest) {
   std::vector<std::unique_ptr<ClientWorker<RawRequest, google::api::HttpBody>>>
       workers;
   for (int i = 0; i < num_of_workers; i++) {
-    auto worker = ClientWorkerTestPeer::CreateClientWorker(
-        i, server_->InProcessChannel(grpc::ChannelArguments()), method,
-        absl::Seconds(1), request_converter, message_queue, rate_limiter);
+    auto worker =
+        std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
+            i, server_->InProcessChannel(grpc::ChannelArguments()), method,
+            absl::Seconds(1), request_converter, message_queue, rate_limiter);
     EXPECT_TRUE(worker->Start().ok());
     EXPECT_TRUE(worker->IsRunning());
     workers.push_back(std::move(worker));

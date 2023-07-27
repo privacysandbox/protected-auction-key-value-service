@@ -30,6 +30,77 @@
 
 namespace kv_server {
 
+enum class GrpcAuthenticationMode {
+  // Google token-based authentication
+  // More information https://grpc.io/docs/guides/auth/
+  kGoogleDefaultCredential = 0,
+  // ALTS authentication for application running on GCP
+  // More information https://grpc.io/docs/languages/cpp/alts/
+  kALTS,
+  // SSL/TLS authentication
+  kSsl,
+  // Plaintext authentication
+  kPlainText,
+};
+
+// Overloads AbslParseFlag and AbslUnparseFlag to allow GrpcAuthenticationMode
+// passed as enum flag. https://abseil.io/docs/cpp/guides/flags#custom
+bool AbslParseFlag(absl::string_view text, GrpcAuthenticationMode* mode,
+                   std::string* error) {
+  if (text == "google_default") {
+    *mode = GrpcAuthenticationMode::kGoogleDefaultCredential;
+    return true;
+  }
+  if (text == "alts") {
+    *mode = GrpcAuthenticationMode::kALTS;
+  }
+  if (text == "ssl") {
+    *mode = GrpcAuthenticationMode::kSsl;
+  }
+  if (text == "plaintext") {
+    *mode = GrpcAuthenticationMode::kPlainText;
+    return true;
+  }
+  *error = "unknown value for enumeration";
+  return false;
+}
+
+std::string AbslUnparseFlag(GrpcAuthenticationMode mode) {
+  switch (mode) {
+    case GrpcAuthenticationMode::kGoogleDefaultCredential:
+      return "google_default";
+    case GrpcAuthenticationMode::kALTS:
+      return "alts";
+    case GrpcAuthenticationMode::kSsl:
+      return "ssl";
+    case GrpcAuthenticationMode::kPlainText:
+      return "plaintext";
+    default:
+      return absl::StrCat(mode);
+  }
+}
+
+// Creates a grpc channel from server address and authentication mode.
+std::shared_ptr<grpc::Channel> CreateGrpcChannel(
+    const std::string& server_address,
+    const GrpcAuthenticationMode& auth_mode) {
+  switch (auth_mode) {
+    case GrpcAuthenticationMode::kGoogleDefaultCredential:
+      return grpc::CreateChannel(server_address,
+                                 grpc::GoogleDefaultCredentials());
+    case GrpcAuthenticationMode::kALTS:
+      return grpc::CreateChannel(
+          server_address, grpc::experimental::AltsCredentials(
+                              grpc::experimental::AltsCredentialsOptions()));
+    case GrpcAuthenticationMode::kSsl:
+      return grpc::CreateChannel(
+          server_address, grpc::SslCredentials(grpc::SslCredentialsOptions()));
+    default:
+      return grpc::CreateChannel(server_address,
+                                 grpc::InsecureChannelCredentials());
+  }
+}
+
 // A generic grpc client that sends request of given type and returns
 // error message in status or response of given type.
 // The Request and Response types can be grpc::ByteBuffer or protobuf Message

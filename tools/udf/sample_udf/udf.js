@@ -39,7 +39,7 @@ function getKeyGroupOutputs(input) {
 }
 
 
-function handleRequest(input) {
+function HandleRequest(input) {
   const keyGroupOutputs = getKeyGroupOutputs(input);
   return {keyGroupOutputs, udfOutputApiVersion: 1};
 }

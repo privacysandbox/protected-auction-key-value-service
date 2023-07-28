@@ -70,3 +70,22 @@ run_binary(
         1,
     )
 ]
+
+delta_out = "DELTA_0000000000000003"
+
+run_binary(
+    name = "udf_delta",
+    srcs = [
+        ":udf.js",
+    ],
+    outs = [
+        delta_out,
+    ],
+    args = [
+        "--udf_file_path",
+        "$(location :udf.js)",
+        "--output_path",
+        "$(location {})".format(delta_out),
+    ],
+    tool = "//tools/udf/udf_generator:udf_delta_file_generator",
+)

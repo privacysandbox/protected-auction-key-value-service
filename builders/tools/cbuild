@@ -48,6 +48,7 @@ USAGE
     --without-shared-cache     Containers will not mount ${HOME}/.cache/bazel
     --without-embedded-docker  Disable docker client within container
     --docker-network <value>   Specify docker network type or name, value passed to docker run --network
+    --seccomp-unconfined       Run docker container without a seccomp profile
     --verbose                  Enable verbose output
 
 Environment variables (all optional):
@@ -67,6 +68,7 @@ USAGE
 WITH_SHARED_CACHE=1
 WITH_DOCKER_SOCK=1
 DOCKER_NETWORK=bridge
+DOCKER_SECCOMP_UNCONFINED=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -93,6 +95,10 @@ while [[ $# -gt 0 ]]; do
     --docker-network)
       DOCKER_NETWORK="$2"
       shift 2 || usage
+      ;;
+    --seccomp-unconfined)
+      DOCKER_SECCOMP_UNCONFINED=1
+      shift
       ;;
     --verbose)
       VERBOSE=1
@@ -144,6 +150,10 @@ DOCKER_RUN_ARGS+=(
   "--network=${DOCKER_NETWORK}"
   "$(echo "${EXTRA_DOCKER_RUN_ARGS}" | envsubst)"
 )
+
+if [[ ${DOCKER_SECCOMP_UNCONFINED} -eq 1 ]]; then
+  DOCKER_RUN_ARGS+=("--security-opt=seccomp=unconfined")
+fi
 
 # inside the docker build images, /bazel_root is the bazel cache dir, per the system-wide bazelrc
 readonly BAZEL_ROOT=/bazel_root

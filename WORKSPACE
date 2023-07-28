@@ -113,3 +113,13 @@ http_archive(
 load("@rules_flex//flex:flex.bzl", "flex_register_toolchains")
 
 flex_register_toolchains(version = "2.6.4")
+
+load("//third_party:python_deps.bzl", "python_repositories")
+
+python_repositories()
+
+# Load the starlark macro, which will define your dependencies.
+load("@word2vec//:requirements.bzl", "install_deps")
+
+# Call it to define repos for your requirements.
+install_deps()

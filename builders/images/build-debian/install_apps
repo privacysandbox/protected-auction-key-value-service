@@ -70,6 +70,7 @@ function install_misc() {
     locales="2.31-*" \
     lsb-release="11.1.*" \
     openjdk-11-jdk="11.0.*" \
+    patch="2.7.*" \
     python3.9-venv="3.9.*" \
     rename="1.10-*" \
     software-properties-common="0.99.*" \

@@ -45,17 +45,19 @@ enum class GrpcAuthenticationMode {
 
 // Overloads AbslParseFlag and AbslUnparseFlag to allow GrpcAuthenticationMode
 // passed as enum flag. https://abseil.io/docs/cpp/guides/flags#custom
-bool AbslParseFlag(absl::string_view text, GrpcAuthenticationMode* mode,
-                   std::string* error) {
+inline bool AbslParseFlag(absl::string_view text, GrpcAuthenticationMode* mode,
+                          std::string* error) {
   if (text == "google_default") {
     *mode = GrpcAuthenticationMode::kGoogleDefaultCredential;
     return true;
   }
   if (text == "alts") {
     *mode = GrpcAuthenticationMode::kALTS;
+    return true;
   }
   if (text == "ssl") {
     *mode = GrpcAuthenticationMode::kSsl;
+    return true;
   }
   if (text == "plaintext") {
     *mode = GrpcAuthenticationMode::kPlainText;
@@ -65,7 +67,7 @@ bool AbslParseFlag(absl::string_view text, GrpcAuthenticationMode* mode,
   return false;
 }
 
-std::string AbslUnparseFlag(GrpcAuthenticationMode mode) {
+inline std::string AbslUnparseFlag(GrpcAuthenticationMode mode) {
   switch (mode) {
     case GrpcAuthenticationMode::kGoogleDefaultCredential:
       return "google_default";
@@ -81,7 +83,7 @@ std::string AbslUnparseFlag(GrpcAuthenticationMode mode) {
 }
 
 // Creates a grpc channel from server address and authentication mode.
-std::shared_ptr<grpc::Channel> CreateGrpcChannel(
+inline std::shared_ptr<grpc::Channel> CreateGrpcChannel(
     const std::string& server_address,
     const GrpcAuthenticationMode& auth_mode) {
   switch (auth_mode) {

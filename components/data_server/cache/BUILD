@@ -91,3 +91,11 @@ cc_library(
         "@com_google_googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "noop_key_value_cache",
+    hdrs = ["noop_key_value_cache.h"],
+    deps = [
+        ":cache",
+    ],
+)

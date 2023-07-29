@@ -30,6 +30,7 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
+#include "components/data_server/cache/noop_key_value_cache.h"
 #include "components/tools/benchmarks/benchmark_util.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
@@ -72,11 +73,11 @@ using kv_server::Cache;
 using kv_server::ConcurrentStreamRecordReader;
 using kv_server::DataRecord;
 using kv_server::DeserializeDataRecord;
-using kv_server::GetKeyValueSetResult;
 using kv_server::GetRecordValue;
 using kv_server::KeyValueCache;
 using kv_server::KeyValueMutationRecord;
 using kv_server::KeyValueMutationType;
+using kv_server::NoOpKeyValueCache;
 using kv_server::Record;
 using kv_server::RecordStream;
 using kv_server::Value;
@@ -119,43 +120,6 @@ class BlobRecordStream : public RecordStream {
 
  private:
   std::unique_ptr<BlobReader> blob_reader_;
-};
-
-// Implements a noop cache.
-class NoOpCache : public Cache {
- public:
-  absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
-      const std::vector<std::string_view>& key_list) const override {
-    return {};
-  };
-  std::unique_ptr<kv_server::GetKeyValueSetResult> GetKeyValueSet(
-      const absl::flat_hash_set<std::string_view>& key_set) const override {
-    return std::make_unique<NoOpGetKeyValueSetResult>();
-  }
-  void UpdateKeyValue(std::string_view key, std::string_view value,
-                      int64_t logical_commit_time) override {}
-  void UpdateKeyValueSet(std::string_view key,
-                         absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time) override {}
-  void DeleteKey(std::string_view key, int64_t logical_commit_time) override {}
-  void DeleteValuesInSet(std::string_view key,
-                         absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time) override {}
-  void RemoveDeletedKeys(int64_t logical_commit_time) override {}
-  static std::unique_ptr<Cache> Create() {
-    return std::make_unique<NoOpCache>();
-  }
-
- private:
-  class NoOpGetKeyValueSetResult : public kv_server::GetKeyValueSetResult {
-    absl::flat_hash_set<std::string_view> GetValueSet(
-        std::string_view key) const override {
-      return {};
-    }
-    void AddKeyValueSet(
-        absl::Mutex& key_mutex, std::string_view key,
-        absl::flat_hash_set<std::string_view> value_set) override {}
-  };
 };
 
 BlobStorageClient::DataLocation GetBlobLocation() {
@@ -203,7 +167,7 @@ void RegisterBenchmarks(MetricsRecorder& metrics_recorder) {
             .reader_worker_threads = num_threads,
             .client_max_connections = num_connections,
             .client_max_range_mb = byte_range_mb,
-            .create_cache_fn = []() { return NoOpCache::Create(); },
+            .create_cache_fn = []() { return NoOpKeyValueCache::Create(); },
         };
         RegisterBenchmark(absl::StrFormat(kNoOpCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),

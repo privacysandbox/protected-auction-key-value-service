@@ -28,6 +28,35 @@
 
 namespace kv_server::benchmark {
 
+AsyncTask::AsyncTask(std::function<void()> task_fn)
+    : stop_signal_(false), runner_thread_([task = std::move(task_fn), this]() {
+        while (!stop_signal_) {
+          task();
+        }
+      }) {}
+
+AsyncTask::AsyncTask(AsyncTask&& other)
+    : stop_signal_(other.stop_signal_),
+      runner_thread_(std::move(other.runner_thread_)) {}
+
+AsyncTask& AsyncTask::operator=(AsyncTask&& other) {
+  stop_signal_ = other.stop_signal_;
+  runner_thread_ = std::move(other.runner_thread_);
+  return *this;
+}
+
+AsyncTask::~AsyncTask() { Stop(); }
+
+void AsyncTask::Stop() {
+  if (stop_signal_) {
+    return;
+  }
+  stop_signal_ = true;
+  if (runner_thread_.joinable()) {
+    runner_thread_.join();
+  }
+}
+
 std::string GenerateRandomString(const int64_t char_count) {
   return std::string(char_count, 'A' + (std::rand() % 15));
 }

@@ -23,84 +23,88 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
-TEST(ShardManagerTest, CreationNotInitialized) {
-  privacy_sandbox::server_common::FakeKeyFetcherManager
-      fake_key_fetcher_manager;
+using privacy_sandbox::server_common::FakeKeyFetcherManager;
+using privacy_sandbox::server_common::MockMetricsRecorder;
+
+class ShardManagerTest : public ::testing::Test {
+ protected:
+  FakeKeyFetcherManager fake_key_fetcher_manager_;
+  MockMetricsRecorder mock_metrics_recorder_;
+};
+
+TEST_F(ShardManagerTest, CreationNotInitialized) {
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
-  auto shard_manager = ShardManager::Create(4, fake_key_fetcher_manager,
-                                            std::move(cluster_mappings));
+  auto shard_manager =
+      ShardManager::Create(4, fake_key_fetcher_manager_,
+                           std::move(cluster_mappings), mock_metrics_recorder_);
   ASSERT_FALSE(shard_manager.ok());
 }
 
-TEST(ShardManagerTest, CreationInitialized) {
-  privacy_sandbox::server_common::FakeKeyFetcherManager
-      fake_key_fetcher_manager;
+TEST_F(ShardManagerTest, CreationInitialized) {
   int32_t num_shards = 4;
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
   for (int i = 0; i < num_shards; i++) {
     cluster_mappings.push_back({"some_ip"});
   }
-  auto shard_manager = ShardManager::Create(
-      num_shards, fake_key_fetcher_manager, std::move(cluster_mappings));
+  auto shard_manager =
+      ShardManager::Create(num_shards, fake_key_fetcher_manager_,
+                           std::move(cluster_mappings), mock_metrics_recorder_);
   ASSERT_TRUE(shard_manager.ok());
 }
 
-TEST(ShardManagerTest, CreationNotInitializedMissingClusters) {
-  privacy_sandbox::server_common::FakeKeyFetcherManager
-      fake_key_fetcher_manager;
+TEST_F(ShardManagerTest, CreationNotInitializedMissingClusters) {
   int32_t num_shards = 4;
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
   for (int i = 0; i < 2; i++) {
     cluster_mappings.push_back({"some_ip"});
   }
-  auto shard_manager = ShardManager::Create(
-      num_shards, fake_key_fetcher_manager, std::move(cluster_mappings));
+  auto shard_manager =
+      ShardManager::Create(num_shards, fake_key_fetcher_manager_,
+                           std::move(cluster_mappings), mock_metrics_recorder_);
   ASSERT_FALSE(shard_manager.ok());
 }
 
-TEST(ShardManagerTest, CreationNotInitializedMissingReplicas) {
+TEST_F(ShardManagerTest, CreationNotInitializedMissingReplicas) {
   int32_t num_shards = 4;
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
   for (int i = 0; i < 3; i++) {
     cluster_mappings.push_back({"some_ip"});
   }
   cluster_mappings.push_back({});
-  privacy_sandbox::server_common::FakeKeyFetcherManager
-      fake_key_fetcher_manager;
-  auto shard_manager = ShardManager::Create(
-      num_shards, fake_key_fetcher_manager, std::move(cluster_mappings));
+  auto shard_manager =
+      ShardManager::Create(num_shards, fake_key_fetcher_manager_,
+                           std::move(cluster_mappings), mock_metrics_recorder_);
   ASSERT_FALSE(shard_manager.ok());
 }
 
-TEST(ShardManagerTest, InsertRetrieveSuccess) {
+TEST_F(ShardManagerTest, InsertRetrieveSuccess) {
   int32_t num_shards = 4;
-  privacy_sandbox::server_common::FakeKeyFetcherManager
-      fake_key_fetcher_manager;
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
   for (int i = 0; i < num_shards; i++) {
     cluster_mappings.push_back({"some_ip"});
   }
-  auto shard_manager = ShardManager::Create(
-      num_shards, fake_key_fetcher_manager, std::move(cluster_mappings));
+  auto shard_manager =
+      ShardManager::Create(num_shards, fake_key_fetcher_manager_,
+                           std::move(cluster_mappings), mock_metrics_recorder_);
   ASSERT_TRUE(shard_manager.ok());
   EXPECT_EQ(absl::StrCat("some_ip:", kRemoteLookupServerPort),
             (*shard_manager)->Get(0)->GetIpAddress());
 }
 
-TEST(ShardManagerTest, InsertMissingReplicasRetrieveSuccess) {
+TEST_F(ShardManagerTest, InsertMissingReplicasRetrieveSuccess) {
   int32_t num_shards = 4;
-  privacy_sandbox::server_common::FakeKeyFetcherManager
-      fake_key_fetcher_manager;
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
   for (int i = 0; i < num_shards; i++) {
     cluster_mappings.push_back({"some_ip"});
   }
-  auto shard_manager = ShardManager::Create(
-      num_shards, fake_key_fetcher_manager, std::move(cluster_mappings));
+  auto shard_manager =
+      ShardManager::Create(num_shards, fake_key_fetcher_manager_,
+                           std::move(cluster_mappings), mock_metrics_recorder_);
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings_2;
   for (int i = 0; i < 3; i++) {
     cluster_mappings_2.push_back({"some_ip"});
@@ -111,10 +115,9 @@ TEST(ShardManagerTest, InsertMissingReplicasRetrieveSuccess) {
             (*shard_manager)->Get(0)->GetIpAddress());
 }
 
-TEST(ShardManagerTest, InsertRetrieveTwoVersions) {
+TEST_F(ShardManagerTest, InsertRetrieveTwoVersions) {
   auto random_generator = std::make_unique<MockRandomGenerator>();
-  privacy_sandbox::server_common::FakeKeyFetcherManager
-      fake_key_fetcher_manager;
+  MockMetricsRecorder mock_metrics_recorder_;
   EXPECT_CALL(*random_generator, Get(testing::_))
       .WillOnce([]() { return 0; })
       .WillOnce([]() { return 1; });
@@ -125,8 +128,12 @@ TEST(ShardManagerTest, InsertRetrieveTwoVersions) {
   for (int i = 0; i < 3; i++) {
     cluster_mappings.push_back({"some_ip_3"});
   }
-  auto client_factory = [&fake_key_fetcher_manager](const std::string& ip) {
-    return RemoteLookupClient::Create(ip, fake_key_fetcher_manager);
+  auto& fake_key_fetcher_manager = fake_key_fetcher_manager_;
+  auto& mock_metrics_recorder = mock_metrics_recorder_;
+  auto client_factory = [&fake_key_fetcher_manager,
+                         &mock_metrics_recorder](const std::string& ip) {
+    return RemoteLookupClient::Create(ip, fake_key_fetcher_manager,
+                                      mock_metrics_recorder);
   };
   auto shard_manager =
       ShardManager::Create(4, std::move(cluster_mappings),

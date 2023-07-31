@@ -479,11 +479,10 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
 absl::Status Server::CreateShardManager() {
   cluster_mappings_manager_ = std::make_unique<ClusterMappingsManager>(
       environment_, num_shards_, *metrics_recorder_, *instance_client_);
-  auto& num_shards = num_shards_;
-  auto& cluster_mappings_manager = *cluster_mappings_manager_;
-  auto& key_fetcher_manager = *key_fetcher_manager_;
   shard_manager_ = TraceRetryUntilOk(
-      [&cluster_mappings_manager, &num_shards, &key_fetcher_manager] {
+      [&cluster_mappings_manager = *cluster_mappings_manager_,
+       &num_shards = num_shards_, &key_fetcher_manager = *key_fetcher_manager_,
+       &metrics_recorder = *metrics_recorder_] {
         // It might be that the cluster mappings that are passed don't pass
         // validation. E.g. a particular cluster might not have any replicas
         // specified. In that case, we need to retry the creation. After an
@@ -491,7 +490,7 @@ absl::Status Server::CreateShardManager() {
         // at that point in time might have new replicas spun up.
         return ShardManager::Create(
             num_shards, key_fetcher_manager,
-            cluster_mappings_manager.GetClusterMappings());
+            cluster_mappings_manager.GetClusterMappings(), metrics_recorder);
       },
       "GetShardManager", metrics_recorder_.get());
   return cluster_mappings_manager_->Start(*shard_manager_);
@@ -500,8 +499,8 @@ absl::Status Server::CreateShardManager() {
 absl::StatusOr<std::unique_ptr<grpc::Server>>
 Server::CreateAndStartInternalLookupServer() {
   if (num_shards_ <= 1) {
-    internal_lookup_service_ =
-        std::make_unique<LookupServiceImpl>(*cache_, *key_fetcher_manager_);
+    internal_lookup_service_ = std::make_unique<LookupServiceImpl>(
+        *cache_, *key_fetcher_manager_, *metrics_recorder_);
   } else {
     if (const absl::Status status = CreateShardManager(); !status.ok()) {
       return status;
@@ -528,8 +527,8 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartRemoteLookupServer() {
     return nullptr;
   }
 
-  remote_lookup_service_ =
-      std::make_unique<LookupServiceImpl>(*cache_, *key_fetcher_manager_);
+  remote_lookup_service_ = std::make_unique<LookupServiceImpl>(
+      *cache_, *key_fetcher_manager_, *metrics_recorder_);
   grpc::ServerBuilder remote_lookup_server_builder;
   auto remoteLookupServerAddress =
       absl::StrCat(kLocalIp, ":", kRemoteLookupServerPort);

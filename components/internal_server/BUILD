@@ -61,6 +61,7 @@ cc_library(
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_protobuf//:protobuf",
         "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -80,6 +81,7 @@ cc_test(
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -157,6 +159,8 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -265,5 +269,6 @@ cc_test(
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

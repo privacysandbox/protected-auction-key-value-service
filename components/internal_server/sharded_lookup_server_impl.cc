@@ -31,13 +31,29 @@
 #include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
-
-constexpr char kShardedLookupServerSpan[] = "ShardedLookupServerHandler";
-constexpr char* kShardedLookupGrpcFailure = "ShardedLookupGrpcFailure";
-
 using google::protobuf::RepeatedPtrField;
+using privacy_sandbox::server_common::ScopeLatencyRecorder;
 
 namespace {
+constexpr char kShardedLookupServerSpan[] = "ShardedLookupServerHandler";
+constexpr char kShardedLookupGrpcFailure[] = "ShardedLookupGrpcFailure";
+constexpr char kInternalRunQuery[] = "InternalRunQuery";
+constexpr char kInternalRunQueryQueryFailure[] = "InternalRunQueryQueryFailure";
+constexpr char kInternalRunQueryKeysetRetrievalFailure[] =
+    "InternalRunQueryKeysetRetrievalFailure";
+constexpr char kInternalRunQueryParsingFailure[] =
+    "InternalRunQueryParsingFailure";
+constexpr char kInternalRunQueryMissingKeyset[] =
+    "InternalRunQueryMissingKeyset";
+constexpr char kInternalRunQueryEmtpyQuery[] = "InternalRunQueryEmtpyQuery";
+constexpr char kShardedLookupServerKeyCollisionOnCollection[] =
+    "ShardedLookupServerKeyCollisionOnCollection";
+constexpr char kLookupClientMissing[] = "LookupClientMissing";
+constexpr char kShardedLookupServerRequestFailed[] =
+    "ShardedLookupServerRequestFailed";
+constexpr char kLookupFuturesCreationFailure[] = "LookupFuturesCreationFailure";
+constexpr char kShardedLookupFailure[] = "ShardedLookupFailure";
+
 void UpdateResponse(
     const std::vector<std::string_view>& key_list,
     ::google::protobuf::Map<std::string, ::kv_server::SingleLookupResult>&
@@ -70,16 +86,22 @@ void SetRequestFailed(const std::vector<std::string_view>& key_list,
 absl::flat_hash_set<std::string_view> GetRequestKeys(
     const InternalLookupRequest* request) {
   absl::flat_hash_set<std::string_view> keys;
-  for (auto it = request->keys().begin(); it != request->keys().end(); it++) {
-    keys.emplace(*it);
+  for (auto& key : request->keys()) {
+    keys.emplace(key);
   }
   return keys;
 }
 
-void CollectKeySets(
+grpc::Status ToInternalGrpcStatus(const absl::Status& status) {
+  return grpc::Status(grpc::StatusCode::INTERNAL,
+                      absl::StrCat(status.code(), " : ", status.message()));
+}
+}  // namespace
+
+void ShardedLookupServiceImpl::CollectKeySets(
     absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>&
         key_sets,
-    InternalLookupResponse& keysets_lookup_response) {
+    InternalLookupResponse& keysets_lookup_response) const {
   for (auto& [key, keyset_lookup_result] :
        (*(keysets_lookup_response.mutable_kv_pairs()))) {
     switch (keyset_lookup_result.single_lookup_result_case()) {
@@ -95,6 +117,8 @@ void CollectKeySets(
         auto [_, inserted] =
             key_sets.insert_or_assign(key, std::move(value_set));
         if (!inserted) {
+          metrics_recorder_.IncrementEventCounter(
+              kShardedLookupServerKeyCollisionOnCollection);
           LOG(ERROR) << "Key collision, when collecting results from shards: "
                      << key;
         }
@@ -102,12 +126,6 @@ void CollectKeySets(
     }
   }
 }
-
-grpc::Status ToInternalGrpcStatus(const absl::Status& status) {
-  return grpc::Status(grpc::StatusCode::INTERNAL,
-                      absl::StrCat(status.code(), " : ", status.message()));
-}
-}  // namespace
 
 absl::StatusOr<std::vector<std::future<absl::StatusOr<InternalLookupResponse>>>>
 ShardedLookupServiceImpl::GetLookupFutures(
@@ -126,6 +144,7 @@ ShardedLookupServiceImpl::GetLookupFutures(
     } else {
       const auto client = shard_manager_.Get(shard_num);
       if (client == nullptr) {
+        metrics_recorder_.IncrementEventCounter(kLookupClientMissing);
         return absl::InternalError("Internal lookup client is unavailable.");
       }
       responses.push_back(std::async(
@@ -160,6 +179,8 @@ absl::Status ShardedLookupServiceImpl::ProcessShardedKeys(
     auto result = (*responses)[shard_num].get();
     if (!result.ok()) {
       // mark all keys as internal failure
+      metrics_recorder_.IncrementEventCounter(
+          kShardedLookupServerRequestFailed);
       SetRequestFailed(shard_lookup_input.keys, response);
       continue;
     }
@@ -286,6 +307,7 @@ ShardedLookupServiceImpl::GetShardedKeyValueSet(
         return ShardedLookupServiceImpl::GetLocalKeyValuesSet(key_list);
       });
   if (!responses.ok()) {
+    metrics_recorder_.IncrementEventCounter(kLookupFuturesCreationFailure);
     return responses.status();
   }
   // process responses
@@ -294,6 +316,7 @@ ShardedLookupServiceImpl::GetShardedKeyValueSet(
     auto& shard_lookup_input = shard_lookup_inputs[shard_num];
     auto result = (*responses)[shard_num].get();
     if (!result.ok()) {
+      metrics_recorder_.IncrementEventCounter(kShardedLookupFailure);
       return result.status();
     }
     CollectKeySets(key_sets, *result);
@@ -305,14 +328,19 @@ grpc::Status ShardedLookupServiceImpl::InternalRunQuery(
     grpc::ServerContext* context,
     const kv_server::InternalRunQueryRequest* request,
     kv_server::InternalRunQueryResponse* response) {
+  ScopeLatencyRecorder latency_recorder(std::string(kInternalRunQuery),
+                                        metrics_recorder_);
   if (request->query().empty()) {
+    metrics_recorder_.IncrementEventCounter(kInternalRunQueryEmtpyQuery);
     return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Query is empty.");
   }
   absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> keysets;
-  kv_server::Driver driver([&keysets](std::string_view key) {
+  auto& metrics_recorder = metrics_recorder_;
+  kv_server::Driver driver([&keysets, &metrics_recorder](std::string_view key) {
     const auto key_iter = keysets.find(key);
     if (key_iter == keysets.end()) {
       VLOG(8) << "Driver can't find " << key << "key_set. Returning empty.";
+      metrics_recorder.IncrementEventCounter(kInternalRunQueryMissingKeyset);
       absl::flat_hash_set<std::string_view> set;
       return set;
     } else {
@@ -326,16 +354,20 @@ grpc::Status ShardedLookupServiceImpl::InternalRunQuery(
   kv_server::Parser parse(driver, scanner);
   int parse_result = parse();
   if (parse_result) {
+    metrics_recorder_.IncrementEventCounter(kInternalRunQueryParsingFailure);
     return ToInternalGrpcStatus(absl::InvalidArgumentError("Parsing failure."));
   }
   auto get_key_value_set_result_maybe =
       GetShardedKeyValueSet(driver.GetRootNode()->Keys());
   if (!get_key_value_set_result_maybe.ok()) {
+    metrics_recorder_.IncrementEventCounter(
+        kInternalRunQueryKeysetRetrievalFailure);
     return ToInternalGrpcStatus(get_key_value_set_result_maybe.status());
   }
   keysets = std::move(*get_key_value_set_result_maybe);
   auto result = driver.GetResult();
   if (!result.ok()) {
+    metrics_recorder_.IncrementEventCounter(kInternalRunQueryQueryFailure);
     return ToInternalGrpcStatus(result.status());
   }
   VLOG(8) << "Driver results for query " << request->query();

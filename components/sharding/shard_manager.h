@@ -25,6 +25,8 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "components/internal_server/remote_lookup_client.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 // This class is useful for testing ShardManager
@@ -54,7 +56,8 @@ class ShardManager {
       int32_t num_shards,
       privacy_sandbox::server_common::KeyFetcherManagerInterface&
           key_fetcher_manager,
-      const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings);
+      const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
   static absl::StatusOr<std::unique_ptr<ShardManager>> Create(
       int32_t num_shards,
       const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings,

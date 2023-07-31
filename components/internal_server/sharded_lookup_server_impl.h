@@ -117,6 +117,10 @@ class ShardedLookupServiceImpl final
       const absl::flat_hash_set<std::string_view>& key_set) const;
   absl::StatusOr<InternalLookupResponse> GetLocalKeyValuesSet(
       const std::vector<std::string_view>& key_list) const;
+  void CollectKeySets(
+      absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>&
+          key_sets,
+      InternalLookupResponse& keysets_lookup_response) const;
 
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   const Cache& cache_;

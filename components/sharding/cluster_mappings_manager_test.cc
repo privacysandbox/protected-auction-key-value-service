@@ -168,8 +168,9 @@ TEST(ClusterMappingsTest, UpdateMappings) {
   for (int i = 0; i < num_shards; i++) {
     cluster_mappings.push_back({"some_ip"});
   }
-  auto shard_manager_status = ShardManager::Create(
-      num_shards, fake_key_fetcher_manager, cluster_mappings);
+  auto shard_manager_status =
+      ShardManager::Create(num_shards, fake_key_fetcher_manager,
+                           cluster_mappings, mock_metrics_recorder);
   ASSERT_TRUE(shard_manager_status.ok());
   auto shard_manager = std::move(*shard_manager_status);
   absl::Notification finished;

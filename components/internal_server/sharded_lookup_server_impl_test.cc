@@ -297,8 +297,9 @@ TEST_F(ShardedLookupServiceImplTest, MissingKeys) {
   }
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager;
-  auto shard_manager = ShardManager::Create(
-      num_shards_, fake_key_fetcher_manager, std::move(cluster_mappings));
+  auto shard_manager =
+      ShardManager::Create(num_shards_, fake_key_fetcher_manager,
+                           std::move(cluster_mappings), mock_metrics_recorder_);
   lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
       mock_metrics_recorder_, mock_cache_, num_shards_, shard_num_,
       **shard_manager);

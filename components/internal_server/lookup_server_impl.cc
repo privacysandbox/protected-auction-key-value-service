@@ -35,9 +35,17 @@
 
 namespace kv_server {
 using google::protobuf::RepeatedPtrField;
+using privacy_sandbox::server_common::ScopeLatencyRecorder;
 namespace {
 
 using grpc::StatusCode;
+constexpr char kKeySetNotFound[] = "KeysetNotFound";
+constexpr char kDecryptionError[] = "DecryptionError";
+constexpr char kUnpaddingError[] = "UnpaddingError";
+constexpr char kEncryptionError[] = "EncryptionError";
+constexpr char kDeserializationError[] = "DeserializationError";
+constexpr char kRunQueryError[] = "RunQueryError";
+constexpr char kSecureLookup[] = "SecureLookup";
 
 absl::Status ProcessQuery(std::string query, const Cache& cache,
                           InternalRunQueryResponse& response) {
@@ -63,12 +71,14 @@ absl::Status ProcessQuery(std::string query, const Cache& cache,
   return result.status();
 }
 
-grpc::Status ToInternalGrpcStatus(const absl::Status& status) {
+}  // namespace
+
+grpc::Status LookupServiceImpl::ToInternalGrpcStatus(
+    const absl::Status& status, const char* eventName) const {
+  metrics_recorder_.IncrementEventCounter(eventName);
   return grpc::Status(StatusCode::INTERNAL,
                       absl::StrCat(status.code(), " : ", status.message()));
 }
-
-}  // namespace
 
 void LookupServiceImpl::ProcessKeys(const RepeatedPtrField<std::string>& keys,
                                     InternalLookupResponse& response) const {
@@ -107,6 +117,7 @@ void LookupServiceImpl::ProcessKeysetKeys(
     if (value_set.empty()) {
       auto status = result.mutable_status();
       status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+      metrics_recorder_.IncrementEventCounter(kKeySetNotFound);
     } else {
       auto keyset_values = result.mutable_keyset_values();
       keyset_values->mutable_values()->Add(value_set.begin(), value_set.end());
@@ -130,6 +141,8 @@ grpc::Status LookupServiceImpl::SecureLookup(
     grpc::ServerContext* context,
     const SecureLookupRequest* secure_lookup_request,
     SecureLookupResponse* secure_response) {
+  ScopeLatencyRecorder latency_recorder(std::string(kSecureLookup),
+                                        metrics_recorder_);
   if (context->IsCancelled()) {
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
@@ -140,14 +153,17 @@ grpc::Status LookupServiceImpl::SecureLookup(
   auto padded_serialized_request_maybe =
       encryptor.DecryptRequest(secure_lookup_request->ohttp_request());
   if (!padded_serialized_request_maybe.ok()) {
-    return ToInternalGrpcStatus(padded_serialized_request_maybe.status());
+    return ToInternalGrpcStatus(padded_serialized_request_maybe.status(),
+                                kDecryptionError);
   }
 
   VLOG(9) << "SecureLookup decrypted";
   auto serialized_request_maybe =
       kv_server::Unpad(*padded_serialized_request_maybe);
   if (!serialized_request_maybe.ok()) {
-    return ToInternalGrpcStatus(serialized_request_maybe.status());
+    metrics_recorder_.IncrementEventCounter(kDeserializationError);
+    return ToInternalGrpcStatus(serialized_request_maybe.status(),
+                                kUnpaddingError);
   }
 
   VLOG(9) << "SecureLookup unpadded";
@@ -166,7 +182,8 @@ grpc::Status LookupServiceImpl::SecureLookup(
   auto encrypted_response_payload =
       encryptor.EncryptResponse(payload_to_encrypt);
   if (!encrypted_response_payload.ok()) {
-    return ToInternalGrpcStatus(encrypted_response_payload.status());
+    return ToInternalGrpcStatus(encrypted_response_payload.status(),
+                                kEncryptionError);
   }
   secure_response->set_ohttp_response(*encrypted_response_payload);
   return grpc::Status::OK;
@@ -192,7 +209,7 @@ grpc::Status LookupServiceImpl::InternalRunQuery(
   }
   const auto process_result = ProcessQuery(request->query(), cache_, *response);
   if (!process_result.ok()) {
-    return ToInternalGrpcStatus(process_result);
+    return ToInternalGrpcStatus(process_result, kRunQueryError);
   }
   return grpc::Status::OK;
 }

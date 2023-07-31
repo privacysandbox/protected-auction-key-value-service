@@ -24,6 +24,8 @@
 #include "absl/status/statusor.h"
 #include "components/internal_server/lookup.grpc.pb.h"
 #include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 
@@ -41,11 +43,13 @@ class RemoteLookupClient {
   static std::unique_ptr<RemoteLookupClient> Create(
       std::string ip_address,
       privacy_sandbox::server_common::KeyFetcherManagerInterface&
-          key_fetcher_manager);
+          key_fetcher_manager,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
   static std::unique_ptr<RemoteLookupClient> Create(
       std::unique_ptr<InternalLookupService::Stub> stub,
       privacy_sandbox::server_common::KeyFetcherManagerInterface&
-          key_fetcher_manager);
+          key_fetcher_manager,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
 };
 
 }  // namespace kv_server

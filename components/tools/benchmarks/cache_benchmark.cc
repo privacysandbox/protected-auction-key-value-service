@@ -98,7 +98,7 @@ class NoOpCache : public Cache {
     }
     void AddKeyValueSet(
         absl::Mutex& key_mutex, std::string_view key,
-        const absl::flat_hash_set<std::string_view>& value_set) override {}
+        absl::flat_hash_set<std::string_view> value_set) override {}
   };
 };
 

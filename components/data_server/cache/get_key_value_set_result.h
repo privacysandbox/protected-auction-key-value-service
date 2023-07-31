@@ -29,6 +29,7 @@ namespace kv_server {
 class GetKeyValueSetResult {
  public:
   virtual ~GetKeyValueSetResult() = default;
+
   // Looks up and returns key-value set result for the given key set.
   virtual absl::flat_hash_set<std::string_view> GetValueSet(
       std::string_view key) const = 0;
@@ -38,8 +39,10 @@ class GetKeyValueSetResult {
   // the key mutex
   virtual void AddKeyValueSet(
       absl::Mutex& key_mutex, std::string_view key,
-      const absl::flat_hash_set<std::string_view>& value_set) = 0;
+      absl::flat_hash_set<std::string_view> value_set) = 0;
+
   static std::unique_ptr<GetKeyValueSetResult> Create();
+
   friend class KeyValueCache;
 };
 

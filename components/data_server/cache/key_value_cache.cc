@@ -59,7 +59,7 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
         }
       }
       // Add key value set to the result
-      result->AddKeyValueSet(key_itr->second->first, key, value_set);
+      result->AddKeyValueSet(key_itr->second->first, key, std::move(value_set));
     }
   }
   return result;

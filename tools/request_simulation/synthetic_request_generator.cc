@@ -34,6 +34,10 @@ void SyntheticRequestGenerator::GenerateRequests() {
   while (!thread_manager_->ShouldStop()) {
     if (rate_limiter_.Acquire().ok()) {
       message_queue_.Push(std::move(request_body_generation_fn_()));
+      VLOG(7) << "Push new message to the queue, current queue size "
+              << message_queue_.Size();
+    } else {
+      VLOG(8) << "Acquire timeout";
     }
   }
 }

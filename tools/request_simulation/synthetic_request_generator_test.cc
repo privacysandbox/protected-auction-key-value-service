@@ -40,9 +40,13 @@ TEST_F(TestSyntheticRequestGeneratorTest, TestGenerateRequestsAtFixedRate) {
   EXPECT_CALL(sleep_for_, Duration(_)).WillRepeatedly(Return(true));
   RateLimiter rate_limiter(0, requests_per_second, sim_clock_, sleep_for_,
                            absl::Seconds(0));
+  SyntheticRequestGenOption option;
+  option.number_of_keys_per_request = num_of_keys;
+  option.key_size_in_bytes = key_size;
   SyntheticRequestGenerator request_generator(
-      message_queue, rate_limiter, [num_of_keys, key_size]() {
-        const auto keys = kv_server::GenerateRandomKeys(num_of_keys, key_size);
+      message_queue, rate_limiter, [option]() {
+        const auto keys = kv_server::GenerateRandomKeys(
+            option.number_of_keys_per_request, option.key_size_in_bytes);
         return kv_server::CreateKVDSPRequestBodyInJson(keys);
       });
   sim_clock_.AdvanceTime(absl::Seconds(1));

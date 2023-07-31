@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 
 cc_library(
     name = "request_generation_util",
@@ -84,6 +84,40 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "request_simulation_system",
+    srcs = ["request_simulation_system.cc"],
+    hdrs = ["request_simulation_system.h"],
+    deps = [
+        ":client_worker",
+        ":grpc_client",
+        ":request_generation_util",
+        ":synthetic_request_generator",
+        "//components/data/common:thread_manager",
+        "//public/query:get_values_cc_grpc",
+        "//tools/request_simulation/request:raw_request_cc_proto",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_binary(
+    name = "request_simulation_system_main",
+    srcs = ["main.cc"],
+    visibility = ["//tools/request_simulation:__subpackages__"],
+    deps = [
+        ":request_simulation_system",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/debugging:failure_signal_handler",
+        "@com_google_absl//absl/debugging:symbolize",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
 cc_test(
     name = "request_generation_util_test",
     size = "small",
@@ -148,6 +182,20 @@ cc_test(
     deps = [
         ":client_worker",
         ":request_generation_util",
+        "//components/util:sleepfor_mock",
+        "//public/testing:fake_key_value_service_impl",
+        "//tools/request_simulation/request:raw_request_cc_proto",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "request_simulation_system_test",
+    size = "small",
+    srcs = ["request_simulation_system_test.cc"],
+    deps = [
+        ":request_generation_util",
+        ":request_simulation_system",
         "//components/util:sleepfor_mock",
         "//public/testing:fake_key_value_service_impl",
         "//tools/request_simulation/request:raw_request_cc_proto",

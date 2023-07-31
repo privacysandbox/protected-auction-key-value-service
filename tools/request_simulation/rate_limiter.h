@@ -34,12 +34,12 @@ class RateLimiter {
  public:
   RateLimiter(int64_t initial_permits, int64_t permits_per_second,
               privacy_sandbox::server_common::SteadyClock& clock,
-              SleepFor& sleep_for, absl::Duration timeout)
+              SleepFor& sleep_for, const absl::Duration& timeout)
       : permits_fill_rate_(permits_per_second),
         last_refill_time_(clock),
         clock_(clock),
         sleep_for_(sleep_for),
-        timeout_(std::move(timeout)) {
+        timeout_(timeout) {
     permits_.store(initial_permits, std::memory_order_relaxed);
   }
   ~RateLimiter() = default;

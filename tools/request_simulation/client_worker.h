@@ -111,14 +111,20 @@ void ClientWorker<RequestT, ResponseT>::SendRequests() {
   while (!thread_manager_->ShouldStop()) {
     if (rate_limiter_.Acquire().ok()) {
       const auto request_body = message_queue_.Pop();
+      VLOG(8) << "About to send message, current message queue size "
+              << message_queue_.Size();
       if (request_body.ok()) {
         // TODO(b/292268143) collect metrics
         auto response = grpc_client_->SendMessage(
             request_converter_(request_body.value()), service_method_);
         if (!response.ok()) {
-          LOG(ERROR) << "Received error in response " << response.status();
+          VLOG(8) << "Received error in response " << response.status();
+        } else {
+          VLOG(9) << "Received ok response";
         }
       }
+    } else {
+      VLOG(8) << "Acquire timeout";
     }
   }
 }

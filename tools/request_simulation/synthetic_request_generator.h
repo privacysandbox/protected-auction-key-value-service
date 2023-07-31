@@ -30,6 +30,11 @@
 
 namespace kv_server {
 
+struct SyntheticRequestGenOption {
+  int number_of_keys_per_request;
+  int key_size_in_bytes;
+};
+
 // Generates synthetic requests in a single thread
 // at rate controlled by rate limiter passed in the
 // constructor

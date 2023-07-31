@@ -68,12 +68,18 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
       return absl::Status((absl::StatusCode)status.error_code(),
                           status.error_message());
     }
+    InternalLookupResponse response;
+    if (secure_response.ohttp_response().empty()) {
+      // we cannot decrypt an empty response. Note, that soon we will add logic
+      // to pad responses, so this branch will never be hit.
+      return response;
+    }
     auto decrypted_response_maybe =
         encryptor.DecryptResponse(std::move(secure_response.ohttp_response()));
     if (!decrypted_response_maybe.ok()) {
       return decrypted_response_maybe.status();
     }
-    InternalLookupResponse response;
+
     if (!response.ParseFromString(
             decrypted_response_maybe->GetPlaintextData())) {
       return absl::InvalidArgumentError("Failed parsing the response.");

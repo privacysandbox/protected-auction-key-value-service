@@ -112,7 +112,7 @@ TEST_F(LookupServiceImplTest, MissingKeyFromCache) {
            }
            kv_pairs {
              key: "key2"
-             value { status: { code: 5, message: "Key not found" } }
+             value { status: { code: 5, message: "" } }
            }
       )pb",
       &expected);

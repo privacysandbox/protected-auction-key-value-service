@@ -172,6 +172,8 @@ cc_library(
         ":internal_lookup_cc_grpc",
         ":remote_lookup_client_impl",
         "//components/data_server/cache",
+        "//components/query:driver",
+        "//components/query:scanner",
         "//components/sharding:shard_manager",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log:check",

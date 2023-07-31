@@ -17,12 +17,15 @@
 #ifndef COMPONENTS_INTERNAL_SERVER_SHARDED_LOOKUP_SERVER_IMPL_H_
 #define COMPONENTS_INTERNAL_SERVER_SHARDED_LOOKUP_SERVER_IMPL_H_
 
+#include <future>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/log/check.h"
+#include "absl/status/status.h"
 #include "components/data_server/cache/cache.h"
 #include "components/internal_server/lookup.grpc.pb.h"
 #include "components/internal_server/remote_lookup_client.h"
@@ -72,6 +75,11 @@ class ShardedLookupServiceImpl final
       const kv_server::InternalLookupRequest* request,
       kv_server::InternalLookupResponse* response) override;
 
+  grpc::Status InternalRunQuery(
+      grpc::ServerContext* context,
+      const kv_server::InternalRunQueryRequest* request,
+      kv_server::InternalRunQueryResponse* response) override;
+
  private:
   // Keeps sharded keys and assosiated metdata.
   struct ShardLookupInput {
@@ -85,20 +93,30 @@ class ShardedLookupServiceImpl final
     int32_t padding;
   };
   std::vector<ShardLookupInput> ShardKeys(
-      const google::protobuf::RepeatedPtrField<std::string>& keys) const;
+      const absl::flat_hash_set<std::string_view>& keys,
+      bool lookup_sets) const;
   void ComputePadding(std::vector<ShardLookupInput>& sk) const;
-  void SerializeShardedRequests(std::vector<ShardLookupInput>& sk) const;
+  void SerializeShardedRequests(std::vector<ShardLookupInput>& lookup_inputs,
+                                bool lookup_sets) const;
   std::vector<ShardLookupInput> BucketKeys(
-      const google::protobuf::RepeatedPtrField<std::string>& keys) const;
+      const absl::flat_hash_set<std::string_view>& keys) const;
   absl::Status ProcessShardedKeys(
-      const google::protobuf::RepeatedPtrField<std::string>& keys,
-      const Cache& cache, InternalLookupResponse& response);
-  void LookupKeysExternally(std::vector<std::string_view>& key_list,
-                            const Cache& cache,
-                            InternalLookupResponse& response);
-  absl::StatusOr<InternalLookupResponse> GetValues(
-      RemoteLookupClient& client, std::string_view serialized_message,
-      int32_t padding_length);
+      const absl::flat_hash_set<std::string_view>& keys,
+      InternalLookupResponse& response) const;
+  absl::StatusOr<InternalLookupResponse> GetLocalValues(
+      const std::vector<std::string_view>& key_list) const;
+  absl::StatusOr<
+      std::vector<std::future<absl::StatusOr<InternalLookupResponse>>>>
+  GetLookupFutures(const std::vector<ShardLookupInput>& shard_lookup_inputs,
+                   std::function<absl::StatusOr<InternalLookupResponse>(
+                       const std::vector<std::string_view>& key_list)>
+                       get_local_future) const;
+  absl::StatusOr<
+      absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>>
+  GetShardedKeyValueSet(
+      const absl::flat_hash_set<std::string_view>& key_set) const;
+  absl::StatusOr<InternalLookupResponse> GetLocalKeyValuesSet(
+      const std::vector<std::string_view>& key_list) const;
 
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   const Cache& cache_;

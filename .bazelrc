@@ -7,19 +7,20 @@ build --@io_bazel_rules_docker//transitions:enable=false
 build --workspace_status_command="bash tools/get_workspace_status"
 build --copt=-Werror=thread-safety-analysis
 build --config=clang
+build --config=noexcept
 build --config=roma_sandboxed
 
 # Broadly disable C++ Exceptions
 # https://google.github.io/styleguide/cppguide.html#Exceptions
-build --copt=-fno-exceptions
+build:noexcept --copt=-fno-exceptions
 # Grant exceptions to some dependencies so they can use exceptions
-build --per_file_copt=.*boost.*@-fexceptions
-build --per_file_copt=.*cc/aws/proxy.*@-fexceptions
-build --per_file_copt=.*cc/roma.*@-fexceptions
-build --per_file_copt=.*oneTBB.*@-fexceptions
-build --per_file_copt=.*com_github_nghttp2_nghttp2.*@-fexceptions
-build --per_file_copt=.*cc/core.*@-fexceptions
-build --per_file_copt=.*cc/cpio.*@-fexceptions
+build:noexcept --per_file_copt=.*boost.*@-fexceptions
+build:noexcept --per_file_copt=.*cc/aws/proxy.*@-fexceptions
+build:noexcept --per_file_copt=.*cc/roma.*@-fexceptions
+build:noexcept --per_file_copt=.*oneTBB.*@-fexceptions
+build:noexcept --per_file_copt=.*com_github_nghttp2_nghttp2.*@-fexceptions
+build:noexcept --per_file_copt=.*cc/core.*@-fexceptions
+build:noexcept --per_file_copt=.*cc/cpio.*@-fexceptions
 
 test --test_output=errors
 # Disable ICU linking for googleurl.

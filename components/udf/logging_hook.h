@@ -30,6 +30,7 @@ inline void LogMessage(google::scp::roma::proto::FunctionBindingIoProto& io) {
   if (io.has_input_string()) {
     LOG(INFO) << io.input_string();
   }
+  io.set_output_string("");
 }
 
 }  // namespace kv_server

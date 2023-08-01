@@ -298,6 +298,34 @@ TEST(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
   EXPECT_TRUE(stop.ok());
 }
 
+TEST(UdfClientTest, JsCallsLogMessageTwiceSucceeds) {
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      config_builder.RegisterLoggingHook().SetNumberOfWorkers(1).Config());
+  EXPECT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status =
+      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
+                                                    function hello(input) {
+                                                      let a = logMessage("first message");
+                                                      let b = logMessage("second message");
+                                                      return a + b;
+                                                    }
+                                                  )",
+                                                   .udf_handler_name = "hello",
+                                                   .logical_commit_time = 1,
+                                                   .version = 1});
+  EXPECT_TRUE(code_obj_status.ok());
+
+  absl::StatusOr<std::string> result =
+      udf_client.value()->ExecuteCode({R"({"keys":["key1"]})"});
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"("")");
+
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
 TEST(UdfClientTest, UpdatesCodeObjectTwice) {
   auto udf_client = CreateUdfClient();
   EXPECT_TRUE(udf_client.ok());

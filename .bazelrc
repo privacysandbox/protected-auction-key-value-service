@@ -40,8 +40,8 @@ build:roma_legacy --@control_plane_shared//cc/roma/roma_service/src:service=lega
 build:roma_sandboxed --@control_plane_shared//cc/roma/roma_service/src:service=sandboxed
 build:roma_sandboxed --per_file_copt=.*sandboxed_api.*@-Wno-return-type
 
-# Address sanitizer
-# To use it: bazel build --config asan
+# Address sanitizer, set action_env to segregate cache entries
+build:asan --action_env=PRIVACY_SANDBOX_SERVERS_ASAN=1
 build:asan --strip=never
 build:asan --copt -fsanitize=address
 build:asan --copt -DADDRESS_SANITIZER

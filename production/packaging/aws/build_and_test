@@ -42,6 +42,7 @@ usage:
     --with-ami                   AMI region in which to build and store AWS AMIs. Use multiple times to specify more than one region
                                  If empty, none will be built
     --no-precommit               Skip precommit checks
+    --with-tests                 Also runs tests before building
 
 environment variables (all optional):
     WORKSPACE                    Set the path to the workspace (repo root)
@@ -64,6 +65,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-precommit)
       BUILD_AND_TEST_ARGS+=("--no-precommit")
+      shift
+      ;;
+    --with-tests)
+      BUILD_AND_TEST_ARGS+=("--with-tests")
       shift
       ;;
     --verbose)

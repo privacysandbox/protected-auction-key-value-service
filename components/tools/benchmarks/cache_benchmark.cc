@@ -43,14 +43,22 @@ ABSL_FLAG(std::vector<std::string>, set_query_size,
 ABSL_FLAG(std::vector<std::string>, query_size, std::vector<std::string>({"1"}),
           "Number of keys that we want to read in each iteration for "
           "read benchmarks.");
+ABSL_FLAG(std::vector<std::string>, keyspace_size,
+          std::vector<std::string>({"1"}),
+          "Size of the keyspace that we want to select keys to write from.");
 ABSL_FLAG(std::vector<std::string>, concurrent_writers,
-          std::vector<std::string>({"0"}),
-          "Number of threads concurrently writing keys into the cache.");
+          std::vector<std::string>({"1"}),
+          "Number of threads concurrently writing keys into the cache when "
+          "benchmarking reads.");
+ABSL_FLAG(std::vector<std::string>, concurrent_readers,
+          std::vector<std::string>({"1"}),
+          "Number of threads concurrently reading keys from the cache when "
+          "benchmarking writes.");
 ABSL_FLAG(int64_t, iterations, -1,
           "Number of iterations to run each benchmark.");
-ABSL_FLAG(int64_t, min_concurrent_readers, 1,
+ABSL_FLAG(int64_t, min_threads, 1,
           "Minimum number of threads for benchmarking reading keys.");
-ABSL_FLAG(int64_t, max_concurrent_readers, 1,
+ABSL_FLAG(int64_t, max_threads, 1,
           "Maximum number of threads for benchmarking reading keys.");
 
 using kv_server::Cache;
@@ -75,17 +83,26 @@ constexpr std::string_view kNoOpCacheGetKeyValueSetFmt =
 constexpr std::string_view kLockBasedCacheGetKeyValueSetFmt =
     "BM_LockBasedCache_GetKeyValueSet/qz:%d/sqz:%d/rz:%d/cw:%d";
 
-constexpr std::string_view kKeyFormat = "key%d";
-constexpr std::string_view kReadsPerSec = "Reads/s";
+constexpr std::string_view kNoOpCacheUpdateKeyValueFmt =
+    "BM_NoOpCache_UpdateKeyValue/ksz:%d/rz:%d/cr:%d";
+constexpr std::string_view kLockBasedCacheUpdateKeyValueFmt =
+    "BM_LockBasedCache_UpdateKeyValue/ksz:%d/rz:%d/cr:%d";
+constexpr std::string_view kNoOpCacheUpdateKeyValueSetFmt =
+    "BM_NoOpCache_UpdateKeyValueSet/ksz:%d/sqz:%d/rz:%d/cr:%d";
+constexpr std::string_view kLockBasedCacheUpdateKeyValueSetFmt =
+    "BM_LockBasedCache_UpdateKeyValueSet/ksz:%d/sqz:%d/rz:%d/cr:%d";
 
-Cache& GetNoOpCache() {
+constexpr std::string_view kReadsPerSec = "Reads/s";
+constexpr std::string_view kWritesPerSec = "Writes/s";
+
+Cache* GetNoOpCache() {
   static auto* const cache = NoOpKeyValueCache::Create().release();
-  return *cache;
+  return cache;
 }
 
-Cache& GetLockBasedCache() {
+Cache* GetLockBasedCache() {
   static auto* const cache = KeyValueCache::Create().release();
-  return *cache;
+  return cache;
 }
 
 std::atomic<int64_t>& GetLogicalTimestamp() {
@@ -97,7 +114,7 @@ std::vector<std::string> GetKeys(int64_t keyset_size) {
   std::vector<std::string> keyset;
   keyset.reserve(keyset_size);
   for (int64_t i = 0; i < keyset_size; i++) {
-    keyset.emplace_back(absl::StrFormat(kKeyFormat, i));
+    keyset.emplace_back(std::to_string(i));
   }
   return keyset;
 }
@@ -131,55 +148,103 @@ struct BenchmarkArgs {
   int64_t record_size = 1;
   int64_t query_size = 1;
   int64_t set_query_size = 1;
-  int64_t concurrent_writers = 0;
-  Cache& cache = GetNoOpCache();
+  int64_t keyspace_size = 1;
+  int64_t concurrent_tasks = 1;
+  Cache* cache = GetNoOpCache();
 };
 
 void BM_GetKeyValuePairs(benchmark::State& state, BenchmarkArgs args) {
+  uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> writer_tasks;
-  if (state.thread_index() == 0 && args.concurrent_writers > 0) {
-    auto num_writers = args.concurrent_writers;
+  if (state.thread_index() == 0 && args.concurrent_tasks > 0) {
+    auto num_writers = args.concurrent_tasks;
     writer_tasks.reserve(num_writers);
     while (num_writers-- > 0) {
       writer_tasks.emplace_back(
-          [args, value = GenerateRandomString(args.record_size)]() {
-            auto key =
-                absl::StrFormat(kKeyFormat, std::rand() % args.query_size);
-            args.cache.UpdateKeyValue(key, value, ++GetLogicalTimestamp());
+          [args, &seed, value = GenerateRandomString(args.record_size)]() {
+            auto key = std::to_string(rand_r(&seed) % args.query_size);
+            args.cache->UpdateKeyValue(key, value, ++GetLogicalTimestamp());
           });
     }
   }
   auto keys = GetKeys(args.query_size);
   auto keys_view = ToContainerView<std::vector<std::string_view>>(keys);
   for (auto _ : state) {
-    benchmark::DoNotOptimize(args.cache.GetKeyValuePairs(keys_view));
+    benchmark::DoNotOptimize(args.cache->GetKeyValuePairs(keys_view));
   }
   state.counters[std::string(kReadsPerSec)] =
       benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 
 void BM_GetKeyValueSet(benchmark::State& state, BenchmarkArgs args) {
+  uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> writer_tasks;
-  if (state.thread_index() == 0 && args.concurrent_writers > 0) {
-    auto num_writers = args.concurrent_writers;
+  if (state.thread_index() == 0 && args.concurrent_tasks > 0) {
+    auto num_writers = args.concurrent_tasks;
     writer_tasks.reserve(num_writers);
     while (num_writers-- > 0) {
-      writer_tasks.emplace_back([args,
+      writer_tasks.emplace_back([args, &seed,
                                  set_query = GetSetQuery(args.set_query_size,
                                                          args.record_size)]() {
-        auto key = absl::StrFormat(kKeyFormat, std::rand() % args.query_size);
+        auto key = std::to_string(rand_r(&seed) % args.query_size);
         auto view = ToContainerView<std::vector<std::string_view>>(set_query);
-        args.cache.UpdateKeyValueSet(key, absl::MakeSpan(view),
-                                     ++GetLogicalTimestamp());
+        args.cache->UpdateKeyValueSet(key, absl::MakeSpan(view),
+                                      ++GetLogicalTimestamp());
       });
     }
   }
   auto keys = GetKeys(args.query_size);
   auto keys_view = ToContainerView<absl::flat_hash_set<std::string_view>>(keys);
   for (auto _ : state) {
-    benchmark::DoNotOptimize(args.cache.GetKeyValueSet(keys_view));
+    benchmark::DoNotOptimize(args.cache->GetKeyValueSet(keys_view));
   }
   state.counters[std::string(kReadsPerSec)] =
+      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+
+void BM_UpdateKeyValue(benchmark::State& state, BenchmarkArgs args) {
+  uint seed = args.concurrent_tasks;
+  std::vector<AsyncTask> reader_tasks;
+  if (state.thread_index() == 0 && args.concurrent_tasks) {
+    auto num_readers = args.concurrent_tasks;
+    reader_tasks.reserve(num_readers);
+    while (num_readers-- > 0) {
+      reader_tasks.emplace_back([args, &seed]() {
+        auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
+        args.cache->GetKeyValuePairs({key});
+      });
+    }
+  }
+  auto value = GenerateRandomString(args.record_size);
+  for (auto _ : state) {
+    auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
+    args.cache->UpdateKeyValue(key, value, ++GetLogicalTimestamp());
+  }
+  state.counters[std::string(kWritesPerSec)] =
+      benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
+}
+
+void BM_UpdateKeyValueSet(benchmark::State& state, BenchmarkArgs args) {
+  uint seed = args.concurrent_tasks;
+  std::vector<AsyncTask> reader_tasks;
+  if (state.thread_index() == 0 && args.concurrent_tasks) {
+    auto num_readers = args.concurrent_tasks;
+    reader_tasks.reserve(num_readers);
+    while (num_readers-- > 0) {
+      reader_tasks.emplace_back([args, &seed]() {
+        auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
+        args.cache->GetKeyValueSet({key});
+      });
+    }
+  }
+  auto set_value = GetSetQuery(args.set_query_size, args.record_size);
+  auto set_view = ToContainerView<std::vector<std::string_view>>(set_value);
+  for (auto _ : state) {
+    auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
+    args.cache->UpdateKeyValueSet(key, absl::MakeSpan(set_view),
+                                  ++GetLogicalTimestamp());
+  }
+  state.counters[std::string(kWritesPerSec)] =
       benchmark::Counter(state.iterations(), benchmark::Counter::kIsRate);
 }
 
@@ -189,15 +254,15 @@ void RegisterBenchmark(
     std::function<void(benchmark::State&, BenchmarkArgs)> benchmark) {
   auto b =
       benchmark::RegisterBenchmark(name.c_str(), benchmark, std::move(args));
-  auto min = absl::GetFlag(FLAGS_min_concurrent_readers);
-  auto max = absl::GetFlag(FLAGS_max_concurrent_readers);
+  auto min = std::max(absl::GetFlag(FLAGS_min_threads), 1L);
+  auto max = absl::GetFlag(FLAGS_max_threads);
   b->ThreadRange(min, max < min ? min : max);
   if (absl::GetFlag(FLAGS_iterations) > 0) {
     b->Iterations(absl::GetFlag(FLAGS_iterations));
   }
 }
 
-void RegisterBenchmarks() {
+void RegisterReadBenchmarks() {
   auto query_sizes = ParseInt64List(absl::GetFlag(FLAGS_query_size));
   auto set_query_sizes = ParseInt64List(absl::GetFlag(FLAGS_set_query_size));
   auto record_sizes = ParseInt64List(absl::GetFlag(FLAGS_record_size));
@@ -206,47 +271,73 @@ void RegisterBenchmarks() {
   for (auto query_size : query_sizes.value()) {
     for (auto record_size : record_sizes.value()) {
       for (auto num_writers : concurrent_writers.value()) {
+        auto args = BenchmarkArgs{
+            .record_size = record_size,
+            .query_size = query_size,
+            .concurrent_tasks = num_writers,
+            .cache = GetNoOpCache(),
+        };
         RegisterBenchmark(absl::StrFormat(kNoOpCacheGetKeyValuePairsFmt,
                                           query_size, record_size, num_writers),
-                          BenchmarkArgs{
-                              .record_size = record_size,
-                              .query_size = query_size,
-                              .concurrent_writers = num_writers,
-                              .cache = GetNoOpCache(),
-                          },
-                          BM_GetKeyValuePairs);
+                          args, BM_GetKeyValuePairs);
+        args.cache = GetLockBasedCache();
         RegisterBenchmark(absl::StrFormat(kLockBasedCacheGetKeyValuePairsFmt,
                                           query_size, record_size, num_writers),
-                          BenchmarkArgs{
-                              .record_size = record_size,
-                              .query_size = query_size,
-                              .concurrent_writers = num_writers,
-                              .cache = GetLockBasedCache(),
-                          },
-                          BM_GetKeyValuePairs);
+                          args, BM_GetKeyValuePairs);
         for (auto set_query_size : set_query_sizes.value()) {
+          args.set_query_size = set_query_size;
+          args.cache = GetNoOpCache();
           RegisterBenchmark(
               absl::StrFormat(kNoOpCacheGetKeyValueSetFmt, query_size,
                               set_query_size, record_size, num_writers),
-              BenchmarkArgs{
-                  .record_size = record_size,
-                  .query_size = query_size,
-                  .set_query_size = set_query_size,
-                  .concurrent_writers = num_writers,
-                  .cache = GetNoOpCache(),
-              },
-              BM_GetKeyValueSet);
+              args, BM_GetKeyValueSet);
+          args.cache = GetLockBasedCache();
           RegisterBenchmark(
               absl::StrFormat(kLockBasedCacheGetKeyValueSetFmt, query_size,
                               set_query_size, record_size, num_writers),
-              BenchmarkArgs{
-                  .record_size = record_size,
-                  .query_size = query_size,
-                  .set_query_size = set_query_size,
-                  .concurrent_writers = num_writers,
-                  .cache = GetLockBasedCache(),
-              },
-              BM_GetKeyValueSet);
+              args, BM_GetKeyValueSet);
+        }
+      }
+    }
+  }
+}
+
+void RegisterWriteBenchmarks() {
+  auto keyspace_sizes = ParseInt64List(absl::GetFlag(FLAGS_keyspace_size));
+  auto record_sizes = ParseInt64List(absl::GetFlag(FLAGS_record_size));
+  auto set_query_sizes = ParseInt64List(absl::GetFlag(FLAGS_set_query_size));
+  auto concurrent_readers =
+      ParseInt64List(absl::GetFlag(FLAGS_concurrent_readers));
+  for (auto keyspace_size : keyspace_sizes.value()) {
+    for (auto record_size : record_sizes.value()) {
+      for (auto num_readers : concurrent_readers.value()) {
+        auto args = BenchmarkArgs{
+            .record_size = record_size,
+            .keyspace_size = keyspace_size,
+            .concurrent_tasks = num_readers,
+            .cache = GetNoOpCache(),
+        };
+        RegisterBenchmark(
+            absl::StrFormat(kNoOpCacheUpdateKeyValueFmt, keyspace_size,
+                            record_size, num_readers),
+            args, BM_UpdateKeyValue);
+        args.cache = GetLockBasedCache();
+        RegisterBenchmark(
+            absl::StrFormat(kLockBasedCacheUpdateKeyValueFmt, keyspace_size,
+                            record_size, num_readers),
+            args, BM_UpdateKeyValue);
+        for (auto set_query_size : set_query_sizes.value()) {
+          args.set_query_size = set_query_size;
+          args.cache = GetNoOpCache();
+          RegisterBenchmark(
+              absl::StrFormat(kNoOpCacheUpdateKeyValueSetFmt, keyspace_size,
+                              set_query_size, record_size, num_readers),
+              args, BM_UpdateKeyValueSet);
+          args.cache = GetLockBasedCache();
+          RegisterBenchmark(absl::StrFormat(kLockBasedCacheUpdateKeyValueSetFmt,
+                                            keyspace_size, set_query_size,
+                                            record_size, num_readers),
+                            args, BM_UpdateKeyValueSet);
         }
       }
     }
@@ -264,7 +355,8 @@ int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   ::benchmark::Initialize(&argc, argv);
   absl::ParseCommandLine(argc, argv);
-  RegisterBenchmarks();
+  RegisterReadBenchmarks();
+  RegisterWriteBenchmarks();
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
   return 0;

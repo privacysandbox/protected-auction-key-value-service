@@ -26,6 +26,11 @@
       "scope": "api"
     },
     {
+      "section": "Dependencies",
+      "type": "feat",
+      "scope": "deps"
+    },
+    {
       "section": "Terraform",
       "type": "feat",
       "scope": "terraform"

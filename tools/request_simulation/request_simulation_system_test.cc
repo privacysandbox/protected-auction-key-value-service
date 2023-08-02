@@ -71,6 +71,8 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
   absl::SetFlag(&FLAGS_rps, 1000);
   // Generate message at 2500 qps
   absl::SetFlag(&FLAGS_synthetic_requests_fill_qps, 2500);
+  // Set the number of client workers to 2
+  absl::SetFlag(&FLAGS_concurrency, 2);
   absl::SetFlag(&FLAGS_rate_limiter_permits_acquire_timeout, absl::Seconds(0));
   absl::SetFlag(&FLAGS_server_address, "test");
   auto channel_creation_fn = [this](const std::string& server_address,

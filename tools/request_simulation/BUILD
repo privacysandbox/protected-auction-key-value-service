@@ -193,6 +193,9 @@ cc_test(
     name = "request_simulation_system_test",
     size = "small",
     srcs = ["request_simulation_system_test.cc"],
+    tags = [
+        "cpu:3",
+    ],
     deps = [
         ":request_generation_util",
         ":request_simulation_system",

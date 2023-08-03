@@ -23,14 +23,48 @@
 set -o pipefail
 set -o errexit
 
+function partition_array() {
+  if [[ ${#@} -ne 3 ]]; then
+    printf "insufficient args\n" &>/dev/stderr
+    return 1
+  fi
+  declare -n arr=$1
+  declare -n pre=$2
+  declare -n post=$3
+  if [[ ${#arr[@]} -eq 0 ]]; then
+    printf "empty array\n" &>/dev/stderr
+    return 1
+  fi
+
+  declare -r delim="--"
+  declare target=pre
+  for i in "${!arr[@]}"; do
+    if [[ ${arr[$i]} == "${delim}" ]]; then
+      target=post
+    fi
+    if [[ ${target} == pre ]]; then
+      pre+=("${arr[$i]}")
+    else
+      post+=("${arr[$i]}")
+    fi
+  done
+}
+
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 readonly SCRIPT_NAME
 readonly IMAGE=build-"${SCRIPT_NAME/bazel-}"
 CBUILD=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/cbuild
 readonly CBUILD
 
-# shellcheck disable=SC1083
-"${CBUILD}" --image "${IMAGE}" --cmd "
+# partition the command-line args into "bazel args" and "app args", where the
+# app args are all those after the presence of the "--" arg, if any
+declare -a BAZEL_ARGS
+declare -a APP_ARGS
+# shellcheck disable=SC2034,SC2206
+declare -r -a ARGLIST=("$@")
+partition_array ARGLIST BAZEL_ARGS APP_ARGS
+
+"${CBUILD}" --seccomp-unconfined --image "${IMAGE}" --cmd "
 printf 'bazel output_base: [%s]\n' \"\$(bazel info output_base 2>/dev/null)\"
-bazel ${BAZEL_STARTUP_ARGS} ${*@Q} ${BAZEL_EXTRA_ARGS}
+bazel ${BAZEL_STARTUP_ARGS} ${BAZEL_ARGS[*]@Q} ${BAZEL_EXTRA_ARGS} ${APP_ARGS[*]@Q}
 "

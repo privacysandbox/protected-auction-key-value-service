@@ -91,9 +91,9 @@ function install_clang() {
   chmod +x llvm.sh
   ./llvm.sh ${CLANG_VER}
   apt-get --quiet install -y --no-install-recommends libc++-${CLANG_VER}-dev
-  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${CLANG_VER} 100
-  update-alternatives --install /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${CLANG_VER} 100
-  update-alternatives --install /usr/bin/llvm-profdata llvm-profdata /usr/bin/llvm-profdata-${CLANG_VER} 100
+  for prog in clang lld ld.lld llvm-cov llvm-profdata; do
+    update-alternatives --install /usr/bin/${prog} ${prog} /usr/bin/${prog}-${CLANG_VER} 100
+  done
   rm -f llvm.sh
 
   clang --version

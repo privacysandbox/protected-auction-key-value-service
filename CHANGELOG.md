@@ -4,8 +4,6 @@ All notable changes to this project will be documented in this file. See [commit
 
 ## 0.11.1 (2023-08-02)
 
-## 0.11.0 (2023-07-11)
-
 
 ### Features
 

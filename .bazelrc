@@ -43,40 +43,41 @@ build:roma_sandboxed --per_file_copt=.*sandboxed_api.*@-Wno-return-type
 # Address sanitizer, set action_env to segregate cache entries
 build:asan --action_env=PRIVACY_SANDBOX_SERVERS_ASAN=1
 build:asan --strip=never
-build:asan --copt -fsanitize=address
-build:asan --copt -DADDRESS_SANITIZER
-build:asan --copt -O1
-build:asan --copt -g
-build:asan --copt -fno-omit-frame-pointer
-build:asan --linkopt -fsanitize=address
 build:asan --compilation_mode=dbg
+build:asan --copt=-fsanitize=address
+build:asan --copt=-DADDRESS_SANITIZER
+build:asan --copt=-O1
+build:asan --copt=-g
+build:asan --copt=-fno-omit-frame-pointer
+build:asan --linkopt=-fsanitize=address
+build:asan --linkopt=-fuse-ld=lld
+build:asan --action_env=ASAN_OPTIONS=detect_leaks=1:color=always
 
-# Thread sanitizer
-# bazel build --config tsan
+# Thread sanitizer, set action_env to segregate cache entries
 build:tsan --strip=never
-build:tsan --copt -fsanitize=thread
-build:tsan --copt -DTHREAD_SANITIZER
-build:tsan --copt -DDYNAMIC_ANNOTATIONS_ENABLED=1
-build:tsan --copt -DDYNAMIC_ANNOTATIONS_EXTERNAL_IMPL=1
-build:tsan --copt -O1
-build:tsan --copt -fno-omit-frame-pointer
-build:tsan --linkopt -fsanitize=thread
+build:tsan --copt=-fsanitize=thread
+build:tsan --copt=-DTHREAD_SANITIZER
+build:tsan --copt=-DDYNAMIC_ANNOTATIONS_ENABLED=1
+build:tsan --copt=-DDYNAMIC_ANNOTATIONS_EXTERNAL_IMPL=1
+build:tsan --copt=-O1
+build:tsan --copt=-fno-omit-frame-pointer
+build:tsan --linkopt=-fsanitize=thread
 
-# --config msan: Memory sanitizer
+# Memory sanitizer, set action_env to segregate cache entries
 build:msan --strip=never
-build:msan --copt -fsanitize=memory
-build:msan --copt -DADDRESS_SANITIZER
-build:msan --copt -O1
-build:msan --copt -fno-omit-frame-pointer
-build:msan --linkopt -fsanitize=memory
+build:msan --copt=-fsanitize=memory
+build:msan --copt=-DADDRESS_SANITIZER
+build:msan --copt=-O1
+build:msan --copt=-fno-omit-frame-pointer
+build:msan --linkopt=-fsanitize=memory
 
-# --config ubsan: Undefined Behavior Sanitizer
+# Undefined Behavior sanitizer, set action_env to segregate cache entries
 build:ubsan --strip=never
-build:ubsan --copt -fsanitize=undefined
-build:ubsan --copt -O1
-build:ubsan --copt -fno-omit-frame-pointer
-build:ubsan --linkopt -fsanitize=undefined
-build:ubsan --linkopt -lubsan
+build:ubsan --copt=-fsanitize=undefined
+build:ubsan --copt=-O1
+build:ubsan --copt=-fno-omit-frame-pointer
+build:ubsan --linkopt:-fsanitize=undefined
+build:ubsan --linkopt=-lubsan
 
 # --config local_instance: builds the service to run with the instance=local flag
 build:local_instance --//:instance=local

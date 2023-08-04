@@ -27,6 +27,8 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/udf/constants.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, kv_delta_file_path, "",
           "Path to delta file with KV pairs.");
@@ -40,6 +42,8 @@ ABSL_FLAG(std::string, namespace_tag, "keys",
           "Options: `keys`, `renderUrls`, `adComponentRenderUrls`. ");
 
 namespace kv_server {
+
+using privacy_sandbox::server_common::TelemetryProvider;
 
 absl::Status LoadCacheFromKVMutationRecord(
     const KeyValueMutationRecordStruct& record, Cache& cache) {
@@ -157,7 +161,9 @@ absl::Status TestUdf(std::string kv_delta_file_path,
                      std::string udf_delta_file_path, std::string key,
                      std::string subkey, std::string namespace_tag) {
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   auto load_cache_status = LoadCacheFromFile(kv_delta_file_path, *cache);
   if (!load_cache_status.ok()) {
     LOG(ERROR) << "Error loading cache from file: " << load_cache_status;

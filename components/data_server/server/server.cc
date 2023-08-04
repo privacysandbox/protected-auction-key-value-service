@@ -114,12 +114,17 @@ GetMetricsOptions(const ParameterClient& parameter_client,
 Server::Server()
     : metrics_recorder_(
           TelemetryProvider::GetInstance().CreateMetricsRecorder()),
-      cache_(KeyValueCache::Create()),
       get_values_hook_(GetValuesHook::Create(absl::bind_front(
           LookupClient::Create, absl::GetFlag(FLAGS_internal_server_address)))),
       run_query_hook_(RunQueryHook::Create(
           absl::bind_front(RunQueryClient::Create,
-                           absl::GetFlag(FLAGS_internal_server_address)))) {
+                           absl::GetFlag(FLAGS_internal_server_address)))) {}
+
+// Because the cache relies on metrics_recorder_, this function needs to be
+// called right after telemetry has been initialized but before anything that
+// requires the cache has been initialized.
+void Server::InitializeKeyValueCache() {
+  cache_ = KeyValueCache::Create(*metrics_recorder_);
   cache_->UpdateKeyValue(
       "hi",
       "Hello, world! If you are seeing this, it means you can "
@@ -200,13 +205,11 @@ absl::Status Server::Init(
 
 absl::Status Server::InitOnceInstancesAreCreated() {
   InitializeTelemetry(*parameter_client_, *instance_client_);
-
+  InitializeKeyValueCache();
   auto span = GetTracer()->StartSpan("InitServer");
   auto scope = opentelemetry::trace::Scope(span);
-
   std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
       LifecycleHeartbeat::Create(*instance_client_, *metrics_recorder_);
-
   ParameterFetcher parameter_fetcher(environment_, *parameter_client_,
                                      metrics_recorder_.get());
   if (absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);

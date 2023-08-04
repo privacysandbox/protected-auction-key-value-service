@@ -172,7 +172,9 @@ void RegisterBenchmarks(MetricsRecorder& metrics_recorder) {
         RegisterBenchmark(absl::StrFormat(kNoOpCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),
                           args, metrics_recorder);
-        args.create_cache_fn = []() { return KeyValueCache::Create(); };
+        args.create_cache_fn = [&metrics_recorder]() {
+          return KeyValueCache::Create(metrics_recorder);
+        };
         RegisterBenchmark(absl::StrFormat(kMutexCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),
                           args, metrics_recorder);

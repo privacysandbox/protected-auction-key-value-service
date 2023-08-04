@@ -75,6 +75,7 @@ class Server {
       std::unique_ptr<UdfClient> udf_client);
 
   absl::Status InitOnceInstancesAreCreated();
+  void InitializeKeyValueCache();
 
   std::unique_ptr<BlobStorageClient> CreateBlobClient(
       const ParameterFetcher& parameter_fetcher);

@@ -26,17 +26,22 @@
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
 using google::scp::roma::proto::FunctionBindingIoProto;
+using privacy_sandbox::server_common::TelemetryProvider;
 using testing::_;
 using testing::Return;
 
 TEST(GetValuesHookTest, SuccessfullyReturnsKVPairs) {
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   cache->UpdateKeyValue("key1", "value1", 1);
   cache->UpdateKeyValue("key2", "value2", 1);
 

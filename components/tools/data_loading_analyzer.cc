@@ -137,7 +137,9 @@ std::vector<Operation> OperationsFromFlag() {
 
 absl::Status InitOnce(Operation operation) {
   std::unique_ptr<UdfClient> noop_udf_client = NewNoopUdfClient();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   std::unique_ptr<MetricsRecorder> metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
   std::unique_ptr<BlobStorageClient> blob_client =

@@ -38,51 +38,50 @@ readonly SCRIPT_DIR
 # shellcheck disable=SC1090
 . "${SCRIPT_DIR}"/install_go.sh
 
-function yum_update() {
-  yum -y update
+function dnf_update() {
+  dnf -y update
 }
 
 function install_python() {
-  amazon-linux-extras install -y \
-    python3.8
   mkdir -p /opt/bin
-  update-alternatives \
-    --install /opt/bin/python3 python3-opt /usr/bin/python3.8 100 \
-    --slave /opt/bin/python python /usr/bin/python3.8
-
+  alternatives \
+    --install /opt/bin/python3 python3-opt /usr/bin/python3.9 100 \
+    --slave /usr/bin/python3 python3-usr /usr/bin/python3.9 \
+    --slave /usr/bin/python python-usr /usr/bin/python3.9 \
+    --slave /opt/bin/python python /usr/bin/python3.9
 }
 
 function install_nitro() {
-  amazon-linux-extras install -y aws-nitro-enclaves-cli
-  yum install -y aws-nitro-enclaves-cli-devel
+  dnf install -y \
+    "aws-nitro-enclaves-cli-1.2.*" \
+    "aws-nitro-enclaves-cli-devel-1.2.*"
 }
 
 function install_gcc() {
   # install gcc, which is required to build socat
-  yum install -y "gcc-7.3.1*"
+  dnf install -y "gcc-11.3.*"
 }
 
 function install_misc() {
-  yum install -y \
-    "gettext-0.19.8.*" \
-    "git-2.38*" \
-    "tar-1.26*" \
+  dnf install -y \
+    "gettext-0.21*" \
+    "git-2.40.*" \
+    "tar-2:1.34*" \
     "unzip-6.0*" \
     "which-2.*" \
     "zip-3.0*"
 }
 
 function install_packer() {
-  yum install -y "yum-utils-1.1.31*"
-  yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
-  yum -y install "packer-1.9.1*"
+  dnf install -y "dnf-utils-4.1.*"
+  dnf config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+  dnf -y install "packer-1.9.2*"
   update-alternatives --install /usr/local/bin/packer packer /usr/bin/packer 100
-
   /usr/local/bin/packer version
 }
 
 function install_clang() {
-  yum install -y "clang-11.1.0*"
+  dnf install -y "clang-15.*"
   clang --version
 }
 
@@ -91,11 +90,11 @@ if [[ ${VERBOSE} -eq 1 ]]; then
   env
 fi
 
-yum_update
+install_python
+dnf_update
 install_nitro
 install_misc
 install_clang
 install_golang "${BUILD_ARCH}"
 install_gcc
 install_packer
-install_python

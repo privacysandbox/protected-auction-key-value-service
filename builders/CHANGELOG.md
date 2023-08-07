@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.42.1 (2023-08-14)
+
+
+### Bug Fixes
+
+* Revert override of /usr/bin/python links in build-amazonlinux2
+
+## 0.42.0 (2023-08-07)
+
+
+### Features
+
+* Add amazonlinux2 support to convert-docker-to-nitro
+* Add bsdmainutils for hexdump
+* Add build-amazonlinux2023 image
+* Add support for amazonlinux2023 in builder.sh
+* Configure python3.9 for python/python3 links
+* **deps:** Upgrade amazonlinux2 to 20230719
+* Remove jdk from build-amazonlinux2 image
+
+
+### Bug Fixes
+
+* Empty bazel-* arg list not an error condition
+
 ## 0.41.1 (2023-08-04)
 
 

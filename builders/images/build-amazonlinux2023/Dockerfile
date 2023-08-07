@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM amazonlinux:2.0.20230719.0
+FROM amazonlinux:2023.1.20230719.0
 
 COPY /install_apps install_golang_apps install_go.sh generate_system_bazelrc .bazelversion /scripts/
 COPY get_workspace_mount /usr/local/bin
@@ -26,7 +26,7 @@ ENV BUILD_ARCH="${TARGETARCH}" \
 RUN  \
   chmod 644 /etc/gitconfig && \
   /scripts/install_apps && \
-  /scripts/generate_system_bazelrc --user-root-name amazonlinux2 && \
+  /scripts/generate_system_bazelrc --user-root-name amazonlinux2023 && \
   /scripts/install_golang_apps && \
   rm -rf /scripts
 

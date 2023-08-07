@@ -22,6 +22,8 @@ function cleanup() {
   exit ${status}
 }
 
+declare BUILDER_IMAGE_NAME=build-amazonlinux2
+
 function usage() {
   declare -r -i exitval=${1-1}
   cat >&2 << USAGE
@@ -30,6 +32,7 @@ usage:
     --docker-image-tar <file>    Docker image tarfile
     --docker-image-uri <string>  Docker image uri (from tarfile)
     --docker-image-tag <string>  Docker image tag (from tarfile)
+    --builder-image <string>     Amazon Linux builder image name. Default: ${BUILDER_IMAGE_NAME}
     --outdir <path>              Output path for EIF files
     --eif-name <string>          Base filename for EIF files
 
@@ -62,6 +65,10 @@ while [[ $# -gt 0 ]]; do
       EIF_NAME="$2"
       shift 2 || usage
       ;;
+    --builder-image)
+      BUILDER_IMAGE_NAME="$2"
+      shift 2 || usage
+      ;;
     -h | --help) usage 0 ;;
     *) usage ;;
   esac
@@ -87,10 +94,11 @@ if ! [[ -d ${WORKSPACE}/${WS_OUTPUT_RELDIR} ]]; then
 fi
 
 readonly WS_OUTPUT_DIR=/src/workspace/"${WS_OUTPUT_RELDIR}"
-printf "==== building AWS Nitro image using build-amazonlinux2 =====\n"
+printf "==== building AWS Nitro image using %s =====\n" "${BUILDER_IMAGE_NAME}"
 builder::docker_img_to_nitro \
   "${DOCKER_IMAGE_TAR}" \
   "${DOCKER_IMAGE_URI}" \
   "${DOCKER_IMAGE_TAG}" \
   "${WS_OUTPUT_DIR}" \
-  "${EIF_NAME}"
+  "${EIF_NAME}" \
+  "${BUILDER_IMAGE_NAME}"

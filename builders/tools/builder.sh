@@ -123,6 +123,7 @@ function builder::add_aws_env_vars() {
 #   DOCKER_IMAGE_TAG  Docker image tag corresponding to tarfile
 #   OUTPUT_PATH  Output path, must be within the workspace
 #   EIF_NAME  Output base filename
+#   BUILDER_IMAGE_NAME (optional)  Amazon Linux builder image name
 #######################################
 function builder::docker_img_to_nitro() {
   local -r docker_image_tar="$1"
@@ -130,13 +131,15 @@ function builder::docker_img_to_nitro() {
   local -r docker_image_tag="$3"
   local -r output_path="$4"
   local -r eif_name="$5"
+  local -r image="${6-build-amazonlinux2}"
   local -r temp_tag="$(mktemp --dry-run temp-XXXXXX)"
   docker load -i "${docker_image_tar}"
   # add a temp tag to reduce the chance of conflicts or race conditions
   docker tag "${docker_image_uri}:${docker_image_tag}" "${docker_image_uri}:${temp_tag}"
   builder::docker_uri_to_nitro \
     "${docker_image_uri}:${temp_tag}" \
-    "${output_path}/${eif_name}"
+    "${output_path}/${eif_name}" \
+    "${image}"
   # remove the temp tag
   docker image rm "${docker_image_uri}:${temp_tag}"
 }
@@ -145,16 +148,18 @@ function builder::docker_img_to_nitro() {
 # Build a Nitro EIF from a docker image
 # Arguments:
 #   DOCKER_URI (with tag)
-#   OUTPUT_BASE_FILENAME -- path and base filename
+#   OUTPUT_BASE_FILENAME  path and base filename
+#   BUILDER_IMAGE_NAME (optional)  Amazon Linux builder image name
 #######################################
 function builder::docker_uri_to_nitro() {
   local -r docker_uri="$1"
   local -r output_base_fname="$2"
+  local -r image="${3-build-amazonlinux2}"
   local -r output_eif="${output_base_fname}".eif
   local -r output_json="${output_base_fname}".json
   local -r output_pcr0_json="${output_base_fname}".pcr0.json
   local -r output_pcr0_txt="${output_base_fname}".pcr0.txt
-  builder::cbuild_al2 "
+  builder::cbuild_al "${image}" "
 nitro-cli build-enclave --docker-uri ${docker_uri} --output-file ${output_eif@Q} >${output_json@Q}
 jq --compact-output '{PCR0: .Measurements.PCR0}' ${output_json@Q} >${output_pcr0_json@Q}
 jq --compact-output --raw-output '.Measurements.PCR0'  ${output_json@Q} >${output_pcr0_txt@Q}
@@ -162,21 +167,33 @@ jq --compact-output --raw-output '.Measurements.PCR0'  ${output_json@Q} >${outpu
 }
 
 #######################################
-# Invoke cbuild tool in a build-amazonlinux2 container
+# Invoke cbuild tool in an amazonlinux build container
+# Arguments:
+#   BUILDER_IMAGE_NAME  Amazon Linux builder image name
 #######################################
-function builder::cbuild_al2() {
-  local -r CBUILD="$(builder::get_tools_dir)"/cbuild
+function builder::cbuild_al() {
+  local -r image="$1"
+  shift
+  local -r cbuild="$(builder::get_tools_dir)"/cbuild
   declare -a env_vars
   builder::add_aws_env_vars env_vars
   declare env_args
   for evar in "${env_vars[@]}"; do
     env_args+=(--env "${evar}")
   done
-  printf "=== cbuild amazonlinux2 action envs ===\n"
+  printf "=== cbuild %s action envs ===\n" "${image}"
   # shellcheck disable=SC2086
-  "${CBUILD}" ${CBUILD_ARGS} "${env_args[@]}" --image build-amazonlinux2 --cmd "grep -o 'action_env.*' /etc/bazel.bazelrc 1>/dev/stderr 2>/dev/null"
+  "${cbuild}" ${CBUILD_ARGS} "${env_args[@]}" --image "${image}" --cmd "grep -o 'action_env.*' /etc/bazel.bazelrc 1>/dev/stderr 2>/dev/null"
   # shellcheck disable=SC2086
-  "${CBUILD}" ${CBUILD_ARGS} "${env_args[@]}" --image build-amazonlinux2 --cmd "$*"
+  "${cbuild}" ${CBUILD_ARGS} "${env_args[@]}" --image "${image}" --cmd "$*"
+}
+
+function builder::cbuild_al2() {
+  builder::cbuild_al build-amazonlinux2 "$@"
+}
+
+function builder::cbuild_al2023() {
+  builder::cbuild_al build-amazonlinux2023 "$@"
 }
 
 #######################################

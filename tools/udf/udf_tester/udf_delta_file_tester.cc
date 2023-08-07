@@ -169,6 +169,7 @@ absl::Status TestUdf(std::string kv_delta_file_path,
   auto hook = NewCacheGetValuesHook(*cache);
   auto udf_client =
       UdfClient::Create(config_builder.RegisterGetValuesHook(*hook)
+                            .RegisterLoggingHook()
                             .SetNumberOfWorkers(1)
                             .Config());
   if (!udf_client.ok()) {

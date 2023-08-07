@@ -2,41 +2,6 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
-## 0.12.0 (2023-07-31)
-
-
-### Features
-
-* A generic grpc client that sends a request and returns a response
-* Add ability to point to real coordinators through parameters
-* Add bazel configs for roma legacy vs sandboxed
-* Add NAT gateway for public internet access
-* Add OSSF Scorecard badge to top-level README
-* Add OSSF Scorecard GitHub Action
-* Add version to UdfConfig.
-* Generate synthetic requests at fixed rate
-* grpc client worker to send requests at configurable QPS
-* Integrating kv value server with the KeyFetcherManagerInterface
-* Skip delta and snapshot files that belong to other shards
-* Upgrade build-system to v0.33.0
-* Upgrade data-plane-shared-libraries to 2023-07-12 commit.
-* Upgrade data-plane-shared-libraries to 2023-07-21 commit.
-* Upgrade data-plane-shared-libraries to 2023-07-26 commit.
-
-
-### Bug Fixes
-
-* Check that fb strings are not nullptr.
-* fix another asan error in the test
-* Fix grpc client error
-* Fix UDF function handler name
-* Write data record for set data in the delta test file generator
-
-
-### Documentation
-
-* Update screenshot of delta file
-
 ## 0.11.0 (2023-07-11)
 
 

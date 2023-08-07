@@ -14,6 +14,10 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 
+package(default_visibility = [
+    "//tools:__subpackages__",
+])
+
 cc_library(
     name = "request_generation_util",
     srcs = ["request_generation_util.cc"],
@@ -106,7 +110,10 @@ cc_library(
 cc_binary(
     name = "request_simulation_system_main",
     srcs = ["main.cc"],
-    visibility = ["//tools/request_simulation:__subpackages__"],
+    visibility = [
+        "//production/packaging:__subpackages__",
+        "//tools/request_simulation:__subpackages__",
+    ],
     deps = [
         ":request_simulation_system",
         "@com_github_google_glog//:glog",

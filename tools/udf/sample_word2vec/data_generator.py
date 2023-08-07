@@ -69,7 +69,7 @@ def _CreateHierarchy(model, linkage_matrix, words, n_clusters) -> dict[str, list
     hierarchy_dict = {}
     for cluster in word_clusters.values():
         category = _PickCategoryName(model, cluster)
-        hierarchy_dict[category.lower()] = [word.lower() for word in cluster]
+        hierarchy_dict[category.lower()] = [word for word in cluster]
     return hierarchy_dict
 
 
@@ -219,6 +219,7 @@ def Main():
     )
     parser.add_argument(
         "--generate-categories",
+        action=argparse.BooleanOptionalAction,
         dest="is_generate_categories",
         default=True,
         help="Generate category CSV containing key->set data",
@@ -244,12 +245,14 @@ def Main():
     )
     parser.add_argument(
         "--show-categories",
+        action=argparse.BooleanOptionalAction,
         dest="is_show_categories",
         default=False,
         help="Print category data to stdout.",
     )
     parser.add_argument(
         "--generate-embeddings",
+        action=argparse.BooleanOptionalAction,
         dest="is_generate_embeddings",
         default=True,
         help="Generate embeddings CSV containing word->embedding data for every word in the model",

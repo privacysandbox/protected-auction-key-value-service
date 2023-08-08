@@ -97,7 +97,11 @@ cc_library(
         ":grpc_client",
         ":request_generation_util",
         ":synthetic_request_generator",
+        "//components/data/blob_storage:blob_storage_client",
+        "//components/data/blob_storage:delta_file_notifier",
         "//components/data/common:thread_manager",
+        "//components/util:platform_initializer",
+        "//public/data_loading/readers:riegeli_stream_io",
         "//public/query:get_values_cc_grpc",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_github_google_glog//:glog",
@@ -210,5 +214,6 @@ cc_test(
         "//public/testing:fake_key_value_service_impl",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

@@ -54,6 +54,16 @@ ABSL_FLAG(int64_t, message_queue_max_capacity, 10000000,
 ABSL_FLAG(kv_server::GrpcAuthenticationMode, server_auth_mode,
           kv_server::GrpcAuthenticationMode::kSsl,
           "The server authentication mode");
+ABSL_FLAG(int32_t, s3client_max_connections, 1,
+          "S3Client max connections for reading data files.");
+ABSL_FLAG(int32_t, s3client_max_range_bytes, 8388608,
+          "S3Client max range bytes for reading data files.");
+ABSL_FLAG(
+    int32_t, backup_poll_frequency_secs, 300,
+    "Interval between attempts to check if there are new data files on S3,"
+    "as a backup to listening to new data files");
+ABSL_FLAG(int32_t, data_loading_num_threads, 1,
+          "Number of parallel threads for reading and loading data files.");
 
 namespace kv_server {
 
@@ -99,6 +109,9 @@ absl::Status RequestSimulationSystem::Init() {
   if (auto status = InitializeGrpcClientWorkers(); !status.ok()) {
     return status;
   }
+  blob_storage_client_ = CreateBlobClient();
+  delta_file_notifier_ = CreateDeltaFileNotifier();
+  delta_stream_reader_factory_ = CreateStreamRecordReaderFactory();
   LOG(INFO) << "Request simulation system is initialized,"
                "target server address is "
             << server_address_ << " and server method is " << server_method_;
@@ -165,5 +178,24 @@ absl::Status RequestSimulationSystem::Stop() {
 }
 
 bool RequestSimulationSystem::IsRunning() const { return is_running; }
+
+std::unique_ptr<BlobStorageClient> RequestSimulationSystem::CreateBlobClient() {
+  BlobStorageClient::ClientOptions options;
+  options.max_connections = absl::GetFlag(FLAGS_s3client_max_connections);
+  options.max_range_bytes = absl::GetFlag(FLAGS_s3client_max_range_bytes);
+  return BlobStorageClient::Create(metrics_recorder_, options);
+}
+std::unique_ptr<DeltaFileNotifier>
+RequestSimulationSystem::CreateDeltaFileNotifier() {
+  return DeltaFileNotifier::Create(
+      *blob_storage_client_,
+      absl::Seconds(absl::GetFlag(FLAGS_backup_poll_frequency_secs)));
+}
+std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
+RequestSimulationSystem::CreateStreamRecordReaderFactory() {
+  ConcurrentStreamRecordReader<std::string_view>::Options options;
+  options.num_worker_threads = absl::GetFlag(FLAGS_data_loading_num_threads);
+  return StreamRecordReaderFactory<std::string_view>::Create(options);
+}
 
 }  // namespace kv_server

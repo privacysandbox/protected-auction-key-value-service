@@ -25,10 +25,12 @@
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
 #include "public/testing/fake_key_value_service_impl.h"
+#include "src/cpp/telemetry/mocks.h"
 #include "src/cpp/util/duration.h"
 
 namespace kv_server {
 
+using privacy_sandbox::server_common::MockMetricsRecorder;
 using privacy_sandbox::server_common::SimulatedSteadyClock;
 using privacy_sandbox::server_common::SteadyTime;
 using testing::_;
@@ -62,6 +64,7 @@ class SimulationSystemTest : public ::testing::Test {
   }
   std::unique_ptr<FakeKeyValueServiceImpl> fake_get_value_service_;
   std::unique_ptr<grpc::Server> server_;
+  MockMetricsRecorder metrics_recorder_;
   SimulatedSteadyClock sim_clock_;
   std::unique_ptr<MockSleepFor> mock_sleep_for_;
 };
@@ -80,7 +83,8 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
     return server_->InProcessChannel(grpc::ChannelArguments());
   };
   EXPECT_CALL(*mock_sleep_for_, Duration(_)).WillRepeatedly(Return(true));
-  RequestSimulationSystem system(sim_clock_, std::move(mock_sleep_for_),
+  RequestSimulationSystem system(metrics_recorder_, sim_clock_,
+                                 std::move(mock_sleep_for_),
                                  channel_creation_fn);
   EXPECT_TRUE(system.Init().ok());
   sim_clock_.AdvanceTime(absl::Seconds(1));

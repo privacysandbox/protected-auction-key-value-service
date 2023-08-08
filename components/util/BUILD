@@ -120,7 +120,7 @@ cc_library(
     ],
     visibility = [
         "//components:__subpackages__",
-        "//tools/data_cli:__subpackages__",
+        "//tools:__subpackages__",
     ],
     deps = select({
         "//:aws_platform": [

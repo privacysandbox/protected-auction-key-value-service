@@ -333,7 +333,7 @@ TEST(DeleteKeyTest, InOrderDeleteAfterUpdateWorks) {
   EXPECT_EQ(kv_pairs.size(), 0);
 }
 
-TEST(UpateKeyValueSetTest, UpdateAfterUpdateWithSameValue) {
+TEST(UpdateKeyValueSetTest, UpdateAfterUpdateWithSameValue) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
@@ -347,7 +347,7 @@ TEST(UpateKeyValueSetTest, UpdateAfterUpdateWithSameValue) {
   EXPECT_EQ(value_meta.is_deleted, false);
 }
 
-TEST(UpateKeyValueSetTest, UpdateAfterUpdateWithDifferentValue) {
+TEST(UpdateKeyValueSetTest, UpdateAfterUpdateWithDifferentValue) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> first_value = {"v1"};
   std::vector<std::string_view> second_value = {"v2"};
@@ -368,7 +368,7 @@ TEST(UpateKeyValueSetTest, UpdateAfterUpdateWithDifferentValue) {
   EXPECT_EQ(value_meta_v2.is_deleted, false);
 }
 
-TEST(InOrderUpateKeyValueSetTest, InsertAfterDeleteExpectInsert) {
+TEST(InOrderUpdateKeyValueSetTest, InsertAfterDeleteExpectInsert) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 1);
@@ -382,7 +382,7 @@ TEST(InOrderUpateKeyValueSetTest, InsertAfterDeleteExpectInsert) {
   EXPECT_EQ(value_meta.is_deleted, false);
 }
 
-TEST(InOrderUpateKeyValueSetTest, DeleteAfterInsert) {
+TEST(InOrderUpdateKeyValueSetTest, DeleteAfterInsert) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
@@ -396,7 +396,7 @@ TEST(InOrderUpateKeyValueSetTest, DeleteAfterInsert) {
   EXPECT_EQ(value_meta_v1.is_deleted, true);
 }
 
-TEST(OutOfOrderUpateKeyValueSetTest, InsertAfterDeleteExpectNoInsert) {
+TEST(OutOfOrderUpdateKeyValueSetTest, InsertAfterDeleteExpectNoInsert) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
@@ -410,7 +410,7 @@ TEST(OutOfOrderUpateKeyValueSetTest, InsertAfterDeleteExpectNoInsert) {
   EXPECT_EQ(value_meta.is_deleted, true);
 }
 
-TEST(OutOfOrderUpateKeyValueSetTest, DeleteAfterInsertExpectNoDelete) {
+TEST(OutOfOrderUpdateKeyValueSetTest, DeleteAfterInsertExpectNoDelete) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 2);

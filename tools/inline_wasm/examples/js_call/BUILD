@@ -31,19 +31,23 @@ BASE_LINKOPTS = [
 ]
 
 cc_binary(
-    name = "hello_cc",
-    srcs = ["hello.cc"],
+    name = "handle_request_cc",
+    srcs = ["handle_request.cc"],
     linkopts = BASE_LINKOPTS,
     # This target won't build successfully on its own because of missing emscripten
     # headers etc. Therefore, we hide it from wildcards.
     tags = ["manual"],
+    deps = [
+        "@com_google_absl//absl/status:statusor",
+        "@nlohmann_json//:lib",
+    ],
 )
 
-# bazel run ---config=emscripten \
-# //tools/inline_wasm/examples/hello_world:hello_delta
+# bazel run --config=emscripten \
+# //tools/inline_wasm/examples/js_call:handle_request_cc_delta
 inline_wasm_udf_delta(
-    name = "hello_delta",
-    cc_target = ":hello_cc",
+    name = "handle_request_cc_delta",
+    cc_target = ":handle_request_cc",
     custom_udf_js = "my_udf.js",
     tags = ["manual"],
 )

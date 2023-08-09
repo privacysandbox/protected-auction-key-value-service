@@ -40,6 +40,13 @@ build:roma_legacy --@control_plane_shared//cc/roma/roma_service/src:service=lega
 build:roma_sandboxed --@control_plane_shared//cc/roma/roma_service/src:service=sandboxed
 build:roma_sandboxed --per_file_copt=.*sandboxed_api.*@-Wno-return-type
 
+# Required to run wasm_cc_binary
+build:emscripten --incompatible_enable_cc_toolchain_resolution
+
+# Required to use protos in wasm_cc_binary
+build:emscripten --per_file_copt=.*zlib.*@-Wno-deprecated-non-prototype
+build:emscripten --per_file_copt=.*utf8_range.*@-Wno-unused-function
+
 # Address sanitizer, set action_env to segregate cache entries
 build:asan --action_env=PRIVACY_SANDBOX_SERVERS_ASAN=1
 build:asan --strip=never

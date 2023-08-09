@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@emsdk//emscripten_toolchain:wasm_rules.bzl", "wasm_cc_binary")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("//tools/inline_wasm:wasm.bzl", "inline_wasm_udf_delta")
+load("//tools/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta", "inline_wasm_udf_delta")
 
 BASE_LINKOPTS = [
     # Enable embind
@@ -39,11 +40,34 @@ cc_binary(
     tags = ["manual"],
 )
 
+wasm_cc_binary(
+    name = "hello_em",
+    cc_target = ":hello_cc",
+    outputs = [
+        "hello.wasm",
+        "hello.js",
+    ],
+    tags = ["manual"],
+    visibility = ["//visibility:private"],
+)
+
 # bazel run ---config=emscripten \
 # //tools/inline_wasm/examples/hello_world:hello_delta
 inline_wasm_udf_delta(
     name = "hello_delta",
+    custom_udf_js = "my_udf.js",
+    glue_js = ":hello.js",
+    output_file_name = "DELTA_0000000000000006",
+    tags = ["manual"],
+    wasm_binary = ":hello.wasm",
+)
+
+# bazel run ---config=emscripten \
+# //tools/inline_wasm/examples/hello_world:hello_delta_cc
+cc_inline_wasm_udf_delta(
+    name = "hello_delta_cc",
     cc_target = ":hello_cc",
     custom_udf_js = "my_udf.js",
+    output_file_name = "DELTA_0000000000000007",
     tags = ["manual"],
 )

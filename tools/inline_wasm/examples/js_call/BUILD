@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("//tools/inline_wasm:wasm.bzl", "inline_wasm_udf_delta")
+load("//tools/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta")
 
 BASE_LINKOPTS = [
     # Enable embind
@@ -45,7 +45,7 @@ cc_binary(
 
 # bazel run --config=emscripten \
 # //tools/inline_wasm/examples/js_call:handle_request_cc_delta
-inline_wasm_udf_delta(
+cc_inline_wasm_udf_delta(
     name = "handle_request_cc_delta",
     cc_target = ":handle_request_cc",
     custom_udf_js = "my_udf.js",

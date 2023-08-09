@@ -190,7 +190,10 @@ cc_test(
 cc_binary(
     name = "server",
     srcs = ["main.cc"],
-    visibility = ["//production/packaging:__subpackages__"],
+    visibility = [
+        "//google_internal/production/packaging:__subpackages__",
+        "//production/packaging:__subpackages__",
+    ],
     deps = [
         ":key_fetcher_factory",
         ":server_lib",

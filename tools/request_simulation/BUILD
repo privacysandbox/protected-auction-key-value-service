@@ -89,6 +89,28 @@ cc_library(
 )
 
 cc_library(
+    name = "delta_based_request_generator",
+    srcs = ["delta_based_request_generator.cc"],
+    hdrs = ["delta_based_request_generator.h"],
+    deps = [
+        ":message_queue",
+        ":request_generation_util",
+        "//components/data/blob_storage:blob_storage_client",
+        "//components/data/blob_storage:delta_file_notifier",
+        "//components/data/common:thread_manager",
+        "//components/data/realtime:realtime_notifier",
+        "//public/data_loading:data_loading_fbs",
+        "//public/data_loading:records_utils",
+        "//public/data_loading/readers:riegeli_stream_io",
+        "@com_github_google_flatbuffers//:flatbuffers",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:tracing",
+    ],
+)
+
+cc_library(
     name = "request_simulation_system",
     srcs = ["request_simulation_system.cc"],
     hdrs = ["request_simulation_system.h"],
@@ -213,6 +235,19 @@ cc_test(
         "//components/util:sleepfor_mock",
         "//public/testing:fake_key_value_service_impl",
         "//tools/request_simulation/request:raw_request_cc_proto",
+        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_test(
+    name = "delta_based_request_generator_test",
+    size = "small",
+    srcs = ["delta_based_request_generator_test.cc"],
+    deps = [
+        ":delta_based_request_generator",
+        "//components/data/common:mocks",
+        "//public/test_util:mocks",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],

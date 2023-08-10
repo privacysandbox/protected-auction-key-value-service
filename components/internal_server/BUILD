@@ -86,8 +86,8 @@ cc_library(
     ],
     deps = [
         ":internal_lookup_cc_grpc",
+        ":lookup",
         ":string_padder",
-        "//components/data_server/cache",
         "//components/data_server/request_handler:ohttp_server_encryptor",
         "//components/query:driver",
         "//components/query:scanner",
@@ -107,6 +107,7 @@ cc_test(
     deps = [
         ":internal_lookup_cc_grpc",
         ":lookup_server_impl",
+        ":mocks",
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/cache:mocks",
@@ -134,6 +135,7 @@ cc_library(
     hdrs = ["mocks.h"],
     deps = [
         ":internal_lookup_cc_proto",
+        ":lookup",
         ":lookup_client_impl",
         ":run_query_client_impl",
         "@com_google_absl//absl/status:statusor",
@@ -175,6 +177,32 @@ cc_grpc_library(
 )
 
 cc_library(
+    name = "lookup",
+    hdrs = ["lookup.h"],
+    deps = [
+        ":internal_lookup_cc_proto",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name =
+        "local_lookup",
+    srcs = ["local_lookup.cc"],
+    hdrs = ["local_lookup.h"],
+    deps = [
+        ":internal_lookup_cc_proto",
+        ":lookup",
+        "//components/data_server/cache",
+        "//components/query:driver",
+        "//components/query:scanner",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+    ],
+)
+
+cc_library(
     name = "remote_lookup_client_impl",
     srcs = [
         "remote_lookup_client_impl.cc",
@@ -207,6 +235,7 @@ cc_library(
     ],
     deps = [
         ":internal_lookup_cc_grpc",
+        ":lookup",
         ":remote_lookup_client_impl",
         "//components/data_server/cache",
         "//components/query:driver",
@@ -229,6 +258,7 @@ cc_test(
     ],
     deps = [
         ":internal_lookup_cc_grpc",
+        ":mocks",
         ":sharded_lookup_server_impl",
         "//components/data_server/cache:mocks",
         "//components/sharding:mocks",
@@ -296,12 +326,29 @@ cc_test(
     ],
     deps = [
         ":lookup_server_impl",
+        ":mocks",
         ":remote_lookup_client_impl",
         "//components/data_server/cache",
         "//components/data_server/cache:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_test(
+    name = "local_lookup_test",
+    size = "small",
+    srcs = [
+        "local_lookup_test.cc",
+    ],
+    deps = [
+        ":local_lookup",
+        "//components/data_server/cache:mocks",
+        "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_protobuf//:protobuf",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

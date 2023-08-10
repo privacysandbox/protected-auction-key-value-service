@@ -20,9 +20,9 @@
 #include <vector>
 
 #include "absl/status/status.h"
-#include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/get_key_value_set_result.h"
 #include "components/internal_server/lookup.grpc.pb.h"
+#include "components/internal_server/lookup.h"
 #include "components/query/driver.h"
 #include "components/query/scanner.h"
 #include "glog/logging.h"
@@ -193,22 +193,14 @@ absl::Status ShardedLookupServiceImpl::ProcessShardedKeys(
 absl::StatusOr<InternalLookupResponse> ShardedLookupServiceImpl::GetLocalValues(
     const std::vector<std::string_view>& key_list) const {
   InternalLookupResponse response;
-  if (key_list.empty()) {
-    return response;
-  }
-  for (auto& [key, value] : cache_.GetKeyValuePairs(key_list)) {
-    SingleLookupResult lookup_result;
-    lookup_result.set_value(std::move(value));
-    (*response.mutable_kv_pairs())[key] = std::move(lookup_result);
-  }
-  return response;
+  return lookup_.GetKeyValues(key_list);
 }
 
 absl::StatusOr<InternalLookupResponse>
 ShardedLookupServiceImpl::GetLocalKeyValuesSet(
     const std::vector<std::string_view>& key_list) const {
-  InternalLookupResponse response;
   if (key_list.empty()) {
+    InternalLookupResponse response;
     return response;
   }
 
@@ -219,21 +211,7 @@ ShardedLookupServiceImpl::GetLocalKeyValuesSet(
   // a sepration between UDF and Data servers.
   absl::flat_hash_set<std::string_view> key_list_set(key_list.begin(),
                                                      key_list.end());
-  std::unique_ptr<GetKeyValueSetResult> key_value_set_result =
-      cache_.GetKeyValueSet(key_list_set);
-  for (const auto& key : key_list) {
-    SingleLookupResult result;
-    const auto value_set = key_value_set_result->GetValueSet(key);
-    if (value_set.empty()) {
-      auto status = result.mutable_status();
-      status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
-    } else {
-      auto keyset_values = result.mutable_keyset_values();
-      keyset_values->mutable_values()->Add(value_set.begin(), value_set.end());
-    }
-    (*response.mutable_kv_pairs())[key] = std::move(result);
-  }
-  return response;
+  return lookup_.GetKeyValueSet(key_list_set);
 }
 
 std::vector<ShardedLookupServiceImpl::ShardLookupInput>

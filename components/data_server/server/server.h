@@ -34,6 +34,7 @@
 #include "components/data_server/request_handler/get_values_adapter.h"
 #include "components/data_server/server/lifecycle_heartbeat.h"
 #include "components/data_server/server/parameter_fetcher.h"
+#include "components/internal_server/lookup.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/sharding/shard_manager.h"
 #include "components/udf/hooks/get_values_hook.h"
@@ -133,6 +134,9 @@ class Server {
       delta_stream_reader_factory_;
 
   std::unique_ptr<DataOrchestrator> data_orchestrator_;
+
+  // Helper for lookup.proto calls that reads from local cache only
+  std::unique_ptr<Lookup> local_lookup_;
 
   // Internal Lookup Server -- lookup requests to this server originate (from
   // UDF sandbox) and terminate on the same machine.

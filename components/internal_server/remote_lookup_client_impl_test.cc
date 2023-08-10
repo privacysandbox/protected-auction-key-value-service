@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "components/data_server/cache/cache.h"
-#include "components/data_server/cache/mocks.h"
 #include "components/internal_server/lookup_server_impl.h"
+#include "components/internal_server/mocks.h"
 #include "components/internal_server/remote_lookup_client.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -27,6 +27,7 @@
 namespace kv_server {
 namespace {
 
+using google::protobuf::TextFormat;
 using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Return;
@@ -35,7 +36,7 @@ class RemoteLookupClientImplTest : public ::testing::Test {
  protected:
   RemoteLookupClientImplTest() {
     lookup_service_ = std::make_unique<LookupServiceImpl>(
-        mock_cache_, fake_key_fetcher_manager_, mock_metrics_recorder_);
+        mock_lookup_, fake_key_fetcher_manager_, mock_metrics_recorder_);
     grpc::ServerBuilder builder;
     builder.RegisterService(lookup_service_.get());
     server_ = (builder.BuildAndStart());
@@ -49,7 +50,7 @@ class RemoteLookupClientImplTest : public ::testing::Test {
     server_->Shutdown();
     server_->Wait();
   }
-  MockCache mock_cache_;
+  MockLookup mock_lookup_;
   MockMetricsRecorder mock_metrics_recorder_;
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager_;
@@ -65,9 +66,19 @@ TEST_F(RemoteLookupClientImplTest, EncryptedPaddedSuccessfulCall) {
   request.set_lookup_sets(false);
   std::string serialized_message = request.SerializeAsString();
   int32_t padding_length = 10;
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(testing::_))
-      .WillOnce(testing::Return(absl::flat_hash_map<std::string, std::string>{
-          {"key1", "value1"}, {"key2", "value2"}}));
+  InternalLookupResponse local_lookup_response;
+  TextFormat::ParseFromString(R"pb(kv_pairs {
+                                     key: "key1"
+                                     value { value: "value1" }
+                                   }
+                                   kv_pairs {
+                                     key: "key2"
+                                     value { value: "value2" }
+                                   }
+                              )pb",
+                              &local_lookup_response);
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_))
+      .WillOnce(Return(local_lookup_response));
   auto response_status =
       remote_lookup_client_->GetValues(serialized_message, padding_length);
   EXPECT_TRUE(response_status.ok());
@@ -110,15 +121,17 @@ TEST_F(RemoteLookupClientImplTest, EncryptedPaddedSuccessfulKeysettLookup) {
   std::string serialized_message = request.SerializeAsString();
   int32_t padding_length = 10;
 
-  auto mock_get_key_value_set_result =
-      std::make_unique<MockGetKeyValueSetResult>();
+  InternalLookupResponse local_lookup_response;
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key1"
+             value { keyset_values { values: "value3" values: "value4" } }
+           }
+      )pb",
+      &local_lookup_response);
+  EXPECT_CALL(mock_lookup_, GetKeyValueSet(_))
+      .WillOnce(Return(local_lookup_response));
 
-  EXPECT_CALL(*mock_get_key_value_set_result, GetValueSet("key1"))
-      .WillOnce(
-          Return(absl::flat_hash_set<std::string_view>{"value3", "value4"}));
-  absl::flat_hash_set<std::string_view> key_set = {"key1"};
-  EXPECT_CALL(mock_cache_, GetKeyValueSet(key_set))
-      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
   auto response_status =
       remote_lookup_client_->GetValues(serialized_message, padding_length);
   EXPECT_TRUE(response_status.ok());

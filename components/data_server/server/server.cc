@@ -30,6 +30,7 @@
 #include "components/data_server/server/key_value_service_v2_impl.h"
 #include "components/errors/retry.h"
 #include "components/internal_server/constants.h"
+#include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup_client.h"
 #include "components/internal_server/lookup_server_impl.h"
 #include "components/internal_server/run_query_client.h"
@@ -306,6 +307,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   SetQueueManager(metadata, message_service_blob_.get());
 
   grpc_server_ = CreateAndStartGrpcServer();
+  local_lookup_ = CreateLocalLookup(*cache_, *metrics_recorder_);
   remote_lookup_server_ = CreateAndStartRemoteLookupServer();
   {
     auto status_or_notifier = BlobStorageChangeNotifier::Create(
@@ -548,13 +550,14 @@ absl::StatusOr<std::unique_ptr<grpc::Server>>
 Server::CreateAndStartInternalLookupServer() {
   if (num_shards_ <= 1) {
     internal_lookup_service_ = std::make_unique<LookupServiceImpl>(
-        *cache_, *key_fetcher_manager_, *metrics_recorder_);
+        *local_lookup_, *key_fetcher_manager_, *metrics_recorder_);
   } else {
     if (const absl::Status status = CreateShardManager(); !status.ok()) {
       return status;
     }
     internal_lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
-        *metrics_recorder_, *cache_, num_shards_, shard_num_, *shard_manager_);
+        *metrics_recorder_, *local_lookup_, num_shards_, shard_num_,
+        *shard_manager_);
   }
 
   grpc::ServerBuilder internal_lookup_server_builder;
@@ -576,7 +579,7 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartRemoteLookupServer() {
   }
 
   remote_lookup_service_ = std::make_unique<LookupServiceImpl>(
-      *cache_, *key_fetcher_manager_, *metrics_recorder_);
+      *local_lookup_, *key_fetcher_manager_, *metrics_recorder_);
   grpc::ServerBuilder remote_lookup_server_builder;
   auto remoteLookupServerAddress =
       absl::StrCat(kLocalIp, ":", kRemoteLookupServerPort);

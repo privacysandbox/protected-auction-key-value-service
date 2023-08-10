@@ -19,8 +19,8 @@
 
 #include <string>
 
-#include "components/data_server/cache/cache.h"
 #include "components/internal_server/lookup.grpc.pb.h"
+#include "components/internal_server/lookup.h"
 #include "grpcpp/grpcpp.h"
 #include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
@@ -28,15 +28,17 @@
 
 namespace kv_server {
 // Implements the internal lookup service for the data store.
+// TODO(b/290640967): Refactor to keep SecureLookup, but remove rest, since it's
+// no longer necessary to have internal server
 class LookupServiceImpl final
     : public kv_server::InternalLookupService::Service {
  public:
   LookupServiceImpl(
-      const Cache& cache,
+      const Lookup& lookup,
       privacy_sandbox::server_common::KeyFetcherManagerInterface&
           key_fetcher_manager,
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
-      : cache_(cache),
+      : lookup_(lookup),
         key_fetcher_manager_(key_fetcher_manager),
         metrics_recorder_(metrics_recorder) {}
 
@@ -67,7 +69,7 @@ class LookupServiceImpl final
       InternalLookupResponse& response) const;
   grpc::Status ToInternalGrpcStatus(const absl::Status& status,
                                     const char* eventName) const;
-  const Cache& cache_;
+  const Lookup& lookup_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&
       key_fetcher_manager_;
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;

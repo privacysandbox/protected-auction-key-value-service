@@ -143,6 +143,8 @@ cc_library(
         "//components/data_server/request_handler:get_values_v2_handler",
         "//components/errors:retry",
         "//components/internal_server:constants",
+        "//components/internal_server:local_lookup",
+        "//components/internal_server:lookup",
         "//components/internal_server:lookup_client_impl",
         "//components/internal_server:lookup_server_impl",
         "//components/internal_server:sharded_lookup_server_impl",

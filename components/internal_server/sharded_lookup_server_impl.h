@@ -26,8 +26,8 @@
 
 #include "absl/log/check.h"
 #include "absl/status/status.h"
-#include "components/data_server/cache/cache.h"
 #include "components/internal_server/lookup.grpc.pb.h"
+#include "components/internal_server/lookup.h"
 #include "components/internal_server/remote_lookup_client.h"
 #include "components/sharding/shard_manager.h"
 #include "grpcpp/grpcpp.h"
@@ -38,18 +38,20 @@
 namespace kv_server {
 
 // Implements the internal lookup service for the data store.
+// TODO(b/290640967): Remove since it's no longer necessary to have internal
+// server
 class ShardedLookupServiceImpl final
     : public kv_server::InternalLookupService::Service {
  public:
   ShardedLookupServiceImpl(
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      const Cache& cache, const int32_t num_shards,
+      const Lookup& lookup, const int32_t num_shards,
       const int32_t current_shard_num, ShardManager& shard_manager,
-      // We 're currently going with a default empty string and not
+      // We're currently going with a default empty string and not
       // allowing AdTechs to modify it.
       const std::string hashing_seed = "")
       : metrics_recorder_(metrics_recorder),
-        cache_(cache),
+        lookup_(lookup),
         num_shards_(num_shards),
         current_shard_num_(current_shard_num),
         hashing_seed_(hashing_seed),
@@ -123,7 +125,7 @@ class ShardedLookupServiceImpl final
       InternalLookupResponse& keysets_lookup_response) const;
 
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
-  const Cache& cache_;
+  const Lookup& lookup_;
   const int32_t num_shards_;
   const int32_t current_shard_num_;
   const std::string hashing_seed_;

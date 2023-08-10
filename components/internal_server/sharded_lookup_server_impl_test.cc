@@ -23,6 +23,7 @@
 
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
+#include "components/internal_server/mocks.h"
 #include "components/sharding/mocks.h"
 #include "glog/logging.h"
 #include "gmock/gmock.h"
@@ -57,7 +58,7 @@ class ShardedLookupServiceImplTest : public ::testing::Test {
   int32_t shard_num_ = 0;
 
   MockMetricsRecorder mock_metrics_recorder_;
-  MockCache mock_cache_;
+  MockLookup mock_lookup_;
   std::unique_ptr<ShardedLookupServiceImpl> lookup_service_;
   std::unique_ptr<grpc::Server> server_;
   std::unique_ptr<InternalLookupService::Stub> stub_;
@@ -68,9 +69,15 @@ TEST_F(ShardedLookupServiceImplTest, ReturnsKeysFromCache) {
   request.add_keys("key1");
   request.add_keys("key4");
 
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_))
-      .WillOnce(Return(
-          absl::flat_hash_map<std::string, std::string>{{"key4", "value4"}}));
+  InternalLookupResponse local_lookup_response;
+  TextFormat::ParseFromString(R"pb(kv_pairs {
+                                     key: "key4"
+                                     value { value: "value4" }
+                                   }
+                              )pb",
+                              &local_lookup_response);
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_))
+      .WillOnce(Return(local_lookup_response));
 
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
   for (int i = 0; i < 2; i++) {
@@ -100,14 +107,14 @@ TEST_F(ShardedLookupServiceImplTest, ReturnsKeysFromCache) {
               return resp;
             });
 
-        return std::move(mock_remote_lookup_client_1);
+        return mock_remote_lookup_client_1;
       });
 
   InternalLookupResponse response;
   grpc::ClientContext context;
 
   lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
-      mock_metrics_recorder_, mock_cache_, num_shards_, shard_num_,
+      mock_metrics_recorder_, mock_lookup_, num_shards_, shard_num_,
       *(*shard_manager));
   grpc::ServerBuilder builder;
   builder.RegisterService(lookup_service_.get());
@@ -137,14 +144,16 @@ TEST_F(ShardedLookupServiceImplTest, ReturnsKeysetsFromCache) {
   InternalRunQueryRequest request;
   request.set_query("key1 | key4");
 
-  auto mock_get_key_value_set_result =
-      std::make_unique<MockGetKeyValueSetResult>();
-
-  EXPECT_CALL(*mock_get_key_value_set_result, GetValueSet("key4"))
-      .WillOnce(
-          Return(absl::flat_hash_set<std::string_view>{"value1", "value2"}));
-  EXPECT_CALL(mock_cache_, GetKeyValueSet(_))
-      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
+  InternalLookupResponse local_lookup_response;
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key4"
+             value { keyset_values { values: "value1" values: "value2" } }
+           }
+      )pb",
+      &local_lookup_response);
+  EXPECT_CALL(mock_lookup_, GetKeyValueSet(_))
+      .WillOnce(Return(local_lookup_response));
 
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
   for (int i = 0; i < 2; i++) {
@@ -177,14 +186,14 @@ TEST_F(ShardedLookupServiceImplTest, ReturnsKeysetsFromCache) {
               return response;
             });
 
-        return std::move(mock_remote_lookup_client_1);
+        return mock_remote_lookup_client_1;
       });
 
   InternalRunQueryResponse response;
   grpc::ClientContext context;
 
   lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
-      mock_metrics_recorder_, mock_cache_, num_shards_, shard_num_,
+      mock_metrics_recorder_, mock_lookup_, num_shards_, shard_num_,
       *(*shard_manager));
   grpc::ServerBuilder builder;
   builder.RegisterService(lookup_service_.get());
@@ -210,9 +219,16 @@ TEST_F(ShardedLookupServiceImplTest, MissingKeyFromCache) {
   request.add_keys("key4");
   request.add_keys("key5");
 
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_))
-      .WillOnce(Return(
-          absl::flat_hash_map<std::string, std::string>{{"key4", "value4"}}));
+  InternalLookupResponse local_lookup_response;
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key4"
+             value { value: "value4" }
+           }
+      )pb",
+      &local_lookup_response);
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_))
+      .WillOnce(Return(local_lookup_response));
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
   for (int i = 0; i < 2; i++) {
     cluster_mappings.push_back({std::to_string(i)});
@@ -251,13 +267,13 @@ TEST_F(ShardedLookupServiceImplTest, MissingKeyFromCache) {
               return resp;
             });
 
-        return std::move(mock_remote_lookup_client_1);
+        return mock_remote_lookup_client_1;
       });
 
   InternalLookupResponse response;
   grpc::ClientContext context;
   lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
-      mock_metrics_recorder_, mock_cache_, num_shards_, shard_num_,
+      mock_metrics_recorder_, mock_lookup_, num_shards_, shard_num_,
       *(*shard_manager));
   grpc::ServerBuilder builder;
   builder.RegisterService(lookup_service_.get());
@@ -301,7 +317,7 @@ TEST_F(ShardedLookupServiceImplTest, MissingKeys) {
       ShardManager::Create(num_shards_, fake_key_fetcher_manager,
                            std::move(cluster_mappings), mock_metrics_recorder_);
   lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
-      mock_metrics_recorder_, mock_cache_, num_shards_, shard_num_,
+      mock_metrics_recorder_, mock_lookup_, num_shards_, shard_num_,
       **shard_manager);
   grpc::ServerBuilder builder;
   builder.RegisterService(lookup_service_.get());
@@ -320,9 +336,16 @@ TEST_F(ShardedLookupServiceImplTest, FailedDownstreamRequest) {
   InternalLookupRequest request;
   request.add_keys("key1");
   request.add_keys("key4");
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_))
-      .WillOnce(Return(
-          absl::flat_hash_map<std::string, std::string>{{"key4", "value4"}}));
+  InternalLookupResponse local_lookup_response;
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key4"
+             value { value: "value4" }
+           }
+      )pb",
+      &local_lookup_response);
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_))
+      .WillOnce(Return(local_lookup_response));
 
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
   for (int i = 0; i < 2; i++) {
@@ -345,13 +368,13 @@ TEST_F(ShardedLookupServiceImplTest, FailedDownstreamRequest) {
                     GetValues(serialized_request, 0))
             .WillOnce([]() { return absl::DeadlineExceededError("too long"); });
 
-        return std::move(mock_remote_lookup_client_1);
+        return mock_remote_lookup_client_1;
       });
 
   InternalLookupResponse response;
   grpc::ClientContext context;
   lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
-      mock_metrics_recorder_, mock_cache_, num_shards_, shard_num_,
+      mock_metrics_recorder_, mock_lookup_, num_shards_, shard_num_,
       **shard_manager);
   grpc::ServerBuilder builder;
   builder.RegisterService(lookup_service_.get());
@@ -396,13 +419,25 @@ TEST_F(ShardedLookupServiceImplTest, ReturnsKeysFromCachePadding) {
 
   int total_length = 22;
 
-  std::vector<std::string_view> key_list = {"key4", "verylongkey2"};
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_))
-      .WillOnce([&key_list](std::vector<std::string_view> key_list_input) {
+  std::vector<std::string> key_list = {"key4", "verylongkey2"};
+  InternalLookupResponse local_lookup_response;
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key4"
+             value { value: "key4value" }
+           }
+           kv_pairs {
+             key: "verylongkey2"
+             value { value: "verylongkey2value" }
+           }
+      )pb",
+      &local_lookup_response);
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_))
+      .WillOnce([&key_list, &local_lookup_response](
+                    std::vector<std::string_view> key_list_input) {
         EXPECT_THAT(key_list,
                     testing::UnorderedElementsAreArray(key_list_input));
-        return absl::flat_hash_map<std::string, std::string>{
-            {"key4", "key4value"}, {"verylongkey2", "verylongkey2value"}};
+        return local_lookup_response;
       });
 
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
@@ -448,7 +483,7 @@ TEST_F(ShardedLookupServiceImplTest, ReturnsKeysFromCachePadding) {
                 return resp;
               });
 
-          return std::move(mock_remote_lookup_client_1);
+          return mock_remote_lookup_client_1;
         }
         if (ip == "2") {
           auto mock_remote_lookup_client_1 =
@@ -466,7 +501,7 @@ TEST_F(ShardedLookupServiceImplTest, ReturnsKeysFromCachePadding) {
                 return resp;
               });
 
-          return std::move(mock_remote_lookup_client_1);
+          return mock_remote_lookup_client_1;
         }
         if (ip == "3") {
           auto mock_remote_lookup_client_1 =
@@ -499,7 +534,7 @@ TEST_F(ShardedLookupServiceImplTest, ReturnsKeysFromCachePadding) {
                 return resp;
               });
 
-          return std::move(mock_remote_lookup_client_1);
+          return mock_remote_lookup_client_1;
         }
         // ip == "0"
         return std::make_unique<MockRemoteLookupClient>();
@@ -509,7 +544,7 @@ TEST_F(ShardedLookupServiceImplTest, ReturnsKeysFromCachePadding) {
   grpc::ClientContext context;
 
   lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
-      mock_metrics_recorder_, mock_cache_, num_shards, shard_num_,
+      mock_metrics_recorder_, mock_lookup_, num_shards, shard_num_,
       *(*shard_manager));
   grpc::ServerBuilder builder;
   builder.RegisterService(lookup_service_.get());

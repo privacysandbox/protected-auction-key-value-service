@@ -55,9 +55,9 @@ container_deps()
 # emscripten
 http_archive(
     name = "emsdk",
-    sha256 = "78f3ebcbc984c6cf5aa59c69bcc5af87f570fbe6d2b92fc3e16f71e0c56413b3",
-    strip_prefix = "emsdk-3.1.43/bazel",
-    url = "https://github.com/emscripten-core/emsdk/archive/refs/tags/3.1.43.tar.gz",
+    sha256 = "48c0dd06539011a62ec1069a6c69e283731dabdb20454c45fb344dede421b5ad",
+    strip_prefix = "emsdk-3.1.44/bazel",
+    url = "https://github.com/emscripten-core/emsdk/archive/refs/tags/3.1.44.zip",
 )
 
 load("@emsdk//:deps.bzl", emsdk_deps = "deps")
@@ -66,7 +66,7 @@ emsdk_deps()
 
 load("@emsdk//:emscripten_deps.bzl", emsdk_emscripten_deps = "emscripten_deps")
 
-emsdk_emscripten_deps(emscripten_version = "3.1.33")
+emsdk_emscripten_deps(emscripten_version = "3.1.44")
 
 load("@emsdk//:toolchains.bzl", "register_emscripten_toolchains")
 

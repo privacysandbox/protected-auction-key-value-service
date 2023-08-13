@@ -44,33 +44,27 @@ load("@google_privacysandbox_servers_common//third_party:deps4.bzl", data_plane_
 
 data_plane_shared_deps4()
 
-load("//third_party:cpp_repositories.bzl", "cpp_repositories")
+load(
+    "//third_party:cpp_repositories.bzl",
+    "cpp_repositories",
+    "emscripten_repositories",
+)
 
 cpp_repositories()
+
+EMSCRIPTEN_VER = emscripten_repositories()
 
 load("//third_party:container_deps.bzl", "container_deps")
 
 container_deps()
 
-# emscripten
-http_archive(
-    name = "emsdk",
-    sha256 = "48c0dd06539011a62ec1069a6c69e283731dabdb20454c45fb344dede421b5ad",
-    strip_prefix = "emsdk-3.1.44/bazel",
-    url = "https://github.com/emscripten-core/emsdk/archive/refs/tags/3.1.44.zip",
-)
+load("//third_party:emscripten_deps1.bzl", "emscripten_deps1")
 
-load("@emsdk//:deps.bzl", emsdk_deps = "deps")
+emscripten_deps1()
 
-emsdk_deps()
+load("//third_party:emscripten_deps2.bzl", "emscripten_deps2")
 
-load("@emsdk//:emscripten_deps.bzl", emsdk_emscripten_deps = "emscripten_deps")
-
-emsdk_emscripten_deps(emscripten_version = "3.1.44")
-
-load("@emsdk//:toolchains.bzl", "register_emscripten_toolchains")
-
-register_emscripten_toolchains()
+emscripten_deps2(EMSCRIPTEN_VER)
 
 # googleapis
 http_archive(

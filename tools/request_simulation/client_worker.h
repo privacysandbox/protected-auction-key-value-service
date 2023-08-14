@@ -115,6 +115,7 @@ void ClientWorker<RequestT, ResponseT>::SendRequests() {
               << message_queue_.Size();
       if (request_body.ok()) {
         // TODO(b/292268143) collect metrics
+        VLOG(8) << "Sending message " << request_body.value();
         auto response = grpc_client_->SendMessage(
             request_converter_(request_body.value()), service_method_);
         if (!response.ok()) {

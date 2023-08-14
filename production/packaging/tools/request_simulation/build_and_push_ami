@@ -92,10 +92,14 @@ printf "==== Creating dist dir =====\n"
 mkdir -p "${DIST}"/aws
 chmod 770 "${DIST}" "${DIST}"/aws
 
-printf "==== build AWS artifacts using build-amazonlinux2 =====\n"
+printf "==== build AWS artifacts using bazel-debian =====\n"
+
+BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:platform=aws"
+
+printf "EXTRA ARGS %s: ${BAZEL_EXTRA_ARGS}"
 
 printf "==== Copying to dist =====\n"
-builder::cbuild_al2 $"
+builder::cbuild_debian $"
 trap _collect_logs EXIT
 function _collect_logs() {
   local -r -i STATUS=\$?

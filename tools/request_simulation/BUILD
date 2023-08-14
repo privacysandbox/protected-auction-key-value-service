@@ -111,16 +111,34 @@ cc_library(
 )
 
 cc_library(
+    name = "request_simulation_parameter_fetcher",
+    srcs = select({
+        "//:aws_platform": ["request_simulation_parameter_fetcher_aws.cc"],
+        "//:local_platform": ["request_simulation_parameter_fetcher_local.cc"],
+    }),
+    hdrs = ["request_simulation_parameter_fetcher.h"],
+    deps = [
+        "//components/data/common:message_service",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/flags:flag",
+    ],
+)
+
+cc_library(
     name = "request_simulation_system",
     srcs = ["request_simulation_system.cc"],
     hdrs = ["request_simulation_system.h"],
     deps = [
         ":client_worker",
+        ":delta_based_request_generator",
         ":grpc_client",
         ":request_generation_util",
+        ":request_simulation_parameter_fetcher",
         ":synthetic_request_generator",
+        "//components/data/blob_storage:blob_storage_change_notifier",
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",
+        "//components/data/common:change_notifier",
         "//components/data/common:thread_manager",
         "//components/util:platform_initializer",
         "//public/data_loading/readers:riegeli_stream_io",
@@ -225,7 +243,10 @@ cc_test(
 cc_test(
     name = "request_simulation_system_test",
     size = "small",
-    srcs = ["request_simulation_system_test.cc"],
+    srcs = select({
+        "//:aws_platform": [],
+        "//:local_platform": ["request_simulation_system_local_test.cc"],
+    }),
     tags = [
         "cpu:3",
     ],

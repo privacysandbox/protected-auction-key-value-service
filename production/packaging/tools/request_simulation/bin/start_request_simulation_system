@@ -15,4 +15,4 @@
 
 set -o errexit
 
-GLOG_logtostderr=1 /request_simulation/bin/request_simulation_system_main "${EXTRA_FLAGS}"
+GLOG_logtostderr=1 /request_simulation/bin/request_simulation_system_main ${EXTRA_FLAGS}

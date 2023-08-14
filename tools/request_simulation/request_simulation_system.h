@@ -34,9 +34,11 @@
 #include "public/query/get_values.grpc.pb.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "tools/request_simulation/client_worker.h"
+#include "tools/request_simulation/delta_based_request_generator.h"
 #include "tools/request_simulation/message_queue.h"
 #include "tools/request_simulation/rate_limiter.h"
 #include "tools/request_simulation/request/raw_request.pb.h"
+#include "tools/request_simulation/request_simulation_parameter_fetcher.h"
 #include "tools/request_simulation/synthetic_request_generator.h"
 
 ABSL_DECLARE_FLAG(std::string, server_address);
@@ -58,7 +60,9 @@ namespace kv_server {
 // 1. A message queue that staged the requests waiting to be sent.
 // 2. A synthetic request generator that generates made-up requests at given
 // rate.
-// 3. Client workers that send requests to the target server.
+// 3. A delta based request generator that reads keys from delta file and
+// generates requests from them
+// 4. Client workers that send requests to the target server.
 // The number of client workers is determined by the given concurrency
 // parameter.
 //
@@ -73,11 +77,20 @@ class RequestSimulationSystem {
       absl::AnyInvocable<std::shared_ptr<grpc::Channel>(
           const std::string& server_address,
           const GrpcAuthenticationMode& auth_mode)>
-          channel_creation_fn)
+          channel_creation_fn,
+      std::unique_ptr<RequestSimulationParameterFetcher>
+          parameter_fetcher_for_unit_testing = nullptr)
       : metrics_recorder_(metrics_recorder),
         steady_clock_(steady_clock),
         sleep_for_(std::move(sleep_for)),
-        channel_creation_fn_(std::move(channel_creation_fn)) {}
+        channel_creation_fn_(std::move(channel_creation_fn)) {
+    if (parameter_fetcher_for_unit_testing != nullptr) {
+      parameter_fetcher_ = std::move(parameter_fetcher_for_unit_testing);
+    } else {
+      parameter_fetcher_ =
+          std::make_unique<RequestSimulationParameterFetcher>();
+    }
+  }
   // Initializes and starts the system
   absl::Status InitAndStart();
   // Initializes system without starting the system
@@ -100,6 +113,7 @@ class RequestSimulationSystem {
   CreateStreamRecordReaderFactory();
   std::unique_ptr<RateLimiter> CreateRateLimiter(int64_t per_second_rate);
   absl::Status InitializeGrpcClientWorkers();
+  absl::AnyInvocable<std::string(std::string_view)> CreateRequestFromKeyFn();
   // This must be first, otherwise the AWS SDK will crash when it's called:
   PlatformInitializer platform_initializer_;
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
@@ -112,8 +126,11 @@ class RequestSimulationSystem {
   std::string server_address_;
   std::string server_method_;
   int concurrent_number_of_requests_;
+  int64_t synthetic_requests_fill_qps_;
   SyntheticRequestGenOption synthetic_request_gen_option_;
   std::unique_ptr<BlobStorageClient> blob_storage_client_;
+  std::unique_ptr<MessageService> message_service_blob_;
+  std::unique_ptr<BlobStorageChangeNotifier> blob_change_notifier_;
   std::unique_ptr<DeltaFileNotifier> delta_file_notifier_;
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
       delta_stream_reader_factory_;
@@ -121,10 +138,10 @@ class RequestSimulationSystem {
   std::unique_ptr<RateLimiter> synthetic_request_generator_rate_limiter_;
   std::unique_ptr<RateLimiter> grpc_request_rate_limiter_;
   std::unique_ptr<SyntheticRequestGenerator> synthetic_request_generator_;
-  // TODO(b/293623535) Add a delta file watcher to generate requests
-  // from delta file
+  std::unique_ptr<DeltaBasedRequestGenerator> delta_based_request_generator_;
   std::vector<std::unique_ptr<ClientWorker<RawRequest, google::api::HttpBody>>>
       grpc_client_workers_;
+  std::unique_ptr<RequestSimulationParameterFetcher> parameter_fetcher_;
   bool is_running;
   friend class RequestSimulationSystemTestPeer;
 };

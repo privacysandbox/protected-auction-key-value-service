@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "tools/request_simulation/request_simulation_system.h"
-
 #include <algorithm>
 #include <memory>
 #include <string>
@@ -27,6 +25,7 @@
 #include "public/testing/fake_key_value_service_impl.h"
 #include "src/cpp/telemetry/mocks.h"
 #include "src/cpp/util/duration.h"
+#include "tools/request_simulation/request_simulation_system.h"
 
 namespace kv_server {
 
@@ -44,6 +43,12 @@ class RequestSimulationSystemTestPeer {
   }
 };
 
+class MockRequestSimulationParameterFetcher
+    : public RequestSimulationParameterFetcher {
+ public:
+  MOCK_METHOD(NotifierMetadata, GetBlobStorageNotifierMetadata, (), (const));
+};
+
 namespace {
 
 class SimulationSystemTest : public ::testing::Test {
@@ -56,6 +61,8 @@ class SimulationSystemTest : public ::testing::Test {
     builder.RegisterService(fake_get_value_service_.get());
     server_ = (builder.BuildAndStart());
     mock_sleep_for_ = std::make_unique<MockSleepFor>();
+    mock_request_simulation_parameter_fetcher_ =
+        std::make_unique<MockRequestSimulationParameterFetcher>();
   }
 
   ~SimulationSystemTest() override {
@@ -67,6 +74,8 @@ class SimulationSystemTest : public ::testing::Test {
   MockMetricsRecorder metrics_recorder_;
   SimulatedSteadyClock sim_clock_;
   std::unique_ptr<MockSleepFor> mock_sleep_for_;
+  std::unique_ptr<MockRequestSimulationParameterFetcher>
+      mock_request_simulation_parameter_fetcher_;
 };
 
 TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
@@ -83,9 +92,14 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
     return server_->InProcessChannel(grpc::ChannelArguments());
   };
   EXPECT_CALL(*mock_sleep_for_, Duration(_)).WillRepeatedly(Return(true));
-  RequestSimulationSystem system(metrics_recorder_, sim_clock_,
-                                 std::move(mock_sleep_for_),
-                                 channel_creation_fn);
+  EXPECT_CALL(*mock_request_simulation_parameter_fetcher_,
+              GetBlobStorageNotifierMetadata())
+      .WillRepeatedly(Return(
+          LocalNotifierMetadata{.local_directory = ::testing::TempDir()}));
+  RequestSimulationSystem system(
+      metrics_recorder_, sim_clock_, std::move(mock_sleep_for_),
+      channel_creation_fn,
+      std::move(mock_request_simulation_parameter_fetcher_));
   EXPECT_TRUE(system.Init().ok());
   sim_clock_.AdvanceTime(absl::Seconds(1));
   EXPECT_TRUE(system.Start().ok());

@@ -8,7 +8,8 @@ build --workspace_status_command="bash tools/get_workspace_status"
 build --copt=-Werror=thread-safety-analysis
 build --config=clang
 build --config=noexcept
-build --config=roma_sandboxed
+# Disable some ROMA error checking
+build --per_file_copt=.*sandboxed_api.*@-Wno-return-type
 
 # Broadly disable C++ Exceptions
 # https://google.github.io/styleguide/cppguide.html#Exceptions
@@ -34,11 +35,6 @@ build:clang --client_env=CC=clang
 build:clang --cxxopt=-std=c++17
 build:clang --host_cxxopt=-std=c++17
 build:clang --client_env=BAZEL_CXXOPTS=-std=c++17
-
-build:roma_legacy --@control_plane_shared//cc/roma/roma_service/src:service=legacy
-
-build:roma_sandboxed --@control_plane_shared//cc/roma/roma_service/src:service=sandboxed
-build:roma_sandboxed --per_file_copt=.*sandboxed_api.*@-Wno-return-type
 
 # Required to run wasm_cc_binary
 build:emscripten --incompatible_enable_cc_toolchain_resolution

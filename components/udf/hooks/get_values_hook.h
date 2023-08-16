@@ -31,6 +31,8 @@ namespace kv_server {
 // Functor that acts as a wrapper for the internal lookup client call.
 class GetValuesHook {
  public:
+  enum class OutputType { kString = 0, kBinary };
+
   virtual ~GetValuesHook() = default;
 
   // This is registered with v8 and is exposed to the UDF. Internally, it calls
@@ -40,7 +42,8 @@ class GetValuesHook {
 
   static std::unique_ptr<GetValuesHook> Create(
       absl::AnyInvocable<std::unique_ptr<LookupClient>()>
-          lookup_client_supplier);
+          lookup_client_supplier,
+      OutputType output_type);
 };
 
 }  // namespace kv_server

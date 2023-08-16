@@ -173,16 +173,25 @@ absl::Status TestUdf(std::string kv_delta_file_path,
 
   LOG(INFO) << "Starting UDF client";
   UdfConfigBuilder config_builder;
-  auto lookup_client = CreateCacheLookupClient(*cache);
-  auto hook = GetValuesHook::Create(
-      [lookup_client = std::move(lookup_client)]() mutable {
-        return std::move(lookup_client);
-      });
-  auto udf_client =
-      UdfClient::Create(config_builder.RegisterGetValuesHook(*hook)
-                            .RegisterLoggingHook()
-                            .SetNumberOfWorkers(1)
-                            .Config());
+  // oh no i need to have two lookup clients i think
+  auto string_lookup_client = CreateCacheLookupClient(*cache);
+  auto string_get_values_hook = GetValuesHook::Create(
+      [string_lookup_client = std::move(string_lookup_client)]() mutable {
+        return std::move(string_lookup_client);
+      },
+      GetValuesHook::OutputType::kString);
+  auto binary_lookup_client = CreateCacheLookupClient(*cache);
+  auto binary_get_values_hook = GetValuesHook::Create(
+      [binary_lookup_client = std::move(binary_lookup_client)]() mutable {
+        return std::move(binary_lookup_client);
+      },
+      GetValuesHook::OutputType::kBinary);
+  auto udf_client = UdfClient::Create(
+      config_builder.RegisterStringGetValuesHook(*string_get_values_hook)
+          .RegisterBinaryGetValuesHook(*binary_get_values_hook)
+          .RegisterLoggingHook()
+          .SetNumberOfWorkers(1)
+          .Config());
   if (!udf_client.ok()) {
     LOG(ERROR) << "Error starting UDF execution engine: "
                << udf_client.status();

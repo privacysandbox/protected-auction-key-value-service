@@ -26,28 +26,58 @@
 #include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
 #include "nlohmann/json.hpp"
-#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 namespace {
 
-using google::protobuf::util::MessageToJsonString;
+using google::protobuf::json::MessageToJsonString;
 using google::scp::roma::proto::FunctionBindingIoProto;
-using privacy_sandbox::server_common::GetTracer;
+
+void SetStatusAsMapOfStringToBytes(absl::StatusCode code,
+                                   FunctionBindingIoProto& io) {
+  // TODO(b/295405516): Implement
+}
+
+void SetOutputAsMapOfStringToBytes(const InternalLookupResponse& response,
+                                   FunctionBindingIoProto& io) {
+  // TODO(b/295405516): Implement
+}
+
+void SetStatusAsString(absl::StatusCode code, std::string_view message,
+                       FunctionBindingIoProto& io) {
+  nlohmann::json status;
+  status["code"] = code;
+  status["message"] = std::string(message);
+  io.set_output_string(status.dump());
+}
+
+void SetOutputAsString(const InternalLookupResponse& response,
+                       FunctionBindingIoProto& io) {
+  VLOG(9) << "Processing internal lookup response";
+  std::string kv_pairs_json;
+  if (const auto json_status = MessageToJsonString(response, &kv_pairs_json);
+      !json_status.ok()) {
+    SetStatusAsString(json_status.code(), json_status.message(), io);
+    LOG(ERROR) << "MessageToJsonString failed with " << json_status;
+    VLOG(1) << "getValues result: " << io.DebugString();
+    return;
+  }
+  io.set_output_string(std::move(kv_pairs_json));
+}
 
 class GetValuesHookImpl : public GetValuesHook {
  public:
   explicit GetValuesHookImpl(absl::AnyInvocable<std::unique_ptr<LookupClient>()>
-                                 lookup_client_supplier)
-      : lookup_client_supplier_(std::move(lookup_client_supplier)) {}
+                                 lookup_client_supplier,
+                             OutputType output_type)
+      : lookup_client_supplier_(std::move(lookup_client_supplier)),
+        output_type_(output_type) {}
 
   void operator()(FunctionBindingIoProto& io) {
     VLOG(9) << "getValues request: " << io.DebugString();
     if (!io.has_input_list_of_string()) {
-      nlohmann::json status;
-      status["code"] = absl::StatusCode::kInvalidArgument;
-      status["message"] = "getValues input must be list of strings";
-      io.set_output_string(status.dump());
+      SetStatus(absl::StatusCode::kInvalidArgument,
+                "getValues input must be list of strings", io);
       VLOG(1) << "getValues result: " << io.DebugString();
       return;
     }
@@ -66,44 +96,49 @@ class GetValuesHookImpl : public GetValuesHook {
     absl::StatusOr<InternalLookupResponse> response_or_status =
         lookup_client_->GetValues(keys);
     if (!response_or_status.ok()) {
-      nlohmann::json status;
-      status["code"] = response_or_status.status().code();
-      status["message"] = response_or_status.status().message();
-      io.set_output_string(status.dump());
+      SetStatus(response_or_status.status().code(),
+                response_or_status.status().message(), io);
       VLOG(1) << "getValues result: " << io.DebugString();
       return;
     }
 
-    VLOG(9) << "Processing internal lookup response";
-    std::string kv_pairs_json;
-    if (const auto json_status =
-            MessageToJsonString(response_or_status.value(), &kv_pairs_json);
-        !json_status.ok()) {
-      nlohmann::json status;
-      status["code"] = json_status.code();
-      status["message"] = json_status.message();
-      io.set_output_string(status.dump());
-      LOG(ERROR) << "MessageToJsonString failed with " << json_status;
-      VLOG(1) << "getValues result: " << io.DebugString();
-      return;
-    }
-    io.set_output_string(kv_pairs_json);
+    SetOutput(response_or_status.value(), io);
     VLOG(9) << "getValues result: " << io.DebugString();
   }
 
  private:
+  void SetStatus(absl::StatusCode code, std::string_view message,
+                 FunctionBindingIoProto& io) {
+    if (output_type_ == OutputType::kString) {
+      SetStatusAsString(code, message, io);
+    } else {
+      SetStatusAsMapOfStringToBytes(code, io);
+    }
+  }
+
+  void SetOutput(const InternalLookupResponse& response,
+                 FunctionBindingIoProto& io) {
+    if (output_type_ == OutputType::kString) {
+      SetOutputAsString(response, io);
+    } else {
+      SetOutputAsMapOfStringToBytes(response, io);
+    }
+  }
+
   // `lookup_client_` is lazy loaded because getting one can cause thread
   // creation. Lazy load is used to ensure that it only happens after Roma
   // forks.
   absl::AnyInvocable<std::unique_ptr<LookupClient>()> lookup_client_supplier_;
   std::unique_ptr<LookupClient> lookup_client_;
+  OutputType output_type_;
 };
 }  // namespace
 
 std::unique_ptr<GetValuesHook> GetValuesHook::Create(
-    absl::AnyInvocable<std::unique_ptr<LookupClient>()>
-        lookup_client_supplier) {
-  return std::make_unique<GetValuesHookImpl>(std::move(lookup_client_supplier));
+    absl::AnyInvocable<std::unique_ptr<LookupClient>()> lookup_client_supplier,
+    OutputType output_type) {
+  return std::make_unique<GetValuesHookImpl>(std::move(lookup_client_supplier),
+                                             output_type);
 }
 
 }  // namespace kv_server

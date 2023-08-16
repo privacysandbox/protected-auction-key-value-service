@@ -56,7 +56,8 @@ TEST(GetValuesHookTest, SuccessfullyProcessesValue) {
   TextFormat::ParseFromString(
       R"pb(input_list_of_string { data: "key1" data: "key2" })pb", &io);
   auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
+      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
+      GetValuesHook::OutputType::kString);
   (*get_values_hook)(io);
 
   nlohmann::json result_json =
@@ -90,7 +91,8 @@ TEST(GetValuesHookTest, SuccessfullyProcessesResultsWithStatus) {
   TextFormat::ParseFromString(R"pb(input_list_of_string { data: "key1" })pb",
                               &io);
   auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
+      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
+      GetValuesHook::OutputType::kString);
   (*get_values_hook)(io);
 
   nlohmann::json expected =
@@ -109,7 +111,8 @@ TEST(GetValuesHookTest, LookupClientReturnsError) {
   TextFormat::ParseFromString(R"pb(input_list_of_string { data: "key1" })pb",
                               &io);
   auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
+      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
+      GetValuesHook::OutputType::kString);
   (*get_values_hook)(io);
 
   nlohmann::json expected = R"({"code":2,"message":"Some error"})"_json;
@@ -123,7 +126,8 @@ TEST(GetValuesHookTest, InputIsNotListOfStrings) {
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_string: "key1")pb", &io);
   auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
+      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
+      GetValuesHook::OutputType::kString);
   (*get_values_hook)(io);
 
   nlohmann::json expected =

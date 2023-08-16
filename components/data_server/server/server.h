@@ -114,7 +114,8 @@ class Server {
   std::unique_ptr<grpc::Server> grpc_server_;
   std::unique_ptr<Cache> cache_;
   std::unique_ptr<GetValuesAdapter> get_values_adapter_;
-  std::unique_ptr<GetValuesHook> get_values_hook_;
+  std::unique_ptr<GetValuesHook> string_get_values_hook_;
+  std::unique_ptr<GetValuesHook> binary_get_values_hook_;
   std::unique_ptr<RunQueryHook> run_query_hook_;
 
   // BlobStorageClient must outlive DeltaFileNotifier

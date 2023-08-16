@@ -23,7 +23,9 @@ namespace kv_server {
 
 class UdfConfigBuilder {
  public:
-  UdfConfigBuilder& RegisterGetValuesHook(GetValuesHook& get_values_hook);
+  UdfConfigBuilder& RegisterStringGetValuesHook(GetValuesHook& get_values_hook);
+
+  UdfConfigBuilder& RegisterBinaryGetValuesHook(GetValuesHook& get_values_hook);
 
   UdfConfigBuilder& RegisterRunQueryHook(RunQueryHook& run_query_hook);
 

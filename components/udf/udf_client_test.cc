@@ -174,12 +174,13 @@ TEST(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
   ON_CALL(*mock_lookup_client, GetValues(_)).WillByDefault(Return(response));
 
   auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
+      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
+      GetValuesHook::OutputType::kString);
   UdfConfigBuilder config_builder;
-  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
-      UdfClient::Create(config_builder.RegisterGetValuesHook(*get_values_hook)
-                            .SetNumberOfWorkers(1)
-                            .Config());
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      config_builder.RegisterStringGetValuesHook(*get_values_hook)
+          .SetNumberOfWorkers(1)
+          .Config());
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status =
@@ -222,12 +223,13 @@ TEST(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
   ON_CALL(*mock_lookup_client, GetValues(_)).WillByDefault(Return(response));
 
   auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); });
+      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
+      GetValuesHook::OutputType::kString);
   UdfConfigBuilder config_builder;
-  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
-      UdfClient::Create(config_builder.RegisterGetValuesHook(*get_values_hook)
-                            .SetNumberOfWorkers(1)
-                            .Config());
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      config_builder.RegisterStringGetValuesHook(*get_values_hook)
+          .SetNumberOfWorkers(1)
+          .Config());
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status =

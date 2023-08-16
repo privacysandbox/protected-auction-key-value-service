@@ -114,8 +114,14 @@ GetMetricsOptions(const ParameterClient& parameter_client,
 Server::Server()
     : metrics_recorder_(
           TelemetryProvider::GetInstance().CreateMetricsRecorder()),
-      get_values_hook_(GetValuesHook::Create(absl::bind_front(
-          LookupClient::Create, absl::GetFlag(FLAGS_internal_server_address)))),
+      string_get_values_hook_(GetValuesHook::Create(
+          absl::bind_front(LookupClient::Create,
+                           absl::GetFlag(FLAGS_internal_server_address)),
+          GetValuesHook::OutputType::kString)),
+      binary_get_values_hook_(GetValuesHook::Create(
+          absl::bind_front(LookupClient::Create,
+                           absl::GetFlag(FLAGS_internal_server_address)),
+          GetValuesHook::OutputType::kBinary)),
       run_query_hook_(RunQueryHook::Create(
           absl::bind_front(RunQueryClient::Create,
                            absl::GetFlag(FLAGS_internal_server_address)))) {}
@@ -174,11 +180,13 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
   // TODO(b/289244673): Once roma interface is updated, internal lookup client
   // can be removed and we can own the unique ptr to the hooks.
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
-      UdfClient::Create(config_builder.RegisterGetValuesHook(*get_values_hook_)
-                            .RegisterRunQueryHook(*run_query_hook_)
-                            .RegisterLoggingHook()
-                            .SetNumberOfWorkers(number_of_workers)
-                            .Config());
+      UdfClient::Create(
+          config_builder.RegisterStringGetValuesHook(*string_get_values_hook_)
+              .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
+              .RegisterRunQueryHook(*run_query_hook_)
+              .RegisterLoggingHook()
+              .SetNumberOfWorkers(number_of_workers)
+              .Config());
   if (udf_client_or_status.ok()) {
     udf_client_ = std::move(*udf_client_or_status);
   }

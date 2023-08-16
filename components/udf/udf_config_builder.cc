@@ -29,21 +29,39 @@
 #include "roma/interface/roma.h"
 
 namespace kv_server {
+namespace {
+
 using google::scp::roma::Config;
 using google::scp::roma::FunctionBindingObjectV2;
 using google::scp::roma::proto::FunctionBindingIoProto;
 
-constexpr char kGetValuesHookJsName[] = "getValues";
+constexpr char kStringGetValuesHookJsName[] = "getValues";
+constexpr char kBinaryGetValuesHookJsName[] = "getValuesBinary";
 constexpr char kRunQueryHookJsName[] = "runQuery";
 constexpr char kLoggingHookJsName[] = "logMessage";
 
-UdfConfigBuilder& UdfConfigBuilder::RegisterGetValuesHook(
-    GetValuesHook& get_values_hook) {
+std::unique_ptr<FunctionBindingObjectV2> GetValuesFunctionObject(
+    GetValuesHook& get_values_hook, std::string handler_name) {
   auto get_values_function_object = std::make_unique<FunctionBindingObjectV2>();
-  get_values_function_object->function_name = kGetValuesHookJsName;
+  get_values_function_object->function_name = std::move(handler_name);
   get_values_function_object->function =
       [&get_values_hook](FunctionBindingIoProto& in) { get_values_hook(in); };
-  config_.RegisterFunctionBinding(std::move(get_values_function_object));
+  return get_values_function_object;
+}
+
+}  // namespace
+
+UdfConfigBuilder& UdfConfigBuilder::RegisterStringGetValuesHook(
+    GetValuesHook& get_values_hook) {
+  config_.RegisterFunctionBinding(
+      GetValuesFunctionObject(get_values_hook, kStringGetValuesHookJsName));
+  return *this;
+}
+
+UdfConfigBuilder& UdfConfigBuilder::RegisterBinaryGetValuesHook(
+    GetValuesHook& get_values_hook) {
+  config_.RegisterFunctionBinding(
+      GetValuesFunctionObject(get_values_hook, kBinaryGetValuesHookJsName));
   return *this;
 }
 

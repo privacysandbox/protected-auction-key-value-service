@@ -19,7 +19,8 @@
 #include "absl/strings/substitute.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
-#include "components/udf/cache_get_values_hook.h"
+#include "components/internal_server/cache_lookup_client.h"
+#include "components/udf/get_values_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/udf/udf_config_builder.h"
 #include "glog/logging.h"
@@ -172,7 +173,11 @@ absl::Status TestUdf(std::string kv_delta_file_path,
 
   LOG(INFO) << "Starting UDF client";
   UdfConfigBuilder config_builder;
-  auto hook = NewCacheGetValuesHook(*cache);
+  auto lookup_client = CreateCacheLookupClient(*cache);
+  auto hook = GetValuesHook::Create(
+      [lookup_client = std::move(lookup_client)]() mutable {
+        return std::move(lookup_client);
+      });
   auto udf_client =
       UdfClient::Create(config_builder.RegisterGetValuesHook(*hook)
                             .RegisterLoggingHook()

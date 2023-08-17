@@ -86,26 +86,6 @@ cc_library(
 )
 
 cc_library(
-    name = "cache_get_values_hook",
-    srcs = [
-        "cache_get_values_hook.cc",
-    ],
-    hdrs = [
-        "cache_get_values_hook.h",
-    ],
-    deps = [
-        ":get_values_hook",
-        "//components/data_server/cache",
-        "//components/internal_server:internal_lookup_cc_proto",
-        "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_protobuf//:protobuf",
-        "@nlohmann_json//:lib",
-    ],
-)
-
-cc_library(
     name = "get_values_hook",
     srcs = [
         "get_values_hook.cc",
@@ -199,23 +179,6 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
-    ],
-)
-
-cc_test(
-    name = "cache_get_values_hook_test",
-    size = "small",
-    srcs = [
-        "cache_get_values_hook_test.cc",
-    ],
-    deps = [
-        ":cache_get_values_hook",
-        "//components/data_server/cache",
-        "//components/data_server/cache:key_value_cache",
-        "//public/test_util:proto_matcher",
-        "@com_google_absl//absl/status",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
     ],
 )
 

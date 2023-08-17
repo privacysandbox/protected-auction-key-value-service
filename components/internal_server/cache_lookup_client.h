@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2022 Google LLC
  *
@@ -15,20 +14,24 @@
  * limitations under the License.
  */
 
-#ifndef COMPONENTS_UDF_CACHE_GET_VALUES_HOOK_IMPL_H_
-#define COMPONENTS_UDF_CACHE_GET_VALUES_HOOK_IMPL_H_
+#ifndef COMPONENTS_INTERNAL_SERVER_CACHE_LOOKUP_CLIENT_H_
+#define COMPONENTS_INTERNAL_SERVER_CACHE_LOOKUP_CLIENT_H_
 
 #include <memory>
 
+#include "absl/status/statusor.h"
 #include "components/data_server/cache/cache.h"
-#include "components/udf/get_values_hook.h"
+#include "components/internal_server/lookup.pb.h"
+#include "components/internal_server/lookup_client.h"
 
+// TODO(b/290640967): This will go away, but in the meantime it's a more
+// reliable way to have a "lookup" client for testing/tools that directly
+// queries the cache.
 namespace kv_server {
 
-// Create a GetValuesHook that will be registered with v8 and calls a cache
-// directly.
-std::unique_ptr<GetValuesHook> NewCacheGetValuesHook(const Cache& cache);
+// Creates a cache lookup client that uses the cache to look up keys directly.
+std::unique_ptr<LookupClient> CreateCacheLookupClient(const Cache& cache);
 
 }  // namespace kv_server
 
-#endif  // COMPONENTS_UDF_CACHE_GET_VALUES_HOOK_IMPL_H_
+#endif  // COMPONENTS_INTERNAL_SERVER_CACHE_LOOKUP_CLIENT_H_

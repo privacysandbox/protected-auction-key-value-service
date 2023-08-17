@@ -19,6 +19,7 @@ load("@rules_proto//proto:defs.bzl", "proto_descriptor_set", "proto_library")
 
 package(default_visibility = [
     "//components:__subpackages__",
+    "//tools:__subpackages__",
 ])
 
 cc_library(
@@ -40,6 +41,38 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
         "@google_privacysandbox_servers_common//src/cpp/telemetry",
+    ],
+)
+
+cc_library(
+    name = "cache_lookup_client",
+    srcs = [
+        "cache_lookup_client.cc",
+    ],
+    hdrs = [
+        "cache_lookup_client.h",
+    ],
+    deps = [
+        ":internal_lookup_cc_proto",
+        ":lookup_client_impl",
+        "//components/data_server/cache",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_test(
+    name = "cache_lookup_client_test",
+    size = "small",
+    srcs = [
+        "cache_lookup_client_test.cc",
+    ],
+    deps = [
+        ":cache_lookup_client",
+        ":internal_lookup_cc_proto",
+        "//components/data_server/cache:mocks",
+        "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

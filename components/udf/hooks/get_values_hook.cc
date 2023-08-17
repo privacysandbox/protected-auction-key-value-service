@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/udf/get_values_hook.h"
+#include "components/udf/hooks/get_values_hook.h"
 
 #include <memory>
 #include <string>

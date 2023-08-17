@@ -39,9 +39,9 @@ cc_library(
     ],
     deps = [
         ":code_config",
-        ":get_values_hook",
-        ":run_query_hook",
         "//components/errors:retry",
+        "//components/udf/hooks:get_values_hook",
+        "//components/udf/hooks:run_query_hook",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
@@ -77,64 +77,11 @@ cc_library(
     ],
     deps = [
         ":code_config",
-        ":get_values_hook",
-        ":logging_hook",
-        ":run_query_hook",
+        "//components/udf/hooks:get_values_hook",
+        "//components/udf/hooks:logging_hook",
+        "//components/udf/hooks:run_query_hook",
         "@control_plane_shared//cc/roma/interface:roma_interface_lib",
         "@control_plane_shared//cc/roma/roma_service/src:roma_service_lib",
-    ],
-)
-
-cc_library(
-    name = "get_values_hook",
-    srcs = [
-        "get_values_hook.cc",
-    ],
-    hdrs = [
-        "get_values_hook.h",
-    ],
-    deps = [
-        "//components/internal_server:internal_lookup_cc_proto",
-        "//components/internal_server:lookup_client_impl",
-        "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/functional:any_invocable",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_protobuf//:protobuf",
-        "@control_plane_shared//cc/roma/interface:roma_interface_lib",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry",
-        "@nlohmann_json//:lib",
-    ],
-)
-
-cc_library(
-    name = "run_query_hook",
-    srcs = [
-        "run_query_hook.cc",
-    ],
-    hdrs = [
-        "run_query_hook.h",
-    ],
-    deps = [
-        "//components/internal_server:internal_lookup_cc_proto",
-        "//components/internal_server:run_query_client_impl",
-        "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/functional:any_invocable",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@control_plane_shared//cc/roma/interface:roma_function_binding_io_cc_proto",
-        "@control_plane_shared//cc/roma/interface:roma_interface_lib",
-        "@nlohmann_json//:lib",
-    ],
-)
-
-cc_library(
-    name = "logging_hook",
-    srcs = [
-        "logging_hook.h",
-    ],
-    deps = [
-        "@com_github_google_glog//:glog",
     ],
 )
 
@@ -153,48 +100,14 @@ cc_test(
         ":udf_client",
         ":udf_config_builder",
         "//components/internal_server:mocks",
-        "//components/udf:get_values_hook",
-        "//components/udf:run_query_hook",
+        "//components/udf/hooks:get_values_hook",
+        "//components/udf/hooks:run_query_hook",
         "//public/test_util:proto_matcher",
         "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "@control_plane_shared//cc/roma/interface:roma_interface_lib",
         "@control_plane_shared//cc/roma/roma_service/src:roma_service_lib",
-    ],
-)
-
-cc_test(
-    name = "get_values_hook_test",
-    size = "small",
-    srcs = [
-        "get_values_hook_test.cc",
-    ],
-    deps = [
-        ":get_values_hook",
-        "//components/internal_server:mocks",
-        "//public/test_util:proto_matcher",
-        "@com_google_absl//absl/status",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
-    ],
-)
-
-cc_test(
-    name = "run_query_hook_test",
-    size = "small",
-    srcs = [
-        "run_query_hook_test.cc",
-    ],
-    deps = [
-        ":run_query_hook",
-        "//components/internal_server:mocks",
-        "//public/test_util:proto_matcher",
-        "@com_google_absl//absl/status",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
     ],
 )
 

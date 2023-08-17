@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/udf/run_query_hook.h"
+#include "components/udf/hooks/run_query_hook.h"
 
 #include <string>
 #include <string_view>

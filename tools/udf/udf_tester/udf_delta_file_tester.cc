@@ -20,7 +20,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/internal_server/cache_lookup_client.h"
-#include "components/udf/get_values_hook.h"
+#include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/udf/udf_config_builder.h"
 #include "glog/logging.h"

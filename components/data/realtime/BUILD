@@ -25,6 +25,9 @@ cc_library(
         "//:aws_platform": [
             "delta_file_record_change_notifier_aws.cc",
         ],
+        "//:gcp_platform": [
+            "delta_file_record_change_notifier_gcp.cc",
+        ],
         "//:local_platform": [
             "delta_file_record_change_notifier_local.cc",
         ],
@@ -46,6 +49,9 @@ cc_test(
     srcs = select({
         "//:aws_platform": [
             "delta_file_record_change_notifier_aws_test.cc",
+        ],
+        "//:gcp_platform": [
+            "delta_file_record_change_notifier_gcp_test.cc",
         ],
         "//:local_platform": ["delta_file_record_change_notifier_local_test.cc"],
     }),

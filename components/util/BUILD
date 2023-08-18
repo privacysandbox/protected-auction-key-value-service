@@ -61,10 +61,12 @@ selects.config_setting_group(
 
 local_defines = select({
     "//:aws_instance": ["INSTANCE=\\\"aws\\\""],
+    "//:gcp_instance": ["INSTANCE=\\\"gcp\\\""],
     "//:local_instance": ["INSTANCE=\\\"local\\\""],
     "//conditions:default": ["INSTANCE=\\\"unknown\\\""],
 }) + select({
     "//:aws_platform": ["PLATFORM=\\\"aws\\\""],
+    "//:gcp_platform": ["PLATFORM=\\\"gcp\\\""],
     "//:local_platform": ["PLATFORM=\\\"local\\\""],
     "//conditions:default": ["PLATFORM=\\\"unknown\\\""],
 }) + select({
@@ -110,6 +112,9 @@ cc_library(
     srcs = select({
         "//:aws_platform": [
             "platform_initializer_aws.cc",
+        ],
+        "//:gcp_platform": [
+            "platform_initializer_gcp.cc",
         ],
         "//:local_platform": [
             "platform_initializer_local.cc",

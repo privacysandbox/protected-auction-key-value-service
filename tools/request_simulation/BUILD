@@ -114,6 +114,7 @@ cc_library(
     name = "request_simulation_parameter_fetcher",
     srcs = select({
         "//:aws_platform": ["request_simulation_parameter_fetcher_aws.cc"],
+        "//:gcp_platform": ["request_simulation_parameter_fetcher_gcp.cc"],
         "//:local_platform": ["request_simulation_parameter_fetcher_local.cc"],
     }),
     hdrs = ["request_simulation_parameter_fetcher.h"],
@@ -245,6 +246,7 @@ cc_test(
     size = "small",
     srcs = select({
         "//:aws_platform": [],
+        "//:gcp_platform": ["request_simulation_system_gcp_test.cc"],
         "//:local_platform": ["request_simulation_system_local_test.cc"],
     }),
     tags = [

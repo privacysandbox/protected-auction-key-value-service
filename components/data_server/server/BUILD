@@ -36,6 +36,7 @@ cc_library(
     name = "parameter_fetcher",
     srcs = select({
         "//:aws_platform": ["parameter_fetcher_aws.cc"],
+        "//:gcp_platform": ["parameter_fetcher_gcp.cc"],
         "//:local_platform": ["parameter_fetcher_local.cc"],
     }) + ["parameter_fetcher.cc"],
     hdrs = ["parameter_fetcher.h"],
@@ -57,6 +58,7 @@ cc_test(
     size = "small",
     srcs = select({
         "//:aws_platform": ["parameter_fetcher_aws_test.cc"],
+        "//:gcp_platform": ["parameter_fetcher_gcp_test.cc"],
         "//:local_platform": ["parameter_fetcher_local_test.cc"],
     }),
     deps = [
@@ -173,6 +175,7 @@ cc_test(
     size = "small",
     srcs = select({
         "//:aws_platform": ["server_aws_test.cc"],
+        "//:gcp_platform": ["server_gcp_test.cc"],
         "//:local_platform": ["server_local_test.cc"],
     }),
     deps = [

@@ -37,12 +37,34 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "parameter_client_gcp",
+    srcs = [
+        "parameter_client_gcp.cc",
+    ],
+    hdrs = [
+        "parameter_client.h",
+    ],
+    deps = [
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:marshalling",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
 cc_test(
     name = "parameter_client_test",
     size = "small",
     srcs = select({
         "//:aws_platform": [
             "parameter_client_aws_test.cc",
+        ],
+        "//:gcp_platform": [
+            ":parameter_client_gcp_test.cc",
         ],
         "//:local_platform": [
             ":parameter_client_local_test.cc",
@@ -53,6 +75,12 @@ cc_test(
             "//components/util:platform_initializer",
             "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:ssm",
+        ],
+        "//:gcp_platform": [
+            "//components/data/common:mocks",
+            "//components/util:sleepfor_mock",
+            "@com_github_google_glog//:glog",
+            "@com_github_grpc_grpc//:grpc++",
         ],
         "//:local_platform": [
             "//components/data/common:mocks",
@@ -70,6 +98,7 @@ cc_library(
     name = "parameter_client",
     srcs = select({
         "//:aws_platform": ["parameter_client_aws.cc"],
+        "//:gcp_platform": [":parameter_client_gcp"],
         "//:local_platform": [":parameter_client_local"],
     }),
     hdrs = [
@@ -93,6 +122,7 @@ cc_library(
     name = "instance_client",
     srcs = select({
         "//:aws_instance": ["instance_client_aws.cc"],
+        "//:gcp_instance": ["instance_client_gcp.cc"],
         "//:local_instance": ["local_instance_client.cc"],
     }),
     hdrs = [
@@ -104,6 +134,9 @@ cc_library(
             "@aws_sdk_cpp//:autoscaling",
             "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:ec2",
+        ],
+        "//:gcp_instance": [
+            "@com_google_absl//absl/flags:flag",
         ],
         "//:local_instance": [
             "@com_google_absl//absl/flags:flag",

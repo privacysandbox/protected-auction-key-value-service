@@ -25,6 +25,9 @@ cc_library(
         "//:aws_platform": [
             "msg_svc_aws.cc",
         ],
+        "//:gcp_platform": [
+            "msg_svc_gcp.cc",
+        ],
         "//:local_platform": [
             "msg_svc_local.cc",
         ],
@@ -53,6 +56,9 @@ cc_library(
         "//:aws_platform": [
             "change_notifier_aws.cc",
         ],
+        "//:gcp_platform": [
+            "change_notifier_gcp.cc",
+        ],
         "//:local_platform": [
             "change_notifier_local.cc",
         ],
@@ -65,6 +71,9 @@ cc_library(
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:sns",
             "@aws_sdk_cpp//:sqs",
+        ],
+        "//:gcp_platform": [
+            "@com_google_absl//absl/container:flat_hash_set",
         ],
         "//:local_platform": [
             "@com_google_absl//absl/container:flat_hash_set",
@@ -87,6 +96,9 @@ cc_test(
         "//:aws_platform": [
             "change_notifier_aws_test.cc",
         ],
+        "//:gcp_platform": [
+            "change_notifier_gcp_test.cc",
+        ],
         "//:local_platform": [
             "change_notifier_local_test.cc",
         ],
@@ -97,6 +109,8 @@ cc_test(
             "//components/util:platform_initializer",
             "@aws_sdk_cpp//:sns",
             "@aws_sdk_cpp//:sqs",
+        ],
+        "//:gcp_platform": [
         ],
         "//:local_platform": [
         ],

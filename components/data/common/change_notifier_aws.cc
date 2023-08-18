@@ -73,7 +73,7 @@ const std::vector<double> kAwsSqsReceiveMessageLatencyBucketBoundaries = {
 
 class AwsChangeNotifier : public ChangeNotifier {
  public:
-  explicit AwsChangeNotifier(CloudNotifierMetadata notifier_metadata,
+  explicit AwsChangeNotifier(AwsNotifierMetadata notifier_metadata,
                              MetricsRecorder& metrics_recorder)
       : sns_arn_(std::move(notifier_metadata.sns_arn)),
         queue_manager_(notifier_metadata.queue_manager),
@@ -236,7 +236,7 @@ class AwsChangeNotifier : public ChangeNotifier {
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
     NotifierMetadata notifier_metadata, MetricsRecorder& metrics_recorder) {
   return std::make_unique<AwsChangeNotifier>(
-      std::move(std::get<CloudNotifierMetadata>(notifier_metadata)),
+      std::move(std::get<AwsNotifierMetadata>(notifier_metadata)),
       metrics_recorder);
 }
 

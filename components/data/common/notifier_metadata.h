@@ -34,7 +34,7 @@ class SQSClient;
 namespace kv_server {
 class MessageService;
 
-struct CloudNotifierMetadata {
+struct AwsNotifierMetadata {
   std::string queue_prefix;
   std::string sns_arn;
   MessageService* queue_manager;
@@ -46,9 +46,13 @@ struct CloudNotifierMetadata {
 struct LocalNotifierMetadata {
   std::filesystem::path local_directory;
 };
-
+struct GcpNotifierMetadata {
+  std::string project_id;
+  std::string topic_id;
+};
 using NotifierMetadata =
-    std::variant<CloudNotifierMetadata, kv_server::LocalNotifierMetadata>;
+    std::variant<AwsNotifierMetadata, LocalNotifierMetadata,
+                 GcpNotifierMetadata>;
 
 inline void SetQueueManager(NotifierMetadata& notifier_metadata,
                             MessageService* queue_manager) {

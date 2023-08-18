@@ -83,7 +83,7 @@ class BlobStorageChangeNotifierS3Test : public ::testing::Test {
 TEST_F(BlobStorageChangeNotifierS3Test, AwsSqsUnavailable) {
   CreateRequiredSqsCallExpectations();
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
   auto mock_sqs_client = std::make_unique<MockSqsClient>();
   // A default ReceiveMessageOutcome will be returned for calls to
@@ -112,7 +112,7 @@ TEST_F(BlobStorageChangeNotifierS3Test, InvalidJsonMessage) {
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
       .Times(1);
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -140,7 +140,7 @@ TEST_F(BlobStorageChangeNotifierS3Test, JsonHasNoMessageObject) {
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
       .Times(1);
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -171,7 +171,7 @@ TEST_F(BlobStorageChangeNotifierS3Test, MessageObjectIsNotAString) {
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
       .Times(1);
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -202,7 +202,7 @@ TEST_F(BlobStorageChangeNotifierS3Test, RecordsIsNotAList) {
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
       .Times(1);
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -233,7 +233,7 @@ TEST_F(BlobStorageChangeNotifierS3Test, NoS3RecordPresent) {
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
       .Times(1);
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -257,7 +257,7 @@ TEST_F(BlobStorageChangeNotifierS3Test, S3RecordIsNull) {
   })",
                  *mock_sqs_client);
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -288,7 +288,7 @@ TEST_F(BlobStorageChangeNotifierS3Test, S3ObjectIsNull) {
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
       .Times(1);
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -319,7 +319,7 @@ TEST_F(BlobStorageChangeNotifierS3Test, S3KeyIsNotAString) {
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
       .Times(1);
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -343,7 +343,7 @@ TEST_F(BlobStorageChangeNotifierS3Test, ValidJson) {
   })",
                  *mock_sqs_client);
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 

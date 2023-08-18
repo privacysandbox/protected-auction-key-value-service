@@ -61,7 +61,7 @@ class ChangeNotifierAwsTest : public ::testing::Test {
 
 TEST_F(ChangeNotifierAwsTest, SmokeTest) {
   auto mock_sqs_client = std::make_unique<MockSqsClient>();
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
@@ -80,7 +80,7 @@ TEST_F(ChangeNotifierAwsTest, ReceiveMessageFails) {
   // A default ReceiveMessageOutcome will be returned for calls to
   // mock_sqs_client.ReceiveMessage(_).
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -110,7 +110,7 @@ TEST_F(ChangeNotifierAwsTest,
   EXPECT_CALL(*mock_sqs_client, ReceiveMessage(::testing::_))
       .WillOnce(::testing::Return(outcome));
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -143,7 +143,7 @@ TEST_F(ChangeNotifierAwsTest, ReceiveMessagePassesAndHasMessages) {
   EXPECT_CALL(*mock_sqs_client, ReceiveMessage(::testing::_))
       .WillOnce(::testing::Return(outcome));
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 

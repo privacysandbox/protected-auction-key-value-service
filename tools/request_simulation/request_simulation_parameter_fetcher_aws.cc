@@ -28,7 +28,7 @@ NotifierMetadata
 RequestSimulationParameterFetcher::GetBlobStorageNotifierMetadata() const {
   std::string bucket_sns_arn = absl::GetFlag(FLAGS_s3_bucket_sns_arn);
   LOG(INFO) << "The sns arn for s3 bucket is " << bucket_sns_arn;
-  return CloudNotifierMetadata{"BlobNotifier_", std::move(bucket_sns_arn)};
+  return AwsNotifierMetadata{"BlobNotifier_", std::move(bucket_sns_arn)};
 }
 
 }  // namespace kv_server

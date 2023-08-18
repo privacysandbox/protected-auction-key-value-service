@@ -208,7 +208,7 @@ class AwsMessageService : public MessageService {
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
     NotifierMetadata notifier_metadata, std::optional<int32_t> shard_num) {
-  auto metadata = std::get<CloudNotifierMetadata>(notifier_metadata);
+  auto metadata = std::get<AwsNotifierMetadata>(notifier_metadata);
 
   return std::make_unique<AwsMessageService>(
       std::move(metadata.queue_prefix), std::move(metadata.sns_arn), shard_num);

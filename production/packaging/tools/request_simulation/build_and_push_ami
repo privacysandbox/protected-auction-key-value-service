@@ -89,16 +89,32 @@ source "${BUILDER}" || fail "Failed to source builder.sh"
 readonly DIST="${WORKSPACE}"/dist
 
 printf "==== Creating dist dir =====\n"
-mkdir -p "${DIST}"/aws
-chmod 770 "${DIST}" "${DIST}"/aws
+readonly DIST_DIR="${DIST}"/request_simulation/aws
+mkdir -p "${DIST_DIR}"
+chmod 770 "${DIST_DIR}"
 
 printf "==== build AWS artifacts using bazel-debian =====\n"
 
-BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:platform=aws"
+BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:platform=aws --//:instance=aws"
 
 printf "EXTRA ARGS %s: ${BAZEL_EXTRA_ARGS}"
 
-printf "==== Copying to dist =====\n"
+printf "==== Copying to dist for aws artifacts =====\n"
+builder::cbuild_al2 $"
+trap _collect_logs EXIT
+function _collect_logs() {
+  local -r -i STATUS=\$?
+  printf 'Collecting bazel logs...\n' &>/dev/stderr
+  bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //:collect-logs
+  exit \${STATUS}
+}
+set -o errexit
+bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/tools/request_simulation/ami:copy_to_dist
+"
+
+unzip -o "$DIST_DIR"/aws_artifacts.zip
+
+printf "==== Copying to dist for the request_simulation artifacts=====\n"
 builder::cbuild_debian $"
 trap _collect_logs EXIT
 function _collect_logs() {
@@ -123,6 +139,6 @@ if [[ -n ${AMI_REGIONS[0]} ]]; then
   regions="$(arr_to_string_list AMI_REGIONS)"
   builder::cbuild_al2 "
 set -o errexit
-packer build -var=regions='${regions}' -var=commit_version=$(git rev-parse HEAD) -var=distribution_dir=dist/aws -var=workspace=/src/workspace production/packaging/tools/request_simulation/ami/image.pkr.hcl
+packer build -var=regions='${regions}' -var=commit_version=$(git rev-parse HEAD) -var=distribution_dir=dist/request_simulation/aws -var=workspace=/src/workspace production/packaging/tools/request_simulation/ami/image.pkr.hcl
 "
 fi

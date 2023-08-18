@@ -23,9 +23,14 @@ sudo mkdir /opt/privacysandbox
 
 sudo cp /home/ec2-user/request_simulation_docker_image.tar /opt/privacysandbox/request_simulation_docker_image.tar
 
+OTEL_COL_CONF=/opt/aws/aws-otel-collector/etc/otel_collector_config.yaml
+sudo mkdir -p "$(dirname "${OTEL_COL_CONF}")"
+sudo cp /home/ec2-user/otel_collector_config.yaml "${OTEL_COL_CONF}"
+
 # Install necessary dependencies
 sudo yum update -y
 sudo yum install -y docker
+sudo yum localinstall -y /home/ec2-user/aws-otel-collector.rpm
 
 sudo usermod -a -G docker ec2-user
 sudo systemctl start docker

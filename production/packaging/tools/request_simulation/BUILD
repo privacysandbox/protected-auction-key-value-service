@@ -89,11 +89,11 @@ genrule(
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
-mkdir -p dist/aws
-cp $(execpath :request_simulation_artifacts) $(execpath :request_simulation_docker_image.tar) dist/aws
+mkdir -p dist/request_simulation/aws
+cp $(execpath :request_simulation_artifacts) $(execpath :request_simulation_docker_image.tar) dist/request_simulation/aws
 builders/tools/normalize-dist
 EOF""",
     executable = True,
     local = True,
-    message = "Copying request simulation artifacts to dist/aws directory",
+    message = "Copying request simulation artifacts to dist/request_simulation/aws directory",
 )

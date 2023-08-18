@@ -54,6 +54,14 @@ table UserDefinedFunctionsConfig {
   version:int64;
 }
 
+table ShardMappingRecord {
+  // Required. Logical shard number.
+  logical_shard:int32;
+
+  // Required. Physical shard number.
+  physical_shard:int32;
+}
+
 union Record { KeyValueMutationRecord, UserDefinedFunctionsConfig }
 
 table DataRecord {

@@ -34,10 +34,34 @@ message SnapshotMetadata {
   optional string ending_delta_file = 2;
 }
 
-// Metadata specifying which shard number this file belongs to.
+// Sharding metadata for DELTA and SNAPSHOT files.
 message ShardingMetadata {
   // The shard number that data in this file belong to.
   optional int64 shard_num = 1;
+}
+
+// Metadata specific to LOGICAL_SHARDING_CONFIG files.
+message LogicalShardingConfigMetadata {
+  // [Required] Number of logical shards, recommended to be a power of 2 and
+  // much larger than `num_physical_shards`. Data records are assigned to
+  // logical shards and logical shards map to physical shards (actual data
+  // servers).
+  optional int32 num_logical_shards = 1;
+
+  // [Required] Number of physical shards. Maps to actual physical data servers
+  // that store data records. Each physical shard can be responsible for data
+  // records assigned to different logical shards.
+  optional int32 num_physical_shards = 2;
+
+  // [Required] sha256sum of the mapping between logical shards and physical
+  // shards. This is fixed for each logical sharding config file, but can be
+  // different between files with the same number of logical and physical
+  // shards.
+  optional string shard_mapping_sha256sum = 3;
+
+  // [Required] Unix timestamp when the logical sharding config file was
+  // created.
+  optional int64 creation_timestamp = 4;
 }
 
 // All K/V server metadata related to one riegeli file.
@@ -48,6 +72,7 @@ message KVFileMetadata {
   oneof file_type {
     DeltaMetadata delta = 2;
     SnapshotMetadata snapshot = 3;
+    LogicalShardingConfigMetadata logical_sharding_config = 5;
   }
 
   optional ShardingMetadata sharding_metadata = 4;

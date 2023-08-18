@@ -85,6 +85,16 @@ const uint16_t kAEADParameter = 0x0001;
 
 constexpr std::string_view kServiceName = "kv-server";
 
+// Returns a compiled logical sharding config file name regex defined as
+// follows:
+//
+// Compiled regex = "LOGICAL_SHARDING_CONFIG_\d{16}"
+// Regex parts:
+// - prefix = "LOGICAL_SHARDING_CONFIG"
+// - suffix = a 16 digit number that represents logical time. A larger number
+//            indicates a more recent logical sharding config.
+const std::regex& LogicalShardingConfigFileFormatRegex();
+
 }  // namespace kv_server
 
 #endif  // PUBLIC_CONSTANTS_H_

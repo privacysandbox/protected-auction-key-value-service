@@ -32,7 +32,7 @@ class MockMessageService : public MessageService {
  public:
   MOCK_METHOD(bool, IsSetupComplete, (), (const));
 
-  MOCK_METHOD(const std::string&, GetSqsUrl, (), (const));
+  MOCK_METHOD(const QueueMetadata, GetQueueMetadata, (), (const));
 
   MOCK_METHOD(absl::Status, SetupQueue, (), ());
 
@@ -59,8 +59,9 @@ class BlobStorageChangeNotifierS3Test : public ::testing::Test {
     static const std::string mock_sqs_url("mock sqs url");
     EXPECT_CALL(mock_message_service_, IsSetupComplete)
         .WillOnce(::testing::Return(true));
-    EXPECT_CALL(mock_message_service_, GetSqsUrl())
-        .WillRepeatedly(::testing::ReturnRef(mock_sqs_url));
+    static const AwsQueueMetadata metadata = {.sqs_url = mock_sqs_url};
+    EXPECT_CALL(mock_message_service_, GetQueueMetadata())
+        .WillRepeatedly(::testing::Return(metadata));
   }
 
   void SetMockMessage(const std::string& mock_message, MockSqsClient& client) {

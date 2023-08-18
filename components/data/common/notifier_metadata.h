@@ -20,8 +20,6 @@
 #include <filesystem>
 #include <string>
 
-#include "components/data/common/msg_svc.h"
-
 // This is a forward declare so that we don't need to import the actual AWS
 // SDK when we're running on the local platform.  SQSClient is only used as a
 // pointer, and only for when the platform is AWS.
@@ -46,7 +44,9 @@ struct AwsNotifierMetadata {
 struct LocalNotifierMetadata {
   std::filesystem::path local_directory;
 };
+
 struct GcpNotifierMetadata {
+  std::string queue_prefix;
   std::string project_id;
   std::string topic_id;
 };

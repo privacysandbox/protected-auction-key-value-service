@@ -41,8 +41,13 @@ cc_library(
             "@aws_sdk_cpp//:sns",
             "@aws_sdk_cpp//:sqs",
         ],
+        "//:gcp_platform": [
+            "//components/errors:gcp_error_util",
+            "@com_github_googleapis_google_cloud_cpp//:pubsub",
+        ],
         "//conditions:default": [],
     }) + [
+        ":msg_svc_util",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",
@@ -155,5 +160,30 @@ cc_library(
         "//components/data/realtime:delta_file_record_change_notifier",
         "//components/data/realtime:realtime_notifier",
         "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "msg_svc_util",
+    srcs = [
+        "msg_svc_util.cc",
+    ],
+    hdrs = [
+        "msg_svc_util.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/random",
+    ],
+)
+
+cc_test(
+    name = "msg_svc_util_test",
+    size = "small",
+    srcs = [
+        "msg_svc_util.cc",
+    ],
+    deps = [
+        ":msg_svc_util",
+        "@com_google_googletest//:gtest_main",
     ],
 )

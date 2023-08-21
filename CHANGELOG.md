@@ -2,6 +2,68 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.12.0 (2023-08-21)
+
+
+### Features
+
+* [sharding] Add metrics for set query
+* A delta based request generator that creates KV requests from delta files
+* A generic grpc client that sends a request and returns a response
+* Add ability to point to real coordinators through parameters
+* Add bazel configs for roma legacy vs sandboxed
+* Add bazel macro to generate UDF delta file from wasm binary and JS
+* Add delta based request generator to the simulation system
+* Add delta file notifier and loader to the request simulation system
+* Add Dependencies section to release notes
+* Add NAT gateway for public internet access
+* Add OSSF Scorecard badge to top-level README
+* Add OSSF Scorecard GitHub Action
+* add service mesh to GCP platform
+* Add support to execute queries over sharded sets.
+* Add tool to convert C++ to JS with inline WASM
+* Add version to UdfConfig.
+* Build AMI for request simulation system
+* Generate synthetic requests at fixed rate
+* grpc client worker to send requests at configurable QPS
+* Integrating kv value server with the KeyFetcherManagerInterface
+* Run request simulation system in local
+* Skip delta and snapshot files that belong to other shards
+* Upgrade build-system to v0.33.0
+* Upgrade data-plane-shared-libraries to 2023-07-12 commit.
+* Upgrade data-plane-shared-libraries to 2023-07-21 commit.
+* Upgrade data-plane-shared-libraries to 2023-07-26 commit.
+* Upgrade data-plane-shared-libraries to 2023-08-16 commit.
+
+
+### Bug Fixes
+
+* Add action_env for asan bazel config
+* Add noexcept bazel config
+* Check that fb strings are not nullptr.
+* fix another asan error in the test
+* Fix grpc client error
+* Fix UDF function handler name
+* logMessage should set an output string.
+* Rearrange bazel config for clarity
+* Reduce the number of client workers to 2 in the unit tests to limit the number of threads created
+* Remove redundant docker security-opt
+* Set bazel workspace name
+* Write data record for set data in the delta test file generator
+
+
+### Documentation
+
+* Realtime directory is not optional for local dev
+* Update screenshot of delta file
+
+
+### Dependencies
+
+* **deps:** Upgrade build-system to 0.42.1
+* **deps:** Upgrade build-system to v0.41.1
+* **deps:** Upgrade emscripten to 3.1.44
+
 ## 0.11.0 (2023-07-11)
 
 

@@ -41,6 +41,12 @@ class RequestSimulationSystemTestPeer {
   static size_t ReadMessageQueueSize(const RequestSimulationSystem& system) {
     return system.message_queue_->Size();
   }
+  static void PrefillMessageQueue(const RequestSimulationSystem& system,
+                                  int number_of_messages) {
+    for (int i = 0; i < number_of_messages; i++) {
+      system.message_queue_->Push("key");
+    }
+  }
 };
 
 class MockRequestSimulationParameterFetcher
@@ -101,6 +107,7 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
       channel_creation_fn,
       std::move(mock_request_simulation_parameter_fetcher_));
   EXPECT_TRUE(system.Init().ok());
+  RequestSimulationSystemTestPeer::PrefillMessageQueue(system, 500);
   sim_clock_.AdvanceTime(absl::Seconds(1));
   EXPECT_TRUE(system.Start().ok());
   EXPECT_TRUE(system.IsRunning());
@@ -108,7 +115,7 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
   EXPECT_TRUE(system.Stop().ok());
   EXPECT_FALSE(system.IsRunning());
   EXPECT_EQ(RequestSimulationSystemTestPeer::ReadMessageQueueSize(system),
-            1500);
+            2000);
 }
 }  // namespace
 

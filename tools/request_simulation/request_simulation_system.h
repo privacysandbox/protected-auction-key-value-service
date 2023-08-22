@@ -117,6 +117,7 @@ class RequestSimulationSystem {
   // This must be first, otherwise the AWS SDK will crash when it's called:
   PlatformInitializer platform_initializer_;
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
+  std::unique_ptr<MetricsCollector> metrics_collector_;
   privacy_sandbox::server_common::SteadyClock& steady_clock_;
   std::unique_ptr<SleepFor> sleep_for_;
   absl::AnyInvocable<std::shared_ptr<grpc::Channel>(

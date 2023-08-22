@@ -74,11 +74,25 @@ cc_library(
 )
 
 cc_library(
+    name = "metrics_collector",
+    srcs = ["metrics_collector.cc"],
+    hdrs = ["metrics_collector.h"],
+    deps = [
+        "//components/data/common:thread_manager",
+        "//components/util:sleepfor",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//test/core/util:grpc_test_util_base",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+    ],
+)
+
+cc_library(
     name = "client_worker",
     hdrs = ["client_worker.h"],
     deps = [
         ":grpc_client",
         ":message_queue",
+        ":metrics_collector",
         ":rate_limiter",
         "//components/data/common:thread_manager",
         "@com_github_google_glog//:glog",
@@ -133,6 +147,7 @@ cc_library(
         ":client_worker",
         ":delta_based_request_generator",
         ":grpc_client",
+        ":metrics_collector",
         ":request_generation_util",
         ":request_simulation_parameter_fetcher",
         ":synthetic_request_generator",
@@ -142,6 +157,7 @@ cc_library(
         "//components/data/common:change_notifier",
         "//components/data/common:thread_manager",
         "//components/util:platform_initializer",
+        "//components/util:version_linkstamp",
         "//public/data_loading/readers:riegeli_stream_io",
         "//public/query:get_values_cc_grpc",
         "//tools/request_simulation/request:raw_request_cc_proto",
@@ -238,6 +254,19 @@ cc_test(
         "//public/testing:fake_key_value_service_impl",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_test(
+    name = "metrics_collector_test",
+    size = "small",
+    srcs = ["metrics_collector_test.cc"],
+    deps = [
+        ":metrics_collector",
+        "//components/util:sleepfor_mock",
+        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 

@@ -147,6 +147,7 @@ cc_library(
     visibility = [
         "//components/data_server/server:__pkg__",
         "//components/telemetry:__pkg__",
+        "//tools/request_simulation:__pkg__",
     ],
     deps = [":build_flags"],
     alwayslink = 1,

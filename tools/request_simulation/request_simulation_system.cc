@@ -110,6 +110,7 @@ absl::Status RequestSimulationSystem::Init() {
             synthetic_request_gen_option_.key_size_in_bytes);
         return kv_server::CreateKVDSPRequestBodyInJson(keys);
       });
+  metrics_collector_ = std::make_unique<MetricsCollector>(metrics_recorder_);
 
   if (auto status = InitializeGrpcClientWorkers(); !status.ok()) {
     return status;
@@ -176,7 +177,7 @@ absl::Status RequestSimulationSystem::InitializeGrpcClientWorkers() {
     auto worker =
         std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
             i, channel, server_method_, absl::Seconds(1), request_converter,
-            *message_queue_, *grpc_request_rate_limiter_);
+            *message_queue_, *grpc_request_rate_limiter_, *metrics_collector_);
     grpc_client_workers_.push_back(std::move(worker));
   }
   return absl::OkStatus();

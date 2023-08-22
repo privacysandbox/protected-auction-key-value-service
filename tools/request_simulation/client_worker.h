@@ -27,6 +27,7 @@
 #include "grpcpp/grpcpp.h"
 #include "tools/request_simulation/grpc_client.h"
 #include "tools/request_simulation/message_queue.h"
+#include "tools/request_simulation/metrics_collector.h"
 #include "tools/request_simulation/rate_limiter.h"
 
 namespace kv_server {
@@ -57,10 +58,12 @@ class ClientWorker {
   ClientWorker(int id, std::shared_ptr<grpc::Channel> channel,
                std::string_view service_method, absl::Duration request_timeout,
                absl::AnyInvocable<RequestT(std::string)> request_converter,
-               MessageQueue& message_queue, RateLimiter& rate_limiter)
+               MessageQueue& message_queue, RateLimiter& rate_limiter,
+               MetricsCollector& metrics_collector)
       : service_method_(service_method),
         message_queue_(message_queue),
         rate_limiter_(rate_limiter),
+        metrics_collector_(metrics_collector),
         request_converter_(std::move(request_converter)),
         thread_manager_(
             TheadManager::Create(absl::StrCat("Client worker ", id))) {
@@ -84,6 +87,7 @@ class ClientWorker {
   std::string service_method_;
   MessageQueue& message_queue_;
   RateLimiter& rate_limiter_;
+  MetricsCollector& metrics_collector_;
   // Grpc client used to send requests.
   std::unique_ptr<GrpcClient<RequestT, ResponseT>> grpc_client_;
   absl::AnyInvocable<RequestT(std::string)> request_converter_;
@@ -114,13 +118,19 @@ void ClientWorker<RequestT, ResponseT>::SendRequests() {
       VLOG(8) << "About to send message, current message queue size "
               << message_queue_.Size();
       if (request_body.ok()) {
-        // TODO(b/292268143) collect metrics
         VLOG(8) << "Sending message " << request_body.value();
+        metrics_collector_.IncrementRequestSentPerInterval();
+        auto start = absl::Now();
         auto response = grpc_client_->SendMessage(
             request_converter_(request_body.value()), service_method_);
+        metrics_collector_.IncrementServerResponseStatusEvent(
+            response.status());
         if (!response.ok()) {
           VLOG(8) << "Received error in response " << response.status();
+          metrics_collector_.IncrementRequestsWithErrorResponsePerInterval();
         } else {
+          metrics_collector_.IncrementRequestsWithOkResponsePerInterval();
+          metrics_collector_.AddLatencyToHistogram(absl::Now() - start);
           VLOG(9) << "Received ok response";
         }
       }

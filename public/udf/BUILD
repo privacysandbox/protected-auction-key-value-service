@@ -12,9 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
 
 package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "binary_get_values_proto",
+    srcs = ["binary_get_values.proto"],
+    deps = [
+    ],
+)
+
+cc_proto_library(
+    name = "binary_get_values_cc_proto",
+    deps = [":binary_get_values_proto"],
+)
 
 cc_library(
     name = "constants",

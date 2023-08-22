@@ -30,6 +30,7 @@ cc_library(
     deps = [
         "//components/internal_server:internal_lookup_cc_proto",
         "//components/internal_server:lookup_client_impl",
+        "//public/udf:binary_get_values_cc_proto",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/status",

@@ -26,6 +26,7 @@
 #include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
 #include "nlohmann/json.hpp"
+#include "public/udf/binary_get_values.pb.h"
 
 namespace kv_server {
 namespace {
@@ -33,14 +34,47 @@ namespace {
 using google::protobuf::json::MessageToJsonString;
 using google::scp::roma::proto::FunctionBindingIoProto;
 
-void SetStatusAsMapOfStringToBytes(absl::StatusCode code,
-                                   FunctionBindingIoProto& io) {
-  // TODO(b/295405516): Implement
+constexpr char kOkStatusMessage[] = "ok";
+
+void SetBinaryGetValuesAsBytes(const BinaryGetValuesResponse& binary_response,
+                               FunctionBindingIoProto& io) {
+  std::string& buffer = *io.mutable_output_bytes();
+  int size = binary_response.ByteSizeLong();
+  buffer.resize(size);
+  binary_response.SerializeToArray(&buffer[0], size);
 }
 
-void SetOutputAsMapOfStringToBytes(const InternalLookupResponse& response,
-                                   FunctionBindingIoProto& io) {
-  // TODO(b/295405516): Implement
+Status GetStatus(int code, std::string_view message) {
+  Status status;
+  status.set_code(code);
+  status.set_message(message);
+  return status;
+}
+
+void SetStatusAsBytes(absl::StatusCode code, std::string_view message,
+                      FunctionBindingIoProto& io) {
+  BinaryGetValuesResponse binary_response;
+  *binary_response.mutable_status() =
+      GetStatus(static_cast<int>(code), message);
+  SetBinaryGetValuesAsBytes(binary_response, io);
+}
+
+void SetOutputAsBytes(const InternalLookupResponse& response,
+                      FunctionBindingIoProto& io) {
+  BinaryGetValuesResponse binary_response;
+  for (auto&& [k, v] : response.kv_pairs()) {
+    Value value;
+    if (v.has_status()) {
+      *value.mutable_status() =
+          GetStatus(v.status().code(), v.status().message());
+    }
+    if (v.has_value()) {
+      value.set_data(v.value());
+    }
+    (*binary_response.mutable_kv_pairs())[k] = std::move(value);
+  }
+  *binary_response.mutable_status() = GetStatus(0, kOkStatusMessage);
+  SetBinaryGetValuesAsBytes(binary_response, io);
 }
 
 void SetStatusAsString(absl::StatusCode code, std::string_view message,
@@ -62,7 +96,20 @@ void SetOutputAsString(const InternalLookupResponse& response,
     VLOG(1) << "getValues result: " << io.DebugString();
     return;
   }
-  io.set_output_string(std::move(kv_pairs_json));
+
+  auto kv_pairs_json_object = nlohmann::json::parse(kv_pairs_json, nullptr,
+                                                    /*allow_exceptions=*/false,
+                                                    /*ignore_comments=*/true);
+  if (kv_pairs_json_object.is_discarded()) {
+    SetStatusAsString(absl::StatusCode::kInvalidArgument,
+                      "Error while parsing JSON string.", io);
+    LOG(ERROR) << "json parse failed for " << kv_pairs_json;
+
+    return;
+  }
+  kv_pairs_json_object["status"]["code"] = 0;
+  kv_pairs_json_object["status"]["message"] = kOkStatusMessage;
+  io.set_output_string(kv_pairs_json_object.dump());
 }
 
 class GetValuesHookImpl : public GetValuesHook {
@@ -112,7 +159,7 @@ class GetValuesHookImpl : public GetValuesHook {
     if (output_type_ == OutputType::kString) {
       SetStatusAsString(code, message, io);
     } else {
-      SetStatusAsMapOfStringToBytes(code, io);
+      SetStatusAsBytes(code, message, io);
     }
   }
 
@@ -121,7 +168,7 @@ class GetValuesHookImpl : public GetValuesHook {
     if (output_type_ == OutputType::kString) {
       SetOutputAsString(response, io);
     } else {
-      SetOutputAsMapOfStringToBytes(response, io);
+      SetOutputAsBytes(response, io);
     }
   }
 

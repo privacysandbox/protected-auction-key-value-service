@@ -204,3 +204,20 @@ cc_binary(
         "@com_google_absl//absl/strings",
     ],
 )
+
+cc_binary(
+    name = "realtime_notifier",
+    srcs = ["realtime_notifier.cc"],
+    deps = [
+        "//components/data/realtime:realtime_notifier",
+        "//components/util:platform_initializer",
+        "//public/data_loading:data_loading_fbs",
+        "//public/data_loading:filename_utils",
+        "//public/data_loading:records_utils",
+        "//public/data_loading/readers:riegeli_stream_io",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/flags:usage",
+        "@com_google_absl//absl/strings",
+    ],
+)

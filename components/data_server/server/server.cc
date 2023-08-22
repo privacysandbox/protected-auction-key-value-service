@@ -286,18 +286,12 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   LOG(INFO) << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
             << " parameter: " << realtime_thread_numbers;
   for (int i = 0; i < realtime_thread_numbers; i++) {
-    auto status_or_notifier =
-        ChangeNotifier::Create(realtime_notifier_metadata, *metrics_recorder_);
-    if (!status_or_notifier.ok()) {
-      return status_or_notifier.status();
+    auto maybe_realtime_notifier = RealtimeNotifier::Create(
+        *metrics_recorder_, realtime_notifier_metadata);
+    if (!maybe_realtime_notifier.ok()) {
+      return maybe_realtime_notifier.status();
     }
-    DataOrchestrator::RealtimeOptions realtime_options;
-    realtime_options.delta_file_record_change_notifier =
-        DeltaFileRecordChangeNotifier::Create(std::move(*status_or_notifier),
-                                              *metrics_recorder_);
-    realtime_options.realtime_notifier =
-        RealtimeNotifier::Create(*metrics_recorder_);
-    realtime_options_.push_back(std::move(realtime_options));
+    realtime_notifiers_.push_back(std::move(*maybe_realtime_notifier));
   }
   data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher);
   TraceRetryUntilOk([this] { return data_orchestrator_->Start(); },
@@ -329,9 +323,9 @@ absl::Status Server::MaybeShutdownNotifiers() {
   if (notifier_ && notifier_->IsRunning()) {
     status = notifier_->Stop();
   }
-  for (auto& option : realtime_options_) {
-    if (option.realtime_notifier->IsRunning()) {
-      status.Update(option.realtime_notifier->Stop());
+  for (auto& realtime_notifier : realtime_notifiers_) {
+    if (realtime_notifier->IsRunning()) {
+      status.Update(realtime_notifier->Stop());
     }
   }
   return status;
@@ -443,7 +437,7 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
                 .delta_notifier = *notifier_,
                 .change_notifier = *change_notifier_,
                 .delta_stream_reader_factory = *delta_stream_reader_factory_,
-                .realtime_options = realtime_options_,
+                .realtime_notifiers = realtime_notifiers_,
                 .udf_client = *udf_client_,
                 .shard_num = shard_num_,
                 .num_shards = num_shards_,

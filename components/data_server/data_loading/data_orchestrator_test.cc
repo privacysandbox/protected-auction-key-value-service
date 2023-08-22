@@ -20,6 +20,7 @@
 
 #include "absl/synchronization/notification.h"
 #include "components/data/common/mocks.h"
+#include "components/data/realtime/realtime_notifier.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
 #include "components/udf/code_config.h"
@@ -92,7 +93,7 @@ class DataOrchestratorTest : public ::testing::Test {
             .change_notifier = change_notifier_,
             .udf_client = udf_client_,
             .delta_stream_reader_factory = delta_stream_reader_factory_,
-            .realtime_options = realtime_options_}) {}
+            .realtime_notifiers = realtime_notifiers_}) {}
 
   MockBlobStorageClient blob_client_;
   MockDeltaFileNotifier notifier_;
@@ -100,7 +101,7 @@ class DataOrchestratorTest : public ::testing::Test {
   MockUdfClient udf_client_;
   MockStreamRecordReaderFactory delta_stream_reader_factory_;
   MockCache cache_;
-  std::vector<DataOrchestrator::RealtimeOptions> realtime_options_;
+  std::vector<std::unique_ptr<kv_server::RealtimeNotifier>> realtime_notifiers_;
   DataOrchestrator::Options options_;
   MockMetricsRecorder metrics_recorder_;
 };
@@ -613,7 +614,7 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .change_notifier = change_notifier_,
       .udf_client = udf_client_,
       .delta_stream_reader_factory = delta_stream_reader_factory_,
-      .realtime_options = realtime_options_,
+      .realtime_notifiers = realtime_notifiers_,
       .shard_num = 1,
       .num_shards = 2,
   };

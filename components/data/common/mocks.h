@@ -81,8 +81,7 @@ class MockRealtimeNotifier : public RealtimeNotifier {
   MockRealtimeNotifier() : RealtimeNotifier() {}
   MOCK_METHOD(
       absl::Status, Start,
-      (DeltaFileRecordChangeNotifier & change_notifier,
-       std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
+      (std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
            callback),
       (override));
   MOCK_METHOD(absl::Status, Stop, (), (override));

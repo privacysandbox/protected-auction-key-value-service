@@ -127,7 +127,7 @@ class Server {
   // The following fields must outlive DataOrchestrator
   std::unique_ptr<DeltaFileNotifier> notifier_;
   std::unique_ptr<BlobStorageChangeNotifier> change_notifier_;
-  std::vector<DataOrchestrator::RealtimeOptions> realtime_options_;
+  std::vector<std::unique_ptr<RealtimeNotifier>> realtime_notifiers_;
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
       delta_stream_reader_factory_;
 

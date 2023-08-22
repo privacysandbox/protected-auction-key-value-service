@@ -172,13 +172,7 @@ absl::Status InitOnce(Operation operation) {
   absl::StatusOr<std::unique_ptr<DataOrchestrator>> maybe_data_orchestrator;
   absl::Time start_time = absl::Now();
 
-  std::vector<DataOrchestrator::RealtimeOptions> realtime_options;
-  DataOrchestrator::RealtimeOptions realtime_option;
-  realtime_option.delta_file_record_change_notifier =
-      std::make_unique<NoopDeltaFileRecordChangeNotifier>();
-  realtime_option.realtime_notifier =
-      RealtimeNotifier::Create(*metrics_recorder);
-  realtime_options.push_back(std::move(realtime_option));
+  std::vector<std::unique_ptr<RealtimeNotifier>> realtime_notifiers;
   maybe_data_orchestrator = DataOrchestrator::TryCreate(
       {
           .data_bucket = absl::GetFlag(FLAGS_bucket),
@@ -187,7 +181,7 @@ absl::Status InitOnce(Operation operation) {
           .delta_notifier = *notifier,
           .change_notifier = change_notifier,
           .delta_stream_reader_factory = *delta_stream_reader_factory,
-          .realtime_options = realtime_options,
+          .realtime_notifiers = realtime_notifiers,
           .udf_client = *noop_udf_client,
       },
       *metrics_recorder);

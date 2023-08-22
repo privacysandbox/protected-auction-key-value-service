@@ -313,27 +313,16 @@ class DataOrchestratorImpl : public DataOrchestrator {
     auto& cache = options_.cache;
     auto& delta_stream_reader_factory = options_.delta_stream_reader_factory;
 
-    for (int i = 0; i < options_.realtime_options.size(); i++) {
-      if (options_.realtime_options[i].delta_file_record_change_notifier ==
-          nullptr) {
-        LOG(ERROR) << "Realtime delta_file_record_change_notifier is nullptr, "
-                      "realtime data loading disabled.";
-        return absl::OkStatus();
-      }
-      if (options_.realtime_options[i].realtime_notifier == nullptr) {
+    for (int i = 0; i < options_.realtime_notifiers.size(); i++) {
+      if (options_.realtime_notifiers[i] == nullptr) {
         LOG(ERROR) << "Realtime realtime_notifier is nullptr, realtime data "
                       "loading disabled.";
         return absl::OkStatus();
       }
-
-      auto realtime_notifier =
-          options_.realtime_options[i].realtime_notifier.get();
-      auto delta_file_record_change_notifier =
-          options_.realtime_options[i].delta_file_record_change_notifier.get();
-      auto status = realtime_notifier->Start(
-          *delta_file_record_change_notifier,
-          [this, &cache,
-           &delta_stream_reader_factory](const std::string& message_body) {
+      auto realtime_notifier = options_.realtime_notifiers[i].get();
+      auto status =
+          realtime_notifier->Start([this, &cache, &delta_stream_reader_factory](
+                                       const std::string& message_body) {
             return LoadCacheWithHighPriorityUpdates(delta_stream_reader_factory,
                                                     message_body, cache);
           });

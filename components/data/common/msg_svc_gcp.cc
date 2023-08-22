@@ -20,6 +20,7 @@
 #include "components/data/common/msg_svc.h"
 #include "components/data/common/msg_svc_util.h"
 #include "components/errors/error_util_gcp.h"
+#include "glog/logging.h"
 #include "google/cloud/pubsub/message.h"
 #include "google/cloud/pubsub/subscriber.h"
 #include "google/cloud/pubsub/subscription_admin_client.h"
@@ -85,14 +86,17 @@ class GcpMessageService : public MessageService {
       subscription_builder.set_filter(
           absl::StrFormat(kFilterPolicyTemplate, shard_num_.value()));
     }
+    VLOG(1) << "Creating a subscription for project id " << project_id_
+            << " with subsciprition id " << subscription_id;
     auto sub = subscription_admin_client_.CreateSubscription(
         Topic(project_id_, std::move(topic_id_)),
-        Subscription(project_id_, std::move(subscription_id)),
-        subscription_builder);
-
+        Subscription(project_id_, subscription_id), subscription_builder);
     if (!sub.status().ok()) {
       return GoogleErrorStatusToAbslStatus(sub.status());
     }
+
+    sub_id_ = subscription_id;
+    VLOG(1) << "Subscription created " << sub_id_;
     return subscription_id;
   }
 

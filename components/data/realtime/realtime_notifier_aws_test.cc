@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/data/realtime/realtime_notifier.h"
-
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/synchronization/notification.h"
 #include "components/data/common/mocks.h"
+#include "components/data/realtime/realtime_notifier.h"
 #include "components/util/sleepfor_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -36,20 +35,14 @@ namespace {
 using privacy_sandbox::server_common::GetTracer;
 using privacy_sandbox::server_common::MockMetricsRecorder;
 
-class RealtimeNotifierTest : public ::testing::Test {
+class RealtimeNotifierAwsTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    std::unique_ptr<MockSleepFor> mock_sleep_for =
-        std::make_unique<MockSleepFor>();
-    sleep_for_ = mock_sleep_for.get();
-    notifier_ = RealtimeNotifier::Create(mock_metrics_recorder_,
-                                         std::move(mock_sleep_for));
-  }
-
-  std::unique_ptr<RealtimeNotifier> notifier_;
-  MockDeltaFileRecordChangeNotifier change_notifier_;
+  void SetUp() override {}
+  std::unique_ptr<MockDeltaFileRecordChangeNotifier> change_notifier_ =
+      std::make_unique<MockDeltaFileRecordChangeNotifier>();
   MockMetricsRecorder mock_metrics_recorder_;
-  MockSleepFor* sleep_for_;
+  std::unique_ptr<MockSleepFor> mock_sleep_for_ =
+      std::make_unique<MockSleepFor>();
 };
 
 NotificationsContext GetNotificationsContext() {
@@ -57,34 +50,56 @@ NotificationsContext GetNotificationsContext() {
   return NotificationsContext{.scope = opentelemetry::trace::Scope(span)};
 }
 
-TEST_F(RealtimeNotifierTest, NotRunning) {
-  ASSERT_FALSE(notifier_->IsRunning());
+TEST_F(RealtimeNotifierAwsTest, NotRunning) {
+  AwsRealtimeNotifierMetadata options = {
+      .maybe_sleep_for = std::move(mock_sleep_for_),
+      .change_notifier_for_unit_testing = change_notifier_.release(),
+  };
+  auto maybe_notifier =
+      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  ASSERT_TRUE(maybe_notifier.ok());
+  ASSERT_FALSE((*maybe_notifier)->IsRunning());
 }
 
-TEST_F(RealtimeNotifierTest, ConsecutiveStartsWork) {
-  absl::Status status = notifier_->Start(
-      change_notifier_, [](const std::string&) { return absl::OkStatus(); });
+TEST_F(RealtimeNotifierAwsTest, ConsecutiveStartsWork) {
+  AwsRealtimeNotifierMetadata options = {
+      .maybe_sleep_for = std::move(mock_sleep_for_),
+      .change_notifier_for_unit_testing = change_notifier_.release(),
+  };
+  auto maybe_notifier =
+      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  absl::Status status = (*maybe_notifier)->Start([](const std::string&) {
+    return absl::OkStatus();
+  });
   ASSERT_TRUE(status.ok());
-  status = notifier_->Start(
-      change_notifier_, [](const std::string&) { return absl::OkStatus(); });
+  status = (*maybe_notifier)->Start([](const std::string&) {
+    return absl::OkStatus();
+  });
   ASSERT_FALSE(status.ok());
 }
 
-TEST_F(RealtimeNotifierTest, StartsAndStops) {
-  absl::Status status = notifier_->Start(
-      change_notifier_, [](const std::string&) { return absl::OkStatus(); });
+TEST_F(RealtimeNotifierAwsTest, StartsAndStops) {
+  AwsRealtimeNotifierMetadata options = {
+      .maybe_sleep_for = std::move(mock_sleep_for_),
+      .change_notifier_for_unit_testing = change_notifier_.release(),
+  };
+  auto maybe_notifier =
+      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  absl::Status status = (*maybe_notifier)->Start([](const std::string&) {
+    return absl::OkStatus();
+  });
   ASSERT_TRUE(status.ok());
-  EXPECT_TRUE(notifier_->IsRunning());
-  status = notifier_->Stop();
+  EXPECT_TRUE((*maybe_notifier)->IsRunning());
+  status = (*maybe_notifier)->Stop();
   ASSERT_TRUE(status.ok());
-  EXPECT_FALSE(notifier_->IsRunning());
+  EXPECT_FALSE((*maybe_notifier)->IsRunning());
 }
 
-TEST_F(RealtimeNotifierTest, NotifiesWithHighPriorityUpdates) {
+TEST_F(RealtimeNotifierAwsTest, NotifiesWithHighPriorityUpdates) {
   std::string high_priority_update_1 = "high_priority_update_1";
   std::string high_priority_update_2 = "high_priority_update_2";
 
-  EXPECT_CALL(change_notifier_, GetNotifications(_, _))
+  EXPECT_CALL(*change_notifier_, GetNotifications(_, _))
       // x64 encoded file with two records
       .WillOnce([&]() {
         NotificationsContext nc1 = GetNotificationsContext();
@@ -119,20 +134,24 @@ TEST_F(RealtimeNotifierTest, NotifiesWithHighPriorityUpdates) {
         finished.Notify();
         return DataLoadingStats{};
       });
-
-  absl::Status status =
-      notifier_->Start(change_notifier_, callback.AsStdFunction());
+  AwsRealtimeNotifierMetadata options = {
+      .maybe_sleep_for = std::move(mock_sleep_for_),
+      .change_notifier_for_unit_testing = change_notifier_.release(),
+  };
+  auto maybe_notifier =
+      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  absl::Status status = (*maybe_notifier)->Start(callback.AsStdFunction());
   ASSERT_TRUE(status.ok());
-  EXPECT_TRUE(notifier_->IsRunning());
+  EXPECT_TRUE((*maybe_notifier)->IsRunning());
   finished.WaitForNotification();
-  status = notifier_->Stop();
+  status = (*maybe_notifier)->Stop();
   ASSERT_TRUE(status.ok());
-  EXPECT_FALSE(notifier_->IsRunning());
+  EXPECT_FALSE((*maybe_notifier)->IsRunning());
 }
 
-TEST_F(RealtimeNotifierTest, GetChangesFailure) {
+TEST_F(RealtimeNotifierAwsTest, GetChangesFailure) {
   std::string high_priority_update_1 = "high_priority_update_1";
-  EXPECT_CALL(change_notifier_, GetNotifications(_, _))
+  EXPECT_CALL(*change_notifier_, GetNotifications(_, _))
       .WillOnce([]() { return absl::InvalidArgumentError("stuff"); })
       .WillOnce([]() { return absl::InvalidArgumentError("stuff"); })
       .WillOnce([&]() {
@@ -153,21 +172,26 @@ TEST_F(RealtimeNotifierTest, GetChangesFailure) {
     finished.Notify();
     return DataLoadingStats{};
   });
-  EXPECT_CALL(*sleep_for_, Duration(absl::Seconds(2)))
+  EXPECT_CALL(*mock_sleep_for_, Duration(absl::Seconds(2)))
       .Times(1)
       .WillOnce(Return(true));
-  EXPECT_CALL(*sleep_for_, Duration(absl::Seconds(4)))
+  EXPECT_CALL(*mock_sleep_for_, Duration(absl::Seconds(4)))
       .Times(1)
       .WillOnce(Return(true));
 
-  absl::Status status =
-      notifier_->Start(change_notifier_, callback.AsStdFunction());
+  AwsRealtimeNotifierMetadata options = {
+      .maybe_sleep_for = std::move(mock_sleep_for_),
+      .change_notifier_for_unit_testing = change_notifier_.release(),
+  };
+  auto maybe_notifier =
+      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  absl::Status status = (*maybe_notifier)->Start(callback.AsStdFunction());
   ASSERT_TRUE(status.ok());
-  EXPECT_TRUE(notifier_->IsRunning());
+  EXPECT_TRUE((*maybe_notifier)->IsRunning());
   finished.WaitForNotification();
-  status = notifier_->Stop();
+  status = (*maybe_notifier)->Stop();
   ASSERT_TRUE(status.ok());
-  EXPECT_FALSE(notifier_->IsRunning());
+  EXPECT_FALSE((*maybe_notifier)->IsRunning());
 }
 
 }  // namespace

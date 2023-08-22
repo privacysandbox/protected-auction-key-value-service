@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/data/realtime/realtime_notifier.h"
-
 #include <algorithm>
+#include <cstddef>
 #include <thread>
 #include <utility>
 #include <vector>
 
-#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "components/data/common/thread_manager.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/data/realtime/realtime_notifier.h"
 #include "components/errors/retry.h"
 #include "glog/logging.h"
 #include "public/constants.h"
@@ -54,11 +53,13 @@ const std::vector<double> kE2eBucketBoundaries = {
 
 class RealtimeNotifierImpl : public RealtimeNotifier {
  public:
-  explicit RealtimeNotifierImpl(MetricsRecorder& metrics_recorder,
-                                std::unique_ptr<SleepFor> sleep_for)
+  explicit RealtimeNotifierImpl(
+      MetricsRecorder& metrics_recorder, std::unique_ptr<SleepFor> sleep_for,
+      std::unique_ptr<DeltaFileRecordChangeNotifier> change_notifier)
       : thread_manager_(TheadManager::Create("Realtime notifier")),
         metrics_recorder_(metrics_recorder),
-        sleep_for_(std::move(sleep_for)) {
+        sleep_for_(std::move(sleep_for)),
+        change_notifier_(std::move(change_notifier)) {
     metrics_recorder.RegisterHistogram(kReceivedLowLatencyNotificationsE2E,
                                        "Low latency notifictionas E2E latency",
                                        "microsecond", kE2eBucketBoundaries);
@@ -69,13 +70,12 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
   }
 
   absl::Status Start(
-      DeltaFileRecordChangeNotifier& change_notifier,
       std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
           callback) override {
-    return thread_manager_->Start(
-        [this, callback = std::move(callback), &change_notifier]() mutable {
-          Watch(change_notifier, std::move(callback));
-        });
+    return thread_manager_->Start([this, &change_notifier = *change_notifier_,
+                                   callback = std::move(callback)]() mutable {
+      Watch(change_notifier, std::move(callback));
+    });
   }
 
   absl::Status Stop() override {
@@ -157,21 +157,39 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
   std::unique_ptr<TheadManager> thread_manager_;
   MetricsRecorder& metrics_recorder_;
   std::unique_ptr<SleepFor> sleep_for_;
+  std::unique_ptr<DeltaFileRecordChangeNotifier> change_notifier_;
 };
 
 }  // namespace
 
-std::unique_ptr<RealtimeNotifier> RealtimeNotifier::Create(
-    MetricsRecorder& metrics_recorder) {
-  return std::make_unique<RealtimeNotifierImpl>(metrics_recorder,
-                                                std::make_unique<SleepFor>());
-}
-
-// Used for test
-std::unique_ptr<RealtimeNotifier> RealtimeNotifier::Create(
-    MetricsRecorder& metrics_recorder, std::unique_ptr<SleepFor> sleep_for) {
-  return std::make_unique<RealtimeNotifierImpl>(metrics_recorder,
-                                                std::move(sleep_for));
+absl::StatusOr<std::unique_ptr<RealtimeNotifier>> RealtimeNotifier::Create(
+    MetricsRecorder& metrics_recorder, NotifierMetadata notifier_metadata,
+    RealtimeNotifierMetadata realtime_notifier_metadata) {
+  auto options =
+      std::get_if<AwsRealtimeNotifierMetadata>(&realtime_notifier_metadata);
+  std::unique_ptr<DeltaFileRecordChangeNotifier>
+      delta_file_record_change_notifier;
+  if (options && options->change_notifier_for_unit_testing) {
+    delta_file_record_change_notifier.reset(
+        options->change_notifier_for_unit_testing);
+  } else {
+    auto status_or_notifier =
+        ChangeNotifier::Create(std::move(notifier_metadata), metrics_recorder);
+    if (!status_or_notifier.ok()) {
+      return status_or_notifier.status();
+    }
+    delta_file_record_change_notifier = DeltaFileRecordChangeNotifier::Create(
+        std::move(*status_or_notifier), metrics_recorder);
+  }
+  std::unique_ptr<SleepFor> sleep_for;
+  if (options && options->maybe_sleep_for) {
+    sleep_for = std::move(options->maybe_sleep_for);
+  } else {
+    sleep_for = std::make_unique<SleepFor>();
+  }
+  return std::make_unique<RealtimeNotifierImpl>(
+      metrics_recorder, std::move(sleep_for),
+      std::move(delta_file_record_change_notifier));
 }
 
 }  // namespace kv_server

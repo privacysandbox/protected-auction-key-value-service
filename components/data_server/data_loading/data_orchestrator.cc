@@ -99,11 +99,10 @@ bool ShouldProcessRecord(const KeyValueMutationRecord& record,
     return true;
   }
   metrics_recorder.IncrementEventCounter(kTotalRowsDroppedIncorrectShardNumber);
-  auto error_message = absl::StrFormat(
+  LOG_EVERY_N(ERROR, 100000) << absl::StrFormat(
       "Data does not belong to this shard replica. Key: %s, Actual "
       "shard id: %d, Server's shard id: %d.",
       record.key()->string_view(), shard_num, server_shard_num);
-  LOG(ERROR) << error_message;
   return false;
 }
 

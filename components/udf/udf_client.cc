@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
@@ -29,6 +30,9 @@
 #include "glog/logging.h"
 #include "roma/config/src/config.h"
 #include "roma/interface/roma.h"
+
+ABSL_FLAG(absl::Duration, udf_timeout, absl::Minutes(1),
+          "Timeout for one UDF invocation");
 
 namespace kv_server {
 
@@ -42,7 +46,6 @@ using google::scp::roma::ResponseObject;
 using google::scp::roma::RomaInit;
 using google::scp::roma::RomaStop;
 
-constexpr absl::Duration kCallbackTimeout = absl::Seconds(1);
 constexpr absl::Duration kCodeUpdateTimeout = absl::Seconds(1);
 
 // Roma IDs and version numbers are required for execution.
@@ -54,7 +57,7 @@ constexpr int kVersionNum = 1;
 
 class UdfClientImpl : public UdfClient {
  public:
-  UdfClientImpl() = default;
+  UdfClientImpl() : udf_timeout_(absl::GetFlag(FLAGS_udf_timeout)) {}
 
   absl::StatusOr<std::string> ExecuteCode(std::vector<std::string> keys) const {
     std::shared_ptr<absl::Status> response_status =
@@ -82,7 +85,7 @@ class UdfClientImpl : public UdfClient {
       return status;
     }
 
-    notification->WaitForNotificationWithTimeout(kCallbackTimeout);
+    notification->WaitForNotificationWithTimeout(udf_timeout_);
     if (!notification->HasBeenNotified()) {
       return absl::InternalError("Timed out waiting for UDF result.");
     }
@@ -109,6 +112,7 @@ class UdfClientImpl : public UdfClient {
         std::make_shared<absl::Status>();
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();
+    VLOG(9) << "Setting UDF: " << code_config.js;
     CodeObject code_object =
         BuildCodeObject(std::move(code_config.js), std::move(code_config.wasm),
                         code_config.version);
@@ -168,6 +172,7 @@ class UdfClientImpl : public UdfClient {
   std::string handler_name_;
   int64_t logical_commit_time_ = -1;
   int64_t version_ = 1;
+  const absl::Duration udf_timeout_;
 };
 
 }  // namespace

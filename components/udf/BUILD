@@ -42,6 +42,7 @@ cc_library(
         "//components/errors:retry",
         "//components/udf/hooks:get_values_hook",
         "//components/udf/hooks:run_query_hook",
+        "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",

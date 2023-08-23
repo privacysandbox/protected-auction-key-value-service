@@ -42,9 +42,15 @@ class LookupClientImpl : public LookupClient {
   LookupClientImpl& operator=(const LookupClientImpl&) = delete;
 
   explicit LookupClientImpl(std::string_view server_address)
-      : stub_(InternalLookupService::NewStub(grpc::CreateChannel(
-            std::string(server_address), grpc::InsecureChannelCredentials()))) {
-  }
+      : stub_([server_address] {
+          grpc::ChannelArguments channel_args;
+          channel_args.SetMaxReceiveMessageSize(
+              std::numeric_limits<int>::max());
+          channel_args.SetMaxSendMessageSize(std::numeric_limits<int>::max());
+          return InternalLookupService::NewStub(grpc::CreateCustomChannel(
+              std::string(server_address), grpc::InsecureChannelCredentials(),
+              channel_args));
+        }()) {}
 
   absl::StatusOr<InternalLookupResponse> GetValues(
       const std::vector<std::string>& keys) const override {

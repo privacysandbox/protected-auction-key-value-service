@@ -544,8 +544,6 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartRemoteLookupServer() {
 }
 
 void Server::SetDefaultUdfCodeObject() {
-  VLOG(8) << "Setting default UDF code config. Snippet: "
-          << kDefaultUdfCodeSnippet;
   const absl::Status status = udf_client_->SetCodeObject(
       CodeConfig{.js = kDefaultUdfCodeSnippet,
                  .udf_handler_name = kDefaultUdfHandlerName,

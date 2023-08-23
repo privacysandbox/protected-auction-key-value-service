@@ -125,7 +125,7 @@ cc_inline_wasm_udf_delta (
 -   Generate the DELTA file:
 
 ```shell
-bazel run --incompatible_enable_cc_toolchain_resolution path/to/udf_delta_target:hello_delta
+builders/tools/bazel-debian run --incompatible_enable_cc_toolchain_resolution path/to/udf_delta_target:hello_delta
 ```
 
 -   Get the DELTA file from `dist/`.
@@ -153,7 +153,11 @@ inline_wasm_udf_delta(
 -   Generate the DELTA file:
 
 ```shell
-bazel run path/to/udf_delta_target:hello_delta
+builders/tools/bazel-debian run path/to/udf_delta_target:hello_delta
 ```
 
--   Get the DELTA file from `dist/`.
+-   The DELTA file should now be under `dist/`.
+
+```shell
+ls dist/DELTA_*
+```

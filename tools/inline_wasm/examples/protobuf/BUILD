@@ -41,7 +41,7 @@ cc_binary(
     ],
 )
 
-# bazel run --config=emscripten \
+# builders/tools/bazel-debian run --config=emscripten \
 # //tools/inline_wasm/examples/protobuf:hello_delta
 cc_inline_wasm_udf_delta(
     name = "hello_delta",

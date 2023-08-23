@@ -51,7 +51,7 @@ wasm_cc_binary(
     visibility = ["//visibility:private"],
 )
 
-# bazel run ---config=emscripten \
+# builders/tools/bazel-debian run ---config=emscripten \
 # //tools/inline_wasm/examples/hello_world:hello_delta
 inline_wasm_udf_delta(
     name = "hello_delta",

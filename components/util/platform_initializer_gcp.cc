@@ -15,12 +15,34 @@
 // TODO(b/296901861): Modify the implementation with GCP specific logic (the
 // current implementation is copied from local).
 
+#include "cc/public/core/interface/errors.h"
+#include "cc/public/core/interface/execution_result.h"
 #include "components/util/platform_initializer.h"
+#include "glog/logging.h"
+#include "public/cpio/interface/cpio.h"
 
 namespace kv_server {
+namespace {
+using google::scp::core::GetErrorMessage;
+using google::scp::cpio::Cpio;
+using google::scp::cpio::CpioOptions;
+using google::scp::cpio::LogOption;
+google::scp::cpio::CpioOptions cpio_options_;
+}  // namespace
 
-// No-op, there's nothing to initialize to read local data.
-PlatformInitializer::PlatformInitializer() {}
+PlatformInitializer::PlatformInitializer() {
+  cpio_options_.log_option = LogOption::kConsoleLog;
+  auto execution_result = Cpio::InitCpio(cpio_options_);
+  CHECK(execution_result.Successful())
+      << "Failed to initialize CPIO: "
+      << GetErrorMessage(execution_result.status_code);
+}
 
-PlatformInitializer::~PlatformInitializer() {}
+PlatformInitializer::~PlatformInitializer() {
+  auto execution_result = Cpio::ShutdownCpio(cpio_options_);
+  if (!execution_result.Successful()) {
+    LOG(ERROR) << "Failed to shutdown CPIO: "
+               << GetErrorMessage(execution_result.status_code);
+  }
+}
 }  // namespace kv_server

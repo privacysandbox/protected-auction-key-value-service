@@ -49,10 +49,11 @@ cc_library(
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:marshalling",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@control_plane_shared//cc/public/core/interface:errors",
+        "@control_plane_shared//cc/public/cpio/interface/parameter_client",
     ],
 )
 
@@ -77,10 +78,7 @@ cc_test(
             "@aws_sdk_cpp//:ssm",
         ],
         "//:gcp_platform": [
-            "//components/data/common:mocks",
-            "//components/util:sleepfor_mock",
-            "@com_github_google_glog//:glog",
-            "@com_github_grpc_grpc//:grpc++",
+            "@com_google_googletest//:gtest",
         ],
         "//:local_platform": [
             "//components/data/common:mocks",
@@ -109,6 +107,11 @@ cc_library(
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:ssm",
+        ],
+        "//:gcp_platform": [
+            "@control_plane_shared//cc/public/core/interface:errors",
+            "@control_plane_shared//cc/public/cpio/interface:cpio",
+            "@control_plane_shared//cc/public/cpio/interface/parameter_client",
         ],
         "//conditions:default": [],
     }) + [

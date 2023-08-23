@@ -133,6 +133,10 @@ cc_library(
             "@aws_sdk_cpp//:core",
             "@control_plane_shared//cc/public/cpio/interface:cpio",
         ],
+        "//:gcp_platform": [
+            "@control_plane_shared//cc/public/core/interface:errors",
+            "@control_plane_shared//cc/public/cpio/interface:cpio",
+        ],
         "//conditions:default": [],
     }) + [
         "@com_github_google_glog//:glog",

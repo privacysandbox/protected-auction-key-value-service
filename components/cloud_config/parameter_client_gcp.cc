@@ -15,134 +15,127 @@
 // TODO(b/296901861): Modify the implementation with GCP specific logic (the
 // current implementation is copied from local).
 
+#include <chrono>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
-#include "absl/flags/marshalling.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/blocking_counter.h"
+#include "cc/public/core/interface/errors.h"
+#include "cc/public/core/interface/execution_result.h"
+#include "cc/public/cpio/interface/parameter_client/parameter_client_interface.h"
 #include "components/cloud_config/parameter_client.h"
-
-ABSL_FLAG(std::string, delta_directory, "",
-          "Local directory to watch for files.");
-ABSL_FLAG(absl::Duration, export_interval, absl::Seconds(30),
-          "Frequency to export local metrics.");
-ABSL_FLAG(absl::Duration, export_timeout, absl::Seconds(5),
-          "Timeout for exporting local metrics.");
-ABSL_FLAG(std::string, launch_hook, "", "Launch hook.");
-ABSL_FLAG(absl::Duration, local_poll_frequency, absl::Seconds(5),
-          "Frequency to poll for local file changes.");
-ABSL_FLAG(std::string, realtime_directory, "",
-          "Local directory to watch for realtime file changes.");
-ABSL_FLAG(int32_t, local_realtime_updater_num_threads, 1,
-          "Amount of realtime updates threads locally.");
-ABSL_FLAG(int32_t, data_loading_num_threads,
-          std::thread::hardware_concurrency(),
-          "Number of parallel threads for reading and loading data files.");
-ABSL_FLAG(int32_t, s3client_max_connections, 1,
-          "S3Client max connections for reading data files.");
-ABSL_FLAG(int32_t, s3client_max_range_bytes, 1,
-          "S3Client max range bytes for reading data files.");
-ABSL_FLAG(int32_t, num_shards, 1, "Total number of shards.");
-ABSL_FLAG(int32_t, udf_num_workers, 2, "Number of workers for UDF execution.");
-ABSL_FLAG(bool, route_v1_to_v2, false,
-          "Whether to route V1 requests through V2.");
+#include "glog/logging.h"
 
 namespace kv_server {
 namespace {
+using google::cmrt::sdk::parameter_service::v1::GetParameterRequest;
+using google::cmrt::sdk::parameter_service::v1::GetParameterResponse;
+using google::scp::core::ExecutionResult;
+using google::scp::core::GetErrorMessage;
+using google::scp::cpio::ParameterClientFactory;
+using google::scp::cpio::ParameterClientInterface;
+using google::scp::cpio::ParameterClientOptions;
 
-// Initialize a static map of flag values and use those to look up parameters.
-//
-// TODO(b/237669491) The values here are hardcoded with a server prefix of
-//  "kv-server" and an environment of "local".  This is safe because these
-// parameters should only work in that configuration but it's not elegant, see
-// if there's a better way.
 class GcpParameterClient : public ParameterClient {
  public:
   GcpParameterClient() {
-    string_flag_values_.insert(
-        {"kv-server-local-directory", absl::GetFlag(FLAGS_delta_directory)});
-    string_flag_values_.insert({"kv-server-local-data-bucket-id",
-                                absl::GetFlag(FLAGS_delta_directory)});
-    string_flag_values_.insert(
-        {"kv-server-local-launch-hook", absl::GetFlag(FLAGS_launch_hook)});
-    string_flag_values_.insert({"kv-server-local-realtime-directory",
-                                absl::GetFlag(FLAGS_realtime_directory)});
-    // Insert more string flag values here.
+    parameter_client_ =
+        ParameterClientFactory::Create(ParameterClientOptions());
+    auto execution_result = parameter_client_->Init();
+    CHECK(execution_result.Successful())
+        << "Cannot init parameter client!"
+        << GetErrorMessage(execution_result.status_code);
+    execution_result = parameter_client_->Run();
+    CHECK(execution_result.Successful())
+        << "Cannot run parameter client!"
+        << GetErrorMessage(execution_result.status_code);
+  }
 
-    int32_t_flag_values_.insert(
-        {"kv-server-local-metrics-export-interval-millis",
-         absl::ToInt64Milliseconds(absl::GetFlag(FLAGS_export_interval))});
-    int32_t_flag_values_.insert(
-        {"kv-server-local-metrics-export-timeout-millis",
-         absl::ToInt64Milliseconds(absl::GetFlag(FLAGS_export_timeout))});
-    int32_t_flag_values_.insert(
-        {"kv-server-local-backup-poll-frequency-secs",
-         absl::ToInt64Seconds(absl::GetFlag(FLAGS_local_poll_frequency))});
-    int32_t_flag_values_.insert(
-        {"kv-server-local-realtime-updater-num-threads",
-         absl::GetFlag(FLAGS_local_realtime_updater_num_threads)});
-    int32_t_flag_values_.insert(
-        {"kv-server-local-data-loading-num-threads",
-         absl::GetFlag(FLAGS_data_loading_num_threads)});
-    int32_t_flag_values_.insert(
-        {"kv-server-local-s3client-max-connections",
-         absl::GetFlag(FLAGS_s3client_max_connections)});
-    int32_t_flag_values_.insert(
-        {"kv-server-local-s3client-max-range-bytes",
-         absl::GetFlag(FLAGS_s3client_max_range_bytes)});
-    int32_t_flag_values_.insert(
-        {"kv-server-local-num-shards", absl::GetFlag(FLAGS_num_shards)});
-    int32_t_flag_values_.insert({"kv-server-local-udf-num-workers",
-                                 absl::GetFlag(FLAGS_udf_num_workers)});
-    // Insert more int32 flag values here.
-    bool_flag_values_.insert({"kv-server-local-route-v1-to-v2",
-                              absl::GetFlag(FLAGS_route_v1_to_v2)});
-    bool_flag_values_.insert({"kv-server-local-use-real-coordinators", false});
-    // Insert more bool flag values here.
+  ~GcpParameterClient() {
+    auto execution_result = parameter_client_->Stop();
+    if (!execution_result.Successful()) {
+      LOG(ERROR) << "Cannot stop parameter client!"
+                 << GetErrorMessage(execution_result.status_code);
+    }
   }
 
   absl::StatusOr<std::string> GetParameter(
       std::string_view parameter_name) const override {
-    const auto& it = string_flag_values_.find(parameter_name);
-    if (it != string_flag_values_.end()) {
-      return it->second;
-    } else {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Unknown local string parameter: ", parameter_name));
+    GetParameterRequest get_parameter_request;
+    get_parameter_request.set_parameter_name(parameter_name);
+    std::string param_value;
+    absl::BlockingCounter counter(1);
+    auto execution_result = parameter_client_->GetParameter(
+        std::move(get_parameter_request),
+        [&param_value, &counter](const ExecutionResult result,
+                                 GetParameterResponse response) {
+          if (!result.Successful()) {
+            LOG(ERROR) << "GetParameter failed: "
+                       << GetErrorMessage(result.status_code);
+          } else {
+            param_value = response.parameter_value() != "EMPTY_STRING"
+                              ? response.parameter_value()
+                              : "";
+            // GCP secret manager does not support empty string natively.
+          }
+          counter.DecrementCount();
+        });
+    counter.Wait();
+    if (!execution_result.Successful()) {
+      return absl::UnavailableError(
+          GetErrorMessage(execution_result.status_code));
     }
-  };
+    return param_value;
+  }
 
   absl::StatusOr<int32_t> GetInt32Parameter(
       std::string_view parameter_name) const override {
-    const auto& it = int32_t_flag_values_.find(parameter_name);
-    if (it != int32_t_flag_values_.end()) {
-      return it->second;
-    } else {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Unknown local int32_t parameter: ", parameter_name));
+    absl::StatusOr<std::string> parameter = GetParameter(parameter_name);
+    if (!parameter.ok()) {
+      return parameter.status();
     }
+    int32_t parameter_int32;
+    if (!absl::SimpleAtoi(*parameter, &parameter_int32)) {
+      const std::string error =
+          absl::StrFormat("Failed converting %s parameter: %s to int32.",
+                          parameter_name, *parameter);
+      LOG(ERROR) << error;
+      return absl::InvalidArgumentError(error);
+    }
+
+    return parameter_int32;
   }
 
   absl::StatusOr<bool> GetBoolParameter(
       std::string_view parameter_name) const override {
-    const auto& it = bool_flag_values_.find(parameter_name);
-    if (it != bool_flag_values_.end()) {
-      return it->second;
-    } else {
-      return absl::InvalidArgumentError(
-          absl::StrCat("Unknown local bool parameter: ", parameter_name));
+    absl::StatusOr<std::string> parameter = GetParameter(parameter_name);
+
+    if (!parameter.ok()) {
+      return parameter.status();
     }
+
+    bool parameter_bool;
+    if (!absl::SimpleAtob(*parameter, &parameter_bool)) {
+      const std::string error =
+          absl::StrFormat("Failed converting %s parameter: %s to bool.",
+                          parameter_name, *parameter);
+      LOG(ERROR) << error;
+      return absl::InvalidArgumentError(error);
+    }
+
+    return parameter_bool;
   }
 
  private:
-  absl::flat_hash_map<std::string, int32_t> int32_t_flag_values_;
-  absl::flat_hash_map<std::string, std::string> string_flag_values_;
-  absl::flat_hash_map<std::string, bool> bool_flag_values_;
+  std::unique_ptr<ParameterClientInterface> parameter_client_;
 };
 
 }  // namespace

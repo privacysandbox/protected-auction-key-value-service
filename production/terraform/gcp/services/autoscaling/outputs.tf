@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +14,6 @@
  * limitations under the License.
  */
 
-#include "components/cloud_config/parameter_client.h"
-#include "gtest/gtest.h"
-
-namespace kv_server {
-namespace {
-
-// TODO(b/298050728): Implement the unit tests.
-
-TEST(GcpParameterTest, NotImplementedYet) { EXPECT_TRUE(true); }
-
-}  // namespace
-}  // namespace kv_server
+output "kv_server_instance_groups" {
+  value = toset([for manager in google_compute_region_instance_group_manager.kv_server : manager.instance_group])
+}

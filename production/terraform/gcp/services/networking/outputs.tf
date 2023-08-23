@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-#include "components/cloud_config/parameter_client.h"
-#include "gtest/gtest.h"
+output "network_id" {
+  value = google_compute_network.kv_server.id
+}
 
-namespace kv_server {
-namespace {
-
-// TODO(b/298050728): Implement the unit tests.
-
-TEST(GcpParameterTest, NotImplementedYet) { EXPECT_TRUE(true); }
-
-}  // namespace
-}  // namespace kv_server
+output "subnets" {
+  description = "All service subnets."
+  value       = google_compute_subnetwork.kv_server
+}

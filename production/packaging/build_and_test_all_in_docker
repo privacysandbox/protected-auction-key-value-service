@@ -112,7 +112,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:instance=${INSTANCE} --//:platform=${PLATFORM}"
+EXTRA_ARGS_TEMP="${BAZEL_EXTRA_ARGS} --//:instance=${INSTANCE} --//:platform=${PLATFORM} --@control_plane_shared//cc/public/cpio/interface:platform=${PLATFORM}"
+if [[ ${PLATFORM} == local ]]; then
+  EXTRA_ARGS_TEMP="${BAZEL_EXTRA_ARGS} --//:instance=${INSTANCE} --//:platform=${PLATFORM}"
+fi
+BAZEL_EXTRA_ARGS="${EXTRA_ARGS_TEMP}"
+
 
 if [[ ${VERBOSE} -eq 1 ]]; then
   set -o xtrace
@@ -147,8 +152,13 @@ if [[ ${RUN_TESTS} -ne 0 ]]; then
   printf 'Tests enabled. Running tests...'
   bazel ${BAZEL_STARTUP_ARGS} test ${BAZEL_EXTRA_ARGS} --build_tests_only --test_size_filters=small //...
 fi
-bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/aws/data_server:copy_to_dist
-bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //testing/functionaltest:copy_to_dist
+if [[ ${PLATFORM} == gcp ]]; then
+  bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/gcp/data_server:copy_to_dist
+  bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //testing/functionaltest:copy_to_dist
+else
+  bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/aws/data_server:copy_to_dist
+  bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //testing/functionaltest:copy_to_dist
+fi
 "
 
 readonly DIST="${WORKSPACE}"/dist

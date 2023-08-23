@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-#include "components/cloud_config/parameter_client.h"
-#include "gtest/gtest.h"
+variable "service" {
+  description = "Assigned name of the KV server."
+  type        = string
+}
 
-namespace kv_server {
-namespace {
+variable "environment" {
+  description = "Assigned environment name to group related resources."
+  type        = string
+}
 
-// TODO(b/298050728): Implement the unit tests.
-
-TEST(GcpParameterTest, NotImplementedYet) { EXPECT_TRUE(true); }
-
-}  // namespace
-}  // namespace kv_server
+variable "regions" {
+  description = "Regions to deploy to."
+  type        = set(string)
+}

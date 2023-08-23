@@ -26,7 +26,7 @@
 #include "components/cloud_config/instance_client.h"
 #include "glog/logging.h"
 
-ABSL_FLAG(std::string, environment, "local", "Environment name.");
+ABSL_FLAG(std::string, environment, "gcp", "Environment name.");
 ABSL_FLAG(std::string, shard_num, "0", "Shard number.");
 
 namespace kv_server {

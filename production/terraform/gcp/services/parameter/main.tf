@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright 2023 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,15 +14,20 @@
  * limitations under the License.
  */
 
-#include "components/cloud_config/parameter_client.h"
-#include "gtest/gtest.h"
+# TODO(b/298052952): Change "gcp" to "${var.environment}" once the gcp instance client is implemented.
 
-namespace kv_server {
-namespace {
+resource "google_secret_manager_secret" "kvs_runtime_flag_secrets" {
+  for_each = var.runtime_flags
 
-// TODO(b/298050728): Implement the unit tests.
+  secret_id = "${var.service}-gcp-${each.key}"
+  replication {
+    automatic = true
+  }
+}
 
-TEST(GcpParameterTest, NotImplementedYet) { EXPECT_TRUE(true); }
+resource "google_secret_manager_secret_version" "kvs_runtime_flag_secret_values" {
+  for_each = google_secret_manager_secret.kvs_runtime_flag_secrets
 
-}  // namespace
-}  // namespace kv_server
+  secret      = each.value.id
+  secret_data = var.runtime_flags[split("${var.service}-gcp-", each.value.id)[1]]
+}

@@ -31,8 +31,8 @@ using privacy_sandbox::server_common::MockMetricsRecorder;
 // We don't need to test the watching of files as that's covered in tests
 // for the ChangeNotifier that this class delegates to.
 TEST(BlobStorageChangeNotifierGcpTest, SmokeTest) {
-  GcpNotifierMetadata metadata{.gcp_directory =
-                                   std::filesystem::path(::testing::TempDir())};
+  LocalNotifierMetadata metadata{
+      .local_directory = std::filesystem::path(::testing::TempDir())};
 
   MockMetricsRecorder metrics_recorder;
   absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =

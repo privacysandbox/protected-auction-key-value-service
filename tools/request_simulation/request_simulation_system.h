@@ -54,6 +54,7 @@ ABSL_DECLARE_FLAG(int, rate_limiter_initial_permits);
 ABSL_DECLARE_FLAG(int64_t, message_queue_max_capacity);
 ABSL_DECLARE_FLAG(kv_server::GrpcAuthenticationMode,
                   server_authentication_mode);
+ABSL_DECLARE_FLAG(std::string, delta_file_bucket);
 
 namespace kv_server {
 // The request simulation system has the following key components:

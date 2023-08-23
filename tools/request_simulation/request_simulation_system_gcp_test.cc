@@ -93,6 +93,7 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
   absl::SetFlag(&FLAGS_concurrency, 2);
   absl::SetFlag(&FLAGS_rate_limiter_permits_acquire_timeout, absl::Seconds(0));
   absl::SetFlag(&FLAGS_server_address, "test");
+  absl::SetFlag(&FLAGS_delta_file_bucket, ::testing::TempDir());
   auto channel_creation_fn = [this](const std::string& server_address,
                                     const GrpcAuthenticationMode& auth_mode) {
     return server_->InProcessChannel(grpc::ChannelArguments());
@@ -102,6 +103,8 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
               GetBlobStorageNotifierMetadata())
       .WillRepeatedly(Return(
           LocalNotifierMetadata{.local_directory = ::testing::TempDir()}));
+  EXPECT_CALL(metrics_recorder_, RegisterHistogram(_, _, _, _)).Times(5);
+  EXPECT_CALL(metrics_recorder_, IncrementEventStatus(_, _, _)).Times(1000);
   RequestSimulationSystem system(
       metrics_recorder_, sim_clock_, std::move(mock_sleep_for_),
       channel_creation_fn,

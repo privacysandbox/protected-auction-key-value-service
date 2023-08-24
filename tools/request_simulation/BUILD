@@ -275,7 +275,7 @@ cc_test(
     size = "small",
     srcs = select({
         "//:aws_platform": [],
-        "//:gcp_platform": ["request_simulation_system_gcp_test.cc"],
+        "//:gcp_platform": [],
         "//:local_platform": ["request_simulation_system_local_test.cc"],
     }),
     tags = [

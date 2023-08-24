@@ -42,10 +42,13 @@ class SyntheticRequestGenerator {
  public:
   SyntheticRequestGenerator(
       MessageQueue& message_queue, RateLimiter& rate_limiter,
+      std::unique_ptr<SleepFor> sleep_for, int64_t requests_fill_qps,
       absl::AnyInvocable<std::string()> request_body_generation_fn)
       : thread_manager_(TheadManager::Create("Synthetic request generator")),
         message_queue_(message_queue),
         rate_limiter_(rate_limiter),
+        sleep_for_(std::move(sleep_for)),
+        requests_fill_qps_(requests_fill_qps),
         request_body_generation_fn_(std::move(request_body_generation_fn)) {}
   // Starts the thread of generating requests
   absl::Status Start();
@@ -65,6 +68,8 @@ class SyntheticRequestGenerator {
   std::unique_ptr<TheadManager> thread_manager_;
   kv_server::MessageQueue& message_queue_;
   RateLimiter& rate_limiter_;
+  std::unique_ptr<SleepFor> sleep_for_;
+  int64_t requests_fill_qps_;
   absl::AnyInvocable<std::string()> request_body_generation_fn_;
 };
 }  // namespace kv_server

@@ -34,14 +34,16 @@ constexpr double kDefaultHistogramResolution = 0.1;
 constexpr double kDefaultHistogramMaxBucket = 60e9;
 
 MetricsCollector::MetricsCollector(
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
+    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
+    std::unique_ptr<SleepFor> sleep_for)
     : requests_sent_per_interval_(0),
       requests_with_ok_response_per_interval_(0),
       requests_with_error_response_per_interval_(0),
       report_interval_(std::move(absl::GetFlag(FLAGS_metrics_report_interval))),
-      metrics_recorder_(metrics_recorder),
       report_thread_manager_(
-          TheadManager::Create("Metrics periodic report thread")) {
+          TheadManager::Create("Metrics periodic report thread")),
+      metrics_recorder_(metrics_recorder),
+      sleep_for_(std::move(sleep_for)) {
   histogram_per_interval_ = grpc_histogram_create(kDefaultHistogramResolution,
                                                   kDefaultHistogramMaxBucket);
   metrics_recorder_.RegisterHistogram(kRequestsSent, "Requests sent", "");
@@ -84,7 +86,7 @@ absl::Status MetricsCollector::Stop() { return report_thread_manager_->Stop(); }
 
 void MetricsCollector::PublishMetrics() {
   while (!report_thread_manager_->ShouldStop()) {
-    sleep_for_.Duration(report_interval_);
+    sleep_for_->Duration(report_interval_);
     auto requests_sent =
         requests_with_ok_response_per_interval_.load(std::memory_order_relaxed);
     auto requests_with_ok_responses =
@@ -126,6 +128,9 @@ void MetricsCollector::ResetRequestsPerInterval() {
 
 void MetricsCollector::ResetHistogram() {
   absl::MutexLock lock(&mutex_);
+  if (histogram_per_interval_) {
+    grpc_histogram_destroy(histogram_per_interval_);
+  }
   histogram_per_interval_ = grpc_histogram_create(kDefaultHistogramResolution,
                                                   kDefaultHistogramMaxBucket);
 }

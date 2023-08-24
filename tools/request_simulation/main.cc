@@ -37,12 +37,12 @@ int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   absl::SetProgramUsageMessage(absl::StrCat(
       "Key Value Server Request Simulation System.  Sample usage:\n", argv[0]));
+  kv_server::RequestSimulationSystem::InitializeTelemetry();
   auto metric_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
   kv_server::RequestSimulationSystem system(
       *metric_recorder,
       privacy_sandbox::server_common::SteadyClock::RealClock(),
-      std::make_unique<kv_server::SleepFor>(),
       [](const std::string& server_address,
          const kv_server::GrpcAuthenticationMode& mode) {
         return kv_server::CreateGrpcChannel(server_address, mode);
@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
     LOG(FATAL) << "Failed to run system: " << status;
   }
   while (system.IsRunning()) {
-    // TODO(b/292268143) print collected metrics periodically
+    // Noop
   }
   LOG(INFO) << "The request simulation system stops running!!!";
   return 0;

@@ -29,7 +29,10 @@ namespace {
 class TestSyntheticRequestGeneratorTest : public ::testing::Test {
  protected:
   SimulatedSteadyClock sim_clock_;
-  MockSleepFor sleep_for_;
+  std::unique_ptr<MockSleepFor> sleep_for_rate_limiter_ =
+      std::make_unique<MockSleepFor>();
+  std::unique_ptr<MockSleepFor> sleep_for_request_generator_ =
+      std::make_unique<MockSleepFor>();
 };
 
 TEST_F(TestSyntheticRequestGeneratorTest, TestGenerateRequestsAtFixedRate) {
@@ -37,14 +40,19 @@ TEST_F(TestSyntheticRequestGeneratorTest, TestGenerateRequestsAtFixedRate) {
   int key_size = 3;
   MessageQueue message_queue(10000);
   int requests_per_second = 1000;
-  EXPECT_CALL(sleep_for_, Duration(_)).WillRepeatedly(Return(true));
-  RateLimiter rate_limiter(0, requests_per_second, sim_clock_, sleep_for_,
+  EXPECT_CALL(*sleep_for_rate_limiter_, Duration(_))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(*sleep_for_request_generator_, Duration(_))
+      .WillRepeatedly(Return(true));
+  RateLimiter rate_limiter(0, requests_per_second, sim_clock_,
+                           std::move(sleep_for_rate_limiter_),
                            absl::Seconds(0));
   SyntheticRequestGenOption option;
   option.number_of_keys_per_request = num_of_keys;
   option.key_size_in_bytes = key_size;
   SyntheticRequestGenerator request_generator(
-      message_queue, rate_limiter, [option]() {
+      message_queue, rate_limiter, std::move(sleep_for_request_generator_),
+      requests_per_second, [option]() {
         const auto keys = kv_server::GenerateRandomKeys(
             option.number_of_keys_per_request, option.key_size_in_bytes);
         return kv_server::CreateKVDSPRequestBodyInJson(keys);
@@ -64,11 +72,16 @@ TEST_F(TestSyntheticRequestGeneratorTest,
   int capacity = 5;
   MessageQueue message_queue(capacity);
   int requests_per_second = 100;
-  RateLimiter rate_limiter(10, requests_per_second, sim_clock_, sleep_for_,
+  EXPECT_CALL(*sleep_for_rate_limiter_, Duration(_))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(*sleep_for_request_generator_, Duration(_))
+      .WillRepeatedly(Return(true));
+  RateLimiter rate_limiter(10, requests_per_second, sim_clock_,
+                           std::move(sleep_for_rate_limiter_),
                            absl::Seconds(0));
-  EXPECT_CALL(sleep_for_, Duration(_)).WillRepeatedly(Return(true));
   SyntheticRequestGenerator request_generator(
-      message_queue, rate_limiter, [num_of_keys, key_size]() {
+      message_queue, rate_limiter, std::move(sleep_for_request_generator_),
+      requests_per_second, [num_of_keys, key_size]() {
         const auto keys = kv_server::GenerateRandomKeys(num_of_keys, key_size);
         return kv_server::CreateKVDSPRequestBodyInJson(keys);
       });

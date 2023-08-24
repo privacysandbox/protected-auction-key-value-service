@@ -168,6 +168,16 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "mocks",
+    testonly = 1,
+    hdrs = ["mocks.h"],
+    deps = [
+        ":metrics_collector",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
 cc_binary(
     name = "request_simulation_system_main",
     srcs = ["main.cc"],
@@ -249,6 +259,7 @@ cc_test(
     srcs = ["client_worker_test.cc"],
     deps = [
         ":client_worker",
+        ":mocks",
         ":request_generation_util",
         "//components/util:sleepfor_mock",
         "//public/testing:fake_key_value_service_impl",
@@ -286,6 +297,7 @@ cc_test(
         ":request_simulation_system",
         "//components/util:sleepfor_mock",
         "//public/testing:fake_key_value_service_impl",
+        "//tools/request_simulation:mocks",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",

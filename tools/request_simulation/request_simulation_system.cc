@@ -21,6 +21,8 @@
 
 #include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
+#include "opentelemetry/sdk/resource/resource.h"
+#include "opentelemetry/sdk/resource/semantic_conventions.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "tools/request_simulation/request/raw_request.pb.h"
 #include "tools/request_simulation/request_generation_util.h"
@@ -31,7 +33,7 @@ ABSL_FLAG(std::string, server_address, "",
           "in format demo.kv-server.your-domain.example");
 ABSL_FLAG(std::string, server_method, "/kv_server.v2.KeyValueService/GetValues",
           "The api name of the server under test");
-ABSL_FLAG(int64_t, rps, 1000, "Requests per second sent to the server");
+ABSL_FLAG(int64_t, rps, 1500, "Requests per second sent to the server");
 ABSL_FLAG(int, concurrency, 10,
           "Number of concurrent requests sent to the server,"
           "this number will be limited by the maximum concurrent threads"
@@ -44,12 +46,21 @@ ABSL_FLAG(int64_t, synthetic_requests_fill_qps, 1000,
 ABSL_FLAG(int, number_of_keys_per_request, 1,
           "The number of keys in one synthetic request");
 ABSL_FLAG(int, key_size, 20, "The size of the key in bytes");
-ABSL_FLAG(absl::Duration, rate_limiter_permits_acquire_timeout,
-          absl::Seconds(10),
-          "The timeout duration for acquiring permits from rate limiter");
-ABSL_FLAG(
-    int, rate_limiter_initial_permits, 0,
-    "The initial number of permits available when the rate limiter is created");
+ABSL_FLAG(absl::Duration, client_worker_rate_limiter_acquire_timeout,
+          absl::Milliseconds(10),
+          "The client worker's timeout duration for acquiring permits from "
+          "rate limiter");
+ABSL_FLAG(absl::Duration,
+          synthetic_requests_generator_rate_limiter_acquire_timeout,
+          absl::Seconds(1),
+          "The client worker's timeout duration for acquiring permits from "
+          "rate limiter");
+ABSL_FLAG(int, client_worker_rate_limiter_initial_permits, 0,
+          "The initial number of permits available for client workers when the "
+          "rate limiter is created");
+ABSL_FLAG(int, synthetic_requests_generator_rate_limiter_initial_permits, 1500,
+          "The initial number of permits available for synthetic requests "
+          "generator when the rate limiter is created");
 ABSL_FLAG(int64_t, message_queue_max_capacity, 10000000,
           "The maximum number of messages held by the message queue");
 ABSL_FLAG(kv_server::GrpcAuthenticationMode, server_auth_mode,
@@ -69,13 +80,24 @@ ABSL_FLAG(std::string, delta_file_bucket, "", "The name of delta file bucket");
 
 namespace kv_server {
 
+constexpr char* kServiceName = "request-simulation";
+constexpr int kMetricsExportIntervalInMs = 5000;
+constexpr int kMetricsExportTimeoutInMs = 500;
+
+using opentelemetry::sdk::resource::Resource;
+using opentelemetry::sdk::resource::ResourceAttributes;
+using privacy_sandbox::server_common::ConfigureMetrics;
+using privacy_sandbox::server_common::InitTelemetry;
 using privacy_sandbox::server_common::SteadyClock;
+namespace semantic_conventions =
+    opentelemetry::sdk::resource::SemanticConventions;
 
 std::unique_ptr<RateLimiter> RequestSimulationSystem::CreateRateLimiter(
-    int64_t per_second_rate) {
-  return std::make_unique<RateLimiter>(
-      0, per_second_rate, steady_clock_, *sleep_for_,
-      absl::GetFlag(FLAGS_rate_limiter_permits_acquire_timeout));
+    int64_t per_second_rate, int64_t initial_permits, absl::Duration timeout,
+    std::unique_ptr<SleepFor> sleep_for) {
+  return std::make_unique<RateLimiter>(initial_permits, per_second_rate,
+                                       steady_clock_, std::move(sleep_for),
+                                       timeout);
 }
 
 absl::Status RequestSimulationSystem::InitAndStart() {
@@ -88,7 +110,11 @@ absl::Status RequestSimulationSystem::InitAndStart() {
 // TODO(b/289240702) When running on non-local environment,
 // populate parameters either from a config file on blob storage
 // or from parameter store.
-absl::Status RequestSimulationSystem::Init() {
+absl::Status RequestSimulationSystem::Init(
+    std::unique_ptr<SleepFor> sleep_for_request_generator,
+    std::unique_ptr<SleepFor> sleep_for_request_generator_rate_limiter,
+    std::unique_ptr<SleepFor> sleep_for_client_worker_rate_limiter,
+    std::unique_ptr<MetricsCollector> metrics_collector) {
   server_address_ = absl::GetFlag(FLAGS_server_address);
   server_method_ = absl::GetFlag(FLAGS_server_method);
   concurrent_number_of_requests_ = absl::GetFlag(FLAGS_concurrency);
@@ -98,19 +124,42 @@ absl::Status RequestSimulationSystem::Init() {
       absl::GetFlag(FLAGS_key_size);
   synthetic_requests_fill_qps_ =
       absl::GetFlag(FLAGS_synthetic_requests_fill_qps);
-  synthetic_request_generator_rate_limiter_ =
-      CreateRateLimiter(synthetic_requests_fill_qps_);
-  grpc_request_rate_limiter_ = CreateRateLimiter(absl::GetFlag(FLAGS_rps));
+  grpc_request_rate_limiter_ = CreateRateLimiter(
+      absl::GetFlag(FLAGS_rps),
+      absl::GetFlag(FLAGS_client_worker_rate_limiter_initial_permits),
+      absl::GetFlag(FLAGS_client_worker_rate_limiter_acquire_timeout),
+      sleep_for_client_worker_rate_limiter == nullptr
+          ? std::move(std::make_unique<SleepFor>())
+          : std::move(sleep_for_client_worker_rate_limiter));
+  synthetic_request_generator_rate_limiter_ = CreateRateLimiter(
+      synthetic_requests_fill_qps_,
+      absl::GetFlag(
+          FLAGS_synthetic_requests_generator_rate_limiter_initial_permits),
+      absl::GetFlag(
+          FLAGS_synthetic_requests_generator_rate_limiter_acquire_timeout),
+      sleep_for_request_generator_rate_limiter == nullptr
+          ? std::move(std::make_unique<SleepFor>())
+          : std::move(sleep_for_request_generator_rate_limiter));
   message_queue_ = absl::make_unique<MessageQueue>(
       absl::GetFlag(FLAGS_message_queue_max_capacity));
   synthetic_request_generator_ = std::make_unique<SyntheticRequestGenerator>(
-      *message_queue_, *synthetic_request_generator_rate_limiter_, [this]() {
+      *message_queue_, *synthetic_request_generator_rate_limiter_,
+      sleep_for_request_generator == nullptr
+          ? std::move(std::make_unique<SleepFor>())
+          : std::move(sleep_for_request_generator),
+      synthetic_requests_fill_qps_, [this]() {
         const auto keys = kv_server::GenerateRandomKeys(
             synthetic_request_gen_option_.number_of_keys_per_request,
             synthetic_request_gen_option_.key_size_in_bytes);
         return kv_server::CreateKVDSPRequestBodyInJson(keys);
       });
-  metrics_collector_ = std::make_unique<MetricsCollector>(metrics_recorder_);
+
+  // Telemetry must be initialized before initializing metrics collector
+  metrics_collector_ =
+      metrics_collector == nullptr
+          ? std::make_unique<MetricsCollector>(metrics_recorder_,
+                                               std::make_unique<SleepFor>())
+          : std::move(metrics_collector);
 
   if (auto status = InitializeGrpcClientWorkers(); !status.ok()) {
     return status;
@@ -165,15 +214,15 @@ absl::Status RequestSimulationSystem::InitializeGrpcClientWorkers() {
         "Could not initialize grpc client worker,"
         "no thread is available to use");
   }
-  auto request_converter = [](const std::string& request_body) {
-    RawRequest request;
-    request.mutable_raw_body()->set_data(request_body);
-    return request;
-  };
 
+  auto channel = channel_creation_fn_(server_address_,
+                                      absl::GetFlag(FLAGS_server_auth_mode));
   for (int i = 0; i < num_of_workers; ++i) {
-    auto channel = channel_creation_fn_(server_address_,
-                                        absl::GetFlag(FLAGS_server_auth_mode));
+    auto request_converter = [](const std::string& request_body) {
+      RawRequest request;
+      request.mutable_raw_body()->set_data(request_body);
+      return request;
+    };
     auto worker =
         std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
             i, channel, server_method_, absl::Seconds(1), request_converter,
@@ -194,11 +243,16 @@ absl::Status RequestSimulationSystem::Start() {
       return status;
     }
   }
+
   LOG(INFO) << "Starting " << grpc_client_workers_.size() << " client workers";
   for (const auto& worker : grpc_client_workers_) {
     if (auto status = worker->Start(); !status.ok()) {
       return status;
     }
+  }
+  LOG(INFO) << "Starting metrics collector";
+  if (auto status = metrics_collector_->Start(); !status.ok()) {
+    return status;
   }
   is_running = true;
   LOG(INFO) << "Request simulation system is started!";
@@ -211,6 +265,10 @@ absl::Status RequestSimulationSystem::Stop() {
   }
   LOG(INFO) << "Stopping synthetic request generator";
   if (auto status = synthetic_request_generator_->Stop(); !status.ok()) {
+    return status;
+  }
+  LOG(INFO) << "Stopping metrics collector";
+  if (auto status = metrics_collector_->Stop(); !status.ok()) {
     return status;
   }
   LOG(INFO) << "Stopping client workers";
@@ -249,6 +307,21 @@ RequestSimulationSystem::CreateRequestFromKeyFn() {
   return [](std::string_view key) {
     return kv_server::CreateKVDSPRequestBodyInJson({std::string(key)});
   };
+}
+void RequestSimulationSystem::InitializeTelemetry() {
+  InitTelemetry("Request-simulation", std::string(BuildVersion()));
+  opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
+      metrics_options;
+  metrics_options.export_interval_millis =
+      std::chrono::milliseconds(kMetricsExportIntervalInMs);
+  metrics_options.export_timeout_millis =
+      std::chrono::milliseconds(kMetricsExportTimeoutInMs);
+  const auto attributes = ResourceAttributes{
+      {semantic_conventions::kServiceName, kServiceName},
+      {semantic_conventions::kServiceVersion, std::string(BuildVersion())},
+      {semantic_conventions::kHostArch, std::string(BuildPlatform())}};
+  auto resource = Resource::Create(attributes);
+  ConfigureMetrics(resource, metrics_options);
 }
 
 }  // namespace kv_server

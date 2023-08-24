@@ -27,6 +27,7 @@
 #include "public/testing/fake_key_value_service_impl.h"
 #include "src/cpp/telemetry/mocks.h"
 #include "src/cpp/util/duration.h"
+#include "tools/request_simulation/mocks.h"
 #include "tools/request_simulation/request/raw_request.pb.h"
 #include "tools/request_simulation/request_generation_util.h"
 
@@ -56,8 +57,8 @@ class ClientWorkerTest : public ::testing::Test {
     grpc::ServerBuilder builder;
     builder.RegisterService(fake_get_value_service_.get());
     server_ = (builder.BuildAndStart());
-    metrics_collector_ = std::make_unique<MetricsCollector>(metrics_recorder_);
     sleep_for_ = std::make_unique<MockSleepFor>();
+    sleep_for_metrics_collector_ = std::make_unique<MockSleepFor>();
   }
 
   ~ClientWorkerTest() override {
@@ -67,9 +68,9 @@ class ClientWorkerTest : public ::testing::Test {
   std::unique_ptr<FakeKeyValueServiceImpl> fake_get_value_service_;
   std::unique_ptr<grpc::Server> server_;
   SimulatedSteadyClock sim_clock_;
+  std::unique_ptr<MockSleepFor> sleep_for_metrics_collector_;
   std::unique_ptr<MockSleepFor> sleep_for_;
   MockMetricsRecorder metrics_recorder_;
-  std::unique_ptr<MetricsCollector> metrics_collector_;
 };
 
 TEST_F(ClientWorkerTest, SingleClientWorkerTest) {
@@ -89,13 +90,18 @@ TEST_F(ClientWorkerTest, SingleClientWorkerTest) {
 
   int requests_per_second = 1000;
   EXPECT_CALL(*sleep_for_, Duration(_)).WillRepeatedly(Return(true));
-  RateLimiter rate_limiter(0, requests_per_second, sim_clock_, *sleep_for_,
-                           absl::Seconds(0));
+  RateLimiter rate_limiter(0, requests_per_second, sim_clock_,
+                           std::move(sleep_for_), absl::Seconds(0));
+  EXPECT_CALL(*sleep_for_metrics_collector_, Duration(_))
+      .WillRepeatedly(Return(true));
+  std::unique_ptr<MockMetricsCollector> metrics_collector =
+      std::make_unique<MockMetricsCollector>(
+          metrics_recorder_, std::move(sleep_for_metrics_collector_));
   auto worker =
       std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
           0, server_->InProcessChannel(grpc::ChannelArguments()), method,
           absl::Seconds(1), request_converter, message_queue, rate_limiter,
-          *metrics_collector_);
+          *metrics_collector);
   sim_clock_.AdvanceTime(absl::Seconds(1));
   EXPECT_TRUE(worker->Start().ok());
   EXPECT_TRUE(worker->IsRunning());
@@ -119,8 +125,13 @@ TEST_F(ClientWorkerTest, MultipleClientWorkersTest) {
 
   int requests_per_second = 1000;
   EXPECT_CALL(*sleep_for_, Duration(_)).WillRepeatedly(Return(true));
-  RateLimiter rate_limiter(0, requests_per_second, sim_clock_, *sleep_for_,
-                           absl::Seconds(0));
+  RateLimiter rate_limiter(0, requests_per_second, sim_clock_,
+                           std::move(sleep_for_), absl::Seconds(0));
+  EXPECT_CALL(*sleep_for_metrics_collector_, Duration(_))
+      .WillRepeatedly(Return(true));
+  std::unique_ptr<MockMetricsCollector> metrics_collector =
+      std::make_unique<MockMetricsCollector>(
+          metrics_recorder_, std::move(sleep_for_metrics_collector_));
   sim_clock_.AdvanceTime(absl::Seconds(1));
   int num_of_workers =
       std::min(50, (int)std::thread::hardware_concurrency() - 1);
@@ -131,7 +142,7 @@ TEST_F(ClientWorkerTest, MultipleClientWorkersTest) {
         std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
             i, server_->InProcessChannel(grpc::ChannelArguments()), method,
             absl::Seconds(1), request_converter, message_queue, rate_limiter,
-            *metrics_collector_);
+            *metrics_collector);
     EXPECT_TRUE(worker->Start().ok());
     EXPECT_TRUE(worker->IsRunning());
     workers.push_back(std::move(worker));

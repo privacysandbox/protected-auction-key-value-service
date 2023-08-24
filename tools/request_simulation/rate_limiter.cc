@@ -25,8 +25,8 @@ absl::StatusOr<absl::Duration> RateLimiter::Acquire(int permits) {
   const auto start_time = clock_.Now();
   auto deadline = start_time + timeout_;
   while (permits_.load(std::memory_order_relaxed) - permits < 0) {
-    sleep_for_.Duration(
-        absl::Milliseconds(1000 * permits / permits_fill_rate_));
+    sleep_for_->Duration(
+        absl::Microseconds(1000000 * permits / permits_fill_rate_));
     RefillPermits();
     if (clock_.Now() >= deadline) {
       return absl::DeadlineExceededError("Acquire deadline exceeds");

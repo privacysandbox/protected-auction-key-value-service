@@ -15,6 +15,7 @@
 #include "tools/request_simulation/synthetic_request_generator.h"
 
 #include <string>
+#include <vector>
 
 namespace kv_server {
 
@@ -32,13 +33,20 @@ bool SyntheticRequestGenerator::IsRunning() const {
 
 void SyntheticRequestGenerator::GenerateRequests() {
   while (!thread_manager_->ShouldStop()) {
-    if (rate_limiter_.Acquire().ok()) {
-      message_queue_.Push(std::move(request_body_generation_fn_()));
+    int number_of_requests = requests_fill_qps_ / 2;
+    if (rate_limiter_.Acquire(number_of_requests).ok()) {
+      std::vector<std::string> messages;
+      for (int i = 0; i < number_of_requests; ++i) {
+        messages.push_back(std::move(request_body_generation_fn_()));
+      }
+      VLOG(7) << "Filled " << number_of_requests;
+      message_queue_.Push(std::move(messages));
       VLOG(7) << "Push new message to the queue, current queue size "
               << message_queue_.Size();
     } else {
       VLOG(8) << "Acquire timeout";
     }
+    sleep_for_->Duration(absl::Milliseconds(500));
   }
 }
 }  // namespace kv_server

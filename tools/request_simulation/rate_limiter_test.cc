@@ -50,12 +50,13 @@ namespace {
 class RateLimiterTest : public ::testing::Test {
  protected:
   SimulatedSteadyClock sim_clock_;
+  std::unique_ptr<MockSleepFor> sleep_for_ = std::make_unique<MockSleepFor>();
 };
 
 TEST_F(RateLimiterTest, TestRefill) {
-  MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(_)).WillRepeatedly(Return(true));
-  RateLimiter rate_limiter(1, 1, sim_clock_, sleep_for, absl::Seconds(1));
+  EXPECT_CALL(*sleep_for_, Duration(_)).WillRepeatedly(Return(true));
+  RateLimiter rate_limiter(1, 1, sim_clock_, std::move(sleep_for_),
+                           absl::Seconds(1));
   rate_limiter.Acquire();
   sim_clock_.AdvanceTime(absl::Seconds(1));
   rate_limiter.Acquire();
@@ -68,21 +69,20 @@ TEST_F(RateLimiterTest, TestRefill) {
 }
 
 TEST_F(RateLimiterTest, TestAcquireMultiplePermits) {
-  MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(_)).WillRepeatedly(Return(true));
+  EXPECT_CALL(*sleep_for_, Duration(_)).WillRepeatedly(Return(true));
   // No refill
   int permits_to_acquire = 5;
-  RateLimiter rate_limiter(permits_to_acquire, 0, sim_clock_, sleep_for,
-                           absl::Seconds(1));
+  RateLimiter rate_limiter(permits_to_acquire, 0, sim_clock_,
+                           std::move(sleep_for_), absl::Seconds(1));
   // Acquire all available permits
   rate_limiter.Acquire(permits_to_acquire);
   EXPECT_EQ(RateLimiterTestPeer::ReadCurrentPermits(rate_limiter), 0);
 }
 
 TEST_F(RateLimiterTest, TestLastRefillTimeUpdate) {
-  MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(_)).WillRepeatedly(Return(true));
-  RateLimiter rate_limiter(1, 1, sim_clock_, sleep_for, absl::Seconds(1));
+  EXPECT_CALL(*sleep_for_, Duration(_)).WillRepeatedly(Return(true));
+  RateLimiter rate_limiter(1, 1, sim_clock_, std::move(sleep_for_),
+                           absl::Seconds(1));
   const auto initial_refill_time =
       RateLimiterTestPeer::ReadLastRefillTime(rate_limiter);
   // trigger refill
@@ -100,10 +100,9 @@ TEST_F(RateLimiterTest, TestLastRefillTimeUpdate) {
 }
 
 TEST_F(RateLimiterTest, TestPermitsFillRate) {
-  MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(_)).WillRepeatedly(Return(true));
-
-  RateLimiter rate_limiter(0, 100, sim_clock_, sleep_for, absl::Seconds(1));
+  EXPECT_CALL(*sleep_for_, Duration(_)).WillRepeatedly(Return(true));
+  RateLimiter rate_limiter(0, 100, sim_clock_, std::move(sleep_for_),
+                           absl::Seconds(1));
   sim_clock_.AdvanceTime(absl::Seconds(2));
   rate_limiter.Acquire();
   EXPECT_EQ(RateLimiterTestPeer::ReadCurrentPermits(rate_limiter), 199);
@@ -115,9 +114,9 @@ TEST_F(RateLimiterTest, TestPermitsFillRate) {
 }
 
 TEST_F(RateLimiterTest, TestPermitsFillRateMultipleCallers) {
-  MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(_)).WillRepeatedly(Return(true));
-  RateLimiter rate_limiter(0, 1000, sim_clock_, sleep_for, absl::Seconds(100));
+  EXPECT_CALL(*sleep_for_, Duration(_)).WillRepeatedly(Return(true));
+  RateLimiter rate_limiter(0, 1000, sim_clock_, std::move(sleep_for_),
+                           absl::Seconds(100));
   std::vector<std::thread> threads;
   absl::Notification start;
   sim_clock_.AdvanceTime(absl::Seconds(1));
@@ -141,9 +140,9 @@ TEST_F(RateLimiterTest, TestPermitsFillRateMultipleCallers) {
 
 TEST_F(RateLimiterTest,
        TestPermitsFillRateMultipleCallersOnlyOneCallerCanAcquirePermit) {
-  MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(_)).WillRepeatedly(Return(true));
-  RateLimiter rate_limiter(0, 1, sim_clock_, sleep_for, absl::Seconds(0));
+  EXPECT_CALL(*sleep_for_, Duration(_)).WillRepeatedly(Return(true));
+  RateLimiter rate_limiter(0, 1, sim_clock_, std::move(sleep_for_),
+                           absl::Seconds(0));
   std::vector<std::thread> threads;
   absl::Notification start;
   sim_clock_.AdvanceTime(absl::Seconds(1));
@@ -167,9 +166,9 @@ TEST_F(RateLimiterTest,
 }
 
 TEST_F(RateLimiterTest, TestAcquireTimeout) {
-  MockSleepFor sleep_for;
-  EXPECT_CALL(sleep_for, Duration(_)).WillRepeatedly(Return(true));
-  RateLimiter rate_limiter(0, 1, sim_clock_, sleep_for, absl::Seconds(0));
+  EXPECT_CALL(*sleep_for_, Duration(_)).WillRepeatedly(Return(true));
+  RateLimiter rate_limiter(0, 1, sim_clock_, std::move(sleep_for_),
+                           absl::Seconds(0));
   sim_clock_.AdvanceTime(absl::Seconds(10));
   EXPECT_FALSE(rate_limiter.Acquire(100).ok());
 }

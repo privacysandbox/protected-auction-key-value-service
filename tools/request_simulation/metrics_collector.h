@@ -32,25 +32,28 @@ namespace kv_server {
 class MetricsCollector {
  public:
   MetricsCollector(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
+      std::unique_ptr<SleepFor> sleep_for);
   // Increments server response status event
-  void IncrementServerResponseStatusEvent(const absl::Status& status);
+  virtual void IncrementServerResponseStatusEvent(const absl::Status& status);
   // Increments requests sent counter for the current interval
-  void IncrementRequestSentPerInterval();
+  virtual void IncrementRequestSentPerInterval();
   // Increments requests with ok response counter for the current interval
-  void IncrementRequestsWithOkResponsePerInterval();
+  virtual void IncrementRequestsWithOkResponsePerInterval();
   // Increments requests with error response counter for the current interval
-  void IncrementRequestsWithErrorResponsePerInterval();
+  virtual void IncrementRequestsWithErrorResponsePerInterval();
   // Adds latency data point to the histogram
-  void AddLatencyToHistogram(absl::Duration latency);
+  virtual void AddLatencyToHistogram(absl::Duration latency);
   // Gets percentile latency from histogram
-  absl::Duration GetPercentileLatency(double percentile);
+  virtual absl::Duration GetPercentileLatency(double percentile);
   // Starts the metrics collector
-  absl::Status Start();
+  virtual absl::Status Start();
   // Stops the metrics collector
-  absl::Status Stop();
+  virtual absl::Status Stop();
 
-  ~MetricsCollector() { grpc_histogram_destroy(histogram_per_interval_); }
+  virtual ~MetricsCollector() {
+    grpc_histogram_destroy(histogram_per_interval_);
+  }
 
   // MetricsReporter is neither copyable nor movable.
   MetricsCollector(const MetricsCollector&) = delete;
@@ -76,8 +79,8 @@ class MetricsCollector {
   absl::Duration report_interval_;
   std::unique_ptr<TheadManager> report_thread_manager_;
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
+  std::unique_ptr<SleepFor> sleep_for_;
   grpc_histogram* histogram_per_interval_ ABSL_GUARDED_BY(mutex_);
-  SleepFor sleep_for_;
   friend class MetricsCollectorPeer;
 };
 

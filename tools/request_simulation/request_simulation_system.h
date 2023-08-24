@@ -28,11 +28,13 @@
 #include "absl/time/time.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
+#include "components/util/build_info.h"
 #include "components/util/platform_initializer.h"
 #include "grpcpp/grpcpp.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
+#include "test/core/util/histogram.h"
 #include "tools/request_simulation/client_worker.h"
 #include "tools/request_simulation/delta_based_request_generator.h"
 #include "tools/request_simulation/message_queue.h"
@@ -49,8 +51,12 @@ ABSL_DECLARE_FLAG(absl::Duration, request_timeout);
 ABSL_DECLARE_FLAG(int64_t, synthetic_requests_fill_qps);
 ABSL_DECLARE_FLAG(int, number_of_keys_per_request);
 ABSL_DECLARE_FLAG(int, key_size);
-ABSL_DECLARE_FLAG(absl::Duration, rate_limiter_permits_acquire_timeout);
-ABSL_DECLARE_FLAG(int, rate_limiter_initial_permits);
+ABSL_DECLARE_FLAG(absl::Duration, client_worker_rate_limiter_acquire_timeout);
+ABSL_DECLARE_FLAG(absl::Duration,
+                  synthetic_requests_generator_rate_limiter_acquire_timeout);
+ABSL_DECLARE_FLAG(int, client_worker_rate_limiter_initial_permits);
+ABSL_DECLARE_FLAG(int,
+                  synthetic_requests_generator_rate_limiter_initial_permits);
 ABSL_DECLARE_FLAG(int64_t, message_queue_max_capacity);
 ABSL_DECLARE_FLAG(kv_server::GrpcAuthenticationMode,
                   server_authentication_mode);
@@ -74,7 +80,6 @@ class RequestSimulationSystem {
   RequestSimulationSystem(
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       privacy_sandbox::server_common::SteadyClock& steady_clock,
-      std::unique_ptr<SleepFor> sleep_for,
       absl::AnyInvocable<std::shared_ptr<grpc::Channel>(
           const std::string& server_address,
           const GrpcAuthenticationMode& auth_mode)>
@@ -83,7 +88,6 @@ class RequestSimulationSystem {
           parameter_fetcher_for_unit_testing = nullptr)
       : metrics_recorder_(metrics_recorder),
         steady_clock_(steady_clock),
-        sleep_for_(std::move(sleep_for)),
         channel_creation_fn_(std::move(channel_creation_fn)) {
     if (parameter_fetcher_for_unit_testing != nullptr) {
       parameter_fetcher_ = std::move(parameter_fetcher_for_unit_testing);
@@ -95,13 +99,22 @@ class RequestSimulationSystem {
   // Initializes and starts the system
   absl::Status InitAndStart();
   // Initializes system without starting the system
-  absl::Status Init();
+  // Defaults SleepFors and MetricsCollector to nullptr to
+  // allow mocking SleepFors in unit tests
+  absl::Status Init(
+      std::unique_ptr<SleepFor> sleep_for_request_generator = nullptr,
+      std::unique_ptr<SleepFor> sleep_for_request_generator_rate_limiter =
+          nullptr,
+      std::unique_ptr<SleepFor> sleep_for_client_worker_rate_limiter = nullptr,
+      std::unique_ptr<MetricsCollector> metrics_collector = nullptr);
   // Starts the system to generate requests and send requests to target server
   absl::Status Start();
   // Stops the system
   absl::Status Stop();
   // Checks if the system is running
   bool IsRunning() const;
+
+  static void InitializeTelemetry();
 
   // RequestSimulationSystem is neither copyable nor movable.
   RequestSimulationSystem(const RequestSimulationSystem&) = delete;
@@ -112,7 +125,9 @@ class RequestSimulationSystem {
   std::unique_ptr<DeltaFileNotifier> CreateDeltaFileNotifier();
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
   CreateStreamRecordReaderFactory();
-  std::unique_ptr<RateLimiter> CreateRateLimiter(int64_t per_second_rate);
+  std::unique_ptr<RateLimiter> CreateRateLimiter(
+      int64_t per_second_rate, int64_t initial_permits, absl::Duration timeout,
+      std::unique_ptr<SleepFor> sleep_for);
   absl::Status InitializeGrpcClientWorkers();
   absl::AnyInvocable<std::string(std::string_view)> CreateRequestFromKeyFn();
   // This must be first, otherwise the AWS SDK will crash when it's called:
@@ -120,7 +135,6 @@ class RequestSimulationSystem {
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   std::unique_ptr<MetricsCollector> metrics_collector_;
   privacy_sandbox::server_common::SteadyClock& steady_clock_;
-  std::unique_ptr<SleepFor> sleep_for_;
   absl::AnyInvocable<std::shared_ptr<grpc::Channel>(
       const std::string& server_address,
       const GrpcAuthenticationMode& auth_mode)>

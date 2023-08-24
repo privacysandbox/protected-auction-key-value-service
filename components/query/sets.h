@@ -16,6 +16,9 @@
 
 #ifndef COMPONENTS_QUERY_SETS_H_
 #define COMPONENTS_QUERY_SETS_H_
+
+#include <utility>
+
 #include "absl/container/flat_hash_set.h"
 
 namespace kv_server {
@@ -25,7 +28,7 @@ absl::flat_hash_set<T> Union(absl::flat_hash_set<T>&& left,
   auto& small = left.size() <= right.size() ? left : right;
   auto& big = left.size() <= right.size() ? right : left;
   big.insert(small.begin(), small.end());
-  return big;
+  return std::move(big);
 }
 
 template <typename T>
@@ -35,7 +38,7 @@ absl::flat_hash_set<T> Intersection(absl::flat_hash_set<T>&& left,
   const auto& big = left.size() <= right.size() ? right : left;
   // Traverse the smaller set removing what is not in both.
   absl::erase_if(small, [&big](const T& elem) { return !big.contains(elem); });
-  return small;
+  return std::move(small);
 }
 
 template <typename T>
@@ -45,7 +48,7 @@ absl::flat_hash_set<T> Difference(absl::flat_hash_set<T>&& left,
   for (const auto& element : right) {
     left.erase(element);
   }
-  return left;
+  return std::move(left);
 }
 
 }  // namespace kv_server

@@ -37,7 +37,7 @@ ABSL_FLAG(std::string, realtime_directory, "",
 ABSL_FLAG(int32_t, local_realtime_updater_num_threads, 1,
           "Amount of realtime updates threads locally.");
 ABSL_FLAG(int32_t, data_loading_num_threads,
-          std::thread::hardware_concurrency(),
+          std::min(std::thread::hardware_concurrency(), 8u),
           "Number of parallel threads for reading and loading data files.");
 ABSL_FLAG(int32_t, s3client_max_connections, 1,
           "S3Client max connections for reading data files.");

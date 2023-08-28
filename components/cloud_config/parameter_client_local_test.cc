@@ -72,7 +72,7 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
     const auto statusor =
         client->GetInt32Parameter("kv-server-local-data-loading-num-threads");
     ASSERT_TRUE(statusor.ok());
-    EXPECT_EQ(std::thread::hardware_concurrency(), *statusor);
+    EXPECT_EQ(std::min(std::thread::hardware_concurrency(), 8u), *statusor);
   }
   {
     const auto statusor =

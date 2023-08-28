@@ -80,6 +80,13 @@ flatbuffers::Offset<UserDefinedFunctionsConfig> UdfConfigFromStruct(
       udf_config_struct.logical_commit_time, udf_config_struct.version);
 }
 
+flatbuffers::Offset<ShardMappingRecord> ShardMappingFromStruct(
+    flatbuffers::FlatBufferBuilder& builder,
+    const ShardMappingRecordStruct& shard_mapping_struct) {
+  return CreateShardMappingRecord(builder, shard_mapping_struct.logical_shard,
+                                  shard_mapping_struct.physical_shard);
+}
+
 RecordUnion BuildRecordUnion(const RecordT& record,
                              flatbuffers::FlatBufferBuilder& builder) {
   return std::visit(
@@ -96,6 +103,12 @@ RecordUnion BuildRecordUnion(const RecordT& record,
           return RecordUnion{
               .record_type = Record::UserDefinedFunctionsConfig,
               .record = UdfConfigFromStruct(builder, arg).Union(),
+          };
+        }
+        if constexpr (std::is_same_v<VariantT, ShardMappingRecordStruct>) {
+          return RecordUnion{
+              .record_type = Record::ShardMappingRecord,
+              .record = ShardMappingFromStruct(builder, arg).Union(),
           };
         }
         return RecordUnion{
@@ -200,6 +213,9 @@ RecordT GetRecordStruct(const DataRecord& data_record) {
     record =
         GetTypedRecordStruct<UserDefinedFunctionsConfigStruct>(data_record);
   }
+  if (data_record.record_type() == Record::ShardMappingRecord) {
+    record = GetTypedRecordStruct<ShardMappingRecordStruct>(data_record);
+  }
   return record;
 }
 
@@ -229,6 +245,17 @@ bool operator==(const UserDefinedFunctionsConfigStruct& lhs_record,
 
 bool operator!=(const UserDefinedFunctionsConfigStruct& lhs_record,
                 const UserDefinedFunctionsConfigStruct& rhs_record) {
+  return !operator==(lhs_record, rhs_record);
+}
+
+bool operator==(const ShardMappingRecordStruct& lhs_record,
+                const ShardMappingRecordStruct& rhs_record) {
+  return lhs_record.logical_shard == rhs_record.logical_shard &&
+         lhs_record.physical_shard == rhs_record.physical_shard;
+}
+
+bool operator!=(const ShardMappingRecordStruct& lhs_record,
+                const ShardMappingRecordStruct& rhs_record) {
   return !operator==(lhs_record, rhs_record);
 }
 
@@ -369,6 +396,15 @@ UserDefinedFunctionsConfigStruct GetTypedRecordStruct(
   udf_config_struct.handler_name = udf_config->handler_name()->string_view();
   udf_config_struct.version = udf_config->version();
   return udf_config_struct;
+}
+
+template <>
+ShardMappingRecordStruct GetTypedRecordStruct(const DataRecord& data_record) {
+  const auto* shard_mapping_record = data_record.record_as_ShardMappingRecord();
+  return ShardMappingRecordStruct{
+      .logical_shard = shard_mapping_record->logical_shard(),
+      .physical_shard = shard_mapping_record->physical_shard(),
+  };
 }
 
 }  // namespace kv_server

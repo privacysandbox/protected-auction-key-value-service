@@ -62,7 +62,11 @@ table ShardMappingRecord {
   physical_shard:int32;
 }
 
-union Record { KeyValueMutationRecord, UserDefinedFunctionsConfig }
+union Record {
+  KeyValueMutationRecord,
+  UserDefinedFunctionsConfig,
+  ShardMappingRecord
+}
 
 table DataRecord {
   record:Record;

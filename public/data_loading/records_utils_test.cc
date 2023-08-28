@@ -42,6 +42,10 @@ UserDefinedFunctionsConfigStruct GetUdfConfigStruct(
   return udf_config_struct;
 }
 
+ShardMappingRecordStruct GetShardMappingRecordStruct() {
+  return ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0};
+}
+
 DataRecordStruct GetDataRecord(RecordT record) {
   DataRecordStruct data_record_struct;
   data_record_struct.record = record;
@@ -94,6 +98,15 @@ TEST(DataRecordStructTest, ValidateEqualsOperator) {
             GetDataRecord(GetUdfConfigStruct()));
   EXPECT_NE(GetDataRecord(GetUdfConfigStruct("code_snippet1")),
             GetDataRecord(GetUdfConfigStruct("code_snippet2")));
+
+  EXPECT_EQ(GetDataRecord(ShardMappingRecordStruct{.logical_shard = 0,
+                                                   .physical_shard = 0}),
+            GetDataRecord(ShardMappingRecordStruct{.logical_shard = 0,
+                                                   .physical_shard = 0}));
+  EXPECT_NE(GetDataRecord(ShardMappingRecordStruct{.logical_shard = 0,
+                                                   .physical_shard = 0}),
+            GetDataRecord(ShardMappingRecordStruct{.logical_shard = 0,
+                                                   .physical_shard = 1}));
 }
 
 class RecordValueTest
@@ -127,6 +140,12 @@ void ExpectEqual(const UserDefinedFunctionsConfigStruct& record,
   EXPECT_EQ(record.code_snippet, fbs_record.code_snippet()->string_view());
 }
 
+void ExpectEqual(const ShardMappingRecordStruct& record,
+                 const ShardMappingRecord& fbs_record) {
+  EXPECT_EQ(record.logical_shard, fbs_record.logical_shard());
+  EXPECT_EQ(record.physical_shard, fbs_record.physical_shard());
+}
+
 void ExpectEqual(const DataRecordStruct& record, const DataRecord& fbs_record) {
   if (fbs_record.record_type() == Record::KeyValueMutationRecord) {
     ExpectEqual(std::get<KeyValueMutationRecordStruct>(record.record),
@@ -135,6 +154,10 @@ void ExpectEqual(const DataRecordStruct& record, const DataRecord& fbs_record) {
   if (fbs_record.record_type() == Record::UserDefinedFunctionsConfig) {
     ExpectEqual(std::get<UserDefinedFunctionsConfigStruct>(record.record),
                 *fbs_record.record_as_UserDefinedFunctionsConfig());
+  }
+  if (fbs_record.record_type() == Record::ShardMappingRecord) {
+    ExpectEqual(std::get<ShardMappingRecordStruct>(record.record),
+                *fbs_record.record_as_ShardMappingRecord());
   }
 }
 
@@ -400,6 +423,36 @@ TEST(DataRecordTest,
 
 TEST(DataRecordTest, DeserializeDataRecord_ToStruct_UdfConfig_Success) {
   auto data_record_struct = GetDataRecord(GetUdfConfigStruct());
+  testing::MockFunction<absl::Status(const DataRecordStruct&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .WillOnce([&data_record_struct](const DataRecordStruct& actual_record) {
+        EXPECT_EQ(data_record_struct, actual_record);
+        return absl::OkStatus();
+      });
+  auto status = DeserializeDataRecord(
+      ToStringView(ToFlatBufferBuilder(data_record_struct)),
+      record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(DataRecordTest, DeserializeDataRecord_ToFbsRecord_ShardMapping_Success) {
+  auto data_record_struct = GetDataRecord(
+      ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .WillOnce([&data_record_struct](const DataRecord& data_record_fbs) {
+        ExpectEqual(data_record_struct, data_record_fbs);
+        return absl::OkStatus();
+      });
+  auto status = DeserializeDataRecord(
+      ToStringView(ToFlatBufferBuilder(data_record_struct)),
+      record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(DataRecordTest, DeserializeDataRecord_ToStruct_ShardMapping_Success) {
+  auto data_record_struct = GetDataRecord(
+      ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
   testing::MockFunction<absl::Status(const DataRecordStruct&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .WillOnce([&data_record_struct](const DataRecordStruct& actual_record) {

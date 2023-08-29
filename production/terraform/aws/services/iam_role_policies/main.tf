@@ -64,6 +64,12 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     resources = setunion(var.server_parameter_arns, var.coordinator_parameter_arns)
   }
   statement {
+    sid       = "AllowInstancesToAssumeRole"
+    actions   = ["sts:AssumeRole"]
+    effect    = "Allow"
+    resources = ["*"]
+  }
+  statement {
     sid = "AllowInstancesToManageSqsQueues"
     actions = [
       "sqs:CreateQueue",

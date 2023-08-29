@@ -56,6 +56,8 @@ absl::StatusOr<std::string> OhttpClientEncryptor::EncryptRequest(
     return absl::InternalError(std::string(maybe_config.status().message()));
   }
   std::string public_key;
+  VLOG(9) << "Encrypting with public key id: " << key->key_id()
+          << " uint8 key id " << *key_id << "public key " << key->public_key();
   absl::Base64Unescape(key->public_key(), &public_key);
   auto http_client_maybe =
       quiche::ObliviousHttpClient::Create(public_key, *maybe_config);

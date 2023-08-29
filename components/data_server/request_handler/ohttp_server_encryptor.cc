@@ -36,6 +36,8 @@ absl::StatusOr<absl::string_view> OhttpServerEncryptor::DecryptRequest(
         "Unable to build OHTTP config: ", maybe_req_key_id.status().message()));
   }
   auto private_key_id = std::to_string(*maybe_req_key_id);
+
+  VLOG(9) << "Decrypting for the public key id: " << private_key_id;
   auto private_key = key_fetcher_manager_.GetPrivateKey(private_key_id);
   if (!private_key.has_value()) {
     const std::string error = absl::StrCat(

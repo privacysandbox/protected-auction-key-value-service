@@ -37,7 +37,7 @@ pkg_files(
         "@control_plane_shared//cc/aws/proxy/src:socket_vendor",
     ],
     attributes = pkg_attributes(mode = "0555"),
-    prefix = "/server/bin",
+    prefix = "/",
 )
 
 pkg_files(
@@ -46,7 +46,7 @@ pkg_files(
         "@control_plane_shared//cc/aws/proxy/src:proxy_preload",
     ],
     attributes = pkg_attributes(mode = "0444"),
-    prefix = "/server/bin",
+    prefix = "/",
 )
 
 pkg_files(
@@ -97,7 +97,7 @@ container_layer(
 container_layer(
     name = "server_socket_directory",
     empty_dirs = [
-        "/server/socket",
+        "/socket",
     ],
     mode = "0o777",
 )
@@ -128,7 +128,7 @@ container_image(
         "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
     }),
     cmd = [
-        "/server/bin/init_server_enclave",
+        "/init_server_enclave",
     ],
     entrypoint = ["/bin/bash"],
     layers = [

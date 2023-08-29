@@ -15,7 +15,7 @@
 
 set -o errexit
 
-readonly INTERNAL_SERVER_ADDRESS="unix:///server/socket/internal.sock"
+readonly INTERNAL_SERVER_ADDRESS="unix:///socket/internal.sock"
 
 # These affect PCR0, so changing these would result in the loss of access to
 # private keys for decryption
@@ -42,7 +42,7 @@ USAGE
 while [ $# -gt 0 ]; do
   case "$1" in
     --with-proxify)
-      PROXY=/server/bin/proxify
+      PROXY=/proxify
       shift
       ;;
     -h | --help) usage 0 ;;
@@ -51,4 +51,4 @@ while [ $# -gt 0 ]; do
 done
 
 # Start the server.
-GLOG_logtostderr=1 $PROXY /server/bin/server "$@"  --internal_server_address=${INTERNAL_SERVER_ADDRESS} --public_key_endpoint=${PUBLIC_KEY_ENDPOINT} --primary_coordinator_private_key_endpoint=${PRIMARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --secondary_coordinator_private_key_endpoint=${SECONDARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --primary_coordinator_region=${PRIMARY_COORDINATOR_REGION} --secondary_coordinator_region=${SECONDARY_COORDINATOR_REGION}
+GLOG_logtostderr=1 $PROXY /server "$@"  --internal_server_address=${INTERNAL_SERVER_ADDRESS} --public_key_endpoint=${PUBLIC_KEY_ENDPOINT} --primary_coordinator_private_key_endpoint=${PRIMARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --secondary_coordinator_private_key_endpoint=${SECONDARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --primary_coordinator_region=${PRIMARY_COORDINATOR_REGION} --secondary_coordinator_region=${SECONDARY_COORDINATOR_REGION}

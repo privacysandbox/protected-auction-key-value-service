@@ -22,8 +22,8 @@ readonly SERVER_PORT=50051
 readonly REGION_OUTPUT_FILE=/tmp/region
 
 # This region setting will not be needed once newer AWS SDK than aws-sdk-cpp-1.8.186 is used
-/server/bin/proxify /server/bin/get_region --output_file=${REGION_OUTPUT_FILE}
+/proxify /get_region --output_file=${REGION_OUTPUT_FILE}
 AWS_DEFAULT_REGION="$(cat ${REGION_OUTPUT_FILE})"
 export AWS_DEFAULT_REGION
 printf "AWS_DEFAULT_REGION %s\n" "${AWS_DEFAULT_REGION}"
-/server/bin/init_server_basic --with-proxify --port=${SERVER_PORT}
+/init_server_basic --with-proxify --port=${SERVER_PORT}

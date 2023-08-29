@@ -16,6 +16,7 @@
 
 #include "public/data_loading/csv/csv_delta_record_stream_writer.h"
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "glog/logging.h"
 #include "public/data_loading/data_loading_generated.h"
@@ -26,12 +27,6 @@ namespace {
 struct ValueStruct {
   std::string value_type;
   std::string value;
-};
-
-struct RecordStruct {
-  std::string record_type;
-  KeyValueMutationRecordStruct kv_mutation_record;
-  UserDefinedFunctionsConfigStruct udf_config;
 };
 
 absl::StatusOr<std::string_view> GetMutationType(
@@ -137,6 +132,22 @@ absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithUdfConfig(
   return csv_record;
 }
 
+absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithShardMapping(
+    const DataRecordStruct& data_record) {
+  if (!std::holds_alternative<ShardMappingRecordStruct>(data_record.record)) {
+    return absl::InvalidArgumentError(
+        "DataRecord must contain a ShardMappingRecord.");
+  }
+  const auto shard_mapping_struct =
+      std::get<ShardMappingRecordStruct>(data_record.record);
+  riegeli::CsvRecord csv_record(kShardMappingRecordHeader);
+  csv_record[kLogicalShardColumn] =
+      absl::StrCat(shard_mapping_struct.logical_shard);
+  csv_record[kPhysicalShardColumn] =
+      absl::StrCat(shard_mapping_struct.physical_shard);
+  return csv_record;
+}
+
 }  // namespace
 
 namespace internal {
@@ -150,6 +161,8 @@ absl::StatusOr<riegeli::CsvRecord> MakeCsvRecord(
       return MakeCsvRecordWithKVMutation(data_record, value_separator);
     case DataRecordType::kUserDefinedFunctionsConfig:
       return MakeCsvRecordWithUdfConfig(data_record);
+    case DataRecordType::kShardMappingRecord:
+      return MakeCsvRecordWithShardMapping(data_record);
     default:
       return absl::InvalidArgumentError("Invalid record type.");
   }

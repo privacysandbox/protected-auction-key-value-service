@@ -205,6 +205,61 @@ TEST(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_UdfConfig) {
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
 }
 
+TEST(FormatDataCommandTest,
+     ValidateGeneratingDeltaToCsvData_ShardMappingRecord) {
+  std::stringstream delta_stream;
+  std::stringstream csv_stream;
+  auto delta_writer = DeltaRecordStreamWriter<std::stringstream>::Create(
+      delta_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
+  EXPECT_TRUE(delta_writer.ok()) << delta_writer.status();
+  EXPECT_TRUE((*delta_writer)
+                  ->WriteRecord(GetDataRecord(ShardMappingRecordStruct{
+                      .logical_shard = 0,
+                      .physical_shard = 0,
+                  }))
+                  .ok());
+  EXPECT_TRUE((*delta_writer)
+                  ->WriteRecord(GetDataRecord(ShardMappingRecordStruct{
+                      .logical_shard = 0,
+                      .physical_shard = 0,
+                  }))
+                  .ok());
+  EXPECT_TRUE((*delta_writer)
+                  ->WriteRecord(GetDataRecord(ShardMappingRecordStruct{
+                      .logical_shard = 0,
+                      .physical_shard = 0,
+                  }))
+                  .ok());
+  (*delta_writer)->Close();
+  auto command = FormatDataCommand::Create(
+      FormatDataCommand::Params{
+          .input_format = "DELTA",
+          .output_format = "CSV",
+          .csv_column_delimiter = ',',
+          .csv_value_delimiter = '|',
+          .record_type = "SHARD_MAPPING_RECORD",
+      },
+      delta_stream, csv_stream);
+  EXPECT_TRUE(command.ok()) << command.status();
+  auto status = (*command)->Execute();
+  EXPECT_TRUE(status.ok()) << status;
+  CsvDeltaRecordStreamReader csv_reader(
+      csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                      .record_type = DataRecordType::kShardMappingRecord,
+                  });
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(3)
+      .WillRepeatedly([](DataRecordStruct record) {
+        EXPECT_EQ(record, GetDataRecord(ShardMappingRecordStruct{
+                              .logical_shard = 0,
+                              .physical_shard = 0,
+                          }));
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
+}
+
 TEST(FormatDataCommandTest, ValidateIncorrectInputParams) {
   std::stringstream unused_stream;
   auto params = GetParams();

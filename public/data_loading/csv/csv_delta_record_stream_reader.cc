@@ -127,6 +127,25 @@ absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithUdfConfig(
   return data_record;
 }
 
+absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithShardMapping(
+    const riegeli::CsvRecord& csv_record) {
+  ShardMappingRecordStruct shard_mapping_struct;
+  absl::StatusOr<int64_t> logical_shard =
+      GetInt64Column(csv_record, kLogicalShardColumn);
+  if (!logical_shard.ok()) {
+    return logical_shard.status();
+  }
+  shard_mapping_struct.logical_shard = *logical_shard;
+  absl::StatusOr<int64_t> physical_shard =
+      GetInt64Column(csv_record, kPhysicalShardColumn);
+  if (!physical_shard.ok()) {
+    return physical_shard.status();
+  }
+  shard_mapping_struct.physical_shard = *physical_shard;
+  DataRecordStruct data_record;
+  data_record.record = shard_mapping_struct;
+  return data_record;
+}
 }  // namespace
 
 namespace internal {
@@ -139,6 +158,8 @@ absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStruct(
                                                      value_separator);
     case DataRecordType::kUserDefinedFunctionsConfig:
       return MakeDeltaFileRecordStructWithUdfConfig(csv_record);
+    case DataRecordType::kShardMappingRecord:
+      return MakeDeltaFileRecordStructWithShardMapping(csv_record);
     default:
       return absl::InvalidArgumentError("Invalid record type.");
   }

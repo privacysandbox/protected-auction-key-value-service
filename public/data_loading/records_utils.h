@@ -31,7 +31,7 @@ namespace kv_server {
 enum class DataRecordType : int {
   kKeyValueMutationRecord,
   kUserDefinedFunctionsConfig,
-  ShardMappingRecord
+  kShardMappingRecord
 };
 
 using KeyValueMutationRecordValueT =

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef TOOLS_DATA_CLI_CSV_CSV_DELTA_RECORD_STREAM_WRITER_H_
-#define TOOLS_DATA_CLI_CSV_CSV_DELTA_RECORD_STREAM_WRITER_H_
+#ifndef PUBLIC_DATA_LOADING_CSV_CSV_DELTA_RECORD_STREAM_WRITER_H_
+#define PUBLIC_DATA_LOADING_CSV_CSV_DELTA_RECORD_STREAM_WRITER_H_
 
 #include <utility>
 #include <vector>
@@ -47,14 +47,19 @@ namespace kv_server {
 // The record writer has the following default options, which can be overriden
 // by specifying `Options` when initializing the record writer.
 //
-// - `record_type`:
-//   If DataRecordType::kKeyValueMutationRecord, records are assumed to be key
-//   value mutation records with the following header: ["mutation_type",
-//   "logical_commit_time", "key", "value", "value_type"]`. If
-//   DataRecordType::kUserDefinedFunctionsConfig, records are assumed to be
-//   user-defined function configs with the following header:
+// - `record_type` (Default `DataRecordType::kKeyValueMutationRecord`):
+//   (1) If DataRecordType::kKeyValueMutationRecord, records are assumed to be
+//   key value mutation records with the following header:
+//   ["mutation_type", "logical_commit_time", "key", "value", "value_type"]`.
+//
+//   (2) If DataRecordType::kUserDefinedFunctionsConfig, records are assumed to
+//   be user-defined function configs with the following header:
 //   `["code_snippet", "handler_name", "language", "logical_commit_time",
-//   "version"]`. Default `DataRecordType::kKeyValueMutationRecord`.
+//   "version"]`.
+//
+//  (3) If DataRecordType::kShardMappingRecord, records are assumed to
+//   be shard mapping records with the following header:
+//   `["logical_shard", "physical_shard"]`.
 //
 // - `field_separator`: CSV delimiter
 //   Default ','.
@@ -113,6 +118,10 @@ riegeli::CsvWriterBase::Options GetRecordWriterOptions(
           kUserDefinedFunctionsConfigHeader.begin(),
           kUserDefinedFunctionsConfigHeader.end());
       break;
+    case DataRecordType::kShardMappingRecord:
+      header = std::vector<std::string_view>(kShardMappingRecordHeader.begin(),
+                                             kShardMappingRecordHeader.end());
+      break;
   }
   writer_options.set_header(std::move(header));
   return writer_options;
@@ -149,4 +158,4 @@ absl::Status CsvDeltaRecordStreamWriter<DestStreamT>::Flush() {
 
 }  // namespace kv_server
 
-#endif  // TOOLS_DATA_CLI_CSV_CSV_DELTA_RECORD_STREAM_WRITER_H_
+#endif  // PUBLIC_DATA_LOADING_CSV_CSV_DELTA_RECORD_STREAM_WRITER_H_

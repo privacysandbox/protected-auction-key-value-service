@@ -39,6 +39,7 @@ constexpr std::string_view kKeyValueMutationRecord =
 constexpr std::string_view kUserDefinedFunctionsConfig =
     "user_defined_functions_config";
 constexpr double kSamplingThreshold = 0.02;
+constexpr std::string_view kShardMappingRecord = "shard_mapping_record";
 
 absl::Status ValidateParams(const FormatDataCommand::Params& params) {
   if (params.input_format.empty()) {
@@ -66,6 +67,9 @@ absl::StatusOr<DataRecordType> GetRecordType(std::string_view record_type) {
   }
   if (lw_record_type == kUserDefinedFunctionsConfig) {
     return DataRecordType::kUserDefinedFunctionsConfig;
+  }
+  if (lw_record_type == kShardMappingRecord) {
+    return DataRecordType::kShardMappingRecord;
   }
   return absl::InvalidArgumentError(
       absl::StrCat("Record type ", record_type, " is not supported."));

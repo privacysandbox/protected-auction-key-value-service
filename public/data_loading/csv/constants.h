@@ -45,6 +45,9 @@ inline constexpr std::string_view kLanguageColumn = "language";
 inline constexpr std::string_view kLanguageJavascript = "javascript";
 inline constexpr std::string_view kVersionColumn = "version";
 
+inline constexpr std::string_view kLogicalShardColumn = "logical_shard";
+inline constexpr std::string_view kPhysicalShardColumn = "physical_shard";
+
 inline constexpr std::array<std::string_view, 5> kKeyValueMutationRecordHeader =
     {kKeyColumn, kLogicalCommitTimeColumn, kMutationTypeColumn, kValueColumn,
      kValueTypeColumn};
@@ -53,6 +56,9 @@ inline constexpr std::array<std::string_view, 5>
     kUserDefinedFunctionsConfigHeader = {kCodeSnippetColumn, kHandlerNameColumn,
                                          kLogicalCommitTimeColumn,
                                          kLanguageColumn, kVersionColumn};
+
+inline constexpr std::array<std::string_view, 2> kShardMappingRecordHeader = {
+    kLogicalShardColumn, kPhysicalShardColumn};
 
 }  //  namespace kv_server
 

@@ -186,5 +186,40 @@ TEST(CsvDeltaRecordStreamWriterTest, ValidateClosingRecordWriterSucceeds) {
   EXPECT_FALSE(record_writer.IsOpen());
 }
 
+TEST(CsvDeltaRecordStreamWriterTest,
+     ValidateWritingCsvRecord_ShardMapping_Success) {
+  std::stringstream string_stream;
+  CsvDeltaRecordStreamWriter record_writer(
+      string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
+                         .record_type = DataRecordType::kShardMappingRecord});
+  DataRecordStruct expected = GetDataRecord(
+      ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
+  auto status = record_writer.WriteRecord(expected);
+  EXPECT_TRUE(status.ok()) << status;
+  status = record_writer.Flush();
+  EXPECT_TRUE(status.ok()) << status;
+  CsvDeltaRecordStreamReader record_reader(
+      string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                         .record_type = DataRecordType::kShardMappingRecord});
+  status = record_reader.ReadRecords([&expected](DataRecordStruct record) {
+    EXPECT_EQ(record, expected);
+    return absl::OkStatus();
+  });
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(CsvDeltaRecordStreamWriterTest,
+     WritingCsvRecord_ShardMapping_KVMutationHeader_Fails) {
+  std::stringstream string_stream;
+  CsvDeltaRecordStreamWriter record_writer(
+      string_stream,
+      CsvDeltaRecordStreamWriter<std::stringstream>::Options{
+          .record_type = DataRecordType::kKeyValueMutationRecord});
+  DataRecordStruct expected = GetDataRecord(
+      ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
+  EXPECT_FALSE(record_writer.WriteRecord(expected).ok());
+  record_writer.Close();
+}
+
 }  // namespace
 }  // namespace kv_server

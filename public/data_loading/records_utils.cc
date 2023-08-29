@@ -21,9 +21,6 @@
 
 namespace kv_server {
 namespace {
-// An arbitrary small number in case the flat buffer needs some space for
-// overheads.
-constexpr int kOverheadSize = 10;
 
 struct ValueUnion {
   Value value_type;
@@ -53,10 +50,12 @@ ValueUnion BuildValueUnion(const KeyValueMutationRecordValueT& value,
               .value = CreateStringSet(builder, values_offset).Union(),
           };
         }
-        return ValueUnion{
-            .value_type = Value::NONE,
-            .value = flatbuffers::Offset<void>(),
-        };
+        if constexpr (std::is_same_v<VariantT, std::monostate>) {
+          return ValueUnion{
+              .value_type = Value::NONE,
+              .value = flatbuffers::Offset<void>(),
+          };
+        }
       },
       value);
 }
@@ -111,10 +110,12 @@ RecordUnion BuildRecordUnion(const RecordT& record,
               .record = ShardMappingFromStruct(builder, arg).Union(),
           };
         }
-        return RecordUnion{
-            .record_type = Record::NONE,
-            .record = flatbuffers::Offset<void>(),
-        };
+        if constexpr (std::is_same_v<VariantT, std::monostate>) {
+          return RecordUnion{
+              .record_type = Record::NONE,
+              .record = flatbuffers::Offset<void>(),
+          };
+        }
       },
       record);
 }

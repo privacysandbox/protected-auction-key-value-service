@@ -55,7 +55,6 @@ struct UserDefinedFunctionsConfigStruct {
 
 struct ShardMappingRecordStruct {
   int32_t logical_shard;
-
   int32_t physical_shard;
 };
 

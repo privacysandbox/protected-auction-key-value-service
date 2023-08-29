@@ -125,16 +125,17 @@ class GrpcClient {
   // Sends message via grpc unary call. The request method is the
   // api name supported by the grpc service, an example method name is
   // "/PackageName.ExampleService/APIName".
-  absl::StatusOr<ResponseT> SendMessage(const RequestT& request,
-                                        const std::string& request_method) {
+  absl::Status SendMessage(const RequestT& request,
+                           const std::string& request_method,
+                           std::shared_ptr<ResponseT> response) {
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();
-    std::shared_ptr<ResponseT> response = std::make_shared<ResponseT>();
-    grpc::ClientContext client_context;
+    std::shared_ptr<grpc::ClientContext> client_context =
+        std::make_shared<grpc::ClientContext>();
     std::shared_ptr<absl::Status> grpc_status =
         std::make_shared<absl::Status>();
     generic_stub_->UnaryCall(
-        &client_context, request_method, grpc::StubOptions(), &request,
+        client_context.get(), request_method, grpc::StubOptions(), &request,
         response.get(), [notification, grpc_status](grpc::Status status) {
           grpc_status->Update(absl::Status(
               absl::StatusCode(status.error_code()), status.error_message()));
@@ -144,10 +145,7 @@ class GrpcClient {
     if (!notification->HasBeenNotified()) {
       return absl::DeadlineExceededError("Time out in gRPC unary call");
     }
-    if (!grpc_status->ok()) {
-      return *grpc_status;
-    }
-    return *response;
+    return *grpc_status;
   }
 
  private:

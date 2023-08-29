@@ -58,15 +58,19 @@ class GrpcClientTest : public ::testing::Test {
 TEST_F(GrpcClientTest, TestRequestOKResponse) {
   std::string key("key");
   std::string method("/kv_server.v2.KeyValueService/GetValues");
-  auto response = grpc_client_->SendMessage(request_converter_(key), method);
+  auto response_ptr = std::make_shared<google::api::HttpBody>();
+  auto response =
+      grpc_client_->SendMessage(request_converter_(key), method, response_ptr);
   EXPECT_TRUE(response.ok());
-  EXPECT_EQ(response.value().data(), "value");
+  EXPECT_EQ(response_ptr->data(), "value");
 }
 
 TEST_F(GrpcClientTest, TestRequestErrorResponse) {
   std::string key("missing");
   std::string method("/kv_server.v2.KeyValueService/GetValues");
-  auto response = grpc_client_->SendMessage(request_converter_(key), method);
+  auto response_ptr = std::make_shared<google::api::HttpBody>();
+  auto response =
+      grpc_client_->SendMessage(request_converter_(key), method, response_ptr);
   EXPECT_FALSE(response.ok());
 }
 

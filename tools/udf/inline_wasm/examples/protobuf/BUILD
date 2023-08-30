@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("//tools/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta")
+load("//tools/udf/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta")
 
 BASE_LINKOPTS = [
     # Enable embind
@@ -42,7 +42,7 @@ cc_binary(
 )
 
 # builders/tools/bazel-debian run --config=emscripten \
-# //tools/inline_wasm/examples/protobuf:hello_delta
+# //tools/udf/inline_wasm/examples/protobuf:hello_delta
 cc_inline_wasm_udf_delta(
     name = "hello_delta",
     cc_target = ":hello_cc",

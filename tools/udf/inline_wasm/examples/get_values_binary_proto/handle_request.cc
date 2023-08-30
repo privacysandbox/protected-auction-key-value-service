@@ -20,14 +20,14 @@
 #include "emscripten/bind.h"
 #include "nlohmann/json.hpp"
 #include "public/udf/binary_get_values.pb.h"
-#include "tools/inline_wasm/examples/js_call_binary_proto/stored_value.pb.h"
+#include "tools/udf/inline_wasm/examples/get_values_binary_proto/stored_value.pb.h"
 
 namespace {
 
 // Assume that we have stored key-value objects in DELTA/SNAPSHOT files
 // where the value is a serialized example::StoredValue proto
 // (stored_value.proto).
-// tools/inline_wasm/examples/js_call_binary_proto/DELTA_1692813076489763
+// tools/udf/inline_wasm/examples/get_values_binary_proto/DELTA_1692813076489763
 // contains values with serialized example::StoredValue proto
 emscripten::val ProcessStoredValue(kv_server::Value value) {
   emscripten::val processed_value = emscripten::val::object();

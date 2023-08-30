@@ -5,7 +5,7 @@ This is a sample guide for how to generate a UDF JS with inline WASM from C++.
 ## Overview
 
 We will be using a provided bazel macro under
-[`//tools/inline_wasm/wasm.bzl`](/tools/inline_wasm/wasm.bzl) to generate a UDF delta file.
+[`//tools/udf/inline_wasm/wasm.bzl`](/tools/udf/inline_wasm/wasm.bzl) to generate a UDF delta file.
 
 The macro uses
 [Embind](https://emscripten.org/docs/porting/connecting_cpp_and_javascript/embind.html) to generate
@@ -15,13 +15,13 @@ Using Embind requires including C++ code that exposes C++ to JavaScript. Similar
 needs to instantiate a WASM module and access it through a variable.
 
 This guide will not cover usage of Emscripten/Embind beyond what is needed for the examples under
-`//tools/inline_wasm/examples`. Please browse through the
+`//tools/udf/inline_wasm/examples`. Please browse through the
 [Emscripten documentation](https://emscripten.org/docs/introducing_emscripten/index.html) for
 detailed usage.
 
 ## Example
 
-Sample code is at `//tools/inline_wasm/examples/hello_world`.
+Sample code is at `//tools/udf/inline_wasm/examples/hello_world`.
 
 ### Write C++ code
 
@@ -111,7 +111,7 @@ JavaScript. The output will be under the `dist/` directory.
 -   Define your BUILD target:
 
 ```bazel
-load("//tools/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta")
+load("//tools/udf/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta")
 
 cc_inline_wasm_udf_delta (
     name = "hello_delta",
@@ -138,7 +138,7 @@ emscripten. The output will be under the `dist/` directory.
 -   Define your BUILD target:
 
 ```bazel
-load("//tools/inline_wasm:wasm.bzl", "inline_wasm_udf_delta")
+load("//tools/udf/inline_wasm:wasm.bzl", "inline_wasm_udf_delta")
 
 inline_wasm_udf_delta(
     name = "hello_delta",

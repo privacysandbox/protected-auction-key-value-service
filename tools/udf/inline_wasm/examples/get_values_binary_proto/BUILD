@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@emsdk//emscripten_toolchain:wasm_rules.bzl", "wasm_cc_binary")
-load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("//tools/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta", "inline_wasm_udf_delta")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("//tools/udf/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta")
+
+package(default_visibility = [
+    "//visibility:public",
+])
 
 BASE_LINKOPTS = [
     # Enable embind
@@ -32,42 +36,37 @@ BASE_LINKOPTS = [
 ]
 
 cc_binary(
-    name = "hello_cc",
-    srcs = ["hello.cc"],
+    name = "handle_request_cc",
+    srcs = ["handle_request.cc"],
     linkopts = BASE_LINKOPTS,
     # This target won't build successfully on its own because of missing emscripten
     # headers etc. Therefore, we hide it from wildcards.
     tags = ["manual"],
-)
-
-wasm_cc_binary(
-    name = "hello_em",
-    cc_target = ":hello_cc",
-    outputs = [
-        "hello.wasm",
-        "hello.js",
+    deps = [
+        ":stored_value_cc_proto",
+        "//public/udf:binary_get_values_cc_proto",
+        "@com_google_absl//absl/status:statusor",
+        "@nlohmann_json//:lib",
     ],
-    tags = ["manual"],
-    visibility = ["//visibility:private"],
 )
 
-# builders/tools/bazel-debian run ---config=emscripten \
-# //tools/inline_wasm/examples/hello_world:hello_delta
-inline_wasm_udf_delta(
-    name = "hello_delta",
-    custom_udf_js = "my_udf.js",
-    glue_js = ":hello.js",
-    output_file_name = "DELTA_0000000000000006",
-    tags = ["manual"],
-    wasm_binary = ":hello.wasm",
-)
-
-# bazel run ---config=emscripten \
-# //tools/inline_wasm/examples/hello_world:hello_delta_cc
+# builders/tools/bazel-debian run --config=emscripten \
+# //tools/udf/inline_wasm/examples/get_values_binary_proto:handle_request_cc_delta
 cc_inline_wasm_udf_delta(
-    name = "hello_delta_cc",
-    cc_target = ":hello_cc",
+    name = "handle_request_cc_delta",
+    cc_target = ":handle_request_cc",
     custom_udf_js = "my_udf.js",
-    output_file_name = "DELTA_0000000000000007",
     tags = ["manual"],
+)
+
+proto_library(
+    name = "stored_value_proto",
+    srcs = ["stored_value.proto"],
+    deps = [
+    ],
+)
+
+cc_proto_library(
+    name = "stored_value_cc_proto",
+    deps = [":stored_value_proto"],
 )

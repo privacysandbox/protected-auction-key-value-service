@@ -36,6 +36,10 @@ resource "google_compute_instance_template" "kv_server" {
     source_image = "projects/confidential-space-images/global/images/family/${var.use_confidential_space_debug_image ? "confidential-space-debug" : "confidential-space"}"
   }
 
+  labels = {
+    environment = var.environment
+  }
+
   network_interface {
     network    = var.vpc_id
     subnetwork = each.value.id

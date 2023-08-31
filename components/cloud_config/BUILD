@@ -140,6 +140,10 @@ cc_library(
         ],
         "//:gcp_instance": [
             "@com_google_absl//absl/flags:flag",
+            "@com_google_absl//absl/log:check",
+            "@com_google_absl//absl/synchronization",
+            "@control_plane_shared//cc/public/core/interface:execution_result",
+            "@control_plane_shared//cc/public/cpio/interface/instance_client",
         ],
         "//:local_instance": [
             "@com_google_absl//absl/flags:flag",

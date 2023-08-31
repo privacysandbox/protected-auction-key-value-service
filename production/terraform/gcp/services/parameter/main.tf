@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-# TODO(b/298052952): Change "gcp" to "${var.environment}" once the gcp instance client is implemented.
-
 resource "google_secret_manager_secret" "kvs_runtime_flag_secrets" {
   for_each = var.runtime_flags
 
-  secret_id = "${var.service}-gcp-${each.key}"
+  secret_id = "${var.service}-${var.environment}-${each.key}"
   replication {
     automatic = true
   }
@@ -29,5 +27,5 @@ resource "google_secret_manager_secret_version" "kvs_runtime_flag_secret_values"
   for_each = google_secret_manager_secret.kvs_runtime_flag_secrets
 
   secret      = each.value.id
-  secret_data = var.runtime_flags[split("${var.service}-gcp-", each.value.id)[1]]
+  secret_data = var.runtime_flags[split("${var.service}-${var.environment}-", each.value.id)[1]]
 }

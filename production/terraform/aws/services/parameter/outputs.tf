@@ -38,6 +38,10 @@ output "backup_poll_frequency_secs_parameter_arn" {
   value = aws_ssm_parameter.backup_poll_frequency_secs_parameter.arn
 }
 
+output "metrics_collector_endpoint_arn" {
+  value = aws_ssm_parameter.metrics_collector_endpoint.arn
+}
+
 output "metrics_export_interval_millis_parameter_arn" {
   value = aws_ssm_parameter.metrics_export_interval_millis_parameter.arn
 }

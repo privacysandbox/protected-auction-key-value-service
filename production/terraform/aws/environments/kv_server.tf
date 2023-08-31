@@ -60,6 +60,7 @@ module "kv_server" {
   ssh_source_cidr_blocks = var.ssh_source_cidr_blocks
 
   # Variables related to metrics.
+  metrics_collector_endpoint     = var.metrics_collector_endpoint
   metrics_export_interval_millis = var.metrics_export_interval_millis
   metrics_export_timeout_millis  = var.metrics_export_timeout_millis
 

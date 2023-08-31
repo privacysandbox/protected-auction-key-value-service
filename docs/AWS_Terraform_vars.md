@@ -72,6 +72,11 @@
     supported from the
     [AWS article](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
 
+-   **metrics_collector_endpoint**
+
+    The open telemetry metrics collector endpoint, for AWS it will be local grpc endpoint because
+    otel is running on the same EC2 machine
+
 -   **metrics_export_interval_millis**
 
     Export interval for metrics in milliseconds.

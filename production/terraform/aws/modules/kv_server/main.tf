@@ -145,6 +145,7 @@ module "parameter" {
   bucket_update_sns_arn_parameter_value                  = module.data_storage.sns_data_updates_topic_arn
   realtime_sns_arn_parameter_value                       = module.data_storage.sns_realtime_topic_arn
   backup_poll_frequency_secs_parameter_value             = var.backup_poll_frequency_secs
+  metrics_collector_endpoint                             = var.metrics_collector_endpoint
   metrics_export_interval_millis_parameter_value         = var.metrics_export_interval_millis
   metrics_export_timeout_millis_parameter_value          = var.metrics_export_timeout_millis
   realtime_updater_num_threads_parameter_value           = var.realtime_updater_num_threads
@@ -190,6 +191,7 @@ module "iam_role_policies" {
     module.parameter.realtime_sns_arn_parameter_arn,
     module.parameter.launch_hook_parameter_arn,
     module.parameter.backup_poll_frequency_secs_parameter_arn,
+    module.parameter.metrics_collector_endpoint_arn,
     module.parameter.metrics_export_interval_millis_parameter_arn,
     module.parameter.metrics_export_timeout_millis_parameter_arn,
     module.parameter.realtime_updater_num_threads_parameter_arn,

@@ -69,6 +69,8 @@ using privacy_sandbox::server_common::TelemetryProvider;
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
 constexpr absl::string_view kBackupPollFrequencySecsParameterSuffix =
     "backup-poll-frequency-secs";
+constexpr absl::string_view kMetricsCollectorEndpointSuffix =
+    "metrics-collector-endpoint";
 constexpr absl::string_view kMetricsExportIntervalMillisParameterSuffix =
     "metrics-export-interval-millis";
 constexpr absl::string_view kMetricsExportTimeoutMillisParameterSuffix =
@@ -109,6 +111,16 @@ GetMetricsOptions(const ParameterClient& parameter_client,
   return metrics_options;
 }
 
+std::string GetMetricsCollectorEndPoint(const ParameterClient& parameter_client,
+                                        const std::string& environment) {
+  ParameterFetcher parameter_fetcher(environment, parameter_client, nullptr);
+  std::string metrics_collector_endpoint =
+      parameter_fetcher.GetParameter(kMetricsCollectorEndpointSuffix);
+  LOG(INFO) << "Retrieved " << kMetricsCollectorEndpointSuffix
+            << " parameter: " << metrics_collector_endpoint;
+  return metrics_collector_endpoint;
+}
+
 }  // namespace
 
 Server::Server()
@@ -146,8 +158,10 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
 
   InitTelemetry(std::string(kServiceName), std::string(BuildVersion()));
   auto metrics_options = GetMetricsOptions(parameter_client, environment_);
+  auto metrics_collector_endpoint =
+      GetMetricsCollectorEndPoint(parameter_client, environment_);
   ConfigureMetrics(CreateKVAttributes(instance_id, environment_),
-                   metrics_options);
+                   metrics_options, metrics_collector_endpoint);
   ConfigureTracer(CreateKVAttributes(std::move(instance_id), environment_));
 
   metrics_recorder_ = TelemetryProvider::GetInstance().CreateMetricsRecorder();

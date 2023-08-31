@@ -49,6 +49,14 @@ resource "aws_ssm_parameter" "backup_poll_frequency_secs_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "metrics_collector_endpoint" {
+  name      = "${var.service}-${var.environment}-metrics-collector-endpoint"
+  type      = "String"
+  value     = var.metrics_collector_endpoint
+  overwrite = true
+}
+
+
 resource "aws_ssm_parameter" "metrics_export_interval_millis_parameter" {
   name      = "${var.service}-${var.environment}-metrics-export-interval-millis"
   type      = "String"

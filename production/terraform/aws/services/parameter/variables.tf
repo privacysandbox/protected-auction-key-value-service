@@ -44,6 +44,11 @@ variable "backup_poll_frequency_secs_parameter_value" {
   type        = number
 }
 
+variable "metrics_collector_endpoint" {
+  description = "Metrics collector endpoint"
+  type        = string
+}
+
 variable "metrics_export_interval_millis_parameter_value" {
   description = "Export interval for metrics in milliseconds."
   type        = number

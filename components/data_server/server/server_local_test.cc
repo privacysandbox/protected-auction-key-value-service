@@ -40,6 +40,9 @@ class MockParameterClient : public ParameterClient {
               (std::string_view parameter_name), (const, override));
 
   void RegisterRequiredTelemetryExpectations() {
+    EXPECT_CALL(
+        *this, GetParameter("kv-server-environment-metrics-collector-endpoint"))
+        .WillOnce(::testing::Return(""));
     EXPECT_CALL(*this,
                 GetInt32Parameter(
                     "kv-server-environment-metrics-export-interval-millis"))

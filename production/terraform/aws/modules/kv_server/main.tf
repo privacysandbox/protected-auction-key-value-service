@@ -119,6 +119,7 @@ module "autoscaling" {
   instance_profile_arn         = module.iam_roles.instance_profile_arn
   enclave_cpu_count            = var.enclave_cpu_count
   enclave_memory_mib           = var.enclave_memory_mib
+  enclave_enable_debug_mode    = var.enclave_enable_debug_mode
   server_port                  = var.server_port
   launch_hook_name             = module.parameter.launch_hook_parameter_value
   depends_on                   = [module.iam_role_policies.instance_role_policy_attachment]

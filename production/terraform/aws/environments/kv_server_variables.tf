@@ -94,6 +94,11 @@ variable "enclave_cpu_count" {
   type        = number
 }
 
+variable "enclave_enable_debug_mode" {
+  description = "If you enable debug mode, you can view the enclave's console in read-only mode using the nitro-cli console command. Enclaves booted in debug mode generate attestation documents with PCRs that are made up entirely of zeros (000000000000000000000000000000000000000000000000). More info: https://docs.aws.amazon.com/enclaves/latest/user/cmd-nitro-run-enclave.html"
+  type        = bool
+}
+
 variable "vpc_cidr_block" {
   description = "CIDR range for the VPC where KV server will be deployed."
   type        = string

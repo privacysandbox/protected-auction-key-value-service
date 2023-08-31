@@ -33,6 +33,13 @@
 
     Set how many CPUs the server will use.
 
+-   **enclave_enable_debug_mode**
+
+    If you enable debug mode, you can view the enclave's console in read-only mode using the
+    nitro-cli console command. Enclaves booted in debug mode generate attestation documents with
+    PCRs that are made up entirely of zeros (000000000000000000000000000000000000000000000000). More
+    info: <https://docs.aws.amazon.com/enclaves/latest/user/cmd-nitro-run-enclave.html>
+
 -   **enclave_memory_mib**
 
     Set how much RAM the server will use.
@@ -171,6 +178,9 @@
     details about coordinators. For non-production testing it's better to set this to false to begin
     with and then set this to true before enabling production. For processing production requests
     this flag must be true, otherwise requests will not be decrypted successfully.
+    `enclave_enable_debug_mode` should be set to `false` if the attestation check is enabled for
+    coordinators. Attestation check is enabled on all production instances, and might be disabled
+    for testing purposes only on staging/dev environments.
 
 -   **vpc_cidr_block**
 

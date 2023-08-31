@@ -36,6 +36,7 @@ resource "aws_launch_template" "instance_launch_template" {
     {
       enclave_memory_mib        = var.enclave_memory_mib,
       enclave_cpu_count         = var.enclave_cpu_count,
+      enclave_enable_debug_mode = "${var.enclave_enable_debug_mode ? "--debug-mode" : " "}"
       server_port               = var.server_port,
       region                    = var.region,
       prometheus_service_region = var.prometheus_service_region

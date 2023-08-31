@@ -32,10 +32,11 @@ module "kv_server" {
   instance_ami_id = var.instance_ami_id
 
   # Variables related to server configuration.
-  route_v1_requests_to_v2 = var.route_v1_requests_to_v2
-  server_port             = var.server_port
-  enclave_cpu_count       = var.enclave_cpu_count
-  enclave_memory_mib      = var.enclave_memory_mib
+  route_v1_requests_to_v2   = var.route_v1_requests_to_v2
+  server_port               = var.server_port
+  enclave_cpu_count         = var.enclave_cpu_count
+  enclave_memory_mib        = var.enclave_memory_mib
+  enclave_enable_debug_mode = var.enclave_enable_debug_mode
 
   # Variables related to autoscaling and load balancing.
   autoscaling_desired_capacity = var.autoscaling_desired_capacity

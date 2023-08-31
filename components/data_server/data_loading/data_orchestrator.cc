@@ -310,28 +310,14 @@ class DataOrchestratorImpl : public DataOrchestrator {
     }
     data_loader_thread_ = std::make_unique<std::thread>(
         absl::bind_front(&DataOrchestratorImpl::ProcessNewFiles, this));
-    auto& cache = options_.cache;
-    auto& delta_stream_reader_factory = options_.delta_stream_reader_factory;
 
-    for (int i = 0; i < options_.realtime_notifiers.size(); i++) {
-      if (options_.realtime_notifiers[i] == nullptr) {
-        LOG(ERROR) << "Realtime realtime_notifier is nullptr, realtime data "
-                      "loading disabled.";
-        return absl::OkStatus();
-      }
-      auto realtime_notifier = options_.realtime_notifiers[i].get();
-      auto status =
-          realtime_notifier->Start([this, &cache, &delta_stream_reader_factory](
-                                       const std::string& message_body) {
-            return LoadCacheWithHighPriorityUpdates(delta_stream_reader_factory,
-                                                    message_body, cache);
-          });
-      if (!status.ok()) {
-        return status;
-      }
-    }
-
-    return absl::OkStatus();
+    return options_.realtime_thread_pool_manager.Start(
+        [this, &cache = options_.cache,
+         &delta_stream_reader_factory = options_.delta_stream_reader_factory](
+            const std::string& message_body) {
+          return LoadCacheWithHighPriorityUpdates(delta_stream_reader_factory,
+                                                  message_body, cache);
+        });
   }
 
  private:

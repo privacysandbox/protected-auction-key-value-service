@@ -53,6 +53,7 @@ using kv_server::MockCache;
 using kv_server::MockDeltaFileNotifier;
 using kv_server::MockDeltaFileRecordChangeNotifier;
 using kv_server::MockRealtimeNotifier;
+using kv_server::MockRealtimeThreadPoolManager;
 using kv_server::MockStreamRecordReader;
 using kv_server::MockStreamRecordReaderFactory;
 using kv_server::MockUdfClient;
@@ -93,7 +94,7 @@ class DataOrchestratorTest : public ::testing::Test {
             .change_notifier = change_notifier_,
             .udf_client = udf_client_,
             .delta_stream_reader_factory = delta_stream_reader_factory_,
-            .realtime_notifiers = realtime_notifiers_}) {}
+            .realtime_thread_pool_manager = realtime_thread_pool_manager_}) {}
 
   MockBlobStorageClient blob_client_;
   MockDeltaFileNotifier notifier_;
@@ -101,7 +102,7 @@ class DataOrchestratorTest : public ::testing::Test {
   MockUdfClient udf_client_;
   MockStreamRecordReaderFactory delta_stream_reader_factory_;
   MockCache cache_;
-  std::vector<std::unique_ptr<kv_server::RealtimeNotifier>> realtime_notifiers_;
+  MockRealtimeThreadPoolManager realtime_thread_pool_manager_;
   DataOrchestrator::Options options_;
   MockMetricsRecorder metrics_recorder_;
 };
@@ -614,7 +615,7 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .change_notifier = change_notifier_,
       .udf_client = udf_client_,
       .delta_stream_reader_factory = delta_stream_reader_factory_,
-      .realtime_notifiers = realtime_notifiers_,
+      .realtime_thread_pool_manager = realtime_thread_pool_manager_,
       .shard_num = 1,
       .num_shards = 2,
   };

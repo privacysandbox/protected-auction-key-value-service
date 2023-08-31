@@ -66,6 +66,16 @@ class NoopDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
   }
 };
 
+class NoopRealtimeThreadPoolManager : public RealtimeThreadPoolManager {
+ public:
+  absl::Status Start(
+      std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
+          callback) override {
+    return absl::OkStatus();
+  }
+  absl::Status Stop() override { return absl::OkStatus(); }
+};
+
 template <typename RecordT>
 class NoopReader : public StreamRecordReader<RecordT> {
   absl::StatusOr<KVFileMetadata> GetKVFileMetadata() override {
@@ -171,8 +181,7 @@ absl::Status InitOnce(Operation operation) {
   // Blocks until cache is initialized
   absl::StatusOr<std::unique_ptr<DataOrchestrator>> maybe_data_orchestrator;
   absl::Time start_time = absl::Now();
-
-  std::vector<std::unique_ptr<RealtimeNotifier>> realtime_notifiers;
+  NoopRealtimeThreadPoolManager realtime_thread_pool_manager;
   maybe_data_orchestrator = DataOrchestrator::TryCreate(
       {
           .data_bucket = absl::GetFlag(FLAGS_bucket),
@@ -181,7 +190,7 @@ absl::Status InitOnce(Operation operation) {
           .delta_notifier = *notifier,
           .change_notifier = change_notifier,
           .delta_stream_reader_factory = *delta_stream_reader_factory,
-          .realtime_notifiers = realtime_notifiers,
+          .realtime_thread_pool_manager = realtime_thread_pool_manager,
           .udf_client = *noop_udf_client,
       },
       *metrics_recorder);

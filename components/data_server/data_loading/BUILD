@@ -32,6 +32,7 @@ cc_library(
         "//components/data/blob_storage:delta_file_notifier",
         "//components/data/realtime:delta_file_record_change_notifier",
         "//components/data/realtime:realtime_notifier",
+        "//components/data/realtime:realtime_thread_pool_manager",
         "//components/data_server/cache",
         "//components/errors:retry",
         "//components/udf:udf_client",

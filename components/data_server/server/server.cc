@@ -299,14 +299,13 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       kRealtimeUpdaterThreadNumberParameterSuffix);
   LOG(INFO) << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
             << " parameter: " << realtime_thread_numbers;
-  for (int i = 0; i < realtime_thread_numbers; i++) {
-    auto maybe_realtime_notifier = RealtimeNotifier::Create(
-        *metrics_recorder_, realtime_notifier_metadata);
-    if (!maybe_realtime_notifier.ok()) {
-      return maybe_realtime_notifier.status();
-    }
-    realtime_notifiers_.push_back(std::move(*maybe_realtime_notifier));
+  auto maybe_realtime_thread_pool_manager = RealtimeThreadPoolManager::Create(
+      *metrics_recorder_, realtime_notifier_metadata, realtime_thread_numbers);
+  if (!maybe_realtime_thread_pool_manager.ok()) {
+    return maybe_realtime_thread_pool_manager.status();
   }
+  realtime_thread_pool_manager_ =
+      std::move(*maybe_realtime_thread_pool_manager);
   data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher);
   TraceRetryUntilOk([this] { return data_orchestrator_->Start(); },
                     "StartDataOrchestrator", metrics_recorder_.get());
@@ -337,10 +336,8 @@ absl::Status Server::MaybeShutdownNotifiers() {
   if (notifier_ && notifier_->IsRunning()) {
     status = notifier_->Stop();
   }
-  for (auto& realtime_notifier : realtime_notifiers_) {
-    if (realtime_notifier->IsRunning()) {
-      status.Update(realtime_notifier->Stop());
-    }
+  if (realtime_thread_pool_manager_) {
+    status.Update(realtime_thread_pool_manager_->Stop());
   }
   return status;
 }
@@ -451,7 +448,7 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
                 .delta_notifier = *notifier_,
                 .change_notifier = *change_notifier_,
                 .delta_stream_reader_factory = *delta_stream_reader_factory_,
-                .realtime_notifiers = realtime_notifiers_,
+                .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
                 .udf_client = *udf_client_,
                 .shard_num = shard_num_,
                 .num_shards = num_shards_,

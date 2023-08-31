@@ -133,3 +133,53 @@ cc_test(
             "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
         ],
 )
+
+cc_library(
+    name = "realtime_thread_pool_manager",
+    srcs = select({
+        # "//:gcp_platform": [
+        #     "realtime_thread_pool_manager_gcp.cc",
+        # ],
+        "//conditions:default": [
+            "realtime_thread_pool_manager_aws.cc",
+        ],
+    }),
+    hdrs = [
+        "realtime_thread_pool_manager.h",
+    ],
+    deps = [
+        ":realtime_notifier",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+    ],
+)
+
+cc_test(
+    name = "realtime_thread_pool_manager_test",
+    size = "small",
+    srcs = select({
+        # "//:gcp_platform": [
+        #     "realtime_thread_pool_manager_gcp_test.cc",
+        # ],
+        "//conditions:default": [
+            "realtime_thread_pool_manager_aws_test.cc",
+        ],
+    }),
+    deps = select({
+        # "//:gcp_platform": [
+        #     "@com_github_googleapis_google_cloud_cpp//:pubsub",
+        #     "@com_github_googleapis_google_cloud_cpp//:pubsub_mocks",
+        # ],
+        "//conditions:default": [
+        ],
+    }) + [
+        ":realtime_thread_pool_manager",
+        "//components/data/common:mocks",
+        "//components/util:sleepfor_mock",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)

@@ -132,6 +132,7 @@ cc_library(
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",
+        "//components/data/realtime:realtime_thread_pool_manager",
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/data_loading:data_orchestrator",

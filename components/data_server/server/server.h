@@ -27,6 +27,7 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/data/realtime/realtime_thread_pool_manager.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
@@ -127,7 +128,7 @@ class Server {
   // The following fields must outlive DataOrchestrator
   std::unique_ptr<DeltaFileNotifier> notifier_;
   std::unique_ptr<BlobStorageChangeNotifier> change_notifier_;
-  std::vector<std::unique_ptr<RealtimeNotifier>> realtime_notifiers_;
+  std::unique_ptr<RealtimeThreadPoolManager> realtime_thread_pool_manager_;
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
       delta_stream_reader_factory_;
 

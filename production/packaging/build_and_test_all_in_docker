@@ -133,6 +133,8 @@ fi
 
 printf "==== build and test specified targets using bazel-debian ====\n"
 
+CBUILD_ARGS="${CBUILD_ARGS} --seccomp-unconfined"
+
 builder::cbuild_debian "
 set -o errexit
 trap _collect_logs EXIT

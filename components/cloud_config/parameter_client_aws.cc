@@ -92,8 +92,9 @@ class AwsParameterClient : public ParameterClient {
 
   explicit AwsParameterClient(ParameterClient::ClientOptions client_options)
       : client_options_(std::move(client_options)) {
-    if (client_options.ssm_client_for_unit_testing_ != nullptr) {
-      ssm_client_.reset(client_options.ssm_client_for_unit_testing_);
+    if (client_options.client_for_unit_testing_ != nullptr) {
+      ssm_client_.reset(
+          (Aws::SSM::SSMClient*)client_options.client_for_unit_testing_);
     } else {
       ssm_client_ = std::make_unique<Aws::SSM::SSMClient>();
     }

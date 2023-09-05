@@ -46,9 +46,14 @@ using google::scp::cpio::ParameterClientOptions;
 
 class GcpParameterClient : public ParameterClient {
  public:
-  GcpParameterClient() {
-    parameter_client_ =
-        ParameterClientFactory::Create(ParameterClientOptions());
+  explicit GcpParameterClient(ParameterClient::ClientOptions client_options) {
+    if (client_options.client_for_unit_testing_ == nullptr) {
+      parameter_client_ =
+          ParameterClientFactory::Create(ParameterClientOptions());
+    } else {
+      parameter_client_.reset(std::move(
+          (ParameterClientInterface*)client_options.client_for_unit_testing_));
+    }
     auto execution_result = parameter_client_->Init();
     CHECK(execution_result.Successful())
         << "Cannot init parameter client!"
@@ -142,7 +147,7 @@ class GcpParameterClient : public ParameterClient {
 
 std::unique_ptr<ParameterClient> ParameterClient::Create(
     ParameterClient::ClientOptions client_options) {
-  return std::make_unique<GcpParameterClient>();
+  return std::make_unique<GcpParameterClient>(std::move(client_options));
 }
 
 }  // namespace kv_server

@@ -79,6 +79,8 @@ cc_test(
         ],
         "//:gcp_platform": [
             "@com_google_googletest//:gtest",
+            "@control_plane_shared//cc/public/cpio/interface:cpio",
+            "@control_plane_shared//cc/public/cpio/mock/parameter_client:parameter_client_mock",
         ],
         "//:local_platform": [
             "//components/data/common:mocks",

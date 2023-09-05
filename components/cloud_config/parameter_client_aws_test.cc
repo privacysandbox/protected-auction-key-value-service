@@ -56,7 +56,7 @@ TEST_F(ParameterClientAwsTest, GetInt32ParameterSuccess) {
   EXPECT_CALL(*ssm_client, GetParameter(_)).WillOnce(Return(outcome));
 
   ParameterClient::ClientOptions options;
-  options.ssm_client_for_unit_testing_ = ssm_client.release();
+  options.client_for_unit_testing_ = ssm_client.release();
 
   auto parameter_client = ParameterClient::Create(options);
   auto result_or_status = parameter_client->GetInt32Parameter("my_param");
@@ -71,7 +71,7 @@ TEST_F(ParameterClientAwsTest, GetInt32ParameterSSMClientFailsReturnsError) {
   EXPECT_CALL(*ssm_client, GetParameter(_)).WillOnce(Return(outcome));
 
   ParameterClient::ClientOptions options;
-  options.ssm_client_for_unit_testing_ = ssm_client.release();
+  options.client_for_unit_testing_ = ssm_client.release();
 
   auto parameter_client = ParameterClient::Create(options);
   auto result_or_status = parameter_client->GetInt32Parameter("my_param");
@@ -85,7 +85,7 @@ TEST_F(ParameterClientAwsTest, GetInt32ParameterNotIntReturnsError) {
   EXPECT_CALL(*ssm_client, GetParameter(_)).WillOnce(Return(outcome));
 
   ParameterClient::ClientOptions options;
-  options.ssm_client_for_unit_testing_ = ssm_client.release();
+  options.client_for_unit_testing_ = ssm_client.release();
 
   auto parameter_client = ParameterClient::Create(options);
   auto result_or_status = parameter_client->GetInt32Parameter("my_param");
@@ -99,7 +99,7 @@ TEST_F(ParameterClientAwsTest, GetBoolParameterSuccess) {
   EXPECT_CALL(*ssm_client, GetParameter(_)).WillOnce(Return(outcome));
 
   ParameterClient::ClientOptions options;
-  options.ssm_client_for_unit_testing_ = ssm_client.release();
+  options.client_for_unit_testing_ = ssm_client.release();
 
   auto parameter_client = ParameterClient::Create(options);
   auto result_or_status = parameter_client->GetBoolParameter("my_param");
@@ -114,7 +114,7 @@ TEST_F(ParameterClientAwsTest, GetBoolParameterSSMClientFailsReturnsError) {
   EXPECT_CALL(*ssm_client, GetParameter(_)).WillOnce(Return(outcome));
 
   ParameterClient::ClientOptions options;
-  options.ssm_client_for_unit_testing_ = ssm_client.release();
+  options.client_for_unit_testing_ = ssm_client.release();
 
   auto parameter_client = ParameterClient::Create(options);
   auto result_or_status = parameter_client->GetBoolParameter("my_param");
@@ -128,7 +128,7 @@ TEST_F(ParameterClientAwsTest, GetBoolParameterNotBoolReturnsError) {
   EXPECT_CALL(*ssm_client, GetParameter(_)).WillOnce(Return(outcome));
 
   ParameterClient::ClientOptions options;
-  options.ssm_client_for_unit_testing_ = ssm_client.release();
+  options.client_for_unit_testing_ = ssm_client.release();
 
   auto parameter_client = ParameterClient::Create(options);
   auto result_or_status = parameter_client->GetBoolParameter("my_param");

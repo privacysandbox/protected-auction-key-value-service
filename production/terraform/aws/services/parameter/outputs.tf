@@ -38,8 +38,12 @@ output "backup_poll_frequency_secs_parameter_arn" {
   value = aws_ssm_parameter.backup_poll_frequency_secs_parameter.arn
 }
 
+output "use_external_metrics_collector_endpoint_arn" {
+  value = aws_ssm_parameter.use_external_metrics_collector_endpoint.arn
+}
+
 output "metrics_collector_endpoint_arn" {
-  value = aws_ssm_parameter.metrics_collector_endpoint.arn
+  value = (var.use_external_metrics_collector_endpoint) ? aws_ssm_parameter.metrics_collector_endpoint[0].arn : ""
 }
 
 output "metrics_export_interval_millis_parameter_arn" {

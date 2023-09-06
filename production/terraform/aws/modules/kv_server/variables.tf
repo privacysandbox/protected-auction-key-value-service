@@ -132,6 +132,11 @@ variable "backup_poll_frequency_secs" {
   type        = number
 }
 
+variable "use_external_metrics_collector_endpoint" {
+  description = "Whether to connect external metrics collector endpoint"
+  type        = bool
+}
+
 variable "metrics_collector_endpoint" {
   description = "Metrics collector endpoint."
   type        = string

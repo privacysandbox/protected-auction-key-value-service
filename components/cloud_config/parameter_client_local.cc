@@ -25,8 +25,6 @@
 
 ABSL_FLAG(std::string, delta_directory, "",
           "Local directory to watch for files.");
-ABSL_FLAG(std::string, metrics_collector_endpoint, "",
-          "Metrics collector endpoint.");
 ABSL_FLAG(absl::Duration, export_interval, absl::Seconds(30),
           "Frequency to export local metrics.");
 ABSL_FLAG(absl::Duration, export_timeout, absl::Seconds(5),
@@ -70,9 +68,6 @@ class LocalParameterClient : public ParameterClient {
         {"kv-server-local-launch-hook", absl::GetFlag(FLAGS_launch_hook)});
     string_flag_values_.insert({"kv-server-local-realtime-directory",
                                 absl::GetFlag(FLAGS_realtime_directory)});
-    string_flag_values_.insert(
-        {"kv-server-local-metrics-collector-endpoint",
-         absl::GetFlag(FLAGS_metrics_collector_endpoint)});
     // Insert more string flag values here.
 
     int32_t_flag_values_.insert(
@@ -104,6 +99,8 @@ class LocalParameterClient : public ParameterClient {
     bool_flag_values_.insert({"kv-server-local-route-v1-to-v2",
                               absl::GetFlag(FLAGS_route_v1_to_v2)});
     bool_flag_values_.insert({"kv-server-local-use-real-coordinators", false});
+    bool_flag_values_.insert(
+        {"kv-server-local-use-external-metrics-collector-endpoint", false});
     // Insert more bool flag values here.
   }
 

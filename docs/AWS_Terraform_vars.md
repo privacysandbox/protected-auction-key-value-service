@@ -74,8 +74,8 @@
 
 -   **metrics_collector_endpoint**
 
-    The open telemetry metrics collector endpoint, for AWS it will be local grpc endpoint because
-    otel is running on the same EC2 machine
+    The open telemetry metrics collector endpoint, for AWS it will be empty string and open
+    telemetry will default to local grpc endpoint because otel is running on the same EC2 machine
 
 -   **metrics_export_interval_millis**
 
@@ -175,6 +175,11 @@
 -   **udf_num_workers**
 
     Total number of workers for UDF execution
+
+-   **use_external_metrics_collector_endpoint**
+
+    Whether to use external metrics collector endpoint. For AWS it is false because KV instance
+    connects to OpenTelemetry metrics collector running in local host
 
 -   **use_real_coordinators**
 

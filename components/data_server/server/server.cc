@@ -69,6 +69,8 @@ using privacy_sandbox::server_common::TelemetryProvider;
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
 constexpr absl::string_view kBackupPollFrequencySecsParameterSuffix =
     "backup-poll-frequency-secs";
+constexpr absl::string_view kUseExternalMetricsCollectorEndpointSuffix =
+    "use-external-metrics-collector-endpoint";
 constexpr absl::string_view kMetricsCollectorEndpointSuffix =
     "metrics-collector-endpoint";
 constexpr absl::string_view kMetricsExportIntervalMillisParameterSuffix =
@@ -111,14 +113,21 @@ GetMetricsOptions(const ParameterClient& parameter_client,
   return metrics_options;
 }
 
-std::string GetMetricsCollectorEndPoint(const ParameterClient& parameter_client,
-                                        const std::string& environment) {
+absl::optional<std::string> GetMetricsCollectorEndPoint(
+    const ParameterClient& parameter_client, const std::string& environment) {
+  absl::optional<std::string> metrics_collection_endpoint;
   ParameterFetcher parameter_fetcher(environment, parameter_client, nullptr);
-  std::string metrics_collector_endpoint =
-      parameter_fetcher.GetParameter(kMetricsCollectorEndpointSuffix);
-  LOG(INFO) << "Retrieved " << kMetricsCollectorEndpointSuffix
-            << " parameter: " << metrics_collector_endpoint;
-  return metrics_collector_endpoint;
+  auto should_connect_to_external_metrics_collector =
+      parameter_fetcher.GetBoolParameter(
+          kUseExternalMetricsCollectorEndpointSuffix);
+  if (should_connect_to_external_metrics_collector) {
+    std::string metrics_collector_endpoint_value =
+        parameter_fetcher.GetParameter(kMetricsCollectorEndpointSuffix);
+    LOG(INFO) << "Retrieved " << kMetricsCollectorEndpointSuffix
+              << " parameter: " << metrics_collector_endpoint_value;
+    metrics_collection_endpoint = std::move(metrics_collector_endpoint_value);
+  }
+  return std::move(metrics_collection_endpoint);
 }
 
 }  // namespace
@@ -162,7 +171,8 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
       GetMetricsCollectorEndPoint(parameter_client, environment_);
   ConfigureMetrics(CreateKVAttributes(instance_id, environment_),
                    metrics_options, metrics_collector_endpoint);
-  ConfigureTracer(CreateKVAttributes(std::move(instance_id), environment_));
+  ConfigureTracer(CreateKVAttributes(std::move(instance_id), environment_),
+                  metrics_collector_endpoint);
 
   metrics_recorder_ = TelemetryProvider::GetInstance().CreateMetricsRecorder();
 }

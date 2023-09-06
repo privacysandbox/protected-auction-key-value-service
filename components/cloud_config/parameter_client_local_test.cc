@@ -45,12 +45,6 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
     EXPECT_EQ("", *statusor);
   }
   {
-    const auto statusor =
-        client->GetParameter("kv-server-local-metrics-collector-endpoint");
-    ASSERT_TRUE(statusor.ok());
-    EXPECT_EQ("", *statusor);
-  }
-  {
     const auto statusor = client->GetInt32Parameter(
         "kv-server-local-metrics-export-interval-millis");
     ASSERT_TRUE(statusor.ok());
@@ -113,6 +107,12 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
   {
     const auto statusor =
         client->GetBoolParameter("kv-server-local-use-real-coordinators");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(false, *statusor);
+  }
+  {
+    const auto statusor = client->GetBoolParameter(
+        "kv-server-local-use-external-metrics-collector-endpoint");
     ASSERT_TRUE(statusor.ok());
     EXPECT_EQ(false, *statusor);
   }

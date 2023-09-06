@@ -49,7 +49,15 @@ resource "aws_ssm_parameter" "backup_poll_frequency_secs_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "use_external_metrics_collector_endpoint" {
+  name      = "${var.service}-${var.environment}-use-external-metrics-collector-endpoint"
+  type      = "String"
+  value     = var.use_external_metrics_collector_endpoint
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "metrics_collector_endpoint" {
+  count     = (var.use_external_metrics_collector_endpoint) ? 1 : 0
   name      = "${var.service}-${var.environment}-metrics-collector-endpoint"
   type      = "String"
   value     = var.metrics_collector_endpoint

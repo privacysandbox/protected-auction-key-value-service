@@ -108,3 +108,8 @@ variable "secondary_coordinator_account_identity_parameter_value" {
   description = "Account identity for the secondary coordinator."
   type        = string
 }
+
+variable "use_external_metrics_collector_endpoint" {
+  description = "Whether to connect external metrics collector endpoint"
+  type        = bool
+}

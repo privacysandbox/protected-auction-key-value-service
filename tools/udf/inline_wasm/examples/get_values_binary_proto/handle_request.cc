@@ -29,12 +29,12 @@ namespace {
 // (stored_value.proto).
 // tools/udf/inline_wasm/examples/get_values_binary_proto/DELTA_1692813076489763
 // contains values with serialized example::StoredValue proto
-emscripten::val ProcessStoredValue(kv_server::Value value) {
+emscripten::val ProcessStoredValue(const kv_server::Value& value) {
   emscripten::val processed_value = emscripten::val::object();
   example::StoredValue my_proto;
   my_proto.ParseFromString(value.data());
-  processed_value.set("value",
-                      emscripten::val(std::move(my_proto.my_string())));
+  processed_value.set(
+      "value", emscripten::val(std::move(*my_proto.mutable_my_string())));
   return processed_value;
 }
 
@@ -50,9 +50,9 @@ absl::StatusOr<emscripten::val> getKvPairs(const emscripten::val& get_values_cb,
 
   emscripten::val kv_pairs = emscripten::val::object();
   kv_server::BinaryGetValuesResponse response;
-  response.ParseFromArray(&get_values_result[0], get_values_result.size());
+  response.ParseFromArray(get_values_result.data(), get_values_result.size());
   for (auto& [k, v] : response.kv_pairs()) {
-    kv_pairs.set(k, ProcessStoredValue(std::move(v)));
+    kv_pairs.set(k, ProcessStoredValue(v));
   }
   return kv_pairs;
 }

@@ -69,3 +69,9 @@ module "parameter" {
   environment   = var.environment
   runtime_flags = var.runtime_flags
 }
+
+module "realtime" {
+  source      = "../../services/realtime"
+  service     = local.service
+  environment = var.environment
+}

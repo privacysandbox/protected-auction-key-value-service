@@ -42,7 +42,7 @@ config_setting(
     flag_values = {
         ":platform": "gcp",
     },
-    visibility = ["//visibility:private"],
+    visibility = ["//components/cloud_config:__pkg__"],
 )
 
 config_setting(
@@ -84,7 +84,10 @@ config_setting(
     flag_values = {
         ":instance": "local",
     },
-    visibility = ["//components/util:__pkg__"],
+    visibility = [
+        "//components/cloud_config:__pkg__",
+        "//components/util:__pkg__",
+    ],
 )
 
 exports_files(

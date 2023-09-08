@@ -17,26 +17,37 @@
 
 #include <string>
 
+#include "absl/strings/str_format.h"
 #include "components/data_server/server/parameter_fetcher.h"
 #include "glog/logging.h"
 
 namespace kv_server {
-
-constexpr std::string_view kLocalDirectoryToWatch = "directory";
-constexpr std::string_view kRealtimeDirectoryToWatch = "realtime-directory";
-
+constexpr std::string_view kEnvironment = "environment";
+constexpr std::string_view kProjectId = "project_id";
+constexpr std::string_view kRealtimeUpdaterThreadNumberParameterSuffix =
+    "realtime-updater-num-threads";
 NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
-  std::string directory = GetParameter(kLocalDirectoryToWatch);
-  LOG(INFO) << "Retrieved " << kLocalDirectoryToWatch
-            << " parameter: " << directory;
-  return LocalNotifierMetadata{.local_directory = std::move(directory)};
+  // TODO: set to proper values. Waiting on the GCP BlobStorage implementation.
+  return GcpNotifierMetadata{};
 }
 
 NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata() const {
-  std::string directory = GetParameter(kRealtimeDirectoryToWatch);
-  LOG(INFO) << "Retrieved " << kRealtimeDirectoryToWatch
-            << " parameter: " << directory;
-  return LocalNotifierMetadata{.local_directory = std::move(directory)};
+  std::string environment = GetParameter(kEnvironment);
+  LOG(INFO) << "Retrieved " << kEnvironment << " parameter: " << environment;
+  auto realtime_thread_numbers =
+      GetInt32Parameter(kRealtimeUpdaterThreadNumberParameterSuffix);
+  LOG(INFO) << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
+            << " parameter: " << realtime_thread_numbers;
+  std::string topic_id =
+      absl::StrFormat("kv-server-%s-realtime-pubsub", environment);
+  std::string project_id = GetParameter(kProjectId);
+  LOG(INFO) << "Retrieved " << kProjectId << " parameter: " << project_id;
+  return GcpNotifierMetadata{
+      .queue_prefix = "QueueNotifier_",
+      .project_id = project_id,
+      .topic_id = topic_id,
+      .num_threads = realtime_thread_numbers,
+  };
 }
 
 }  // namespace kv_server

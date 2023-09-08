@@ -36,7 +36,9 @@ cc_library(
     name = "parameter_fetcher",
     srcs = select({
         "//:aws_platform": ["parameter_fetcher_aws.cc"],
-        "//:gcp_platform": ["parameter_fetcher_gcp.cc"],
+        # todo: uncomment this once the GCP blob storage logic is implemented
+        #"//:gcp_platform": ["parameter_fetcher_gcp.cc"],
+        "//:gcp_platform": ["parameter_fetcher_local.cc"],
         "//:local_platform": ["parameter_fetcher_local.cc"],
     }) + ["parameter_fetcher.cc"],
     hdrs = ["parameter_fetcher.h"],

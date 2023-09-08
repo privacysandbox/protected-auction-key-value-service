@@ -53,5 +53,7 @@ module "kv_server" {
     udf-num-workers                         = var.udf_num_workers
     route-v1-to-v2                          = var.route_v1_to_v2
     use-real-coordinators                   = var.use_real_coordinators
+    environment                             = var.environment
+    project_id                              = var.project_id
   }
 }

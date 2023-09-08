@@ -37,20 +37,21 @@ module "kv_server" {
   cpu_utilization_percent               = var.cpu_utilization_percent
 
   runtime_flags = {
-    directory                      = var.directory
-    data-bucket-id                 = var.data_bucket_id
-    launch-hook                    = var.launch_hook
-    realtime-directory             = var.realtime_directory
-    metrics-export-interval-millis = var.metrics_export_interval_millis
-    metrics-export-timeout-millis  = var.metrics_export_timeout_millis
-    backup-poll-frequency-secs     = var.backup_poll_frequency_secs
-    realtime-updater-num-threads   = var.realtime_updater_num_threads
-    data-loading-num-threads       = var.data_loading_num_threads
-    s3client-max-connections       = var.s3client_max_connections
-    s3client-max-range-bytes       = var.s3client_max_range_bytes
-    num-shards                     = var.num_shards
-    udf-num-workers                = var.udf_num_workers
-    route-v1-to-v2                 = var.route_v1_to_v2
-    use-real-coordinators          = var.use_real_coordinators
+    directory                               = var.directory
+    data-bucket-id                          = var.data_bucket_id
+    launch-hook                             = var.launch_hook
+    realtime-directory                      = var.realtime_directory
+    use-external-metrics-collector-endpoint = false
+    metrics-export-interval-millis          = var.metrics_export_interval_millis
+    metrics-export-timeout-millis           = var.metrics_export_timeout_millis
+    backup-poll-frequency-secs              = var.backup_poll_frequency_secs
+    realtime-updater-num-threads            = var.realtime_updater_num_threads
+    data-loading-num-threads                = var.data_loading_num_threads
+    s3client-max-connections                = var.s3client_max_connections
+    s3client-max-range-bytes                = var.s3client_max_range_bytes
+    num-shards                              = var.num_shards
+    udf-num-workers                         = var.udf_num_workers
+    route-v1-to-v2                          = var.route_v1_to_v2
+    use-real-coordinators                   = var.use_real_coordinators
   }
 }

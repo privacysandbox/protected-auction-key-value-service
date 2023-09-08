@@ -81,7 +81,7 @@ variable "cpu_utilization_percent" {
   type        = number
 }
 
-variable "runtime_flags" {
+variable "parameters" {
   type        = map(string)
-  description = "Buyer runtime flags. Must exactly match flags specified in <project root>/services/(bidding_service|buyer_frontend_service)/runtime_flags.h"
+  description = "Kv-server runtime parameters"
 }

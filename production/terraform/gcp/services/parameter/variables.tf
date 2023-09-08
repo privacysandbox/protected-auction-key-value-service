@@ -24,7 +24,7 @@ variable "environment" {
   type        = string
 }
 
-variable "runtime_flags" {
+variable "parameters" {
+  description = "Kv-server runtime parameters"
   type        = map(string)
-  description = "Buyer runtime flags. Must exactly match flags specified in <project root>/services/(bidding_service|buyer_frontend_service)/runtime_flags.h"
 }

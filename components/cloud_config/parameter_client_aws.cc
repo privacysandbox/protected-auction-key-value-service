@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(b/299623229): Swich to CPIO implementation once it support fetching
+// TODO(b/299623229): Swich to CPIO implementation once it supports fetching
 // cloud params from local instances
 
 #include <memory>

@@ -64,10 +64,10 @@ module "service_mesh" {
 }
 
 module "parameter" {
-  source        = "../../services/parameter"
-  service       = local.service
-  environment   = var.environment
-  runtime_flags = var.runtime_flags
+  source      = "../../services/parameter"
+  service     = local.service
+  environment = var.environment
+  parameters  = var.parameters
 }
 
 module "realtime" {

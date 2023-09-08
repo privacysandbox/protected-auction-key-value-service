@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(b/296901861): Modify the implementation with GCP specific logic (the
-// current implementation is copied from local).
-
 #include <chrono>
 #include <iostream>
 #include <memory>

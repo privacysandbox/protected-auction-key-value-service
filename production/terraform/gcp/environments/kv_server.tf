@@ -36,7 +36,9 @@ module "kv_server" {
   instance_template_waits_for_instances = var.instance_template_waits_for_instances
   cpu_utilization_percent               = var.cpu_utilization_percent
 
-  runtime_flags = {
+  # TODO(b/299623229): remove the following reminder once b/299623229 is done.
+  # Reminder: for any new parameters added here, please also add them to "components/cloud_config/parameter_client_local.cc".
+  parameters = {
     directory                               = var.directory
     data-bucket-id                          = var.data_bucket_id
     launch-hook                             = var.launch_hook

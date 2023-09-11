@@ -33,7 +33,13 @@ class OhttpClientEncryptor {
   explicit OhttpClientEncryptor(
       privacy_sandbox::server_common::KeyFetcherManagerInterface&
           key_fetcher_manager)
-      : key_fetcher_manager_(key_fetcher_manager) {}
+      : key_fetcher_manager_(key_fetcher_manager) {
+#if defined(CLOUD_PLATFORM_AWS)
+    cloud_platform_ = CloudPlatform::AWS;
+#elif defined(CLOUD_PLATFORM_GCP)
+    cloud_platform_ = CloudPlatform::GCP;
+#endif
+  }
   // Encrypts ougoing request.
   absl::StatusOr<std::string> EncryptRequest(std::string payload);
   // Decrypts incoming reponse. Since OHTTP is stateful, this method should be
@@ -44,6 +50,8 @@ class OhttpClientEncryptor {
   // should refactor this back to returning a string.
   absl::StatusOr<quiche::ObliviousHttpResponse> DecryptResponse(
       std::string encrypted_payload);
+  ::privacy_sandbox::server_common::CloudPlatform cloud_platform_ =
+      ::privacy_sandbox::server_common::CloudPlatform::LOCAL;
 
  private:
   std::optional<quiche::ObliviousHttpClient> http_client_;

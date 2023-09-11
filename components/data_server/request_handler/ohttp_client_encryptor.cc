@@ -38,7 +38,7 @@ absl::StatusOr<uint8_t> StringToUint8(absl::string_view str) {
 
 absl::StatusOr<std::string> OhttpClientEncryptor::EncryptRequest(
     std::string payload) {
-  auto key = key_fetcher_manager_.GetPublicKey();
+  auto key = key_fetcher_manager_.GetPublicKey(cloud_platform_);
   if (!key.ok()) {
     const std::string error =
         absl::StrCat("Could not get public key to use for HPKE encryption: ",

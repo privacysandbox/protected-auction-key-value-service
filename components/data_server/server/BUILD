@@ -196,6 +196,17 @@ cc_test(
 cc_binary(
     name = "server",
     srcs = ["main.cc"],
+    copts =
+        select(
+            {
+                "@google_privacysandbox_servers_common//:aws_platform": [
+                    "-DCLOUD_PLATFORM_AWS=1",
+                ],
+                "@google_privacysandbox_servers_common//:gcp_platform": [
+                    "-DCLOUD_PLATFORM_GCP=1",
+                ],
+            },
+        ),
     visibility = [
         "//google_internal/production/packaging:__subpackages__",
         "//production/packaging:__subpackages__",

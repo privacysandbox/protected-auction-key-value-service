@@ -39,7 +39,10 @@ ABSL_FLAG(std::string, secondary_coordinator_region, "",
           "Secondary coordinator region.");
 
 namespace kv_server {
+using ::google::scp::cpio::PrivateKeyVendingEndpoint;
+using ::privacy_sandbox::server_common::CloudPlatform;
 using ::privacy_sandbox::server_common::EventEngineExecutor;
+using ::privacy_sandbox::server_common::FakeKeyFetcherManager;
 using ::privacy_sandbox::server_common::KeyFetcherManagerFactory;
 using ::privacy_sandbox::server_common::KeyFetcherManagerInterface;
 using ::privacy_sandbox::server_common::PrivateKeyFetcherFactory;
@@ -61,22 +64,30 @@ constexpr absl::Duration kPrivateKeyCacheTtl = absl::Hours(24 * 45);  // 45 days
 constexpr absl::Duration kKeyRefreshFlowRunFrequency = absl::Hours(3);
 }  // namespace
 
-std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
-CreateKeyFetcherManager(const ParameterFetcher& parameter_fetcher) {
+std::unique_ptr<KeyFetcherManagerInterface> CreateKeyFetcherManager(
+    const ParameterFetcher& parameter_fetcher) {
   if (!parameter_fetcher.GetBoolParameter(
           kUseRealCoordinatorsParameterSuffix)) {
     LOG(INFO) << "Not using real coordinators. Using hardcoded unsafe public "
                  "and private keys";
-    return std::make_unique<
-        privacy_sandbox::server_common::FakeKeyFetcherManager>();
+    return std::make_unique<FakeKeyFetcherManager>();
   }
+  auto cloud_platform = CloudPlatform::LOCAL;
+#if defined(CLOUD_PLATFORM_AWS)
+  cloud_platform = CloudPlatform::AWS;
+#elif defined(CLOUD_PLATFORM_GCP)
+  cloud_platform = CloudPlatform::GCP;
+#endif
+  CHECK(cloud_platform != CloudPlatform::LOCAL)
+      << "Real coordinators are only supported for AWS and GCP, not LOCAL.";
+
   auto publicKeyEndpointParameter = absl::GetFlag(FLAGS_public_key_endpoint);
   LOG(INFO) << "Retrieved public_key_endpoint parameter: "
             << publicKeyEndpointParameter;
   std::vector<std::string> endpoints = {publicKeyEndpointParameter};
   std::unique_ptr<PublicKeyFetcherInterface> public_key_fetcher =
-      PublicKeyFetcherFactory::Create(endpoints);
-  google::scp::cpio::PrivateKeyVendingEndpoint primary, secondary;
+      PublicKeyFetcherFactory::Create({{cloud_platform, endpoints}});
+  PrivateKeyVendingEndpoint primary, secondary;
   primary.account_identity = parameter_fetcher.GetParameter(
       kPrimaryCoordinatorAccountIdentityParameterSuffix);
   LOG(INFO) << "Retrieved " << kPrimaryCoordinatorAccountIdentityParameterSuffix

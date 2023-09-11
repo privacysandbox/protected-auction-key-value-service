@@ -51,3 +51,8 @@ resource "google_compute_router_nat" "kv_server" {
     filter = "ERRORS_ONLY"
   }
 }
+
+resource "google_compute_global_address" "collector" {
+  name       = "${var.collector_service_name}-${var.environment}-lb"
+  ip_version = "IPV4"
+}

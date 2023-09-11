@@ -4,6 +4,22 @@
 
     Backup poll frequency for delta file notifier in seconds.
 
+-   **collector_domain_name**
+
+    The domain name for metrics collector
+
+-   **collector_machine_type**
+
+    The machine type for metrcis collector
+
+-   **collector_service_name**
+
+    The metrics collector service name
+
+-   **collector_service_port**
+
+    The grpc port that receives traffic destined for the OpenTelemetry collector
+
 -   **cpu_utilization_percent**
 
     CPU utilization percentage across an instance group required for autoscaler to add instances.
@@ -19,6 +35,10 @@
 -   **directory**
 
     Directory to watch for files.
+
+-   **dns_zone**
+
+    The DNS zone name
 
 -   **environment**
 
@@ -106,6 +126,11 @@
     If true, use the Confidential space debug image. Else use the prod image, which does not allow
     SSH. The images containing the service logic will run on top of this image and have their own
     prod and debug builds.
+
+-   **use_external_metrics_collector_endpoint**
+
+    Whether to use metrics collector on external host. On gcp, this should always be true because
+    OpenTelemetry endpoints need to run on a different host
 
 -   **use_real_coordinators**
 

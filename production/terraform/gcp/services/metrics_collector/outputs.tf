@@ -14,22 +14,10 @@
  * limitations under the License.
  */
 
-variable "service" {
-  description = "Assigned name of the KV server."
-  type        = string
+output "collector_forwarding_rule" {
+  value = google_compute_global_forwarding_rule.collector
 }
 
-variable "environment" {
-  description = "Assigned environment name to group related resources."
-  type        = string
-}
-
-variable "regions" {
-  description = "Regions to deploy to."
-  type        = set(string)
-}
-
-variable "collector_service_name" {
-  description = "Assigned name of metrics collection service"
-  type        = string
+output "collector_tcp_proxy" {
+  value = google_compute_target_tcp_proxy.collector
 }

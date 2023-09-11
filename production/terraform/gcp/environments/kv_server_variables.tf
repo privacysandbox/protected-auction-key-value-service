@@ -155,3 +155,33 @@ variable "use_real_coordinators" {
   type        = bool
   description = "Use real coordinators."
 }
+
+variable "use_external_metrics_collector_endpoint" {
+  type        = bool
+  description = "Whether to connect to external metrics collector endpoint"
+}
+
+variable "collector_service_name" {
+  description = "Metrics collector service name"
+  type        = string
+}
+
+variable "collector_service_port" {
+  description = "The grpc port that receives traffic destined for the OpenTelemetry collector."
+  type        = number
+}
+
+variable "collector_domain_name" {
+  description = "Google Cloud domain name for OpenTelemetry collector"
+  type        = string
+}
+
+variable "collector_machine_type" {
+  description = "Machine type for the collector service."
+  type        = string
+}
+
+variable "dns_zone" {
+  description = "Google Cloud DNS zone name"
+  type        = string
+}

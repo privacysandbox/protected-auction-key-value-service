@@ -60,3 +60,16 @@ resource "google_compute_firewall" "kvs_fw_allow_backend_ingress" {
   # target_tags   = ["allow-backend-ingress"]
   source_ranges = ["0.0.0.0/0", "10.142.0.0/22"]
 }
+
+resource "google_compute_firewall" "fw_allow_otlp" {
+  name      = "${var.environment}-fw-allow-otlp"
+  direction = "INGRESS"
+  network   = var.network_id
+
+  allow {
+    protocol = "tcp"
+    ports    = [var.collector_service_port]
+  }
+  target_tags   = ["allow-otlp"]
+  source_ranges = [for subnet in var.subnets : subnet.ip_cidr_range]
+}

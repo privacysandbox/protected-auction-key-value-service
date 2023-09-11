@@ -85,3 +85,28 @@ variable "parameters" {
   type        = map(string)
   description = "Kv-server runtime parameters"
 }
+
+variable "collector_service_name" {
+  description = "OpenTelemetry collector service name"
+  type        = string
+}
+
+variable "collector_service_port" {
+  description = "The grpc port that receives traffic destined for the OpenTelemetry collector."
+  type        = number
+}
+
+variable "collector_machine_type" {
+  description = "Machine type for the collector service."
+  type        = string
+}
+
+variable "collector_domain_name" {
+  description = "The dns domain name for OpenTelemetry collector"
+  type        = string
+}
+
+variable "dns_zone" {
+  description = "Google Cloud DNS zone name for the Key Value domain"
+  type        = string
+}

@@ -14,27 +14,36 @@
  * limitations under the License.
  */
 
-variable "service" {
-  description = "Assigned name of the KV server."
-  type        = string
-}
-
 variable "environment" {
   description = "Assigned environment name to group related resources."
   type        = string
 }
 
-variable "network_id" {
-  description = "Base network id for firewall rules"
+variable "collector_ip_address" {
+  description = "Collector IP address"
   type        = string
 }
 
-variable "subnets" {
-  description = "A list of all subnets. Used to allow ingress through the service mesh."
-  type        = any
+variable "collector_instance_groups" {
+  description = "OpenTelemetry collector instance group URLs created by instance group managers."
+  type        = set(string)
+}
+
+variable "collector_service_name" {
+  type = string
 }
 
 variable "collector_service_port" {
   description = "The grpc port that receives traffic destined for the OpenTelemetry collector."
   type        = number
+}
+
+variable "collector_domain_name" {
+  description = "The dns domain name for OpenTelemetry collector"
+  type        = string
+}
+
+variable "dns_zone" {
+  description = "Google Cloud DNS zone name for the Key Value domain"
+  type        = string
 }

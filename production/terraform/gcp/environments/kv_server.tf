@@ -35,7 +35,11 @@ module "kv_server" {
   machine_type                          = var.machine_type
   instance_template_waits_for_instances = var.instance_template_waits_for_instances
   cpu_utilization_percent               = var.cpu_utilization_percent
-
+  collector_service_name                = var.collector_service_name
+  collector_machine_type                = var.collector_machine_type
+  collector_service_port                = var.collector_service_port
+  collector_domain_name                 = var.collector_domain_name
+  dns_zone                              = var.dns_zone
   # TODO(b/299623229): remove the following reminder once b/299623229 is done.
   # Reminder: for any new parameters added here, please also add them to "components/cloud_config/parameter_client_local.cc".
   parameters = {
@@ -43,7 +47,8 @@ module "kv_server" {
     data-bucket-id                          = var.data_bucket_id
     launch-hook                             = var.launch_hook
     realtime-directory                      = var.realtime_directory
-    use-external-metrics-collector-endpoint = false
+    use-external-metrics-collector-endpoint = var.use_external_metrics_collector_endpoint
+    metrics-collector-endpoint              = "${var.environment}-${var.collector_service_name}.${var.collector_domain_name}:${var.collector_service_port}"
     metrics-export-interval-millis          = var.metrics_export_interval_millis
     metrics-export-timeout-millis           = var.metrics_export_timeout_millis
     backup-poll-frequency-secs              = var.backup_poll_frequency_secs
@@ -58,4 +63,5 @@ module "kv_server" {
     environment                             = var.environment
     project_id                              = var.project_id
   }
+
 }

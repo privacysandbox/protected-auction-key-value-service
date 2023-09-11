@@ -20,18 +20,20 @@ locals {
 }
 
 module "networking" {
-  source      = "../../services/networking"
-  service     = local.service
-  environment = var.environment
-  regions     = var.regions
+  source                 = "../../services/networking"
+  service                = local.service
+  environment            = var.environment
+  regions                = var.regions
+  collector_service_name = var.collector_service_name
 }
 
 module "security" {
-  source      = "../../services/security"
-  service     = local.service
-  environment = var.environment
-  network_id  = module.networking.network_id
-  subnets     = module.networking.subnets
+  source                 = "../../services/security"
+  service                = local.service
+  environment            = var.environment
+  network_id             = module.networking.network_id
+  subnets                = module.networking.subnets
+  collector_service_port = var.collector_service_port
 }
 
 module "autoscaling" {
@@ -51,17 +53,34 @@ module "autoscaling" {
   machine_type                          = var.machine_type
   instance_template_waits_for_instances = var.instance_template_waits_for_instances
   cpu_utilization_percent               = var.cpu_utilization_percent
+  collector_machine_type                = var.collector_machine_type
+  collector_service_name                = var.collector_service_name
+  collector_service_port                = var.collector_service_port
+}
+
+module "metrics_collector" {
+  source                    = "../../services/metrics_collector"
+  environment               = var.environment
+  collector_ip_address      = module.networking.collector_ip_address
+  collector_instance_groups = module.autoscaling.collector_instance_groups
+  collector_service_name    = var.collector_service_name
+  collector_service_port    = var.collector_service_port
+  dns_zone                  = var.dns_zone
+  collector_domain_name     = var.collector_domain_name
 }
 
 module "service_mesh" {
-  source            = "../../services/service_mesh"
-  service           = local.service
-  environment       = var.environment
-  service_port      = var.kv_service_port
-  kv_server_address = local.kv_server_address
-  project_id        = var.project_id
-  instance_groups   = module.autoscaling.kv_server_instance_groups
+  source                    = "../../services/service_mesh"
+  service                   = local.service
+  environment               = var.environment
+  service_port              = var.kv_service_port
+  kv_server_address         = local.kv_server_address
+  project_id                = var.project_id
+  instance_groups           = module.autoscaling.kv_server_instance_groups
+  collector_forwarding_rule = module.metrics_collector.collector_forwarding_rule
+  collector_tcp_proxy       = module.metrics_collector.collector_tcp_proxy
 }
+
 
 module "parameter" {
   source      = "../../services/parameter"

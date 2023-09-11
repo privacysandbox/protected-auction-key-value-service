@@ -43,3 +43,13 @@ variable "instance_groups" {
   description = "Kv server instance group URsL created by instance group managers."
   type        = set(string)
 }
+
+variable "collector_forwarding_rule" {
+  description = "collector forwarding rule"
+  type        = any
+}
+
+variable "collector_tcp_proxy" {
+  description = "The tcp proxy for collector"
+  type        = any
+}

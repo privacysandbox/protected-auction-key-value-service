@@ -22,3 +22,7 @@ output "subnets" {
   description = "All service subnets."
   value       = google_compute_subnetwork.kv_server
 }
+
+output "collector_ip_address" {
+  value = google_compute_global_address.collector.address
+}

@@ -52,6 +52,7 @@ resource "google_compute_backend_service" "kv_server" {
       capacity_scaler = 1.0
     }
   }
+  depends_on = [var.collector_forwarding_rule, var.collector_tcp_proxy]
 }
 
 resource "google_compute_health_check" "kv_server" {

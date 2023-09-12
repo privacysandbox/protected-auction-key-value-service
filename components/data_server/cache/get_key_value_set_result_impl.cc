@@ -55,9 +55,9 @@ class GetKeyValueSetResultImpl : public GetKeyValueSetResult {
   // Adds key, value_set to the result data map, creates a read lock for
   // the key mutex
   void AddKeyValueSet(
-      absl::Mutex& key_mutex, std::string_view key,
-      absl::flat_hash_set<std::string_view> value_set) override {
-    read_locks_.push_back(std::make_unique<absl::ReaderMutexLock>(&key_mutex));
+      std::string_view key, absl::flat_hash_set<std::string_view> value_set,
+      std::unique_ptr<absl::ReaderMutexLock> key_lock) override {
+    read_locks_.push_back(std::move(key_lock));
     data_map_.emplace(key, std::move(value_set));
   }
 };

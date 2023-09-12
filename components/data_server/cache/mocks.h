@@ -58,8 +58,8 @@ class MockGetKeyValueSetResult : public GetKeyValueSetResult {
   MOCK_METHOD((absl::flat_hash_set<std::string_view>), GetValueSet,
               (std::string_view), (const, override));
   MOCK_METHOD(void, AddKeyValueSet,
-              (absl::Mutex & key_mutex, std::string_view key,
-               absl::flat_hash_set<std::string_view> value_set),
+              (std::string_view, absl::flat_hash_set<std::string_view>,
+               std::unique_ptr<absl::ReaderMutexLock>),
               (override));
 };
 

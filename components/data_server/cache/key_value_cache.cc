@@ -72,13 +72,15 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
     const auto key_itr = key_to_value_set_map_.find(key);
     if (key_itr != key_to_value_set_map_.end()) {
       absl::flat_hash_set<std::string_view> value_set;
+      auto set_lock =
+          std::make_unique<absl::ReaderMutexLock>(&key_itr->second->first);
       for (const auto& v : key_itr->second->second) {
         if (!v.second.is_deleted) {
           value_set.emplace(v.first);
         }
       }
       // Add key value set to the result
-      result->AddKeyValueSet(key_itr->second->first, key, std::move(value_set));
+      result->AddKeyValueSet(key, std::move(value_set), std::move(set_lock));
     }
   }
   return result;

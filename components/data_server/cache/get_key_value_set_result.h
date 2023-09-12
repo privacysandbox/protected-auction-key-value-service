@@ -35,11 +35,11 @@ class GetKeyValueSetResult {
       std::string_view key) const = 0;
 
  private:
-  // Adds key, value_set to the result data map, creates a read lock for
-  // the key mutex
+  // Adds key, value_set to the result data map, mantains the lock on `key`
+  // until this object goes out of scope.
   virtual void AddKeyValueSet(
-      absl::Mutex& key_mutex, std::string_view key,
-      absl::flat_hash_set<std::string_view> value_set) = 0;
+      std::string_view key, absl::flat_hash_set<std::string_view> value_set,
+      std::unique_ptr<absl::ReaderMutexLock> key_lock) = 0;
 
   static std::unique_ptr<GetKeyValueSetResult> Create();
 

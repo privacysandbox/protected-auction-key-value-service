@@ -54,8 +54,8 @@ class NoOpKeyValueCache : public Cache {
       return {};
     }
     void AddKeyValueSet(
-        absl::Mutex& key_mutex, std::string_view key,
-        absl::flat_hash_set<std::string_view> value_set) override {}
+        std::string_view key, absl::flat_hash_set<std::string_view> value_set,
+        std::unique_ptr<absl::ReaderMutexLock> key_lock) override {}
   };
 };
 

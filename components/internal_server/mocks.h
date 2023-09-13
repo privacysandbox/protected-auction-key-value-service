@@ -25,6 +25,7 @@
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/lookup.pb.h"
 #include "components/internal_server/lookup_client.h"
+#include "components/internal_server/remote_lookup_client.h"
 #include "components/internal_server/run_query_client.h"
 #include "gmock/gmock.h"
 
@@ -40,6 +41,15 @@ class MockRunQueryClient : public RunQueryClient {
  public:
   MOCK_METHOD((absl::StatusOr<InternalRunQueryResponse>), RunQuery,
               (std::string), (const, override));
+};
+
+class MockRemoteLookupClient : public RemoteLookupClient {
+ public:
+  MockRemoteLookupClient() : RemoteLookupClient() {}
+  MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetValues,
+              (std::string_view serialized_message, int32_t padding_length),
+              (const, override));
+  MOCK_METHOD(std::string_view, GetIpAddress, (), (const, override));
 };
 
 class MockLookup : public Lookup {

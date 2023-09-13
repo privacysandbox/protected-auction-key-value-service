@@ -34,6 +34,7 @@
 #include "components/internal_server/lookup_client.h"
 #include "components/internal_server/lookup_server_impl.h"
 #include "components/internal_server/run_query_client.h"
+#include "components/internal_server/sharded_lookup.h"
 #include "components/internal_server/sharded_lookup_server_impl.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/telemetry/kv_telemetry.h"
@@ -555,9 +556,11 @@ Server::CreateAndStartInternalLookupServer() {
     if (const absl::Status status = CreateShardManager(); !status.ok()) {
       return status;
     }
-    internal_lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
-        *metrics_recorder_, *local_lookup_, num_shards_, shard_num_,
-        *shard_manager_);
+    sharded_lookup_ =
+        CreateShardedLookup(*local_lookup_, num_shards_, shard_num_,
+                            *shard_manager_, *metrics_recorder_);
+    internal_lookup_service_ =
+        std::make_unique<ShardedLookupServiceImpl>(*sharded_lookup_);
   }
 
   grpc::ServerBuilder internal_lookup_server_builder;

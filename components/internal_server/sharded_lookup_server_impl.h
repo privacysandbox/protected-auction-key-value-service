@@ -43,24 +43,7 @@ namespace kv_server {
 class ShardedLookupServiceImpl final
     : public kv_server::InternalLookupService::Service {
  public:
-  ShardedLookupServiceImpl(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      const Lookup& lookup, const int32_t num_shards,
-      const int32_t current_shard_num, ShardManager& shard_manager,
-      // We're currently going with a default empty string and not
-      // allowing AdTechs to modify it.
-      const std::string hashing_seed = "")
-      : metrics_recorder_(metrics_recorder),
-        lookup_(lookup),
-        num_shards_(num_shards),
-        current_shard_num_(current_shard_num),
-        hashing_seed_(hashing_seed),
-        hash_function_(
-            distributed_point_functions::SHA256HashFunction(hashing_seed_)),
-        shard_manager_(shard_manager) {
-    CHECK_GT(num_shards, 1)
-        << "num_shards for ShardedLookupServiceImpl must be > 1";
-  }
+  ShardedLookupServiceImpl(const Lookup& lookup) : lookup_(lookup) {}
 
   virtual ~ShardedLookupServiceImpl() = default;
 
@@ -82,55 +65,7 @@ class ShardedLookupServiceImpl final
       const kv_server::InternalRunQueryRequest* request,
       kv_server::InternalRunQueryResponse* response) override;
 
- private:
-  // Keeps sharded keys and assosiated metdata.
-  struct ShardLookupInput {
-    // Keys that are being looked up.
-    std::vector<std::string_view> keys;
-    // A serialized `InternalLookupRequest` with the corresponding keys
-    // from `keys`.
-    std::string serialized_request;
-    // Identifies by how many chars `keys` should be padded, so that
-    // all requests add up to the same length.
-    int32_t padding;
-  };
-  std::vector<ShardLookupInput> ShardKeys(
-      const absl::flat_hash_set<std::string_view>& keys,
-      bool lookup_sets) const;
-  void ComputePadding(std::vector<ShardLookupInput>& sk) const;
-  void SerializeShardedRequests(std::vector<ShardLookupInput>& lookup_inputs,
-                                bool lookup_sets) const;
-  std::vector<ShardLookupInput> BucketKeys(
-      const absl::flat_hash_set<std::string_view>& keys) const;
-  absl::Status ProcessShardedKeys(
-      const absl::flat_hash_set<std::string_view>& keys,
-      InternalLookupResponse& response) const;
-  absl::StatusOr<InternalLookupResponse> GetLocalValues(
-      const std::vector<std::string_view>& key_list) const;
-  absl::StatusOr<
-      std::vector<std::future<absl::StatusOr<InternalLookupResponse>>>>
-  GetLookupFutures(const std::vector<ShardLookupInput>& shard_lookup_inputs,
-                   std::function<absl::StatusOr<InternalLookupResponse>(
-                       const std::vector<std::string_view>& key_list)>
-                       get_local_future) const;
-  absl::StatusOr<
-      absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>>
-  GetShardedKeyValueSet(
-      const absl::flat_hash_set<std::string_view>& key_set) const;
-  absl::StatusOr<InternalLookupResponse> GetLocalKeyValuesSet(
-      const std::vector<std::string_view>& key_list) const;
-  void CollectKeySets(
-      absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>&
-          key_sets,
-      InternalLookupResponse& keysets_lookup_response) const;
-
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   const Lookup& lookup_;
-  const int32_t num_shards_;
-  const int32_t current_shard_num_;
-  const std::string hashing_seed_;
-  const distributed_point_functions::SHA256HashFunction hash_function_;
-  const ShardManager& shard_manager_;
 };
 
 }  // namespace kv_server

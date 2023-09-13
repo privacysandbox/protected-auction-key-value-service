@@ -137,6 +137,8 @@ class Server {
 
   // Helper for lookup.proto calls that reads from local cache only
   std::unique_ptr<Lookup> local_lookup_;
+  // Helper for lookup.proto calls that reads from shards
+  std::unique_ptr<Lookup> sharded_lookup_;
 
   // Internal Lookup Server -- lookup requests to this server originate (from
   // UDF sandbox) and terminate on the same machine.

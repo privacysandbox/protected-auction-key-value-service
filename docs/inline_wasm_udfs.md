@@ -161,3 +161,38 @@ builders/tools/bazel-debian run path/to/udf_delta_target:hello_delta
 ```shell
 ls dist/DELTA_*
 ```
+
+### Test the UDF delta file
+
+To test the UDF delta file, use the provided UDF tools.
+
+1. Build the UDF testing tool executables:
+
+    ```sh
+    -$ builders/tools/bazel-debian run //production/packaging/tools:copy_to_dist_udf
+    ```
+
+1. Have a delta/snapshot file with key-value pairs ready. If you don't have one, you can use
+   `./tools/serving_data_generator/generate_test_riegeli_data` to generate one.
+
+    ```sh
+    KV_DELTA=path/to/kv/delta/file
+    ```
+
+1. Define a test key. This should be a key you want to include as an input to the UDF:
+
+    ```sh
+    TEST_KEY=foo1
+    ```
+
+1. Run the `udf_delta_file_tester` which run the UDF provided under with the given key in the input.
+
+    ```sh
+    UDF_DELTA=path/to/udf/delta
+    GLOG_v=10 dist/debian/udf_delta_file_tester  --key="$TEST_KEY" --kv_delta_file_path="$KV_DELTA" --udf_delta_file_path="$UDF_DELTA"
+    ```
+
+    See the [generating UDF files doc](./generating_udf_files.md#3-test-the-udf-delta-file) for more
+    options.
+
+Repeat the last step whenever you change your inline WASM and want to test it.

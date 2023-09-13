@@ -99,7 +99,7 @@ Flags:
     Defaults to an empty string.
 -   `--namespace_tag`:
     [Namespace tag for key](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#available-tags).
-    Defaults to `keys`. Options: `keys`, `renderUrls`, `adComponentRenderUrls`.
+    Defaults to `keys`.
 
 Example:
 

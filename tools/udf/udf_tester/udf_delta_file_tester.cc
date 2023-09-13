@@ -36,11 +36,11 @@ ABSL_FLAG(std::string, kv_delta_file_path, "",
 ABSL_FLAG(std::string, udf_delta_file_path, "", "Path to UDF delta file.");
 ABSL_FLAG(std::string, key, "", "Key to send in request to UDF.");
 ABSL_FLAG(std::string, subkey, "", "Context subkey to send in request to UDF.");
-ABSL_FLAG(std::string, namespace_tag, "keys",
-          "Namespace tag for keys (see "
-          "https://github.com/WICG/turtledove/blob/main/"
-          "FLEDGE_Key_Value_Server_API.md#available-tags). Defaults to `keys`. "
-          "Options: `keys`, `renderUrls`, `adComponentRenderUrls`. ");
+ABSL_FLAG(
+    std::string, namespace_tag, "keys",
+    "Namespace tag for keys (see "
+    "https://github.com/WICG/turtledove/blob/main/"
+    "FLEDGE_Key_Value_Server_API.md#available-tags). Defaults to `keys`. ");
 
 namespace kv_server {
 

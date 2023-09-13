@@ -113,6 +113,21 @@ GetMetricsOptions(const ParameterClient& parameter_client,
   return metrics_options;
 }
 
+absl::Status CheckMetricsCollectorEndPointConnection(
+    std::string_view collector_endpoint) {
+  auto channel = grpc::CreateChannel(std::string(collector_endpoint),
+                                     grpc::InsecureChannelCredentials());
+  // TODO(b/300137699): make the connection timeout a parameter
+  if (!channel->WaitForConnected(
+          gpr_time_add(gpr_now(GPR_CLOCK_REALTIME),
+                       gpr_time_from_seconds(120, GPR_TIMESPAN)))) {
+    return absl::DeadlineExceededError(
+        "Timeout waiting for metrics collector connection");
+  }
+  LOG(INFO) << "Metrics collector is connected";
+  return absl::OkStatus();
+}
+
 absl::optional<std::string> GetMetricsCollectorEndPoint(
     const ParameterClient& parameter_client, const std::string& environment) {
   absl::optional<std::string> metrics_collection_endpoint;
@@ -169,6 +184,13 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
   auto metrics_options = GetMetricsOptions(parameter_client, environment_);
   auto metrics_collector_endpoint =
       GetMetricsCollectorEndPoint(parameter_client, environment_);
+  if (metrics_collector_endpoint.has_value()) {
+    if (const absl::Status status = CheckMetricsCollectorEndPointConnection(
+            metrics_collector_endpoint.value());
+        !status.ok()) {
+      LOG(ERROR) << "Error in connecting metrics collector: " << status;
+    }
+  }
   ConfigureMetrics(CreateKVAttributes(instance_id, environment_),
                    metrics_options, metrics_collector_endpoint);
   ConfigureTracer(CreateKVAttributes(std::move(instance_id), environment_),

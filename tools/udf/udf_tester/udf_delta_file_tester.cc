@@ -19,7 +19,8 @@
 #include "absl/strings/substitute.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
-#include "components/udf/cache_get_values_hook.h"
+#include "components/internal_server/cache_lookup_client.h"
+#include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/udf/udf_config_builder.h"
 #include "glog/logging.h"
@@ -27,19 +28,23 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/udf/constants.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, kv_delta_file_path, "",
           "Path to delta file with KV pairs.");
 ABSL_FLAG(std::string, udf_delta_file_path, "", "Path to UDF delta file.");
 ABSL_FLAG(std::string, key, "", "Key to send in request to UDF.");
 ABSL_FLAG(std::string, subkey, "", "Context subkey to send in request to UDF.");
-ABSL_FLAG(std::string, namespace_tag, "keys",
-          "Namespace tag for keys (see "
-          "https://github.com/WICG/turtledove/blob/main/"
-          "FLEDGE_Key_Value_Server_API.md#available-tags). Defaults to `keys`. "
-          "Options: `keys`, `renderUrls`, `adComponentRenderUrls`. ");
+ABSL_FLAG(
+    std::string, namespace_tag, "keys",
+    "Namespace tag for keys (see "
+    "https://github.com/WICG/turtledove/blob/main/"
+    "FLEDGE_Key_Value_Server_API.md#available-tags). Defaults to `keys`. ");
 
 namespace kv_server {
+
+using privacy_sandbox::server_common::TelemetryProvider;
 
 absl::Status LoadCacheFromKVMutationRecord(
     const KeyValueMutationRecordStruct& record, Cache& cache) {
@@ -87,6 +92,7 @@ void ReadCodeConfigFromUdfConfig(
   code_config.js = udf_config.code_snippet;
   code_config.logical_commit_time = udf_config.logical_commit_time;
   code_config.udf_handler_name = udf_config.handler_name;
+  code_config.version = udf_config.version;
 }
 
 absl::Status ReadCodeConfigFromFile(std::string file_path,
@@ -156,7 +162,9 @@ absl::Status TestUdf(std::string kv_delta_file_path,
                      std::string udf_delta_file_path, std::string key,
                      std::string subkey, std::string namespace_tag) {
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   auto load_cache_status = LoadCacheFromFile(kv_delta_file_path, *cache);
   if (!load_cache_status.ok()) {
     LOG(ERROR) << "Error loading cache from file: " << load_cache_status;
@@ -165,11 +173,25 @@ absl::Status TestUdf(std::string kv_delta_file_path,
 
   LOG(INFO) << "Starting UDF client";
   UdfConfigBuilder config_builder;
-  auto hook = NewCacheGetValuesHook(*cache);
-  auto udf_client =
-      UdfClient::Create(config_builder.RegisterGetValuesHook(*hook)
-                            .SetNumberOfWorkers(1)
-                            .Config());
+  // oh no i need to have two lookup clients i think
+  auto string_lookup_client = CreateCacheLookupClient(*cache);
+  auto string_get_values_hook = GetValuesHook::Create(
+      [string_lookup_client = std::move(string_lookup_client)]() mutable {
+        return std::move(string_lookup_client);
+      },
+      GetValuesHook::OutputType::kString);
+  auto binary_lookup_client = CreateCacheLookupClient(*cache);
+  auto binary_get_values_hook = GetValuesHook::Create(
+      [binary_lookup_client = std::move(binary_lookup_client)]() mutable {
+        return std::move(binary_lookup_client);
+      },
+      GetValuesHook::OutputType::kBinary);
+  auto udf_client = UdfClient::Create(
+      config_builder.RegisterStringGetValuesHook(*string_get_values_hook)
+          .RegisterBinaryGetValuesHook(*binary_get_values_hook)
+          .RegisterLoggingHook()
+          .SetNumberOfWorkers(1)
+          .Config());
   if (!udf_client.ok()) {
     LOG(ERROR) << "Error starting UDF execution engine: "
                << udf_client.status();

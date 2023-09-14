@@ -61,10 +61,12 @@ selects.config_setting_group(
 
 local_defines = select({
     "//:aws_instance": ["INSTANCE=\\\"aws\\\""],
+    "//:gcp_instance": ["INSTANCE=\\\"gcp\\\""],
     "//:local_instance": ["INSTANCE=\\\"local\\\""],
     "//conditions:default": ["INSTANCE=\\\"unknown\\\""],
 }) + select({
     "//:aws_platform": ["PLATFORM=\\\"aws\\\""],
+    "//:gcp_platform": ["PLATFORM=\\\"gcp\\\""],
     "//:local_platform": ["PLATFORM=\\\"local\\\""],
     "//conditions:default": ["PLATFORM=\\\"unknown\\\""],
 }) + select({
@@ -111,6 +113,9 @@ cc_library(
         "//:aws_platform": [
             "platform_initializer_aws.cc",
         ],
+        "//:gcp_platform": [
+            "platform_initializer_gcp.cc",
+        ],
         "//:local_platform": [
             "platform_initializer_local.cc",
         ],
@@ -120,12 +125,17 @@ cc_library(
     ],
     visibility = [
         "//components:__subpackages__",
-        "//tools/data_cli:__subpackages__",
+        "//tools:__subpackages__",
     ],
     deps = select({
         "//:aws_platform": [
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:core",
+            "@control_plane_shared//cc/public/cpio/interface:cpio",
+        ],
+        "//:gcp_platform": [
+            "@control_plane_shared//cc/public/core/interface:errors",
+            "@control_plane_shared//cc/public/cpio/interface:cpio",
         ],
         "//conditions:default": [],
     }) + [
@@ -141,6 +151,7 @@ cc_library(
     visibility = [
         "//components/data_server/server:__pkg__",
         "//components/telemetry:__pkg__",
+        "//tools/request_simulation:__pkg__",
     ],
     deps = [":build_flags"],
     alwayslink = 1,

@@ -20,6 +20,7 @@
 #include <deque>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
@@ -32,6 +33,8 @@ class MessageQueue {
   explicit MessageQueue(int64_t capacity) : capacity_(capacity) {}
   // Pushes new message to the queue
   void Push(std::string message);
+  // Pushes new messages to the queue
+  void Push(std::vector<std::string> messages);
   // Pops off message from the queue
   absl::StatusOr<std::string> Pop();
   // Checks if the queue is empty

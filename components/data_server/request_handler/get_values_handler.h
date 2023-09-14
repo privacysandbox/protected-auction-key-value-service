@@ -36,11 +36,10 @@ class GetValuesHandler {
   explicit GetValuesHandler(
       const Cache& cache, const GetValuesAdapter& adapter,
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      bool dsp_mode, bool use_v2)
+      bool use_v2)
       : cache_(std::move(cache)),
         adapter_(std::move(adapter)),
         metrics_recorder_(metrics_recorder),
-        dsp_mode_(dsp_mode),
         use_v2_(use_v2) {}
 
   // TODO: Implement subkey, ad/render url lookups.
@@ -48,15 +47,9 @@ class GetValuesHandler {
                          v1::GetValuesResponse* response) const;
 
  private:
-  grpc::Status ValidateRequest(const v1::GetValuesRequest& request) const;
-
   const Cache& cache_;
   const GetValuesAdapter& adapter_;
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
-
-  // Use DSP mode for request validation. If false, then automatically assumes
-  // SSP mode.
-  const bool dsp_mode_;
 
   // If true, routes requests through V2 (UDF). Otherwise, calls cache.
   const bool use_v2_;

@@ -11,6 +11,10 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// TODO(b/299623229): Swich to CPIO implementation once it supports fetching
+// cloud params from local instances
+
 #include <memory>
 #include <string>
 #include <string_view>
@@ -92,8 +96,9 @@ class AwsParameterClient : public ParameterClient {
 
   explicit AwsParameterClient(ParameterClient::ClientOptions client_options)
       : client_options_(std::move(client_options)) {
-    if (client_options.ssm_client_for_unit_testing_ != nullptr) {
-      ssm_client_.reset(client_options.ssm_client_for_unit_testing_);
+    if (client_options.client_for_unit_testing_ != nullptr) {
+      ssm_client_.reset(
+          (Aws::SSM::SSMClient*)client_options.client_for_unit_testing_);
     } else {
       ssm_client_ = std::make_unique<Aws::SSM::SSMClient>();
     }

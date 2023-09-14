@@ -30,3 +30,20 @@ run_binary(
     ],
     tool = "//tools/udf/udf_generator:udf_delta_file_generator",
 )
+
+run_binary(
+    name = "generate_run_query_delta",
+    srcs = [
+        ":run_query_udf.js",
+    ],
+    outs = [
+        "DELTA_0000000000000006",
+    ],
+    args = [
+        "--udf_file_path",
+        "$(location :run_query_udf.js)",
+        "--output_path",
+        "$(location DELTA_0000000000000006)",
+    ],
+    tool = "//tools/udf/udf_generator:udf_delta_file_generator",
+)

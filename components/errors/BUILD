@@ -33,6 +33,33 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "gcp_error_util",
+    srcs = [
+        "error_util_gcp.cc",
+    ],
+    hdrs = [
+        "error_util_gcp.h",
+    ],
+    deps = [
+        "@com_github_googleapis_google_cloud_cpp//:common",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings:cord",
+    ],
+)
+
+cc_test(
+    name = "gcp_error_util_test",
+    size = "small",
+    srcs = [
+        "error_util_gcp_test.cc",
+    ],
+    deps = [
+        ":gcp_error_util",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_test(
     name = "error_util_aws_test",
     size = "small",

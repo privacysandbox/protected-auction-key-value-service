@@ -14,20 +14,40 @@
 
 #include "aws/core/Aws.h"
 #include "components/util/platform_initializer.h"
+#include "glog/logging.h"
+#include "public/cpio/interface/cpio.h"
 
 namespace kv_server {
+using google::scp::cpio::Cpio;
+using google::scp::cpio::CpioOptions;
+using google::scp::cpio::LogOption;
+
+namespace {
+Aws::SDKOptions options_;
+google::scp::cpio::CpioOptions cpio_options_;
+
+}  // namespace
 
 PlatformInitializer::PlatformInitializer() {
-  Aws::SDKOptions options;
   // Handle curl SIGPIPEs:
   // https://sdk.amazonaws.com/cpp/api/LATEST/aws-cpp-sdk-core/html/struct_aws_1_1_http_options.html#ac56ca429444ca99aeb2dce6aec35f017
-  options.httpOptions.installSigPipeHandler = true;
-  Aws::InitAPI(options);
+  options_.httpOptions.installSigPipeHandler = true;
+  Aws::InitAPI(options_);
+  cpio_options_.log_option = LogOption::kConsoleLog;
+  cpio_options_.cloud_init_option =
+      google::scp::cpio::CloudInitOption::kNoInitInCpio;
+  auto result = Cpio::InitCpio(cpio_options_);
+  if (!result.Successful()) {
+    LOG(ERROR) << "Failed to initialize CPIO." << std::endl;
+  }
 }
 
 PlatformInitializer::~PlatformInitializer() {
-  Aws::SDKOptions options;
-  Aws::ShutdownAPI(options);
+  auto result = Cpio::ShutdownCpio(cpio_options_);
+  if (!result.Successful()) {
+    LOG(ERROR) << "Failed to shutdown CPIO." << std::endl;
+  }
+  Aws::ShutdownAPI(options_);
 }
 
 }  // namespace kv_server

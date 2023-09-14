@@ -14,13 +14,6 @@
  * limitations under the License.
  */
 
-resource "aws_ssm_parameter" "mode_parameter" {
-  name      = "${var.service}-${var.environment}-mode"
-  type      = "String"
-  value     = var.mode_parameter_value
-  overwrite = true
-}
-
 resource "aws_ssm_parameter" "s3_bucket_parameter" {
   name      = "${var.service}-${var.environment}-data-bucket-id"
   type      = "String"
@@ -55,6 +48,22 @@ resource "aws_ssm_parameter" "backup_poll_frequency_secs_parameter" {
   value     = var.backup_poll_frequency_secs_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "use_external_metrics_collector_endpoint" {
+  name      = "${var.service}-${var.environment}-use-external-metrics-collector-endpoint"
+  type      = "String"
+  value     = var.use_external_metrics_collector_endpoint
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "metrics_collector_endpoint" {
+  count     = (var.use_external_metrics_collector_endpoint) ? 1 : 0
+  name      = "${var.service}-${var.environment}-metrics-collector-endpoint"
+  type      = "String"
+  value     = var.metrics_collector_endpoint
+  overwrite = true
+}
+
 
 resource "aws_ssm_parameter" "metrics_export_interval_millis_parameter" {
   name      = "${var.service}-${var.environment}-metrics-export-interval-millis"
@@ -116,5 +125,28 @@ resource "aws_ssm_parameter" "route_v1_requests_to_v2_parameter" {
   name      = "${var.service}-${var.environment}-route-v1-to-v2"
   type      = "String"
   value     = var.route_v1_requests_to_v2_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "use_real_coordinators_parameter" {
+  name      = "${var.service}-${var.environment}-use-real-coordinators"
+  type      = "String"
+  value     = var.use_real_coordinators_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "primary_coordinator_account_identity_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
+  name      = "${var.service}-${var.environment}-primary-coordinator-account-identity"
+  type      = "String"
+  value     = var.primary_coordinator_account_identity_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "secondary_coordinator_account_identity_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
+  name      = "${var.service}-${var.environment}-secondary-coordinator-account-identity"
+  type      = "String"
+  value     = var.secondary_coordinator_account_identity_parameter_value
   overwrite = true
 }

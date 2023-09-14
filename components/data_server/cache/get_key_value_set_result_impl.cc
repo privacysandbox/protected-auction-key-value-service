@@ -30,6 +30,7 @@ namespace {
 class GetKeyValueSetResultImpl : public GetKeyValueSetResult {
  public:
   GetKeyValueSetResultImpl() {}
+
   // Looks up the key in the data map and returns value set. If the value_set
   // for the key is missing, returns empty set.
   absl::flat_hash_set<std::string_view> GetValueSet(
@@ -39,6 +40,7 @@ class GetKeyValueSetResultImpl : public GetKeyValueSetResult {
     auto key_itr = data_map_.find(key);
     return key_itr == data_map_.end() ? *kEmptySet : key_itr->second;
   }
+
   GetKeyValueSetResultImpl(const GetKeyValueSetResultImpl&) = delete;
   GetKeyValueSetResultImpl& operator=(const GetKeyValueSetResultImpl&) = delete;
   GetKeyValueSetResultImpl(GetKeyValueSetResultImpl&& other) = default;
@@ -53,10 +55,10 @@ class GetKeyValueSetResultImpl : public GetKeyValueSetResult {
   // Adds key, value_set to the result data map, creates a read lock for
   // the key mutex
   void AddKeyValueSet(
-      absl::Mutex& key_mutex, std::string_view key,
-      const absl::flat_hash_set<std::string_view>& value_set) override {
-    read_locks_.emplace_back(std::move(new absl::ReaderMutexLock(&key_mutex)));
-    data_map_.emplace(key, value_set);
+      std::string_view key, absl::flat_hash_set<std::string_view> value_set,
+      std::unique_ptr<absl::ReaderMutexLock> key_lock) override {
+    read_locks_.push_back(std::move(key_lock));
+    data_map_.emplace(key, std::move(value_set));
   }
 };
 }  // namespace

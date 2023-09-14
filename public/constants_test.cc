@@ -30,5 +30,10 @@ TEST(FilePrefix, Snapshot) {
   EXPECT_EQ(FilePrefix<FileType::SNAPSHOT>(), "SNAPSHOT");
 }
 
+TEST(FilePrefix, LogicalShardingConfig) {
+  EXPECT_EQ(FilePrefix<FileType::LOGICAL_SHARDING_CONFIG>(),
+            "LOGICAL_SHARDING_CONFIG");
+}
+
 }  // namespace
 }  // namespace kv_server

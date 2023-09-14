@@ -14,17 +14,6 @@
  * limitations under the License.
  */
 
-variable "mode" {
-  description = "DSP or SSP."
-  type        = string
-  validation {
-    condition = contains([
-      "DSP",
-    "SSP"], var.mode)
-    error_message = "The mode value must be either \"DSP\" or \"SSP\"."
-  }
-}
-
 variable "region" {
   description = "AWS region to deploy to."
   type        = string
@@ -105,6 +94,11 @@ variable "enclave_cpu_count" {
   type        = number
 }
 
+variable "enclave_enable_debug_mode" {
+  description = "If you enable debug mode, you can view the enclave's console in read-only mode using the nitro-cli console command. Enclaves booted in debug mode generate attestation documents with PCRs that are made up entirely of zeros (000000000000000000000000000000000000000000000000). More info: https://docs.aws.amazon.com/enclaves/latest/user/cmd-nitro-run-enclave.html"
+  type        = bool
+}
+
 variable "vpc_cidr_block" {
   description = "CIDR range for the VPC where KV server will be deployed."
   type        = string
@@ -140,6 +134,16 @@ variable "ssh_source_cidr_blocks" {
 variable "backup_poll_frequency_secs" {
   description = "Backup poll frequency for delta file notifier in seconds."
   type        = number
+}
+
+variable "use_external_metrics_collector_endpoint" {
+  description = "Whether to connect external metrics collector endpoint"
+  type        = bool
+}
+
+variable "metrics_collector_endpoint" {
+  description = "Metrics collector endpoint"
+  type        = string
 }
 
 variable "metrics_export_interval_millis" {
@@ -196,4 +200,20 @@ variable "udf_num_workers" {
 variable "route_v1_requests_to_v2" {
   description = "Whether to route V1 requests through V2."
   type        = bool
+}
+
+
+variable "use_real_coordinators" {
+  description = "Use real coordinators."
+  type        = bool
+}
+
+variable "primary_coordinator_account_identity" {
+  description = "Account identity for the primary coordinator."
+  type        = string
+}
+
+variable "secondary_coordinator_account_identity" {
+  description = "Account identity for the secondary coordinator."
+  type        = string
 }

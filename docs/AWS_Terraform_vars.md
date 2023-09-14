@@ -33,6 +33,13 @@
 
     Set how many CPUs the server will use.
 
+-   **enclave_enable_debug_mode**
+
+    If you enable debug mode, you can view the enclave's console in read-only mode using the
+    nitro-cli console command. Enclaves booted in debug mode generate attestation documents with
+    PCRs that are made up entirely of zeros (000000000000000000000000000000000000000000000000). More
+    info: <https://docs.aws.amazon.com/enclaves/latest/user/cmd-nitro-run-enclave.html>
+
 -   **enclave_memory_mib**
 
     Set how much RAM the server will use.
@@ -65,6 +72,11 @@
     supported from the
     [AWS article](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
 
+-   **metrics_collector_endpoint**
+
+    The open telemetry metrics collector endpoint, for AWS it will be empty string and open
+    telemetry will default to local grpc endpoint because otel is running on the same EC2 machine
+
 -   **metrics_export_interval_millis**
 
     Export interval for metrics in milliseconds.
@@ -73,13 +85,13 @@
 
     Export timeout for metrics in milliseconds.
 
--   **mode**
-
-    Set the server mode. The acceptable values are [DSP] or [SSP]
-
 -   **num_shards**
 
     Total number of shards
+
+-   **primary_coordinator_account_identity**
+
+    Primary coordinator account identity.
 
 -   **prometheus_service_region**
 
@@ -135,6 +147,10 @@
 
     S3 Client max range bytes for reading data files.
 
+-   **secondary_coordinator_account_identity**
+
+    Secondary coordinator account identity.
+
 -   **server_port**
 
     Set the port of the EC2 parent instance (that hosts the Nitro Enclave instance).
@@ -159,6 +175,22 @@
 -   **udf_num_workers**
 
     Total number of workers for UDF execution
+
+-   **use_external_metrics_collector_endpoint**
+
+    Whether to use external metrics collector endpoint. For AWS it is false because KV instance
+    connects to OpenTelemetry metrics collector running in local host
+
+-   **use_real_coordinators**
+
+    Whether to use real coordinators. Please refer to our trust model:
+    <https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_trust_model.md> on
+    details about coordinators. For non-production testing it's better to set this to false to begin
+    with and then set this to true before enabling production. For processing production requests
+    this flag must be true, otherwise requests will not be decrypted successfully.
+    `enclave_enable_debug_mode` should be set to `false` if the attestation check is enabled for
+    coordinators. Attestation check is enabled on all production instances, and might be disabled
+    for testing purposes only on staging/dev environments.
 
 -   **vpc_cidr_block**
 

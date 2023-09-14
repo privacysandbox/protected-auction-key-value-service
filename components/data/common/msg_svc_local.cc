@@ -22,7 +22,10 @@ class LocalMessageService : public MessageService {
  public:
   explicit LocalMessageService(std::string local_directory) {}
   bool IsSetupComplete() const { return true; }
-  const std::string& GetSqsUrl() const { return ""; }
+  const QueueMetadata GetQueueMetadata() const {
+    AwsQueueMetadata metadata;
+    return metadata;
+  }
   absl::Status SetupQueue() { return absl::OkStatus(); }
   void Reset() {}
 };

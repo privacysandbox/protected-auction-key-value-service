@@ -329,7 +329,7 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
     const ObliviousGetValuesRequest& oblivious_request,
     google::api::HttpBody* oblivious_response) const {
   VLOG(9) << "Received ObliviousGetValues request. ";
-  OhttpServerEncryptor encryptor;
+  OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto maybe_plain_text =
       encryptor.DecryptRequest(oblivious_request.raw_body().data());
   if (!maybe_plain_text.ok()) {

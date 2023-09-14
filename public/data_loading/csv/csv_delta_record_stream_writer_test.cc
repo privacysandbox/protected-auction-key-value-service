@@ -41,6 +41,7 @@ UserDefinedFunctionsConfigStruct GetUserDefinedFunctionsConfig() {
   udf_config_record.code_snippet = "function hello(){}";
   udf_config_record.handler_name = "hello";
   udf_config_record.logical_commit_time = 1234567890;
+  udf_config_record.version = 1;
   return udf_config_record;
 }
 
@@ -128,23 +129,6 @@ TEST(CsvDeltaRecordStreamWriterTest,
 }
 
 TEST(CsvDeltaRecordStreamWriterTest,
-     WritingCsvRecord_UdfConfig_UdfLanguageUnknown_Fails) {
-  std::stringstream string_stream;
-
-  CsvDeltaRecordStreamWriter record_writer(
-      string_stream,
-      CsvDeltaRecordStreamWriter<std::stringstream>::Options{
-          .record_type = DataRecordType::kUserDefinedFunctionsConfig});
-
-  UserDefinedFunctionsConfigStruct udf_config;
-  DataRecordStruct data_record = GetDataRecord(udf_config);
-  const auto status = record_writer.WriteRecord(data_record);
-  EXPECT_FALSE(status.ok());
-  EXPECT_EQ(status.message(), "Invalid UDF language: ");
-  record_writer.Close();
-}
-
-TEST(CsvDeltaRecordStreamWriterTest,
      WritingCsvRecord_UdfConfig_KvMutationHeader_Fails) {
   std::stringstream string_stream;
 
@@ -200,6 +184,41 @@ TEST(CsvDeltaRecordStreamWriterTest, ValidateClosingRecordWriterSucceeds) {
   CsvDeltaRecordStreamWriter record_writer(string_stream);
   record_writer.Close();
   EXPECT_FALSE(record_writer.IsOpen());
+}
+
+TEST(CsvDeltaRecordStreamWriterTest,
+     ValidateWritingCsvRecord_ShardMapping_Success) {
+  std::stringstream string_stream;
+  CsvDeltaRecordStreamWriter record_writer(
+      string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
+                         .record_type = DataRecordType::kShardMappingRecord});
+  DataRecordStruct expected = GetDataRecord(
+      ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
+  auto status = record_writer.WriteRecord(expected);
+  EXPECT_TRUE(status.ok()) << status;
+  status = record_writer.Flush();
+  EXPECT_TRUE(status.ok()) << status;
+  CsvDeltaRecordStreamReader record_reader(
+      string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                         .record_type = DataRecordType::kShardMappingRecord});
+  status = record_reader.ReadRecords([&expected](DataRecordStruct record) {
+    EXPECT_EQ(record, expected);
+    return absl::OkStatus();
+  });
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(CsvDeltaRecordStreamWriterTest,
+     WritingCsvRecord_ShardMapping_KVMutationHeader_Fails) {
+  std::stringstream string_stream;
+  CsvDeltaRecordStreamWriter record_writer(
+      string_stream,
+      CsvDeltaRecordStreamWriter<std::stringstream>::Options{
+          .record_type = DataRecordType::kKeyValueMutationRecord});
+  DataRecordStruct expected = GetDataRecord(
+      ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
+  EXPECT_FALSE(record_writer.WriteRecord(expected).ok());
+  record_writer.Close();
 }
 
 }  // namespace

@@ -14,36 +14,42 @@
 
 namespace kv_server {
 
-constexpr char kUdfCodeSnippetKey[] = "udf_code_snippet";
-constexpr char kUdfHandlerNameKey[] = "udf_handler_name";
-
 constexpr int64_t kDefaultLogicalCommitTime = 0;
+// Roma only allows version_num > 0;
+constexpr int64_t kDefaultVersion = 1;
 
 constexpr char kDefaultUdfCodeSnippet[] = R"(
-  function HandleRequest(input) {
-    const keyGroupOutputs = [];
-    for (const keyGroup of input.keyGroups) {
-      const keyGroupOutput = {};
-      keyGroupOutput.tags = keyGroup.tags;
+function getKeyGroupOutputs(input) {
+  const keyGroupOutputs = [];
+  for (const keyGroup of input.keyGroups) {
+    const keyGroupOutput = {};
+    keyGroupOutput.tags = keyGroup.tags;
 
-      const getValuesResult = JSON.parse(getValues(keyGroup.keyList));
-      // getValuesResult returns "kvPairs" when successful and "code" on failure.
-      // Ignore failures and only add successful getValuesResult lookups to output.
-      if (getValuesResult.hasOwnProperty("kvPairs")) {
-        const kvPairs = getValuesResult.kvPairs;
-        const keyValuesOutput = {};
-        for (const key in kvPairs) {
-          if (kvPairs[key].hasOwnProperty("value")) {
-            keyValuesOutput[key] = { "value": kvPairs[key].value };
-          }
+    const getValuesResult = JSON.parse(getValues(keyGroup.keyList));
+    // getValuesResult returns "kvPairs" when successful and "code" on failure.
+    // Ignore failures and only add successful getValuesResult lookups to output.
+    if (getValuesResult.hasOwnProperty("kvPairs")) {
+      const kvPairs = getValuesResult.kvPairs;
+      const keyValuesOutput = {};
+      for (const key in kvPairs) {
+        if (kvPairs[key].hasOwnProperty("value")) {
+          keyValuesOutput[key] = { "value": kvPairs[key].value };
         }
-        keyGroupOutput.keyValues = keyValuesOutput;
-        keyGroupOutputs.push(keyGroupOutput);
       }
+      keyGroupOutput.keyValues = keyValuesOutput;
+      keyGroupOutputs.push(keyGroupOutput);
     }
-    return {keyGroupOutputs, udfOutputApiVersion: 1};
   }
+  return keyGroupOutputs;
+}
+
+
+function handleRequest(input) {
+  const keyGroupOutputs = getKeyGroupOutputs(input);
+  return {keyGroupOutputs, udfOutputApiVersion: 1};
+}
 )";
-constexpr char kDefaultUdfHandlerName[] = "HandleRequest";
+
+constexpr char kDefaultUdfHandlerName[] = "handleRequest";
 
 }  // namespace kv_server

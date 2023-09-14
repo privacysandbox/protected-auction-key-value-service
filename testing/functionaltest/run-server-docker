@@ -34,7 +34,7 @@ function run_docker() {
     --network "${_network}" \
     --name "${_network}-${_host}" \
     --hostname "${_host}" \
-    --entrypoint=/server/bin/init_server_basic \
+    --entrypoint=/init_server_basic \
     --volume "${DELTA_DIR}":/deltas \
     --tmpfs /realtime_data \
     bazel/production/packaging/aws/data_server:server_docker_image \

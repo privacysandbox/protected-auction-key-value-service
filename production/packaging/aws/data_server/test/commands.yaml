@@ -19,6 +19,6 @@ schemaVersion: 2.0.0
 # command tests require the docker toolchain
 commandTests:
   - name: "server help"
-    command: "/server/bin/server"
+    command: "/server"
     args: ["--help"]
     exitCode: 1

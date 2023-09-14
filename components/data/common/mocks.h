@@ -24,6 +24,7 @@
 #include "components/data/common/change_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/data/realtime/realtime_notifier.h"
+#include "components/data/realtime/realtime_thread_pool_manager.h"
 #include "gmock/gmock.h"
 
 namespace kv_server {
@@ -81,8 +82,7 @@ class MockRealtimeNotifier : public RealtimeNotifier {
   MockRealtimeNotifier() : RealtimeNotifier() {}
   MOCK_METHOD(
       absl::Status, Start,
-      (DeltaFileRecordChangeNotifier & change_notifier,
-       std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
+      (std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
            callback),
       (override));
   MOCK_METHOD(absl::Status, Stop, (), (override));
@@ -96,6 +96,17 @@ class MockChangeNotifier : public ChangeNotifier {
               (absl::Duration max_wait,
                const std::function<bool()>& should_stop_callback),
               (override));
+};
+
+class MockRealtimeThreadPoolManager : public RealtimeThreadPoolManager {
+ public:
+  MockRealtimeThreadPoolManager() : RealtimeThreadPoolManager() {}
+  MOCK_METHOD(
+      absl::Status, Start,
+      (std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
+           callback),
+      (override));
+  MOCK_METHOD(absl::Status, Stop, (), (override));
 };
 
 }  // namespace kv_server

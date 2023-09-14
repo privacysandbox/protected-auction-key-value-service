@@ -31,6 +31,7 @@
 #include "nlohmann/json.hpp"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 #include "quiche/binary_http/binary_http_message.h"
+#include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
@@ -43,13 +44,16 @@ class GetValuesV2Handler {
   explicit GetValuesV2Handler(
       const UdfClient& udf_client,
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
+      privacy_sandbox::server_common::KeyFetcherManagerInterface&
+          key_fetcher_manager,
       std::function<CompressionGroupConcatenator::FactoryFunctionType>
           create_compression_group_concatenator =
               &CompressionGroupConcatenator::Create)
       : udf_client_(udf_client),
         metrics_recorder_(metrics_recorder),
         create_compression_group_concatenator_(
-            std::move(create_compression_group_concatenator)) {}
+            std::move(create_compression_group_concatenator)),
+        key_fetcher_manager_(key_fetcher_manager) {}
 
   absl::StatusOr<nlohmann::json> GetValuesJsonResponse(
       const v2::GetValuesRequest& request) const;
@@ -101,6 +105,8 @@ class GetValuesV2Handler {
   std::function<CompressionGroupConcatenator::FactoryFunctionType>
       create_compression_group_concatenator_;
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
+  privacy_sandbox::server_common::KeyFetcherManagerInterface&
+      key_fetcher_manager_;
 };
 
 }  // namespace kv_server

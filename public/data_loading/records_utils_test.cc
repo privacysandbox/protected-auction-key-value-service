@@ -38,7 +38,12 @@ UserDefinedFunctionsConfigStruct GetUdfConfigStruct(
   udf_config_struct.code_snippet = code_snippet;
   udf_config_struct.handler_name = "my_handler";
   udf_config_struct.logical_commit_time = 1234567890;
+  udf_config_struct.version = 1;
   return udf_config_struct;
+}
+
+ShardMappingRecordStruct GetShardMappingRecordStruct() {
+  return ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0};
 }
 
 DataRecordStruct GetDataRecord(RecordT record) {
@@ -93,6 +98,15 @@ TEST(DataRecordStructTest, ValidateEqualsOperator) {
             GetDataRecord(GetUdfConfigStruct()));
   EXPECT_NE(GetDataRecord(GetUdfConfigStruct("code_snippet1")),
             GetDataRecord(GetUdfConfigStruct("code_snippet2")));
+
+  EXPECT_EQ(GetDataRecord(ShardMappingRecordStruct{.logical_shard = 0,
+                                                   .physical_shard = 0}),
+            GetDataRecord(ShardMappingRecordStruct{.logical_shard = 0,
+                                                   .physical_shard = 0}));
+  EXPECT_NE(GetDataRecord(ShardMappingRecordStruct{.logical_shard = 0,
+                                                   .physical_shard = 0}),
+            GetDataRecord(ShardMappingRecordStruct{.logical_shard = 0,
+                                                   .physical_shard = 1}));
 }
 
 class RecordValueTest
@@ -121,8 +135,15 @@ void ExpectEqual(const UserDefinedFunctionsConfigStruct& record,
                  const UserDefinedFunctionsConfig& fbs_record) {
   EXPECT_EQ(record.language, fbs_record.language());
   EXPECT_EQ(record.logical_commit_time, fbs_record.logical_commit_time());
-  EXPECT_EQ(record.code_snippet, fbs_record.code_snippet()->string_view());
+  EXPECT_EQ(record.version, fbs_record.version());
   EXPECT_EQ(record.handler_name, fbs_record.handler_name()->string_view());
+  EXPECT_EQ(record.code_snippet, fbs_record.code_snippet()->string_view());
+}
+
+void ExpectEqual(const ShardMappingRecordStruct& record,
+                 const ShardMappingRecord& fbs_record) {
+  EXPECT_EQ(record.logical_shard, fbs_record.logical_shard());
+  EXPECT_EQ(record.physical_shard, fbs_record.physical_shard());
 }
 
 void ExpectEqual(const DataRecordStruct& record, const DataRecord& fbs_record) {
@@ -134,13 +155,17 @@ void ExpectEqual(const DataRecordStruct& record, const DataRecord& fbs_record) {
     ExpectEqual(std::get<UserDefinedFunctionsConfigStruct>(record.record),
                 *fbs_record.record_as_UserDefinedFunctionsConfig());
   }
+  if (fbs_record.record_type() == Record::ShardMappingRecord) {
+    ExpectEqual(std::get<ShardMappingRecordStruct>(record.record),
+                *fbs_record.record_as_ShardMappingRecord());
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(RecordValueType, RecordValueTest,
                          testing::Values("value1",
                                          std::vector<std::string_view>{
                                              "value1", "value2"}));
-TEST_P(RecordValueTest, VerifyDeserializeRecordToFbsRecord) {
+TEST_P(RecordValueTest, DeserializeRecord_ToFbsRecord_Success) {
   auto record = GetKeyValueMutationRecord(GetValue());
   testing::MockFunction<absl::Status(const KeyValueMutationRecord&)>
       record_callback;
@@ -154,7 +179,7 @@ TEST_P(RecordValueTest, VerifyDeserializeRecordToFbsRecord) {
   EXPECT_TRUE(status.ok()) << status;
 }
 
-TEST_P(RecordValueTest, VerifyDeserializeRecordToRecordStruct) {
+TEST_P(RecordValueTest, DeserializeRecord_ToRecordStruct_Success) {
   auto record = GetKeyValueMutationRecord(GetValue());
   testing::MockFunction<absl::Status(const KeyValueMutationRecordStruct&)>
       record_callback;
@@ -166,6 +191,19 @@ TEST_P(RecordValueTest, VerifyDeserializeRecordToRecordStruct) {
   auto status = DeserializeRecord(ToStringView(ToFlatBufferBuilder(record)),
                                   record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(DataRecordTest, DeserializeDataRecord_ToFbsRecord_EmptyRecord_Failure) {
+  flatbuffers::FlatBufferBuilder builder;
+  const auto data_record_fbs = CreateDataRecord(builder);
+  builder.Finish(data_record_fbs);
+
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status = DeserializeDataRecord(ToStringView(builder),
+                                      record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "Record not set.");
 }
 
 TEST(DataRecordTest,
@@ -200,6 +238,159 @@ TEST(DataRecordTest,
 }
 
 TEST(DataRecordTest,
+     DeserializeDataRecord_ToFbsRecord_KVMutation_KeyNotSet_Failure) {
+  flatbuffers::FlatBufferBuilder builder;
+  const auto kv_mutation_fbs = CreateKeyValueMutationRecordDirect(
+      builder,
+      /*mutation_type=*/KeyValueMutationType::Update,
+      /*logical_commit_time=*/0,
+      /*key=*/nullptr,
+      /*value_type=*/Value::NONE,
+      /*value=*/CreateStringDirect(builder, "value").Union());
+  const auto data_record_fbs =
+      CreateDataRecord(builder, /*record_type=*/Record::KeyValueMutationRecord,
+                       kv_mutation_fbs.Union());
+  builder.Finish(data_record_fbs);
+
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status = DeserializeDataRecord(ToStringView(builder),
+                                      record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "Key not set.");
+}
+
+TEST(DataRecordTest,
+     DeserializeDataRecord_ToFbsRecord_KVMutation_ValueNotSet_Failure) {
+  flatbuffers::FlatBufferBuilder builder;
+  const auto kv_mutation_fbs = CreateKeyValueMutationRecordDirect(
+      builder,
+      /*mutation_type=*/KeyValueMutationType::Update,
+      /*logical_commit_time=*/0,
+      /*key=*/"key",
+      /*value_type=*/Value::NONE,
+      /*value=*/0);
+  const auto data_record_fbs =
+      CreateDataRecord(builder, /*record_type=*/Record::KeyValueMutationRecord,
+                       kv_mutation_fbs.Union());
+  builder.Finish(data_record_fbs);
+
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status = DeserializeDataRecord(ToStringView(builder),
+                                      record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "Value not set.");
+}
+
+TEST(DataRecordTest,
+     DeserializeDataRecord_ToFbsRecord_KVMutation_StringValueNotSet_Failure) {
+  flatbuffers::FlatBufferBuilder builder;
+  const auto kv_mutation_fbs = CreateKeyValueMutationRecordDirect(
+      builder,
+      /*mutation_type=*/KeyValueMutationType::Update,
+      /*logical_commit_time=*/0,
+      /*key=*/"key",
+      /*value_type=*/Value::String,
+      /*value=*/CreateStringDirect(builder).Union());
+  const auto data_record_fbs =
+      CreateDataRecord(builder, /*record_type=*/Record::KeyValueMutationRecord,
+                       kv_mutation_fbs.Union());
+  builder.Finish(data_record_fbs);
+
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status = DeserializeDataRecord(ToStringView(builder),
+                                      record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "String value not set.");
+}
+
+TEST(
+    DataRecordTest,
+    DeserializeDataRecord_ToFbsRecord_KVMutation_StringSetValueNotSet_Failure) {
+  flatbuffers::FlatBufferBuilder builder;
+  const auto kv_mutation_fbs = CreateKeyValueMutationRecordDirect(
+      builder,
+      /*mutation_type=*/KeyValueMutationType::Update,
+      /*logical_commit_time=*/0,
+      /*key=*/"key",
+      /*value_type=*/Value::StringSet,
+      /*value=*/CreateStringSetDirect(builder).Union());
+  const auto data_record_fbs =
+      CreateDataRecord(builder, /*record_type=*/Record::KeyValueMutationRecord,
+                       kv_mutation_fbs.Union());
+  builder.Finish(data_record_fbs);
+
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status = DeserializeDataRecord(ToStringView(builder),
+                                      record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "StringSet value not set.");
+}
+
+TEST(DataRecordTest, DeserializeDataRecord_ToFbsRecord_UdfConfig_Success) {
+  auto data_record_struct = GetDataRecord(GetUdfConfigStruct());
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .WillOnce([&data_record_struct](const DataRecord& data_record_fbs) {
+        ExpectEqual(data_record_struct, data_record_fbs);
+        return absl::OkStatus();
+      });
+  auto status = DeserializeDataRecord(
+      ToStringView(ToFlatBufferBuilder(data_record_struct)),
+      record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(DataRecordTest,
+     DeserializeDataRecord_ToFbsRecord_UdfConfig_CodeSnippetNotSet_Failure) {
+  flatbuffers::FlatBufferBuilder builder;
+  const auto udf_config_fbs = CreateUserDefinedFunctionsConfigDirect(
+      builder,
+      /*language=*/UserDefinedFunctionsLanguage::Javascript,
+      /*code_snippet=*/nullptr,
+      /*handler_name=*/"my_handler",
+      /*logical_commit_time=*/0,
+      /*version=*/0);
+  const auto data_record_fbs = CreateDataRecord(
+      builder, /*record_type=*/Record::UserDefinedFunctionsConfig,
+      udf_config_fbs.Union());
+  builder.Finish(data_record_fbs);
+
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status = DeserializeDataRecord(ToStringView(builder),
+                                      record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "code_snippet not set.");
+}
+
+TEST(DataRecordTest,
+     DeserializeDataRecord_ToFbsRecord_UdfConfig_HandlerName_NotSet_Failure) {
+  flatbuffers::FlatBufferBuilder builder;
+  const auto udf_config_fbs = CreateUserDefinedFunctionsConfigDirect(
+      builder,
+      /*language=*/UserDefinedFunctionsLanguage::Javascript,
+      /*code_snippet=*/"function hello(){}",
+      /*handler_name=*/nullptr,
+      /*logical_commit_time=*/0,
+      /*version=*/0);
+  const auto data_record_fbs = CreateDataRecord(
+      builder, /*record_type=*/Record::UserDefinedFunctionsConfig,
+      udf_config_fbs.Union());
+  builder.Finish(data_record_fbs);
+
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status = DeserializeDataRecord(ToStringView(builder),
+                                      record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "handler_name not set.");
+}
+
+TEST(DataRecordTest,
      DeserializeDataRecord_ToStruct_KVMutation_StringValue_Success) {
   auto data_record_struct = GetDataRecord(GetKeyValueMutationRecord("value"));
   testing::MockFunction<absl::Status(const DataRecordStruct&)> record_callback;
@@ -230,8 +421,23 @@ TEST(DataRecordTest,
   EXPECT_TRUE(status.ok()) << status;
 }
 
-TEST(DataRecordTest, DeserializeDataRecord_ToFbsRecord_UdfConfig_Success) {
+TEST(DataRecordTest, DeserializeDataRecord_ToStruct_UdfConfig_Success) {
   auto data_record_struct = GetDataRecord(GetUdfConfigStruct());
+  testing::MockFunction<absl::Status(const DataRecordStruct&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .WillOnce([&data_record_struct](const DataRecordStruct& actual_record) {
+        EXPECT_EQ(data_record_struct, actual_record);
+        return absl::OkStatus();
+      });
+  auto status = DeserializeDataRecord(
+      ToStringView(ToFlatBufferBuilder(data_record_struct)),
+      record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(DataRecordTest, DeserializeDataRecord_ToFbsRecord_ShardMapping_Success) {
+  auto data_record_struct = GetDataRecord(
+      ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .WillOnce([&data_record_struct](const DataRecord& data_record_fbs) {
@@ -244,8 +450,9 @@ TEST(DataRecordTest, DeserializeDataRecord_ToFbsRecord_UdfConfig_Success) {
   EXPECT_TRUE(status.ok()) << status;
 }
 
-TEST(DataRecordTest, DeserializeDataRecord_ToStruct_UdfConfig_Success) {
-  auto data_record_struct = GetDataRecord(GetUdfConfigStruct());
+TEST(DataRecordTest, DeserializeDataRecord_ToStruct_ShardMapping_Success) {
+  auto data_record_struct = GetDataRecord(
+      ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
   testing::MockFunction<absl::Status(const DataRecordStruct&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .WillOnce([&data_record_struct](const DataRecordStruct& actual_record) {

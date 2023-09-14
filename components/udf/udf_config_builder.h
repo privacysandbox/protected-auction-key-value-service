@@ -15,15 +15,17 @@
  */
 #include <memory>
 
-#include "components/udf/get_values_hook.h"
-#include "components/udf/run_query_hook.h"
+#include "components/udf/hooks/get_values_hook.h"
+#include "components/udf/hooks/run_query_hook.h"
 #include "roma/config/src/config.h"
 
 namespace kv_server {
 
 class UdfConfigBuilder {
  public:
-  UdfConfigBuilder& RegisterGetValuesHook(GetValuesHook& get_values_hook);
+  UdfConfigBuilder& RegisterStringGetValuesHook(GetValuesHook& get_values_hook);
+
+  UdfConfigBuilder& RegisterBinaryGetValuesHook(GetValuesHook& get_values_hook);
 
   UdfConfigBuilder& RegisterRunQueryHook(RunQueryHook& run_query_hook);
 

@@ -45,11 +45,6 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
     EXPECT_EQ("", *statusor);
   }
   {
-    const auto statusor = client->GetParameter("kv-server-local-mode");
-    ASSERT_TRUE(statusor.ok());
-    EXPECT_EQ("DSP", *statusor);
-  }
-  {
     const auto statusor = client->GetInt32Parameter(
         "kv-server-local-metrics-export-interval-millis");
     ASSERT_TRUE(statusor.ok());
@@ -77,7 +72,7 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
     const auto statusor =
         client->GetInt32Parameter("kv-server-local-data-loading-num-threads");
     ASSERT_TRUE(statusor.ok());
-    EXPECT_EQ(std::thread::hardware_concurrency(), *statusor);
+    EXPECT_EQ(std::min(std::thread::hardware_concurrency(), 8u), *statusor);
   }
   {
     const auto statusor =
@@ -106,6 +101,18 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
   {
     const auto statusor =
         client->GetBoolParameter("kv-server-local-route-v1-to-v2");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(false, *statusor);
+  }
+  {
+    const auto statusor =
+        client->GetBoolParameter("kv-server-local-use-real-coordinators");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(false, *statusor);
+  }
+  {
+    const auto statusor = client->GetBoolParameter(
+        "kv-server-local-use-external-metrics-collector-endpoint");
     ASSERT_TRUE(statusor.ok());
     EXPECT_EQ(false, *statusor);
   }

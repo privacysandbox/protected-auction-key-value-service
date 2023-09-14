@@ -24,11 +24,6 @@ variable "environment" {
   type        = string
 }
 
-variable "mode_parameter_value" {
-  description = "DSP or SSP."
-  type        = string
-}
-
 variable "s3_bucket_parameter_value" {
   description = "Value for S3 data bucket parameter stored in Parameter Store."
   type        = string
@@ -47,6 +42,11 @@ variable "realtime_sns_arn_parameter_value" {
 variable "backup_poll_frequency_secs_parameter_value" {
   description = "Backup poll frequency for delta file notifier in seconds."
   type        = number
+}
+
+variable "metrics_collector_endpoint" {
+  description = "Metrics collector endpoint"
+  type        = string
 }
 
 variable "metrics_export_interval_millis_parameter_value" {
@@ -91,5 +91,25 @@ variable "udf_num_workers_parameter_value" {
 
 variable "route_v1_requests_to_v2_parameter_value" {
   description = "Whether to route V1 requests through V2."
+  type        = bool
+}
+
+variable "use_real_coordinators_parameter_value" {
+  description = "Number of parallel threads for reading and loading data files."
+  type        = bool
+}
+
+variable "primary_coordinator_account_identity_parameter_value" {
+  description = "Account identity for the primary coordinator."
+  type        = string
+}
+
+variable "secondary_coordinator_account_identity_parameter_value" {
+  description = "Account identity for the secondary coordinator."
+  type        = string
+}
+
+variable "use_external_metrics_collector_endpoint" {
+  description = "Whether to connect external metrics collector endpoint"
   type        = bool
 }

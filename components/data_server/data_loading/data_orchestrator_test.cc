@@ -20,6 +20,7 @@
 
 #include "absl/synchronization/notification.h"
 #include "components/data/common/mocks.h"
+#include "components/data/realtime/realtime_notifier.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
 #include "components/udf/code_config.h"
@@ -52,15 +53,18 @@ using kv_server::MockCache;
 using kv_server::MockDeltaFileNotifier;
 using kv_server::MockDeltaFileRecordChangeNotifier;
 using kv_server::MockRealtimeNotifier;
+using kv_server::MockRealtimeThreadPoolManager;
 using kv_server::MockStreamRecordReader;
 using kv_server::MockStreamRecordReaderFactory;
 using kv_server::MockUdfClient;
+using kv_server::Record;
 using kv_server::ToDeltaFileName;
 using kv_server::ToFlatBufferBuilder;
 using kv_server::ToSnapshotFileName;
 using kv_server::ToStringView;
 using kv_server::UserDefinedFunctionsConfigStruct;
 using kv_server::UserDefinedFunctionsLanguage;
+using kv_server::Value;
 using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::AllOf;
@@ -90,7 +94,7 @@ class DataOrchestratorTest : public ::testing::Test {
             .change_notifier = change_notifier_,
             .udf_client = udf_client_,
             .delta_stream_reader_factory = delta_stream_reader_factory_,
-            .realtime_options = realtime_options_}) {}
+            .realtime_thread_pool_manager = realtime_thread_pool_manager_}) {}
 
   MockBlobStorageClient blob_client_;
   MockDeltaFileNotifier notifier_;
@@ -98,7 +102,7 @@ class DataOrchestratorTest : public ::testing::Test {
   MockUdfClient udf_client_;
   MockStreamRecordReaderFactory delta_stream_reader_factory_;
   MockCache cache_;
-  std::vector<DataOrchestrator::RealtimeOptions> realtime_options_;
+  MockRealtimeThreadPoolManager realtime_thread_pool_manager_;
   DataOrchestrator::Options options_;
   MockMetricsRecorder metrics_recorder_;
 };
@@ -202,6 +206,9 @@ TEST_F(DataOrchestratorTest, InitCacheFiltersDeltasUsingSnapshotEndingFile) {
       .Times(1)
       .WillOnce(Return(metadata));
   auto record_reader2 = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*record_reader2, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
   EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
       .Times(2)
       .WillOnce(Return(ByMove(std::move(record_reader1))))
@@ -216,6 +223,68 @@ TEST_F(DataOrchestratorTest, InitCacheFiltersDeltasUsingSnapshotEndingFile) {
                             FilePrefix<FileType::DELTA>()))))
       .WillOnce(Return(std::vector<std::string>()));
   EXPECT_TRUE(DataOrchestrator::TryCreate(options_, metrics_recorder_).ok());
+}
+
+TEST_F(DataOrchestratorTest, InitCache_SkipsInvalidKVMutation) {
+  const std::vector<std::string> fnames({ToDeltaFileName(1).value()});
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .Times(1)
+      .WillOnce(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::DELTA>()))))
+      .WillOnce(Return(fnames));
+
+  KVFileMetadata metadata;
+  auto update_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*update_reader, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
+
+  flatbuffers::FlatBufferBuilder builder;
+  const auto kv_mutation_fbs = CreateKeyValueMutationRecordDirect(
+      builder,
+      /*mutation_type=*/KeyValueMutationType::Update,
+      /*logical_commit_time=*/0,
+      /*key=*/nullptr,
+      /*value_type=*/Value::String,
+      /*value=*/0);
+  const auto data_record_fbs =
+      CreateDataRecord(builder, /*record_type=*/Record::KeyValueMutationRecord,
+                       kv_mutation_fbs.Union());
+  builder.Finish(data_record_fbs);
+  EXPECT_CALL(*update_reader, ReadStreamRecords)
+      .Times(1)
+      .WillOnce(
+          [&builder](
+              const std::function<absl::Status(std::string_view)>& callback) {
+            callback(ToStringView(builder)).IgnoreError();
+            return absl::OkStatus();
+          });
+  auto delete_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*delete_reader, ReadStreamRecords).Times(0);
+  EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
+      .Times(1)
+      .WillOnce(Return(ByMove(std::move(update_reader))));
+
+  EXPECT_CALL(cache_, UpdateKeyValue).Times(0);
+
+  auto maybe_orchestrator =
+      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  ASSERT_TRUE(maybe_orchestrator.ok());
+
+  const std::string last_basename = ToDeltaFileName(1).value();
+  EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
+      .WillOnce(Return(absl::UnknownError("")));
+  EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
 }
 
 TEST_F(DataOrchestratorTest, InitCacheSuccess) {
@@ -239,6 +308,9 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
 
   KVFileMetadata metadata;
   auto update_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*update_reader, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
   EXPECT_CALL(*update_reader, ReadStreamRecords)
       .Times(1)
       .WillOnce(
@@ -252,6 +324,9 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
             return absl::OkStatus();
           });
   auto delete_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*delete_reader, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
   EXPECT_CALL(*delete_reader, ReadStreamRecords)
       .Times(1)
       .WillOnce(
@@ -302,6 +377,7 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeSuccess) {
 
   KVFileMetadata metadata;
   auto reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*reader, GetKVFileMetadata).Times(1).WillOnce(Return(metadata));
   EXPECT_CALL(*reader, ReadStreamRecords)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
@@ -316,7 +392,6 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeSuccess) {
                 .IgnoreError();
             return absl::OkStatus();
           });
-  auto delete_reader = std::make_unique<MockStreamRecordReader>();
   EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
       .WillOnce(Return(ByMove(std::move(reader))));
 
@@ -353,6 +428,7 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeFails_OrchestratorContinues) {
 
   KVFileMetadata metadata;
   auto reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*reader, GetKVFileMetadata).Times(1).WillOnce(Return(metadata));
   EXPECT_CALL(*reader, ReadStreamRecords)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
@@ -367,7 +443,6 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeFails_OrchestratorContinues) {
                 .IgnoreError();
             return absl::OkStatus();
           });
-  auto delete_reader = std::make_unique<MockStreamRecordReader>();
   EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
       .WillOnce(Return(ByMove(std::move(reader))));
 
@@ -411,6 +486,9 @@ TEST_F(DataOrchestratorTest, StartLoading) {
   absl::Notification all_records_loaded;
   KVFileMetadata metadata;
   auto update_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*update_reader, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
   EXPECT_CALL(*update_reader, ReadStreamRecords)
       .Times(1)
       .WillOnce(
@@ -424,6 +502,9 @@ TEST_F(DataOrchestratorTest, StartLoading) {
             return absl::OkStatus();
           });
   auto delete_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*delete_reader, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
   EXPECT_CALL(*delete_reader, ReadStreamRecords)
       .Times(1)
       .WillOnce(
@@ -483,6 +564,9 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
 
   KVFileMetadata metadata;
   auto update_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*update_reader, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
   EXPECT_CALL(*update_reader, ReadStreamRecords)
       .Times(1)
       .WillOnce(
@@ -497,6 +581,9 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
             return absl::OkStatus();
           });
   auto delete_reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*delete_reader, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
   EXPECT_CALL(*delete_reader, ReadStreamRecords)
       .Times(1)
       .WillOnce(
@@ -528,7 +615,7 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .change_notifier = change_notifier_,
       .udf_client = udf_client_,
       .delta_stream_reader_factory = delta_stream_reader_factory_,
-      .realtime_options = realtime_options_,
+      .realtime_thread_pool_manager = realtime_thread_pool_manager_,
       .shard_num = 1,
       .num_shards = 2,
   };
@@ -536,6 +623,38 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
   auto maybe_orchestrator =
       DataOrchestrator::TryCreate(sharded_options, metrics_recorder_);
   ASSERT_TRUE(maybe_orchestrator.ok());
+}
+
+TEST_F(DataOrchestratorTest, InitCacheSkipsSnapshotFilesForOtherShards) {
+  auto snapshot_name = ToSnapshotFileName(1);
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .WillOnce(Return(std::vector<std::string>({*snapshot_name})));
+  KVFileMetadata metadata;
+  *metadata.mutable_snapshot()->mutable_starting_file() =
+      ToDeltaFileName(1).value();
+  *metadata.mutable_snapshot()->mutable_ending_delta_file() =
+      ToDeltaFileName(5).value();
+  metadata.mutable_sharding_metadata()->set_shard_num(17);
+  auto record_reader1 = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*record_reader1, GetKVFileMetadata)
+      .Times(1)
+      .WillOnce(Return(metadata));
+  EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
+      .Times(1)
+      .WillOnce(Return(ByMove(std::move(record_reader1))));
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::DELTA>()))))
+      .WillOnce(Return(std::vector<std::string>()));
+  EXPECT_TRUE(DataOrchestrator::TryCreate(options_, metrics_recorder_).ok());
 }
 
 }  // namespace

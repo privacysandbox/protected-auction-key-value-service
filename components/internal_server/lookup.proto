@@ -36,14 +36,9 @@ service InternalLookupService {
 message InternalLookupRequest {
   // List of keys to look up.
   repeated string keys = 1;
-}
-
-// Encryption key type
-enum EncryptionKeyType {
-  // Taken from the coordinator
-  PRODUCTION = 0;
-  // Hardcoded well known test key
-  TEST = 1;
+  // False means values are looked up.
+  // True means value sets are looked up.
+  bool lookup_sets = 2;
 }
 
 // Encrypted and padded lookup request for internal datastore.
@@ -57,7 +52,6 @@ enum EncryptionKeyType {
 // then we are guarnteed to serialize to the same length.
 message SecureLookupRequest {
   bytes ohttp_request = 1;
-  EncryptionKeyType encryption_key_type = 2;
 }
 
 // Lookup response from internal datastore.
@@ -65,7 +59,7 @@ message SecureLookupRequest {
 // Each key in the request has a corresponding map entry in the response.
 
 // The value of the entry is a SingleLookupResult, which is either the value
-// from the datastore or a status in case of an error.
+// from the datastore, key set values or a status in case of an error.
 //
 // Examples of possible error scenarios:
 // - Key is missing from internal datastore
@@ -79,12 +73,19 @@ message SecureLookupResponse {
   bytes ohttp_response = 1;
 }
 
-// Lookup result for a single key that is either a string value or a status.
+// Lookup result for a single key that is either a string value, key set values
+// or a status.
 message SingleLookupResult {
   oneof single_lookup_result {
     string value = 1;
     google.rpc.Status status = 2;
+    KeysetValues keyset_values = 3;
   }
+}
+
+// Keyset values.
+message KeysetValues {
+  repeated string values = 1;
 }
 
 // Run Query request.

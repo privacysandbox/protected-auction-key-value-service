@@ -38,6 +38,8 @@ constexpr std::string_view kKeyValueMutationRecord =
     "key_value_mutation_record";
 constexpr std::string_view kUserDefinedFunctionsConfig =
     "user_defined_functions_config";
+constexpr double kSamplingThreshold = 0.02;
+constexpr std::string_view kShardMappingRecord = "shard_mapping_record";
 
 absl::Status ValidateParams(const FormatDataCommand::Params& params) {
   if (params.input_format.empty()) {
@@ -65,6 +67,9 @@ absl::StatusOr<DataRecordType> GetRecordType(std::string_view record_type) {
   }
   if (lw_record_type == kUserDefinedFunctionsConfig) {
     return DataRecordType::kUserDefinedFunctionsConfig;
+  }
+  if (lw_record_type == kShardMappingRecord) {
+    return DataRecordType::kShardMappingRecord;
   }
   return absl::InvalidArgumentError(
       absl::StrCat("Record type ", record_type, " is not supported."));
@@ -142,11 +147,19 @@ absl::StatusOr<std::unique_ptr<FormatDataCommand>> FormatDataCommand::Create(
 }
 
 absl::Status FormatDataCommand::Execute() {
+  LOG(INFO) << "Formatting records ...";
+  int64_t records_count = 0;
   absl::Status status = record_reader_->ReadRecords(
-      [record_writer = record_writer_.get()](DataRecordStruct data_record) {
+      [record_writer = record_writer_.get(),
+       &records_count](DataRecordStruct data_record) {
+        records_count++;
+        if ((double)std::rand() / RAND_MAX <= kSamplingThreshold) {
+          LOG(INFO) << "Formatting record: " << records_count;
+        }
         return record_writer->WriteRecord(data_record);
       });
   record_writer_->Close();
+  LOG(INFO) << "Sucessfully formated records.";
   return status;
 }
 

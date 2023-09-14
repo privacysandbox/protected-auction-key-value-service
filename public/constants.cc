@@ -33,9 +33,15 @@ std::string_view DeltaFileFormatRegex() {
 }
 
 const std::regex& SnapshotFileFormatRegex() {
-  static const std::regex* const snapshot_regex =
+  static const std::regex* const regex =
       new std::regex(FileFormatRegex<FileType::SNAPSHOT>());
-  return *snapshot_regex;
+  return *regex;
+}
+
+const std::regex& LogicalShardingConfigFileFormatRegex() {
+  static const std::regex* const regex =
+      new std::regex(FileFormatRegex<FileType::LOGICAL_SHARDING_CONFIG>());
+  return *regex;
 }
 
 }  // namespace kv_server

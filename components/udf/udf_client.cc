@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
@@ -29,6 +30,9 @@
 #include "glog/logging.h"
 #include "roma/config/src/config.h"
 #include "roma/interface/roma.h"
+
+ABSL_FLAG(absl::Duration, udf_timeout, absl::Minutes(1),
+          "Timeout for one UDF invocation");
 
 namespace kv_server {
 
@@ -41,9 +45,7 @@ using google::scp::roma::LoadCodeObj;
 using google::scp::roma::ResponseObject;
 using google::scp::roma::RomaInit;
 using google::scp::roma::RomaStop;
-using google::scp::roma::WasmDataType;
 
-constexpr absl::Duration kCallbackTimeout = absl::Seconds(1);
 constexpr absl::Duration kCodeUpdateTimeout = absl::Seconds(1);
 
 // Roma IDs and version numbers are required for execution.
@@ -55,7 +57,7 @@ constexpr int kVersionNum = 1;
 
 class UdfClientImpl : public UdfClient {
  public:
-  UdfClientImpl() = default;
+  UdfClientImpl() : udf_timeout_(absl::GetFlag(FLAGS_udf_timeout)) {}
 
   absl::StatusOr<std::string> ExecuteCode(std::vector<std::string> keys) const {
     std::shared_ptr<absl::Status> response_status =
@@ -83,7 +85,7 @@ class UdfClientImpl : public UdfClient {
       return status;
     }
 
-    notification->WaitForNotificationWithTimeout(kCallbackTimeout);
+    notification->WaitForNotificationWithTimeout(udf_timeout_);
     if (!notification->HasBeenNotified()) {
       return absl::InternalError("Timed out waiting for UDF result.");
     }
@@ -110,8 +112,10 @@ class UdfClientImpl : public UdfClient {
         std::make_shared<absl::Status>();
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();
+    VLOG(9) << "Setting UDF: " << code_config.js;
     CodeObject code_object =
-        BuildCodeObject(std::move(code_config.js), std::move(code_config.wasm));
+        BuildCodeObject(std::move(code_config.js), std::move(code_config.wasm),
+                        code_config.version);
     absl::Status load_status =
         LoadCodeObj(std::make_unique<CodeObject>(code_object),
                     [notification, response_status](
@@ -136,16 +140,15 @@ class UdfClientImpl : public UdfClient {
     }
     handler_name_ = std::move(code_config.udf_handler_name);
     logical_commit_time_ = code_config.logical_commit_time;
+    version_ = code_config.version;
     return absl::OkStatus();
   }
 
-  absl::Status SetWasmCodeObject(CodeConfig code_config,
-                                 WasmDataType wasm_return_type) {
-    auto code_object_status = SetCodeObject(std::move(code_config));
+  absl::Status SetWasmCodeObject(CodeConfig code_config) {
+    const auto code_object_status = SetCodeObject(std::move(code_config));
     if (!code_object_status.ok()) {
       return code_object_status;
     }
-    wasm_return_type_ = wasm_return_type;
     return absl::OkStatus();
   }
 
@@ -153,22 +156,23 @@ class UdfClientImpl : public UdfClient {
   InvocationRequestStrInput BuildInvocationRequest(
       std::vector<std::string> keys) const {
     return {.id = kInvocationRequestId,
-            .version_num = kVersionNum,
+            .version_num = static_cast<uint64_t>(version_),
             .handler_name = handler_name_,
-            .wasm_return_type = wasm_return_type_,
             .input = std::move(keys)};
   }
 
-  CodeObject BuildCodeObject(std::string js, std::string wasm) {
+  CodeObject BuildCodeObject(std::string js, std::string wasm,
+                             int64_t version) {
     return {.id = kCodeObjectId,
-            .version_num = kVersionNum,
+            .version_num = static_cast<uint64_t>(version),
             .js = std::move(js),
             .wasm = std::move(wasm)};
   }
 
   std::string handler_name_;
   int64_t logical_commit_time_ = -1;
-  WasmDataType wasm_return_type_;
+  int64_t version_ = 1;
+  const absl::Duration udf_timeout_;
 };
 
 }  // namespace

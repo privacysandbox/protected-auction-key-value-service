@@ -1,3 +1,5 @@
+workspace(name = "google_privacysandbox_kv_server")
+
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 local_repository(
@@ -11,11 +13,11 @@ python_deps("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit 1afdb3d4e59bcc422ac769025ccde4460b48569c 2023-05-31
-    sha256 = "32eeade4bad14fef6d2884e866e538c1312b8a11a8d55df0b176c925ca17fe5e",
-    strip_prefix = "data-plane-shared-libraries-1afdb3d4e59bcc422ac769025ccde4460b48569c",
+    # commit bc963a5ee6917f42b3b7af2b8caa4f7abf35b7c5 2023-08-16
+    sha256 = "85f66ddb485880172e1b33953a867fdf3e2c43d684d1dacbd255b50819ace22a",
+    strip_prefix = "data-plane-shared-libraries-bc963a5ee6917f42b3b7af2b8caa4f7abf35b7c5",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/1afdb3d4e59bcc422ac769025ccde4460b48569c.zip",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/bc963a5ee6917f42b3b7af2b8caa4f7abf35b7c5.tar.gz",
     ],
 )
 
@@ -42,29 +44,27 @@ load("@google_privacysandbox_servers_common//third_party:deps4.bzl", data_plane_
 
 data_plane_shared_deps4()
 
-load("//third_party:cpp_repositories.bzl", "cpp_repositories")
+load(
+    "//third_party:cpp_repositories.bzl",
+    "cpp_repositories",
+    "emscripten_repositories",
+)
 
 cpp_repositories()
+
+EMSCRIPTEN_VER = emscripten_repositories()
 
 load("//third_party:container_deps.bzl", "container_deps")
 
 container_deps()
 
-# emscripten
-http_archive(
-    name = "emsdk",
-    sha256 = "d55e3c73fc4f8d1fecb7aabe548de86bdb55080fe6b12ce593d63b8bade54567",
-    strip_prefix = "emsdk-3891e7b04bf8cbb3bc62758e9c575ae096a9a518/bazel",
-    url = "https://github.com/emscripten-core/emsdk/archive/3891e7b04bf8cbb3bc62758e9c575ae096a9a518.tar.gz",
-)
+load("//third_party:emscripten_deps1.bzl", "emscripten_deps1")
 
-load("@emsdk//:deps.bzl", emsdk_deps = "deps")
+emscripten_deps1()
 
-emsdk_deps()
+load("//third_party:emscripten_deps2.bzl", "emscripten_deps2")
 
-load("@emsdk//:emscripten_deps.bzl", emsdk_emscripten_deps = "emscripten_deps")
-
-emsdk_emscripten_deps(emscripten_version = "2.0.31")
+emscripten_deps2(EMSCRIPTEN_VER)
 
 # googleapis
 http_archive(
@@ -111,3 +111,21 @@ http_archive(
 load("@rules_flex//flex:flex.bzl", "flex_register_toolchains")
 
 flex_register_toolchains(version = "2.6.4")
+
+load("//third_party:python_deps.bzl", "python_repositories")
+
+python_repositories()
+
+# Load the starlark macro, which will define your dependencies.
+load("@word2vec//:requirements.bzl", "install_deps")
+
+# Call it to define repos for your requirements.
+install_deps()
+
+load("//third_party:rules_closure_repositories.bzl", "rules_closure_repositories")
+
+rules_closure_repositories()
+
+load("//third_party:rules_closure_deps.bzl", "rules_closure_deps")
+
+rules_closure_deps()

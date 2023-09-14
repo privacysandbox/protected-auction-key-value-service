@@ -19,12 +19,31 @@
 
 #include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 
 namespace kv_server::benchmark {
+
+// An `AsyncTask` executes a provided function, `task_fn` on an asynchronous
+// thread. The asynchronous thread is automatically stopped and joined when the
+// task goes out of scope or when `Stop()` is called.
+class AsyncTask {
+ public:
+  explicit AsyncTask(std::function<void()> task_fn);
+  AsyncTask(AsyncTask&& other);
+  AsyncTask& operator=(AsyncTask&& other);
+  AsyncTask(const AsyncTask&) = delete;
+  AsyncTask& operator=(const AsyncTask&) = delete;
+  ~AsyncTask();
+  void Stop();
+
+ private:
+  bool stop_signal_;
+  std::thread runner_thread_;
+};
 
 // Generates a random string with `char_count` characters.
 std::string GenerateRandomString(const int64_t char_count);

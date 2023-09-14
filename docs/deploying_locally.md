@@ -64,7 +64,6 @@ Create the directories that the local server will read data from.
 
 ```sh
 mkdir /tmp/deltas
-# Optional, only used for fast-path 'realtime' data loading:
 mkdir /tmp/realtime
 ```
 

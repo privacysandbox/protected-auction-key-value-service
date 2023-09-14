@@ -36,6 +36,9 @@ cc_library(
     name = "parameter_fetcher",
     srcs = select({
         "//:aws_platform": ["parameter_fetcher_aws.cc"],
+        # todo: uncomment this once the GCP blob storage logic is implemented
+        #"//:gcp_platform": ["parameter_fetcher_gcp.cc"],
+        "//:gcp_platform": ["parameter_fetcher_local.cc"],
         "//:local_platform": ["parameter_fetcher_local.cc"],
     }) + ["parameter_fetcher.cc"],
     hdrs = ["parameter_fetcher.h"],
@@ -57,6 +60,7 @@ cc_test(
     size = "small",
     srcs = select({
         "//:aws_platform": ["parameter_fetcher_aws_test.cc"],
+        "//:gcp_platform": ["parameter_fetcher_gcp_test.cc"],
         "//:local_platform": ["parameter_fetcher_local_test.cc"],
     }),
     deps = [
@@ -121,6 +125,7 @@ cc_library(
     srcs = ["server.cc"],
     hdrs = ["server.h"],
     deps = [
+        ":key_fetcher_factory",
         ":key_value_service_impl",
         ":key_value_service_v2_impl",
         ":lifecycle_heartbeat",
@@ -129,6 +134,7 @@ cc_library(
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",
+        "//components/data/realtime:realtime_thread_pool_manager",
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/data_loading:data_orchestrator",
@@ -142,9 +148,9 @@ cc_library(
         "//components/internal_server:sharded_lookup_server_impl",
         "//components/sharding:cluster_mappings_manager",
         "//components/telemetry:kv_telemetry",
-        "//components/udf:get_values_hook",
         "//components/udf:udf_client",
         "//components/udf:udf_config_builder",
+        "//components/udf/hooks:get_values_hook",
         "//components/util:periodic_closure",
         "//components/util:platform_initializer",
         "//components/util:version_linkstamp",
@@ -172,6 +178,7 @@ cc_test(
     size = "small",
     srcs = select({
         "//:aws_platform": ["server_aws_test.cc"],
+        "//:gcp_platform": ["server_gcp_test.cc"],
         "//:local_platform": ["server_local_test.cc"],
     }),
     deps = [
@@ -189,8 +196,12 @@ cc_test(
 cc_binary(
     name = "server",
     srcs = ["main.cc"],
-    visibility = ["//production/packaging:__subpackages__"],
+    visibility = [
+        "//google_internal/production/packaging:__subpackages__",
+        "//production/packaging:__subpackages__",
+    ],
     deps = [
+        ":key_fetcher_factory",
         ":server_lib",
         "//components/sharding:shard_manager",
         "//components/util:version_linkstamp",
@@ -230,5 +241,27 @@ cc_library(
     visibility = ["//components/sharding:__subpackages__"],
     deps = [
         "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "key_fetcher_factory",
+    srcs = [
+        "key_fetcher_factory.cc",
+    ],
+    hdrs = [
+        "key_fetcher_factory.h",
+    ],
+    deps = [
+        ":parameter_fetcher",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/time",
+        "@google_privacysandbox_servers_common//src/cpp/concurrent:executor",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:private_key_fetcher",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:public_key_fetcher",
     ],
 )

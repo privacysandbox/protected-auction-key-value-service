@@ -1,0 +1,6 @@
+key,logical_commit_time,mutation_type,value,value_type
+foo0,1692813076490102,update,my_stored_value0,string
+foo1,1692813076490103,update,my_stored_value1,string
+foo2,1692813076490104,update,my_stored_value2,string
+foo3,1692813076490105,update,my_stored_value3,string
+foo4,1692813076490106,update,my_stored_value4,string

@@ -41,9 +41,7 @@ class NoopUdfClientImpl : public UdfClient {
     return absl::OkStatus();
   }
 
-  absl::Status SetWasmCodeObject(
-      CodeConfig code_config,
-      google::scp::roma::WasmDataType wasm_return_type) {
+  absl::Status SetWasmCodeObject(CodeConfig code_config) {
     return absl::OkStatus();
   }
 };

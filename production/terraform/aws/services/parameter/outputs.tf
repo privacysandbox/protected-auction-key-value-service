@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-output "mode_parameter_arn" {
-  value = aws_ssm_parameter.mode_parameter.arn
-}
-
 output "s3_bucket_parameter_arn" {
   value = aws_ssm_parameter.s3_bucket_parameter.arn
 }
@@ -40,6 +36,14 @@ output "launch_hook_parameter_value" {
 
 output "backup_poll_frequency_secs_parameter_arn" {
   value = aws_ssm_parameter.backup_poll_frequency_secs_parameter.arn
+}
+
+output "use_external_metrics_collector_endpoint_arn" {
+  value = aws_ssm_parameter.use_external_metrics_collector_endpoint.arn
+}
+
+output "metrics_collector_endpoint_arn" {
+  value = (var.use_external_metrics_collector_endpoint) ? aws_ssm_parameter.metrics_collector_endpoint[0].arn : ""
 }
 
 output "metrics_export_interval_millis_parameter_arn" {
@@ -76,4 +80,16 @@ output "udf_num_workers_parameter_arn" {
 
 output "route_v1_requests_to_v2_parameter_arn" {
   value = aws_ssm_parameter.route_v1_requests_to_v2_parameter.arn
+}
+
+output "use_real_coordinators_parameter_arn" {
+  value = aws_ssm_parameter.use_real_coordinators_parameter.arn
+}
+
+output "primary_coordinator_account_identity_parameter_arn" {
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.primary_coordinator_account_identity_parameter[0].arn : ""
+}
+
+output "secondary_coordinator_account_identity_parameter_arn" {
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.secondary_coordinator_account_identity_parameter[0].arn : ""
 }

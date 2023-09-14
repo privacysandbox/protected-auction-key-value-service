@@ -1,0 +1,100 @@
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+
+VERBOSE=0
+
+usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --verbose                     Emit verbose info. Default: false
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --verbose)
+      VERBOSE=1
+      shift
+      ;;
+    -h | --help)
+      usage 0
+      break
+      ;;
+    *)
+      usage
+      break
+      ;;
+  esac
+done
+
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+readonly SCRIPT_DIR
+# shellcheck disable=SC1090
+. "${SCRIPT_DIR}"/install_go.sh
+
+function dnf_update() {
+  dnf -y update
+}
+
+function install_python() {
+  mkdir -p /opt/bin
+  alternatives \
+    --install /opt/bin/python3 python3-opt /usr/bin/python3.9 100 \
+    --slave /usr/bin/python3 python3-usr /usr/bin/python3.9 \
+    --slave /usr/bin/python python-usr /usr/bin/python3.9 \
+    --slave /opt/bin/python python /usr/bin/python3.9
+}
+
+function install_nitro() {
+  dnf install -y \
+    "aws-nitro-enclaves-cli-1.2.*" \
+    "aws-nitro-enclaves-cli-devel-1.2.*"
+}
+
+function install_gcc() {
+  # install gcc, which is required to build socat
+  dnf install -y "gcc-11.3.*"
+}
+
+function install_misc() {
+  dnf install -y \
+    "gettext-0.21*" \
+    "git-2.40.*" \
+    "tar-2:1.34*" \
+    "unzip-6.0*" \
+    "which-2.*" \
+    "zip-3.0*"
+}
+
+function install_packer() {
+  dnf install -y "dnf-utils-4.1.*"
+  dnf config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+  dnf -y install "packer-1.9.2*"
+  update-alternatives --install /usr/local/bin/packer packer /usr/bin/packer 100
+  /usr/local/bin/packer version
+}
+
+function install_clang() {
+  dnf install -y "clang-15.*"
+  clang --version
+}
+
+if [[ ${VERBOSE} -eq 1 ]]; then
+  printf "=== SHELL ENVIRONMENT ===\n"
+  env
+fi
+
+install_python
+dnf_update
+install_nitro
+install_misc
+install_clang
+install_golang "${BUILD_ARCH}"
+install_gcc
+install_packer

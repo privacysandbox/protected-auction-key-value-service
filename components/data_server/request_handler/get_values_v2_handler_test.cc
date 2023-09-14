@@ -33,6 +33,7 @@
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
+#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/mocks.h"
 
@@ -171,7 +172,7 @@ class GetValuesHandlerTest
     google::api::HttpBody& RawResponse() { return response_; }
 
     BHTTPResponse Unwrap() {
-      uint8_t key_id = 1;
+      uint8_t key_id = 64;
       auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
           key_id, kKEMParameter, kKDFParameter, kAEADParameter);
       EXPECT_TRUE(maybe_config.ok());
@@ -205,7 +206,9 @@ class GetValuesHandlerTest
         : bhttp_request_(std::move(bhttp_request)) {}
 
     std::pair<ObliviousGetValuesRequest, OHTTPResponseUnwrapper> Build() const {
-      uint8_t key_id = 1;
+      // matches the test key pair, see common repo:
+      // ../encryption/key_fetcher/src/fake_key_fetcher_manager.h
+      uint8_t key_id = 64;
       auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
           key_id, 0x0020, 0x0001, 0x0001);
       EXPECT_TRUE(maybe_config.ok());
@@ -276,6 +279,8 @@ class GetValuesHandlerTest
 
   MockUdfClient mock_udf_client_;
   MockMetricsRecorder mock_metrics_recorder_;
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager_;
 };
 
 INSTANTIATE_TEST_SUITE_P(GetValuesHandlerTest, GetValuesHandlerTest,
@@ -421,7 +426,8 @@ TEST_P(GetValuesHandlerTest, Success) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -491,7 +497,8 @@ TEST_P(GetValuesHandlerTest, InvalidFormat) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -509,7 +516,8 @@ TEST_P(GetValuesHandlerTest, NotADictionary) {
 []
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -531,7 +539,8 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -577,7 +586,8 @@ TEST_P(GetValuesHandlerTest, NoContext) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -625,7 +635,10 @@ TEST_P(GetValuesHandlerTest, NoCompressionGroup) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager;
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -674,7 +687,8 @@ TEST_P(GetValuesHandlerTest, CompressionGroupNotANumber) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -781,7 +795,8 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -857,7 +872,8 @@ TEST_P(GetValuesHandlerTest, UdfInvalidJsonOutput) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -894,7 +910,8 @@ TEST_P(GetValuesHandlerTest, UdfNoKeyGroupOutputs) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -946,7 +963,8 @@ TEST_P(GetValuesHandlerTest, UdfKeyGroupOutputsNotArray) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -988,7 +1006,8 @@ TEST_P(GetValuesHandlerTest, UdfKeyGroupOutputsArrayEmpty) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -1010,7 +1029,8 @@ TEST_P(GetValuesHandlerTest, NoKeyGroupsInPartition) {
       }]
     })";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -1058,7 +1078,8 @@ TEST_P(GetValuesHandlerTest, UdfNoOutputApiVersion) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
@@ -1107,7 +1128,8 @@ TEST_P(GetValuesHandlerTest, UdfWrongOutputApiVersion) {
 }
   )";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);

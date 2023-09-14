@@ -1,0 +1,1 @@
+../install_go.sh

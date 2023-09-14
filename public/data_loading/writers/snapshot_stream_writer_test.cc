@@ -61,6 +61,7 @@ UserDefinedFunctionsConfigStruct GetUserDefinedFunctionsConfig() {
   udf_config_record.code_snippet = "function hello(){}";
   udf_config_record.handler_name = "hello";
   udf_config_record.logical_commit_time = 1234567890;
+  udf_config_record.version = 1;
   return udf_config_record;
 }
 

@@ -32,11 +32,11 @@
 #include "aws/sqs/model/ReceiveMessageResult.h"
 #include "aws/sqs/model/SetQueueAttributesRequest.h"
 #include "components/data/common/msg_svc.h"
+#include "components/data/common/msg_svc_util.h"
 #include "components/errors/error_util_aws.h"
 
 namespace kv_server {
 namespace {
-constexpr uint32_t kQueueNameLen = 80;
 constexpr char kPolicyTemplate[] = R"({
   "Version": "2008-10-17",
   "Statement": [
@@ -60,11 +60,6 @@ constexpr char kFilterPolicyTemplate[] = R"({
   "shard_num": ["%d"]
 })";
 
-constexpr std::string_view alphanum =
-    "_-0123456789"
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    "abcdefghijklmnopqrstuvwxyz";
-
 class AwsMessageService : public MessageService {
  public:
   // `prefix` is the prefix of randomly generated SQS Queue name.
@@ -81,9 +76,10 @@ class AwsMessageService : public MessageService {
   }
 
   // Returns url if `IsSetupComplete` is true, or empty string otherwise.
-  const std::string& GetSqsUrl() const {
+  const QueueMetadata GetQueueMetadata() const {
     absl::ReaderMutexLock lock(&mutex_);
-    return sqs_url_;
+    AwsQueueMetadata metadata = {.sqs_url = sqs_url_};
+    return metadata;
   }
 
   absl::Status SetupQueue() {
@@ -129,15 +125,6 @@ class AwsMessageService : public MessageService {
   }
 
  private:
-  std::string GenerateQueueName(std::string name) {
-    absl::BitGen bitgen;
-    while (name.length() < kQueueNameLen) {
-      const size_t index = absl::Uniform(bitgen, 0u, alphanum.length() - 1);
-      name += alphanum[index];
-    }
-    return name;
-  }
-
   absl::StatusOr<std::string> CreateQueue(Aws::SQS::SQSClient& sqs,
                                           const std::string& prefix) {
     Aws::SQS::Model::CreateQueueRequest req;
@@ -208,7 +195,7 @@ class AwsMessageService : public MessageService {
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
     NotifierMetadata notifier_metadata, std::optional<int32_t> shard_num) {
-  auto metadata = std::get<CloudNotifierMetadata>(notifier_metadata);
+  auto metadata = std::get<AwsNotifierMetadata>(notifier_metadata);
 
   return std::make_unique<AwsMessageService>(
       std::move(metadata.queue_prefix), std::move(metadata.sns_arn), shard_num);

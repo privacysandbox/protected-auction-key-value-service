@@ -25,9 +25,10 @@ cc_binary(
     deps = [
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
-        "//components/udf:cache_get_values_hook",
+        "//components/internal_server:cache_lookup_client",
         "//components/udf:udf_client",
         "//components/udf:udf_config_builder",
+        "//components/udf/hooks:get_values_hook",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading/readers:delta_record_stream_reader",
         "//public/udf:constants",

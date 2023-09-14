@@ -19,6 +19,7 @@ load("@rules_proto//proto:defs.bzl", "proto_descriptor_set", "proto_library")
 
 package(default_visibility = [
     "//components:__subpackages__",
+    "//tools:__subpackages__",
 ])
 
 cc_library(
@@ -44,6 +45,38 @@ cc_library(
 )
 
 cc_library(
+    name = "cache_lookup_client",
+    srcs = [
+        "cache_lookup_client.cc",
+    ],
+    hdrs = [
+        "cache_lookup_client.h",
+    ],
+    deps = [
+        ":internal_lookup_cc_proto",
+        ":lookup_client_impl",
+        "//components/data_server/cache",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_test(
+    name = "cache_lookup_client_test",
+    size = "small",
+    srcs = [
+        "cache_lookup_client_test.cc",
+    ],
+    deps = [
+        ":cache_lookup_client",
+        ":internal_lookup_cc_proto",
+        "//components/data_server/cache:mocks",
+        "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "lookup_server_impl",
     srcs = [
         "lookup_server_impl.cc",
@@ -61,6 +94,7 @@ cc_library(
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_protobuf//:protobuf",
         "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -79,6 +113,8 @@ cc_test(
         "//public/test_util:proto_matcher",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -156,6 +192,8 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -171,6 +209,8 @@ cc_library(
         ":internal_lookup_cc_grpc",
         ":remote_lookup_client_impl",
         "//components/data_server/cache",
+        "//components/query:driver",
+        "//components/query:scanner",
         "//components/sharding:shard_manager",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log:check",
@@ -194,6 +234,7 @@ cc_test(
         "//components/sharding:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
@@ -260,5 +301,7 @@ cc_test(
         "//components/data_server/cache:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

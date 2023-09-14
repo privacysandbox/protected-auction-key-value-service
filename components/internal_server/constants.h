@@ -19,7 +19,6 @@
 
 namespace kv_server {
 
-constexpr char kInternalServerAddress[] = "unix:///server/socket/internal.sock";
 constexpr char kRemoteLookupServerPort[] = "50100";
 constexpr char kLocalIp[] = "0.0.0.0";
 

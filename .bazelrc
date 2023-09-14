@@ -1,67 +1,86 @@
 build --announce_rc
 build --verbose_failures
-build --client_env=CC=clang
-build --cxxopt=-std=c++17
-build --host_cxxopt=-std=c++17
-build --copt=-Werror=return-type
-
-# Broadly disable C++ Exceptions
-# https://google.github.io/styleguide/cppguide.html#Exceptions
-build --copt=-fno-exceptions
-# Grant exceptions to some dependencies so they can use exceptions
-build --per_file_copt=.*boost.*@-fexceptions
-build --per_file_copt=.*cc/aws/proxy.*@-fexceptions
-build --per_file_copt=.*cc/roma.*@-fexceptions
-build --per_file_copt=.*oneTBB.*@-fexceptions
-
-build -c opt
+build --compilation_mode=opt
 build --output_filter='^//((?!(third_party):).)*$'`
 build --color=yes
 build --@io_bazel_rules_docker//transitions:enable=false
 build --workspace_status_command="bash tools/get_workspace_status"
 build --copt=-Werror=thread-safety-analysis
+build --config=clang
+build --config=noexcept
+# Disable some ROMA error checking
+build --per_file_copt=.*sandboxed_api.*@-Wno-return-type
+
+# Broadly disable C++ Exceptions
+# https://google.github.io/styleguide/cppguide.html#Exceptions
+build:noexcept --copt=-fno-exceptions
+# Grant exceptions to some dependencies so they can use exceptions
+build:noexcept --per_file_copt=.*boost.*@-fexceptions
+build:noexcept --per_file_copt=.*cc/aws/proxy.*@-fexceptions
+build:noexcept --per_file_copt=.*cc/roma.*@-fexceptions
+build:noexcept --per_file_copt=.*oneTBB.*@-fexceptions
+build:noexcept --per_file_copt=.*com_github_nghttp2_nghttp2.*@-fexceptions
+build:noexcept --per_file_copt=.*cc/core.*@-fexceptions
+build:noexcept --per_file_copt=.*cc/cpio.*@-fexceptions
 
 test --test_output=errors
 # Disable ICU linking for googleurl.
 build --@com_google_googleurl//build_config:system_icu=0
 build --@io_opentelemetry_cpp//api:with_abseil=true
+# Required to build OpenTelemtry with logs API.
+build --copt=-DENABLE_LOGS_PREVIEW
 
-# Address sanitizer
-# To use it: bazel build --config asan
+build:clang --cxxopt=-fbracket-depth=512
+build:clang --client_env=CC=clang
+build:clang --cxxopt=-std=c++17
+build:clang --host_cxxopt=-std=c++17
+build:clang --client_env=BAZEL_CXXOPTS=-std=c++17
+
+# Required to run wasm_cc_binary
+build:emscripten --incompatible_enable_cc_toolchain_resolution
+
+# Required to use protos in wasm_cc_binary
+build:emscripten --per_file_copt=.*zlib.*@-Wno-deprecated-non-prototype
+build:emscripten --per_file_copt=.*utf8_range.*@-Wno-unused-function
+
+# Address sanitizer, set action_env to segregate cache entries
+build:asan --action_env=PRIVACY_SANDBOX_SERVERS_ASAN=1
 build:asan --strip=never
-build:asan --copt -fsanitize=address
-build:asan --copt -DADDRESS_SANITIZER
-build:asan --copt -O1
-build:asan --copt -g
-build:asan --copt -fno-omit-frame-pointer
-build:asan --linkopt -fsanitize=address
+build:asan --compilation_mode=dbg
+build:asan --copt=-fsanitize=address
+build:asan --copt=-DADDRESS_SANITIZER
+build:asan --copt=-O1
+build:asan --copt=-g
+build:asan --copt=-fno-omit-frame-pointer
+build:asan --linkopt=-fsanitize=address
+build:asan --linkopt=-fuse-ld=lld
+build:asan --action_env=ASAN_OPTIONS=detect_leaks=1:color=always
 
-# Thread sanitizer
-# bazel build --config tsan
+# Thread sanitizer, set action_env to segregate cache entries
 build:tsan --strip=never
-build:tsan --copt -fsanitize=thread
-build:tsan --copt -DTHREAD_SANITIZER
-build:tsan --copt -DDYNAMIC_ANNOTATIONS_ENABLED=1
-build:tsan --copt -DDYNAMIC_ANNOTATIONS_EXTERNAL_IMPL=1
-build:tsan --copt -O1
-build:tsan --copt -fno-omit-frame-pointer
-build:tsan --linkopt -fsanitize=thread
+build:tsan --copt=-fsanitize=thread
+build:tsan --copt=-DTHREAD_SANITIZER
+build:tsan --copt=-DDYNAMIC_ANNOTATIONS_ENABLED=1
+build:tsan --copt=-DDYNAMIC_ANNOTATIONS_EXTERNAL_IMPL=1
+build:tsan --copt=-O1
+build:tsan --copt=-fno-omit-frame-pointer
+build:tsan --linkopt=-fsanitize=thread
 
-# --config msan: Memory sanitizer
+# Memory sanitizer, set action_env to segregate cache entries
 build:msan --strip=never
-build:msan --copt -fsanitize=memory
-build:msan --copt -DADDRESS_SANITIZER
-build:msan --copt -O1
-build:msan --copt -fno-omit-frame-pointer
-build:msan --linkopt -fsanitize=memory
+build:msan --copt=-fsanitize=memory
+build:msan --copt=-DADDRESS_SANITIZER
+build:msan --copt=-O1
+build:msan --copt=-fno-omit-frame-pointer
+build:msan --linkopt=-fsanitize=memory
 
-# --config ubsan: Undefined Behavior Sanitizer
+# Undefined Behavior sanitizer, set action_env to segregate cache entries
 build:ubsan --strip=never
-build:ubsan --copt -fsanitize=undefined
-build:ubsan --copt -O1
-build:ubsan --copt -fno-omit-frame-pointer
-build:ubsan --linkopt -fsanitize=undefined
-build:ubsan --linkopt -lubsan
+build:ubsan --copt=-fsanitize=undefined
+build:ubsan --copt=-O1
+build:ubsan --copt=-fno-omit-frame-pointer
+build:ubsan --linkopt:-fsanitize=undefined
+build:ubsan --linkopt=-lubsan
 
 # --config local_instance: builds the service to run with the instance=local flag
 build:local_instance --//:instance=local

@@ -44,5 +44,7 @@ message FileType {
     DELTA = 1;
 
     SNAPSHOT = 2;
+
+    LOGICAL_SHARDING_CONFIG = 3;
   }
 }

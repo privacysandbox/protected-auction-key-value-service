@@ -19,15 +19,32 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/memory/memory.h"
 #include "absl/synchronization/mutex.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/get_key_value_set_result.h"
 #include "glog/logging.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
+using privacy_sandbox::server_common::MetricsRecorder;
+using privacy_sandbox::server_common::ScopeLatencyRecorder;
+
+constexpr char kGetKeyValuePairsEvent[] = "GetKeyValuePairs";
+constexpr char kGetKeyValueSetEvent[] = "GetKeyValueSet";
+constexpr char kUpdateKeyValueEvent[] = "UpdateKeyValue";
+constexpr char kUpdateKeyValueSetEvent[] = "UpdateKeyValueSet";
+constexpr char kDeleteKeyEvent[] = "DeleteKey";
+constexpr char kDeleteValuesInSetEvent[] = "DeleteValuesInSet";
+constexpr char kRemoveDeletedKeysEvent[] = "RemoveDeletedKeys";
+constexpr char kCleanUpKeyValueMapEvent[] = "CleanUpKeyValueMap";
+constexpr char kCleanUpKeyValueSetMapEvent[] = "CleanUpKeyValueSetMap";
+
 absl::flat_hash_map<std::string, std::string> KeyValueCache::GetKeyValuePairs(
     const std::vector<std::string_view>& key_list) const {
+  ScopeLatencyRecorder latency_recorder(kGetKeyValuePairsEvent,
+                                        metrics_recorder_);
   absl::flat_hash_map<std::string, std::string> kv_pairs;
   absl::ReaderMutexLock lock(&mutex_);
   for (std::string_view key : key_list) {
@@ -45,6 +62,8 @@ absl::flat_hash_map<std::string, std::string> KeyValueCache::GetKeyValuePairs(
 
 std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
     const absl::flat_hash_set<std::string_view>& key_set) const {
+  ScopeLatencyRecorder latency_recorder(kGetKeyValueSetEvent,
+                                        metrics_recorder_);
   // lock the cache map
   absl::ReaderMutexLock lock(&set_map_mutex_);
   auto result = GetKeyValueSetResult::Create();
@@ -53,13 +72,15 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
     const auto key_itr = key_to_value_set_map_.find(key);
     if (key_itr != key_to_value_set_map_.end()) {
       absl::flat_hash_set<std::string_view> value_set;
+      auto set_lock =
+          std::make_unique<absl::ReaderMutexLock>(&key_itr->second->first);
       for (const auto& v : key_itr->second->second) {
         if (!v.second.is_deleted) {
           value_set.emplace(v.first);
         }
       }
       // Add key value set to the result
-      result->AddKeyValueSet(key_itr->second->first, key, value_set);
+      result->AddKeyValueSet(key, std::move(value_set), std::move(set_lock));
     }
   }
   return result;
@@ -68,6 +89,8 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
 // Replaces the current key-value entry with the new key-value entry.
 void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
                                    int64_t logical_commit_time) {
+  ScopeLatencyRecorder latency_recorder(kUpdateKeyValueEvent,
+                                        metrics_recorder_);
   VLOG(9) << "Received update for [" << key << "] at " << logical_commit_time
           << ". value will be set to: " << value;
   absl::MutexLock lock(&mutex_);
@@ -108,6 +131,8 @@ void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
 void KeyValueCache::UpdateKeyValueSet(
     std::string_view key, absl::Span<std::string_view> input_value_set,
     int64_t logical_commit_time) {
+  ScopeLatencyRecorder latency_recorder(kUpdateKeyValueSetEvent,
+                                        metrics_recorder_);
   VLOG(9) << "Received update for [" << key << "] at " << logical_commit_time;
   std::unique_ptr<absl::MutexLock> key_lock;
   absl::flat_hash_map<std::string, SetValueMeta>* existing_value_set;
@@ -166,8 +191,8 @@ void KeyValueCache::UpdateKeyValueSet(
 
 void KeyValueCache::DeleteKey(std::string_view key,
                               int64_t logical_commit_time) {
+  ScopeLatencyRecorder latency_recorder(kDeleteKeyEvent, metrics_recorder_);
   absl::MutexLock lock(&mutex_);
-
   if (logical_commit_time <= max_cleanup_logical_commit_time_) {
     return;
   }
@@ -182,19 +207,15 @@ void KeyValueCache::DeleteKey(std::string_view key,
         key,
         {.value = nullptr, .last_logical_commit_time = logical_commit_time});
 
-    auto result = deleted_nodes_.insert_or_assign(logical_commit_time, key);
-    if (!result.second) {
-      // assignment took place -- this should never happen as the
-      // logical_commit_time is globally unique
-      LOG(ERROR) << "Assignment happened for logical commit time "
-                 << logical_commit_time << " key " << key;
-    }
+    auto result = deleted_nodes_.emplace(logical_commit_time, key);
   }
 }
 
 void KeyValueCache::DeleteValuesInSet(std::string_view key,
                                       absl::Span<std::string_view> value_set,
                                       int64_t logical_commit_time) {
+  ScopeLatencyRecorder latency_recorder(kDeleteValuesInSetEvent,
+                                        metrics_recorder_);
   std::unique_ptr<absl::MutexLock> key_lock;
   absl::flat_hash_map<std::string, SetValueMeta>* existing_value_set;
   // The max cleanup time needs to be locked before doing this comparison
@@ -256,11 +277,15 @@ void KeyValueCache::DeleteValuesInSet(std::string_view key,
 }
 
 void KeyValueCache::RemoveDeletedKeys(int64_t logical_commit_time) {
+  ScopeLatencyRecorder latency_recorder(kRemoveDeletedKeysEvent,
+                                        metrics_recorder_);
   CleanUpKeyValueMap(logical_commit_time);
   CleanUpKeyValueSetMap(logical_commit_time);
 }
 
 void KeyValueCache::CleanUpKeyValueMap(int64_t logical_commit_time) {
+  ScopeLatencyRecorder latency_recorder(kCleanUpKeyValueMapEvent,
+                                        metrics_recorder_);
   absl::MutexLock lock(&mutex_);
   auto it = deleted_nodes_.begin();
 
@@ -284,6 +309,8 @@ void KeyValueCache::CleanUpKeyValueMap(int64_t logical_commit_time) {
 }
 
 void KeyValueCache::CleanUpKeyValueSetMap(int64_t logical_commit_time) {
+  ScopeLatencyRecorder latency_recorder(kCleanUpKeyValueSetMapEvent,
+                                        metrics_recorder_);
   absl::MutexLock lock_set_map(&set_map_mutex_);
   auto delete_itr = deleted_set_nodes_.begin();
   while (delete_itr != deleted_set_nodes_.end()) {
@@ -317,7 +344,8 @@ void KeyValueCache::CleanUpKeyValueSetMap(int64_t logical_commit_time) {
       max_cleanup_logical_commit_time_for_set_cache_, logical_commit_time);
 }
 
-std::unique_ptr<Cache> KeyValueCache::Create() {
-  return std::make_unique<KeyValueCache>();
+std::unique_ptr<Cache> KeyValueCache::Create(
+    MetricsRecorder& metrics_recorder) {
+  return absl::WrapUnique(new KeyValueCache(metrics_recorder));
 }
 }  // namespace kv_server

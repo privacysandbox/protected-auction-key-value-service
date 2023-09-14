@@ -1,0 +1,104 @@
+#!/bin/bash
+# Copyright 2022 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -o pipefail
+set -o errexit
+
+trap cleanup EXIT
+function cleanup() {
+  local -r -i status=$?
+  exit ${status}
+}
+
+declare BUILDER_IMAGE_NAME=build-amazonlinux2
+
+function usage() {
+  declare -r -i exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --docker-image-tar <file>    Docker image tarfile
+    --docker-image-uri <string>  Docker image uri (from tarfile)
+    --docker-image-tag <string>  Docker image tag (from tarfile)
+    --builder-image <string>     Amazon Linux builder image name. Default: ${BUILDER_IMAGE_NAME}
+    --outdir <path>              Output path for EIF files
+    --eif-name <string>          Base filename for EIF files
+
+environment variables (all optional):
+    WORKSPACE                    Set the path to the workspace (repo root)
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --docker-image-tar)
+      DOCKER_IMAGE_TAR="$2"
+      shift 2 || usage
+      ;;
+    --docker-image-uri)
+      DOCKER_IMAGE_URI="$2"
+      shift 2 || usage
+      ;;
+    --docker-image-tag)
+      DOCKER_IMAGE_TAG="$2"
+      shift 2 || usage
+      ;;
+    --outdir)
+      OUTPUT_DIR="$2"
+      shift 2 || usage
+      ;;
+    --eif-name)
+      EIF_NAME="$2"
+      shift 2 || usage
+      ;;
+    --builder-image)
+      BUILDER_IMAGE_NAME="$2"
+      shift 2 || usage
+      ;;
+    -h | --help) usage 0 ;;
+    *) usage ;;
+  esac
+done
+
+: "${DOCKER_IMAGE_TAR?"--docker-image-tar not specified"}"
+: "${DOCKER_IMAGE_URI?"--docker-image-uri not specified"}"
+: "${DOCKER_IMAGE_TAG?"--docker-image-tag not specified"}"
+: "${OUTPUT_DIR?"--outdir not specified"}"
+: "${EIF_NAME?"--eif-name not specified"}"
+
+# shellcheck disable=SC1090
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
+
+WS_OUTPUT_RELDIR="$(realpath "${OUTPUT_DIR}" --relative-to="${WORKSPACE}")"
+if [[ ${WS_OUTPUT_RELDIR} =~ ^\.\..*\/ ]]; then
+  printf "Output dir must be within the workspace directory tree\n" &>/dev/stderr
+  exit 1
+fi
+if ! [[ -d ${WORKSPACE}/${WS_OUTPUT_RELDIR} ]]; then
+  printf "Output dir [%s] is not found\n" "${WORKSPACE}/${WS_OUTPUT_RELDIR}" &>/dev/stderr
+  exit 1
+fi
+
+readonly WS_OUTPUT_DIR=/src/workspace/"${WS_OUTPUT_RELDIR}"
+printf "==== building AWS Nitro image using %s =====\n" "${BUILDER_IMAGE_NAME}"
+builder::docker_img_to_nitro \
+  "${DOCKER_IMAGE_TAR}" \
+  "${DOCKER_IMAGE_URI}" \
+  "${DOCKER_IMAGE_TAG}" \
+  "${WS_OUTPUT_DIR}" \
+  "${EIF_NAME}" \
+  "${BUILDER_IMAGE_NAME}"

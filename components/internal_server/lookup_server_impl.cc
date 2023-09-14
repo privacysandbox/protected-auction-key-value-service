@@ -28,37 +28,24 @@
 #include "components/internal_server/string_padder.h"
 #include "components/query/driver.h"
 #include "components/query/scanner.h"
+#include "glog/logging.h"
 #include "google/protobuf/message.h"
 #include "grpcpp/grpcpp.h"
 #include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
-namespace {
 using google::protobuf::RepeatedPtrField;
+using privacy_sandbox::server_common::ScopeLatencyRecorder;
+namespace {
+
 using grpc::StatusCode;
-
-void ProcessKeys(RepeatedPtrField<std::string> keys, const Cache& cache,
-                 InternalLookupResponse& response) {
-  if (keys.empty()) return;
-  std::vector<std::string_view> key_list;
-  for (const auto& key : keys) {
-    key_list.emplace_back(std::move(key));
-  }
-  auto kv_pairs = cache.GetKeyValuePairs(key_list);
-
-  for (const auto& key : key_list) {
-    SingleLookupResult result;
-    const auto key_iter = kv_pairs.find(key);
-    if (key_iter == kv_pairs.end()) {
-      auto status = result.mutable_status();
-      status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
-      status->set_message("Key not found");
-    } else {
-      result.set_value(std::move(key_iter->second));
-    }
-    (*response.mutable_kv_pairs())[key] = std::move(result);
-  }
-}
+constexpr char kKeySetNotFound[] = "KeysetNotFound";
+constexpr char kDecryptionError[] = "DecryptionError";
+constexpr char kUnpaddingError[] = "UnpaddingError";
+constexpr char kEncryptionError[] = "EncryptionError";
+constexpr char kDeserializationError[] = "DeserializationError";
+constexpr char kRunQueryError[] = "RunQueryError";
+constexpr char kSecureLookup[] = "SecureLookup";
 
 absl::Status ProcessQuery(std::string query, const Cache& cache,
                           InternalRunQueryResponse& response) {
@@ -84,12 +71,60 @@ absl::Status ProcessQuery(std::string query, const Cache& cache,
   return result.status();
 }
 
-grpc::Status ToInternalGrpcStatus(const absl::Status& status) {
+}  // namespace
+
+grpc::Status LookupServiceImpl::ToInternalGrpcStatus(
+    const absl::Status& status, const char* eventName) const {
+  metrics_recorder_.IncrementEventCounter(eventName);
   return grpc::Status(StatusCode::INTERNAL,
                       absl::StrCat(status.code(), " : ", status.message()));
 }
 
-}  // namespace
+void LookupServiceImpl::ProcessKeys(const RepeatedPtrField<std::string>& keys,
+                                    InternalLookupResponse& response) const {
+  if (keys.empty()) return;
+  std::vector<std::string_view> key_list;
+  for (const auto& key : keys) {
+    key_list.emplace_back(key);
+  }
+  auto kv_pairs = cache_.GetKeyValuePairs(key_list);
+
+  for (const auto& key : key_list) {
+    SingleLookupResult result;
+    const auto key_iter = kv_pairs.find(key);
+    if (key_iter == kv_pairs.end()) {
+      auto status = result.mutable_status();
+      status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+    } else {
+      result.set_value(std::move(key_iter->second));
+    }
+    (*response.mutable_kv_pairs())[key] = std::move(result);
+  }
+}
+
+void LookupServiceImpl::ProcessKeysetKeys(
+    const RepeatedPtrField<std::string>& keys,
+    InternalLookupResponse& response) const {
+  if (keys.empty()) return;
+  absl::flat_hash_set<std::string_view> key_list;
+  for (const auto& key : keys) {
+    key_list.insert(key);
+  }
+  auto key_value_set_result = cache_.GetKeyValueSet(key_list);
+  for (const auto& key : key_list) {
+    SingleLookupResult result;
+    const auto value_set = key_value_set_result->GetValueSet(key);
+    if (value_set.empty()) {
+      auto status = result.mutable_status();
+      status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+      metrics_recorder_.IncrementEventCounter(kKeySetNotFound);
+    } else {
+      auto keyset_values = result.mutable_keyset_values();
+      keyset_values->mutable_values()->Add(value_set.begin(), value_set.end());
+    }
+    (*response.mutable_kv_pairs())[key] = std::move(result);
+  }
+}
 
 grpc::Status LookupServiceImpl::InternalLookup(
     grpc::ServerContext* context, const InternalLookupRequest* request,
@@ -98,7 +133,7 @@ grpc::Status LookupServiceImpl::InternalLookup(
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
   }
-  ProcessKeys(request->keys(), cache_, *response);
+  ProcessKeys(request->keys(), *response);
   return grpc::Status::OK;
 }
 
@@ -106,35 +141,63 @@ grpc::Status LookupServiceImpl::SecureLookup(
     grpc::ServerContext* context,
     const SecureLookupRequest* secure_lookup_request,
     SecureLookupResponse* secure_response) {
+  ScopeLatencyRecorder latency_recorder(std::string(kSecureLookup),
+                                        metrics_recorder_);
   if (context->IsCancelled()) {
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
   }
-  OhttpServerEncryptor encryptor;
+  VLOG(9) << "SecureLookup incoming";
+
+  OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto padded_serialized_request_maybe =
       encryptor.DecryptRequest(secure_lookup_request->ohttp_request());
   if (!padded_serialized_request_maybe.ok()) {
-    return ToInternalGrpcStatus(padded_serialized_request_maybe.status());
+    return ToInternalGrpcStatus(padded_serialized_request_maybe.status(),
+                                kDecryptionError);
   }
+
+  VLOG(9) << "SecureLookup decrypted";
   auto serialized_request_maybe =
       kv_server::Unpad(*padded_serialized_request_maybe);
   if (!serialized_request_maybe.ok()) {
-    return ToInternalGrpcStatus(serialized_request_maybe.status());
+    metrics_recorder_.IncrementEventCounter(kDeserializationError);
+    return ToInternalGrpcStatus(serialized_request_maybe.status(),
+                                kUnpaddingError);
   }
+
+  VLOG(9) << "SecureLookup unpadded";
   InternalLookupRequest request;
   if (!request.ParseFromString(*serialized_request_maybe)) {
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         "Failed parsing incoming request");
   }
-  InternalLookupResponse response;
-  ProcessKeys(request.keys(), cache_, response);
+
+  auto payload_to_encrypt = GetPayload(request.lookup_sets(), request.keys());
+  if (payload_to_encrypt.empty()) {
+    // we cannot encrypt an empty payload. Note, that soon we will add logic
+    // to pad responses, so this branch will never be hit.
+    return grpc::Status::OK;
+  }
   auto encrypted_response_payload =
-      encryptor.EncryptResponse(response.SerializeAsString());
+      encryptor.EncryptResponse(payload_to_encrypt);
   if (!encrypted_response_payload.ok()) {
-    return ToInternalGrpcStatus(encrypted_response_payload.status());
+    return ToInternalGrpcStatus(encrypted_response_payload.status(),
+                                kEncryptionError);
   }
   secure_response->set_ohttp_response(*encrypted_response_payload);
   return grpc::Status::OK;
+}
+
+std::string LookupServiceImpl::GetPayload(
+    const bool lookup_sets, const RepeatedPtrField<std::string>& keys) const {
+  InternalLookupResponse response;
+  if (lookup_sets) {
+    ProcessKeysetKeys(keys, response);
+  } else {
+    ProcessKeys(keys, response);
+  }
+  return response.SerializeAsString();
 }
 
 grpc::Status LookupServiceImpl::InternalRunQuery(
@@ -146,7 +209,7 @@ grpc::Status LookupServiceImpl::InternalRunQuery(
   }
   const auto process_result = ProcessQuery(request->query(), cache_, *response);
   if (!process_result.ok()) {
-    return ToInternalGrpcStatus(process_result);
+    return ToInternalGrpcStatus(process_result, kRunQueryError);
   }
   return grpc::Status::OK;
 }

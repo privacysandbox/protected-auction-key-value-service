@@ -2,6 +2,144 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.42.1 (2023-08-14)
+
+
+### Bug Fixes
+
+* Revert override of /usr/bin/python links in build-amazonlinux2
+
+## 0.42.0 (2023-08-07)
+
+
+### Features
+
+* Add amazonlinux2 support to convert-docker-to-nitro
+* Add bsdmainutils for hexdump
+* Add build-amazonlinux2023 image
+* Add support for amazonlinux2023 in builder.sh
+* Configure python3.9 for python/python3 links
+* **deps:** Upgrade amazonlinux2 to 20230719
+* Remove jdk from build-amazonlinux2 image
+
+
+### Bug Fixes
+
+* Empty bazel-* arg list not an error condition
+
+## 0.41.1 (2023-08-04)
+
+
+### Bug Fixes
+
+* Remove debug statement
+
+## 0.41.0 (2023-08-03)
+
+
+### Features
+
+* Create links for lld and ld.lld in build-debian
+
+## 0.40.0 (2023-08-03)
+
+
+### Features
+
+* Add Dependencies section for release notes
+* **deps:** Upgrade rules_python to 0.24.0
+* Ensure bazel-* scripts handle non-bazel args too
+
+## 0.39.0 (2023-08-02)
+
+
+### Features
+
+* Run bazel containers in seccomp=unconfined mode
+
+## 0.38.1 (2023-08-02)
+
+
+### Bug Fixes
+
+* Ensure python3.9 is found first in PATH
+
+## 0.38.0 (2023-07-28)
+
+
+### Features
+
+* Add cbuild flag --seccomp-unconfined
+
+## 0.37.0 (2023-07-27)
+
+
+### Features
+
+* Add patch tool to build-debian image
+
+## 0.36.1 (2023-07-25)
+
+
+### Bug Fixes
+
+* Rename convert_docker_to_nitro to convert-docker-to-nitro
+
+## 0.36.0 (2023-07-24)
+
+
+### Features
+
+* Add convert_docker_to_nitro
+
+## 0.35.0 (2023-07-21)
+
+
+### Features
+
+* Add LICENSE file
+
+## 0.34.0 (2023-07-21)
+
+
+### Features
+
+* Add OSSF Scorecard badge to top-level README
+
+## 0.33.0 (2023-07-20)
+
+
+### Features
+
+* Install python libclang 15 in build-debian
+* Add OSSF Scorecard GitHub Action
+
+## 0.32.0 (2023-07-14)
+
+
+### Features
+
+* Set PYTHON_BIN_PATH/PYTHON_LIB_PATH in build-amazonlinux2
+
+## 0.31.0 (2023-07-12)
+
+
+### Features
+
+* Add cbuild --docker-network flag
+* Add coverage-tool image plus lcov scripts
+* Mount gcloud config dir into container
+
+
+### Bug Fixes
+
+* Add hash for coverage-tools
+* Add hash for coverage-tools
+* Improve error handling for flag values
+* Print build log path on error condition
+* Specify latest image tag explicitly
+* Upgrade pre-commit hooks
+
 ## 0.30.1 (2023-06-27)
 
 

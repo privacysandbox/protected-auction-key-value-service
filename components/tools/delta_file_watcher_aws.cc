@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
       DeltaFileNotifier::Create(*client);
 
   auto maybe_message_service = kv_server::MessageService::Create(
-      kv_server::CloudNotifierMetadata{"BlobNotifier_", sns_arn});
+      kv_server::AwsNotifierMetadata{"BlobNotifier_", sns_arn});
 
   if (!maybe_message_service.ok()) {
     std::cerr << "Unable to create MessageService: "
@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
   }
 
   auto status_or_change_notifier = BlobStorageChangeNotifier::Create(
-      kv_server::CloudNotifierMetadata{
+      kv_server::AwsNotifierMetadata{
           .sns_arn = sns_arn, .queue_manager = maybe_message_service->get()},
       *noop_metrics_recorder);
 

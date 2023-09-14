@@ -90,7 +90,7 @@ TEST(V2CompressionGroupProtoTest,
   auto json_to_proto_status =
       JsonStringToMessage(v2_response_data_json, &v2_response_data_proto);
   EXPECT_TRUE(json_to_proto_status.ok());
-  EXPECT_EQ(json_to_proto_status.message().as_string(), "");
+  EXPECT_EQ(json_to_proto_status.message(), "");
   V2CompressionGroup expected;
   TextFormat::ParseFromString(
       R"pb(partitions {

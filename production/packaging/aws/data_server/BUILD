@@ -37,7 +37,7 @@ pkg_files(
         "@control_plane_shared//cc/aws/proxy/src:socket_vendor",
     ],
     attributes = pkg_attributes(mode = "0555"),
-    prefix = "/server/bin",
+    prefix = "/",
 )
 
 pkg_files(
@@ -46,10 +46,20 @@ pkg_files(
         "@control_plane_shared//cc/aws/proxy/src:proxy_preload",
     ],
     attributes = pkg_attributes(mode = "0444"),
-    prefix = "/server/bin",
+    prefix = "/",
+)
+
+pkg_files(
+    name = "kmstool_enclave_executable",
+    srcs = [
+        "@kmstool_enclave_cli//file",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/",
 )
 
 server_binaries = [
+    ":kmstool_enclave_executable",
     ":server_executables",
     ":server_libs",
 ]
@@ -64,10 +74,22 @@ pkg_tar(
     srcs = server_binaries,
 )
 
+# Ensure libnsm ends up in the load path.
+pkg_tar(
+    name = "libnsm-tar",
+    srcs = [
+        "@libnsm//file",
+    ],
+    mode = "0644",
+    package_dir = "/lib/x86_64-linux-gnu/",
+    visibility = ["//visibility:public"],
+)
+
 container_layer(
     name = "server_binary_layer",
     directory = "/",
     tars = [
+        ":libnsm-tar",
         ":server_binaries_tar",
     ],
 )
@@ -75,9 +97,21 @@ container_layer(
 container_layer(
     name = "server_socket_directory",
     empty_dirs = [
-        "/server/socket",
+        "/socket",
     ],
     mode = "0o777",
+)
+
+# Create a symlink between where kmstool_enclave_cli expects shell to be
+# (/bin/sh) and where it actually is on our image (/busybox/sh).
+container_layer(
+    name = "kmstool_enclave_cli_layer",
+    symlinks = {
+        "/bin/sh": "/busybox/sh",
+    },
+    tars = [
+        ":libnsm-tar",
+    ],
 )
 
 # This image target is meant for testing running the server in an enclave using.
@@ -94,13 +128,14 @@ container_image(
         "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
     }),
     cmd = [
-        "/server/bin/init_server_enclave",
+        "/init_server_enclave",
     ],
     entrypoint = ["/bin/bash"],
     layers = [
         ":server_socket_directory",
         "//production/packaging/aws/resolv:resolv_config_layer",
         ":server_binary_layer",
+        ":kmstool_enclave_cli_layer",
     ],
 )
 

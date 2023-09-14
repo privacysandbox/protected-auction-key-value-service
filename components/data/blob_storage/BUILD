@@ -52,6 +52,7 @@ cc_library(
     name = "blob_storage_client",
     srcs = select({
         "//:aws_platform": ["blob_storage_client_s3.cc"],
+        "//:gcp_platform": ["blob_storage_client_gcp.cc"],
         "//:local_platform": ["blob_storage_client_local.cc"],
     }),
     hdrs = [
@@ -78,6 +79,7 @@ cc_test(
     size = "small",
     srcs = select({
         "//:aws_platform": ["blob_storage_client_s3_test.cc"],
+        "//:gcp_platform": ["blob_storage_client_gcp_test.cc"],
         "//:local_platform": ["blob_storage_client_local_test.cc"],
     }),
     deps = select({
@@ -106,6 +108,7 @@ cc_library(
         "//:aws_platform": [
             "blob_storage_change_notifier_s3.cc",
         ],
+        "//:gcp_platform": ["blob_storage_change_notifier_gcp.cc"],
         "//:local_platform": ["blob_storage_change_notifier_local.cc"],
     }),
     hdrs = [
@@ -126,6 +129,7 @@ cc_test(
         "//:aws_platform": [
             "blob_storage_change_notifier_s3_test.cc",
         ],
+        "//:gcp_platform": ["blob_storage_change_notifier_gcp_test.cc"],
         "//:local_platform": ["blob_storage_change_notifier_local_test.cc"],
     }),
     deps = select({
@@ -133,6 +137,8 @@ cc_test(
             "//components/errors:aws_error_util",
             "//components/util:platform_initializer",
             "@aws_sdk_cpp//:sqs",
+        ],
+        "//:gcp_platform": [
         ],
         "//:local_platform": [
         ],

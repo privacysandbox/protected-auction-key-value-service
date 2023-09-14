@@ -18,6 +18,7 @@ namespace kv_server {
 
 bool operator==(const CodeConfig& lhs_config, const CodeConfig& rhs_config) {
   return lhs_config.logical_commit_time == rhs_config.logical_commit_time &&
+         lhs_config.version == rhs_config.version &&
          lhs_config.udf_handler_name == rhs_config.udf_handler_name &&
          lhs_config.js == rhs_config.js && lhs_config.wasm == rhs_config.wasm;
 }

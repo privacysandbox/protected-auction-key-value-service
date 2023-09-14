@@ -18,15 +18,19 @@
 
 namespace kv_server {
 
-absl::Duration RateLimiter::Acquire() { return Acquire(1); }
+absl::StatusOr<absl::Duration> RateLimiter::Acquire() { return Acquire(1); }
 
-absl::Duration RateLimiter::Acquire(int permits) {
+absl::StatusOr<absl::Duration> RateLimiter::Acquire(int permits) {
   absl::MutexLock lock(&mu_);
   const auto start_time = clock_.Now();
+  auto deadline = start_time + timeout_;
   while (permits_.load(std::memory_order_relaxed) - permits < 0) {
-    sleep_for_.Duration(
-        absl::Milliseconds(1000 * permits / permits_fill_rate_));
+    sleep_for_->Duration(
+        absl::Microseconds(1000000 * permits / permits_fill_rate_));
     RefillPermits();
+    if (clock_.Now() >= deadline) {
+      return absl::DeadlineExceededError("Acquire deadline exceeds");
+    }
   }
   permits_.fetch_sub(permits, std::memory_order_relaxed) - permits;
   return clock_.Now() - start_time;

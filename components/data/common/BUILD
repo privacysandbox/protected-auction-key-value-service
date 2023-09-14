@@ -25,6 +25,12 @@ cc_library(
         "//:aws_platform": [
             "msg_svc_aws.cc",
         ],
+        "//:gcp_platform": [
+            # cannot use this implementation, until all gcp upstream
+            # dependencies are also implemented
+            # "msg_svc_gcp.cc",
+            "msg_svc_local.cc",
+        ],
         "//:local_platform": [
             "msg_svc_local.cc",
         ],
@@ -38,8 +44,13 @@ cc_library(
             "@aws_sdk_cpp//:sns",
             "@aws_sdk_cpp//:sqs",
         ],
+        "//:gcp_platform": [
+            "//components/errors:gcp_error_util",
+            "@com_github_googleapis_google_cloud_cpp//:pubsub",
+        ],
         "//conditions:default": [],
     }) + [
+        ":msg_svc_util",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",
@@ -53,6 +64,9 @@ cc_library(
         "//:aws_platform": [
             "change_notifier_aws.cc",
         ],
+        "//:gcp_platform": [
+            "change_notifier_gcp.cc",
+        ],
         "//:local_platform": [
             "change_notifier_local.cc",
         ],
@@ -65,6 +79,9 @@ cc_library(
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:sns",
             "@aws_sdk_cpp//:sqs",
+        ],
+        "//:gcp_platform": [
+            "@com_google_absl//absl/container:flat_hash_set",
         ],
         "//:local_platform": [
             "@com_google_absl//absl/container:flat_hash_set",
@@ -87,6 +104,9 @@ cc_test(
         "//:aws_platform": [
             "change_notifier_aws_test.cc",
         ],
+        "//:gcp_platform": [
+            "change_notifier_gcp_test.cc",
+        ],
         "//:local_platform": [
             "change_notifier_local_test.cc",
         ],
@@ -97,6 +117,8 @@ cc_test(
             "//components/util:platform_initializer",
             "@aws_sdk_cpp//:sns",
             "@aws_sdk_cpp//:sqs",
+        ],
+        "//:gcp_platform": [
         ],
         "//:local_platform": [
         ],
@@ -140,6 +162,32 @@ cc_library(
         "//components/data/blob_storage:delta_file_notifier",
         "//components/data/realtime:delta_file_record_change_notifier",
         "//components/data/realtime:realtime_notifier",
+        "//components/data/realtime:realtime_thread_pool_manager",
         "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "msg_svc_util",
+    srcs = [
+        "msg_svc_util.cc",
+    ],
+    hdrs = [
+        "msg_svc_util.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/random",
+    ],
+)
+
+cc_test(
+    name = "msg_svc_util_test",
+    size = "small",
+    srcs = [
+        "msg_svc_util.cc",
+    ],
+    deps = [
+        ":msg_svc_util",
+        "@com_google_googletest//:gtest_main",
     ],
 )

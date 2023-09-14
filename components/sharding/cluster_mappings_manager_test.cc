@@ -24,6 +24,7 @@
 #include "components/sharding/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
 #include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
@@ -160,13 +161,16 @@ TEST(ClusterMappingsTest, UpdateMappings) {
   std::string environment = "testenv";
   int32_t num_shards = 2;
   privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager;
   auto instance_client = std::make_unique<MockInstanceClient>();
   std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
   for (int i = 0; i < num_shards; i++) {
     cluster_mappings.push_back({"some_ip"});
   }
   auto shard_manager_status =
-      ShardManager::Create(num_shards, cluster_mappings);
+      ShardManager::Create(num_shards, fake_key_fetcher_manager,
+                           cluster_mappings, mock_metrics_recorder);
   ASSERT_TRUE(shard_manager_status.ok());
   auto shard_manager = std::move(*shard_manager_status);
   absl::Notification finished;

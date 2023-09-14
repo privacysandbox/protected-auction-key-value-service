@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM amazonlinux:2.0.20230530.0
+FROM amazonlinux:2.0.20230719.0
 
 COPY /install_apps install_golang_apps install_go.sh generate_system_bazelrc .bazelversion /scripts/
 COPY get_workspace_mount /usr/local/bin
@@ -30,4 +30,6 @@ RUN  \
   /scripts/install_golang_apps && \
   rm -rf /scripts
 
-ENV PATH="${PATH}:/usr/local/go/bin:/opt/bin"
+ENV PATH="${PATH}:/usr/local/go/bin:/opt/bin" \
+    PYTHON_BIN_PATH="/opt/bin/python3" \
+    PYTHON_LIB_PATH="/usr/lib/python3.8"

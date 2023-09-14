@@ -57,7 +57,8 @@ ABSL_FLAG(std::string, csv_value_delimiter, "|",
           "Value delimiter for csv files");
 ABSL_FLAG(std::string, record_type, "key_value_mutation_record",
           "Data record type. Possible "
-          "options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG).");
+          "options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG|"
+          "SHARD_MAPPING_RECORD).");
 
 constexpr std::string_view kUsageMessage = R"(
 Usage: data_cli <command> <flags>
@@ -69,8 +70,9 @@ Commands:
     [--output_file]    (Optional) Defaults to stdout. Output file to write converted records to.
     [--output_format]  (Optional) Defaults to "DELTA". Possible options=(CSV|DELTA).
     [--record_type]    (Optional) Defaults to "KEY_VALUE_MUTATION_RECORD". Possible
-                                  options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG).
+                                  options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG|SHARD_MAPPING_RECORD).
                                   If reading/writing a UDF config, use "USER_DEFINED_FUNCTIONS_CONFIG".
+                                  If reading/writing a shard mapping config, use "SHARD_MAPPING_RECORD".
   Examples:
     (1) Generate a csv file to a delta file and write output records to std::cout.
     - data_cli format_data --input_file="$PWD/data.csv"
@@ -118,6 +120,16 @@ bool IsSupportedCommand(std::string_view command) {
   return exists != kSupportedCommands.end();
 }
 
+// Sample run using bazel:
+//
+// GLOG_logtostderr=1 GLOG_v=3 bazel run \
+//   //tools/data_cli:data_cli \
+//   --//:instance=local --//:platform=local -- \
+//   format_data \
+//    --input_file=/data/DELTA_1689344645643610 \
+//    --input_format=DELTA \
+//    --output_format=CSV \
+//    --output_file=/data/DELTA_1689344645643610.csv
 int main(int argc, char** argv) {
   kv_server::PlatformInitializer initializer;
 

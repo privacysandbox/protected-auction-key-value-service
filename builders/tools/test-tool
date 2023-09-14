@@ -17,11 +17,11 @@
 
 set -o errexit
 
-APP=$(basename "${BASH_SOURCE[0]}")
+APP="$(basename "${BASH_SOURCE[0]}")"
 readonly APP
 APP_LINK_TARGET=$(readlink "${BASH_SOURCE[0]}") || true
 readonly APP_LINK_TARGET
-if [[ -z ${APP_LINK_TARGET} ]] || [[ ${APP_LINK_TARGET} == test-tool && ${APP} =~ ^(release|utils)-tool$ ]]; then
+if [[ -z ${APP_LINK_TARGET} ]] || [[ ${APP_LINK_TARGET} == test-tool && ${APP} =~ ^(release|utils|coverage)-tool$ ]]; then
   printf "%s designed for use via symlink with target program name\n" "${APP}" >/dev/stderr
   exit 1
 fi
@@ -33,6 +33,8 @@ case "${APP_LINK_TARGET}" in
     IMAGE="release"
     APP_AS_ENTRYPOINT=1
     ;;
+  coverage-tool)
+    IMAGE="coverage-tools" ;;
   test-tool)
     IMAGE="test-tools" ;;
   utils-tool)
@@ -56,11 +58,11 @@ WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
 readonly WORKSPACE_MOUNT
 
 declare -a DOCKER_RUN_ARGS=(
-  --rm
-  --interactive
-  --user "$(id -u):$(id -g)"
-  --volume "${WORKSPACE_MOUNT}":/src/workspace
-  --workdir /src/workspace/"${REL_PWD}"
+  "--rm"
+  "--interactive"
+  "--user=$(id -u):$(id -g)"
+  "--volume=${WORKSPACE_MOUNT}:/src/workspace"
+  "--workdir=/src/workspace/${REL_PWD}"
 )
 if [[ -n ${EXTRA_DOCKER_RUN_ARGS} ]]; then
   # shellcheck disable=SC2207
@@ -70,15 +72,13 @@ if [[ -n ${EXTRA_DOCKER_RUN_ARGS} ]]; then
 fi
 if [[ -t 0 ]] && [[ -t 1 ]]; then
   # stdin and stdout are open, assume it's an interactive tty session
-  DOCKER_RUN_ARGS+=(
-    --tty
-  )
+  DOCKER_RUN_ARGS+=("--tty")
 fi
 if [[ ${APP_AS_ENTRYPOINT} -eq 1 ]]; then
   # shellcheck disable=SC2068
   docker run \
     "${DOCKER_RUN_ARGS[@]}" \
-    --entrypoint "${APP}" \
+    --entrypoint="${APP}" \
     "${IMAGE_TAGGED}" \
     "$@"
 else

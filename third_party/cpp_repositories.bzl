@@ -79,3 +79,14 @@ def cpp_repositories():
             "https://github.com/google/benchmark/archive/refs/tags/v1.7.1.zip",
         ],
     )
+
+EMSCRIPTEN_VER = "3.1.44"
+
+def emscripten_repositories():
+    http_archive(
+        name = "emsdk",
+        sha256 = "48c0dd06539011a62ec1069a6c69e283731dabdb20454c45fb344dede421b5ad",
+        strip_prefix = "emsdk-{ver}/bazel".format(ver = EMSCRIPTEN_VER),
+        url = "https://github.com/emscripten-core/emsdk/archive/refs/tags/{ver}.zip".format(ver = EMSCRIPTEN_VER),
+    )
+    return EMSCRIPTEN_VER

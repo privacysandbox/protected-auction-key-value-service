@@ -52,6 +52,7 @@ cc_binary(
         "//components/data/blob_storage:blob_storage_client",
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
+        "//components/data_server/cache:noop_key_value_cache",
         "//components/util:platform_initializer",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:records_utils",
@@ -64,6 +65,8 @@ cc_binary(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
         "@com_google_benchmark//:benchmark",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
     ],
 )
 
@@ -74,6 +77,7 @@ cc_binary(
         ":benchmark_util",
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
+        "//components/data_server/cache:noop_key_value_cache",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/flags:flag",
@@ -82,5 +86,7 @@ cc_binary(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
         "@com_google_benchmark//:benchmark",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
     ],
 )

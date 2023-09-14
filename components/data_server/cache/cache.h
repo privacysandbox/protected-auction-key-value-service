@@ -67,8 +67,6 @@ class Cache {
   // Removes the values that were deleted before the specified
   // logical_commit_time.
   virtual void RemoveDeletedKeys(int64_t logical_commit_time) = 0;
-
-  static std::unique_ptr<Cache> Create();
 };
 
 }  // namespace kv_server

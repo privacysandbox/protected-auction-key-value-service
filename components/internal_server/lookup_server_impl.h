@@ -17,16 +17,28 @@
 #ifndef COMPONENTS_INTERNAL_SERVER_LOOKUP_SERVER_IMPL_H_
 #define COMPONENTS_INTERNAL_SERVER_LOOKUP_SERVER_IMPL_H_
 
+#include <string>
+
 #include "components/data_server/cache/cache.h"
 #include "components/internal_server/lookup.grpc.pb.h"
 #include "grpcpp/grpcpp.h"
+#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 // Implements the internal lookup service for the data store.
 class LookupServiceImpl final
     : public kv_server::InternalLookupService::Service {
  public:
-  LookupServiceImpl(const Cache& cache) : cache_(cache) {}
+  LookupServiceImpl(
+      const Cache& cache,
+      privacy_sandbox::server_common::KeyFetcherManagerInterface&
+          key_fetcher_manager,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
+      : cache_(cache),
+        key_fetcher_manager_(key_fetcher_manager),
+        metrics_recorder_(metrics_recorder) {}
 
   ~LookupServiceImpl() override = default;
 
@@ -45,7 +57,20 @@ class LookupServiceImpl final
       kv_server::InternalRunQueryResponse* response) override;
 
  private:
+  std::string GetPayload(
+      const bool lookup_sets,
+      const google::protobuf::RepeatedPtrField<std::string>& keys) const;
+  void ProcessKeys(const google::protobuf::RepeatedPtrField<std::string>& keys,
+                   InternalLookupResponse& response) const;
+  void ProcessKeysetKeys(
+      const google::protobuf::RepeatedPtrField<std::string>& keys,
+      InternalLookupResponse& response) const;
+  grpc::Status ToInternalGrpcStatus(const absl::Status& status,
+                                    const char* eventName) const;
   const Cache& cache_;
+  privacy_sandbox::server_common::KeyFetcherManagerInterface&
+      key_fetcher_manager_;
+  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

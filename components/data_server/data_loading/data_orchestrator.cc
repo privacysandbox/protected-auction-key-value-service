@@ -99,11 +99,10 @@ bool ShouldProcessRecord(const KeyValueMutationRecord& record,
     return true;
   }
   metrics_recorder.IncrementEventCounter(kTotalRowsDroppedIncorrectShardNumber);
-  auto error_message = absl::StrFormat(
+  LOG_EVERY_N(ERROR, 100000) << absl::StrFormat(
       "Data does not belong to this shard replica. Key: %s, Actual "
       "shard id: %d, Server's shard id: %d.",
       record.key()->string_view(), shard_num, server_shard_num);
-  LOG(ERROR) << error_message;
   return false;
 }
 
@@ -159,10 +158,13 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
                    Record::UserDefinedFunctionsConfig) {
           const auto* udf_config =
               data_record.record_as_UserDefinedFunctionsConfig();
+          VLOG(3) << "Setting UDF code snippet for version: "
+                  << udf_config->version();
           return udf_client.SetCodeObject(CodeConfig{
               .js = udf_config->code_snippet()->str(),
               .udf_handler_name = udf_config->handler_name()->str(),
-              .logical_commit_time = udf_config->logical_commit_time()});
+              .logical_commit_time = udf_config->logical_commit_time(),
+              .version = udf_config->version()});
         }
         LOG(ERROR) << "Received unsupported record ";
         return absl::InvalidArgumentError("Record type not supported.");
@@ -193,6 +195,21 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
             return std::make_unique<BlobRecordStream>(
                 options.blob_client.GetBlobReader(location));
           });
+  auto metadata = record_reader->GetKVFileMetadata();
+  if (!metadata.ok()) {
+    return metadata.status();
+  }
+  if (metadata->has_sharding_metadata() &&
+      metadata->sharding_metadata().shard_num() != options.shard_num) {
+    LOG(INFO) << "Blob " << location << " belongs to shard num "
+              << metadata->sharding_metadata().shard_num()
+              << " but server shard num is " << options.shard_num
+              << " Skipping it.";
+    return DataLoadingStats{
+        .total_updated_records = 0,
+        .total_deleted_records = 0,
+    };
+  }
   auto status = LoadCacheWithData(*record_reader, cache, max_timestamp,
                                   options.shard_num, options.num_shards,
                                   metrics_recorder, options.udf_client);
@@ -293,39 +310,14 @@ class DataOrchestratorImpl : public DataOrchestrator {
     }
     data_loader_thread_ = std::make_unique<std::thread>(
         absl::bind_front(&DataOrchestratorImpl::ProcessNewFiles, this));
-    auto& cache = options_.cache;
-    auto& delta_stream_reader_factory = options_.delta_stream_reader_factory;
 
-    for (int i = 0; i < options_.realtime_options.size(); i++) {
-      if (options_.realtime_options[i].delta_file_record_change_notifier ==
-          nullptr) {
-        LOG(ERROR) << "Realtime delta_file_record_change_notifier is nullptr, "
-                      "realtime data loading disabled.";
-        return absl::OkStatus();
-      }
-      if (options_.realtime_options[i].realtime_notifier == nullptr) {
-        LOG(ERROR) << "Realtime realtime_notifier is nullptr, realtime data "
-                      "loading disabled.";
-        return absl::OkStatus();
-      }
-
-      auto realtime_notifier =
-          options_.realtime_options[i].realtime_notifier.get();
-      auto delta_file_record_change_notifier =
-          options_.realtime_options[i].delta_file_record_change_notifier.get();
-      auto status = realtime_notifier->Start(
-          *delta_file_record_change_notifier,
-          [this, &cache,
-           &delta_stream_reader_factory](const std::string& message_body) {
-            return LoadCacheWithHighPriorityUpdates(delta_stream_reader_factory,
-                                                    message_body, cache);
-          });
-      if (!status.ok()) {
-        return status;
-      }
-    }
-
-    return absl::OkStatus();
+    return options_.realtime_thread_pool_manager.Start(
+        [this, &cache = options_.cache,
+         &delta_stream_reader_factory = options_.delta_stream_reader_factory](
+            const std::string& message_body) {
+          return LoadCacheWithHighPriorityUpdates(delta_stream_reader_factory,
+                                                  message_body, cache);
+        });
   }
 
  private:
@@ -359,8 +351,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
       }
       RetryUntilOk(
           [this, &basename] {
-            // TODO: distinguish status. Some can be retried while others are
-            // fatal.
+            // TODO: distinguish status. Some can be retried while others
+            // are fatal.
             return TraceLoadCacheWithDataFromFile(
                 metrics_recorder_,
                 {.bucket = options_.data_bucket, .key = basename}, options_);
@@ -391,7 +383,6 @@ class DataOrchestratorImpl : public DataOrchestrator {
     LOG(INFO) << "Initializing cache with snapshot file(s) from: "
               << options.data_bucket;
     std::string ending_delta_file;
-
     for (int64_t s = snapshots->size() - 1; s >= 0; s--) {
       std::string_view snapshot = snapshots->at(s);
       if (!IsSnapshotFilename(snapshot)) {
@@ -412,8 +403,15 @@ class DataOrchestratorImpl : public DataOrchestrator {
       if (!metadata.ok()) {
         return metadata.status();
       }
-      LOG(INFO) << "Loading snapshot file: " << location.bucket << "/"
-                << location.key;
+      if (metadata->has_sharding_metadata() &&
+          metadata->sharding_metadata().shard_num() != options.shard_num) {
+        LOG(INFO) << "Snapshot " << location << " belongs to shard num "
+                  << metadata->sharding_metadata().shard_num()
+                  << " but server shard num is " << options.shard_num
+                  << ". Skipping it.";
+        continue;
+      }
+      LOG(INFO) << "Loading snapshot file: " << location;
       if (auto status = TraceLoadCacheWithDataFromFile(metrics_recorder,
                                                        location, options);
           !status.ok()) {
@@ -422,8 +420,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
       if (metadata->snapshot().ending_delta_file() > ending_delta_file) {
         ending_delta_file = std::move(metadata->snapshot().ending_delta_file());
       }
-      LOG(INFO) << "Done loading snapshot file: " << location.bucket << "/"
-                << location.key;
+      LOG(INFO) << "Done loading snapshot file: " << location;
       break;
     }
     return ending_delta_file;

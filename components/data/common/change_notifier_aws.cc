@@ -73,7 +73,7 @@ const std::vector<double> kAwsSqsReceiveMessageLatencyBucketBoundaries = {
 
 class AwsChangeNotifier : public ChangeNotifier {
  public:
-  explicit AwsChangeNotifier(CloudNotifierMetadata notifier_metadata,
+  explicit AwsChangeNotifier(AwsNotifierMetadata notifier_metadata,
                              MetricsRecorder& metrics_recorder)
       : sns_arn_(std::move(notifier_metadata.sns_arn)),
         queue_manager_(notifier_metadata.queue_manager),
@@ -124,10 +124,16 @@ class AwsChangeNotifier : public ChangeNotifier {
   }
 
  private:
+  std::string GetSqsUrl() {
+    auto queue_metadata = queue_manager_->GetQueueMetadata();
+    auto aws_queue_metadata = std::get<AwsQueueMetadata>(queue_metadata);
+    return aws_queue_metadata.sqs_url;
+  }
+
   absl::Status TagQueue(const std::string& last_updated,
                         const std::string& value) {
     Aws::SQS::Model::TagQueueRequest request;
-    request.SetQueueUrl(queue_manager_->GetSqsUrl());
+    request.SetQueueUrl(GetSqsUrl());
     request.AddTags(last_updated, value);
     Aws::SQS::SQSClient sqs;
 
@@ -157,7 +163,7 @@ class AwsChangeNotifier : public ChangeNotifier {
     auto receive_message_request_started = absl::Now();
     // Configure request.
     Aws::SQS::Model::ReceiveMessageRequest request;
-    request.SetQueueUrl(queue_manager_->GetSqsUrl());
+    request.SetQueueUrl((GetSqsUrl()));
     // Round up to the nearest second.
     request.SetWaitTimeSeconds(
         absl::ToInt64Seconds(absl::Ceil(max_wait, absl::Seconds(1))));
@@ -191,7 +197,7 @@ class AwsChangeNotifier : public ChangeNotifier {
     for (const auto& message : messages) {
       keys.push_back(message.GetBody());
     }
-    DeleteMessages(queue_manager_->GetSqsUrl(), messages);
+    DeleteMessages(GetSqsUrl(), messages);
     if (keys.empty()) {
       metrics_recorder_.IncrementEventCounter(
           kAwsChangeNotifierMessagesDataLossFailure);
@@ -236,7 +242,7 @@ class AwsChangeNotifier : public ChangeNotifier {
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
     NotifierMetadata notifier_metadata, MetricsRecorder& metrics_recorder) {
   return std::make_unique<AwsChangeNotifier>(
-      std::move(std::get<CloudNotifierMetadata>(notifier_metadata)),
+      std::move(std::get<AwsNotifierMetadata>(notifier_metadata)),
       metrics_recorder);
 }
 

@@ -23,44 +23,12 @@
 #include "absl/strings/string_view.h"
 #include "components/cloud_config/parameter_client.h"
 
-// Flag validation code for --mode.
-enum class Mode { DSP, SSP };
-
-// Parses Mode from the command line flag value `text`. Returns
-// `true` and sets `*mode` on success; returns `false` and sets `*error`
-// on failure.
-bool AbslParseFlag(absl::string_view text, Mode* mode, std::string* error) {
-  if (text == "DSP") {
-    *mode = Mode::DSP;
-    return true;
-  }
-  if (text == "SSP") {
-    *mode = Mode::SSP;
-    return true;
-  }
-  *error = "Unknown value for --mode enumeration";
-  return false;
-}
-
-// Returns a textual flag value corresponding to the Mode `mode`.
-std::string AbslUnparseFlag(Mode mode) {
-  switch (mode) {
-    case Mode::DSP:
-      return "DSP";
-    case Mode::SSP:
-      return "SSP";
-    default:
-      return absl::StrCat(mode);
-  }
-}
-
 ABSL_FLAG(std::string, delta_directory, "",
           "Local directory to watch for files.");
 ABSL_FLAG(absl::Duration, export_interval, absl::Seconds(30),
           "Frequency to export local metrics.");
 ABSL_FLAG(absl::Duration, export_timeout, absl::Seconds(5),
           "Timeout for exporting local metrics.");
-ABSL_FLAG(Mode, mode, Mode::DSP, "Server mode, DSP or SSP.");
 ABSL_FLAG(std::string, launch_hook, "", "Launch hook.");
 ABSL_FLAG(absl::Duration, local_poll_frequency, absl::Seconds(5),
           "Frequency to poll for local file changes.");
@@ -69,7 +37,7 @@ ABSL_FLAG(std::string, realtime_directory, "",
 ABSL_FLAG(int32_t, local_realtime_updater_num_threads, 1,
           "Amount of realtime updates threads locally.");
 ABSL_FLAG(int32_t, data_loading_num_threads,
-          std::thread::hardware_concurrency(),
+          std::min(std::thread::hardware_concurrency(), 8u),
           "Number of parallel threads for reading and loading data files.");
 ABSL_FLAG(int32_t, s3client_max_connections, 1,
           "S3Client max connections for reading data files.");
@@ -98,8 +66,6 @@ class LocalParameterClient : public ParameterClient {
                                 absl::GetFlag(FLAGS_delta_directory)});
     string_flag_values_.insert(
         {"kv-server-local-launch-hook", absl::GetFlag(FLAGS_launch_hook)});
-    string_flag_values_.insert(
-        {"kv-server-local-mode", AbslUnparseFlag(absl::GetFlag(FLAGS_mode))});
     string_flag_values_.insert({"kv-server-local-realtime-directory",
                                 absl::GetFlag(FLAGS_realtime_directory)});
     // Insert more string flag values here.
@@ -130,9 +96,11 @@ class LocalParameterClient : public ParameterClient {
     int32_t_flag_values_.insert({"kv-server-local-udf-num-workers",
                                  absl::GetFlag(FLAGS_udf_num_workers)});
     // Insert more int32 flag values here.
-
     bool_flag_values_.insert({"kv-server-local-route-v1-to-v2",
                               absl::GetFlag(FLAGS_route_v1_to_v2)});
+    bool_flag_values_.insert({"kv-server-local-use-real-coordinators", false});
+    bool_flag_values_.insert(
+        {"kv-server-local-use-external-metrics-collector-endpoint", false});
     // Insert more bool flag values here.
   }
 

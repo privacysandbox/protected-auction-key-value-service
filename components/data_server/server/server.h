@@ -27,6 +27,7 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/data/realtime/realtime_thread_pool_manager.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
@@ -35,8 +36,8 @@
 #include "components/data_server/server/parameter_fetcher.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/sharding/shard_manager.h"
-#include "components/udf/get_values_hook.h"
-#include "components/udf/run_query_hook.h"
+#include "components/udf/hooks/get_values_hook.h"
+#include "components/udf/hooks/run_query_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/util/platform_initializer.h"
 #include "grpcpp/grpcpp.h"
@@ -75,6 +76,7 @@ class Server {
       std::unique_ptr<UdfClient> udf_client);
 
   absl::Status InitOnceInstancesAreCreated();
+  void InitializeKeyValueCache();
 
   std::unique_ptr<BlobStorageClient> CreateBlobClient(
       const ParameterFetcher& parameter_fetcher);
@@ -113,7 +115,8 @@ class Server {
   std::unique_ptr<grpc::Server> grpc_server_;
   std::unique_ptr<Cache> cache_;
   std::unique_ptr<GetValuesAdapter> get_values_adapter_;
-  std::unique_ptr<GetValuesHook> get_values_hook_;
+  std::unique_ptr<GetValuesHook> string_get_values_hook_;
+  std::unique_ptr<GetValuesHook> binary_get_values_hook_;
   std::unique_ptr<RunQueryHook> run_query_hook_;
 
   // BlobStorageClient must outlive DeltaFileNotifier
@@ -125,7 +128,7 @@ class Server {
   // The following fields must outlive DataOrchestrator
   std::unique_ptr<DeltaFileNotifier> notifier_;
   std::unique_ptr<BlobStorageChangeNotifier> change_notifier_;
-  std::vector<DataOrchestrator::RealtimeOptions> realtime_options_;
+  std::unique_ptr<RealtimeThreadPoolManager> realtime_thread_pool_manager_;
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
       delta_stream_reader_factory_;
 
@@ -150,6 +153,9 @@ class Server {
 
   int32_t shard_num_;
   int32_t num_shards_;
+
+  std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
+      key_fetcher_manager_;
 };
 
 }  // namespace kv_server

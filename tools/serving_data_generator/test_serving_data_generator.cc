@@ -87,7 +87,8 @@ void WriteKeyValueSetRecords(std::string_view key, int value_size,
     record.mutation_type = KeyValueMutationType::Update;
     record.logical_commit_time = timestamp++;
     record.key = absl::StrCat(key, i);
-    writer.WriteRecord(ToStringView(ToFlatBufferBuilder(record)));
+    writer.WriteRecord(ToStringView(
+        ToFlatBufferBuilder(DataRecordStruct{.record = std::move(record)})));
   }
   LOG(INFO) << "Example set query for all keys" << query;
   LOG(INFO) << "write done for set records";

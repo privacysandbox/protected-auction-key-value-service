@@ -37,6 +37,7 @@ class TheadManagerImpl : public TheadManager {
 
   ~TheadManagerImpl() {
     if (!IsRunning()) return;
+    VLOG(8) << thread_name_ << " In destructor. Attempting to stop the thread.";
     if (const auto s = Stop(); !s.ok()) {
       LOG(ERROR) << thread_name_ << " failed to stop: " << s;
     }
@@ -52,11 +53,14 @@ class TheadManagerImpl : public TheadManager {
   }
 
   absl::Status Stop() override {
+    VLOG(8) << thread_name_ << "Stop called";
     if (!IsRunning()) {
+      LOG(ERROR) << thread_name_ << " not running";
       return absl::FailedPreconditionError("Not currently running");
     }
     should_stop_ = true;
     thread_->join();
+    VLOG(8) << thread_name_ << " joined";
     thread_.reset();
     should_stop_ = false;
     return absl::OkStatus();

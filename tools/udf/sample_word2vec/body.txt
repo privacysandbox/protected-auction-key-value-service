@@ -1,0 +1,32 @@
+'{
+   "context":{
+      "subkey":"example.com"
+   },
+   "partitions":[
+      {
+         "id":0,
+         "compressionGroup":0,
+         "keyGroups":[
+            {
+               "tags":[
+                  "metadata"
+               ],
+               "keyList":[
+                  "animals",
+                  "garden",
+                  "dinner",
+                  "hotels"
+               ]
+            },
+            {
+               "tags":[
+                  "signals"
+               ],
+               "keyList":[
+                  "food"
+               ]
+            }
+         ]
+      }
+   ]
+}'

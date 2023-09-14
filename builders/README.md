@@ -29,3 +29,7 @@ For example, to execute `curl`:
 ```sh
 tools/curl --help
 ```
+
+---
+
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/privacysandbox/build-system/badge)](https://securityscorecards.dev/viewer/?uri=github.com/privacysandbox/build-system)

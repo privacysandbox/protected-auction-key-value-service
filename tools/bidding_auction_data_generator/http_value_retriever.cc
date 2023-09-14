@@ -103,9 +103,8 @@ HttpValueRetriever::RetrieveValues(
                                                &json_parse_options, &output]() {
         GetValuesResponse response;
         absl::flat_hash_map<std::string, std::string> key_value_map;
-        google::protobuf::util::Status status =
-            google::protobuf::util::JsonStringToMessage(json_res, &response,
-                                                        json_parse_options);
+        absl::Status status = google::protobuf::util::JsonStringToMessage(
+            json_res, &response, json_parse_options);
         if (!status.ok()) {
           LOG(ERROR) << "Unable to convert json response to GetValueResponse "
                      << status.ToString();

@@ -119,6 +119,7 @@ module "autoscaling" {
   instance_profile_arn         = module.iam_roles.instance_profile_arn
   enclave_cpu_count            = var.enclave_cpu_count
   enclave_memory_mib           = var.enclave_memory_mib
+  enclave_enable_debug_mode    = var.enclave_enable_debug_mode
   server_port                  = var.server_port
   launch_hook_name             = module.parameter.launch_hook_parameter_value
   depends_on                   = [module.iam_role_policies.instance_role_policy_attachment]
@@ -137,23 +138,27 @@ module "ssh" {
 }
 
 module "parameter" {
-  source                                         = "../../services/parameter"
-  service                                        = local.service
-  environment                                    = var.environment
-  mode_parameter_value                           = var.mode
-  s3_bucket_parameter_value                      = module.data_storage.s3_data_bucket_id
-  bucket_update_sns_arn_parameter_value          = module.data_storage.sns_data_updates_topic_arn
-  realtime_sns_arn_parameter_value               = module.data_storage.sns_realtime_topic_arn
-  backup_poll_frequency_secs_parameter_value     = var.backup_poll_frequency_secs
-  metrics_export_interval_millis_parameter_value = var.metrics_export_interval_millis
-  metrics_export_timeout_millis_parameter_value  = var.metrics_export_timeout_millis
-  realtime_updater_num_threads_parameter_value   = var.realtime_updater_num_threads
-  data_loading_num_threads_parameter_value       = var.data_loading_num_threads
-  s3client_max_connections_parameter_value       = var.s3client_max_connections
-  s3client_max_range_bytes_parameter_value       = var.s3client_max_range_bytes
-  num_shards_parameter_value                     = var.num_shards
-  udf_num_workers_parameter_value                = var.udf_num_workers
-  route_v1_requests_to_v2_parameter_value        = var.route_v1_requests_to_v2
+  source                                                 = "../../services/parameter"
+  service                                                = local.service
+  environment                                            = var.environment
+  s3_bucket_parameter_value                              = module.data_storage.s3_data_bucket_id
+  bucket_update_sns_arn_parameter_value                  = module.data_storage.sns_data_updates_topic_arn
+  realtime_sns_arn_parameter_value                       = module.data_storage.sns_realtime_topic_arn
+  backup_poll_frequency_secs_parameter_value             = var.backup_poll_frequency_secs
+  use_external_metrics_collector_endpoint                = var.use_external_metrics_collector_endpoint
+  metrics_collector_endpoint                             = var.metrics_collector_endpoint
+  metrics_export_interval_millis_parameter_value         = var.metrics_export_interval_millis
+  metrics_export_timeout_millis_parameter_value          = var.metrics_export_timeout_millis
+  realtime_updater_num_threads_parameter_value           = var.realtime_updater_num_threads
+  data_loading_num_threads_parameter_value               = var.data_loading_num_threads
+  s3client_max_connections_parameter_value               = var.s3client_max_connections
+  s3client_max_range_bytes_parameter_value               = var.s3client_max_range_bytes
+  num_shards_parameter_value                             = var.num_shards
+  udf_num_workers_parameter_value                        = var.udf_num_workers
+  route_v1_requests_to_v2_parameter_value                = var.route_v1_requests_to_v2
+  use_real_coordinators_parameter_value                  = var.use_real_coordinators
+  primary_coordinator_account_identity_parameter_value   = var.primary_coordinator_account_identity
+  secondary_coordinator_account_identity_parameter_value = var.secondary_coordinator_account_identity
 }
 
 module "security_group_rules" {
@@ -182,12 +187,12 @@ module "iam_role_policies" {
   sns_realtime_topic_arn       = module.data_storage.sns_realtime_topic_arn
   ssh_instance_role_name       = module.iam_roles.ssh_instance_role_name
   server_parameter_arns = [
-    module.parameter.mode_parameter_arn,
     module.parameter.s3_bucket_parameter_arn,
     module.parameter.bucket_update_sns_arn_parameter_arn,
     module.parameter.realtime_sns_arn_parameter_arn,
     module.parameter.launch_hook_parameter_arn,
     module.parameter.backup_poll_frequency_secs_parameter_arn,
+    module.parameter.use_external_metrics_collector_endpoint_arn,
     module.parameter.metrics_export_interval_millis_parameter_arn,
     module.parameter.metrics_export_timeout_millis_parameter_arn,
     module.parameter.realtime_updater_num_threads_parameter_arn,
@@ -197,7 +202,18 @@ module "iam_role_policies" {
     module.parameter.num_shards_parameter_arn,
     module.parameter.udf_num_workers_parameter_arn,
     module.parameter.route_v1_requests_to_v2_parameter_arn,
-  ]
+  module.parameter.use_real_coordinators_parameter_arn]
+  coordinator_parameter_arns = (
+    var.use_real_coordinators ? [
+      module.parameter.primary_coordinator_account_identity_parameter_arn,
+      module.parameter.secondary_coordinator_account_identity_parameter_arn
+    ] : []
+  )
+  metrics_collector_endpoint_arns = (
+    var.use_external_metrics_collector_endpoint ? [
+      module.parameter.metrics_collector_endpoint_arn
+    ] : []
+  )
 }
 
 module "iam_group_policies" {

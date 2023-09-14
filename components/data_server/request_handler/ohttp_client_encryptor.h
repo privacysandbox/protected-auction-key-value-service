@@ -22,6 +22,7 @@
 #include "absl/strings/escaping.h"
 #include "public/constants.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
+#include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
 
 namespace kv_server {
 
@@ -29,6 +30,10 @@ namespace kv_server {
 // Not thread safe. Supports serial encryption/decryption per request.
 class OhttpClientEncryptor {
  public:
+  explicit OhttpClientEncryptor(
+      privacy_sandbox::server_common::KeyFetcherManagerInterface&
+          key_fetcher_manager)
+      : key_fetcher_manager_(key_fetcher_manager) {}
   // Encrypts ougoing request.
   absl::StatusOr<std::string> EncryptRequest(std::string payload);
   // Decrypts incoming reponse. Since OHTTP is stateful, this method should be
@@ -43,9 +48,8 @@ class OhttpClientEncryptor {
  private:
   std::optional<quiche::ObliviousHttpClient> http_client_;
   std::optional<quiche::ObliviousHttpRequest::Context> http_request_context_;
-
-  const std::string test_public_key_ = absl::HexStringToBytes(kTestPublicKey);
-  const uint8_t test_key_id = 1;
+  privacy_sandbox::server_common::KeyFetcherManagerInterface&
+      key_fetcher_manager_;
 };
 
 }  // namespace kv_server

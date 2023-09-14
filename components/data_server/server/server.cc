@@ -25,6 +25,7 @@
 #include "components/data_server/request_handler/get_values_adapter.h"
 #include "components/data_server/request_handler/get_values_handler.h"
 #include "components/data_server/request_handler/get_values_v2_handler.h"
+#include "components/data_server/server/key_fetcher_factory.h"
 #include "components/data_server/server/key_value_service_impl.h"
 #include "components/data_server/server/key_value_service_v2_impl.h"
 #include "components/errors/retry.h"
@@ -35,8 +36,8 @@
 #include "components/internal_server/sharded_lookup_server_impl.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/telemetry/kv_telemetry.h"
-#include "components/udf/get_values_hook.h"
-#include "components/udf/run_query_hook.h"
+#include "components/udf/hooks/get_values_hook.h"
+#include "components/udf/hooks/run_query_hook.h"
 #include "components/udf/udf_config_builder.h"
 #include "components/util/build_info.h"
 #include "glog/logging.h"
@@ -65,10 +66,13 @@ using privacy_sandbox::server_common::InitTelemetry;
 using privacy_sandbox::server_common::TelemetryProvider;
 
 // TODO: Use config cpio client to get this from the environment
-constexpr absl::string_view kModeParameterSuffix = "mode";
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
 constexpr absl::string_view kBackupPollFrequencySecsParameterSuffix =
     "backup-poll-frequency-secs";
+constexpr absl::string_view kUseExternalMetricsCollectorEndpointSuffix =
+    "use-external-metrics-collector-endpoint";
+constexpr absl::string_view kMetricsCollectorEndpointSuffix =
+    "metrics-collector-endpoint";
 constexpr absl::string_view kMetricsExportIntervalMillisParameterSuffix =
     "metrics-export-interval-millis";
 constexpr absl::string_view kMetricsExportTimeoutMillisParameterSuffix =
@@ -109,17 +113,60 @@ GetMetricsOptions(const ParameterClient& parameter_client,
   return metrics_options;
 }
 
+absl::Status CheckMetricsCollectorEndPointConnection(
+    std::string_view collector_endpoint) {
+  auto channel = grpc::CreateChannel(std::string(collector_endpoint),
+                                     grpc::InsecureChannelCredentials());
+  // TODO(b/300137699): make the connection timeout a parameter
+  if (!channel->WaitForConnected(
+          gpr_time_add(gpr_now(GPR_CLOCK_REALTIME),
+                       gpr_time_from_seconds(120, GPR_TIMESPAN)))) {
+    return absl::DeadlineExceededError(
+        "Timeout waiting for metrics collector connection");
+  }
+  LOG(INFO) << "Metrics collector is connected";
+  return absl::OkStatus();
+}
+
+absl::optional<std::string> GetMetricsCollectorEndPoint(
+    const ParameterClient& parameter_client, const std::string& environment) {
+  absl::optional<std::string> metrics_collection_endpoint;
+  ParameterFetcher parameter_fetcher(environment, parameter_client, nullptr);
+  auto should_connect_to_external_metrics_collector =
+      parameter_fetcher.GetBoolParameter(
+          kUseExternalMetricsCollectorEndpointSuffix);
+  if (should_connect_to_external_metrics_collector) {
+    std::string metrics_collector_endpoint_value =
+        parameter_fetcher.GetParameter(kMetricsCollectorEndpointSuffix);
+    LOG(INFO) << "Retrieved " << kMetricsCollectorEndpointSuffix
+              << " parameter: " << metrics_collector_endpoint_value;
+    metrics_collection_endpoint = std::move(metrics_collector_endpoint_value);
+  }
+  return std::move(metrics_collection_endpoint);
+}
+
 }  // namespace
 
 Server::Server()
     : metrics_recorder_(
           TelemetryProvider::GetInstance().CreateMetricsRecorder()),
-      cache_(KeyValueCache::Create()),
-      get_values_hook_(GetValuesHook::Create(absl::bind_front(
-          LookupClient::Create, absl::GetFlag(FLAGS_internal_server_address)))),
+      string_get_values_hook_(GetValuesHook::Create(
+          absl::bind_front(LookupClient::Create,
+                           absl::GetFlag(FLAGS_internal_server_address)),
+          GetValuesHook::OutputType::kString)),
+      binary_get_values_hook_(GetValuesHook::Create(
+          absl::bind_front(LookupClient::Create,
+                           absl::GetFlag(FLAGS_internal_server_address)),
+          GetValuesHook::OutputType::kBinary)),
       run_query_hook_(RunQueryHook::Create(
           absl::bind_front(RunQueryClient::Create,
-                           absl::GetFlag(FLAGS_internal_server_address)))) {
+                           absl::GetFlag(FLAGS_internal_server_address)))) {}
+
+// Because the cache relies on metrics_recorder_, this function needs to be
+// called right after telemetry has been initialized but before anything that
+// requires the cache has been initialized.
+void Server::InitializeKeyValueCache() {
+  cache_ = KeyValueCache::Create(*metrics_recorder_);
   cache_->UpdateKeyValue(
       "hi",
       "Hello, world! If you are seeing this, it means you can "
@@ -135,9 +182,19 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
 
   InitTelemetry(std::string(kServiceName), std::string(BuildVersion()));
   auto metrics_options = GetMetricsOptions(parameter_client, environment_);
+  auto metrics_collector_endpoint =
+      GetMetricsCollectorEndPoint(parameter_client, environment_);
+  if (metrics_collector_endpoint.has_value()) {
+    if (const absl::Status status = CheckMetricsCollectorEndPointConnection(
+            metrics_collector_endpoint.value());
+        !status.ok()) {
+      LOG(ERROR) << "Error in connecting metrics collector: " << status;
+    }
+  }
   ConfigureMetrics(CreateKVAttributes(instance_id, environment_),
-                   metrics_options);
-  ConfigureTracer(CreateKVAttributes(std::move(instance_id), environment_));
+                   metrics_options, metrics_collector_endpoint);
+  ConfigureTracer(CreateKVAttributes(std::move(instance_id), environment_),
+                  metrics_collector_endpoint);
 
   metrics_recorder_ = TelemetryProvider::GetInstance().CreateMetricsRecorder();
 }
@@ -169,11 +226,13 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
   // TODO(b/289244673): Once roma interface is updated, internal lookup client
   // can be removed and we can own the unique ptr to the hooks.
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
-      UdfClient::Create(config_builder.RegisterGetValuesHook(*get_values_hook_)
-                            .RegisterRunQueryHook(*run_query_hook_)
-                            .RegisterLoggingHook()
-                            .SetNumberOfWorkers(number_of_workers)
-                            .Config());
+      UdfClient::Create(
+          config_builder.RegisterStringGetValuesHook(*string_get_values_hook_)
+              .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
+              .RegisterRunQueryHook(*run_query_hook_)
+              .RegisterLoggingHook()
+              .SetNumberOfWorkers(number_of_workers)
+              .Config());
   if (udf_client_or_status.ok()) {
     udf_client_ = std::move(*udf_client_or_status);
   }
@@ -200,13 +259,11 @@ absl::Status Server::Init(
 
 absl::Status Server::InitOnceInstancesAreCreated() {
   InitializeTelemetry(*parameter_client_, *instance_client_);
-
+  InitializeKeyValueCache();
   auto span = GetTracer()->StartSpan("InitServer");
   auto scope = opentelemetry::trace::Scope(span);
-
   std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
       LifecycleHeartbeat::Create(*instance_client_, *metrics_recorder_);
-
   ParameterFetcher parameter_fetcher(environment_, *parameter_client_,
                                      metrics_recorder_.get());
   if (absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
@@ -236,6 +293,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   delta_stream_reader_factory_ =
       CreateStreamRecordReaderFactory(parameter_fetcher);
   notifier_ = CreateDeltaFileNotifier(parameter_fetcher);
+
+  key_fetcher_manager_ = CreateKeyFetcherManager(parameter_fetcher);
+
   CreateGrpcServices(parameter_fetcher);
   auto metadata = parameter_fetcher.GetBlobStorageNotifierMetadata();
   auto message_service_status = MessageService::Create(metadata);
@@ -271,20 +331,13 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       kRealtimeUpdaterThreadNumberParameterSuffix);
   LOG(INFO) << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
             << " parameter: " << realtime_thread_numbers;
-  for (int i = 0; i < realtime_thread_numbers; i++) {
-    auto status_or_notifier =
-        ChangeNotifier::Create(realtime_notifier_metadata, *metrics_recorder_);
-    if (!status_or_notifier.ok()) {
-      return status_or_notifier.status();
-    }
-    DataOrchestrator::RealtimeOptions realtime_options;
-    realtime_options.delta_file_record_change_notifier =
-        DeltaFileRecordChangeNotifier::Create(std::move(*status_or_notifier),
-                                              *metrics_recorder_);
-    realtime_options.realtime_notifier =
-        RealtimeNotifier::Create(*metrics_recorder_);
-    realtime_options_.push_back(std::move(realtime_options));
+  auto maybe_realtime_thread_pool_manager = RealtimeThreadPoolManager::Create(
+      *metrics_recorder_, realtime_notifier_metadata, realtime_thread_numbers);
+  if (!maybe_realtime_thread_pool_manager.ok()) {
+    return maybe_realtime_thread_pool_manager.status();
   }
+  realtime_thread_pool_manager_ =
+      std::move(*maybe_realtime_thread_pool_manager);
   data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher);
   TraceRetryUntilOk([this] { return data_orchestrator_->Start(); },
                     "StartDataOrchestrator", metrics_recorder_.get());
@@ -315,10 +368,8 @@ absl::Status Server::MaybeShutdownNotifiers() {
   if (notifier_ && notifier_->IsRunning()) {
     status = notifier_->Stop();
   }
-  for (auto& option : realtime_options_) {
-    if (option.realtime_notifier->IsRunning()) {
-      status.Update(option.realtime_notifier->Stop());
-    }
+  if (realtime_thread_pool_manager_) {
+    status.Update(realtime_thread_pool_manager_->Stop());
   }
   return status;
 }
@@ -429,7 +480,7 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
                 .delta_notifier = *notifier_,
                 .change_notifier = *change_notifier_,
                 .delta_stream_reader_factory = *delta_stream_reader_factory_,
-                .realtime_options = realtime_options_,
+                .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
                 .udf_client = *udf_client_,
                 .shard_num = shard_num_,
                 .num_shards = num_shards_,
@@ -440,17 +491,17 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
 }
 
 void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
-  const std::string mode = parameter_fetcher.GetParameter(kModeParameterSuffix);
-  LOG(INFO) << "Retrieved " << kModeParameterSuffix << " parameter: " << mode;
   const bool use_v2 = parameter_fetcher.GetBoolParameter(kRouteV1ToV2Suffix);
   LOG(INFO) << "Retrieved " << kRouteV1ToV2Suffix << " parameter: " << use_v2;
-  get_values_adapter_ = GetValuesAdapter::Create(
-      std::make_unique<GetValuesV2Handler>(*udf_client_, *metrics_recorder_));
+  get_values_adapter_ =
+      GetValuesAdapter::Create(std::make_unique<GetValuesV2Handler>(
+          *udf_client_, *metrics_recorder_, *key_fetcher_manager_));
   GetValuesHandler handler(*cache_, *get_values_adapter_, *metrics_recorder_,
-                           mode == "DSP", use_v2);
+                           use_v2);
   grpc_services_.push_back(std::make_unique<KeyValueServiceImpl>(
       std::move(handler), *metrics_recorder_));
-  GetValuesV2Handler v2handler(*udf_client_, *metrics_recorder_);
+  GetValuesV2Handler v2handler(*udf_client_, *metrics_recorder_,
+                               *key_fetcher_manager_);
   grpc_services_.push_back(std::make_unique<KeyValueServiceV2Impl>(
       std::move(v2handler), *metrics_recorder_));
 }
@@ -476,17 +527,18 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
 absl::Status Server::CreateShardManager() {
   cluster_mappings_manager_ = std::make_unique<ClusterMappingsManager>(
       environment_, num_shards_, *metrics_recorder_, *instance_client_);
-  auto& num_shards = num_shards_;
-  auto& cluster_mappings_manager = *cluster_mappings_manager_;
   shard_manager_ = TraceRetryUntilOk(
-      [&cluster_mappings_manager, &num_shards] {
+      [&cluster_mappings_manager = *cluster_mappings_manager_,
+       &num_shards = num_shards_, &key_fetcher_manager = *key_fetcher_manager_,
+       &metrics_recorder = *metrics_recorder_] {
         // It might be that the cluster mappings that are passed don't pass
         // validation. E.g. a particular cluster might not have any replicas
         // specified. In that case, we need to retry the creation. After an
         // exponential backoff, that will trigger`GetClusterMappings` which
         // at that point in time might have new replicas spun up.
         return ShardManager::Create(
-            num_shards, cluster_mappings_manager.GetClusterMappings());
+            num_shards, key_fetcher_manager,
+            cluster_mappings_manager.GetClusterMappings(), metrics_recorder);
       },
       "GetShardManager", metrics_recorder_.get());
   return cluster_mappings_manager_->Start(*shard_manager_);
@@ -495,7 +547,8 @@ absl::Status Server::CreateShardManager() {
 absl::StatusOr<std::unique_ptr<grpc::Server>>
 Server::CreateAndStartInternalLookupServer() {
   if (num_shards_ <= 1) {
-    internal_lookup_service_ = std::make_unique<LookupServiceImpl>(*cache_);
+    internal_lookup_service_ = std::make_unique<LookupServiceImpl>(
+        *cache_, *key_fetcher_manager_, *metrics_recorder_);
   } else {
     if (const absl::Status status = CreateShardManager(); !status.ok()) {
       return status;
@@ -522,7 +575,8 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartRemoteLookupServer() {
     return nullptr;
   }
 
-  remote_lookup_service_ = std::make_unique<LookupServiceImpl>(*cache_);
+  remote_lookup_service_ = std::make_unique<LookupServiceImpl>(
+      *cache_, *key_fetcher_manager_, *metrics_recorder_);
   grpc::ServerBuilder remote_lookup_server_builder;
   auto remoteLookupServerAddress =
       absl::StrCat(kLocalIp, ":", kRemoteLookupServerPort);
@@ -535,12 +589,11 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartRemoteLookupServer() {
 }
 
 void Server::SetDefaultUdfCodeObject() {
-  VLOG(8) << "Setting default UDF code config. Snippet: "
-          << kDefaultUdfCodeSnippet;
   const absl::Status status = udf_client_->SetCodeObject(
       CodeConfig{.js = kDefaultUdfCodeSnippet,
                  .udf_handler_name = kDefaultUdfHandlerName,
-                 .logical_commit_time = kDefaultLogicalCommitTime});
+                 .logical_commit_time = kDefaultLogicalCommitTime,
+                 .version = kDefaultVersion});
   if (!status.ok()) {
     LOG(ERROR) << "Error setting code object: " << status;
   }

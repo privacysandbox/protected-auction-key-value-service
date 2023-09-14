@@ -10,6 +10,7 @@
 #Backup files
 *~
 
+*.log
 *.tar
 *.eif
 /dist/

@@ -38,9 +38,15 @@ class RunQueryClientImpl : public RunQueryClient {
   RunQueryClientImpl& operator=(const RunQueryClientImpl&) = delete;
 
   explicit RunQueryClientImpl(std::string_view server_address)
-      : stub_(InternalLookupService::NewStub(grpc::CreateChannel(
-            std::string(server_address), grpc::InsecureChannelCredentials()))) {
-  }
+      : stub_([server_address] {
+          grpc::ChannelArguments channel_args;
+          channel_args.SetMaxReceiveMessageSize(
+              std::numeric_limits<int>::max());
+          channel_args.SetMaxSendMessageSize(std::numeric_limits<int>::max());
+          return InternalLookupService::NewStub(grpc::CreateCustomChannel(
+              std::string(server_address), grpc::InsecureChannelCredentials(),
+              channel_args));
+        }()) {}
 
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
       std::string query) const override {

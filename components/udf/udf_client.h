@@ -45,9 +45,7 @@ class UdfClient {
   virtual absl::Status SetCodeObject(CodeConfig code_config) = 0;
 
   // Sets the WASM code object that will be used for UDF execution
-  virtual absl::Status SetWasmCodeObject(
-      CodeConfig code_config,
-      google::scp::roma::WasmDataType wasm_return_type) = 0;
+  virtual absl::Status SetWasmCodeObject(CodeConfig code_config) = 0;
 
   // Creates a UDF executor. This calls Roma::Init, which forks.
   static absl::StatusOr<std::unique_ptr<UdfClient>> Create(

@@ -28,15 +28,26 @@
 #include "components/data/common/notifier_metadata.h"
 
 namespace kv_server {
+struct AwsQueueMetadata {
+  // Returns url if `IsSetupComplete` is true, or empty string
+  // otherwise.
+  std::string sqs_url;
+};
+
+struct GcpQueueMetadata {
+  // Returns queue id if `IsSetupComplete` is true, or empty string
+  // otherwise.
+  std::string queue_id;
+};
+
+using QueueMetadata = std::variant<AwsQueueMetadata, GcpQueueMetadata>;
+
 class MessageService {
  public:
   virtual ~MessageService() = default;
-
   virtual bool IsSetupComplete() const = 0;
-
-  // Returns url if `IsSetupComplete` is true, or empty string otherwise.
-  virtual const std::string& GetSqsUrl() const = 0;
-
+  // Returns queue metadata.
+  virtual const QueueMetadata GetQueueMetadata() const = 0;
   // Creates an SQS Queue with 80 character random name starting with `prefix`
   // Queue is subscribed to the `sns_arn`.
   // On failure, `SetupQueue` can be recalled.

@@ -32,11 +32,11 @@ module "kv_server" {
   instance_ami_id = var.instance_ami_id
 
   # Variables related to server configuration.
-  mode                    = var.mode
-  route_v1_requests_to_v2 = var.route_v1_requests_to_v2
-  server_port             = var.server_port
-  enclave_cpu_count       = var.enclave_cpu_count
-  enclave_memory_mib      = var.enclave_memory_mib
+  route_v1_requests_to_v2   = var.route_v1_requests_to_v2
+  server_port               = var.server_port
+  enclave_cpu_count         = var.enclave_cpu_count
+  enclave_memory_mib        = var.enclave_memory_mib
+  enclave_enable_debug_mode = var.enclave_enable_debug_mode
 
   # Variables related to autoscaling and load balancing.
   autoscaling_desired_capacity = var.autoscaling_desired_capacity
@@ -60,8 +60,10 @@ module "kv_server" {
   ssh_source_cidr_blocks = var.ssh_source_cidr_blocks
 
   # Variables related to metrics.
-  metrics_export_interval_millis = var.metrics_export_interval_millis
-  metrics_export_timeout_millis  = var.metrics_export_timeout_millis
+  use_external_metrics_collector_endpoint = var.use_external_metrics_collector_endpoint
+  metrics_collector_endpoint              = var.metrics_collector_endpoint
+  metrics_export_interval_millis          = var.metrics_export_interval_millis
+  metrics_export_timeout_millis           = var.metrics_export_timeout_millis
 
   # Variables related to prometheus service
   prometheus_service_region = var.prometheus_service_region
@@ -77,6 +79,11 @@ module "kv_server" {
 
   # Variables related to UDF exeuction.
   udf_num_workers = var.udf_num_workers
+
+  # Variables related to coordinators
+  use_real_coordinators                  = var.use_real_coordinators
+  primary_coordinator_account_identity   = var.primary_coordinator_account_identity
+  secondary_coordinator_account_identity = var.secondary_coordinator_account_identity
 }
 
 output "kv_server_url" {

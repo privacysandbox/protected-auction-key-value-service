@@ -36,8 +36,7 @@ class MockUdfClient : public UdfClient {
               (std::vector<std::string>), (const, override));
   MOCK_METHOD((absl::Status), Stop, (), (override));
   MOCK_METHOD((absl::Status), SetCodeObject, (CodeConfig), (override));
-  MOCK_METHOD((absl::Status), SetWasmCodeObject,
-              (CodeConfig, google::scp::roma::WasmDataType), (override));
+  MOCK_METHOD((absl::Status), SetWasmCodeObject, (CodeConfig), (override));
 };
 
 }  // namespace kv_server

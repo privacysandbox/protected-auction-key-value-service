@@ -33,9 +33,8 @@ absl::StatusOr<SideLoadData> ReadCustomAudienceData(
     contents << in_stream.rdbuf();
     in_stream.close();
     SideLoadData side_load_proto_data;
-    google::protobuf::util::Status result =
-        google::protobuf::util::JsonStringToMessage(contents.str(),
-                                                    &side_load_proto_data);
+    absl::Status result = google::protobuf::util::JsonStringToMessage(
+        contents.str(), &side_load_proto_data);
     if (!result.ok()) {
       return absl::FailedPreconditionError(
           absl::StrCat("Failed to convert json to side load proto data:",

@@ -15,63 +15,21 @@
   ],
   "tagPrefix": "release-",
   "types": [
-    {
-      "section": "API: Features",
-      "type": "feat",
-      "scope": "api"
-    },
-    {
-      "section": "API: Fixes",
-      "type": "fix",
-      "scope": "api"
-    },
-    {
-      "section": "Terraform",
-      "type": "feat",
-      "scope": "terraform"
-    },
-    {
-      "section": "Terraform",
-      "type": "fix",
-      "scope": "terraform"
-    },
-    {
-      "section": "Build Tools: Features",
-      "type": "feat",
-      "scope": "build"
-    },
-    {
-      "section": "Build Tools: Fixes",
-      "type": "fix",
-      "scope": "build"
-    },
-    {
-      "section": "Features",
-      "type": "feat"
-    },
-    {
-      "section": "Bug Fixes",
-      "type": "fix"
-    },
-    {
-      "section": "Documentation",
-      "type": "docs"
-    },
-    {
-      "hidden": true,
-      "type": "internal"
-    },
-    {
-      "hidden": true,
-      "type": "chore"
-    },
-    {
-      "hidden": true,
-      "type": "test"
-    },
-    {
-      "hidden": true,
-      "type": "refactor"
-    }
+    { "type": "feat", "scope": "api", "section": "API: Features" },
+    { "type": "fix", "scope": "api", "section": "API: Fixes" },
+    { "type": "feat", "scope": "deps", "section": "Dependencies" },
+    { "type": "feat", "scope": "terraform", "section": "Terraform" },
+    { "type": "fix", "scope": "terraform", "section": "Terraform" },
+    { "type": "feat", "scope": "GCP", "section": "GCP: Features" },
+    { "type": "fix", "scope": "GCP", "section": "GCP: Fixes" },
+    { "type": "feat", "scope": "build", "section": "Build Tools: Features" },
+    { "type": "fix", "scope": "build", "section": "Build Tools: Fixes" },
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "internal", "hidden": true },
+    { "type": "chore", "hidden": true },
+    { "type": "test", "hidden": true },
+    { "type": "refactor", "hidden": true }
   ]
 }

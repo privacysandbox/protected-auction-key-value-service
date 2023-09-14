@@ -66,6 +66,16 @@ class NoopDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
   }
 };
 
+class NoopRealtimeThreadPoolManager : public RealtimeThreadPoolManager {
+ public:
+  absl::Status Start(
+      std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
+          callback) override {
+    return absl::OkStatus();
+  }
+  absl::Status Stop() override { return absl::OkStatus(); }
+};
+
 template <typename RecordT>
 class NoopReader : public StreamRecordReader<RecordT> {
   absl::StatusOr<KVFileMetadata> GetKVFileMetadata() override {
@@ -137,7 +147,9 @@ std::vector<Operation> OperationsFromFlag() {
 
 absl::Status InitOnce(Operation operation) {
   std::unique_ptr<UdfClient> noop_udf_client = NewNoopUdfClient();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create();
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   std::unique_ptr<MetricsRecorder> metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
   std::unique_ptr<BlobStorageClient> blob_client =
@@ -169,14 +181,7 @@ absl::Status InitOnce(Operation operation) {
   // Blocks until cache is initialized
   absl::StatusOr<std::unique_ptr<DataOrchestrator>> maybe_data_orchestrator;
   absl::Time start_time = absl::Now();
-
-  std::vector<DataOrchestrator::RealtimeOptions> realtime_options;
-  DataOrchestrator::RealtimeOptions realtime_option;
-  realtime_option.delta_file_record_change_notifier =
-      std::make_unique<NoopDeltaFileRecordChangeNotifier>();
-  realtime_option.realtime_notifier =
-      RealtimeNotifier::Create(*metrics_recorder);
-  realtime_options.push_back(std::move(realtime_option));
+  NoopRealtimeThreadPoolManager realtime_thread_pool_manager;
   maybe_data_orchestrator = DataOrchestrator::TryCreate(
       {
           .data_bucket = absl::GetFlag(FLAGS_bucket),
@@ -185,7 +190,7 @@ absl::Status InitOnce(Operation operation) {
           .delta_notifier = *notifier,
           .change_notifier = change_notifier,
           .delta_stream_reader_factory = *delta_stream_reader_factory,
-          .realtime_options = realtime_options,
+          .realtime_thread_pool_manager = realtime_thread_pool_manager,
           .udf_client = *noop_udf_client,
       },
       *metrics_recorder);

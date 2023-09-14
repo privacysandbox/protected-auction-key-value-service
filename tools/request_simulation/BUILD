@@ -12,7 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
+package(default_visibility = [
+    "//tools:__subpackages__",
+])
 
 cc_library(
     name = "request_generation_util",
@@ -42,7 +46,153 @@ cc_library(
     deps = [
         "//components/util:sleepfor",
         "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@google_privacysandbox_servers_common//src/cpp/util:duration",
+    ],
+)
+
+cc_library(
+    name = "synthetic_request_generator",
+    srcs = ["synthetic_request_generator.cc"],
+    hdrs = ["synthetic_request_generator.h"],
+    deps = [
+        ":message_queue",
+        ":rate_limiter",
+        "//components/data/common:thread_manager",
+        "@com_google_absl//absl/functional:any_invocable",
+    ],
+)
+
+cc_library(
+    name = "grpc_client",
+    hdrs = ["grpc_client.h"],
+    deps = [
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name = "metrics_collector",
+    srcs = ["metrics_collector.cc"],
+    hdrs = ["metrics_collector.h"],
+    deps = [
+        "//components/data/common:thread_manager",
+        "//components/util:sleepfor",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//test/core/util:grpc_test_util_base",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+    ],
+)
+
+cc_library(
+    name = "client_worker",
+    hdrs = ["client_worker.h"],
+    deps = [
+        ":grpc_client",
+        ":message_queue",
+        ":metrics_collector",
+        ":rate_limiter",
+        "//components/data/common:thread_manager",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name = "delta_based_request_generator",
+    srcs = ["delta_based_request_generator.cc"],
+    hdrs = ["delta_based_request_generator.h"],
+    deps = [
+        ":message_queue",
+        ":request_generation_util",
+        "//components/data/blob_storage:blob_storage_client",
+        "//components/data/blob_storage:delta_file_notifier",
+        "//components/data/common:thread_manager",
+        "//components/data/realtime:realtime_notifier",
+        "//public/data_loading:data_loading_fbs",
+        "//public/data_loading:records_utils",
+        "//public/data_loading/readers:riegeli_stream_io",
+        "@com_github_google_flatbuffers//:flatbuffers",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:tracing",
+    ],
+)
+
+cc_library(
+    name = "request_simulation_parameter_fetcher",
+    srcs = select({
+        "//:aws_platform": ["request_simulation_parameter_fetcher_aws.cc"],
+        "//:gcp_platform": ["request_simulation_parameter_fetcher_gcp.cc"],
+        "//:local_platform": ["request_simulation_parameter_fetcher_local.cc"],
+    }),
+    hdrs = ["request_simulation_parameter_fetcher.h"],
+    deps = [
+        "//components/data/common:message_service",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/flags:flag",
+    ],
+)
+
+cc_library(
+    name = "request_simulation_system",
+    srcs = ["request_simulation_system.cc"],
+    hdrs = ["request_simulation_system.h"],
+    deps = [
+        ":client_worker",
+        ":delta_based_request_generator",
+        ":grpc_client",
+        ":metrics_collector",
+        ":request_generation_util",
+        ":request_simulation_parameter_fetcher",
+        ":synthetic_request_generator",
+        "//components/data/blob_storage:blob_storage_change_notifier",
+        "//components/data/blob_storage:blob_storage_client",
+        "//components/data/blob_storage:delta_file_notifier",
+        "//components/data/common:change_notifier",
+        "//components/data/common:thread_manager",
+        "//components/util:platform_initializer",
+        "//components/util:version_linkstamp",
+        "//public/data_loading/readers:riegeli_stream_io",
+        "//public/query:get_values_cc_grpc",
+        "//tools/request_simulation/request:raw_request_cc_proto",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name = "mocks",
+    testonly = 1,
+    hdrs = ["mocks.h"],
+    deps = [
+        ":metrics_collector",
+        "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_binary(
+    name = "request_simulation_system_main",
+    srcs = ["main.cc"],
+    visibility = [
+        "//production/packaging:__subpackages__",
+        "//tools/request_simulation:__subpackages__",
+    ],
+    deps = [
+        ":request_simulation_system",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/debugging:failure_signal_handler",
+        "@com_google_absl//absl/debugging:symbolize",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/strings",
     ],
 )
 
@@ -76,5 +226,93 @@ cc_test(
         ":rate_limiter",
         "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "synthetic_request_generator_test",
+    size = "small",
+    srcs = ["synthetic_request_generator_test.cc"],
+    deps = [
+        ":request_generation_util",
+        ":synthetic_request_generator",
+        "//components/util:sleepfor_mock",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "grpc_client_test",
+    size = "small",
+    srcs = ["grpc_client_test.cc"],
+    deps = [
+        ":grpc_client",
+        "//public/testing:fake_key_value_service_impl",
+        "//tools/request_simulation/request:raw_request_cc_proto",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "client_worker_test",
+    size = "small",
+    srcs = ["client_worker_test.cc"],
+    deps = [
+        ":client_worker",
+        ":mocks",
+        ":request_generation_util",
+        "//components/util:sleepfor_mock",
+        "//public/testing:fake_key_value_service_impl",
+        "//tools/request_simulation/request:raw_request_cc_proto",
+        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_test(
+    name = "metrics_collector_test",
+    size = "small",
+    srcs = ["metrics_collector_test.cc"],
+    deps = [
+        ":metrics_collector",
+        "//components/util:sleepfor_mock",
+        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_test(
+    name = "request_simulation_system_test",
+    size = "small",
+    srcs = select({
+        "//:aws_platform": [],
+        "//:gcp_platform": [],
+        "//:local_platform": ["request_simulation_system_local_test.cc"],
+    }),
+    tags = [
+        "cpu:3",
+    ],
+    deps = [
+        ":request_generation_util",
+        ":request_simulation_system",
+        "//components/util:sleepfor_mock",
+        "//public/testing:fake_key_value_service_impl",
+        "//tools/request_simulation:mocks",
+        "//tools/request_simulation/request:raw_request_cc_proto",
+        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_test(
+    name = "delta_based_request_generator_test",
+    size = "small",
+    srcs = ["delta_based_request_generator_test.cc"],
+    deps = [
+        ":delta_based_request_generator",
+        "//components/data/common:mocks",
+        "//public/test_util:mocks",
+        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

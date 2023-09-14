@@ -40,6 +40,9 @@ class MockParameterClient : public ParameterClient {
               (std::string_view parameter_name), (const, override));
 
   void RegisterRequiredTelemetryExpectations() {
+    EXPECT_CALL(*this, GetBoolParameter("kv-server-environment-use-external-"
+                                        "metrics-collector-endpoint"))
+        .WillOnce(::testing::Return(false));
     EXPECT_CALL(*this,
                 GetInt32Parameter(
                     "kv-server-environment-metrics-export-interval-millis"))
@@ -54,8 +57,6 @@ class MockParameterClient : public ParameterClient {
     EXPECT_CALL(*this, GetInt32Parameter(
                            "kv-server-environment-backup-poll-frequency-secs"))
         .WillOnce(::testing::Return(123));
-    EXPECT_CALL(*this, GetParameter("kv-server-environment-mode"))
-        .WillOnce(::testing::Return("DSP"));
   }
 };
 
@@ -121,6 +122,9 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-use-real-coordinators"))
+      .WillOnce(::testing::Return(false));
 
   kv_server::Server server;
   absl::Status status =
@@ -175,6 +179,9 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
       .WillOnce(::testing::Return(2));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-use-real-coordinators"))
       .WillOnce(::testing::Return(false));
 
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
@@ -233,6 +240,9 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
       .WillOnce(::testing::Return(2));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-use-real-coordinators"))
       .WillOnce(::testing::Return(false));
 
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
@@ -295,7 +305,9 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
-
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-use-real-coordinators"))
+      .WillOnce(::testing::Return(false));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
 

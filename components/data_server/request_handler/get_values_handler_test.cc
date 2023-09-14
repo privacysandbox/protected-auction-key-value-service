@@ -63,7 +63,7 @@ TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
                            mock_metrics_recorder_,
-                           /*dsp_mode=*/true, /*use_v2=*/false);
+                           /*use_v2=*/false);
   const auto result = handler.GetValues(request, &response);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
@@ -93,7 +93,7 @@ TEST_F(GetValuesHandlerTest, RepeatedKeys) {
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
                            mock_metrics_recorder_,
-                           /*dsp_mode=*/true, /*use_v2=*/false);
+                           /*use_v2=*/false);
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
@@ -119,7 +119,7 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
                            mock_metrics_recorder_,
-                           /*dsp_mode=*/true, /*use_v2=*/false);
+                           /*use_v2=*/false);
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
@@ -152,7 +152,7 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
                            mock_metrics_recorder_,
-                           /*dsp_mode=*/false, /*use_v2=*/false);
+                           /*use_v2=*/false);
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
@@ -170,98 +170,6 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
                                    })pb",
                               &expected);
   EXPECT_THAT(response, EqualsProto(expected));
-}
-
-TEST_F(GetValuesHandlerTest, DspModeErrorOnMissingKeysNamespace) {
-  GetValuesRequest request;
-  request.set_subkey("my_subkey");
-  GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_, /*dsp_mode=*/true,
-                           /*use_v2=*/false);
-  grpc::Status status = handler.GetValues(request, &response);
-  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-  EXPECT_EQ(status.error_details(), "Missing field 'keys'");
-}
-
-TEST_F(GetValuesHandlerTest, ErrorOnMissingKeysInDspMode) {
-  GetValuesRequest request;
-  GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_, /*dsp_mode=*/true,
-                           /*use_v2=*/false);
-  grpc::Status status = handler.GetValues(request, &response);
-  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-  EXPECT_EQ(status.error_details(), "Missing field 'keys'");
-}
-
-TEST_F(GetValuesHandlerTest, ErrorOnRenderUrlInDspMode) {
-  GetValuesRequest request;
-  request.add_keys("my_key");
-  request.add_render_urls("my_render_url");
-  GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_, /*dsp_mode=*/true,
-                           /*use_v2=*/false);
-
-  grpc::Status status = handler.GetValues(request, &response);
-  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-  EXPECT_EQ(status.error_details(), "Invalid field 'renderUrls'");
-}
-
-TEST_F(GetValuesHandlerTest, ErrorOnAdComponentRenderUrlInDspMode) {
-  GetValuesRequest request;
-  request.add_keys("my_key");
-  request.add_ad_component_render_urls("my_ad_component_render_url");
-  GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_, /*dsp_mode=*/true,
-                           /*use_v2=*/false);
-
-  grpc::Status status = handler.GetValues(request, &response);
-  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-  EXPECT_EQ(status.error_details(), "Invalid field 'adComponentRenderUrls'");
-}
-
-TEST_F(GetValuesHandlerTest, ErrorOnMissingRenderUrlInSspMode) {
-  GetValuesRequest request;
-  request.add_ad_component_render_urls("my_ad_component_render_url");
-  GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_, /*dsp_mode=*/false,
-                           /*use_v2=*/false);
-
-  grpc::Status status = handler.GetValues(request, &response);
-  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-  EXPECT_EQ(status.error_details(), "Missing field 'renderUrls'");
-}
-
-TEST_F(GetValuesHandlerTest, ErrorOnKeysInSspMode) {
-  GetValuesRequest request;
-  request.add_render_urls("my_render_url");
-  request.add_keys("my_key");
-  GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_, /*dsp_mode=*/false,
-                           /*use_v2=*/false);
-
-  grpc::Status status = handler.GetValues(request, &response);
-  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-  EXPECT_EQ(status.error_details(), "Invalid field 'keys'");
-}
-
-TEST_F(GetValuesHandlerTest, ErrorOnSubkeysInSspMode) {
-  GetValuesRequest request;
-  request.add_render_urls("my_render_url");
-  request.set_subkey("my_subkey");
-  GetValuesResponse response;
-  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_, /*dsp_mode=*/false,
-                           /*use_v2=*/false);
-
-  grpc::Status status = handler.GetValues(request, &response);
-  EXPECT_EQ(status.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
-  EXPECT_EQ(status.error_details(), "Invalid field 'subkey'");
 }
 
 TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
@@ -351,7 +259,7 @@ TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
                            mock_metrics_recorder_,
-                           /*dsp_mode=*/true, /*use_v2=*/false);
+                           /*use_v2=*/false);
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
   GetValuesResponse expected_from_pb;
   TextFormat::ParseFromString(response_pb_string, &expected_from_pb);
@@ -380,7 +288,7 @@ TEST_F(GetValuesHandlerTest, CallsV2Adapter) {
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
                            mock_metrics_recorder_,
-                           /*dsp_mode=*/true, /*use_v2=*/true);
+                           /*use_v2=*/true);
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
   EXPECT_THAT(response, EqualsProto(adapter_response));
 }

@@ -67,5 +67,33 @@ TEST(SnapshotFilename, ToSnapshotFilename) {
             ("SNAPSHOT_1234512345123451"));
 }
 
+TEST(SnapshotFilename, IsLogicalShardingConfigFilename) {
+  EXPECT_FALSE(IsLogicalShardingConfigFilename(""));
+  EXPECT_FALSE(IsLogicalShardingConfigFilename("LOGICAL_SHARDING_CONFIG_"));
+  EXPECT_FALSE(IsLogicalShardingConfigFilename("LOGICAL_SHARDING_CONFIG"));
+  EXPECT_FALSE(IsLogicalShardingConfigFilename(
+      "LOGICAL_SHARDING_CONFIG_1234512345123451x"));
+  EXPECT_FALSE(IsLogicalShardingConfigFilename("DELTA_1234512345123451"));
+  EXPECT_FALSE(IsLogicalShardingConfigFilename("SNAPSHOT_1234512345123451"));
+  EXPECT_FALSE(IsLogicalShardingConfigFilename(
+      "LOGICAL_SHARDING_CONFIG_12345123451234510"));
+  EXPECT_FALSE(IsLogicalShardingConfigFilename(
+      "Logical_sharding_config_1234512345123451"));
+  EXPECT_TRUE(IsLogicalShardingConfigFilename(
+      "LOGICAL_SHARDING_CONFIG_1234512345123451"));
+}
+
+TEST(SnapshotFilename, ToLogicalShardingConfigFilename) {
+  EXPECT_FALSE(ToLogicalShardingConfigFilename(-1).ok());
+  EXPECT_EQ(ToLogicalShardingConfigFilename(-1).status().code(),
+            absl::StatusCode::kInvalidArgument);
+  EXPECT_TRUE(ToLogicalShardingConfigFilename(1).ok());
+  EXPECT_EQ(ToLogicalShardingConfigFilename(1).value(),
+            ("LOGICAL_SHARDING_CONFIG_0000000000000001"));
+  EXPECT_TRUE(ToLogicalShardingConfigFilename(1234512345123451).ok());
+  EXPECT_EQ(ToLogicalShardingConfigFilename(1234512345123451).value(),
+            ("LOGICAL_SHARDING_CONFIG_1234512345123451"));
+}
+
 }  // namespace
 }  // namespace kv_server

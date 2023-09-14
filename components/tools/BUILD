@@ -85,14 +85,9 @@ cc_binary(
 
 cc_binary(
     name = "blob_storage_change_watcher",
-    srcs = select({
-        "//:aws_platform": [
-            "blob_storage_change_watcher_aws.cc",
-        ],
-        "//:local_platform": [
-            "blob_storage_change_watcher_local.cc",
-        ],
-    }),
+    srcs = [
+        "blob_storage_change_watcher_aws.cc",
+    ],
     deps = [
         "//components/data/blob_storage:blob_storage_change_notifier",
         "//components/util:platform_initializer",
@@ -115,14 +110,9 @@ cc_library(
 
 cc_binary(
     name = "blob_storage_util",
-    srcs = select({
-        "//:aws_platform": [
-            "blob_storage_util_aws.cc",
-        ],
-        "//:local_platform": [
-            "blob_storage_util_local.cc",
-        ],
-    }),
+    srcs = [
+        "blob_storage_util_aws.cc",
+    ],
     deps = [
         ":blob_storage_commands",
         "//components/data/blob_storage:blob_storage_client",
@@ -135,14 +125,9 @@ cc_binary(
 
 cc_binary(
     name = "delta_file_watcher",
-    srcs = select({
-        "//:aws_platform": [
-            "delta_file_watcher_aws.cc",
-        ],
-        "//:local_platform": [
-            "delta_file_watcher_local.cc",
-        ],
-    }),
+    srcs = [
+        "delta_file_watcher_aws.cc",
+    ],
     deps = [
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",
@@ -175,27 +160,19 @@ cc_binary(
 
 cc_binary(
     name = "get_region",
-    srcs = select({
-        "//:aws_platform": ["get_region_aws.cc"],
-        "//:local_platform": ["get_region_local.cc"],
-    }),
+    srcs = ["get_region_aws.cc"],
     visibility = ["//production/packaging:__subpackages__"],
-    deps = select({
-        "//:aws_platform": [
-            "//components/errors:aws_error_util",
-            "@aws_sdk_cpp//:core",
-            "@aws_sdk_cpp//:ec2",
-            "@com_github_google_glog//:glog",
-            "@com_google_absl//absl/cleanup",
-            "@com_google_absl//absl/flags:flag",
-            "@com_google_absl//absl/flags:parse",
-            "@com_google_absl//absl/status:statusor",
-            "@com_google_absl//absl/strings",
-        ],
-        "//:local_platform": [
-            "@com_github_google_glog//:glog",
-        ],
-    }),
+    deps = [
+        "//components/errors:aws_error_util",
+        "@aws_sdk_cpp//:core",
+        "@aws_sdk_cpp//:ec2",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
 )
 
 cc_binary(
@@ -224,6 +201,23 @@ cc_binary(
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "realtime_notifier",
+    srcs = ["realtime_notifier.cc"],
+    deps = [
+        "//components/data/realtime:realtime_notifier",
+        "//components/util:platform_initializer",
+        "//public/data_loading:data_loading_fbs",
+        "//public/data_loading:filename_utils",
+        "//public/data_loading:records_utils",
+        "//public/data_loading/readers:riegeli_stream_io",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/flags:usage",
         "@com_google_absl//absl/strings",
     ],
 )

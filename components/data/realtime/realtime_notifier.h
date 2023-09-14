@@ -20,8 +20,9 @@
 #include <memory>
 #include <string>
 
+#include "components/data/common/notifier_metadata.h"
 #include "components/data/common/thread_manager.h"
-#include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/data/realtime/realtime_notifier_metadata.h"
 #include "components/errors/retry.h"
 #include "components/util/sleepfor.h"
 
@@ -36,16 +37,12 @@ class RealtimeNotifier {
   virtual ~RealtimeNotifier() = default;
 
   // Starts to monitor high priority updates.
-  // `DeltaFileRecordChangeNotifier` must not be deallocated until `Stop`
-  // returns or `RealtimeNotifier` is destroyed.
   // Calls `callback` on every high priority update.
   // `callback` blocks this object's operations so it should
   // return as soon as possible.
-  //
   // Start and Stop should be called on the same thread as
   // the constructor.
   virtual absl::Status Start(
-      DeltaFileRecordChangeNotifier& change_notifier,
       std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
           callback) = 0;
 
@@ -56,13 +53,12 @@ class RealtimeNotifier {
   // successful.
   virtual bool IsRunning() const = 0;
 
-  static std::unique_ptr<RealtimeNotifier> Create(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
-
-  // Used for test
-  static std::unique_ptr<RealtimeNotifier> Create(
+  // Creates RealtimeNotifier.
+  static absl::StatusOr<std::unique_ptr<RealtimeNotifier>> Create(
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      std::unique_ptr<SleepFor> sleep_for);
+      NotifierMetadata notifier_metadata,
+      // This parameter allows overrides that are used for tests
+      RealtimeNotifierMetadata realtime_notifier_metadata = {});
 };
 
 }  // namespace kv_server

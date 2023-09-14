@@ -30,7 +30,8 @@ namespace kv_server {
 
 enum class DataRecordType : int {
   kKeyValueMutationRecord,
-  kUserDefinedFunctionsConfig
+  kUserDefinedFunctionsConfig,
+  kShardMappingRecord
 };
 
 using KeyValueMutationRecordValueT =
@@ -49,10 +50,17 @@ struct UserDefinedFunctionsConfigStruct {
   std::string_view code_snippet;
   std::string_view handler_name;
   int64_t logical_commit_time;
+  int64_t version;
 };
 
-using RecordT = std::variant<std::monostate, KeyValueMutationRecordStruct,
-                             UserDefinedFunctionsConfigStruct>;
+struct ShardMappingRecordStruct {
+  int32_t logical_shard;
+  int32_t physical_shard;
+};
+
+using RecordT =
+    std::variant<std::monostate, KeyValueMutationRecordStruct,
+                 UserDefinedFunctionsConfigStruct, ShardMappingRecordStruct>;
 
 struct DataRecordStruct {
   RecordT record;
@@ -67,6 +75,11 @@ bool operator==(const UserDefinedFunctionsConfigStruct& lhs_record,
                 const UserDefinedFunctionsConfigStruct& rhs_record);
 bool operator!=(const UserDefinedFunctionsConfigStruct& lhs_record,
                 const UserDefinedFunctionsConfigStruct& rhs_record);
+
+bool operator==(const ShardMappingRecordStruct& lhs_record,
+                const ShardMappingRecordStruct& rhs_record);
+bool operator!=(const ShardMappingRecordStruct& lhs_record,
+                const ShardMappingRecordStruct& rhs_record);
 
 bool operator==(const DataRecordStruct& lhs_record,
                 const DataRecordStruct& rhs_record);
@@ -152,6 +165,8 @@ KeyValueMutationRecordStruct GetTypedRecordStruct(
 template <>
 UserDefinedFunctionsConfigStruct GetTypedRecordStruct(
     const DataRecord& data_record);
+template <>
+ShardMappingRecordStruct GetTypedRecordStruct(const DataRecord& data_record);
 
 }  // namespace kv_server
 

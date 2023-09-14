@@ -1,6 +1,7 @@
 {
   "types": [
     {"type": "feat", "section": "Features"},
+    {"type": "feat", "section": "Dependencies", "scope": "deps"},
     {"type": "fix", "section": "Bug Fixes"},
     {"type": "build", "section": "Build System"},
     {"type": "docs", "section": "Documentation"},

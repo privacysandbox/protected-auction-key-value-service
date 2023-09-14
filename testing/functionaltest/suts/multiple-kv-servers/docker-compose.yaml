@@ -19,11 +19,10 @@ services:
   kvserver-ssp:
     image: bazel/production/packaging/aws/data_server:server_docker_image
     entrypoint:
-    - /server/bin/init_server_basic
+    - /init_server_basic
     - --port=2000
     - --delta_directory=/srvdata/deltas
     - --realtime_directory=/srvdata/realtime_data
-    - --mode=SSP
     - --internal_lookup_deadline_duration=1s
     hostname: kv-server
     networks:
@@ -62,11 +61,10 @@ services:
   kvserver-dsp1:
     image: bazel/production/packaging/aws/data_server:server_docker_image
     entrypoint:
-    - /server/bin/init_server_basic
+    - /init_server_basic
     - --port=2000
     - --delta_directory=/srvdata/deltas
     - --realtime_directory=/srvdata/realtime_data
-    - --mode=DSP
     - --internal_lookup_deadline_duration=1s
     hostname: kv-server
     networks:
@@ -105,11 +103,10 @@ services:
   kvserver-dsp2:
     image: bazel/production/packaging/aws/data_server:server_docker_image
     entrypoint:
-    - /server/bin/init_server_basic
+    - /init_server_basic
     - --port=2000
     - --delta_directory=/srvdata/deltas
     - --realtime_directory=/srvdata/realtime_data
-    - --mode=DSP
     - --internal_lookup_deadline_duration=1s
     hostname: kv-server
     networks:

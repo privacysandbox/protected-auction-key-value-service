@@ -29,11 +29,14 @@
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
+#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
+using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Return;
 using testing::ReturnRef;
@@ -41,7 +44,8 @@ using testing::ReturnRef;
 class LookupServiceImplTest : public ::testing::Test {
  protected:
   LookupServiceImplTest() {
-    lookup_service_ = std::make_unique<LookupServiceImpl>(mock_cache_);
+    lookup_service_ = std::make_unique<LookupServiceImpl>(
+        mock_cache_, fake_key_fetcher_manager_, mock_metrics_recorder_);
     grpc::ServerBuilder builder;
     builder.RegisterService(lookup_service_.get());
     server_ = (builder.BuildAndStart());
@@ -55,9 +59,12 @@ class LookupServiceImplTest : public ::testing::Test {
     server_->Wait();
   }
   MockCache mock_cache_;
+  privacy_sandbox::server_common::FakeKeyFetcherManager
+      fake_key_fetcher_manager_;
   std::unique_ptr<LookupServiceImpl> lookup_service_;
   std::unique_ptr<grpc::Server> server_;
   std::unique_ptr<InternalLookupService::Stub> stub_;
+  MockMetricsRecorder mock_metrics_recorder_;
 };
 
 TEST_F(LookupServiceImplTest, ReturnsKeysFromCache) {
@@ -108,7 +115,7 @@ TEST_F(LookupServiceImplTest, MissingKeyFromCache) {
            }
            kv_pairs {
              key: "key2"
-             value { status: { code: 5, message: "Key not found" } }
+             value { status: { code: 5, message: "" } }
            }
       )pb",
       &expected);

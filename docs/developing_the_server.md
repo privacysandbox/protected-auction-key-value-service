@@ -36,7 +36,6 @@ The data server provides the read API for the KV service.
 > | kv-server-local-data-loading-file-channel-bucket-sns-arn | ARN of the Simple Notification Service (SNS) for the S3 bucket    |
 > | kv-server-local-data-loading-realtime-channel-sns-arn    | ARN of the Simple Notification Service (SNS) for realtime updates |
 > | kv-server-local-launch-hook                              | Any value, this won't be needed for                               |
-> | kv-server-local-mode                                     | "DSP" or "SSP"                                                    |
 >
 > If you have a UDF delta file, you will also need to include it in your delta file S3 bucket. Refer to the [UDF Delta file documentation](./generating_udf_files.md) for how to generate a UDF delta file and upload it to S3 before starting the server.
 <!-- markdownlint-enable line-length -->
@@ -104,7 +103,7 @@ The data server provides the read API for the KV service.
 To run the server by itself
 
 ```sh
-docker run -it --rm --entrypoint=/server/bin/init_server_basic --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
+docker run -it --rm --entrypoint=/init_server_basic --security-opt=seccomp=unconfined --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
 ```
 
 To start Envoy (required to test HTTP access) a similar pattern is used to build the image, load it
@@ -129,7 +128,7 @@ builders/tools/bazel-debian run //components/data_server/server:server --config 
 
 We are currently developing this server for local testing and for use on AWS Nitro instances
 (similar to the
-[Aggregation Service](https://github.com/google/trusted-execution-aggregation-service). We
+[Aggregation Service](https://github.com/google/trusted-execution-aggregation-service)). We
 anticipate supporting additional cloud providers in the future.
 
 ### Interact with the server
@@ -271,7 +270,7 @@ To export telemetry to Jaeger from within a local Docker container,
    flags `--network host --add-host=host.docker.internal:host-gateway`:
 
 ```sh
-docker run -it --rm --network host --add-host=host.docker.internal:host-gateway --entrypoint=/server/bin/init_server_basic --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
+docker run -it --rm --network host --add-host=host.docker.internal:host-gateway --entrypoint=/init_server_basic --security-opt=seccomp=unconfined --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
 ```
 
 ### Modifying CloudWatch dashboard

@@ -41,6 +41,20 @@ bool IsSnapshotFilename(std::string_view basename);
 // construct a valid snapshot filename.
 absl::StatusOr<std::string> ToSnapshotFileName(uint64_t logical_commit_time);
 
+// Returns true if `basename` is a valid logical sharding config filename.
+//
+// Valid logical sharding config filenames conform to the regex return by
+// `LogicalShardingConfigFileFormatRegex()` in constants.h
+bool IsLogicalShardingConfigFilename(std::string_view basename);
+
+// Attempts to construct a valid logical sharding config filename from
+// `logical_commit_time`.
+//
+// Returns absl::InvalidArgumentError if `logical_commit_time` cannot be used to
+// construct a valid logical sharding config filename.
+absl::StatusOr<std::string> ToLogicalShardingConfigFilename(
+    uint64_t logical_commit_time);
+
 }  // namespace kv_server
 
 #endif  // PUBLIC_DATA_LOADING_FILENAME_UTILS_H_

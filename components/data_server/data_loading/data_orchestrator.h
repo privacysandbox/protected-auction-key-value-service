@@ -27,6 +27,7 @@
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/data/realtime/realtime_notifier.h"
+#include "components/data/realtime/realtime_thread_pool_manager.h"
 #include "components/data_server/cache/cache.h"
 #include "components/udf/udf_client.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
@@ -42,11 +43,6 @@ class DataOrchestrator {
   // Stops loading new data, if it is currently continuously loading new data.
   virtual ~DataOrchestrator() = default;
 
-  struct RealtimeOptions {
-    std::unique_ptr<DeltaFileRecordChangeNotifier>
-        delta_file_record_change_notifier;
-    std::unique_ptr<RealtimeNotifier> realtime_notifier;
-  };
   struct Options {
     // bucket to keep loading data from.
     const std::string data_bucket;
@@ -56,7 +52,7 @@ class DataOrchestrator {
     BlobStorageChangeNotifier& change_notifier;
     UdfClient& udf_client;
     StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory;
-    std::vector<RealtimeOptions>& realtime_options;
+    RealtimeThreadPoolManager& realtime_thread_pool_manager;
     const int32_t shard_num = 0;
     const int32_t num_shards = 1;
   };

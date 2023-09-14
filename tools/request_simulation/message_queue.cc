@@ -15,6 +15,7 @@
 #include "tools/request_simulation/message_queue.h"
 
 #include <utility>
+#include <vector>
 
 namespace kv_server {
 
@@ -22,6 +23,15 @@ void MessageQueue::Push(std::string message) {
   absl::MutexLock lock(&mutex_);
   if (queue_.size() < capacity_) {
     queue_.push_back(std::move(message));
+  }
+}
+
+void MessageQueue::Push(std::vector<std::string> messages) {
+  absl::MutexLock lock(&mutex_);
+  for (auto& m : messages) {
+    if (queue_.size() < capacity_) {
+      queue_.push_back(std::move(m));
+    }
   }
 }
 

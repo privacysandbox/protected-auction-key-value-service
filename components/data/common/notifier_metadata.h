@@ -19,8 +19,7 @@
 
 #include <filesystem>
 #include <string>
-
-#include "components/data/common/msg_svc.h"
+#include <variant>
 
 // This is a forward declare so that we don't need to import the actual AWS
 // SDK when we're running on the local platform.  SQSClient is only used as a
@@ -34,7 +33,7 @@ class SQSClient;
 namespace kv_server {
 class MessageService;
 
-struct CloudNotifierMetadata {
+struct AwsNotifierMetadata {
   std::string queue_prefix;
   std::string sns_arn;
   MessageService* queue_manager;
@@ -47,8 +46,17 @@ struct LocalNotifierMetadata {
   std::filesystem::path local_directory;
 };
 
+struct GcpNotifierMetadata {
+  std::string queue_prefix;
+  std::string project_id;
+  std::string topic_id;
+  int32_t num_threads = 1;
+  int32_t num_shards = 1;
+  int32_t shard_num;
+};
 using NotifierMetadata =
-    std::variant<CloudNotifierMetadata, kv_server::LocalNotifierMetadata>;
+    std::variant<AwsNotifierMetadata, LocalNotifierMetadata,
+                 GcpNotifierMetadata>;
 
 inline void SetQueueManager(NotifierMetadata& notifier_metadata,
                             MessageService* queue_manager) {

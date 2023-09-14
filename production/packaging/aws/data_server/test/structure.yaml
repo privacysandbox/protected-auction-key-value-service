@@ -33,26 +33,26 @@ fileExistenceTests:
     isExecutableBy: any
 
   - name: init_server_enclave.sh
-    path: /server/bin/init_server_enclave
+    path: /init_server_enclave
     shouldExist: true
     isExecutableBy: any
 
   - name: init_server_basic.sh
-    path: /server/bin/init_server_basic
+    path: /init_server_basic
     shouldExist: true
     isExecutableBy: any
 
   - name: proxify
-    path: /server/bin/proxify
+    path: /proxify
     shouldExist: true
     isExecutableBy: any
 
   - name: proxy preload
-    path: /server/bin/libproxy_preload.so
+    path: /libproxy_preload.so
     shouldExist: true
 
   - name: server
-    path: /server/bin/server
+    path: /server
     shouldExist: true
     isExecutableBy: any
 

@@ -21,9 +21,6 @@
 
 namespace kv_server {
 namespace {
-// An arbitrary small number in case the flat buffer needs some space for
-// overheads.
-constexpr int kOverheadSize = 10;
 
 struct ValueUnion {
   Value value_type;
@@ -53,10 +50,12 @@ ValueUnion BuildValueUnion(const KeyValueMutationRecordValueT& value,
               .value = CreateStringSet(builder, values_offset).Union(),
           };
         }
-        return ValueUnion{
-            .value_type = Value::NONE,
-            .value = flatbuffers::Offset<void>(),
-        };
+        if constexpr (std::is_same_v<VariantT, std::monostate>) {
+          return ValueUnion{
+              .value_type = Value::NONE,
+              .value = flatbuffers::Offset<void>(),
+          };
+        }
       },
       value);
 }
@@ -77,7 +76,14 @@ flatbuffers::Offset<UserDefinedFunctionsConfig> UdfConfigFromStruct(
       builder, udf_config_struct.language,
       udf_config_struct.code_snippet.data(),
       udf_config_struct.handler_name.data(),
-      udf_config_struct.logical_commit_time);
+      udf_config_struct.logical_commit_time, udf_config_struct.version);
+}
+
+flatbuffers::Offset<ShardMappingRecord> ShardMappingFromStruct(
+    flatbuffers::FlatBufferBuilder& builder,
+    const ShardMappingRecordStruct& shard_mapping_struct) {
+  return CreateShardMappingRecord(builder, shard_mapping_struct.logical_shard,
+                                  shard_mapping_struct.physical_shard);
 }
 
 RecordUnion BuildRecordUnion(const RecordT& record,
@@ -98,10 +104,18 @@ RecordUnion BuildRecordUnion(const RecordT& record,
               .record = UdfConfigFromStruct(builder, arg).Union(),
           };
         }
-        return RecordUnion{
-            .record_type = Record::NONE,
-            .record = flatbuffers::Offset<void>(),
-        };
+        if constexpr (std::is_same_v<VariantT, ShardMappingRecordStruct>) {
+          return RecordUnion{
+              .record_type = Record::ShardMappingRecord,
+              .record = ShardMappingFromStruct(builder, arg).Union(),
+          };
+        }
+        if constexpr (std::is_same_v<VariantT, std::monostate>) {
+          return RecordUnion{
+              .record_type = Record::NONE,
+              .record = flatbuffers::Offset<void>(),
+          };
+        }
       },
       record);
 }
@@ -118,6 +132,65 @@ absl::StatusOr<const FbsRecordT*> DeserializeAndVerifyRecord(
     return absl::InvalidArgumentError("Invalid flatbuffer bytes.");
   }
   return fbs_record;
+}
+
+absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
+  if (kv_mutation_record.value() == nullptr) {
+    return absl::InvalidArgumentError("Value not set.");
+  }
+  if (kv_mutation_record.value_type() == Value::String &&
+      (kv_mutation_record.value_as_String() == nullptr ||
+       kv_mutation_record.value_as_String()->value() == nullptr)) {
+    return absl::InvalidArgumentError("String value not set.");
+  }
+  if (kv_mutation_record.value_type() == Value::StringSet &&
+      (kv_mutation_record.value_as_StringSet() == nullptr ||
+       kv_mutation_record.value_as_StringSet()->value() == nullptr)) {
+    return absl::InvalidArgumentError("StringSet value not set.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateKeyValueMutationRecord(
+    const KeyValueMutationRecord& kv_mutation_record) {
+  if (kv_mutation_record.key() == nullptr) {
+    return absl::InvalidArgumentError("Key not set.");
+  }
+  return ValidateValue(kv_mutation_record);
+}
+
+absl::Status ValidateUserDefinedFunctionsConfig(
+    const UserDefinedFunctionsConfig& udf_config) {
+  if (udf_config.code_snippet() == nullptr) {
+    return absl::InvalidArgumentError("code_snippet not set.");
+  }
+  if (udf_config.handler_name() == nullptr) {
+    return absl::InvalidArgumentError("handler_name not set.");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ValidateData(const DataRecord& data_record) {
+  if (data_record.record() == nullptr) {
+    return absl::InvalidArgumentError("Record not set.");
+  }
+
+  if (data_record.record_type() == Record::KeyValueMutationRecord) {
+    if (const auto status = ValidateKeyValueMutationRecord(
+            *data_record.record_as_KeyValueMutationRecord());
+        !status.ok()) {
+      return status;
+    }
+  }
+
+  if (data_record.record_type() == Record::UserDefinedFunctionsConfig) {
+    if (const auto status = ValidateUserDefinedFunctionsConfig(
+            *data_record.record_as_UserDefinedFunctionsConfig());
+        !status.ok()) {
+      return status;
+    }
+  }
+  return absl::OkStatus();
 }
 
 KeyValueMutationRecordValueT GetRecordStructValue(
@@ -141,6 +214,9 @@ RecordT GetRecordStruct(const DataRecord& data_record) {
     record =
         GetTypedRecordStruct<UserDefinedFunctionsConfigStruct>(data_record);
   }
+  if (data_record.record_type() == Record::ShardMappingRecord) {
+    record = GetTypedRecordStruct<ShardMappingRecordStruct>(data_record);
+  }
   return record;
 }
 
@@ -162,13 +238,25 @@ bool operator!=(const KeyValueMutationRecordStruct& lhs_record,
 bool operator==(const UserDefinedFunctionsConfigStruct& lhs_record,
                 const UserDefinedFunctionsConfigStruct& rhs_record) {
   return lhs_record.logical_commit_time == rhs_record.logical_commit_time &&
+         lhs_record.version == rhs_record.version &&
+         lhs_record.handler_name == rhs_record.handler_name &&
          lhs_record.language == rhs_record.language &&
-         lhs_record.code_snippet == rhs_record.code_snippet &&
-         lhs_record.handler_name == rhs_record.handler_name;
+         lhs_record.code_snippet == rhs_record.code_snippet;
 }
 
 bool operator!=(const UserDefinedFunctionsConfigStruct& lhs_record,
                 const UserDefinedFunctionsConfigStruct& rhs_record) {
+  return !operator==(lhs_record, rhs_record);
+}
+
+bool operator==(const ShardMappingRecordStruct& lhs_record,
+                const ShardMappingRecordStruct& rhs_record) {
+  return lhs_record.logical_shard == rhs_record.logical_shard &&
+         lhs_record.physical_shard == rhs_record.physical_shard;
+}
+
+bool operator!=(const ShardMappingRecordStruct& lhs_record,
+                const ShardMappingRecordStruct& rhs_record) {
   return !operator==(lhs_record, rhs_record);
 }
 
@@ -246,10 +334,14 @@ absl::Status DeserializeDataRecord(
     const std::function<absl::Status(const DataRecord&)>& record_callback) {
   auto fbs_record = DeserializeAndVerifyRecord<DataRecord>(record_bytes);
   if (!fbs_record.ok()) {
+    LOG_FIRST_N(ERROR, 3) << "Record deserialization failed: "
+                          << fbs_record.status();
     return fbs_record.status();
   }
-  // TODO(b/269472380): Add data validation. Not
-  // necessarily here.
+  if (const auto status = ValidateData(**fbs_record); !status.ok()) {
+    LOG_FIRST_N(ERROR, 3) << "Data validation failed: " << status;
+    return status;
+  }
   return record_callback(**fbs_record);
 }
 
@@ -303,7 +395,17 @@ UserDefinedFunctionsConfigStruct GetTypedRecordStruct(
   udf_config_struct.logical_commit_time = udf_config->logical_commit_time();
   udf_config_struct.code_snippet = udf_config->code_snippet()->string_view();
   udf_config_struct.handler_name = udf_config->handler_name()->string_view();
+  udf_config_struct.version = udf_config->version();
   return udf_config_struct;
+}
+
+template <>
+ShardMappingRecordStruct GetTypedRecordStruct(const DataRecord& data_record) {
+  const auto* shard_mapping_record = data_record.record_as_ShardMappingRecord();
+  return ShardMappingRecordStruct{
+      .logical_shard = shard_mapping_record->logical_shard(),
+      .physical_shard = shard_mapping_record->physical_shard(),
+  };
 }
 
 }  // namespace kv_server

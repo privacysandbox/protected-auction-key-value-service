@@ -32,12 +32,17 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/get_key_value_set_result.h"
 #include "public/base_types.pb.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 // In-memory datastore.
 // One cache object is only for keys in one namespace.
 class KeyValueCache : public Cache {
  public:
+  KeyValueCache(
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
+      : metrics_recorder_(metrics_recorder) {}
+
   // Looks up and returns key-value pairs for the given keys.
   absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
       const std::vector<std::string_view>& key_list) const override;
@@ -72,7 +77,8 @@ class KeyValueCache : public Cache {
   // background thread
   void RemoveDeletedKeys(int64_t logical_commit_time) override;
 
-  static std::unique_ptr<Cache> Create();
+  static std::unique_ptr<Cache> Create(
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
 
  private:
   struct CacheValue {
@@ -107,7 +113,7 @@ class KeyValueCache : public Cache {
 
   // Sorted mapping from the logical timestamp to a key, for nodes that were
   // deleted We keep this to do proper and efficient clean up in map_.
-  absl::btree_map<int64_t, std::string> deleted_nodes_ ABSL_GUARDED_BY(mutex_);
+  std::multimap<int64_t, std::string> deleted_nodes_ ABSL_GUARDED_BY(mutex_);
 
   // The maximum value that was passed to RemoveDeletedKeys.
   int64_t max_cleanup_logical_commit_time_ ABSL_GUARDED_BY(mutex_) = 0;
@@ -145,6 +151,8 @@ class KeyValueCache : public Cache {
   void CleanUpKeyValueSetMap(int64_t logical_commit_time);
 
   friend class KeyValueCacheTestPeer;
+
+  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 }  // namespace kv_server
 

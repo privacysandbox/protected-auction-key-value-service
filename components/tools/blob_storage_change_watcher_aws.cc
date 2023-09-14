@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
   }
 
   auto message_service_status = kv_server::MessageService::Create(
-      kv_server::CloudNotifierMetadata{"BlobNotifier_", sns_arn});
+      kv_server::AwsNotifierMetadata{"BlobNotifier_", sns_arn});
 
   if (!message_service_status.ok()) {
     std::cerr << "Unable to create MessageService: "
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
   auto status_or_notifier = BlobStorageChangeNotifier::Create(
-      kv_server::CloudNotifierMetadata{
+      kv_server::AwsNotifierMetadata{
           .sns_arn = sns_arn, .queue_manager = message_service_status->get()},
       *noop_metrics_recorder);
 

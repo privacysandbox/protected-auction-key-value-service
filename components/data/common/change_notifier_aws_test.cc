@@ -35,7 +35,7 @@ class MockMessageService : public MessageService {
  public:
   MOCK_METHOD(bool, IsSetupComplete, (), (const));
 
-  MOCK_METHOD(const std::string&, GetSqsUrl, (), (const));
+  MOCK_METHOD(const QueueMetadata, GetQueueMetadata, (), (const));
 
   MOCK_METHOD(absl::Status, SetupQueue, (), ());
 
@@ -61,7 +61,7 @@ class ChangeNotifierAwsTest : public ::testing::Test {
 
 TEST_F(ChangeNotifierAwsTest, SmokeTest) {
   auto mock_sqs_client = std::make_unique<MockSqsClient>();
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
@@ -75,12 +75,13 @@ TEST_F(ChangeNotifierAwsTest, ReceiveMessageFails) {
   EXPECT_CALL(mock_message_service, IsSetupComplete)
       .WillOnce(::testing::Return(true));
   const std::string mock_sqs_url("mock sqs url");
-  EXPECT_CALL(mock_message_service, GetSqsUrl())
-      .WillRepeatedly(::testing::ReturnRef(mock_sqs_url));
+  AwsQueueMetadata metadata = {.sqs_url = mock_sqs_url};
+  EXPECT_CALL(mock_message_service, GetQueueMetadata())
+      .WillRepeatedly(::testing::Return(metadata));
   // A default ReceiveMessageOutcome will be returned for calls to
   // mock_sqs_client.ReceiveMessage(_).
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -100,8 +101,9 @@ TEST_F(ChangeNotifierAwsTest,
   EXPECT_CALL(mock_message_service, IsSetupComplete)
       .WillOnce(::testing::Return(true));
   const std::string mock_sqs_url("mock sqs url");
-  EXPECT_CALL(mock_message_service, GetSqsUrl())
-      .WillRepeatedly(::testing::ReturnRef(mock_sqs_url));
+  AwsQueueMetadata metadata = {.sqs_url = mock_sqs_url};
+  EXPECT_CALL(mock_message_service, GetQueueMetadata())
+      .WillRepeatedly(::testing::Return(metadata));
 
   Aws::SQS::Model::ReceiveMessageResult result;
   // Because we populate the Outcome with a Result that means that IsSuccess()
@@ -110,7 +112,7 @@ TEST_F(ChangeNotifierAwsTest,
   EXPECT_CALL(*mock_sqs_client, ReceiveMessage(::testing::_))
       .WillOnce(::testing::Return(outcome));
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
@@ -130,8 +132,9 @@ TEST_F(ChangeNotifierAwsTest, ReceiveMessagePassesAndHasMessages) {
   EXPECT_CALL(mock_message_service, IsSetupComplete)
       .WillOnce(::testing::Return(true));
   const std::string mock_sqs_url("mock sqs url");
-  EXPECT_CALL(mock_message_service, GetSqsUrl())
-      .WillRepeatedly(::testing::ReturnRef(mock_sqs_url));
+  AwsQueueMetadata metadata = {.sqs_url = mock_sqs_url};
+  EXPECT_CALL(mock_message_service, GetQueueMetadata())
+      .WillRepeatedly(::testing::Return(metadata));
 
   Aws::SQS::Model::ReceiveMessageResult result;
   Aws::SQS::Model::Message message;
@@ -143,7 +146,7 @@ TEST_F(ChangeNotifierAwsTest, ReceiveMessagePassesAndHasMessages) {
   EXPECT_CALL(*mock_sqs_client, ReceiveMessage(::testing::_))
       .WillOnce(::testing::Return(outcome));
 
-  CloudNotifierMetadata notifier_metadata;
+  AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service;
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 

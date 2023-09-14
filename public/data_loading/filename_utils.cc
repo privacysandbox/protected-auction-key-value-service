@@ -66,4 +66,22 @@ absl::StatusOr<std::string> ToSnapshotFileName(uint64_t logical_commit_time) {
   return result;
 }
 
+bool IsLogicalShardingConfigFilename(std::string_view basename) {
+  return std::regex_match(basename.begin(), basename.end(),
+                          LogicalShardingConfigFileFormatRegex());
+}
+
+absl::StatusOr<std::string> ToLogicalShardingConfigFilename(
+    uint64_t logical_commit_time) {
+  const std::string result =
+      GetFilename<FileType::LOGICAL_SHARDING_CONFIG>(logical_commit_time);
+  if (!IsLogicalShardingConfigFilename(result)) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Unable to build a valid logical sharding config file name with "
+        "logical commit time: ",
+        logical_commit_time, " which makes a file name: ", result));
+  }
+  return result;
+}
+
 }  // namespace kv_server

@@ -42,13 +42,14 @@ function yum_update() {
   yum -y update
 }
 
-function install_compilers() {
+function install_python() {
   amazon-linux-extras install -y \
-    python3.8 \
-    java-openjdk11
-  yum install -y "java-11-openjdk-devel-11.0.*"
+    python3.8
   mkdir -p /opt/bin
-  update-alternatives --install /opt/bin/python3 python3 /usr/bin/python3.8 100
+  update-alternatives \
+    --install /opt/bin/python3 python3-opt /usr/bin/python3.8 100 \
+    --slave /opt/bin/python python /usr/bin/python3.8
+
 }
 
 function install_nitro() {
@@ -67,6 +68,7 @@ function install_misc() {
     "git-2.38*" \
     "tar-1.26*" \
     "unzip-6.0*" \
+    "which-2.*" \
     "zip-3.0*"
 }
 
@@ -90,10 +92,10 @@ if [[ ${VERBOSE} -eq 1 ]]; then
 fi
 
 yum_update
-install_compilers
 install_nitro
 install_misc
 install_clang
 install_golang "${BUILD_ARCH}"
 install_gcc
 install_packer
+install_python

@@ -5,6 +5,7 @@ set -o errexit
 
 declare -i VERBOSE=0
 declare INSTALL_LOCALE=en_US.UTF-8
+declare -r -i CLANG_VER=15
 
 usage() {
   local exitval=${1-1}
@@ -43,20 +44,28 @@ function apt_update() {
 }
 
 function install_python() {
+  DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y --no-install-recommends \
+    python3.9-venv="3.9.*"
   mkdir -p /opt/bin
-  update-alternatives --install /opt/bin/python3 python3 /usr/bin/python3.9 100
-  update-alternatives --install /opt/bin/python python /usr/bin/python3.9 100
+  update-alternatives \
+    --force \
+    --install /opt/bin/python3 python3-opt /usr/bin/python3.9 100 \
+    --slave /usr/bin/python3 python3-usr /usr/bin/python3.9 \
+    --slave /usr/bin/python python-usr /usr/bin/python3.9 \
+    --slave /opt/bin/python python /usr/bin/python3.9
   curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
-  /usr/bin/python3.9 /tmp/get-pip.py
+  /usr/bin/python3 /tmp/get-pip.py
   rm -f /tmp/get-pip.py
-  /usr/bin/python3.9 -m pip --version
-  /usr/bin/python3.9 -m pip install \
+  /usr/bin/python3 -m pip --version
+  /usr/bin/python3 -m pip install \
+    "libclang~=${CLANG_VER}.0" \
     "numpy~=1.25"
 }
 
 function install_misc() {
   DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y --no-install-recommends \
     apt-transport-https="2.0.*" \
+    bsdmainutils \
     ca-certificates \
     chrpath="0.16-*" \
     libcurl4="7.68.*" \
@@ -67,15 +76,13 @@ function install_misc() {
     gnupg="2.2.*" \
     locales="2.31-*" \
     lsb-release="11.1.*" \
-    openjdk-11-jdk="11.0.*" \
-    python3.9-venv="3.9.*" \
+    patch="2.7.*" \
     rename="1.10-*" \
     software-properties-common="0.99.*" \
     unzip="6.0-*" \
     wget="1.20.*" \
     xz-utils="5.2.*" \
     zip="3.0-*"
-  install_python
   if [[ -n ${INSTALL_LOCALE} ]]; then
     printf "\nSetting locale to: %s\n" "${INSTALL_LOCALE}"
     locale-gen "${INSTALL_LOCALE}"
@@ -84,14 +91,13 @@ function install_misc() {
 }
 
 function install_clang() {
-  declare -r -i clang_ver=15
   curl --silent --fail --show-error --location --remote-name https://apt.llvm.org/llvm.sh
   chmod +x llvm.sh
-  ./llvm.sh ${clang_ver}
-  apt-get --quiet install -y --no-install-recommends libc++-${clang_ver}-dev
-  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${clang_ver} 100
-  update-alternatives --install /usr/bin/llvm-cov llvm-cov /usr/bin/llvm-cov-${clang_ver} 100
-  update-alternatives --install /usr/bin/llvm-profdata llvm-profdata /usr/bin/llvm-profdata-${clang_ver} 100
+  ./llvm.sh ${CLANG_VER}
+  apt-get --quiet install -y --no-install-recommends libc++-${CLANG_VER}-dev
+  for prog in clang lld ld.lld llvm-cov llvm-profdata; do
+    update-alternatives --install /usr/bin/${prog} ${prog} /usr/bin/${prog}-${CLANG_VER} 100
+  done
   rm -f llvm.sh
 
   clang --version
@@ -107,7 +113,9 @@ function install_docker() {
   declare -r dist=ubuntu
   curl --silent --fail --show-error --location https://download.docker.com/linux/${dist}/gpg \
     | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=${arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${dist} $(lsb_release -cs) stable" \
+  declare lsb_release
+  lsb_release="$(lsb_release -cs)"
+  echo "deb [arch=${arch} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${dist} ${lsb_release} stable" \
     | tee /etc/apt/sources.list.d/docker.list
   apt_update
   apt-get --quiet install -y --no-install-recommends docker-ce docker-ce-cli containerd.io
@@ -130,4 +138,5 @@ install_misc
 install_clang
 install_golang "${BUILD_ARCH}"
 install_docker "${BUILD_ARCH}"
+install_python # should run after other install_*
 clean_debian

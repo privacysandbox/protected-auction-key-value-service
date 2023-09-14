@@ -20,12 +20,6 @@
 
 #include "absl/status/statusor.h"
 
-namespace Aws {
-namespace SSM {
-class SSMClient;
-}  // namespace SSM
-}  // namespace Aws
-
 // TODO: Replace config cpio client once ready
 namespace kv_server {
 
@@ -34,8 +28,7 @@ class ParameterClient {
  public:
   struct ClientOptions {
     ClientOptions() {}
-    // ParameterClient takes ownership of this if it's set:
-    ::Aws::SSM::SSMClient* ssm_client_for_unit_testing_ = nullptr;
+    void* client_for_unit_testing_ = nullptr;
   };
 
   static std::unique_ptr<ParameterClient> Create(

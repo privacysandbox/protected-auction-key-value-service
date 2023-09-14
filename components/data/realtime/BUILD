@@ -25,6 +25,9 @@ cc_library(
         "//:aws_platform": [
             "delta_file_record_change_notifier_aws.cc",
         ],
+        "//:gcp_platform": [
+            "delta_file_record_change_notifier_gcp.cc",
+        ],
         "//:local_platform": [
             "delta_file_record_change_notifier_local.cc",
         ],
@@ -47,6 +50,9 @@ cc_test(
         "//:aws_platform": [
             "delta_file_record_change_notifier_aws_test.cc",
         ],
+        "//:gcp_platform": [
+            "delta_file_record_change_notifier_gcp_test.cc",
+        ],
         "//:local_platform": ["delta_file_record_change_notifier_local_test.cc"],
     }),
     data = [
@@ -65,39 +71,113 @@ cc_test(
 
 cc_library(
     name = "realtime_notifier",
-    srcs = [
-        "realtime_notifier.cc",
-    ],
+    srcs = select({
+        # This will be uncommented once the full implementaiton
+        # is added. Otherwise it breaks the gcp logic at runtime
+        # "//:gcp_platform": [
+        #     "realtime_notifier_gcp.cc",
+        # ],
+        "//conditions:default": [
+            "realtime_notifier_aws.cc",
+        ],
+    }),
     hdrs = [
         "realtime_notifier.h",
+        "realtime_notifier_metadata.h",
     ],
-    deps = [
-        ":delta_file_record_change_notifier",
+    deps = select({
+        # "//:gcp_platform": [
+        #     "//components/data/common:message_service",
+        #     "@com_github_googleapis_google_cloud_cpp//:pubsub",
+        # ],
+        "//conditions:default": [
+            ":delta_file_record_change_notifier",
+            "//components/errors:retry",
+            "//components/util:sleepfor",
+            "//public:constants",
+            "@google_privacysandbox_servers_common//src/cpp/util:duration",
+        ],
+    }) + [
         "//components/data/common:thread_manager",
-        "//components/errors:retry",
-        "//components/util:sleepfor",
-        "//public:constants",
         "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/container:flat_hash_set",
-        "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/synchronization",
-        "@google_privacysandbox_servers_common//src/cpp/util:duration",
     ],
 )
 
 cc_test(
     name = "realtime_notifier_test",
     size = "small",
-    srcs = [
-        "realtime_notifier_test.cc",
+    srcs = select({
+        # "//:gcp_platform": [
+        #     "realtime_notifier_gcp_test.cc",
+        # ],
+        "//conditions:default": [
+            "realtime_notifier_aws_test.cc",
+        ],
+    }),
+    deps =
+        select({
+            # "//:gcp_platform": [
+            #     "@com_github_googleapis_google_cloud_cpp//:pubsub_mocks",
+            # ],
+            "//conditions:default": [
+            ],
+        }) + [
+            ":realtime_notifier",
+            "//components/data/common:mocks",
+            "//components/util:sleepfor_mock",
+            "//public/data_loading:filename_utils",
+            "@com_github_grpc_grpc//:grpc++",
+            "@com_google_googletest//:gtest_main",
+            "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+        ],
+)
+
+cc_library(
+    name = "realtime_thread_pool_manager",
+    srcs = select({
+        # "//:gcp_platform": [
+        #     "realtime_thread_pool_manager_gcp.cc",
+        # ],
+        "//conditions:default": [
+            "realtime_thread_pool_manager_aws.cc",
+        ],
+    }),
+    hdrs = [
+        "realtime_thread_pool_manager.h",
     ],
     deps = [
         ":realtime_notifier",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+    ],
+)
+
+cc_test(
+    name = "realtime_thread_pool_manager_test",
+    size = "small",
+    srcs = select({
+        # "//:gcp_platform": [
+        #     "realtime_thread_pool_manager_gcp_test.cc",
+        # ],
+        "//conditions:default": [
+            "realtime_thread_pool_manager_aws_test.cc",
+        ],
+    }),
+    deps = select({
+        # "//:gcp_platform": [
+        #     "@com_github_googleapis_google_cloud_cpp//:pubsub",
+        #     "@com_github_googleapis_google_cloud_cpp//:pubsub_mocks",
+        # ],
+        "//conditions:default": [
+        ],
+    }) + [
+        ":realtime_thread_pool_manager",
         "//components/data/common:mocks",
         "//components/util:sleepfor_mock",
-        "//public/data_loading:filename_utils",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",

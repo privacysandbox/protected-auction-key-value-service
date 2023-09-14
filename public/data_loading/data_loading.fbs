@@ -49,9 +49,24 @@ table UserDefinedFunctionsConfig {
   // is considered newer. There is no constraints on what format the time must
   // be other than that a larger number represents a newer timestamp.
   logical_commit_time:int64;
+
+  // Required. Version number.
+  version:int64;
 }
 
-union Record { KeyValueMutationRecord, UserDefinedFunctionsConfig }
+table ShardMappingRecord {
+  // Required. Logical shard number.
+  logical_shard:int32;
+
+  // Required. Physical shard number.
+  physical_shard:int32;
+}
+
+union Record {
+  KeyValueMutationRecord,
+  UserDefinedFunctionsConfig,
+  ShardMappingRecord
+}
 
 table DataRecord {
   record:Record;

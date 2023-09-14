@@ -31,7 +31,7 @@ class UdfConfigBuilder {
 
   UdfConfigBuilder& RegisterLoggingHook();
 
-  UdfConfigBuilder& SetNumberOfWorkers(const int number_of_workers);
+  UdfConfigBuilder& SetNumberOfWorkers(int number_of_workers);
 
   const google::scp::roma::Config& Config() const;
 

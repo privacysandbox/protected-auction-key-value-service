@@ -192,7 +192,11 @@ cc_binary(
 
 cc_binary(
     name = "query_toy",
-    srcs = ["query_toy.cc"],
+    srcs = [
+        "query_dot.cc",
+        "query_dot.h",
+        "query_toy.cc",
+    ],
     visibility = ["//production/packaging:__subpackages__"],
     deps = [
         "//components/query:driver",

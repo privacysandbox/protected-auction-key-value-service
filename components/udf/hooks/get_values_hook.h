@@ -23,10 +23,14 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
-#include "components/internal_server/lookup_client.h"
+#include "components/data_server/cache/cache.h"
+#include "components/internal_server/lookup.h"
 #include "roma/interface/function_binding_io.pb.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
+
+using privacy_sandbox::server_common::MetricsRecorder;
 
 // Functor that acts as a wrapper for the internal lookup client call.
 class GetValuesHook {
@@ -35,15 +39,18 @@ class GetValuesHook {
 
   virtual ~GetValuesHook() = default;
 
+  // We need to split the hook init, since lookup depends on the cache.
+  // However, UdfClient init requires the hook and it also forks.
+  // The cache is only initialized after UdfClient init, so the hook
+  // init can only be completed after UdfClient and cache init.
+  virtual void FinishInit(std::unique_ptr<Lookup> lookup) = 0;
+
   // This is registered with v8 and is exposed to the UDF. Internally, it calls
   // the internal lookup client.
   virtual void operator()(
       google::scp::roma::proto::FunctionBindingIoProto& io) = 0;
 
-  static std::unique_ptr<GetValuesHook> Create(
-      absl::AnyInvocable<std::unique_ptr<LookupClient>()>
-          lookup_client_supplier,
-      OutputType output_type);
+  static std::unique_ptr<GetValuesHook> Create(OutputType output_type);
 };
 
 }  // namespace kv_server

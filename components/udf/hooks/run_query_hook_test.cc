@@ -40,16 +40,14 @@ TEST(RunQueryHookTest, SuccessfullyProcessesValue) {
   InternalRunQueryResponse run_query_response;
   TextFormat::ParseFromString(R"pb(elements: "a" elements: "b")pb",
                               &run_query_response);
-  auto mrq = std::make_unique<MockRunQueryClient>();
-  MockRunQueryClient* mock_run_query_client = mrq.get();
-  EXPECT_CALL(*mock_run_query_client, RunQuery(query))
+  auto mock_lookup = std::make_unique<MockLookup>();
+  EXPECT_CALL(*mock_lookup, RunQuery(query))
       .WillOnce(Return(run_query_response));
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
-  auto run_query_hook = RunQueryHook::Create(
-      [mrq = std::move(mrq)]() mutable { return std::move(mrq); });
-
+  auto run_query_hook = RunQueryHook::Create();
+  run_query_hook->FinishInit(std::move(mock_lookup));
   (*run_query_hook)(io);
   EXPECT_THAT(io.output_list_of_string().data(),
               UnorderedElementsAreArray({"a", "b"}));
@@ -57,28 +55,27 @@ TEST(RunQueryHookTest, SuccessfullyProcessesValue) {
 
 TEST(GetValuesHookTest, RunQueryClientReturnsError) {
   std::string query = "Q";
-  auto mrq = std::make_unique<MockRunQueryClient>();
-  MockRunQueryClient* mock_run_query_client = mrq.get();
-  EXPECT_CALL(*mock_run_query_client, RunQuery(query))
+  auto mock_lookup = std::make_unique<MockLookup>();
+  EXPECT_CALL(*mock_lookup, RunQuery(query))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
-  auto run_query_hook = RunQueryHook::Create(
-      [mrq = std::move(mrq)]() mutable { return std::move(mrq); });
+  auto run_query_hook = RunQueryHook::Create();
+  run_query_hook->FinishInit(std::move(mock_lookup));
 
   (*run_query_hook)(io);
   EXPECT_TRUE(io.output_list_of_string().data().empty());
 }
 
 TEST(GetValuesHookTest, InputIsNotString) {
-  auto mrq = std::make_unique<MockRunQueryClient>();
+  auto mock_lookup = std::make_unique<MockLookup>();
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_list_of_string { data: "key1" })pb",
                               &io);
-  auto run_query_hook = RunQueryHook::Create(
-      [mrq = std::move(mrq)]() mutable { return std::move(mrq); });
+  auto run_query_hook = RunQueryHook::Create();
+  run_query_hook->FinishInit(std::move(mock_lookup));
   (*run_query_hook)(io);
 
   EXPECT_THAT(

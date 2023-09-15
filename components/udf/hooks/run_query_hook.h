@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
-#include "components/internal_server/run_query_client.h"
+#include "components/internal_server/lookup.h"
 #include "roma/interface/function_binding_io.pb.h"
 
 namespace kv_server {
@@ -33,14 +33,18 @@ class RunQueryHook {
  public:
   virtual ~RunQueryHook() = default;
 
+  // We need to split the hook init, since lookup depends on the cache.
+  // However, UdfClient init requires the hook and it also forks.
+  // The cache is only initialized after UdfClient init, so the hook
+  // init can only be completed after UdfClient and cache init.
+  virtual void FinishInit(std::unique_ptr<Lookup> lookup) = 0;
+
   // This is registered with v8 and is exposed to the UDF. Internally, it calls
   // the internal query client.
   virtual void operator()(
       google::scp::roma::proto::FunctionBindingIoProto& io) = 0;
 
-  static std::unique_ptr<RunQueryHook> Create(
-      absl::AnyInvocable<std::unique_ptr<RunQueryClient>()>
-          query_client_supplier);
+  static std::unique_ptr<RunQueryHook> Create();
 };
 
 }  // namespace kv_server

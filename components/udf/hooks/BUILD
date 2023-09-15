@@ -29,7 +29,8 @@ cc_library(
     ],
     deps = [
         "//components/internal_server:internal_lookup_cc_proto",
-        "//components/internal_server:lookup_client_impl",
+        "//components/internal_server:local_lookup",
+        "//components/internal_server:lookup",
         "//public/udf:binary_get_values_cc_proto",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/functional:any_invocable",
@@ -38,6 +39,7 @@ cc_library(
         "@com_google_protobuf//:protobuf",
         "@control_plane_shared//cc/roma/interface:roma_interface_lib",
         "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@nlohmann_json//:lib",
     ],
 )
@@ -52,7 +54,7 @@ cc_library(
     ],
     deps = [
         "//components/internal_server:internal_lookup_cc_proto",
-        "//components/internal_server:run_query_client_impl",
+        "//components/internal_server:lookup",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/status",

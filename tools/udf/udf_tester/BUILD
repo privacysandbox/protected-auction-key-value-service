@@ -25,7 +25,7 @@ cc_binary(
     deps = [
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
-        "//components/internal_server:cache_lookup_client",
+        "//components/internal_server:local_lookup",
         "//components/udf:udf_client",
         "//components/udf:udf_config_builder",
         "//components/udf/hooks:get_values_hook",

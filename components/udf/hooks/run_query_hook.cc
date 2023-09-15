@@ -22,7 +22,7 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/status/statusor.h"
-#include "components/internal_server/run_query_client.h"
+#include "components/internal_server/lookup.h"
 #include "glog/logging.h"
 #include "nlohmann/json.hpp"
 
@@ -33,12 +33,23 @@ using google::scp::roma::proto::FunctionBindingIoProto;
 
 class RunQueryHookImpl : public RunQueryHook {
  public:
-  explicit RunQueryHookImpl(
-      absl::AnyInvocable<std::unique_ptr<RunQueryClient>()>
-          query_client_supplier)
-      : query_client_supplier_(std::move(query_client_supplier)) {}
+  void FinishInit(std::unique_ptr<Lookup> lookup) {
+    if (lookup_ == nullptr) {
+      lookup_ = std::move(lookup);
+    }
+  }
 
   void operator()(FunctionBindingIoProto& io) {
+    if (lookup_ == nullptr) {
+      nlohmann::json status;
+      status["code"] = absl::StatusCode::kInternal;
+      status["message"] = "runQuery has not been initialized yet";
+      io.mutable_output_list_of_string()->add_data(status.dump());
+      LOG(ERROR)
+          << "runQuery hook is not initialized properly: lookup is nullptr";
+      return;
+    }
+
     VLOG(9) << "runQuery request: " << io.DebugString();
     if (!io.has_input_string()) {
       nlohmann::json status;
@@ -49,13 +60,9 @@ class RunQueryHookImpl : public RunQueryHook {
       return;
     }
 
-    if (query_client_ == nullptr) {
-      query_client_ = query_client_supplier_();
-    }
-    // TODO(b/261181061): Determine where to InitTracer.
     VLOG(9) << "Calling internal run query client";
     absl::StatusOr<InternalRunQueryResponse> response_or_status =
-        query_client_->RunQuery(io.input_string());
+        lookup_->RunQuery(io.input_string());
 
     if (!response_or_status.ok()) {
       LOG(ERROR) << "Internal run query returned error: "
@@ -72,18 +79,14 @@ class RunQueryHookImpl : public RunQueryHook {
   }
 
  private:
-  // `query_client_` is lazy loaded because getting one can cause thread
-  // creation. Lazy load is used to ensure that it only happens after Roma
-  // forks.
-  absl::AnyInvocable<std::unique_ptr<RunQueryClient>()> query_client_supplier_;
-  std::unique_ptr<RunQueryClient> query_client_;
+  // `lookup_` is initialized separately, since its dependencies create threads.
+  // Lazy load is used to ensure that it only happens after Roma forks.
+  std::unique_ptr<Lookup> lookup_;
 };
 }  // namespace
 
-std::unique_ptr<RunQueryHook> RunQueryHook::Create(
-    absl::AnyInvocable<std::unique_ptr<RunQueryClient>()>
-        query_client_supplier) {
-  return std::make_unique<RunQueryHookImpl>(std::move(query_client_supplier));
+std::unique_ptr<RunQueryHook> RunQueryHook::Create() {
+  return std::make_unique<RunQueryHookImpl>();
 }
 
 }  // namespace kv_server

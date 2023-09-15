@@ -147,6 +147,7 @@ cc_library(
         "//components/internal_server:lookup",
         "//components/internal_server:lookup_client_impl",
         "//components/internal_server:lookup_server_impl",
+        "//components/internal_server:lookup_supplier",
         "//components/internal_server:sharded_lookup",
         "//components/internal_server:sharded_lookup_server_impl",
         "//components/sharding:cluster_mappings_manager",

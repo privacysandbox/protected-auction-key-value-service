@@ -84,18 +84,16 @@ void SetRequestFailed(const std::vector<std::string_view>& key_list,
   status->set_code(static_cast<int>(absl::StatusCode::kInternal));
   status->set_message("Data lookup failed");
   for (const auto& key : key_list) {
-    LOG(ERROR) << "KEY: " << key;
-    LOG(ERROR) << "RESULT: " << result.DebugString();
     (*response.mutable_kv_pairs())[key] = result;
   }
-  LOG(ERROR) << "RESPONSE:" << response.DebugString();
+  LOG(ERROR) << "Sharded lookup failed:" << response.DebugString();
 }
 
 class ShardedLookup : public Lookup {
  public:
   explicit ShardedLookup(
       const Lookup& local_lookup, const int32_t num_shards,
-      const int32_t current_shard_num, ShardManager& shard_manager,
+      const int32_t current_shard_num, const ShardManager& shard_manager,
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       // We're currently going with a default empty string and not
       // allowing AdTechs to modify it.
@@ -426,7 +424,7 @@ class ShardedLookup : public Lookup {
 
 std::unique_ptr<Lookup> CreateShardedLookup(
     const Lookup& local_lookup, const int32_t num_shards,
-    const int32_t current_shard_num, ShardManager& shard_manager,
+    const int32_t current_shard_num, const ShardManager& shard_manager,
     privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     // We're currently going with a default empty string and not
     // allowing AdTechs to modify it.

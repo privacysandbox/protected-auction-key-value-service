@@ -60,7 +60,7 @@ class ClusterMappingsManager {
   }
 
   // Retreives cluster mappings for the given `environment`, which are
-  // neceesary for the ShardManager.
+  // necessary for the ShardManager.
   // Mappings are:
   // {shard_num --> {replica's private ip address 1, ... },...}
   // {{0 -> {ip1, ip2}}, ....{num_shards-1}-> {ipN, ipN+1}}

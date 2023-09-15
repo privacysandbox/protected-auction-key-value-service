@@ -247,6 +247,22 @@ cc_test(
 )
 
 cc_library(
+    name =
+        "lookup_supplier",
+    srcs = ["lookup_supplier.cc"],
+    hdrs = ["lookup_supplier.h"],
+    deps = [
+        ":local_lookup",
+        ":lookup",
+        ":sharded_lookup",
+        "//components/data_server/cache",
+        "//components/sharding:shard_manager",
+        "@com_github_google_glog//:glog",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+    ],
+)
+
+cc_library(
     name = "remote_lookup_client_impl",
     srcs = [
         "remote_lookup_client_impl.cc",

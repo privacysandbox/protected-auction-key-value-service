@@ -22,17 +22,22 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/status/statusor.h"
-#include "components/internal_server/lookup.grpc.pb.h"
+#include "absl/strings/str_join.h"
+#include "components/data_server/cache/cache.h"
+#include "components/internal_server/local_lookup.h"
+#include "components/internal_server/lookup.pb.h"
 #include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
 #include "nlohmann/json.hpp"
 #include "public/udf/binary_get_values.pb.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 namespace {
 
 using google::protobuf::json::MessageToJsonString;
 using google::scp::roma::proto::FunctionBindingIoProto;
+using privacy_sandbox::server_common::MetricsRecorder;
 
 constexpr char kOkStatusMessage[] = "ok";
 
@@ -114,13 +119,24 @@ void SetOutputAsString(const InternalLookupResponse& response,
 
 class GetValuesHookImpl : public GetValuesHook {
  public:
-  explicit GetValuesHookImpl(absl::AnyInvocable<std::unique_ptr<LookupClient>()>
-                                 lookup_client_supplier,
-                             OutputType output_type)
-      : lookup_client_supplier_(std::move(lookup_client_supplier)),
-        output_type_(output_type) {}
+  explicit GetValuesHookImpl(OutputType output_type)
+      : output_type_(output_type) {}
+
+  void FinishInit(std::unique_ptr<Lookup> lookup) {
+    if (lookup_ == nullptr) {
+      lookup_ = std::move(lookup);
+    }
+  }
 
   void operator()(FunctionBindingIoProto& io) {
+    if (lookup_ == nullptr) {
+      SetStatus(absl::StatusCode::kInternal,
+                "getValues has not been initialized yet", io);
+      LOG(ERROR)
+          << "getValues hook is not initialized properly: lookup is nullptr";
+      return;
+    }
+
     VLOG(9) << "getValues request: " << io.DebugString();
     if (!io.has_input_list_of_string()) {
       SetStatus(absl::StatusCode::kInvalidArgument,
@@ -129,19 +145,14 @@ class GetValuesHookImpl : public GetValuesHook {
       return;
     }
 
-    // Lazy load lookup client on first call.
-    if (lookup_client_ == nullptr) {
-      lookup_client_ = lookup_client_supplier_();
-    }
-
-    std::vector<std::string> keys;
+    std::vector<std::string_view> keys;
     for (const auto& key : io.input_list_of_string().data()) {
       keys.emplace_back(key);
     }
 
     VLOG(9) << "Calling internal lookup client";
     absl::StatusOr<InternalLookupResponse> response_or_status =
-        lookup_client_->GetValues(keys);
+        lookup_->GetKeyValues(keys);
     if (!response_or_status.ok()) {
       SetStatus(response_or_status.status().code(),
                 response_or_status.status().message(), io);
@@ -172,20 +183,15 @@ class GetValuesHookImpl : public GetValuesHook {
     }
   }
 
-  // `lookup_client_` is lazy loaded because getting one can cause thread
-  // creation. Lazy load is used to ensure that it only happens after Roma
-  // forks.
-  absl::AnyInvocable<std::unique_ptr<LookupClient>()> lookup_client_supplier_;
-  std::unique_ptr<LookupClient> lookup_client_;
+  // `lookup_` is initialized separately, since its dependencies create threads.
+  // Lazy load is used to ensure that it only happens after Roma forks.
+  std::unique_ptr<Lookup> lookup_;
   OutputType output_type_;
 };
 }  // namespace
 
-std::unique_ptr<GetValuesHook> GetValuesHook::Create(
-    absl::AnyInvocable<std::unique_ptr<LookupClient>()> lookup_client_supplier,
-    OutputType output_type) {
-  return std::make_unique<GetValuesHookImpl>(std::move(lookup_client_supplier),
-                                             output_type);
+std::unique_ptr<GetValuesHook> GetValuesHook::Create(OutputType output_type) {
+  return std::make_unique<GetValuesHookImpl>(output_type);
 }
 
 }  // namespace kv_server

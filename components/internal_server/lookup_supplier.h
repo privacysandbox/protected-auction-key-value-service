@@ -14,26 +14,23 @@
  * limitations under the License.
  */
 
-#ifndef COMPONENTS_INTERNAL_SERVER_SHARDED_LOOKUP_H_
-#define COMPONENTS_INTERNAL_SERVER_SHARDED_LOOKUP_H_
-
 #include <memory>
-#include <string>
 
+#include "components/data_server/cache/cache.h"
 #include "components/internal_server/lookup.h"
 #include "components/sharding/shard_manager.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
-
 namespace kv_server {
+class LookupSupplier {
+ public:
+  virtual ~LookupSupplier() = default;
 
-std::unique_ptr<Lookup> CreateShardedLookup(
-    const Lookup& local_lookup, const int32_t num_shards,
-    const int32_t current_shard_num, const ShardManager& shard_manager,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-    // We're currently going with a default empty string and not
-    // allowing AdTechs to modify it.
-    const std::string hashing_seed = "");
+  virtual std::unique_ptr<Lookup> GetLookup() const = 0;
 
+  static std::unique_ptr<LookupSupplier> Create(
+      const Lookup& local_lookup, int num_shards, int shard_num,
+      const ShardManager& shard_manager,
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
+      const Cache& cache);
+};
 }  // namespace kv_server
-
-#endif  // COMPONENTS_INTERNAL_SERVER_SHARDED_LOOKUP_H_

@@ -158,8 +158,7 @@ TEST(UdfClientTest, JsEchoHookCallSucceeds) {
 }
 
 TEST(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
-  auto mlc = std::make_unique<MockLookupClient>();
-  MockLookupClient* mock_lookup_client = mlc.get();
+  auto mock_lookup = std::make_unique<MockLookup>();
 
   InternalLookupResponse response;
   TextFormat::ParseFromString(R"pb(kv_pairs {
@@ -167,11 +166,11 @@ TEST(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
                                      value { value: "value1" }
                                    })pb",
                               &response);
-  ON_CALL(*mock_lookup_client, GetValues(_)).WillByDefault(Return(response));
+  ON_CALL(*mock_lookup, GetKeyValues(_)).WillByDefault(Return(response));
 
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
-      GetValuesHook::OutputType::kString);
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
       config_builder.RegisterStringGetValuesHook(*get_values_hook)
@@ -208,21 +207,19 @@ TEST(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
 }
 
 TEST(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
-  auto mlc = std::make_unique<MockLookupClient>();
-  MockLookupClient* mock_lookup_client = mlc.get();
+  auto mock_lookup = std::make_unique<MockLookup>();
 
   InternalLookupResponse response;
-  TextFormat::ParseFromString(
-      R"pb(kv_pairs {
-             key: "key1"
-             value { value: "value1" }
-           })pb",
-      &response);
-  ON_CALL(*mock_lookup_client, GetValues(_)).WillByDefault(Return(response));
+  TextFormat::ParseFromString(R"pb(kv_pairs {
+                                     key: "key1"
+                                     value { value: "value1" }
+                                   })pb",
+                              &response);
+  ON_CALL(*mock_lookup, GetKeyValues(_)).WillByDefault(Return(response));
 
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
-      GetValuesHook::OutputType::kString);
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
       config_builder.RegisterStringGetValuesHook(*get_values_hook)
@@ -261,15 +258,14 @@ TEST(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
 }
 
 TEST(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
-  auto mrq = std::make_unique<MockRunQueryClient>();
-  MockRunQueryClient* mock_run_query_client = mrq.get();
+  auto mock_lookup = std::make_unique<MockLookup>();
 
   InternalRunQueryResponse response;
   TextFormat::ParseFromString(R"pb(elements: "a")pb", &response);
-  ON_CALL(*mock_run_query_client, RunQuery(_)).WillByDefault(Return(response));
+  ON_CALL(*mock_lookup, RunQuery(_)).WillByDefault(Return(response));
 
-  auto run_query_hook = RunQueryHook::Create(
-      [mrq = std::move(mrq)]() mutable { return std::move(mrq); });
+  auto run_query_hook = RunQueryHook::Create();
+  run_query_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
       UdfClient::Create(config_builder.RegisterRunQueryHook(*run_query_hook)

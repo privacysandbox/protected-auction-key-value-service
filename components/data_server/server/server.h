@@ -94,8 +94,7 @@ class Server {
   std::unique_ptr<DeltaFileNotifier> CreateDeltaFileNotifier(
       const ParameterFetcher& parameter_fetcher);
 
-  absl::StatusOr<std::unique_ptr<grpc::Server>>
-  CreateAndStartInternalLookupServer();
+  absl::Status InitializeUdfHooks();
   std::unique_ptr<grpc::Server> CreateAndStartRemoteLookupServer();
 
   void SetDefaultUdfCodeObject();

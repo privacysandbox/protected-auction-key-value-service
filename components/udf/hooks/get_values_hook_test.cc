@@ -38,7 +38,7 @@ using testing::_;
 using testing::Return;
 
 TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
-  std::vector<std::string> keys = {"key1", "key2"};
+  std::vector<std::string_view> keys = {"key1", "key2"};
   InternalLookupResponse lookup_response;
   TextFormat::ParseFromString(R"pb(kv_pairs {
                                      key: "key1"
@@ -49,17 +49,16 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
                                      value { value: "value2" }
                                    })pb",
                               &lookup_response);
-  auto mlc = std::make_unique<MockLookupClient>();
-  MockLookupClient* mock_lookup_client = mlc.get();
-  EXPECT_CALL(*mock_lookup_client, GetValues(keys))
+  auto mock_lookup = std::make_unique<MockLookup>();
+  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
       .WillOnce(Return(lookup_response));
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(
       R"pb(input_list_of_string { data: "key1" data: "key2" })pb", &io);
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
-      GetValuesHook::OutputType::kString);
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
   (*get_values_hook)(io);
 
   nlohmann::json result_json =
@@ -77,7 +76,7 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
 }
 
 TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
-  std::vector<std::string> keys = {"key1"};
+  std::vector<std::string_view> keys = {"key1"};
   InternalLookupResponse lookup_response;
   TextFormat::ParseFromString(
       R"pb(kv_pairs {
@@ -86,17 +85,16 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
            })pb",
       &lookup_response);
 
-  auto mlc = std::make_unique<MockLookupClient>();
-  MockLookupClient* mock_lookup_client = mlc.get();
-  EXPECT_CALL(*mock_lookup_client, GetValues(keys))
+  auto mock_lookup = std::make_unique<MockLookup>();
+  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
       .WillOnce(Return(lookup_response));
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_list_of_string { data: "key1" })pb",
                               &io);
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
-      GetValuesHook::OutputType::kString);
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
   (*get_values_hook)(io);
 
   nlohmann::json expected =
@@ -105,18 +103,17 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
 }
 
 TEST(GetValuesHookTest, StringOutput_LookupClientReturnsError) {
-  std::vector<std::string> keys = {"key1"};
-  auto mlc = std::make_unique<MockLookupClient>();
-  MockLookupClient* mock_lookup_client = mlc.get();
-  EXPECT_CALL(*mock_lookup_client, GetValues(keys))
+  std::vector<std::string_view> keys = {"key1"};
+  auto mock_lookup = std::make_unique<MockLookup>();
+  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_list_of_string { data: "key1" })pb",
                               &io);
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
-      GetValuesHook::OutputType::kString);
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
   (*get_values_hook)(io);
 
   nlohmann::json expected = R"({"code":2,"message":"Some error"})"_json;
@@ -124,14 +121,14 @@ TEST(GetValuesHookTest, StringOutput_LookupClientReturnsError) {
 }
 
 TEST(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
-  std::vector<std::string> keys = {"key1"};
-  auto mlc = std::make_unique<MockLookupClient>();
+  std::vector<std::string_view> keys = {"key1"};
+  auto mock_lookup = std::make_unique<MockLookup>();
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_string: "key1")pb", &io);
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
-      GetValuesHook::OutputType::kString);
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
   (*get_values_hook)(io);
 
   nlohmann::json expected =
@@ -140,7 +137,7 @@ TEST(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
 }
 
 TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
-  std::vector<std::string> keys = {"key1", "key2"};
+  std::vector<std::string_view> keys = {"key1", "key2"};
   InternalLookupResponse lookup_response;
   TextFormat::ParseFromString(
       R"pb(kv_pairs {
@@ -152,17 +149,16 @@ TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
              value { status { code: 2, message: "Some error" } }
            })pb",
       &lookup_response);
-  auto mlc = std::make_unique<MockLookupClient>();
-  MockLookupClient* mock_lookup_client = mlc.get();
-  EXPECT_CALL(*mock_lookup_client, GetValues(keys))
+  auto mock_lookup = std::make_unique<MockLookup>();
+  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
       .WillOnce(Return(lookup_response));
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(
       R"pb(input_list_of_string { data: "key1" data: "key2" })pb", &io);
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
-      GetValuesHook::OutputType::kBinary);
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
+  get_values_hook->FinishInit(std::move(mock_lookup));
   (*get_values_hook)(io);
 
   EXPECT_TRUE(io.has_output_bytes());
@@ -186,18 +182,17 @@ TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
 }
 
 TEST(GetValuesHookTest, BinaryOutput_LookupClientReturnsError) {
-  std::vector<std::string> keys = {"key1"};
-  auto mlc = std::make_unique<MockLookupClient>();
-  MockLookupClient* mock_lookup_client = mlc.get();
-  EXPECT_CALL(*mock_lookup_client, GetValues(keys))
+  std::vector<std::string_view> keys = {"key1"};
+  auto mock_lookup = std::make_unique<MockLookup>();
+  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_list_of_string { data: "key1" })pb",
                               &io);
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
-      GetValuesHook::OutputType::kBinary);
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
+  get_values_hook->FinishInit(std::move(mock_lookup));
   (*get_values_hook)(io);
 
   EXPECT_TRUE(io.has_output_bytes());

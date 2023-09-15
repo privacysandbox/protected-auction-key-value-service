@@ -33,7 +33,7 @@
 #include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup_client.h"
 #include "components/internal_server/lookup_server_impl.h"
-#include "components/internal_server/run_query_client.h"
+#include "components/internal_server/lookup_supplier.h"
 #include "components/internal_server/sharded_lookup.h"
 #include "components/internal_server/sharded_lookup_server_impl.h"
 #include "components/sharding/cluster_mappings_manager.h"
@@ -152,17 +152,11 @@ absl::optional<std::string> GetMetricsCollectorEndPoint(
 Server::Server()
     : metrics_recorder_(
           TelemetryProvider::GetInstance().CreateMetricsRecorder()),
-      string_get_values_hook_(GetValuesHook::Create(
-          absl::bind_front(LookupClient::Create,
-                           absl::GetFlag(FLAGS_internal_server_address)),
-          GetValuesHook::OutputType::kString)),
-      binary_get_values_hook_(GetValuesHook::Create(
-          absl::bind_front(LookupClient::Create,
-                           absl::GetFlag(FLAGS_internal_server_address)),
-          GetValuesHook::OutputType::kBinary)),
-      run_query_hook_(RunQueryHook::Create(
-          absl::bind_front(RunQueryClient::Create,
-                           absl::GetFlag(FLAGS_internal_server_address)))) {}
+      string_get_values_hook_(
+          GetValuesHook::Create(GetValuesHook::OutputType::kString)),
+      binary_get_values_hook_(
+          GetValuesHook::Create(GetValuesHook::OutputType::kBinary)),
+      run_query_hook_(RunQueryHook::Create()) {}
 
 // Because the cache relies on metrics_recorder_, this function needs to be
 // called right after telemetry has been initialized but before anything that
@@ -351,12 +345,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     // other instances can pull it in for their mapping.
     lifecycle_heartbeat->Finish();
   }
-  absl::StatusOr<std::unique_ptr<grpc::Server>> lookup_server_or =
-      CreateAndStartInternalLookupServer();
-  if (!lookup_server_or.ok()) {
-    return lookup_server_or.status();
-  }
-  internal_lookup_server_ = std::move(*lookup_server_or);
+  InitializeUdfHooks();
+
   return absl::OkStatus();
 }
 
@@ -528,6 +518,7 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
 }
 
 absl::Status Server::CreateShardManager() {
+  VLOG(10) << "Creating shard manager";
   cluster_mappings_manager_ = std::make_unique<ClusterMappingsManager>(
       environment_, num_shards_, *metrics_recorder_, *instance_client_);
   shard_manager_ = TraceRetryUntilOk(
@@ -547,33 +538,22 @@ absl::Status Server::CreateShardManager() {
   return cluster_mappings_manager_->Start(*shard_manager_);
 }
 
-absl::StatusOr<std::unique_ptr<grpc::Server>>
-Server::CreateAndStartInternalLookupServer() {
-  if (num_shards_ <= 1) {
-    internal_lookup_service_ = std::make_unique<LookupServiceImpl>(
-        *local_lookup_, *key_fetcher_manager_, *metrics_recorder_);
-  } else {
+absl::Status Server::InitializeUdfHooks() {
+  if (num_shards_ > 1) {
     if (const absl::Status status = CreateShardManager(); !status.ok()) {
       return status;
     }
-    sharded_lookup_ =
-        CreateShardedLookup(*local_lookup_, num_shards_, shard_num_,
-                            *shard_manager_, *metrics_recorder_);
-    internal_lookup_service_ =
-        std::make_unique<ShardedLookupServiceImpl>(*sharded_lookup_);
   }
-
-  grpc::ServerBuilder internal_lookup_server_builder;
-  const std::string internal_server_address =
-      absl::GetFlag(FLAGS_internal_server_address);
-  internal_lookup_server_builder.AddListeningPort(
-      internal_server_address, grpc::InsecureServerCredentials());
-  internal_lookup_server_builder.RegisterService(
-      internal_lookup_service_.get());
-
-  LOG(INFO) << "Internal lookup server listening on " << internal_server_address
-            << std::endl;
-  return internal_lookup_server_builder.BuildAndStart();
+  const auto lookup_supplier =
+      LookupSupplier::Create(*local_lookup_, num_shards_, shard_num_,
+                             *shard_manager_, *metrics_recorder_, *cache_);
+  VLOG(9) << "Finishing getValues init";
+  string_get_values_hook_->FinishInit(lookup_supplier->GetLookup());
+  VLOG(9) << "Finishing getValuesBinary init";
+  binary_get_values_hook_->FinishInit(lookup_supplier->GetLookup());
+  VLOG(9) << "Finishing runQuery init";
+  run_query_hook_->FinishInit(lookup_supplier->GetLookup());
+  return absl::OkStatus();
 }
 
 std::unique_ptr<grpc::Server> Server::CreateAndStartRemoteLookupServer() {

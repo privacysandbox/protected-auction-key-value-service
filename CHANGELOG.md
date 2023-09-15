@@ -2,6 +2,106 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.12.0 (2023-09-14)
+
+
+### Features
+
+* [Coordinators] moving /server/bin to /
+* [GCP] Add realtime notifier tool
+* [sharding] Add metrics for set query
+* A delta based request generator that creates KV requests from delta files
+* A generic grpc client that sends a request and returns a response
+* Add ability to point to real coordinators through parameters
+* Add bazel configs for roma legacy vs sandboxed
+* Add bazel macro to generate UDF delta file from wasm binary and JS
+* Add delta based request generator to the simulation system
+* Add delta file notifier and loader to the request simulation system
+* Add Dependencies section to release notes
+* Add functions for serializing and deserializing shard mapping records
+* Add GCP features and fixes sections in release notes
+* add GCP platform and instance
+* Add GCP realtime notifier
+* Add GCP terraform config for metrics collector
+* Add logical sharding config schema and constants
+* Add metrics collector endpoint to the parameter
+* Add metrics collector to periodically print and publish metrics
+* Add NAT gateway for public internet access
+* Add OSSF Scorecard badge to top-level README
+* Add OSSF Scorecard GitHub Action
+* add service mesh to GCP platform
+* Add support to execute queries over sharded sets.
+* Add tool to convert C++ to JS with inline WASM
+* add unit tests to gcp parameter client
+* Add version to UdfConfig.
+* Adding GCP version of the message service
+* Build AMI for request simulation system
+* Coordinators: Add missing permission
+* Deploy otel with request simulation system to AWS
+* Enable metrics and tune the performance for request simulation system
+* GCP terraform and parameter client refactor
+* Generate synthetic requests at fixed rate
+* grpc client worker to send requests at configurable QPS
+* Integrating kv value server with the KeyFetcherManagerInterface
+* Register get values hook for string and binary output format
+* Run request simulation system in local
+* Skip delta and snapshot files that belong to other shards
+* Support writing shard mapping configs from csv
+* Upgrade build-system to v0.33.0
+* Upgrade data-plane-shared-libraries to 2023-07-12 commit.
+* Upgrade data-plane-shared-libraries to 2023-07-21 commit.
+* Upgrade data-plane-shared-libraries to 2023-07-26 commit.
+* Upgrade data-plane-shared-libraries to 2023-08-16 commit.
+* use local parameter client for gcp platform's local instance
+
+
+### Bug Fixes
+
+* Acquire read lock on the set before iterating over it.
+* Add action_env for asan bazel config
+* Add noexcept bazel config
+* Add seccomp-unconfined flag to build_and_test_all_in_docker
+* Check that fb strings are not nullptr.
+* Check the metrics collector connection during telemetry initialization
+* Do not pass metrics collector endpoint for local and aws instance
+* Don't move references in sample udf code.
+* Explicitly cast return values of set operations to r-value references
+* fix another asan error in the test
+* Fix data loading num threads in param client local test
+* Fix grpc client error
+* Fix the error messages printed in the unit test logs
+* Fix UDF function handler name
+* logMessage should set an output string.
+* make the response outlive grpc client call
+* Rearrange bazel config for clarity
+* Reduce the number of client workers to 2 in the unit tests to limit the number of threads created
+* remove GRPC 4mb payload limit
+* remove local variant of component tools.
+* Remove redundant docker security-opt
+* Set bazel workspace name
+* Write data record for set data in the delta test file generator
+
+
+### Dependencies
+
+* **deps:** Upgrade build-system to 0.42.1
+* **deps:** Upgrade build-system to v0.41.1
+* **deps:** Upgrade emscripten to 3.1.44
+
+
+### GCP: Features
+
+* **GCP:** Add realtime thread pool manager
+
+
+### Documentation
+
+* Add docs on getValuesBinary API
+* Realtime directory is not optional for local dev
+* Update docker run instructions to include security-opt flag
+* Update inline WASM docs with instructions on how to test it
+* Update screenshot of delta file
+
 ## 0.11.0 (2023-07-11)
 
 

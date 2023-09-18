@@ -252,6 +252,8 @@ will be read into the service, assuming that it has a higher logical commit time
 The server exposes a way to post low latency updates. To apply such an update, you should send a
 delta file to a dedicated broadcast topic.
 
+## AWS
+
 ![Realtime design](assets/realtime_design.png)
 
 In the case of AWS it is a Simple Notification Service (SNS) topic. That topic is created in
@@ -263,6 +265,24 @@ of 256KB for the message size.
 
 Each data server listens to that topic by longpolling a subscribed queue. Once the update is
 received, it is immediately applied to the in-memory data storage.
+
+## GCP
+
+The setup is similar to AWS above. The differences are in terminology:
+
+-   Sns->Topic
+-   Sqs->Subscription
+-   EC2->VM
+
+In the case of AWS it is a PubSub topic. That topic is created in terraform
+[here](../production/terraform/gcp/services/realtime/main.tf) Delta files contain multiple rows,
+which allows you to batch multiple updates together. There is a
+[limit](https://cloud.google.com/pubsub/quotas#resource_limits) of 10MB for the message size.
+
+Each data server is subscribed to the topic through
+[streaming pull](https://cloud.google.com/pubsub/docs/pull#streamingpull_api). "The StreamingPull
+API relies on a persistent bidirectional connection to receive multiple messages as they become
+available". Once the update is received, it is immediately applied to the in-memory data storage.
 
 ## Data upload sequence
 
@@ -308,8 +328,24 @@ file=$(base64 DELTA_1675868575987012)
 aws sns publish --topic-arn "$topic_arn" --message "$file"
 ```
 
-### AWS cpp
+### GCP CLI
 
-Check out this sample
-[tool](https://github.com/privacysandbox/fledge-key-value-service/blob/d65103e3944cfb8de6e70136a2066b38b56ce82c/components/tools/realtime_updates_publisher.cc)
-on how to insert the low latency updates.
+Before running the below command, make sure that you've set the correct GCP project
+
+```sh
+gcloud config set project YOUR_PROJECT
+```
+
+Publish command
+
+```sh
+topic_arn=....your realtime SNS topic ARN...
+// sample delta file name
+file=$(base64 DELTA_1675868575987012)
+gcloud pubsub topics publish "$topic_arn" --message "$file"
+```
+
+### Cpp
+
+Check out this sample [tool](../components/tools/realtime_updates_publisher.cc) on how to insert low
+latency updates.

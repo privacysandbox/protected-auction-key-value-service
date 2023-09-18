@@ -180,12 +180,42 @@ cc_binary(
     srcs = ["realtime_updates_publisher.cc"],
     visibility = ["//production/packaging:__subpackages__"],
     deps = [
-        "//components/errors:aws_error_util",
+        ":publisher_service",
         "//components/util:platform_initializer",
-        "//public/data_loading:filename_utils",
-        "@aws_sdk_cpp//:sns",
+        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "publisher_service",
+    srcs = select({
+        "//:gcp_platform": [
+            "publisher_service_gcp.cc",
+        ],
+        "//conditions:default": [
+            "publisher_service_aws.cc",
+        ],
+    }),
+    hdrs = [
+        "publisher_service.h",
+    ],
+    deps = select({
+        "//:gcp_platform": [
+            "//components/errors:gcp_error_util",
+            "@com_github_googleapis_google_cloud_cpp//:pubsub",
+        ],
+        "//conditions:default": [
+            "//components/errors:aws_error_util",
+            "@aws_sdk_cpp//:sns",
+        ],
+    }) + [
+        "//components/data/common:message_service",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
 )

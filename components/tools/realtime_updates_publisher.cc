@@ -12,30 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
-#include <memory>
-#include <optional>
 #include <queue>
 #include <thread>
-#include <vector>
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/strings/substitute.h"
-#include "aws/sns/SNSClient.h"
-#include "aws/sns/model/PublishRequest.h"
-#include "components/errors/error_util_aws.h"
+#include "components/data/common/msg_svc.h"
+#include "components/tools/publisher_service.h"
 #include "components/util/platform_initializer.h"
-#include "public/data_loading/filename_utils.h"
+#include "glog/logging.h"
 
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
+ABSL_FLAG(std::string, gcp_project_id, "", "GCP project id");
+ABSL_FLAG(std::string, gcp_topic_id, "", "GCP topic id");
 ABSL_FLAG(std::string, deltas_folder_path, "",
           "Path to the folder with delta files");
-ABSL_FLAG(int, insertion_num_threads, 2,
+ABSL_FLAG(int, insertion_num_threads, 1,
           "The amount of threads writing to SNS in parallel");
+
+namespace kv_server {
+namespace {
 
 using RecursiveDirectoryIterator =
     std::filesystem::recursive_directory_iterator;
@@ -55,22 +54,6 @@ void PopulateQueue(const std::string& deltas_folder_path) {
   }
 }
 
-absl::Status Publish(Aws::SNS::SNSClient& sns, const std::string& sns_arn,
-                     const std::string& body) {
-  Aws::SNS::Model::PublishRequest req;
-  req.SetTopicArn(sns_arn);
-  req.SetMessage(body);
-  Aws::SNS::Model::MessageAttributeValue messageAttributeValue;
-  messageAttributeValue.SetDataType("String");
-  std::string nanos_since_epoch =
-      std::to_string(absl::ToUnixNanos(absl::Now()));
-  messageAttributeValue.SetStringValue(nanos_since_epoch);
-  req.AddMessageAttributes("time_sent", messageAttributeValue);
-  auto outcome = sns.Publish(req);
-  return outcome.IsSuccess() ? absl::OkStatus()
-                             : kv_server::AwsErrorToStatus(outcome.GetError());
-}
-
 std::optional<std::string> Pop() {
   absl::MutexLock lock(&mutex_);
   {
@@ -83,29 +66,32 @@ std::optional<std::string> Pop() {
   }
 }
 
-void ConsumeAndPublishToSns(const std::string& sns_arn, int thread_idx) {
+void ConsumeAndPublish(NotifierMetadata notifier_metadata, int thread_idx) {
   auto start = absl::Now();
-  Aws::SNS::SNSClient sns_client;
   int delta_file_index = 1;
   // can't insert more than that many messages per second.
   int files_insertion_rate = 15;
   auto batch_end = absl::Now() + absl::Seconds(1);
   auto message = Pop();
+  auto maybe_msg_service = PublisherService::Create(notifier_metadata);
+  if (!maybe_msg_service.ok()) {
+    LOG(ERROR) << "Failed creating a publisher service";
+    return;
+  }
+  auto msg_service = std::move(*maybe_msg_service);
   while (message.has_value()) {
-    std::cout << absl::Now() << ": Inserting to the SNS: " << delta_file_index
-              << " Thread idx " << thread_idx << std::endl;
-
-    auto status = Publish(sns_client, sns_arn, *message);
+    LOG(INFO) << absl::Now() << ": Inserting to the SNS: " << delta_file_index
+              << " Thread idx " << thread_idx;
+    auto status = msg_service->Publish(*message);
     if (!status.ok()) {
-      std::cerr << absl::Now() << status << std::endl;
+      LOG(ERROR) << absl::Now() << status << std::endl;
     }
     delta_file_index++;
     // rate limit to N files per second
     if (delta_file_index % files_insertion_rate == 0) {
       if (batch_end > absl::Now()) {
         absl::SleepFor(batch_end - absl::Now());
-        std::cout << absl::Now() << ": sleeping " << delta_file_index
-                  << std::endl;
+        LOG(INFO) << absl::Now() << ": sleeping " << delta_file_index;
       }
       batch_end += absl::Seconds(1);
     }
@@ -113,50 +99,81 @@ void ConsumeAndPublishToSns(const std::string& sns_arn, int thread_idx) {
   }
 
   int64_t elapsed_seconds = absl::ToInt64Seconds(absl::Now() - start);
-  std::cout << absl::Now() << ": Total inserted: " << delta_file_index
-            << " Seconds elapsed " << elapsed_seconds << " Actual rate "
-            << (delta_file_index / elapsed_seconds) << " Thread idx "
-            << thread_idx << std::endl;
+  LOG(INFO) << absl::Now() << ": Total inserted: " << delta_file_index
+            << " Seconds elapsed " << elapsed_seconds << " Thread idx "
+            << thread_idx;
+  if (elapsed_seconds > 0) {
+    LOG(INFO) << absl::Now() << " Actual rate "
+              << (delta_file_index / elapsed_seconds);
+  }
 }
 
-// This tool will insert all delta files from `deltas_folder_path` into
-// the specified SNS. It will insert 15 delta files per second from 2 threads.
-// (The amount of threads can be updated through `insertion_num_threads`). 15 is
-// amount of insertion you can do from a single thread per second that was
-// empirically measured. Sample command: bazel run
-// //components/tools:realtime_updates_publisher
-// --deltas_folder_path='pathtoyourdeltas'
-// --sns_arn='yourrealtimeSNSARN' To generate test delta files you can run
-// `tools/serving_data_generator/generate_load_test_data`.
-int main(int argc, char** argv) {
-  kv_server::PlatformInitializer initializer;
-  const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
-  const std::string sns_arn = absl::GetFlag(FLAGS_sns_arn);
-  if (sns_arn.empty()) {
-    std::cerr << "Must specify sns_arn" << std::endl;
-    return -1;
+absl::StatusOr<NotifierMetadata> GetNotifierMetadata() {
+  const std::string gcp_project_id = absl::GetFlag(FLAGS_gcp_project_id);
+  const std::string gcp_topic_id = absl::GetFlag(FLAGS_gcp_topic_id);
+  if (!gcp_project_id.empty() && !gcp_topic_id.empty()) {
+    return GcpNotifierMetadata{.project_id = gcp_project_id,
+                               .topic_id = gcp_topic_id};
   }
+  const std::string sns_arn = absl::GetFlag(FLAGS_sns_arn);
+  if (!sns_arn.empty()) {
+    return AwsNotifierMetadata{.sns_arn = sns_arn};
+  }
+  return absl::InvalidArgumentError(
+      "Please specify a full set of parameters at least for one of the "
+      "following platforms: GCP or AWS.");
+}
 
+absl::Status Run() {
+  PlatformInitializer initializer;
+  auto maybe_notifier_metadata = GetNotifierMetadata();
+  if (!maybe_notifier_metadata.ok()) {
+    return maybe_notifier_metadata.status();
+  }
   const std::string deltas_folder_path =
       absl::GetFlag(FLAGS_deltas_folder_path);
   if (deltas_folder_path.empty()) {
-    std::cerr << "Must specify deltas_folder_path" << std::endl;
-    return -1;
+    return absl::InvalidArgumentError("Must specify deltas_folder_path.");
   }
   PopulateQueue(deltas_folder_path);
   const int insertion_num_threads = absl::GetFlag(FLAGS_insertion_num_threads);
   std::vector<std::unique_ptr<std::thread>> publishers;
   for (int i = 0; i < insertion_num_threads; i++) {
-    publishers.emplace_back(std::make_unique<std::thread>(
-        [&sns_arn, i] { ConsumeAndPublishToSns(sns_arn, i); }));
+    publishers.emplace_back(
+        std::make_unique<std::thread>([maybe_notifier_metadata, i] {
+          ConsumeAndPublish(*maybe_notifier_metadata, i);
+        }));
   }
 
   while (!updates_queue.empty()) {
-    std::cout << "Waiting on consumers\n";
+    LOG(INFO) << "Waiting on consumers";
     std::this_thread::sleep_for(1000ms);
   }
   for (auto& publisher_thread : publishers) {
     publisher_thread->join();
+  }
+
+  return absl::OkStatus();
+}
+
+}  // namespace
+}  // namespace kv_server
+
+// This tool will insert all delta files from `deltas_folder_path` into
+// the specified SNS. It will insert 15 delta files per second from 2 threads.
+// (The amount of threads can be updated through `insertion_num_threads`). 15 is
+// amount of insertion you can do from a single thread per second that was
+// empirically measured. Sample AWS command: bazel run
+// //components/tools:realtime_updates_publisher
+// --deltas_folder_path='pathtoyourdeltas'
+// --sns_arn='yourrealtimeSNSARN' To generate test delta files you can run
+// `tools/serving_data_generator/generate_load_test_data`.
+int main(int argc, char** argv) {
+  const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
+  google::InitGoogleLogging(argv[0]);
+  const absl::Status status = kv_server::Run();
+  if (!status.ok()) {
+    LOG(FATAL) << "Failed to run: " << status;
   }
   return 0;
 }

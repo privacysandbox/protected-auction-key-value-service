@@ -119,8 +119,9 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
   }
 
   void RecordProducerSuppliedE2ELatency(pubsub::Message const& m) {
-    auto it = m.attributes().find("time_sent");
-    if (it == m.attributes().end() || it->second.empty()) {
+    auto attributes = m.attributes();
+    auto it = attributes.find("time_sent");
+    if (it == attributes.end() || it->second.empty()) {
       return;
     }
     int64_t value_int64;

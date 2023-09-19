@@ -106,8 +106,7 @@ class ShardedLookup : public Lookup {
             distributed_point_functions::SHA256HashFunction(hashing_seed_)),
         shard_manager_(shard_manager),
         metrics_recorder_(metrics_recorder) {
-    CHECK_GT(num_shards, 1)
-        << "num_shards for ShardedLookupServiceImpl must be > 1";
+    CHECK_GT(num_shards, 1) << "num_shards for ShardedLookup must be > 1";
   }
 
   // Iterates over all keys specified in the `request` and assigns them to shard

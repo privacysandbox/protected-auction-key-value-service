@@ -94,14 +94,6 @@ container_layer(
     ],
 )
 
-container_layer(
-    name = "server_socket_directory",
-    empty_dirs = [
-        "/socket",
-    ],
-    mode = "0o777",
-)
-
 # Create a symlink between where kmstool_enclave_cli expects shell to be
 # (/bin/sh) and where it actually is on our image (/busybox/sh).
 container_layer(
@@ -132,7 +124,6 @@ container_image(
     ],
     entrypoint = ["/bin/bash"],
     layers = [
-        ":server_socket_directory",
         "//production/packaging/aws/resolv:resolv_config_layer",
         ":server_binary_layer",
         ":kmstool_enclave_cli_layer",

@@ -102,7 +102,7 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
   EXPECT_EQ(io.output_string(), expected.dump());
 }
 
-TEST(GetValuesHookTest, StringOutput_LookupClientReturnsError) {
+TEST(GetValuesHookTest, StringOutput_LookupReturnsError) {
   std::vector<std::string_view> keys = {"key1"};
   auto mock_lookup = std::make_unique<MockLookup>();
   EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
@@ -181,7 +181,7 @@ TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
   EXPECT_THAT(response.kv_pairs().at("key2"), EqualsProto(value_with_status));
 }
 
-TEST(GetValuesHookTest, BinaryOutput_LookupClientReturnsError) {
+TEST(GetValuesHookTest, BinaryOutput_LookupReturnsError) {
   std::vector<std::string_view> keys = {"key1"};
   auto mock_lookup = std::make_unique<MockLookup>();
   EXPECT_CALL(*mock_lookup, GetKeyValues(keys))

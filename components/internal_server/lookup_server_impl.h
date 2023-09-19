@@ -28,8 +28,6 @@
 
 namespace kv_server {
 // Implements the internal lookup service for the data store.
-// TODO(b/290640967): Refactor to keep SecureLookup, but remove rest, since it's
-// no longer necessary to have internal server
 class LookupServiceImpl final
     : public kv_server::InternalLookupService::Service {
  public:

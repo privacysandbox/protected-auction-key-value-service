@@ -24,24 +24,10 @@
 #include "absl/status/statusor.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/lookup.pb.h"
-#include "components/internal_server/lookup_client.h"
 #include "components/internal_server/remote_lookup_client.h"
-#include "components/internal_server/run_query_client.h"
 #include "gmock/gmock.h"
 
 namespace kv_server {
-
-class MockLookupClient : public LookupClient {
- public:
-  MOCK_METHOD((absl::StatusOr<InternalLookupResponse>), GetValues,
-              (const std::vector<std::string>&), (const, override));
-};
-
-class MockRunQueryClient : public RunQueryClient {
- public:
-  MOCK_METHOD((absl::StatusOr<InternalRunQueryResponse>), RunQuery,
-              (std::string), (const, override));
-};
 
 class MockRemoteLookupClient : public RemoteLookupClient {
  public:

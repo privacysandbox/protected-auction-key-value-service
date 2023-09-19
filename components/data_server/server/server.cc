@@ -31,11 +31,9 @@
 #include "components/errors/retry.h"
 #include "components/internal_server/constants.h"
 #include "components/internal_server/local_lookup.h"
-#include "components/internal_server/lookup_client.h"
 #include "components/internal_server/lookup_server_impl.h"
 #include "components/internal_server/lookup_supplier.h"
 #include "components/internal_server/sharded_lookup.h"
-#include "components/internal_server/sharded_lookup_server_impl.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/telemetry/kv_telemetry.h"
 #include "components/udf/hooks/get_values_hook.h"
@@ -55,8 +53,6 @@
 
 ABSL_FLAG(uint16_t, port, 50051,
           "Port the server is listening on. Defaults to 50051.");
-ABSL_FLAG(std::string, internal_server_address, "0.0.0.0:50099",
-          "Internal server address. Defaults to 0.0.0.0:50099.");
 
 namespace kv_server {
 namespace {

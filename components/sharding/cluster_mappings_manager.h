@@ -55,8 +55,7 @@ class ClusterMappingsManager {
         thread_manager_(TheadManager::Create("Cluster mappings updater")),
         sleep_for_(std::move(sleep_for)),
         update_interval_millis_(update_interval_millis) {
-    CHECK_GT(num_shards, 1)
-        << "num_shards for ShardedLookupServiceImpl must be > 1";
+    CHECK_GT(num_shards, 1) << "num_shards for ShardedLookup must be > 1";
   }
 
   // Retreives cluster mappings for the given `environment`, which are

@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "components/internal_server/lookup_client.h"
 #include "components/udf/code_config.h"
 #include "components/udf/udf_client.h"
 #include "gmock/gmock.h"

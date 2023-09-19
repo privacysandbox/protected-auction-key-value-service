@@ -119,7 +119,6 @@ cc_library(
     deps = [
         ":code_config",
         ":udf_client",
-        "//components/internal_server:lookup_client_impl",
         "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest",
         "@control_plane_shared//cc/roma/interface:roma_interface_lib",

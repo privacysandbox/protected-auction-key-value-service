@@ -28,6 +28,7 @@ ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 
 using kv_server::BlobStorageChangeNotifier;
 using kv_server::BlobStorageClient;
+using kv_server::BlobStorageClientFactory;
 using kv_server::DeltaFileNotifier;
 using privacy_sandbox::server_common::TelemetryProvider;
 
@@ -47,8 +48,12 @@ int main(int argc, char** argv) {
   }
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
+
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(*noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient(
+          *noop_metrics_recorder);
   std::unique_ptr<DeltaFileNotifier> notifier =
       DeltaFileNotifier::Create(*client);
 

@@ -105,14 +105,6 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
       *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
       .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-connections"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
-      .WillOnce(::testing::Return(1));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
       .WillOnce(::testing::Return(1));
@@ -162,14 +154,6 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   EXPECT_CALL(
       *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-connections"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
@@ -223,14 +207,6 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
   EXPECT_CALL(
       *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-connections"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
@@ -287,14 +263,6 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(
       *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-connections"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
       .WillOnce(::testing::Return(1));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))

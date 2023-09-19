@@ -110,3 +110,8 @@ variable "dns_zone" {
   description = "Google Cloud DNS zone name for the Key Value domain"
   type        = string
 }
+
+variable "data_bucket_id" {
+  type        = string
+  description = "Directory to watch for files."
+}

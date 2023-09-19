@@ -45,6 +45,7 @@ cc_library(
     deps = [
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_change_notifier",
+        "//components/data/blob_storage:blob_storage_client",
         "//components/errors:retry",
         "//components/util:periodic_closure",
         "//public:constants",

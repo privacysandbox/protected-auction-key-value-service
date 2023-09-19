@@ -288,7 +288,11 @@ std::unique_ptr<BlobStorageClient> RequestSimulationSystem::CreateBlobClient() {
   BlobStorageClient::ClientOptions options;
   options.max_connections = absl::GetFlag(FLAGS_s3client_max_connections);
   options.max_range_bytes = absl::GetFlag(FLAGS_s3client_max_range_bytes);
-  return BlobStorageClient::Create(metrics_recorder_, options);
+
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
+  return blob_storage_client_factory->CreateBlobStorageClient(metrics_recorder_,
+                                                              options);
 }
 std::unique_ptr<DeltaFileNotifier>
 RequestSimulationSystem::CreateDeltaFileNotifier() {

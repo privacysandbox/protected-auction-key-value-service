@@ -94,3 +94,10 @@ module "realtime" {
   service     = local.service
   environment = var.environment
 }
+
+module "data_storage" {
+  source         = "../../services/data_storage"
+  service        = local.service
+  environment    = var.environment
+  data_bucket_id = var.data_bucket_id
+}

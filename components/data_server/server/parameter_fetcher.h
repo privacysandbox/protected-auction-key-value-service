@@ -26,6 +26,7 @@
 #include "absl/status/statusor.h"
 #include "components/cloud_config/parameter_client.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
+#include "components/data/blob_storage/blob_storage_client.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
@@ -49,6 +50,8 @@ class ParameterFetcher {
   virtual bool GetBoolParameter(std::string_view parameter_suffix) const;
 
   virtual NotifierMetadata GetBlobStorageNotifierMetadata() const;
+
+  virtual BlobStorageClient::ClientOptions GetBlobStorageClientOptions() const;
 
   virtual NotifierMetadata GetRealtimeNotifierMetadata(int32_t num_shards,
                                                        int32_t shard_num) const;

@@ -79,10 +79,6 @@ constexpr absl::string_view kRealtimeUpdaterThreadNumberParameterSuffix =
     "realtime-updater-num-threads";
 constexpr absl::string_view kDataLoadingNumThreadsParameterSuffix =
     "data-loading-num-threads";
-constexpr absl::string_view kS3ClientMaxConnectionsParameterSuffix =
-    "s3client-max-connections";
-constexpr absl::string_view kS3ClientMaxRangeBytesParameterSuffix =
-    "s3client-max-range-bytes";
 constexpr absl::string_view kNumShardsParameterSuffix = "num-shards";
 constexpr absl::string_view kUdfNumWorkersParameterSuffix = "udf-num-workers";
 constexpr absl::string_view kRouteV1ToV2Suffix = "route-v1-to-v2";
@@ -426,18 +422,12 @@ void Server::ForceShutdown() {
 
 std::unique_ptr<BlobStorageClient> Server::CreateBlobClient(
     const ParameterFetcher& parameter_fetcher) {
-  const int32_t s3client_max_connections = parameter_fetcher.GetInt32Parameter(
-      kS3ClientMaxConnectionsParameterSuffix);
-  LOG(INFO) << "Retrieved " << kS3ClientMaxConnectionsParameterSuffix
-            << " parameter: " << s3client_max_connections;
-  const int32_t s3client_max_range_bytes = parameter_fetcher.GetInt32Parameter(
-      kS3ClientMaxRangeBytesParameterSuffix);
-  LOG(INFO) << "Retrieved " << kS3ClientMaxRangeBytesParameterSuffix
-            << " parameter: " << s3client_max_range_bytes;
-  BlobStorageClient::ClientOptions options;
-  options.max_connections = s3client_max_connections;
-  options.max_range_bytes = s3client_max_range_bytes;
-  return BlobStorageClient::Create(*metrics_recorder_, options);
+  BlobStorageClient::ClientOptions client_options =
+      parameter_fetcher.GetBlobStorageClientOptions();
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
+  return blob_storage_client_factory->CreateBlobStorageClient(
+      *metrics_recorder_, std::move(client_options));
 }
 
 std::unique_ptr<StreamRecordReaderFactory<std::string_view>>

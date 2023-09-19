@@ -27,6 +27,7 @@ ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
 
 using kv_server::BlobReader;
 using kv_server::BlobStorageClient;
+using kv_server::BlobStorageClientFactory;
 using privacy_sandbox::server_common::TelemetryProvider;
 
 constexpr std::string_view kCloudPrefix = "cloud://";
@@ -61,8 +62,11 @@ absl::StatusOr<std::unique_ptr<BlobReader>> GetSourceStream(
 bool CpObjects(std::string bucket, std::string source, std::string dest) {
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(*noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient(
+          *noop_metrics_recorder);
   absl::StatusOr<std::unique_ptr<BlobReader>> reader =
       GetSourceStream(client.get(), bucket, std::move(source));
   if (!reader.ok()) {

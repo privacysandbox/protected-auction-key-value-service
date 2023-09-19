@@ -48,6 +48,14 @@ ABSL_FLAG(int32_t, udf_num_workers, 2, "Number of workers for UDF execution.");
 ABSL_FLAG(bool, route_v1_to_v2, false,
           "Whether to route V1 requests through V2.");
 
+// TODO(b/299623229): Remove GCP parameters here once the GCP parameter client
+// supports local instance.
+// The following flags are for gcp platform local
+// instance only
+ABSL_FLAG(std::string, gcp_delta_file_bucket, "NOT_SPECIFIED",
+          "Gcp platform delta file bucket. Only use this flag for gcp platform "
+          "and local instance.");
+
 namespace kv_server {
 namespace {
 
@@ -64,6 +72,15 @@ class LocalParameterClient : public ParameterClient {
         {"kv-server-local-directory", absl::GetFlag(FLAGS_delta_directory)});
     string_flag_values_.insert({"kv-server-local-data-bucket-id",
                                 absl::GetFlag(FLAGS_delta_directory)});
+
+    // TODO(b/299623229): Remove GCP parameters here once the GCP parameter
+    // client supports local instance.
+    // For gcp platform and local instance
+    if (absl::GetFlag(FLAGS_gcp_delta_file_bucket) != "NOT_SPECIFIED") {
+      string_flag_values_["kv-server-local-data-bucket-id"] =
+          absl::GetFlag(FLAGS_gcp_delta_file_bucket);
+    }
+
     string_flag_values_.insert(
         {"kv-server-local-launch-hook", absl::GetFlag(FLAGS_launch_hook)});
     string_flag_values_.insert({"kv-server-local-realtime-directory",

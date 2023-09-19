@@ -69,6 +69,7 @@ ABSL_FLAG(int64_t, args_benchmark_iterations, -1,
 
 using kv_server::BlobReader;
 using kv_server::BlobStorageClient;
+using kv_server::BlobStorageClientFactory;
 using kv_server::Cache;
 using kv_server::ConcurrentStreamRecordReader;
 using kv_server::DataRecord;
@@ -224,7 +225,12 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args,
   BlobStorageClient::ClientOptions options;
   options.max_range_bytes = args.client_max_range_mb * 1024 * 1024;
   options.max_connections = args.client_max_connections;
-  auto blob_client = BlobStorageClient::Create(metrics_recorder, options);
+
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
+  std::unique_ptr<BlobStorageClient> blob_client =
+      blob_storage_client_factory->CreateBlobStorageClient(metrics_recorder,
+                                                           options);
   ConcurrentStreamRecordReader<std::string_view> record_reader(
       metrics_recorder,
       /*stream_factory=*/
@@ -310,7 +316,12 @@ int main(int argc, char** argv) {
   }
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto blob_client = BlobStorageClient::Create(*noop_metrics_recorder);
+
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
+  std::unique_ptr<BlobStorageClient> blob_client =
+      blob_storage_client_factory->CreateBlobStorageClient(
+          *noop_metrics_recorder);
   if (absl::GetFlag(FLAGS_create_input_file)) {
     LOG(INFO) << "Creating input file: " << GetBlobLocation();
     std::stringstream data_stream;

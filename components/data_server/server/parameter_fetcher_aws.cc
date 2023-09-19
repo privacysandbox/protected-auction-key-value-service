@@ -28,12 +28,34 @@ constexpr std::string_view kDataLoadingFileChannelBucketSNSParameterSuffix =
 constexpr std::string_view kDataLoadingRealtimeChannelSNSParameterSuffix =
     "data-loading-realtime-channel-sns-arn";
 
+// Max connections for AWS's blob storage client
+constexpr std::string_view kS3ClientMaxConnectionsParameterSuffix =
+    "s3client-max-connections";
+
+// Max buffer size for AWS's blob storage client
+constexpr std::string_view kS3ClientMaxRangeBytesParameterSuffix =
+    "s3client-max-range-bytes";
+
 NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
   std::string bucket_sns_arn =
       GetParameter(kDataLoadingFileChannelBucketSNSParameterSuffix);
   LOG(INFO) << "Retrieved " << kDataLoadingFileChannelBucketSNSParameterSuffix
             << " parameter: " << bucket_sns_arn;
   return AwsNotifierMetadata{"BlobNotifier_", std::move(bucket_sns_arn)};
+}
+
+BlobStorageClient::ClientOptions ParameterFetcher::GetBlobStorageClientOptions()
+    const {
+  BlobStorageClient::ClientOptions client_options;
+  client_options.max_connections =
+      GetInt32Parameter(kS3ClientMaxConnectionsParameterSuffix);
+  LOG(INFO) << "Retrieved " << kS3ClientMaxConnectionsParameterSuffix
+            << " parameter: " << client_options.max_connections;
+  client_options.max_range_bytes =
+      GetInt32Parameter(kS3ClientMaxRangeBytesParameterSuffix);
+  LOG(INFO) << "Retrieved " << kS3ClientMaxRangeBytesParameterSuffix
+            << " parameter: " << client_options.max_range_bytes;
+  return client_options;
 }
 
 NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(

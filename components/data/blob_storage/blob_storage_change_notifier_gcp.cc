@@ -34,7 +34,11 @@ class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
       const std::function<bool()>& should_stop_callback) override {
-    return notifier_->GetNotifications(max_wait, should_stop_callback);
+    // TODO(b/301118821): Implement gcp blob storage change notifier and remove
+    // the temporary solution below.
+    return absl::DeadlineExceededError(
+        "Trigger backup poll before GCP blob storage change notifier is "
+        "implemented.");
   }
 
  private:

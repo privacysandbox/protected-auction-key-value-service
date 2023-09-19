@@ -40,6 +40,7 @@ module "kv_server" {
   collector_service_port                = var.collector_service_port
   collector_domain_name                 = var.collector_domain_name
   dns_zone                              = var.dns_zone
+  data_bucket_id                        = var.data_bucket_id
   # TODO(b/299623229): remove the following reminder once b/299623229 is done.
   # Reminder: for any new parameters added here, please also add them to "components/cloud_config/parameter_client_local.cc".
   parameters = {

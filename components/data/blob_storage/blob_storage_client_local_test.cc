@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include "components/data/blob_storage/blob_storage_client_local.h"
+
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -27,12 +29,9 @@
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
-
-using privacy_sandbox::server_common::MockMetricsRecorder;
 
 void CreateFileInTmpDir(const std::string& filename) {
   const std::filesystem::path path =
@@ -42,10 +41,8 @@ void CreateFileInTmpDir(const std::string& filename) {
 }
 
 TEST(LocalBlobStorageClientTest, ListNotFoundDirectory) {
-  MockMetricsRecorder metrics_recorder;
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
+      std::make_unique<FileBlobStorageClient>();
 
   BlobStorageClient::DataLocation location;
   location.bucket = "this is not a valid directory path";
@@ -56,10 +53,8 @@ TEST(LocalBlobStorageClientTest, ListNotFoundDirectory) {
 }
 
 TEST(LocalBlobStorageClientTest, ListEmptyDirectory) {
-  MockMetricsRecorder metrics_recorder;
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
+      std::make_unique<FileBlobStorageClient>();
 
   BlobStorageClient::DataLocation location;
   // Directory contains no files by default.
@@ -71,10 +66,8 @@ TEST(LocalBlobStorageClientTest, ListEmptyDirectory) {
 }
 
 TEST(LocalBlobStorageClientTest, ListDirectoryWithFile) {
-  MockMetricsRecorder metrics_recorder;
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
+      std::make_unique<FileBlobStorageClient>();
 
   CreateFileInTmpDir("a");
   BlobStorageClient::DataLocation location;
@@ -87,10 +80,8 @@ TEST(LocalBlobStorageClientTest, ListDirectoryWithFile) {
 }
 
 TEST(LocalBlobStorageClientTest, DeleteNotFoundBlob) {
-  MockMetricsRecorder metrics_recorder;
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
+      std::make_unique<FileBlobStorageClient>();
 
   BlobStorageClient::DataLocation location;
   location.bucket = "this is not a valid directory path";
@@ -100,10 +91,8 @@ TEST(LocalBlobStorageClientTest, DeleteNotFoundBlob) {
 }
 
 TEST(LocalBlobStorageClientTest, DeleteBlob) {
-  MockMetricsRecorder metrics_recorder;
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
+      std::make_unique<FileBlobStorageClient>();
 
   BlobStorageClient::DataLocation location;
   location.bucket = ::testing::TempDir();
@@ -114,10 +103,8 @@ TEST(LocalBlobStorageClientTest, DeleteBlob) {
 }
 
 TEST(LocalBlobStorageClientTest, PutBlob) {
-  MockMetricsRecorder metrics_recorder;
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
+      std::make_unique<FileBlobStorageClient>();
 
   BlobStorageClient::DataLocation from;
   from.bucket = ::testing::TempDir();

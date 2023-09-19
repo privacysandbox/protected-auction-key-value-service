@@ -31,6 +31,11 @@ NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
   return GcpNotifierMetadata{};
 }
 
+BlobStorageClient::ClientOptions ParameterFetcher::GetBlobStorageClientOptions()
+    const {
+  return BlobStorageClient::ClientOptions();
+}
+
 NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
     int32_t num_shards, int32_t shard_num) const {
   std::string environment = GetParameter(kEnvironment);

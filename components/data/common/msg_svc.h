@@ -58,8 +58,7 @@ class MessageService {
   virtual void Reset() = 0;
 
   static absl::StatusOr<std::unique_ptr<MessageService>> Create(
-      NotifierMetadata notifier_metadata,
-      std::optional<int32_t> shard_num = std::nullopt);
+      NotifierMetadata notifier_metadata);
 };
 
 }  // namespace kv_server

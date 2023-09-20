@@ -36,12 +36,14 @@ NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
   return AwsNotifierMetadata{"BlobNotifier_", std::move(bucket_sns_arn)};
 }
 
-NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata() const {
+NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
+    int32_t num_shards, int32_t shard_num) const {
   std::string realtime_sns_arn =
       GetParameter(kDataLoadingRealtimeChannelSNSParameterSuffix);
   LOG(INFO) << "Retrieved " << kDataLoadingRealtimeChannelSNSParameterSuffix
             << " parameter: " << realtime_sns_arn;
-  return AwsNotifierMetadata{"QueueNotifier_", std::move(realtime_sns_arn)};
+  return AwsNotifierMetadata{"QueueNotifier_", std::move(realtime_sns_arn),
+                             .num_shards = num_shards, .shard_num = shard_num};
 }
 
 }  // namespace kv_server

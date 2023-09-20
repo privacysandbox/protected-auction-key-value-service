@@ -17,6 +17,7 @@
 #ifndef COMPONENTS_DATA_SERVER_SERVER_PARAMETER_FETCHER_H_
 #define COMPONENTS_DATA_SERVER_SERVER_PARAMETER_FETCHER_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -49,7 +50,8 @@ class ParameterFetcher {
 
   virtual NotifierMetadata GetBlobStorageNotifierMetadata() const;
 
-  virtual NotifierMetadata GetRealtimeNotifierMetadata() const;
+  virtual NotifierMetadata GetRealtimeNotifierMetadata(int32_t num_shards,
+                                                       int32_t shard_num) const;
 
  private:
   std::string GetParamName(std::string_view parameter_suffix) const;

@@ -189,11 +189,8 @@ absl::StatusOr<std::unique_ptr<Subscriber>> CreateSubscriber(
     NotifierMetadata metadata) {
   GcpNotifierMetadata notifier_metadata =
       std::get<GcpNotifierMetadata>(metadata);
-  auto realtime_message_service_status = MessageService::Create(
-      notifier_metadata,
-      (notifier_metadata.num_shards > 1
-           ? std::optional<int32_t>(notifier_metadata.shard_num)
-           : std::nullopt));
+  auto realtime_message_service_status =
+      MessageService::Create(notifier_metadata);
   if (!realtime_message_service_status.ok()) {
     return realtime_message_service_status.status();
   }

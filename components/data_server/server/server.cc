@@ -311,10 +311,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     change_notifier_ = std::move(*status_or_notifier);
   }
   auto realtime_notifier_metadata =
-      parameter_fetcher.GetRealtimeNotifierMetadata();
-  auto realtime_message_service_status = MessageService::Create(
-      realtime_notifier_metadata,
-      (num_shards_ > 1 ? std::optional<int32_t>(shard_num_) : std::nullopt));
+      parameter_fetcher.GetRealtimeNotifierMetadata(num_shards_, shard_num_);
+  auto realtime_message_service_status =
+      MessageService::Create(realtime_notifier_metadata);
   if (!realtime_message_service_status.ok()) {
     return realtime_message_service_status.status();
   }

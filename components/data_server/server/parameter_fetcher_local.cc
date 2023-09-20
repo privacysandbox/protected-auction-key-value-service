@@ -29,7 +29,8 @@ NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
   return LocalNotifierMetadata{.local_directory = std::move(directory)};
 }
 
-NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata() const {
+NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
+    int32_t num_shards, int32_t shard_num) const {
   std::string directory = GetParameter(kRealtimeDirectoryToWatch);
   LOG(INFO) << "Retrieved " << kRealtimeDirectoryToWatch
             << " parameter: " << directory;

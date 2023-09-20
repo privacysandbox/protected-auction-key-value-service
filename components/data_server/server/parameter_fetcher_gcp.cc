@@ -31,7 +31,8 @@ NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
   return GcpNotifierMetadata{};
 }
 
-NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata() const {
+NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
+    int32_t num_shards, int32_t shard_num) const {
   std::string environment = GetParameter(kEnvironment);
   LOG(INFO) << "Retrieved " << kEnvironment << " parameter: " << environment;
   auto realtime_thread_numbers =
@@ -47,6 +48,8 @@ NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata() const {
       .project_id = project_id,
       .topic_id = topic_id,
       .num_threads = realtime_thread_numbers,
+      .num_shards = num_shards,
+      .shard_num = shard_num,
   };
 }
 

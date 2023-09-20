@@ -59,7 +59,10 @@ TEST(ParameterFetcherTest, CreateDeltaFileRecordChangeNotifierSmokeTest) {
   ParameterFetcher fetcher(
       /*environment=*/"local", client, &metrics_recorder);
 
-  const auto notifier_metadata = fetcher.GetRealtimeNotifierMetadata();
+  const int32_t num_shards = 1;
+  const int32_t shard_num = 0;
+  const auto notifier_metadata =
+      fetcher.GetRealtimeNotifierMetadata(num_shards, shard_num);
   auto local_notifier_metadata =
       std::get<LocalNotifierMetadata>(notifier_metadata);
 

@@ -33,7 +33,7 @@ class LocalMessageService : public MessageService {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
-    NotifierMetadata notifier_metadata, std::optional<int32_t> shard_num) {
+    NotifierMetadata notifier_metadata) {
   auto metadata = std::get<LocalNotifierMetadata>(notifier_metadata);
   return std::make_unique<LocalMessageService>(
       std::move(metadata.local_directory));

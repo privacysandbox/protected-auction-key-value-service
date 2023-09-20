@@ -37,6 +37,8 @@ struct AwsNotifierMetadata {
   std::string queue_prefix;
   std::string sns_arn;
   MessageService* queue_manager;
+  int32_t num_shards = 1;
+  int32_t shard_num;
 
   // If this is set then it will be used instead of a real SQSClient.  The
   // ChangeNotifier takes ownership of this.

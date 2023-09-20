@@ -34,6 +34,8 @@ services:
       target: /srvdata/realtime_data
       tmpfs:
         size: 1MB
+    security_opt:
+      - seccomp:unconfined
   # envoy proxy specific to the K/V server instance
   kv-envoy-proxy:
     image: envoyproxy/envoy:distroless-v1.26-latest

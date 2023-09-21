@@ -280,9 +280,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   delta_stream_reader_factory_ =
       CreateStreamRecordReaderFactory(parameter_fetcher);
   notifier_ = CreateDeltaFileNotifier(parameter_fetcher);
-
-  key_fetcher_manager_ = CreateKeyFetcherManager(parameter_fetcher);
-
+  auto factory = KeyFetcherFactory::Create();
+  key_fetcher_manager_ = factory->CreateKeyFetcherManager(parameter_fetcher);
   CreateGrpcServices(parameter_fetcher);
   auto metadata = parameter_fetcher.GetBlobStorageNotifierMetadata();
   auto message_service_status = MessageService::Create(metadata);

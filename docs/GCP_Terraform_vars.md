@@ -85,6 +85,18 @@
 
     Total number of shards.
 
+-   **primary_coordinator_account_identity**
+
+    Account identity for the primary coordinator.
+
+-   **primary_key_service_cloud_function_url**
+
+    Primary workload identity pool provider.
+
+-   **primary_workload_identity_pool_provider**
+
+    Primary key service cloud function url.
+
 -   **project_id**
 
     GCP project id.
@@ -112,6 +124,18 @@
 -   **s3client_max_range_bytes**
 
     S3Client max range bytes for reading data files.
+
+-   **secondary_coordinator_account_identity**
+
+    Account identity for the secondary coordinator.
+
+-   **secondary_key_service_cloud_function_url**
+
+    Secondary key service cloud function url.
+
+-   **secondary_workload_identity_pool_provider**
+
+    Secondary workload identity pool provider.
 
 -   **service_account_email**
 

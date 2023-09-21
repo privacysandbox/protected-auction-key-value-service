@@ -185,3 +185,33 @@ variable "dns_zone" {
   description = "Google Cloud DNS zone name"
   type        = string
 }
+
+variable "primary_key_service_cloud_function_url" {
+  description = "Primary key service cloud function url."
+  type        = string
+}
+
+variable "primary_workload_identity_pool_provider" {
+  description = "Primary workload identity pool provider."
+  type        = string
+}
+
+variable "secondary_key_service_cloud_function_url" {
+  description = "Secondary key service cloud function url."
+  type        = string
+}
+
+variable "secondary_workload_identity_pool_provider" {
+  description = "Secondary workload identity pool provider."
+  type        = string
+}
+
+variable "primary_coordinator_account_identity" {
+  description = "Account identity for the primary coordinator."
+  type        = string
+}
+
+variable "secondary_coordinator_account_identity" {
+  description = "Account identity for the secondary coordinator."
+  type        = string
+}

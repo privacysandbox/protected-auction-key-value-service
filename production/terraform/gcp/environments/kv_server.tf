@@ -44,25 +44,30 @@ module "kv_server" {
   # TODO(b/299623229): remove the following reminder once b/299623229 is done.
   # Reminder: for any new parameters added here, please also add them to "components/cloud_config/parameter_client_local.cc".
   parameters = {
-    directory                               = var.directory
-    data-bucket-id                          = var.data_bucket_id
-    launch-hook                             = var.launch_hook
-    realtime-directory                      = var.realtime_directory
-    use-external-metrics-collector-endpoint = var.use_external_metrics_collector_endpoint
-    metrics-collector-endpoint              = "${var.environment}-${var.collector_service_name}.${var.collector_domain_name}:${var.collector_service_port}"
-    metrics-export-interval-millis          = var.metrics_export_interval_millis
-    metrics-export-timeout-millis           = var.metrics_export_timeout_millis
-    backup-poll-frequency-secs              = var.backup_poll_frequency_secs
-    realtime-updater-num-threads            = var.realtime_updater_num_threads
-    data-loading-num-threads                = var.data_loading_num_threads
-    s3client-max-connections                = var.s3client_max_connections
-    s3client-max-range-bytes                = var.s3client_max_range_bytes
-    num-shards                              = var.num_shards
-    udf-num-workers                         = var.udf_num_workers
-    route-v1-to-v2                          = var.route_v1_to_v2
-    use-real-coordinators                   = var.use_real_coordinators
-    environment                             = var.environment
-    project_id                              = var.project_id
+    directory                                 = var.directory
+    data-bucket-id                            = var.data_bucket_id
+    launch-hook                               = var.launch_hook
+    realtime-directory                        = var.realtime_directory
+    use-external-metrics-collector-endpoint   = var.use_external_metrics_collector_endpoint
+    metrics-collector-endpoint                = "${var.environment}-${var.collector_service_name}.${var.collector_domain_name}:${var.collector_service_port}"
+    metrics-export-interval-millis            = var.metrics_export_interval_millis
+    metrics-export-timeout-millis             = var.metrics_export_timeout_millis
+    backup-poll-frequency-secs                = var.backup_poll_frequency_secs
+    realtime-updater-num-threads              = var.realtime_updater_num_threads
+    data-loading-num-threads                  = var.data_loading_num_threads
+    s3client-max-connections                  = var.s3client_max_connections
+    s3client-max-range-bytes                  = var.s3client_max_range_bytes
+    num-shards                                = var.num_shards
+    udf-num-workers                           = var.udf_num_workers
+    route-v1-to-v2                            = var.route_v1_to_v2
+    use-real-coordinators                     = var.use_real_coordinators
+    environment                               = var.environment
+    project-id                                = var.project_id
+    primary-key-service-cloud-function-url    = var.primary_key_service_cloud_function_url
+    primary-workload-identity-pool-provider   = var.primary_workload_identity_pool_provider
+    secondary-key-service-cloud-function-url  = var.secondary_key_service_cloud_function_url
+    secondary-workload-identity-pool-provider = var.secondary_workload_identity_pool_provider
+    primary-coordinator-account-identity      = var.primary_coordinator_account_identity
+    secondary-coordinator-account-identity    = var.secondary_coordinator_account_identity
   }
-
 }

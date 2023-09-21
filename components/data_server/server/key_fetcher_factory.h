@@ -23,11 +23,42 @@
 #include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 namespace kv_server {
+// Constructs KeyFetcherManager.
+// Example:
+// auto factory = KeyFetcherFactory::Create();
+// auto key_fetcher_manager =
+//         factory->CreateKeyFetcherManager(parameter_fetcher);
+class KeyFetcherFactory {
+ public:
+  virtual ~KeyFetcherFactory() = default;
+  // Creates KeyFetcherManager.
+  virtual std::unique_ptr<
+      privacy_sandbox::server_common::KeyFetcherManagerInterface>
+  CreateKeyFetcherManager(const ParameterFetcher& parameter_fetcher) const = 0;
+  // Constructs a KeyFetcherFactory.
+  static std::unique_ptr<KeyFetcherFactory> Create();
+};
 
-// Constructs a KeyFetcherManager instance.
-std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
-CreateKeyFetcherManager(const ParameterFetcher& parameter_fetcher);
+// Constructs CloudKeyFetcherManager. CloudKeyFetcherManager has common logic
+// for cloud implementations: GCP and AWS. For all usecases KeyFetcherFactory
+// should be used.
+class CloudKeyFetcherFactory : public KeyFetcherFactory {
+ public:
+  // Creates KeyFetcherManager.
+  std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
+  CreateKeyFetcherManager(
+      const ParameterFetcher& parameter_fetcher) const override;
+
+ protected:
+  virtual google::scp::cpio::PrivateKeyVendingEndpoint
+  GetPrimaryKeyFetchingEndpoint(
+      const ParameterFetcher& parameter_fetcher) const;
+  virtual google::scp::cpio::PrivateKeyVendingEndpoint
+  GetSecondaryKeyFetchingEndpoint(
+      const ParameterFetcher& parameter_fetcher) const;
+  virtual ::privacy_sandbox::server_common::CloudPlatform GetCloudPlatform()
+      const;
+};
 
 }  // namespace kv_server
-
 #endif  // COMPONENTS_DATA_SERVER_SERVER_KEY_FETCHER_FACTORY_H_

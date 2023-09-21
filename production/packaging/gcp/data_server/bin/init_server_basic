@@ -19,9 +19,17 @@ export GLOG_logtostderr=1
 export GLOG_stderrthreshold=0
 export GRPC_DNS_RESOLVER=native
 
-# temporary folders for local data
+# These affect PCR0, so changing these would result in the loss of access to
+# private keys for decryption
+readonly PUBLIC_KEY_ENDPOINT="https://publickeyservice-test1.bas-kms.xyz/v1alpha/publicKeys"
+readonly PRIMARY_COORDINATOR_PRIVATE_KEY_ENDPOINT="https://privatekeyservice-test1.bas-kms.xyz/v1alpha/encryptionKeys"
+readonly SECONDARY_COORDINATOR_PRIVATE_KEY_ENDPOINT="https://privatekeyservice-test2.bas-kms.xyz/v1alpha/encryptionKeys"
+readonly PRIMARY_COORDINATOR_REGION="us-central1"
+readonly SECONDARY_COORDINATOR_REGION="us-central1"
+
+# TODO: remove these once blog storage logic is implemented
 mkdir -p /tmp/deltas
 mkdir -p /tmp/realtime
 
 # Start the server first.
-/server
+/server --public_key_endpoint=${PUBLIC_KEY_ENDPOINT} --primary_coordinator_private_key_endpoint=${PRIMARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --secondary_coordinator_private_key_endpoint=${SECONDARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --primary_coordinator_region=${PRIMARY_COORDINATOR_REGION} --secondary_coordinator_region=${SECONDARY_COORDINATOR_REGION}

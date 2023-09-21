@@ -23,7 +23,7 @@
 
 namespace kv_server {
 constexpr std::string_view kEnvironment = "environment";
-constexpr std::string_view kProjectId = "project_id";
+constexpr std::string_view kProjectId = "project-id";
 constexpr std::string_view kRealtimeUpdaterThreadNumberParameterSuffix =
     "realtime-updater-num-threads";
 NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {

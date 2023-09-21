@@ -250,17 +250,22 @@ cc_library(
 
 cc_library(
     name = "key_fetcher_factory",
-    srcs = [
-        "key_fetcher_factory.cc",
-    ],
+    srcs = select({
+        "//:aws_platform": [
+            "key_fetcher_factory_aws.cc",
+            "key_fetcher_factory_cloud.cc",
+        ],
+        "//:gcp_platform": [
+            "key_fetcher_factory_cloud.cc",
+            "key_fetcher_factory_gcp.cc",
+        ],
+        "//:local_platform": [
+            "key_fetcher_factory_local.cc",
+        ],
+    }),
     hdrs = [
         "key_fetcher_factory.h",
     ],
-    copts = select({
-        "//:aws_platform": ["-DCLOUD_PLATFORM_AWS=1"],
-        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
-        "//conditions:default": [],
-    }),
     deps = [
         ":parameter_fetcher",
         "@com_google_absl//absl/flags:flag",

@@ -32,7 +32,6 @@
 #include "components/internal_server/constants.h"
 #include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup_server_impl.h"
-#include "components/internal_server/lookup_supplier.h"
 #include "components/internal_server/sharded_lookup.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/telemetry/kv_telemetry.h"
@@ -295,7 +294,10 @@ absl::Status Server::InitOnceInstancesAreCreated() {
 
   grpc_server_ = CreateAndStartGrpcServer();
   local_lookup_ = CreateLocalLookup(*cache_, *metrics_recorder_);
-  remote_lookup_server_ = CreateAndStartRemoteLookupServer();
+  auto server_initializer = GetServerInitializer(
+      num_shards_, *metrics_recorder_, *key_fetcher_manager_, *local_lookup_,
+      environment_, shard_num_, *instance_client_, *cache_);
+  remote_lookup_ = server_initializer->CreateAndStartRemoteLookupServer();
   {
     auto status_or_notifier = BlobStorageChangeNotifier::Create(
         std::move(metadata), *metrics_recorder_);
@@ -336,8 +338,12 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     // other instances can pull it in for their mapping.
     lifecycle_heartbeat->Finish();
   }
-  InitializeUdfHooks();
-
+  auto maybe_shard_state = server_initializer->InitializeUdfHooks(
+      *string_get_values_hook_, *binary_get_values_hook_, *run_query_hook_);
+  if (!maybe_shard_state.ok()) {
+    return maybe_shard_state.status();
+  }
+  shard_manager_state_ = *std::move(maybe_shard_state);
   return absl::OkStatus();
 }
 
@@ -363,8 +369,8 @@ void Server::GracefulShutdown(absl::Duration timeout) {
   if (internal_lookup_server_) {
     internal_lookup_server_->Shutdown();
   }
-  if (remote_lookup_server_) {
-    remote_lookup_server_->Shutdown();
+  if (remote_lookup_.remote_lookup_server) {
+    remote_lookup_.remote_lookup_server->Shutdown();
   }
   if (grpc_server_) {
     grpc_server_->Shutdown(absl::ToChronoTime(absl::Now() + timeout));
@@ -377,8 +383,10 @@ void Server::GracefulShutdown(absl::Duration timeout) {
       LOG(ERROR) << "Failed to stop UDF client: " << status;
     }
   }
-  if (cluster_mappings_manager_ && cluster_mappings_manager_->IsRunning()) {
-    const absl::Status status = cluster_mappings_manager_->Stop();
+  if (shard_manager_state_.cluster_mappings_manager &&
+      shard_manager_state_.cluster_mappings_manager->IsRunning()) {
+    const absl::Status status =
+        shard_manager_state_.cluster_mappings_manager->Stop();
     if (!status.ok()) {
       LOG(ERROR) << "Failed to stop cluster mappings manager: " << status;
     }
@@ -394,8 +402,8 @@ void Server::ForceShutdown() {
   if (internal_lookup_server_) {
     internal_lookup_server_->Shutdown();
   }
-  if (remote_lookup_server_) {
-    remote_lookup_server_->Shutdown();
+  if (remote_lookup_.remote_lookup_server) {
+    remote_lookup_.remote_lookup_server->Shutdown();
   }
   if (grpc_server_) {
     grpc_server_->Shutdown();
@@ -412,8 +420,10 @@ void Server::ForceShutdown() {
       LOG(ERROR) << "Failed to stop UDF client: " << status;
     }
   }
-  if (cluster_mappings_manager_ && cluster_mappings_manager_->IsRunning()) {
-    const absl::Status status = cluster_mappings_manager_->Stop();
+  if (shard_manager_state_.cluster_mappings_manager &&
+      shard_manager_state_.cluster_mappings_manager->IsRunning()) {
+    const absl::Status status =
+        shard_manager_state_.cluster_mappings_manager->Stop();
     if (!status.ok()) {
       LOG(ERROR) << "Failed to stop cluster mappings manager: " << status;
     }
@@ -500,63 +510,6 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
   // Finally assemble the server.
   LOG(INFO) << "Server listening on " << server_address << std::endl;
   return builder.BuildAndStart();
-}
-
-absl::Status Server::CreateShardManager() {
-  VLOG(10) << "Creating shard manager";
-  cluster_mappings_manager_ = std::make_unique<ClusterMappingsManager>(
-      environment_, num_shards_, *metrics_recorder_, *instance_client_);
-  shard_manager_ = TraceRetryUntilOk(
-      [&cluster_mappings_manager = *cluster_mappings_manager_,
-       &num_shards = num_shards_, &key_fetcher_manager = *key_fetcher_manager_,
-       &metrics_recorder = *metrics_recorder_] {
-        // It might be that the cluster mappings that are passed don't pass
-        // validation. E.g. a particular cluster might not have any replicas
-        // specified. In that case, we need to retry the creation. After an
-        // exponential backoff, that will trigger`GetClusterMappings` which
-        // at that point in time might have new replicas spun up.
-        return ShardManager::Create(
-            num_shards, key_fetcher_manager,
-            cluster_mappings_manager.GetClusterMappings(), metrics_recorder);
-      },
-      "GetShardManager", metrics_recorder_.get());
-  return cluster_mappings_manager_->Start(*shard_manager_);
-}
-
-absl::Status Server::InitializeUdfHooks() {
-  if (num_shards_ > 1) {
-    if (const absl::Status status = CreateShardManager(); !status.ok()) {
-      return status;
-    }
-  }
-  const auto lookup_supplier =
-      LookupSupplier::Create(*local_lookup_, num_shards_, shard_num_,
-                             *shard_manager_, *metrics_recorder_, *cache_);
-  VLOG(9) << "Finishing getValues init";
-  string_get_values_hook_->FinishInit(lookup_supplier->GetLookup());
-  VLOG(9) << "Finishing getValuesBinary init";
-  binary_get_values_hook_->FinishInit(lookup_supplier->GetLookup());
-  VLOG(9) << "Finishing runQuery init";
-  run_query_hook_->FinishInit(lookup_supplier->GetLookup());
-  return absl::OkStatus();
-}
-
-std::unique_ptr<grpc::Server> Server::CreateAndStartRemoteLookupServer() {
-  if (num_shards_ <= 1) {
-    return nullptr;
-  }
-
-  remote_lookup_service_ = std::make_unique<LookupServiceImpl>(
-      *local_lookup_, *key_fetcher_manager_, *metrics_recorder_);
-  grpc::ServerBuilder remote_lookup_server_builder;
-  auto remoteLookupServerAddress =
-      absl::StrCat(kLocalIp, ":", kRemoteLookupServerPort);
-  remote_lookup_server_builder.AddListeningPort(
-      remoteLookupServerAddress, grpc::InsecureServerCredentials());
-  remote_lookup_server_builder.RegisterService(remote_lookup_service_.get());
-  LOG(INFO) << "Remote lookup server listening on " << remoteLookupServerAddress
-            << std::endl;
-  return remote_lookup_server_builder.BuildAndStart();
 }
 
 void Server::SetDefaultUdfCodeObject() {

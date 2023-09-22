@@ -34,6 +34,7 @@
 #include "components/data_server/request_handler/get_values_adapter.h"
 #include "components/data_server/server/lifecycle_heartbeat.h"
 #include "components/data_server/server/parameter_fetcher.h"
+#include "components/data_server/server/server_initializer.h"
 #include "components/internal_server/lookup.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/sharding/shard_manager.h"
@@ -144,17 +145,9 @@ class Server {
   std::unique_ptr<grpc::Service> internal_lookup_service_;
   std::unique_ptr<grpc::Server> internal_lookup_server_;
 
-  std::unique_ptr<ShardManager> shard_manager_;
-  // Internal Sharded Lookup Server --
-  // if `num_shards` > 1, then serves requests originating from servers with
-  // a different `shard_num`. Only has data for `shard_num` assigned to the
-  // server at the start up. if `num_shards` == 1, then null, since no remote
-  // lookups are necessray
-  std::unique_ptr<grpc::Service> remote_lookup_service_;
-  std::unique_ptr<grpc::Server> remote_lookup_server_;
-
+  RemoteLookup remote_lookup_;
   std::unique_ptr<UdfClient> udf_client_;
-  std::unique_ptr<ClusterMappingsManager> cluster_mappings_manager_;
+  ShardManagerState shard_manager_state_;
 
   int32_t shard_num_;
   int32_t num_shards_;

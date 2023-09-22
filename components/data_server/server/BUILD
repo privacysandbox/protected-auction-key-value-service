@@ -131,6 +131,7 @@ cc_library(
         ":key_value_service_v2_impl",
         ":lifecycle_heartbeat",
         ":parameter_fetcher",
+        ":server_initializer",
         "//components/cloud_config:instance_client",
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_client",
@@ -147,7 +148,6 @@ cc_library(
         "//components/internal_server:local_lookup",
         "//components/internal_server:lookup",
         "//components/internal_server:lookup_server_impl",
-        "//components/internal_server:lookup_supplier",
         "//components/internal_server:sharded_lookup",
         "//components/sharding:cluster_mappings_manager",
         "//components/telemetry:kv_telemetry",
@@ -272,5 +272,28 @@ cc_library(
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:key_fetcher_manager",
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:private_key_fetcher",
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:public_key_fetcher",
+    ],
+)
+
+cc_library(
+    name = "server_initializer",
+    srcs = [
+        "server_initializer.cc",
+    ],
+    hdrs = [
+        "server_initializer.h",
+    ],
+    deps = [
+        ":key_fetcher_factory",
+        "//components/data_server/cache",
+        "//components/internal_server:local_lookup",
+        "//components/internal_server:lookup",
+        "//components/internal_server:lookup_server_impl",
+        "//components/internal_server:sharded_lookup",
+        "//components/sharding:cluster_mappings_manager",
+        "//components/udf/hooks:get_values_hook",
+        "//components/udf/hooks:run_query_hook",
+        "@com_github_google_glog//:glog",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )

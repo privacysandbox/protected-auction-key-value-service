@@ -243,6 +243,17 @@ cc_library(
     hdrs = [
         "ohttp_client_encryptor.h",
     ],
+    copts =
+        select(
+            {
+                "@google_privacysandbox_servers_common//:aws_platform": [
+                    "-DCLOUD_PLATFORM_AWS=1",
+                ],
+                "@google_privacysandbox_servers_common//:gcp_platform": [
+                    "-DCLOUD_PLATFORM_GCP=1",
+                ],
+            },
+        ),
     deps = [
         "//public:constants",
         "@com_github_google_quiche//quiche:oblivious_http_unstable_api",

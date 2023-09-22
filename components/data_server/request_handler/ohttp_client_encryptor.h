@@ -35,9 +35,9 @@ class OhttpClientEncryptor {
           key_fetcher_manager)
       : key_fetcher_manager_(key_fetcher_manager) {
 #if defined(CLOUD_PLATFORM_AWS)
-    cloud_platform_ = CloudPlatform::AWS;
+    cloud_platform_ = privacy_sandbox::server_common::CloudPlatform::AWS;
 #elif defined(CLOUD_PLATFORM_GCP)
-    cloud_platform_ = CloudPlatform::GCP;
+    cloud_platform_ = privacy_sandbox::server_common::CloudPlatform::GCP;
 #endif
   }
   // Encrypts ougoing request.
@@ -50,10 +50,10 @@ class OhttpClientEncryptor {
   // should refactor this back to returning a string.
   absl::StatusOr<quiche::ObliviousHttpResponse> DecryptResponse(
       std::string encrypted_payload);
-  ::privacy_sandbox::server_common::CloudPlatform cloud_platform_ =
-      ::privacy_sandbox::server_common::CloudPlatform::LOCAL;
 
  private:
+  ::privacy_sandbox::server_common::CloudPlatform cloud_platform_ =
+      ::privacy_sandbox::server_common::CloudPlatform::LOCAL;
   std::optional<quiche::ObliviousHttpClient> http_client_;
   std::optional<quiche::ObliviousHttpRequest::Context> http_request_context_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&

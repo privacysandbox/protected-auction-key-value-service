@@ -107,3 +107,7 @@ build:aws_platform --@control_plane_shared//cc/public/cpio/interface:platform=aw
 build:gcp_platform --//:platform=gcp
 build:gcp_platform --@google_privacysandbox_servers_common//:platform=gcp
 build:gcp_platform --@control_plane_shared//cc/public/cpio/interface:platform=gcp
+
+try-import %workspace%/builders/.coverage.bazelrc
+coverage --test_tag_filters=-nocoverage
+coverage --test_size_filters=-enormous

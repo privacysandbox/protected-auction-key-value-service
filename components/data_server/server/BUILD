@@ -233,6 +233,7 @@ sh_test(
     args = ["--buildinfo"],
     tags = [
         "local",  # local precludes remote caching
+        "nocoverage",
         "smoke",
     ],
 )
@@ -255,17 +256,11 @@ cc_library(
     hdrs = [
         "key_fetcher_factory.h",
     ],
-    copts =
-        select(
-            {
-                "@google_privacysandbox_servers_common//:aws_platform": [
-                    "-DCLOUD_PLATFORM_AWS=1",
-                ],
-                "@google_privacysandbox_servers_common//:gcp_platform": [
-                    "-DCLOUD_PLATFORM_GCP=1",
-                ],
-            },
-        ),
+    copts = select({
+        "//:aws_platform": ["-DCLOUD_PLATFORM_AWS=1"],
+        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":parameter_fetcher",
         "@com_google_absl//absl/flags:flag",

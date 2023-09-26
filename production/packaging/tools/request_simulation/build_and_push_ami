@@ -94,10 +94,8 @@ mkdir -p "${DIST_DIR}"
 chmod 770 "${DIST_DIR}"
 
 printf "==== build AWS artifacts using bazel-debian =====\n"
-
-BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --//:platform=aws --//:instance=aws"
-
-printf "EXTRA ARGS %s: ${BAZEL_EXTRA_ARGS}"
+BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --config=aws_instance --config=aws_platform"
+printf "EXTRA ARGS: %s\n" "${BAZEL_EXTRA_ARGS}"
 
 printf "==== Copying to dist for aws artifacts =====\n"
 builder::cbuild_al2 $"

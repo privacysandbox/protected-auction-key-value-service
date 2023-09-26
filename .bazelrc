@@ -85,3 +85,25 @@ build:ubsan --linkopt=-lubsan
 # --config local_instance: builds the service to run with the instance=local flag
 build:local_instance --//:instance=local
 build:local_instance --@google_privacysandbox_servers_common//:instance=local
+
+# --config local_instance: builds the service to run in AWS
+build:aws_instance --//:instance=aws
+build:aws_instance --@google_privacysandbox_servers_common//:instance=aws
+
+# --config local_instance: builds the service to run in GCP
+build:gcp_instance --//:instance=gcp
+build:gcp_instance --@google_privacysandbox_servers_common//:instance=gcp
+
+# --config aws_platform: builds the service to run with AWS
+build:local_platform --//:platform=local
+build:local_platform --@google_privacysandbox_servers_common//:platform=local
+
+# --config aws_platform: builds the service to run with AWS
+build:aws_platform --//:platform=aws
+build:aws_platform --@google_privacysandbox_servers_common//:platform=aws
+build:aws_platform --@control_plane_shared//cc/public/cpio/interface:platform=aws
+
+# --config gcp_platform: builds the service to run with AWS
+build:gcp_platform --//:platform=gcp
+build:gcp_platform --@google_privacysandbox_servers_common//:platform=gcp
+build:gcp_platform --@control_plane_shared//cc/public/cpio/interface:platform=gcp

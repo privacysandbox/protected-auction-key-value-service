@@ -1,0 +1,17 @@
+coverage --action_env=PRIVACY_SANDBOX_SERVERS_BUILD_CONFIG_COVERAGE=1
+coverage --config=clang_coverage
+coverage --build_tests_only
+
+# clang_coverage -- the set of args to configure C++ code coverage in bazel with clang
+coverage:clang_coverage --compilation_mode=opt
+coverage:clang_coverage --combined_report=lcov
+coverage:clang_coverage --nocache_test_results
+coverage:clang_coverage --experimental_use_llvm_covmap
+coverage:clang_coverage --experimental_generate_llvm_lcov
+coverage:clang_coverage --action_env=BAZEL_USE_LLVM_NATIVE_COVERAGE=1
+coverage:clang_coverage --action_env=GCOV=/usr/bin/llvm-profdata
+coverage:clang_coverage --action_env=BAZEL_LLVM_COV=/usr/bin/llvm-cov
+coverage:clang_coverage --action_env=BAZEL_LLVM_PROFDATA=/usr/bin/llvm-profdata
+coverage:clang_coverage --strategy=TestRunner=sandboxed,local
+coverage:clang_coverage --strategy=CoverageReport=sandboxed,local
+coverage:clang_coverage --experimental_scale_timeouts=1.5

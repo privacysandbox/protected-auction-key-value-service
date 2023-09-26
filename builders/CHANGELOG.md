@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.45.0 (2023-09-19)
+
+
+### Features
+
+* Invoke normalize-bazel-symlinks at cbuild exit
+
+## 0.44.0 (2023-09-11)
+
+
+### Features
+
+* Add coverage bazel config and collect-coverage tool
+
+## 0.43.0 (2023-08-15)
+
+
+### Features
+
+* Allow terraform version to be specified
+
+
+### Bug Fixes
+
+* Move feat(deps) earlier for precedence over feat
+
 ## 0.42.1 (2023-08-14)
 
 
@@ -19,8 +45,11 @@ All notable changes to this project will be documented in this file. See [commit
 * Add build-amazonlinux2023 image
 * Add support for amazonlinux2023 in builder.sh
 * Configure python3.9 for python/python3 links
-* **deps:** Upgrade amazonlinux2 to 20230719
 * Remove jdk from build-amazonlinux2 image
+
+### Dependencies
+
+* **deps:** Upgrade amazonlinux2 to 20230719
 
 
 ### Bug Fixes

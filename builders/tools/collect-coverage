@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# environment variables (all optional):
+#     WORKSPACE                    Set the path to the workspace (repo root)
+
+set -o pipefail
+set -o errexit
+
+trap _cleanup EXIT
+function _cleanup() {
+  declare -r -i status=$?
+  if [[ ${status} -ne 0 ]]; then
+    printf "collect-coverage exit code: %d\n" ${status} &>/dev/stderr
+    sleep 5s
+  fi
+  exit ${status}
+}
+
+function generate_coverage_report() {
+  local -r cov_dir="$(mktemp --tmpdir="${WORKSPACE}" --directory coverage-XXXX)"
+  trap 'rm -rf "${cov_dir}"' RETURN EXIT
+  local -r cov_dat="${WORKSPACE}/bazel-out/_coverage/_coverage_report.dat"
+  cp "${cov_dat}" "${cov_dir}"
+  local -r dist_dir="${WORKSPACE}"/dist
+  cp "${cov_dat}" "${dist_dir}"
+  chmod -x {"${cov_dir}","${dist_dir}"}/_coverage_report.dat
+
+  "${TOOLS_DIR}"/lcov --list dist/_coverage_report.dat >"${dist_dir}"/coverage_report.txt
+  "${TOOLS_DIR}"/lcov --summary dist/_coverage_report.dat
+
+  local -r commit_sha=$(git rev-parse HEAD)
+  "${TOOLS_DIR}"/genhtml \
+    --output-directory="$(basename "${cov_dir}")" \
+    --title "coverage for commit ${commit_sha:0:7}" \
+    --show-details \
+    --legend \
+    --quiet \
+    dist/_coverage_report.dat
+
+  if pushd "${cov_dir}" &>/dev/null; then
+    local -r zipfile=dist/"${COVERAGE_FILENAME}"
+    "${TOOLS_DIR}"/zip -q -r "../${zipfile}" ./*
+    printf "coverage archived to: %s\n" "${zipfile}"
+    popd &>/dev/null
+  fi
+}
+
+# shellcheck disable=SC1090
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
+TOOLS_DIR="$(builder::get_tools_dir)"
+readonly TOOLS_DIR
+
+declare COVERAGE_FILENAME="$1"
+if [[ ${COVERAGE_FILENAME##*.} != zip ]]; then
+  COVERAGE_FILENAME=coverage.zip
+fi
+
+generate_coverage_report
+"${TOOLS_DIR}"/normalize-dist

@@ -125,7 +125,12 @@ cc_library(
     hdrs = [
         "blob_storage_change_notifier.h",
     ],
-    deps = [
+    deps = select({
+        "//:gcp_platform": [
+            "//components/util:sleepfor",
+        ],
+        "//conditions:default": [],
+    }) + [
         "//components/data/common:change_notifier",
         "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/status",

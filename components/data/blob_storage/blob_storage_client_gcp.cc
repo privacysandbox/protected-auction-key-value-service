@@ -154,7 +154,6 @@ absl::StatusOr<std::vector<std::string>> GcpBlobStorageClient::ListBlobs(
       google::cloud::storage::StartOffset(options.start_after));
   std::vector<std::string> keys;
   if (list_object_reader.begin() == list_object_reader.end()) {
-    LOG(WARNING) << "No files found under GCS bucket:" << location.bucket;
     return keys;
   }
   for (auto&& object_metadata : list_object_reader) {

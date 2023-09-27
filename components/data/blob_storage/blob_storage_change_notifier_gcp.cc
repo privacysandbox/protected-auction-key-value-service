@@ -19,6 +19,7 @@
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/common/change_notifier.h"
+#include "components/util/sleepfor.h"
 
 namespace kv_server {
 namespace {
@@ -31,11 +32,14 @@ class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
       std::unique_ptr<ChangeNotifier> notifier, MetricsRecorder& unused)
       : notifier_(std::move(notifier)) {}
 
+  ~GcpBlobStorageChangeNotifier() override { sleep_for_.Stop(); }
+
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
       const std::function<bool()>& should_stop_callback) override {
     // TODO(b/301118821): Implement gcp blob storage change notifier and remove
     // the temporary solution below.
+    sleep_for_.Duration(max_wait);
     return absl::DeadlineExceededError(
         "Trigger backup poll before GCP blob storage change notifier is "
         "implemented.");
@@ -43,6 +47,7 @@ class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
 
  private:
   std::unique_ptr<ChangeNotifier> notifier_;
+  SleepFor sleep_for_;
 };
 
 }  // namespace

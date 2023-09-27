@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-resource "google_secret_manager_secret" "kvs_runtime_flag_secrets" {
+resource "google_secret_manager_secret" "kvs_secrets" {
   for_each = var.parameters
 
   secret_id = "${var.service}-${var.environment}-${each.key}"
@@ -23,8 +23,8 @@ resource "google_secret_manager_secret" "kvs_runtime_flag_secrets" {
   }
 }
 
-resource "google_secret_manager_secret_version" "kvs_runtime_flag_secret_values" {
-  for_each = google_secret_manager_secret.kvs_runtime_flag_secrets
+resource "google_secret_manager_secret_version" "kvs_secret_values" {
+  for_each = google_secret_manager_secret.kvs_secrets
 
   secret      = each.value.id
   secret_data = var.parameters[split("${var.service}-${var.environment}-", each.value.id)[1]]

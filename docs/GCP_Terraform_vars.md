@@ -57,10 +57,6 @@
 
     The grpc port that receives traffic destined for the frontend service.
 
--   **launch_hook**
-
-    Launch hook.
-
 -   **machine_type**
 
     Machine type for the key-value service. Must be compatible with confidential compute.
@@ -116,14 +112,6 @@
 -   **route_v1_to_v2**
 
     Whether to route V1 requests through V2.
-
--   **s3client_max_connections**
-
-    S3Client max connections for reading data files.
-
--   **s3client_max_range_bytes**
-
-    S3Client max range bytes for reading data files.
 
 -   **secondary_coordinator_account_identity**
 

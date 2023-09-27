@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+resource "null_resource" "kv_parameters" {
+  triggers = var.parameters
+}
+
 resource "google_compute_instance_template" "kv_server" {
   provider = google-beta
 
@@ -60,9 +64,9 @@ resource "google_compute_instance_template" "kv_server" {
   }
 
   scheduling {
-    # automatic_restart   = true
+    automatic_restart   = true
     on_host_maintenance = "TERMINATE"
-    # provisioning_model  = "STANDARD"
+    provisioning_model  = "STANDARD"
   }
 
   confidential_instance_config {
@@ -70,17 +74,19 @@ resource "google_compute_instance_template" "kv_server" {
   }
 
   shielded_instance_config {
-    # enable_integrity_monitoring = true
-    enable_secure_boot = true
-    # enable_vtpm                 = true
+    enable_integrity_monitoring = true
+    enable_secure_boot          = true
+    enable_vtpm                 = true
   }
 
   lifecycle {
     create_before_destroy = true
+    ignore_changes        = [name]
+    replace_triggered_by  = [null_resource.kv_parameters]
   }
 
-  # can_ip_forward = false
-  # enable_display = false
+  can_ip_forward = false
+  enable_display = false
 }
 
 resource "google_compute_region_instance_group_manager" "kv_server" {

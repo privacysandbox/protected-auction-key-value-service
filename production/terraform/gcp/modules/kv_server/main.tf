@@ -15,13 +15,12 @@
  */
 
 locals {
-  service           = "kv-server"
   kv_server_address = "xds:///kv-service-host"
 }
 
 module "networking" {
   source                 = "../../services/networking"
-  service                = local.service
+  service                = var.service
   environment            = var.environment
   regions                = var.regions
   collector_service_name = var.collector_service_name
@@ -29,7 +28,7 @@ module "networking" {
 
 module "security" {
   source                 = "../../services/security"
-  service                = local.service
+  service                = var.service
   environment            = var.environment
   network_id             = module.networking.network_id
   subnets                = module.networking.subnets
@@ -40,7 +39,7 @@ module "autoscaling" {
   source                                = "../../services/autoscaling"
   gcp_image_tag                         = var.environment
   gcp_image_repo                        = var.gcp_image_repo
-  service                               = local.service
+  service                               = var.service
   environment                           = var.environment
   vpc_id                                = module.networking.network_id
   subnets                               = module.networking.subnets
@@ -56,6 +55,7 @@ module "autoscaling" {
   collector_machine_type                = var.collector_machine_type
   collector_service_name                = var.collector_service_name
   collector_service_port                = var.collector_service_port
+  parameters                            = var.parameters
 }
 
 module "metrics_collector" {
@@ -71,7 +71,7 @@ module "metrics_collector" {
 
 module "service_mesh" {
   source                    = "../../services/service_mesh"
-  service                   = local.service
+  service                   = var.service
   environment               = var.environment
   service_port              = var.kv_service_port
   kv_server_address         = local.kv_server_address
@@ -84,20 +84,20 @@ module "service_mesh" {
 
 module "parameter" {
   source      = "../../services/parameter"
-  service     = local.service
+  service     = var.service
   environment = var.environment
   parameters  = var.parameters
 }
 
 module "realtime" {
   source      = "../../services/realtime"
-  service     = local.service
+  service     = var.service
   environment = var.environment
 }
 
 module "data_storage" {
   source         = "../../services/data_storage"
-  service        = local.service
+  service        = var.service
   environment    = var.environment
   data_bucket_id = var.data_bucket_id
 }

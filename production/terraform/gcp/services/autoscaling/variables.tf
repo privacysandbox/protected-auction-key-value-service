@@ -111,3 +111,8 @@ variable "collector_service_port" {
   description = "The grpc port that receives traffic destined for the OpenTelemetry collector."
   type        = number
 }
+
+variable "parameters" {
+  type        = map(string)
+  description = "Kv-server runtime parameters"
+}

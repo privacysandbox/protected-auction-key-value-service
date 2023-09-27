@@ -91,11 +91,6 @@ variable "data_bucket_id" {
   description = "Directory to watch for files."
 }
 
-variable "launch_hook" {
-  type        = string
-  description = "Launch hook."
-}
-
 variable "realtime_directory" {
   type        = string
   description = "Local directory to watch for realtime file changes."
@@ -124,16 +119,6 @@ variable "realtime_updater_num_threads" {
 variable "data_loading_num_threads" {
   type        = number
   description = "Number of parallel threads for reading and loading data files."
-}
-
-variable "s3client_max_connections" {
-  type        = number
-  description = "S3Client max connections for reading data files."
-}
-
-variable "s3client_max_range_bytes" {
-  type        = number
-  description = "S3Client max range bytes for reading data files."
 }
 
 variable "num_shards" {

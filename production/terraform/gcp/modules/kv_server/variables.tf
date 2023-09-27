@@ -24,6 +24,11 @@ variable "environment" {
   type        = string
 }
 
+variable "service" {
+  description = "Service name of the server."
+  type        = string
+}
+
 variable "service_account_email" {
   description = "Email of the service account that be used by all instances"
   type        = string

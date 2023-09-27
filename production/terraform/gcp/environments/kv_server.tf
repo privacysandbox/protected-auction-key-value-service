@@ -20,10 +20,15 @@ provider "google-beta" {
   project = var.project_id
 }
 
+locals {
+  kv_service = "kv-server"
+}
+
 module "kv_server" {
   source                                = "../modules/kv_server"
   project_id                            = var.project_id
   environment                           = var.environment
+  service                               = local.kv_service
   service_account_email                 = var.service_account_email
   regions                               = var.regions
   gcp_image_repo                        = var.gcp_image_repo
@@ -46,7 +51,7 @@ module "kv_server" {
   parameters = {
     directory                                 = var.directory
     data-bucket-id                            = var.data_bucket_id
-    launch-hook                               = var.launch_hook
+    launch-hook                               = "${local.kv_service}-${var.environment}-launch-hook"
     realtime-directory                        = var.realtime_directory
     use-external-metrics-collector-endpoint   = var.use_external_metrics_collector_endpoint
     metrics-collector-endpoint                = "${var.environment}-${var.collector_service_name}.${var.collector_domain_name}:${var.collector_service_port}"
@@ -55,8 +60,6 @@ module "kv_server" {
     backup-poll-frequency-secs                = var.backup_poll_frequency_secs
     realtime-updater-num-threads              = var.realtime_updater_num_threads
     data-loading-num-threads                  = var.data_loading_num_threads
-    s3client-max-connections                  = var.s3client_max_connections
-    s3client-max-range-bytes                  = var.s3client_max_range_bytes
     num-shards                                = var.num_shards
     udf-num-workers                           = var.udf_num_workers
     route-v1-to-v2                            = var.route_v1_to_v2

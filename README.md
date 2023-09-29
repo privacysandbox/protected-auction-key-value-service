@@ -52,6 +52,12 @@ soon. Monitoring and alerts are currently unavailable.
 > is also true for the product end state. It is recommended to only store data you do not mind seen
 > by other entities.
 
+## How to use this repo
+
+The `main` branch hosts live code with latest changes. It is unstable and is used for development.
+It is suitable for contribution and inspection of the latest code. The `release-*` branches are stable
+releases that can be used to build and deploy the system.
+
 ## Breaking changes
 
 This codebase right now is in a very early stage. We expect frequent updates that may not be fully

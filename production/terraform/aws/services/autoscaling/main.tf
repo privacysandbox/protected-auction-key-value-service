@@ -86,4 +86,6 @@ resource "aws_autoscaling_group" "instance_asg" {
     heartbeat_timeout    = 300
     lifecycle_transition = "autoscaling:EC2_INSTANCE_LAUNCHING"
   }
+
+  wait_for_capacity_timeout = var.wait_for_capacity_timeout
 }

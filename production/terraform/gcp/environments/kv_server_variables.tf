@@ -200,3 +200,8 @@ variable "secondary_coordinator_account_identity" {
   description = "Account identity for the secondary coordinator."
   type        = string
 }
+
+variable "tee_impersonate_service_accounts" {
+  type        = string
+  description = "Tee can impersonate these service accounts. Necessary for coordinators."
+}

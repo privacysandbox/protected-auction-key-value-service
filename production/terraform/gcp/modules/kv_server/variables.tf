@@ -120,3 +120,8 @@ variable "data_bucket_id" {
   type        = string
   description = "Directory to watch for files."
 }
+
+variable "tee_impersonate_service_accounts" {
+  type        = string
+  description = "Tee can impersonate these service accounts. Necessary for coordinators."
+}

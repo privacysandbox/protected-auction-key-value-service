@@ -54,8 +54,9 @@ resource "google_compute_instance_template" "kv_server" {
   }
 
   metadata = {
-    tee-image-reference        = "${var.gcp_image_repo}:${var.gcp_image_tag}"
-    tee-container-log-redirect = true
+    tee-image-reference              = "${var.gcp_image_repo}:${var.gcp_image_tag}"
+    tee-container-log-redirect       = true,
+    tee-impersonate-service-accounts = "${var.tee_impersonate_service_accounts}"
   }
 
   service_account {

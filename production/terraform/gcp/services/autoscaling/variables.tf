@@ -116,3 +116,8 @@ variable "parameters" {
   type        = map(string)
   description = "Kv-server runtime parameters"
 }
+
+variable "tee_impersonate_service_accounts" {
+  type        = string
+  description = "Tee can impersonate these service accounts. Necessary for coordinators."
+}

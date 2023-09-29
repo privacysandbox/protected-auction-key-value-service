@@ -129,6 +129,10 @@
 
     Email of the service account that be used by all instances.
 
+-   **tee_impersonate_service_accounts**
+
+    Tee can impersonate these service accounts. Necessary for coordinators.
+
 -   **udf_num_workers**
 
     Number of workers for UDF execution.

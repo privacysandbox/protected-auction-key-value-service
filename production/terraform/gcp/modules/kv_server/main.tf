@@ -56,6 +56,7 @@ module "autoscaling" {
   collector_service_name                = var.collector_service_name
   collector_service_port                = var.collector_service_port
   parameters                            = var.parameters
+  tee_impersonate_service_accounts      = var.tee_impersonate_service_accounts
 }
 
 module "metrics_collector" {

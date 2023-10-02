@@ -27,7 +27,7 @@ constexpr std::string_view kProjectId = "project-id";
 constexpr std::string_view kRealtimeUpdaterThreadNumberParameterSuffix =
     "realtime-updater-num-threads";
 NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
-  // TODO: set to proper values. Waiting on the GCP BlobStorage implementation.
+  // TODO: set to proper values. Waiting on the change notifier implementation.
   return GcpNotifierMetadata{};
 }
 

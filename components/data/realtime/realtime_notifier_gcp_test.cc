@@ -37,7 +37,7 @@ namespace {
 using ::google::cloud::pubsub::AckHandler;
 using ::google::cloud::pubsub::MessageBuilder;
 using ::google::cloud::pubsub::Subscriber;
-using ::google::cloud::pubsub::SubscriberConnection::SubscribeParams;
+using ::google::cloud::pubsub::SubscriberConnection;
 using ::google::cloud::pubsub_mocks::MockAckHandler;
 using ::google::cloud::pubsub_mocks::MockSubscriberConnection;
 using privacy_sandbox::server_common::GetTracer;
@@ -69,9 +69,10 @@ TEST_F(RealtimeNotifierGcpTest, NotRunning) {
 
 TEST_F(RealtimeNotifierGcpTest, ConsecutiveStartsWork) {
   EXPECT_CALL(*mock_, options);
-  EXPECT_CALL(*mock_, Subscribe).WillOnce([&](SubscribeParams const& p) {
-    return make_ready_future(google::cloud::Status{});
-  });
+  EXPECT_CALL(*mock_, Subscribe)
+      .WillOnce([&](SubscriberConnection::SubscribeParams const& p) {
+        return make_ready_future(google::cloud::Status{});
+      });
   auto subscriber = std::make_unique<Subscriber>(Subscriber(mock_));
   GcpRealtimeNotifierMetadata options = {
       .maybe_sleep_for = std::move(mock_sleep_for_),
@@ -91,9 +92,10 @@ TEST_F(RealtimeNotifierGcpTest, ConsecutiveStartsWork) {
 
 TEST_F(RealtimeNotifierGcpTest, StartsAndStops) {
   EXPECT_CALL(*mock_, options);
-  EXPECT_CALL(*mock_, Subscribe).WillOnce([&](SubscribeParams const& p) {
-    return make_ready_future(google::cloud::Status{});
-  });
+  EXPECT_CALL(*mock_, Subscribe)
+      .WillOnce([&](SubscriberConnection::SubscribeParams const& p) {
+        return make_ready_future(google::cloud::Status{});
+      });
 
   auto subscriber = std::make_unique<Subscriber>(Subscriber(mock_));
   GcpRealtimeNotifierMetadata options = {
@@ -117,22 +119,23 @@ TEST_F(RealtimeNotifierGcpTest, NotifiesWithHighPriorityUpdates) {
   std::string high_priority_update_1 = "high_priority_update_1";
   std::string high_priority_update_2 = "high_priority_update_2";
   EXPECT_CALL(*mock_, options);
-  EXPECT_CALL(*mock_, Subscribe).WillOnce([&](SubscribeParams const& p) {
-    {
-      auto ack = std::make_unique<MockAckHandler>();
-      EXPECT_CALL(*ack, ack()).Times(1);
-      auto encoded = absl::Base64Escape(high_priority_update_1);
-      p.callback(MessageBuilder{}.SetData(encoded).Build(),
-                 AckHandler(std::move(ack)));
+  EXPECT_CALL(*mock_, Subscribe)
+      .WillOnce([&](SubscriberConnection::SubscribeParams const& p) {
+        {
+          auto ack = std::make_unique<MockAckHandler>();
+          EXPECT_CALL(*ack, ack()).Times(1);
+          auto encoded = absl::Base64Escape(high_priority_update_1);
+          p.callback(MessageBuilder{}.SetData(encoded).Build(),
+                     AckHandler(std::move(ack)));
 
-      auto ack2 = std::make_unique<MockAckHandler>();
-      EXPECT_CALL(*ack2, ack()).Times(1);
-      auto encoded2 = absl::Base64Escape(high_priority_update_2);
-      p.callback(MessageBuilder{}.SetData(encoded2).Build(),
-                 AckHandler(std::move(ack2)));
-    }
-    return make_ready_future(google::cloud::Status{});
-  });
+          auto ack2 = std::make_unique<MockAckHandler>();
+          EXPECT_CALL(*ack2, ack()).Times(1);
+          auto encoded2 = absl::Base64Escape(high_priority_update_2);
+          p.callback(MessageBuilder{}.SetData(encoded2).Build(),
+                     AckHandler(std::move(ack2)));
+        }
+        return make_ready_future(google::cloud::Status{});
+      });
 
   absl::Notification finished;
   testing::MockFunction<absl::StatusOr<DataLoadingStats>(

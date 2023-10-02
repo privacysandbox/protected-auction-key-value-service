@@ -56,7 +56,7 @@ absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>>
 BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata,
                                   MetricsRecorder& metrics_recorder) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(std::get<LocalNotifierMetadata>(notifier_metadata),
+      ChangeNotifier::Create(std::get<GcpNotifierMetadata>(notifier_metadata),
                              metrics_recorder);
   if (!notifier.ok()) {
     return notifier.status();

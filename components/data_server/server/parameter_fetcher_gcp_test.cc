@@ -23,50 +23,9 @@
 
 namespace kv_server {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
-
-class MockParameterClient : public ParameterClient {
- public:
-  MOCK_METHOD(absl::StatusOr<std::string>, GetParameter,
-              (std::string_view parameter_name), (const, override));
-  MOCK_METHOD(absl::StatusOr<int32_t>, GetInt32Parameter,
-              (std::string_view parameter_name), (const, override));
-  MOCK_METHOD(absl::StatusOr<bool>, GetBoolParameter,
-              (std::string_view parameter_name), (const, override));
-};
-
-TEST(ParameterFetcherTest, CreateChangeNotifierSmokeTest) {
-  MockParameterClient client;
-  EXPECT_CALL(client, GetParameter("kv-server-local-directory"))
-      .Times(1)
-      .WillOnce(::testing::Return(::testing::TempDir()));
-  MockMetricsRecorder metrics_recorder;
-  ParameterFetcher fetcher(
-      /*environment=*/"local", client, &metrics_recorder);
-
-  const auto metadata = fetcher.GetBlobStorageNotifierMetadata();
-  auto local_notifier_metadata = std::get<LocalNotifierMetadata>(metadata);
-
-  EXPECT_EQ(::testing::TempDir(), local_notifier_metadata.local_directory);
-}
-
-TEST(ParameterFetcherTest, CreateDeltaFileRecordChangeNotifierSmokeTest) {
-  MockParameterClient client;
-  EXPECT_CALL(client, GetParameter("kv-server-local-realtime-directory"))
-      .Times(1)
-      .WillOnce(::testing::Return(::testing::TempDir()));
-  MockMetricsRecorder metrics_recorder;
-  ParameterFetcher fetcher(
-      /*environment=*/"local", client, &metrics_recorder);
-
-  const int32_t num_shards = 1;
-  const int32_t shard_num = 0;
-  const auto notifier_metadata =
-      fetcher.GetRealtimeNotifierMetadata(num_shards, shard_num);
-  auto local_notifier_metadata =
-      std::get<LocalNotifierMetadata>(notifier_metadata);
-
-  EXPECT_EQ(::testing::TempDir(), local_notifier_metadata.local_directory);
+TEST(ParameterFetcherTest, SmokeTest) {
+  // TODO(b/237669491): Write tests once we work out how to mock out GCP.
+  EXPECT_TRUE(true);
 }
 
 }  // namespace kv_server

@@ -26,10 +26,7 @@ cc_library(
             "msg_svc_aws.cc",
         ],
         "//:gcp_platform": [
-            # cannot use this implementation, until all gcp upstream
-            # dependencies are also implemented
-            # "msg_svc_gcp.cc",
-            "msg_svc_local.cc",
+            "msg_svc_gcp.cc",
         ],
         "//:local_platform": [
             "msg_svc_local.cc",

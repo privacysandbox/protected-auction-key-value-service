@@ -25,9 +25,6 @@ cc_library(
         "//:aws_platform": [
             "delta_file_record_change_notifier_aws.cc",
         ],
-        "//:gcp_platform": [
-            "delta_file_record_change_notifier_gcp.cc",
-        ],
         "//:local_platform": [
             "delta_file_record_change_notifier_local.cc",
         ],
@@ -35,6 +32,10 @@ cc_library(
     hdrs = [
         "delta_file_record_change_notifier.h",
     ],
+    target_compatible_with = select({
+        "//:gcp_platform": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//components/data/common:change_notifier",
         "@com_google_absl//absl/status",
@@ -50,14 +51,15 @@ cc_test(
         "//:aws_platform": [
             "delta_file_record_change_notifier_aws_test.cc",
         ],
-        "//:gcp_platform": [
-            "delta_file_record_change_notifier_gcp_test.cc",
-        ],
         "//:local_platform": ["delta_file_record_change_notifier_local_test.cc"],
     }),
     data = [
         "//components/data/realtime/testdata:data",
     ],
+    target_compatible_with = select({
+        "//:gcp_platform": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":delta_file_record_change_notifier",
         "//components/data/common:change_notifier",

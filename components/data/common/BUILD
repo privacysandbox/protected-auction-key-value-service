@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(default_visibility = [
@@ -153,15 +154,28 @@ cc_library(
 cc_library(
     name = "mocks",
     testonly = 1,
-    hdrs = ["mocks.h"],
-    deps = [
-        "//components/data/blob_storage:blob_storage_client",
-        "//components/data/blob_storage:delta_file_notifier",
-        "//components/data/realtime:delta_file_record_change_notifier",
-        "//components/data/realtime:realtime_notifier",
-        "//components/data/realtime:realtime_thread_pool_manager",
-        "@com_google_googletest//:gtest",
-    ],
+    hdrs =
+        selects.with_or({
+            ("//:aws_platform", "//:local_platform"): [
+                "mocks_aws.h",
+            ],
+            "//conditions:default": [],
+        }) + [
+            "mocks.h",
+        ],
+    deps =
+        selects.with_or({
+            ("//:aws_platform", "//:local_platform"): [
+                "//components/data/realtime:delta_file_record_change_notifier",
+            ],
+            "//conditions:default": [],
+        }) + [
+            "//components/data/blob_storage:blob_storage_client",
+            "//components/data/blob_storage:delta_file_notifier",
+            "//components/data/realtime:realtime_notifier",
+            "//components/data/realtime:realtime_thread_pool_manager",
+            "@com_google_googletest//:gtest",
+        ],
 )
 
 cc_library(

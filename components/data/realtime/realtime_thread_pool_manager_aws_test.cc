@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "components/data/common/mocks.h"
+#include "components/data/common/mocks_aws.h"
 #include "components/data/realtime/realtime_notifier.h"
 #include "components/data/realtime/realtime_thread_pool_manager.h"
 #include "components/util/sleepfor_mock.h"

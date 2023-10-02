@@ -56,16 +56,6 @@ class NoopBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
   }
 };
 
-class NoopDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
- public:
-  absl::StatusOr<NotificationsContext> GetNotifications(
-      absl::Duration max_wait,
-      const std::function<bool()>& should_stop_callback) override {
-    auto span = GetTracer()->GetCurrentSpan();
-    return NotificationsContext{.scope = opentelemetry::trace::Scope(span)};
-  }
-};
-
 class NoopRealtimeThreadPoolManager : public RealtimeThreadPoolManager {
  public:
   absl::Status Start(

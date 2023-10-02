@@ -55,8 +55,8 @@ soon. Monitoring and alerts are currently unavailable.
 ## How to use this repo
 
 The `main` branch hosts live code with latest changes. It is unstable and is used for development.
-It is suitable for contribution and inspection of the latest code. The `release-*` branches are stable
-releases that can be used to build and deploy the system.
+It is suitable for contribution and inspection of the latest code. The `release-*` branches are
+stable releases that can be used to build and deploy the system.
 
 ## Breaking changes
 

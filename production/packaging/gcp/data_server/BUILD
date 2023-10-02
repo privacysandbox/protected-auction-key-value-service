@@ -67,8 +67,8 @@ container_image(
         "@platforms//cpu:x86_64": "amd64",
     }),
     base = select({
-        "@platforms//cpu:arm64": "@runtime-debian-arm64//image",
-        "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
+        "@platforms//cpu:arm64": "@runtime-debian-debug-root-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-debian-debug-root-amd64//image",
     }),
     entrypoint = ["/init_server_basic"],
     labels = {"tee.launch_policy.log_redirect": "always"},

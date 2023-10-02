@@ -45,8 +45,8 @@ container_layer(
 container_image(
     name = "data_loading_analyzer_enclave_image",
     base = select({
-        "@platforms//cpu:arm64": "@runtime-debian-arm64//image",
-        "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
+        "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64//image",
     }),
     cmd = [
         "/opt/privacysandbox/bin/proxify",

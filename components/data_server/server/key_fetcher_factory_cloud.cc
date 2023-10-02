@@ -71,7 +71,7 @@ PrivateKeyVendingEndpoint GetKeyFetchingEndpoint(
   LOG(INFO) << "Retrieved " << account_identity_prefix
             << " parameter: " << endpoint.account_identity;
   endpoint.private_key_vending_service_endpoint = service_endpoint;
-  LOG(INFO) << "Service endpoint: " << region;
+  LOG(INFO) << "Service endpoint: " << service_endpoint;
   endpoint.service_region = region;
   LOG(INFO) << "Region: " << region;
   return endpoint;

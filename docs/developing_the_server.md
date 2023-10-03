@@ -86,7 +86,7 @@ The data server provides the read API for the KV service.
 1.  Load the image into docker
 
     ```sh
-    docker load -i dist/debian/server_docker_image.tar
+    docker load -i dist/server_docker_image.tar
     ```
 
 1.  Run the container. Port 50051 can be used to query the server directly through gRPC.

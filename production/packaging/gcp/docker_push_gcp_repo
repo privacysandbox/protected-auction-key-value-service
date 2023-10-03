@@ -65,7 +65,7 @@ done
 IMAGE_URI=bazel/production/packaging/gcp/data_server:server_docker_image
 TAGGED_IMAGE_URI=${GCP_IMAGE_REPO}:${ENVIRONMENT}
 
-docker load -i dist/debian/server_docker_image.tar
+docker load -i dist/server_docker_image.tar
 docker tag ${IMAGE_URI} "${TAGGED_IMAGE_URI}"
 docker push "${TAGGED_IMAGE_URI}"
 

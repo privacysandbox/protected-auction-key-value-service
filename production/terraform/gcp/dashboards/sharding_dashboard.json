@@ -1,0 +1,417 @@
+{
+  "dashboardFilters": [],
+  "displayName": "Sharding",
+  "labels": {},
+  "mosaicLayout": {
+    "columns": 48,
+    "tiles": [
+      {
+        "height": 16,
+        "widget": {
+          "title": "Lookup Futures Creation Failure",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"LookupFuturesCreationFailure\"}",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "Sharded Lookup Failure",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"ShardedLookupFailure\"}",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "Sharded Lookup Server Request Failed",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"ShardedLookupServerRequestFailed\"}\n",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 16
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "Lookup Client Missing",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"LookupClientMissing\"}",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24,
+        "yPos": 16
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "ShardedLookupServerKeyCollisionOnCollection",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"ShardedLookupServerKeyCollisionOnCollection\"}",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 32
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "InternalRunQueryEmtpyQuery",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"InternalRunQueryEmtpyQuery\"}\n",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24,
+        "yPos": 32
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "InternalRunQueryMissingKeyset",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"InternalRunQueryMissingKeyset\"}",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 48
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "InternalRunQueryParsingFailure",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"InternalRunQueryParsingFailure\"}",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24,
+        "yPos": 48
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "InternalRunQueryKeysetRetrievalFailure",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"InternalRunQueryKeysetRetrievalFailure\"}",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 64
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "InternalRunQueryQueryFailure",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"InternalRunQueryQueryFailure\"}",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24,
+        "yPos": 64
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "ShardedLookupGrpcFailure",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"ShardedLookupGrpcFailure\"}",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 80
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "InternalRunQuery p50",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.50,delta(workload_googleapis_com:InternalRunQuery_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\"}[15m]))",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24,
+        "yPos": 80
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "InternalRunQuery p999",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.50,delta(workload_googleapis_com:InternalRunQuery_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\"}[15m]))",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 96
+      }
+    ]
+  }
+}

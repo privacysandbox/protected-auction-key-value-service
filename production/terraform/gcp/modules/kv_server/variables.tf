@@ -126,6 +126,11 @@ variable "tee_impersonate_service_accounts" {
   description = "Tee can impersonate these service accounts. Necessary for coordinators."
 }
 
+variable "num_shards" {
+  description = "Number of shards."
+  type        = number
+}
+
 variable "use_existing_vpc" {
   description = "Whether to use existing vpc network."
   type        = bool

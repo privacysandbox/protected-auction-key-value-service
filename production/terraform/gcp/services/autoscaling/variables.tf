@@ -91,27 +91,6 @@ variable "cpu_utilization_percent" {
   type        = number
 }
 
-variable "max_collectors_per_region" {
-  description = "Maximum amount of Collectors per each service region (a single managed instance group)."
-  type        = number
-  default     = 2
-}
-
-variable "collector_machine_type" {
-  description = "Machine type for the collector service."
-  type        = string
-}
-
-variable "collector_service_name" {
-  description = "Name of the collector service."
-  type        = string
-}
-
-variable "collector_service_port" {
-  description = "The grpc port that receives traffic destined for the OpenTelemetry collector."
-  type        = number
-}
-
 variable "parameters" {
   type        = map(string)
   description = "Kv-server runtime parameters"
@@ -120,4 +99,9 @@ variable "parameters" {
 variable "tee_impersonate_service_accounts" {
   type        = string
   description = "Tee can impersonate these service accounts. Necessary for coordinators."
+}
+
+variable "shard_num" {
+  description = "Shard number."
+  type        = string
 }

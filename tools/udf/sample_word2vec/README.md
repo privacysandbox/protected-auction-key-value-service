@@ -61,7 +61,6 @@ Set up the data:
 
 ```sh
 mkdir /tmp/deltas
-./builders/tools/normalize-bazel-symlinks
 cp $(builders/tools/bazel-debian aquery 'tools/udf/sample_word2vec:udf_delta' |
    sed -n 's/Outputs: \[\(.*\)\]/\1/p' |
    xargs dirname)/DELTA* /tmp/deltas
@@ -76,7 +75,6 @@ Build the local server:
 Run the local server:
 
 ```sh
-./builders/tools/normalize-bazel-symlinks
 GLOG_alsologtostderr=1 \
   ./bazel-bin/components/data_server/server/server \
   --delta_directory=/tmp/deltas \

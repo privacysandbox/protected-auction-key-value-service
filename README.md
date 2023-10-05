@@ -40,11 +40,6 @@ moment, to load data, instead of calling the mutation API, you would place the d
 location that can be directly read by the server. See more details in the
 [data loading guide](/docs/loading_data.md).
 
-The query API only supports the newer version of response format (accompanied by response header
-`X-fledge-bidding-signals-format-version: 2`) as described in the
-[FLEDGE main explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE.md#31-fetching-real-time-data-from-a-trusted-server).
-Chrome's support of this format is expected to be available in Chrome version 105.
-
 Currently, this service can be deployed to 1 region of your choice with more regions to be added
 soon. Monitoring and alerts are currently unavailable.
 

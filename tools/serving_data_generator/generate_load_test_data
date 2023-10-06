@@ -25,7 +25,6 @@ mkdir -p "${DELTAS_DIR}"
 BAZEL_EXTRA_ARGS=
 
 "${TOOLS_DIR}"/bazel-debian build //tools/serving_data_generator:test_serving_data_generator
-"${TOOLS_DIR}"/normalize-bazel-symlinks
 
 declare -i nanosecond
 for _ in {1..3000}

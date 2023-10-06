@@ -70,15 +70,6 @@ mkdir /tmp/realtime
 The files that you want to server to serve should go into these directories. The server will load
 their contents on startup and continue to watch them while it is running.
 
-## Update symlinks
-
-The usual **bazel-bin** symlink won't work by default because we compile inside Debian. This script
-will correct the symlink target paths. _It must be run after each call compilation!_
-
-```sh
-./builders/tools/normalize-bazel-symlinks
-```
-
 ## Start the server
 
 ```sh

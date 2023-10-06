@@ -272,6 +272,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     return absl::InvalidArgumentError(error);
   }
   LOG(INFO) << "Retrieved shard num: " << shard_num_;
+  metrics_recorder_->SetCommonLabel("shard_number", std::to_string(shard_num_));
   num_shards_ = parameter_fetcher.GetInt32Parameter(kNumShardsParameterSuffix);
   LOG(INFO) << "Retrieved " << kNumShardsParameterSuffix
             << " parameter: " << num_shards_;

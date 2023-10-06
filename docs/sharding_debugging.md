@@ -1,5 +1,7 @@
 # Metrics to pay attention to
 
+You can group by `shard_number` for all metrics below.
+
 ## Counters
 
 LookupFuturesCreationFailure

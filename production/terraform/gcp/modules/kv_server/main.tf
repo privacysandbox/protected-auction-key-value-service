@@ -24,6 +24,8 @@ module "networking" {
   environment            = var.environment
   regions                = var.regions
   collector_service_name = var.collector_service_name
+  use_existing_vpc       = var.use_existing_vpc
+  existing_vpc_id        = var.existing_vpc_id
 }
 
 module "security" {

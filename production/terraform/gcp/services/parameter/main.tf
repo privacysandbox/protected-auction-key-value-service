@@ -19,7 +19,7 @@ resource "google_secret_manager_secret" "kvs_secrets" {
 
   secret_id = "${var.service}-${var.environment}-${each.key}"
   replication {
-    automatic = true
+    auto {}
   }
 }
 

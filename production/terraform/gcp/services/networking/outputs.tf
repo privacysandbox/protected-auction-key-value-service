@@ -15,7 +15,7 @@
  */
 
 output "network_id" {
-  value = google_compute_network.kv_server.id
+  value = var.use_existing_vpc ? var.existing_vpc_id : google_compute_network.kv_server[0].id
 }
 
 output "subnets" {

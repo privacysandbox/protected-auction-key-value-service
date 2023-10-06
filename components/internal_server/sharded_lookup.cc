@@ -39,7 +39,6 @@ using google::protobuf::RepeatedPtrField;
 using privacy_sandbox::server_common::MetricsRecorder;
 using privacy_sandbox::server_common::ScopeLatencyRecorder;
 
-constexpr char kShardedLookupServerSpan[] = "ShardedLookupServerHandler";
 constexpr char kShardedLookupGrpcFailure[] = "ShardedLookupGrpcFailure";
 constexpr char kInternalRunQuery[] = "InternalRunQuery";
 constexpr char kInternalRunQueryQueryFailure[] = "InternalRunQueryQueryFailure";

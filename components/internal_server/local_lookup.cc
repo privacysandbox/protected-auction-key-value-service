@@ -32,8 +32,10 @@ namespace kv_server {
 namespace {
 
 using privacy_sandbox::server_common::MetricsRecorder;
+using privacy_sandbox::server_common::ScopeLatencyRecorder;
 
 constexpr char kKeySetNotFound[] = "KeysetNotFound";
+constexpr char kLocalRunQuery[] = "LocalRunQuery";
 
 class LocalLookup : public Lookup {
  public:
@@ -104,6 +106,8 @@ class LocalLookup : public Lookup {
 
   absl::StatusOr<InternalRunQueryResponse> ProcessQuery(
       std::string query) const {
+    ScopeLatencyRecorder latency_recorder(std::string(kLocalRunQuery),
+                                          metrics_recorder_);
     if (query.empty()) return absl::OkStatus();
     std::unique_ptr<GetKeyValueSetResult> get_key_value_set_result;
     kv_server::Driver driver([&get_key_value_set_result](std::string_view key) {

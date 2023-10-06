@@ -63,3 +63,16 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+proto_library(
+    name = "api_schema_proto",
+    srcs = ["api_schema.proto"],
+    deps = [
+        "@com_google_protobuf//:struct_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "api_schema_cc_proto",
+    deps = [":api_schema_proto"],
+)

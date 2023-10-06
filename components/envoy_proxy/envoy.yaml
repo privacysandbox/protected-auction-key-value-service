@@ -36,13 +36,13 @@ static_resources:
               domains: [ "*" ]
               routes:
               - match: { prefix: "/kv_server.v1.KeyValueService" }
-                route: { cluster: grpc_cluster, timeout: 2s }
+                route: { cluster: grpc_cluster, timeout: 60s }
               - match: { prefix: "/kv_server.v2.KeyValueService" }
-                route: { cluster: grpc_cluster, timeout: 2s }
+                route: { cluster: grpc_cluster, timeout: 60s }
               - match: { prefix: "/grpc.health.v1.Health" }
-                route: { cluster: grpc_cluster, timeout: 2s }
+                route: { cluster: grpc_cluster, timeout: 60s }
               - match: { prefix: "/grpc.reflection.v1alpha.ServerReflection" }
-                route: { cluster: grpc_cluster, timeout: 2s }
+                route: { cluster: grpc_cluster, timeout: 60s }
               retry_policy:
                 retry_on: 5xx
                 num_retries: 10

@@ -26,6 +26,7 @@ resource "google_compute_instance_template" "kv_server" {
   region       = each.value.region
   name         = "${var.service}-${var.environment}-${var.shard_num}-instance-lt"
   machine_type = var.machine_type
+  tags         = ["allow-hc", "allow-ssh", "allow-backend-ingress", "allow-all-egress"]
 
 
   disk {

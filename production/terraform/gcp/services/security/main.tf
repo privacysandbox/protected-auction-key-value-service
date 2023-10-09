@@ -24,7 +24,7 @@ resource "google_compute_firewall" "kvs_fw_allow_hc" {
   allow {
     protocol = "tcp"
   }
-  # target_tags = ["allow-hc"]
+  target_tags = ["allow-hc"]
 }
 
 resource "google_compute_firewall" "kvs_fw_allow_ssh" {
@@ -35,7 +35,7 @@ resource "google_compute_firewall" "kvs_fw_allow_ssh" {
     protocol = "tcp"
     ports    = ["22"]
   }
-  # target_tags   = ["allow-ssh"]
+  target_tags   = ["allow-ssh"]
   source_ranges = ["0.0.0.0/0"]
 }
 
@@ -46,7 +46,7 @@ resource "google_compute_firewall" "kvs_fw_allow_all_egress" {
   allow {
     protocol = "tcp"
   }
-  # target_tags = ["allow-all-egress"]
+  target_tags = ["allow-all-egress"]
 }
 
 resource "google_compute_firewall" "kvs_fw_allow_backend_ingress" {
@@ -57,8 +57,11 @@ resource "google_compute_firewall" "kvs_fw_allow_backend_ingress" {
   allow {
     protocol = "tcp"
   }
-  # target_tags   = ["allow-backend-ingress"]
-  source_ranges = ["0.0.0.0/0", "10.142.0.0/22"]
+  target_tags = ["allow-backend-ingress"]
+
+  # TODO(b/304313245): Remove this temporary source_ranges once envoy/https query is supported
+  source_ranges = ["0.0.0.0/0"]
+  # source_ranges = [for subnet in var.subnets : subnet.ip_cidr_range]
 }
 
 resource "google_compute_firewall" "fw_allow_otlp" {

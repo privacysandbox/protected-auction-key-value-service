@@ -24,9 +24,9 @@ pkg_tar(
     name = "data_loading_analyzer_binaries",
     srcs = [
         ":data_loading_analyzer",
-        "@control_plane_shared//cc/aws/proxy/src:proxify",
-        "@control_plane_shared//cc/aws/proxy/src:proxy_preload",
-        "@control_plane_shared//cc/aws/proxy/src:socket_vendor",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxy_preload",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:socket_vendor",
     ],
     package_dir = "/opt/privacysandbox/bin",
 )

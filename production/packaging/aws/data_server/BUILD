@@ -33,8 +33,8 @@ pkg_files(
         "bin/init_server_enclave",
         "//components/data_server/server",
         "//components/tools:get_region",
-        "@control_plane_shared//cc/aws/proxy/src:proxify",
-        "@control_plane_shared//cc/aws/proxy/src:socket_vendor",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:socket_vendor",
     ],
     attributes = pkg_attributes(mode = "0555"),
     prefix = "/",
@@ -43,7 +43,7 @@ pkg_files(
 pkg_files(
     name = "server_libs",
     srcs = [
-        "@control_plane_shared//cc/aws/proxy/src:proxy_preload",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxy_preload",
     ],
     attributes = pkg_attributes(mode = "0444"),
     prefix = "/",

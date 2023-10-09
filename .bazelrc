@@ -101,12 +101,12 @@ build:local_platform --@google_privacysandbox_servers_common//:platform=local
 # --config aws_platform: builds the service to run with AWS
 build:aws_platform --//:platform=aws
 build:aws_platform --@google_privacysandbox_servers_common//:platform=aws
-build:aws_platform --@control_plane_shared//cc/public/cpio/interface:platform=aws
+build:aws_platform --@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:platform=aws
 
 # --config gcp_platform: builds the service to run with AWS
 build:gcp_platform --//:platform=gcp
 build:gcp_platform --@google_privacysandbox_servers_common//:platform=gcp
-build:gcp_platform --@control_plane_shared//cc/public/cpio/interface:platform=gcp
+build:gcp_platform --@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:platform=gcp
 
 try-import %workspace%/builders/.coverage.bazelrc
 coverage --test_tag_filters=-nocoverage

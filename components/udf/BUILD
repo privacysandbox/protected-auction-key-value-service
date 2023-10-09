@@ -46,8 +46,8 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
-        "@control_plane_shared//cc/roma/interface:roma_interface_lib",
-        "@control_plane_shared//cc/roma/roma_service/src:roma_service_lib",
+        "@google_privacysandbox_servers_common//scp/cc/roma/interface:roma_interface_lib",
+        "@google_privacysandbox_servers_common//scp/cc/roma/roma_service/src:roma_service_lib",
     ],
 )
 
@@ -81,8 +81,8 @@ cc_library(
         "//components/udf/hooks:get_values_hook",
         "//components/udf/hooks:logging_hook",
         "//components/udf/hooks:run_query_hook",
-        "@control_plane_shared//cc/roma/interface:roma_interface_lib",
-        "@control_plane_shared//cc/roma/roma_service/src:roma_service_lib",
+        "@google_privacysandbox_servers_common//scp/cc/roma/interface:roma_interface_lib",
+        "@google_privacysandbox_servers_common//scp/cc/roma/roma_service/src:roma_service_lib",
     ],
 )
 
@@ -107,8 +107,8 @@ cc_test(
         "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
-        "@control_plane_shared//cc/roma/interface:roma_interface_lib",
-        "@control_plane_shared//cc/roma/roma_service/src:roma_service_lib",
+        "@google_privacysandbox_servers_common//scp/cc/roma/interface:roma_interface_lib",
+        "@google_privacysandbox_servers_common//scp/cc/roma/roma_service/src:roma_service_lib",
     ],
 )
 
@@ -121,6 +121,6 @@ cc_library(
         ":udf_client",
         "@com_google_absl//absl/status",
         "@com_google_googletest//:gtest",
-        "@control_plane_shared//cc/roma/interface:roma_interface_lib",
+        "@google_privacysandbox_servers_common//scp/cc/roma/interface:roma_interface_lib",
     ],
 )

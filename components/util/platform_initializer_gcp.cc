@@ -15,11 +15,11 @@
 // TODO(b/296901861): Modify the implementation with GCP specific logic (the
 // current implementation is copied from local).
 
-#include "cc/public/core/interface/errors.h"
-#include "cc/public/core/interface/execution_result.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "public/cpio/interface/cpio.h"
+#include "scp/cc/public/core/interface/errors.h"
+#include "scp/cc/public/core/interface/execution_result.h"
 
 namespace kv_server {
 namespace {

@@ -25,10 +25,10 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/synchronization/notification.h"
-#include "cc/public/core/interface/execution_result.h"
-#include "cc/public/cpio/interface/instance_client/instance_client_interface.h"
 #include "components/cloud_config/instance_client.h"
 #include "glog/logging.h"
+#include "scp/cc/public/core/interface/execution_result.h"
+#include "scp/cc/public/cpio/interface/instance_client/instance_client_interface.h"
 
 ABSL_FLAG(std::string, shard_num, "0", "Shard number.");
 

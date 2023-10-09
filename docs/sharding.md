@@ -89,12 +89,12 @@ mod `number of shards`.
 
 ## Write path
 
-The data that doesn't belong to a given shard is dropped if it makes the server. There is a
+Data that doesn't belong to a given shard is dropped if it makes it to the server. There is a
 [metric](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/data_server/data_loading/data_orchestrator.cc#L101C54-L101C54)
 that an AdTech can track. Ideally, this metric should be 0.
 
-Sharding allows to limit the amount of data each server instance has to process on the write path.
-This decreases server start time and operational costs (gCPU, RAM, etc).
+Sharding helps limit the amount of data each server instance has to process on the write path. This
+decreases server start time and operational costs (gCPU, RAM, etc).
 
 ### Standard path
 
@@ -105,11 +105,11 @@ and load it.
 
 ![Realtime sequence](assets/grouping_records.png)
 
-A snapshot/delta file indicated its shard number through this
+A snapshot/delta file indicates its shard number through this
 [field](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/public/data_loading/riegeli_metadata.proto#L40).
 If it is not set, the whole file will be read by all machines. However, only records that belong to
-that particular shard will be loaded in memory. If it is set in the file, the server can skip the
-file without reading the records if its shard does not match the number in the file.
+that particular shard will be loaded in memory. If the shard number in the file does not match the
+server's shard number, the server can skip the file without reading the records.
 
 ### Relatime update path
 

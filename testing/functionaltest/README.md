@@ -19,7 +19,7 @@ builders/tools/bazel-debian run //production/packaging/aws/data_server:copy_to_d
   --//:instance=local
 unzip -d dist/debian -j -u dist/debian/server_artifacts.zip server/bin/server
 touch dist/debian/server
-docker load -i dist/debian/server_docker_image.tar
+docker load -i dist/server_docker_image.tar
 ```
 
 ## Execute the server

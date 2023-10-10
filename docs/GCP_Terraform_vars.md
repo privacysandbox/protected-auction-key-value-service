@@ -44,6 +44,10 @@
 
     Assigned environment name to group related resources. Also servers as gcp image tag.
 
+-   **existing_vpc_id**
+
+    Existing vpc id. This would only be used if use_existing_vpc is true.
+
 -   **gcp_image_repo**
 
     A URL to a docker image repo containing the key-value service.
@@ -56,10 +60,6 @@
 -   **kv_service_port**
 
     The grpc port that receives traffic destined for the frontend service.
-
--   **launch_hook**
-
-    Launch hook.
 
 -   **machine_type**
 
@@ -85,6 +85,18 @@
 
     Total number of shards.
 
+-   **primary_coordinator_account_identity**
+
+    Account identity for the primary coordinator.
+
+-   **primary_key_service_cloud_function_url**
+
+    Primary workload identity pool provider.
+
+-   **primary_workload_identity_pool_provider**
+
+    Primary key service cloud function url.
+
 -   **project_id**
 
     GCP project id.
@@ -105,17 +117,25 @@
 
     Whether to route V1 requests through V2.
 
--   **s3client_max_connections**
+-   **secondary_coordinator_account_identity**
 
-    S3Client max connections for reading data files.
+    Account identity for the secondary coordinator.
 
--   **s3client_max_range_bytes**
+-   **secondary_key_service_cloud_function_url**
 
-    S3Client max range bytes for reading data files.
+    Secondary key service cloud function url.
+
+-   **secondary_workload_identity_pool_provider**
+
+    Secondary workload identity pool provider.
 
 -   **service_account_email**
 
     Email of the service account that be used by all instances.
+
+-   **tee_impersonate_service_accounts**
+
+    Tee can impersonate these service accounts. Necessary for coordinators.
 
 -   **udf_num_workers**
 
@@ -126,6 +146,10 @@
     If true, use the Confidential space debug image. Else use the prod image, which does not allow
     SSH. The images containing the service logic will run on top of this image and have their own
     prod and debug builds.
+
+-   **use_existing_vpc**
+
+    Whether to use existing vpc network.
 
 -   **use_external_metrics_collector_endpoint**
 

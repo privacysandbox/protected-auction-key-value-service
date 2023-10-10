@@ -1,0 +1,450 @@
+{
+  "dashboardFilters": [],
+  "displayName": "Realtime updates",
+  "labels": {},
+  "mosaicLayout": {
+    "columns": 48,
+    "tiles": [
+      {
+        "height": 16,
+        "widget": {
+          "title": "Total inserted",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"RealtimeTotalRowsUpdated\"}",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "p50 e2e GCP provided",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.5, delta(workload_googleapis_com:ReceivedLowLatencyNotificationsE2EGcpProvided_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\"}[15m]))",
+                  "unitOverride": "us"
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "E2E GCP provided p999",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.999,delta(workload_googleapis_com:ReceivedLowLatencyNotificationsE2EGcpProvided_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\"}[15m]))",
+                  "unitOverride": "us"
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 16
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "e2e producer provided p50",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.50,delta(workload_googleapis_com:ReceivedLowLatencyNotificationsE2E_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\"}[15m]))",
+                  "unitOverride": "us"
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24,
+        "yPos": 16
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "E2e producer provided p999",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.999,delta(workload_googleapis_com:ReceivedLowLatencyNotificationsE2E_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\"}[15m]))",
+                  "unitOverride": "us"
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 32
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "Server side p50",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.50,delta(workload_googleapis_com:Latency_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"ReceivedLowLatencyNotifications\"}[15m]))",
+                  "unitOverride": "ns"
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24,
+        "yPos": 32
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "Server side p999",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "prometheusQuery": "histogram_quantile(0.999,delta(workload_googleapis_com:Latency_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"ReceivedLowLatencyNotifications\"}[15m]))",
+                  "unitOverride": "ns"
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 48
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "Published message count",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "timeSeriesQueryLanguage": "\nfetch pubsub_topic\n| metric 'pubsub.googleapis.com/topic/message_sizes'\n| filter resource.project_id == 'PROJECT_ID'\n&& resource.topic_id == 'kv-server-ENVIRONMENT-realtime-pubsub'\n| align delta(1m)\n| every 1m\n| group_by [resource.topic_id],\n[value_message_sizes_sum: count(value.message_sizes)]\n| rate 1m",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "timeshiftDuration": "0s",
+            "yAxis": {
+              "label": "y1Axis",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24,
+        "yPos": 48
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "Average message size",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "minAlignmentPeriod": "60s",
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "timeSeriesFilter": {
+                    "aggregation": {
+                      "alignmentPeriod": "60s",
+                      "crossSeriesReducer": "REDUCE_MEAN",
+                      "groupByFields": [],
+                      "perSeriesAligner": "ALIGN_SUM"
+                    },
+                    "filter": "metric.type=\"pubsub.googleapis.com/topic/message_sizes\" AND resource.labels.project_id=\"PROJECT_ID\" AND resource.labels.topic_id=\"kv-server-ENVIRONMENT-realtime-pubsub\" AND resource.type=\"pubsub_topic\"",
+                    "secondaryAggregation": {
+                      "alignmentPeriod": "60s",
+                      "perSeriesAligner": "ALIGN_NONE"
+                    }
+                  }
+                }
+              }
+            ],
+            "thresholds": [],
+            "timeshiftDuration": "0s",
+            "yAxis": {
+              "label": "y1Axis",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24,
+        "yPos": 64
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "Publish throughput in bytes",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "timeSeriesQueryLanguage": "\nfetch pubsub_topic\n| metric 'pubsub.googleapis.com/topic/message_sizes'\n| filter resource.project_id == 'PROJECT_ID'\n&& resource.topic_id == 'kv-server-ENVIRONMENT-realtime-pubsub'\n| align delta(1m)\n| every 1m\n| group_by [resource.topic_id],\n[value_message_sizes_sum: sum(value.message_sizes)]\n| rate 1m",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "timeshiftDuration": "0s",
+            "yAxis": {
+              "label": "y1Axis",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 64
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "Average number of messages per batch",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "legendTemplate": "Average messages per batch",
+                "measures": [],
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "timeSeriesQueryLanguage": "\nfetch pubsub_topic\n| { t_0:\n     metric 'pubsub.googleapis.com/topic/message_sizes'\n     | filter resource.project_id == 'PROJECT_ID'\n     && resource.topic_id == 'kv-server-ENVIRONMENT-realtime-pubsub'\n     | align delta(1m)\n     | every 1m\n     | group_by [],\n   [value_message_sizes_count: count(value.message_sizes)]\n ; t_1:\n     metric 'pubsub.googleapis.com/topic/send_request_count'\n     | filter resource.project_id == 'PROJECT_ID'\n     && resource.topic_id == 'kv-server-ENVIRONMENT-realtime-pubsub'\n     | align delta(1m)\n     | every 1m\n     | group_by [],\n         [value_send_request_count_sum:\n             sum(value.send_request_count)] }\n| outer_join [0]\n| filter t_0.value_message_sizes_count != 0\n| value\n   [batch_size_num_of_messages:\n      div(t_0.value_message_sizes_count,\n        t_1.value_send_request_count_sum)]",
+                  "unitOverride": ""
+                }
+              }
+            ],
+            "thresholds": [],
+            "timeshiftDuration": "0s",
+            "yAxis": {
+              "label": "y1Axis",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "xPos": 24,
+        "yPos": 80
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "CPU Utilization [kv-server-ENVIRONMENT-1t12]",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "legendTemplate": "CPU",
+                "measures": [],
+                "minAlignmentPeriod": "60s",
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "timeSeriesFilter": {
+                    "aggregation": {
+                      "alignmentPeriod": "60s",
+                      "perSeriesAligner": "ALIGN_MEAN"
+                    },
+                    "filter": "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" resource.type=\"gce_instance\" resource.label.\"project_id\"=\"PROJECT_ID\"  metadata.user_labels.\"environment\"=\"ENVIRONMENT\""
+                  }
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 80
+      },
+      {
+        "height": 16,
+        "widget": {
+          "title": "Network Traffic [kv-server-ENVIRONMENT-1t12]",
+          "xyChart": {
+            "chartOptions": {
+              "mode": "COLOR"
+            },
+            "dataSets": [
+              {
+                "breakdowns": [],
+                "dimensions": [],
+                "legendTemplate": "Received",
+                "measures": [],
+                "minAlignmentPeriod": "60s",
+                "plotType": "LINE",
+                "targetAxis": "Y1",
+                "timeSeriesQuery": {
+                  "timeSeriesFilter": {
+                    "aggregation": {
+                      "alignmentPeriod": "60s",
+                      "crossSeriesReducer": "REDUCE_SUM",
+                      "groupByFields": ["metric.label.\"instance_name\""],
+                      "perSeriesAligner": "ALIGN_RATE"
+                    },
+                    "filter": "metric.type=\"compute.googleapis.com/instance/network/received_bytes_count\" resource.type=\"gce_instance\" resource.label.\"project_id\"=\"PROJECT_ID\" metadata.user_labels.\"environment\"=\"ENVIRONMENT\""
+                  }
+                }
+              }
+            ],
+            "thresholds": [],
+            "yAxis": {
+              "label": "",
+              "scale": "LINEAR"
+            }
+          }
+        },
+        "width": 24,
+        "yPos": 96
+      }
+    ]
+  }
+}

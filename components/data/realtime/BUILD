@@ -25,9 +25,6 @@ cc_library(
         "//:aws_platform": [
             "delta_file_record_change_notifier_aws.cc",
         ],
-        "//:gcp_platform": [
-            "delta_file_record_change_notifier_gcp.cc",
-        ],
         "//:local_platform": [
             "delta_file_record_change_notifier_local.cc",
         ],
@@ -35,6 +32,10 @@ cc_library(
     hdrs = [
         "delta_file_record_change_notifier.h",
     ],
+    target_compatible_with = select({
+        "//:gcp_platform": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//components/data/common:change_notifier",
         "@com_google_absl//absl/status",
@@ -50,14 +51,15 @@ cc_test(
         "//:aws_platform": [
             "delta_file_record_change_notifier_aws_test.cc",
         ],
-        "//:gcp_platform": [
-            "delta_file_record_change_notifier_gcp_test.cc",
-        ],
         "//:local_platform": ["delta_file_record_change_notifier_local_test.cc"],
     }),
     data = [
         "//components/data/realtime/testdata:data",
     ],
+    target_compatible_with = select({
+        "//:gcp_platform": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":delta_file_record_change_notifier",
         "//components/data/common:change_notifier",
@@ -72,11 +74,9 @@ cc_test(
 cc_library(
     name = "realtime_notifier",
     srcs = select({
-        # This will be uncommented once the full implementaiton
-        # is added. Otherwise it breaks the gcp logic at runtime
-        # "//:gcp_platform": [
-        #     "realtime_notifier_gcp.cc",
-        # ],
+        "//:gcp_platform": [
+            "realtime_notifier_gcp.cc",
+        ],
         "//conditions:default": [
             "realtime_notifier_aws.cc",
         ],
@@ -86,10 +86,10 @@ cc_library(
         "realtime_notifier_metadata.h",
     ],
     deps = select({
-        # "//:gcp_platform": [
-        #     "//components/data/common:message_service",
-        #     "@com_github_googleapis_google_cloud_cpp//:pubsub",
-        # ],
+        "//:gcp_platform": [
+            "//components/data/common:message_service",
+            "@com_github_googleapis_google_cloud_cpp//:pubsub",
+        ],
         "//conditions:default": [
             ":delta_file_record_change_notifier",
             "//components/errors:retry",
@@ -109,18 +109,18 @@ cc_test(
     name = "realtime_notifier_test",
     size = "small",
     srcs = select({
-        # "//:gcp_platform": [
-        #     "realtime_notifier_gcp_test.cc",
-        # ],
+        "//:gcp_platform": [
+            "realtime_notifier_gcp_test.cc",
+        ],
         "//conditions:default": [
             "realtime_notifier_aws_test.cc",
         ],
     }),
     deps =
         select({
-            # "//:gcp_platform": [
-            #     "@com_github_googleapis_google_cloud_cpp//:pubsub_mocks",
-            # ],
+            "//:gcp_platform": [
+                "@com_github_googleapis_google_cloud_cpp//:pubsub_mocks",
+            ],
             "//conditions:default": [
             ],
         }) + [
@@ -137,9 +137,9 @@ cc_test(
 cc_library(
     name = "realtime_thread_pool_manager",
     srcs = select({
-        # "//:gcp_platform": [
-        #     "realtime_thread_pool_manager_gcp.cc",
-        # ],
+        "//:gcp_platform": [
+            "realtime_thread_pool_manager_gcp.cc",
+        ],
         "//conditions:default": [
             "realtime_thread_pool_manager_aws.cc",
         ],
@@ -160,18 +160,18 @@ cc_test(
     name = "realtime_thread_pool_manager_test",
     size = "small",
     srcs = select({
-        # "//:gcp_platform": [
-        #     "realtime_thread_pool_manager_gcp_test.cc",
-        # ],
+        "//:gcp_platform": [
+            "realtime_thread_pool_manager_gcp_test.cc",
+        ],
         "//conditions:default": [
             "realtime_thread_pool_manager_aws_test.cc",
         ],
     }),
     deps = select({
-        # "//:gcp_platform": [
-        #     "@com_github_googleapis_google_cloud_cpp//:pubsub",
-        #     "@com_github_googleapis_google_cloud_cpp//:pubsub_mocks",
-        # ],
+        "//:gcp_platform": [
+            "@com_github_googleapis_google_cloud_cpp//:pubsub",
+            "@com_github_googleapis_google_cloud_cpp//:pubsub_mocks",
+        ],
         "//conditions:default": [
         ],
     }) + [

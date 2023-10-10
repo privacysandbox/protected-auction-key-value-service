@@ -53,8 +53,8 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@control_plane_shared//cc/public/core/interface:errors",
-        "@control_plane_shared//cc/public/cpio/interface/parameter_client",
+        "@google_privacysandbox_servers_common//scp/cc/public/core/interface:errors",
+        "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface/parameter_client",
     ],
 )
 
@@ -89,8 +89,8 @@ cc_test(
         ],
         "//:gcp_instance": [
             "@com_google_googletest//:gtest",
-            "@control_plane_shared//cc/public/cpio/interface:cpio",
-            "@control_plane_shared//cc/public/cpio/mock/parameter_client:parameter_client_mock",
+            "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:cpio",
+            "@google_privacysandbox_servers_common//scp/cc/public/cpio/mock/parameter_client:parameter_client_mock",
         ],
         ("//:local_platform", ":gcp_platform_local_instance"): [
             "//components/data/common:mocks",
@@ -121,9 +121,9 @@ cc_library(
             "@aws_sdk_cpp//:ssm",
         ],
         "//:gcp_instance": [
-            "@control_plane_shared//cc/public/core/interface:errors",
-            "@control_plane_shared//cc/public/cpio/interface:cpio",
-            "@control_plane_shared//cc/public/cpio/interface/parameter_client",
+            "@google_privacysandbox_servers_common//scp/cc/public/core/interface:errors",
+            "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:cpio",
+            "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface/parameter_client",
         ],
         "//conditions:default": [],
     }) + [
@@ -154,8 +154,8 @@ cc_library(
             "@com_google_absl//absl/flags:flag",
             "@com_google_absl//absl/log:check",
             "@com_google_absl//absl/synchronization",
-            "@control_plane_shared//cc/public/core/interface:execution_result",
-            "@control_plane_shared//cc/public/cpio/interface/instance_client",
+            "@google_privacysandbox_servers_common//scp/cc/public/core/interface:execution_result",
+            "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface/instance_client",
         ],
         "//:local_instance": [
             "@com_google_absl//absl/flags:flag",

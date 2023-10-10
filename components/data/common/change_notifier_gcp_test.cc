@@ -59,15 +59,6 @@ class ChangeNotifierGcpTest : public ::testing::Test {
   MockMetricsRecorder metrics_recorder_;
 };
 
-TEST_F(ChangeNotifierGcpTest, NotDirectory) {
-  std::filesystem::path file = CreateFileInTmpDir("filename");
-
-  absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(kv_server::LocalNotifierMetadata{file.string()},
-                             metrics_recorder_);
-  EXPECT_EQ(notifier.status().code(), absl::StatusCode::kInvalidArgument);
-}
-
 TEST_F(ChangeNotifierGcpTest, CallbackAbortsWatchImmediately) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
       ChangeNotifier::Create(
@@ -84,102 +75,6 @@ TEST_F(ChangeNotifierGcpTest, CallbackAbortsWatchImmediately) {
       (*notifier)->GetNotifications(absl::Seconds(1), should_stop_callback);
   ASSERT_TRUE(status_or.ok());
   EXPECT_EQ(*status_or, std::vector<std::string>{});
-}
-
-TEST_F(ChangeNotifierGcpTest, ZeroDurationAbortsWatchImmediately) {
-  absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
-  ASSERT_TRUE(notifier.ok());
-
-  // There is a new file here but the max time to wait is zero seconds so the
-  // notifier immediately aborts.
-  CreateFileInTmpDir("filename");
-  auto should_stop_callback = []() { return false; };
-
-  const auto status_or =
-      (*notifier)->GetNotifications(absl::ZeroDuration(), should_stop_callback);
-  EXPECT_EQ(absl::StatusCode::kDeadlineExceeded, status_or.status().code());
-}
-
-TEST_F(ChangeNotifierGcpTest, NoChangesInEmptyDirectory) {
-  absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
-  ASSERT_TRUE(notifier.ok());
-
-  auto should_stop_callback = []() { return false; };
-
-  const auto status_or =
-      (*notifier)->GetNotifications(absl::Seconds(1), should_stop_callback);
-  EXPECT_EQ(absl::StatusCode::kDeadlineExceeded, status_or.status().code());
-}
-
-TEST_F(ChangeNotifierGcpTest, NoChangesInNonEmptyDirectory) {
-  // This file is created before the Notifier is so it won't be seen as a
-  // change when we call GetNotifications().
-  std::filesystem::path filepath = CreateFileInTmpDir("filename");
-
-  absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
-  ASSERT_TRUE(notifier.ok());
-  auto should_stop_callback = []() { return false; };
-
-  const auto status_or =
-      (*notifier)->GetNotifications(absl::Seconds(1), should_stop_callback);
-  EXPECT_EQ(absl::StatusCode::kDeadlineExceeded, status_or.status().code());
-}
-
-TEST_F(ChangeNotifierGcpTest, DirectoryHasChanges) {
-  absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
-  ASSERT_TRUE(notifier.ok());
-
-  // This call happens after the Notifier is created so it should be picked up.
-  std::filesystem::path filepath = CreateFileInTmpDir("filename");
-
-  auto should_stop_callback = []() { return false; };
-  const auto status_or =
-      (*notifier)->GetNotifications(absl::Seconds(1), should_stop_callback);
-
-  ASSERT_TRUE(status_or.ok());
-  EXPECT_EQ(status_or.value(),
-            std::vector<std::string>{filepath.filename().string()});
-}
-
-TEST_F(ChangeNotifierGcpTest, MultipleGetNotificationsCalls) {
-  absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
-  ASSERT_TRUE(notifier.ok());
-  auto should_stop_callback = []() { return false; };
-
-  // The first time we call GetNotifications there is one new file.
-  {
-    std::filesystem::path filepath_one = CreateFileInTmpDir("one");
-    const auto status_or =
-        (*notifier)->GetNotifications(absl::Seconds(1), should_stop_callback);
-    ASSERT_TRUE(status_or.ok());
-    EXPECT_EQ(status_or.value(),
-              std::vector<std::string>{filepath_one.filename().string()});
-  }
-
-  // The second time there's also one file but it's not the same one.
-  {
-    std::filesystem::path filepath_two = CreateFileInTmpDir("two");
-    const auto status_or =
-        (*notifier)->GetNotifications(absl::Seconds(1), should_stop_callback);
-    ASSERT_TRUE(status_or.ok());
-    EXPECT_EQ(status_or.value(),
-              std::vector<std::string>{filepath_two.filename().string()});
-  }
 }
 
 }  // namespace

@@ -62,13 +62,12 @@ TEST(UdfClientTest, JsCallSucceeds) {
   auto udf_client = CreateUdfClient();
   EXPECT_TRUE(udf_client.ok());
 
-  absl::Status code_obj_status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello() { return "Hello world!"; }
-  )",
-                                                   .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = () => 'Hello world!';",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode({});
@@ -83,13 +82,12 @@ TEST(UdfClientTest, RepeatedJsCallsSucceed) {
   auto udf_client = CreateUdfClient();
   EXPECT_TRUE(udf_client.ok());
 
-  absl::Status code_obj_status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello() { return "Hello world!"; }
-  )",
-                                                   .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = () => 'Hello world!';",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result1 = udf_client.value()->ExecuteCode({});
@@ -108,17 +106,16 @@ TEST(UdfClientTest, JsEchoCallSucceeds) {
   auto udf_client = CreateUdfClient();
   EXPECT_TRUE(udf_client.ok());
 
-  absl::Status code_obj_status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-  function hello(input) { return "Hello world! " + JSON.stringify(input); }
-  )",
-                                                   .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = (input) => 'Hello world! ' + JSON.stringify(input);",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
-      udf_client.value()->ExecuteCode({"\"ECHO\""});
+      udf_client.value()->ExecuteCode({R"("ECHO")"});
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("Hello world! \"ECHO\"")");
 
@@ -126,14 +123,14 @@ TEST(UdfClientTest, JsEchoCallSucceeds) {
   EXPECT_TRUE(stop.ok());
 }
 
-static void Echo(FunctionBindingIoProto& io) {
+static void udfCbEcho(FunctionBindingIoProto& io) {
   io.set_output_string("Echo: " + io.input_string());
 }
 
 TEST(UdfClientTest, JsEchoHookCallSucceeds) {
   auto function_object = std::make_unique<FunctionBindingObjectV2>();
   function_object->function_name = "echo";
-  function_object->function = Echo;
+  function_object->function = udfCbEcho;
 
   Config config;
   config.number_of_workers = 1;
@@ -143,17 +140,16 @@ TEST(UdfClientTest, JsEchoHookCallSucceeds) {
       UdfClient::Create(config);
   EXPECT_TRUE(udf_client.ok());
 
-  absl::Status code_obj_status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-function hello(input) { return "Hello world! " + echo(input); }
-  )",
-                                                   .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = (input) => 'Hello world! ' + echo(input);",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
-      udf_client.value()->ExecuteCode({"\"I'm a key\""});
+      udf_client.value()->ExecuteCode({R"("I'm a key")"});
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("Hello world! Echo: I'm a key")");
 
@@ -162,8 +158,7 @@ function hello(input) { return "Hello world! " + echo(input); }
 }
 
 TEST(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
-  auto mlc = std::make_unique<MockLookupClient>();
-  MockLookupClient* mock_lookup_client = mlc.get();
+  auto mock_lookup = std::make_unique<MockLookup>();
 
   InternalLookupResponse response;
   TextFormat::ParseFromString(R"pb(kv_pairs {
@@ -171,11 +166,11 @@ TEST(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
                                      value { value: "value1" }
                                    })pb",
                               &response);
-  ON_CALL(*mock_lookup_client, GetValues(_)).WillByDefault(Return(response));
+  ON_CALL(*mock_lookup, GetKeyValues(_)).WillByDefault(Return(response));
 
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
-      GetValuesHook::OutputType::kString);
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
       config_builder.RegisterStringGetValuesHook(*get_values_hook)
@@ -183,9 +178,9 @@ TEST(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
           .Config());
   EXPECT_TRUE(udf_client.ok());
 
-  absl::Status code_obj_status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-function hello(input) {
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+          function hello(input) {
             let kvPairs = JSON.parse(getValues([input])).kvPairs;
             let output = "";
             for(const key in kvPairs) {
@@ -196,9 +191,10 @@ function hello(input) {
             }
             return output;
           }  )",
-                                                   .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
@@ -211,8 +207,7 @@ function hello(input) {
 }
 
 TEST(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
-  auto mlc = std::make_unique<MockLookupClient>();
-  MockLookupClient* mock_lookup_client = mlc.get();
+  auto mock_lookup = std::make_unique<MockLookup>();
 
   InternalLookupResponse response;
   TextFormat::ParseFromString(R"pb(kv_pairs {
@@ -220,11 +215,11 @@ TEST(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
                                      value { value: "value1" }
                                    })pb",
                               &response);
-  ON_CALL(*mock_lookup_client, GetValues(_)).WillByDefault(Return(response));
+  ON_CALL(*mock_lookup, GetKeyValues(_)).WillByDefault(Return(response));
 
-  auto get_values_hook = GetValuesHook::Create(
-      [mlc = std::move(mlc)]() mutable { return std::move(mlc); },
-      GetValuesHook::OutputType::kString);
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
       config_builder.RegisterStringGetValuesHook(*get_values_hook)
@@ -232,24 +227,25 @@ TEST(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
           .Config());
   EXPECT_TRUE(udf_client.ok());
 
-  absl::Status code_obj_status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello(input) {
-      let keys = input.keys;
-      let kvPairs = JSON.parse(getValues(keys)).kvPairs;
-      let output = "";
-      for(const key in kvPairs) {
-        output += "Key: " + key;
-        if (kvPairs[key].hasOwnProperty("value")) {
-          output += ", Value: " + kvPairs[key].value;
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(input) {
+          const keys = input.keys;
+          const kvPairs = JSON.parse(getValues(keys)).kvPairs;
+          let output = "";
+          for (const key in kvPairs) {
+            output += "Key: " + key;
+            if (kvPairs[key].hasOwnProperty("value")) {
+              output += ", Value: " + kvPairs[key].value;
+            }
+          }
+          return output;
         }
-      }
-      return output;
-    }
-  )",
-                                                   .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
@@ -262,15 +258,14 @@ TEST(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
 }
 
 TEST(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
-  auto mrq = std::make_unique<MockRunQueryClient>();
-  MockRunQueryClient* mock_run_query_client = mrq.get();
+  auto mock_lookup = std::make_unique<MockLookup>();
 
   InternalRunQueryResponse response;
   TextFormat::ParseFromString(R"pb(elements: "a")pb", &response);
-  ON_CALL(*mock_run_query_client, RunQuery(_)).WillByDefault(Return(response));
+  ON_CALL(*mock_lookup, RunQuery(_)).WillByDefault(Return(response));
 
-  auto run_query_hook = RunQueryHook::Create(
-      [mrq = std::move(mrq)]() mutable { return std::move(mrq); });
+  auto run_query_hook = RunQueryHook::Create();
+  run_query_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
       UdfClient::Create(config_builder.RegisterRunQueryHook(*run_query_hook)
@@ -278,17 +273,18 @@ TEST(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
                             .Config());
   EXPECT_TRUE(udf_client.ok());
 
-  absl::Status code_obj_status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello(input) {
-      let keys = input.keys;
-      let queryResultArray = runQuery(keys[0]);
-      return queryResultArray;
-    }
-  )",
-                                                   .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(input) {
+          let keys = input.keys;
+          let queryResultArray = runQuery(keys[0]);
+          return queryResultArray;
+        }
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
@@ -306,17 +302,18 @@ TEST(UdfClientTest, JsCallsLogMessageTwiceSucceeds) {
       config_builder.RegisterLoggingHook().SetNumberOfWorkers(1).Config());
   EXPECT_TRUE(udf_client.ok());
 
-  absl::Status code_obj_status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-                                                    function hello(input) {
-                                                      let a = logMessage("first message");
-                                                      let b = logMessage("second message");
-                                                      return a + b;
-                                                    }
-                                                  )",
-                                                   .udf_handler_name = "hello",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(input) {
+          const a = logMessage("first message");
+          const b = logMessage("second message");
+          return a + b;
+        }
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
   EXPECT_TRUE(code_obj_status.ok());
 
   absl::StatusOr<std::string> result =
@@ -332,23 +329,20 @@ TEST(UdfClientTest, UpdatesCodeObjectTwice) {
   auto udf_client = CreateUdfClient();
   EXPECT_TRUE(udf_client.ok());
 
-  auto status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello1() { return "1"; }
-  )",
-                                                   .udf_handler_name = "hello1",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+  auto status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello1 = () => '1';",
+      .udf_handler_name = "hello1",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
 
   EXPECT_TRUE(status.ok());
-  status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello2() { return "2"; }
-  )",
-
-                                                   .udf_handler_name = "hello2",
-                                                   .logical_commit_time = 2,
-                                                   .version = 2});
+  status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello2 = () => '2';",
+      .udf_handler_name = "hello2",
+      .logical_commit_time = 2,
+      .version = 2,
+  });
   EXPECT_TRUE(status.ok());
 
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode({});
@@ -363,23 +357,20 @@ TEST(UdfClientTest, IgnoresCodeObjectWithSameCommitTime) {
   auto udf_client = CreateUdfClient();
   EXPECT_TRUE(udf_client.ok());
 
-  auto status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello1() { return "1"; }
-  )",
-                                                   .udf_handler_name = "hello1",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+  auto status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello1 = () => '1';",
+      .udf_handler_name = "hello1",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
 
   EXPECT_TRUE(status.ok());
-  status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello2() { return "2"; }
-  )",
-
-                                                   .udf_handler_name = "hello2",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+  status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello2 = () => '2';",
+      .udf_handler_name = "hello2",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
   EXPECT_TRUE(status.ok());
 
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode({});
@@ -394,22 +385,20 @@ TEST(UdfClientTest, IgnoresCodeObjectWithSmallerCommitTime) {
   auto udf_client = CreateUdfClient();
   EXPECT_TRUE(udf_client.ok());
 
-  auto status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello1() { return "1"; }
-  )",
-                                                   .udf_handler_name = "hello1",
-                                                   .logical_commit_time = 2,
-                                                   .version = 1});
+  auto status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello1 = () => '1';",
+      .udf_handler_name = "hello1",
+      .logical_commit_time = 2,
+      .version = 1,
+  });
 
   EXPECT_TRUE(status.ok());
-  status =
-      udf_client.value()->SetCodeObject(CodeConfig{.js = R"(
-    function hello2() { return "2"; }
-  )",
-                                                   .udf_handler_name = "hello2",
-                                                   .logical_commit_time = 1,
-                                                   .version = 1});
+  status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello2 = () => '2';",
+      .udf_handler_name = "hello2",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
   EXPECT_TRUE(status.ok());
 
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode({});

@@ -56,16 +56,6 @@ class NoopBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
   }
 };
 
-class NoopDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
- public:
-  absl::StatusOr<NotificationsContext> GetNotifications(
-      absl::Duration max_wait,
-      const std::function<bool()>& should_stop_callback) override {
-    auto span = GetTracer()->GetCurrentSpan();
-    return NotificationsContext{.scope = opentelemetry::trace::Scope(span)};
-  }
-};
-
 class NoopRealtimeThreadPoolManager : public RealtimeThreadPoolManager {
  public:
   absl::Status Start(
@@ -152,8 +142,11 @@ absl::Status InitOnce(Operation operation) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   std::unique_ptr<MetricsRecorder> metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
+
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> blob_client =
-      BlobStorageClient::Create(*metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient(*metrics_recorder);
   std::unique_ptr<DeltaFileNotifier> notifier =
       DeltaFileNotifier::Create(*blob_client);
   std::unique_ptr<StreamRecordReaderFactory<std::string_view>>

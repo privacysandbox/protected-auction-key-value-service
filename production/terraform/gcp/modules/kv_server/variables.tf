@@ -24,6 +24,11 @@ variable "environment" {
   type        = string
 }
 
+variable "service" {
+  description = "Service name of the server."
+  type        = string
+}
+
 variable "service_account_email" {
   description = "Email of the service account that be used by all instances"
   type        = string
@@ -108,5 +113,30 @@ variable "collector_domain_name" {
 
 variable "dns_zone" {
   description = "Google Cloud DNS zone name for the Key Value domain"
+  type        = string
+}
+
+variable "data_bucket_id" {
+  type        = string
+  description = "Directory to watch for files."
+}
+
+variable "tee_impersonate_service_accounts" {
+  type        = string
+  description = "Tee can impersonate these service accounts. Necessary for coordinators."
+}
+
+variable "num_shards" {
+  description = "Number of shards."
+  type        = number
+}
+
+variable "use_existing_vpc" {
+  description = "Whether to use existing vpc network."
+  type        = bool
+}
+
+variable "existing_vpc_id" {
+  description = "Existing vpc id. This would only be used if use_existing_vpc is true."
   type        = string
 }

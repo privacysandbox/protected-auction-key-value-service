@@ -12,8 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "components/data/blob_storage/blob_storage_client_s3.h"
+
+#include <cstdint>
 #include <iostream>
 #include <thread>
+#include <utility>
 
 #include "aws/core/Aws.h"
 #include "aws/core/utils/threading/Executor.h"
@@ -36,9 +40,6 @@ namespace kv_server {
 namespace {
 
 using privacy_sandbox::server_common::MetricsRecorder;
-
-// TODO(b/242313617): Make this a flag or parameter.
-constexpr int64_t kMaxRangeBytes = 1024 * 1024 * 8;
 
 // Sequentially load byte range data with a fixed amount of memory usage.
 class S3BlobInputStreamBuf : public SeekingInputStreambuf {
@@ -101,11 +102,10 @@ class S3BlobReader : public BlobReader {
  public:
   S3BlobReader(Aws::S3::S3Client& client,
                BlobStorageClient::DataLocation location,
-               MetricsRecorder& metrics_recorder,
-               const BlobStorageClient::ClientOptions& client_options)
+               MetricsRecorder& metrics_recorder, int64_t max_range_bytes)
       : BlobReader(),
         streambuf_(client, location, metrics_recorder,
-                   GetOptions(client_options.max_range_bytes,
+                   GetOptions(max_range_bytes,
                               [this, location](absl::Status status) {
                                 LOG(ERROR) << "Blob " << location.key
                                            << " failed stream with: " << status;
@@ -128,112 +128,110 @@ class S3BlobReader : public BlobReader {
   S3BlobInputStreamBuf streambuf_;
   std::istream is_;
 };
+}  // namespace
 
-class S3BlobStorageClient : public BlobStorageClient {
+S3BlobStorageClient::S3BlobStorageClient(
+    MetricsRecorder& metrics_recorder,
+    std::shared_ptr<Aws::S3::S3Client> client, int64_t max_range_bytes)
+    : metrics_recorder_(metrics_recorder),
+      client_(client),
+      max_range_bytes_(max_range_bytes) {
+  executor_ = std::make_unique<Aws::Utils::Threading::PooledThreadExecutor>(
+      std::thread::hardware_concurrency());
+  Aws::Transfer::TransferManagerConfiguration transfer_config(executor_.get());
+  transfer_config.s3Client = client_;
+  transfer_manager_ = Aws::Transfer::TransferManager::Create(transfer_config);
+}
+
+std::unique_ptr<BlobReader> S3BlobStorageClient::GetBlobReader(
+    DataLocation location) {
+  return std::make_unique<S3BlobReader>(*client_, std::move(location),
+                                        metrics_recorder_, max_range_bytes_);
+}
+
+absl::Status S3BlobStorageClient::PutBlob(BlobReader& reader,
+                                          DataLocation location) {
+  std::unique_ptr<std::iostream> iostream;
+  std::stringstream ss;
+  if (reader.CanSeek()) {
+    iostream = std::make_unique<std::iostream>(reader.Stream().rdbuf());
+  } else {
+    // TODO: Do a manual multipart upload
+    ss << reader.Stream().rdbuf();
+    iostream = std::make_unique<std::iostream>(ss.rdbuf());
+  }
+  // S3 requires a shared_pointer, other platforms do not.
+  // Wrap the raw pointer as a shared_ptr and don't deallocate.
+  // The owner of the stream is the caller.
+  auto handle = transfer_manager_->UploadFile(
+      std::shared_ptr<std::iostream>(iostream.get(), [](std::iostream*) {}),
+      location.bucket, location.key, "", {});
+  handle->WaitUntilFinished();
+  const bool success =
+      handle->GetStatus() == Aws::Transfer::TransferStatus::COMPLETED;
+  return success ? absl::OkStatus() : AwsErrorToStatus(handle->GetLastError());
+}
+
+absl::Status S3BlobStorageClient::DeleteBlob(DataLocation location) {
+  Aws::S3::Model::DeleteObjectRequest request;
+  request.SetBucket(std::move(location.bucket));
+  request.SetKey(std::move(location.key));
+  const auto outcome = client_->DeleteObject(request);
+  return outcome.IsSuccess() ? absl::OkStatus()
+                             : AwsErrorToStatus(outcome.GetError());
+}
+
+absl::StatusOr<std::vector<std::string>> S3BlobStorageClient::ListBlobs(
+    DataLocation location, ListOptions options) {
+  Aws::S3::Model::ListObjectsV2Request request;
+  request.SetBucket(std::move(location.bucket));
+  if (!options.prefix.empty()) {
+    request.SetPrefix(std::move(options.prefix));
+  }
+  if (!options.start_after.empty()) {
+    request.SetStartAfter(std::move(options.start_after));
+  }
+  bool done = false;
+  std::vector<std::string> keys;
+  while (!done) {
+    const auto outcome = client_->ListObjectsV2(request);
+    if (!outcome.IsSuccess()) {
+      return AwsErrorToStatus(outcome.GetError());
+    }
+    const Aws::Vector<Aws::S3::Model::Object> objects =
+        outcome.GetResult().GetContents();
+    for (const Aws::S3::Model::Object& object : objects) {
+      keys.push_back(object.GetKey());
+    }
+    done = !outcome.GetResult().GetIsTruncated();
+    if (!done) {
+      request.SetContinuationToken(
+          outcome.GetResult().GetNextContinuationToken());
+    }
+  }
+  return keys;
+}
+
+namespace {
+class S3BlobStorageClientFactory : public BlobStorageClientFactory {
  public:
-  std::unique_ptr<BlobReader> GetBlobReader(DataLocation location) override {
-    return std::make_unique<S3BlobReader>(*client_, std::move(location),
-                                          metrics_recorder_, client_options_);
+  ~S3BlobStorageClientFactory() = default;
+  std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
+      MetricsRecorder& metrics_recorder,
+      BlobStorageClient::ClientOptions client_options) override {
+    Aws::Client::ClientConfiguration config;
+    config.maxConnections = client_options.max_connections;
+    std::shared_ptr<Aws::S3::S3Client> client =
+        std::make_shared<Aws::S3::S3Client>(config);
+
+    return std::make_unique<S3BlobStorageClient>(
+        metrics_recorder, client, client_options.max_range_bytes);
   }
-
-  absl::Status PutBlob(BlobReader& reader, DataLocation location) override {
-    std::unique_ptr<std::iostream> iostream;
-    std::stringstream ss;
-    if (reader.CanSeek()) {
-      iostream = std::make_unique<std::iostream>(reader.Stream().rdbuf());
-    } else {
-      // TODO: Do a manual multipart upload
-      ss << reader.Stream().rdbuf();
-      iostream = std::make_unique<std::iostream>(ss.rdbuf());
-    }
-    // S3 requires a shared_pointer, other platforms do not.
-    // Wrap the raw pointer as a shared_ptr and don't deallocate.
-    // The owner of the stream is the caller.
-    auto handle = transfer_manager_->UploadFile(
-        std::shared_ptr<std::iostream>(iostream.get(), [](std::iostream*) {}),
-        location.bucket, location.key, "", {});
-    handle->WaitUntilFinished();
-    const bool success =
-        handle->GetStatus() == Aws::Transfer::TransferStatus::COMPLETED;
-    return success ? absl::OkStatus()
-                   : AwsErrorToStatus(handle->GetLastError());
-  }
-
-  absl::Status DeleteBlob(DataLocation location) override {
-    Aws::S3::Model::DeleteObjectRequest request;
-    request.SetBucket(std::move(location.bucket));
-    request.SetKey(std::move(location.key));
-    const auto outcome = client_->DeleteObject(request);
-    return outcome.IsSuccess() ? absl::OkStatus()
-                               : AwsErrorToStatus(outcome.GetError());
-  }
-
-  absl::StatusOr<std::vector<std::string>> ListBlobs(
-      DataLocation location, ListOptions options) override {
-    Aws::S3::Model::ListObjectsV2Request request;
-    request.SetBucket(std::move(location.bucket));
-    if (!options.prefix.empty()) {
-      request.SetPrefix(std::move(options.prefix));
-    }
-    if (!options.start_after.empty()) {
-      request.SetStartAfter(std::move(options.start_after));
-    }
-    bool done = false;
-    std::vector<std::string> keys;
-    while (!done) {
-      const auto outcome = client_->ListObjectsV2(request);
-      if (!outcome.IsSuccess()) {
-        return AwsErrorToStatus(outcome.GetError());
-      }
-      const Aws::Vector<Aws::S3::Model::Object> objects =
-          outcome.GetResult().GetContents();
-      for (const Aws::S3::Model::Object& object : objects) {
-        keys.push_back(object.GetKey());
-      }
-      done = !outcome.GetResult().GetIsTruncated();
-      if (!done) {
-        request.SetContinuationToken(
-            outcome.GetResult().GetNextContinuationToken());
-      }
-    }
-    return keys;
-  }
-
-  explicit S3BlobStorageClient(MetricsRecorder& metrics_recorder,
-                               BlobStorageClient::ClientOptions client_options)
-      : metrics_recorder_(metrics_recorder),
-        client_options_(std::move(client_options)) {
-    if (client_options.s3_client_for_unit_testing_ != nullptr) {
-      client_.reset(client_options.s3_client_for_unit_testing_);
-    } else {
-      Aws::Client::ClientConfiguration config;
-      config.maxConnections = client_options_.max_connections;
-      client_ = std::make_shared<Aws::S3::S3Client>(config);
-    }
-
-    executor_ = std::make_unique<Aws::Utils::Threading::PooledThreadExecutor>(
-        std::thread::hardware_concurrency());
-    Aws::Transfer::TransferManagerConfiguration transfer_config(
-        executor_.get());
-    transfer_config.s3Client = client_;
-    transfer_manager_ = Aws::Transfer::TransferManager::Create(transfer_config);
-  }
-
- private:
-  // TODO: Consider switch to CRT client.
-  // AWS API requires shared_ptr
-  MetricsRecorder& metrics_recorder_;
-  ClientOptions client_options_;
-  std::unique_ptr<Aws::Utils::Threading::PooledThreadExecutor> executor_;
-  std::shared_ptr<Aws::S3::S3Client> client_;
-  std::shared_ptr<Aws::Transfer::TransferManager> transfer_manager_;
 };
 }  // namespace
 
-std::unique_ptr<BlobStorageClient> BlobStorageClient::Create(
-    MetricsRecorder& metrics_recorder,
-    BlobStorageClient::ClientOptions client_options) {
-  return std::make_unique<S3BlobStorageClient>(metrics_recorder,
-                                               client_options);
+std::unique_ptr<BlobStorageClientFactory> BlobStorageClientFactory::Create() {
+  return std::make_unique<S3BlobStorageClientFactory>();
 }
+
 }  // namespace kv_server

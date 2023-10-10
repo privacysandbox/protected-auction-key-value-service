@@ -25,10 +25,10 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/synchronization/notification.h"
-#include "cc/public/core/interface/execution_result.h"
-#include "cc/public/cpio/interface/instance_client/instance_client_interface.h"
 #include "components/cloud_config/instance_client.h"
 #include "glog/logging.h"
+#include "scp/cc/public/core/interface/execution_result.h"
+#include "scp/cc/public/cpio/interface/instance_client/instance_client_interface.h"
 
 ABSL_FLAG(std::string, shard_num, "0", "Shard number.");
 
@@ -49,6 +49,7 @@ using google::scp::cpio::InstanceClientOptions;
 using privacy_sandbox::server_common::MetricsRecorder;
 
 constexpr std::string_view kEnvironment = "environment";
+constexpr std::string_view kShardNumberLabel = "shard-num";
 
 class GcpInstanceClient : public InstanceClient {
  public:
@@ -72,7 +73,16 @@ class GcpInstanceClient : public InstanceClient {
   }
 
   absl::StatusOr<std::string> GetShardNumTag() override {
-    return absl::GetFlag(FLAGS_shard_num);
+    if (shard_number_.empty()) {
+      absl::Status result = GetInstanceDetails();
+      if (!result.ok()) {
+        return result;
+      }
+    }
+    if (shard_number_.empty()) {
+      return absl::UnavailableError("Shard number label not found.");
+    }
+    return shard_number_;
   }
 
   absl::Status RecordLifecycleHeartbeat(
@@ -118,6 +128,7 @@ class GcpInstanceClient : public InstanceClient {
  private:
   std::string instance_id_;
   std::string environment_;
+  std::string shard_number_;
   std::unique_ptr<InstanceClientInterface> instance_client_;
 
   absl::Status GetInstanceDetails() {
@@ -142,6 +153,8 @@ class GcpInstanceClient : public InstanceClient {
                 std::string{response.instance_details().instance_id()};
             environment_ =
                 response.instance_details().labels().at(kEnvironment);
+            shard_number_ =
+                response.instance_details().labels().at(kShardNumberLabel);
           } else {
             LOG(ERROR) << "Failed to get instance details: "
                        << GetErrorMessage(result.status_code);

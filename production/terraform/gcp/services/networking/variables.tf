@@ -33,3 +33,13 @@ variable "collector_service_name" {
   description = "Assigned name of metrics collection service"
   type        = string
 }
+
+variable "use_existing_vpc" {
+  description = "Whether to use existing vpc network."
+  type        = bool
+}
+
+variable "existing_vpc_id" {
+  description = "Existing vpc id. This would only be used if use_existing_vpc is true."
+  type        = string
+}

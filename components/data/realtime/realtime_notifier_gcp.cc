@@ -119,8 +119,9 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
   }
 
   void RecordProducerSuppliedE2ELatency(pubsub::Message const& m) {
-    auto it = m.attributes().find("time_sent");
-    if (it == m.attributes().end() || it->second.empty()) {
+    auto attributes = m.attributes();
+    auto it = attributes.find("time_sent");
+    if (it == attributes.end() || it->second.empty()) {
       return;
     }
     int64_t value_int64;
@@ -188,11 +189,8 @@ absl::StatusOr<std::unique_ptr<Subscriber>> CreateSubscriber(
     NotifierMetadata metadata) {
   GcpNotifierMetadata notifier_metadata =
       std::get<GcpNotifierMetadata>(metadata);
-  auto realtime_message_service_status = MessageService::Create(
-      notifier_metadata,
-      (notifier_metadata.num_shards > 1
-           ? std::optional<int32_t>(notifier_metadata.shard_num)
-           : std::nullopt));
+  auto realtime_message_service_status =
+      MessageService::Create(notifier_metadata);
   if (!realtime_message_service_status.ok()) {
     return realtime_message_service_status.status();
   }

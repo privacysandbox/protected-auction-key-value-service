@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
+#include "components/data/blob_storage/blob_storage_client_gcp.h"
+
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <streambuf>
 #include <string>
@@ -26,115 +30,164 @@
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_client.h"
+#include "components/util/platform_initializer.h"
+#include "gmock/gmock.h"
+#include "google/cloud/storage/client.h"
+#include "google/cloud/storage/internal/object_metadata_parser.h"
+#include "google/cloud/storage/internal/object_requests.h"
+#include "google/cloud/storage/testing/canonical_errors.h"
+#include "google/cloud/storage/testing/mock_client.h"
 #include "gtest/gtest.h"
 #include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
+using ::google::cloud::storage::testing::canonical_errors::TransientError;
 using privacy_sandbox::server_common::MockMetricsRecorder;
 
-void CreateFileInTmpDir(const std::string& filename) {
-  const std::filesystem::path path =
-      std::filesystem::path(::testing::TempDir()) / filename;
-  std::ofstream file(path);
-  file << "arbitrary file contents";
-}
+class GcpBlobStorageClientTest : public ::testing::Test {
+ protected:
+  PlatformInitializer initializer_;
+  privacy_sandbox::server_common::MockMetricsRecorder metrics_recorder_;
+};
 
-TEST(GcpBlobStorageClientTest, ListNotFoundDirectory) {
-  MockMetricsRecorder metrics_recorder;
+TEST_F(GcpBlobStorageClientTest, DeleteBlobSucceeds) {
+  namespace gcs = google::cloud::storage;
+
+  std::shared_ptr<gcs::testing::MockClient> mock =
+      std::make_shared<gcs::testing::MockClient>();
+  std::unique_ptr<gcs::Client> mock_client = std::make_unique<gcs::Client>(
+      gcs::internal::ClientImplDetails::CreateWithoutDecorations(mock));
+
+  EXPECT_CALL(*mock, DeleteObject)
+      .WillOnce(testing::Return(
+          google::cloud::make_status_or(gcs::internal::EmptyResponse{})));
+
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
-
+      std::make_unique<GcpBlobStorageClient>(metrics_recorder_,
+                                             std::move(mock_client));
   BlobStorageClient::DataLocation location;
-  location.bucket = "this is not a valid directory path";
-
-  kv_server::BlobStorageClient::ListOptions options;
-  EXPECT_EQ(absl::StatusCode::kInternal,
-            client->ListBlobs(location, options).status().code());
+  location.bucket = "test_bucket";
+  location.key = "test_object";
+  EXPECT_TRUE(client->DeleteBlob(location).ok());
 }
 
-TEST(GcpBlobStorageClientTest, ListEmptyDirectory) {
-  MockMetricsRecorder metrics_recorder;
-  std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
+TEST_F(GcpBlobStorageClientTest, DeleteBlobFails) {
+  namespace gcs = google::cloud::storage;
 
+  std::shared_ptr<gcs::testing::MockClient> mock =
+      std::make_shared<gcs::testing::MockClient>();
+  std::unique_ptr<gcs::Client> mock_client = std::make_unique<gcs::Client>(
+      gcs::internal::ClientImplDetails::CreateWithoutDecorations(mock));
+
+  EXPECT_CALL(*mock, DeleteObject)
+      .WillOnce(testing::Return(google::cloud::Status(
+          google::cloud::StatusCode::kPermissionDenied, "uh-oh")));
+
+  std::unique_ptr<BlobStorageClient> client =
+      std::make_unique<GcpBlobStorageClient>(metrics_recorder_,
+                                             std::move(mock_client));
   BlobStorageClient::DataLocation location;
-  // Directory contains no files by default.
-  location.bucket = ::testing::TempDir();
-
-  kv_server::BlobStorageClient::ListOptions options;
-  const auto status_or = client->ListBlobs(location, options);
-  EXPECT_TRUE(status_or.value().empty());
+  location.bucket = "test_bucket";
+  location.key = "test_object";
+  EXPECT_FALSE(client->DeleteBlob(location).ok());
 }
 
-TEST(GcpBlobStorageClientTest, ListDirectoryWithFile) {
-  MockMetricsRecorder metrics_recorder;
-  std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
+TEST_F(GcpBlobStorageClientTest, ListBlobSucceeds) {
+  namespace gcs = google::cloud::storage;
 
-  CreateFileInTmpDir("a");
+  std::shared_ptr<gcs::testing::MockClient> mock =
+      std::make_shared<gcs::testing::MockClient>();
+  std::unique_ptr<gcs::Client> mock_client =
+      std::make_unique<gcs::Client>(gcs::testing::ClientFromMock(mock));
+
+  gcs::internal::ListObjectsResponse response;
+  response.items.push_back(
+      gcs::ObjectMetadata{}.set_bucket("test_bucket").set_name("DELTAccc"));
+  response.items.push_back(
+      gcs::ObjectMetadata{}.set_bucket("test_bucket").set_name("DELTAbbb"));
+  EXPECT_CALL(*mock, ListObjects)
+      .WillOnce(testing::Return(TransientError()))
+      .WillOnce(testing::Return(response));
+
+  std::unique_ptr<BlobStorageClient> client =
+      std::make_unique<GcpBlobStorageClient>(metrics_recorder_,
+                                             std::move(mock_client));
   BlobStorageClient::DataLocation location;
-  location.bucket = ::testing::TempDir();
-
-  kv_server::BlobStorageClient::ListOptions options;
-  const auto status_or = client->ListBlobs(location, options);
-  ASSERT_TRUE(status_or.status().ok());
-  EXPECT_EQ(*status_or, std::vector<std::string>{"a"});
+  location.bucket = "test_bucket";
+  location.key = "test_object";
+  BlobStorageClient::ListOptions list_options;
+  list_options.prefix = "DELTA";
+  list_options.start_after = "DELTAaaa";
+  auto my_blobs = client->ListBlobs(location, list_options);
+  EXPECT_TRUE(my_blobs.ok());
+  std::vector<std::string> expected_keys{"DELTAbbb", "DELTAccc"};
+  EXPECT_EQ(*my_blobs, expected_keys);
 }
 
-TEST(GcpBlobStorageClientTest, DeleteNotFoundBlob) {
-  MockMetricsRecorder metrics_recorder;
-  std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
+TEST_F(GcpBlobStorageClientTest, ListBlobWithNonInclusiveStartAfter) {
+  namespace gcs = google::cloud::storage;
 
+  std::shared_ptr<gcs::testing::MockClient> mock =
+      std::make_shared<gcs::testing::MockClient>();
+  std::unique_ptr<gcs::Client> mock_client =
+      std::make_unique<gcs::Client>(gcs::testing::ClientFromMock(mock));
+
+  gcs::internal::ListObjectsResponse response;
+  response.items.push_back(
+      gcs::ObjectMetadata{}.set_bucket("test_bucket").set_name("DELTAbbb"));
+  response.items.push_back(
+      gcs::ObjectMetadata{}.set_bucket("test_bucket").set_name("DELTAccc"));
+  response.items.push_back(
+      gcs::ObjectMetadata{}.set_bucket("test_bucket").set_name("DELTAddd"));
+  EXPECT_CALL(*mock, ListObjects)
+      .WillOnce(testing::Return(TransientError()))
+      .WillOnce(testing::Return(response));
+
+  std::unique_ptr<BlobStorageClient> client =
+      std::make_unique<GcpBlobStorageClient>(metrics_recorder_,
+                                             std::move(mock_client));
   BlobStorageClient::DataLocation location;
-  location.bucket = "this is not a valid directory path";
-  location.key = "this is not a valid key";
-
-  EXPECT_EQ(absl::StatusCode::kInternal, client->DeleteBlob(location).code());
+  location.bucket = "test_bucket";
+  location.key = "test_object";
+  BlobStorageClient::ListOptions list_options;
+  list_options.prefix = "DELTA";
+  list_options.start_after = "DELTAbbb";
+  auto my_blobs = client->ListBlobs(location, list_options);
+  EXPECT_TRUE(my_blobs.ok());
+  std::vector<std::string> expected_keys{"DELTAccc", "DELTAddd"};
+  EXPECT_THAT(*my_blobs, expected_keys);
 }
 
-TEST(GcpBlobStorageClientTest, DeleteBlob) {
-  MockMetricsRecorder metrics_recorder;
-  std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
+TEST_F(GcpBlobStorageClientTest, ListBlobWithNoNewObject) {
+  namespace gcs = google::cloud::storage;
 
+  std::shared_ptr<gcs::testing::MockClient> mock =
+      std::make_shared<gcs::testing::MockClient>();
+  std::unique_ptr<gcs::Client> mock_client =
+      std::make_unique<gcs::Client>(gcs::testing::ClientFromMock(mock));
+
+  gcs::internal::ListObjectsResponse response;
+  response.items.push_back(
+      gcs::ObjectMetadata{}.set_bucket("test_bucket").set_name("DELTAccc"));
+  EXPECT_CALL(*mock, ListObjects)
+      .WillOnce(testing::Return(TransientError()))
+      .WillOnce(testing::Return(response));
+
+  std::unique_ptr<BlobStorageClient> client =
+      std::make_unique<GcpBlobStorageClient>(metrics_recorder_,
+                                             std::move(mock_client));
   BlobStorageClient::DataLocation location;
-  location.bucket = ::testing::TempDir();
-  location.key = "a";
-  CreateFileInTmpDir("a");
-
-  EXPECT_EQ(absl::StatusCode::kOk, client->DeleteBlob(location).code());
+  location.bucket = "test_bucket";
+  location.key = "test_object";
+  BlobStorageClient::ListOptions list_options;
+  list_options.prefix = "DELTA";
+  list_options.start_after = "DELTAccc";
+  auto my_blobs = client->ListBlobs(location, list_options);
+  EXPECT_TRUE(my_blobs.ok());
+  EXPECT_TRUE(my_blobs->begin() == my_blobs->end());
 }
-
-TEST(GcpBlobStorageClientTest, PutBlob) {
-  MockMetricsRecorder metrics_recorder;
-  std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder);
-  ASSERT_TRUE(client != nullptr);
-
-  BlobStorageClient::DataLocation from;
-  from.bucket = ::testing::TempDir();
-  from.key = "a";
-  CreateFileInTmpDir("a");
-  auto from_blob_reader = client->GetBlobReader(from);
-
-  BlobStorageClient::DataLocation to;
-  to.bucket = ::testing::TempDir();
-  to.key = "b";
-  CreateFileInTmpDir("b");
-
-  EXPECT_EQ(absl::StatusCode::kOk,
-            client->PutBlob(*from_blob_reader, to).code());
-}
-
-// TODO(237669491): Add tests here
 
 }  // namespace
 }  // namespace kv_server

@@ -116,8 +116,11 @@ class GcpMessageService : public MessageService {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
-    NotifierMetadata notifier_metadata, std::optional<int32_t> shard_num) {
+    NotifierMetadata notifier_metadata) {
   auto metadata = std::get<GcpNotifierMetadata>(notifier_metadata);
+  auto shard_num =
+      (metadata.num_shards > 1 ? std::optional<int32_t>(metadata.shard_num)
+                               : std::nullopt);
   pubsub::SubscriptionAdminClient subscription_admin_client(
       pubsub::MakeSubscriptionAdminConnection());
 

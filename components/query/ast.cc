@@ -50,7 +50,7 @@ std::vector<const Node*> PostOrderTraversal(const Node* root) {
 
 }  // namespace
 
-void ASTVisitor::Visit(const OpNode& node, std::vector<KVSetView>& stack) {
+void ASTStackVisitor::Visit(const OpNode& node, std::vector<KVSetView>& stack) {
   KVSetView right = std::move(stack.back());
   stack.pop_back();
   KVSetView left = std::move(stack.back());
@@ -58,13 +58,14 @@ void ASTVisitor::Visit(const OpNode& node, std::vector<KVSetView>& stack) {
   stack.emplace_back(node.Op(std::move(left), std::move(right)));
 }
 
-void ASTVisitor::Visit(const ValueNode& node, std::vector<KVSetView>& stack) {
+void ASTStackVisitor::Visit(const ValueNode& node,
+                            std::vector<KVSetView>& stack) {
   stack.emplace_back(node.Lookup());
 }
 
 KVSetView Compute(const std::vector<const Node*>& postorder) {
   std::vector<KVSetView> stack;
-  ASTVisitor visitor;
+  ASTStackVisitor visitor;
   // Apply the operations on the postorder stack
   for (const auto* node : postorder) {
     node->Accept(visitor, stack);
@@ -77,8 +78,19 @@ KVSetView Eval(const Node& node) {
   return Compute(postorder);
 }
 
-void OpNode::Accept(ASTVisitor& visitor, std::vector<KVSetView>& stack) const {
+void OpNode::Accept(ASTStackVisitor& visitor,
+                    std::vector<KVSetView>& stack) const {
   visitor.Visit(*this, stack);
+}
+
+std::string UnionNode::Accept(ASTStringVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
+std::string DifferenceNode::Accept(ASTStringVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
+std::string IntersectionNode::Accept(ASTStringVisitor& visitor) const {
+  return visitor.Visit(*this);
 }
 
 absl::flat_hash_set<std::string_view> OpNode::Keys() const {
@@ -112,9 +124,13 @@ ValueNode::ValueNode(
     : lookup_fn_(absl::bind_front(std::move(lookup_fn), key)),
       key_(std::move(key)) {}
 
-void ValueNode::Accept(ASTVisitor& visitor,
+void ValueNode::Accept(ASTStackVisitor& visitor,
                        std::vector<KVSetView>& stack) const {
   visitor.Visit(*this, stack);
+}
+
+std::string ValueNode::Accept(ASTStringVisitor& visitor) const {
+  return visitor.Visit(*this);
 }
 
 absl::flat_hash_set<std::string_view> ValueNode::Keys() const {

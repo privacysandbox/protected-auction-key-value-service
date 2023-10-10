@@ -58,8 +58,11 @@ using kv_server::BlobStorageClient;
 bool CatObjects(std::string bucket_or_directory, absl::Span<char*> keys) {
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(*noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient(
+          *noop_metrics_recorder);
   BlobStorageClient::DataLocation location = {std::move(bucket_or_directory)};
   for (const auto& key : keys) {
     location.key = key;
@@ -72,8 +75,11 @@ bool CatObjects(std::string bucket_or_directory, absl::Span<char*> keys) {
 bool DeleteObjects(std::string bucket_or_directory, absl::Span<char*> keys) {
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(*noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient(
+          *noop_metrics_recorder);
   BlobStorageClient::DataLocation location = {std::move(bucket_or_directory)};
   for (const auto& key : keys) {
     location.key = key;
@@ -89,8 +95,11 @@ bool DeleteObjects(std::string bucket_or_directory, absl::Span<char*> keys) {
 bool ListObjects(std::string bucket_or_directory) {
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(*noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient(
+          *noop_metrics_recorder);
   const BlobStorageClient::DataLocation location = {
       std::move(bucket_or_directory)};
   const absl::StatusOr<std::vector<std::string>> keys =

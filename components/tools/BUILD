@@ -24,9 +24,9 @@ pkg_tar(
     name = "data_loading_analyzer_binaries",
     srcs = [
         ":data_loading_analyzer",
-        "@control_plane_shared//cc/aws/proxy/src:proxify",
-        "@control_plane_shared//cc/aws/proxy/src:proxy_preload",
-        "@control_plane_shared//cc/aws/proxy/src:socket_vendor",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxy_preload",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:socket_vendor",
     ],
     package_dir = "/opt/privacysandbox/bin",
 )
@@ -45,8 +45,8 @@ container_layer(
 container_image(
     name = "data_loading_analyzer_enclave_image",
     base = select({
-        "@platforms//cpu:arm64": "@runtime-debian-arm64//image",
-        "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
+        "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64//image",
     }),
     cmd = [
         "/opt/privacysandbox/bin/proxify",
@@ -180,19 +180,53 @@ cc_binary(
     srcs = ["realtime_updates_publisher.cc"],
     visibility = ["//production/packaging:__subpackages__"],
     deps = [
-        "//components/errors:aws_error_util",
+        ":publisher_service",
         "//components/util:platform_initializer",
-        "//public/data_loading:filename_utils",
-        "@aws_sdk_cpp//:sns",
+        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/strings",
     ],
 )
 
+cc_library(
+    name = "publisher_service",
+    srcs = select({
+        "//:gcp_platform": [
+            "publisher_service_gcp.cc",
+        ],
+        "//conditions:default": [
+            "publisher_service_aws.cc",
+        ],
+    }),
+    hdrs = [
+        "publisher_service.h",
+    ],
+    deps = select({
+        "//:gcp_platform": [
+            "//components/errors:gcp_error_util",
+            "@com_github_googleapis_google_cloud_cpp//:pubsub",
+        ],
+        "//conditions:default": [
+            "//components/errors:aws_error_util",
+            "@aws_sdk_cpp//:sns",
+        ],
+    }) + [
+        "//components/data/common:message_service",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
 cc_binary(
     name = "query_toy",
-    srcs = ["query_toy.cc"],
+    srcs = [
+        "query_dot.cc",
+        "query_dot.h",
+        "query_toy.cc",
+    ],
     visibility = ["//production/packaging:__subpackages__"],
     deps = [
         "//components/query:driver",

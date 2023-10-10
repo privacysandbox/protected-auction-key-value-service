@@ -14,6 +14,7 @@
 # limitations under the License.
 
 # environment variables (all optional):
+#   TERRAFORM_VERSION            specify the terraform version to use
 #   WORKSPACE                    repo root directory, must be an absolute path
 #
 # AWS-related environment variables exported into the terraform container:
@@ -31,6 +32,10 @@ set -o errexit
 
 # shellcheck disable=SC1090
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
+
+if ! [[ -v TERRAFORM_VERSION ]]; then
+  TERRAFORM_VERSION=1.0.4
+fi
 
 declare -a ENV_VARS
 builder::add_aws_env_vars ENV_VARS
@@ -55,7 +60,7 @@ if [[ -t 0 ]] && [[ -t 1 ]]; then
   )
 fi
 
-readonly IMAGE_TAGGED=hashicorp/terraform:1.0.4
+readonly IMAGE_TAGGED=hashicorp/terraform:"${TERRAFORM_VERSION}"
 REL_PWD="$(realpath --relative-to="${WORKSPACE}" "$(pwd)")"
 readonly REL_PWD
 WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"

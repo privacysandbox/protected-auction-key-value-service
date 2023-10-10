@@ -20,11 +20,11 @@
 #include <utility>
 #include <vector>
 
-#include "cc/public/cpio/interface/error_codes.h"
-#include "cc/public/cpio/interface/parameter_client/parameter_client_interface.h"
-#include "cc/public/cpio/mock/parameter_client/mock_parameter_client.h"
 #include "components/cloud_config/parameter_client.h"
 #include "gtest/gtest.h"
+#include "scp/cc/public/cpio/interface/error_codes.h"
+#include "scp/cc/public/cpio/interface/parameter_client/parameter_client_interface.h"
+#include "scp/cc/public/cpio/mock/parameter_client/mock_parameter_client.h"
 
 namespace kv_server {
 namespace {

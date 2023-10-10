@@ -131,11 +131,11 @@ cc_library(
         "//:aws_platform": [
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:core",
-            "@control_plane_shared//cc/public/cpio/interface:cpio",
+            "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:cpio",
         ],
         "//:gcp_platform": [
-            "@control_plane_shared//cc/public/core/interface:errors",
-            "@control_plane_shared//cc/public/cpio/interface:cpio",
+            "@google_privacysandbox_servers_common//scp/cc/public/core/interface:errors",
+            "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:cpio",
         ],
         "//conditions:default": [],
     }) + [

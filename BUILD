@@ -34,7 +34,10 @@ config_setting(
     flag_values = {
         ":platform": "aws",
     },
-    visibility = ["//visibility:private"],
+    visibility = [
+        "//components:__subpackages__",
+        "//tools:__subpackages__",
+    ],
 )
 
 config_setting(
@@ -42,7 +45,10 @@ config_setting(
     flag_values = {
         ":platform": "gcp",
     },
-    visibility = ["//components/cloud_config:__pkg__"],
+    visibility = [
+        "//components:__subpackages__",
+        "//tools:__subpackages__",
+    ],
 )
 
 config_setting(
@@ -50,7 +56,10 @@ config_setting(
     flag_values = {
         ":platform": "local",
     },
-    visibility = ["//visibility:private"],
+    visibility = [
+        "//components:__subpackages__",
+        "//tools:__subpackages__",
+    ],
 )
 
 string_flag(
@@ -68,7 +77,10 @@ config_setting(
     flag_values = {
         ":instance": "aws",
     },
-    visibility = ["//visibility:private"],
+    visibility = [
+        "//components:__subpackages__",
+        "//tools:__subpackages__",
+    ],
 )
 
 config_setting(
@@ -76,7 +88,10 @@ config_setting(
     flag_values = {
         ":instance": "gcp",
     },
-    visibility = ["//visibility:private"],
+    visibility = [
+        "//components:__subpackages__",
+        "//tools:__subpackages__",
+    ],
 )
 
 config_setting(
@@ -85,8 +100,8 @@ config_setting(
         ":instance": "local",
     },
     visibility = [
-        "//components/cloud_config:__pkg__",
-        "//components/util:__pkg__",
+        "//components:__subpackages__",
+        "//tools:__subpackages__",
     ],
 )
 
@@ -133,6 +148,17 @@ EOF""",
     executable = True,
     local = True,
     message = "copy bazel build and test logs",
+)
+
+genrule(
+    name = "collect-coverage",
+    outs = ["collect_coverage.bin"],
+    cmd_bash = """cat << EOF > '$@'
+builders/tools/collect-coverage "\\$$@"
+EOF""",
+    executable = True,
+    local = True,
+    message = "generate coverage report",
 )
 
 exports_files([

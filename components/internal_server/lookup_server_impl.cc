@@ -22,12 +22,10 @@
 #include <vector>
 
 #include "absl/status/status.h"
-#include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
 #include "components/internal_server/lookup.grpc.pb.h"
+#include "components/internal_server/lookup.h"
 #include "components/internal_server/string_padder.h"
-#include "components/query/driver.h"
-#include "components/query/scanner.h"
 #include "glog/logging.h"
 #include "google/protobuf/message.h"
 #include "grpcpp/grpcpp.h"
@@ -36,7 +34,6 @@
 namespace kv_server {
 using google::protobuf::RepeatedPtrField;
 using privacy_sandbox::server_common::ScopeLatencyRecorder;
-namespace {
 
 using grpc::StatusCode;
 constexpr char kKeySetNotFound[] = "KeysetNotFound";
@@ -46,32 +43,6 @@ constexpr char kEncryptionError[] = "EncryptionError";
 constexpr char kDeserializationError[] = "DeserializationError";
 constexpr char kRunQueryError[] = "RunQueryError";
 constexpr char kSecureLookup[] = "SecureLookup";
-
-absl::Status ProcessQuery(std::string query, const Cache& cache,
-                          InternalRunQueryResponse& response) {
-  if (query.empty()) return absl::OkStatus();
-  std::unique_ptr<GetKeyValueSetResult> get_key_value_set_result;
-  kv_server::Driver driver([&get_key_value_set_result](std::string_view key) {
-    return get_key_value_set_result->GetValueSet(key);
-  });
-  std::istringstream stream(query);
-  kv_server::Scanner scanner(stream);
-  kv_server::Parser parse(driver, scanner);
-  int parse_result = parse();
-  if (parse_result) {
-    return absl::InvalidArgumentError("Parsing failure.");
-  }
-  get_key_value_set_result = cache.GetKeyValueSet(driver.GetRootNode()->Keys());
-
-  auto result = driver.GetResult();
-  if (!result.ok()) {
-    return result.status();
-  }
-  response.mutable_elements()->Assign(result->begin(), result->end());
-  return result.status();
-}
-
-}  // namespace
 
 grpc::Status LookupServiceImpl::ToInternalGrpcStatus(
     const absl::Status& status, const char* eventName) const {
@@ -87,18 +58,9 @@ void LookupServiceImpl::ProcessKeys(const RepeatedPtrField<std::string>& keys,
   for (const auto& key : keys) {
     key_list.emplace_back(key);
   }
-  auto kv_pairs = cache_.GetKeyValuePairs(key_list);
-
-  for (const auto& key : key_list) {
-    SingleLookupResult result;
-    const auto key_iter = kv_pairs.find(key);
-    if (key_iter == kv_pairs.end()) {
-      auto status = result.mutable_status();
-      status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
-    } else {
-      result.set_value(std::move(key_iter->second));
-    }
-    (*response.mutable_kv_pairs())[key] = std::move(result);
+  auto lookup_result = lookup_.GetKeyValues(key_list);
+  if (lookup_result.ok()) {
+    response = *std::move(lookup_result);
   }
 }
 
@@ -110,19 +72,9 @@ void LookupServiceImpl::ProcessKeysetKeys(
   for (const auto& key : keys) {
     key_list.insert(key);
   }
-  auto key_value_set_result = cache_.GetKeyValueSet(key_list);
-  for (const auto& key : key_list) {
-    SingleLookupResult result;
-    const auto value_set = key_value_set_result->GetValueSet(key);
-    if (value_set.empty()) {
-      auto status = result.mutable_status();
-      status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
-      metrics_recorder_.IncrementEventCounter(kKeySetNotFound);
-    } else {
-      auto keyset_values = result.mutable_keyset_values();
-      keyset_values->mutable_values()->Add(value_set.begin(), value_set.end());
-    }
-    (*response.mutable_kv_pairs())[key] = std::move(result);
+  auto key_value_set_result = lookup_.GetKeyValueSet(key_list);
+  if (key_value_set_result.ok()) {
+    response = *std::move(key_value_set_result);
   }
 }
 
@@ -207,10 +159,11 @@ grpc::Status LookupServiceImpl::InternalRunQuery(
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
   }
-  const auto process_result = ProcessQuery(request->query(), cache_, *response);
+  const auto process_result = lookup_.RunQuery(request->query());
   if (!process_result.ok()) {
-    return ToInternalGrpcStatus(process_result, kRunQueryError);
+    return ToInternalGrpcStatus(process_result.status(), kRunQueryError);
   }
+  *response = *std::move(process_result);
   return grpc::Status::OK;
 }
 

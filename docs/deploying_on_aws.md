@@ -146,15 +146,15 @@ Then run `dist/aws/push_sqs` to push the SQS cleanup lambda image to AWS ECR.
 
 ## Set up Terraform
 
-The setup scripts require Terraform version 1.0.4. There is a helper script /tools/terraform, which
-uses the official v1.0.4 Terraform docker image. Alternatively, you can
-[download Terraform version 1.0.4 directly](https://releases.hashicorp.com/terraform/1.0.4/), or you
+The setup scripts require Terraform version 1.2.3. There is a helper script /tools/terraform, which
+uses the official v1.2.3 Terraform docker image. Alternatively, you can
+[download Terraform version 1.2.3 directly](https://releases.hashicorp.com/terraform/1.2.3/), or you
 can use [Terraform Version Manager (tfenv)](https://github.com/tfutils/tfenv) instead. If you use
-`tfenv`, run the following in your `<repository_root>` to set Terraform to version 1.0.4:
+`tfenv`, run the following in your `<repository_root>` to set Terraform to version 1.2.3:
 
 ```sh
-tfenv install 1.0.4;
-tfenv use 1.0.4
+tfenv install 1.2.3;
+tfenv use 1.2.3
 ```
 
 ## Update Terraform configuration

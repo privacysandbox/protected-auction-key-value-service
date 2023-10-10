@@ -36,15 +36,14 @@ cc_library(
     name = "parameter_fetcher",
     srcs = select({
         "//:aws_platform": ["parameter_fetcher_aws.cc"],
-        # todo: uncomment this once the GCP blob storage logic is implemented
-        #"//:gcp_platform": ["parameter_fetcher_gcp.cc"],
-        "//:gcp_platform": ["parameter_fetcher_local.cc"],
+        "//:gcp_platform": ["parameter_fetcher_gcp.cc"],
         "//:local_platform": ["parameter_fetcher_local.cc"],
     }) + ["parameter_fetcher.cc"],
     hdrs = ["parameter_fetcher.h"],
     deps = [
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_change_notifier",
+        "//components/data/blob_storage:blob_storage_client",
         "//components/errors:retry",
         "//components/util:periodic_closure",
         "//public:constants",
@@ -130,6 +129,7 @@ cc_library(
         ":key_value_service_v2_impl",
         ":lifecycle_heartbeat",
         ":parameter_fetcher",
+        ":server_initializer",
         "//components/cloud_config:instance_client",
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_client",
@@ -143,9 +143,10 @@ cc_library(
         "//components/data_server/request_handler:get_values_v2_handler",
         "//components/errors:retry",
         "//components/internal_server:constants",
-        "//components/internal_server:lookup_client_impl",
+        "//components/internal_server:local_lookup",
+        "//components/internal_server:lookup",
         "//components/internal_server:lookup_server_impl",
-        "//components/internal_server:sharded_lookup_server_impl",
+        "//components/internal_server:sharded_lookup",
         "//components/sharding:cluster_mappings_manager",
         "//components/telemetry:kv_telemetry",
         "//components/udf:udf_client",
@@ -230,6 +231,7 @@ sh_test(
     args = ["--buildinfo"],
     tags = [
         "local",  # local precludes remote caching
+        "nocoverage",
         "smoke",
     ],
 )
@@ -246,9 +248,19 @@ cc_library(
 
 cc_library(
     name = "key_fetcher_factory",
-    srcs = [
-        "key_fetcher_factory.cc",
-    ],
+    srcs = select({
+        "//:aws_platform": [
+            "key_fetcher_factory_aws.cc",
+            "key_fetcher_factory_cloud.cc",
+        ],
+        "//:gcp_platform": [
+            "key_fetcher_factory_cloud.cc",
+            "key_fetcher_factory_gcp.cc",
+        ],
+        "//:local_platform": [
+            "key_fetcher_factory_local.cc",
+        ],
+    }),
     hdrs = [
         "key_fetcher_factory.h",
     ],
@@ -263,5 +275,28 @@ cc_library(
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:key_fetcher_manager",
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:private_key_fetcher",
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:public_key_fetcher",
+    ],
+)
+
+cc_library(
+    name = "server_initializer",
+    srcs = [
+        "server_initializer.cc",
+    ],
+    hdrs = [
+        "server_initializer.h",
+    ],
+    deps = [
+        ":key_fetcher_factory",
+        "//components/data_server/cache",
+        "//components/internal_server:local_lookup",
+        "//components/internal_server:lookup",
+        "//components/internal_server:lookup_server_impl",
+        "//components/internal_server:sharded_lookup",
+        "//components/sharding:cluster_mappings_manager",
+        "//components/udf/hooks:get_values_hook",
+        "//components/udf/hooks:run_query_hook",
+        "@com_github_google_glog//:glog",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )

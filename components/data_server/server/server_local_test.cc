@@ -105,14 +105,6 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
       *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
       .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-connections"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
-      .WillOnce(::testing::Return(1));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
       .WillOnce(::testing::Return(1));
@@ -121,9 +113,6 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
       .WillOnce(::testing::Return(2));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
-      .WillOnce(::testing::Return(false));
-  EXPECT_CALL(*parameter_client,
-              GetBoolParameter("kv-server-environment-use-real-coordinators"))
       .WillOnce(::testing::Return(false));
 
   kv_server::Server server;
@@ -163,14 +152,6 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
       *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
       .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-connections"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
-      .WillOnce(::testing::Return(1));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
       .WillOnce(::testing::Return(1));
@@ -179,9 +160,6 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
       .WillOnce(::testing::Return(2));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
-      .WillOnce(::testing::Return(false));
-  EXPECT_CALL(*parameter_client,
-              GetBoolParameter("kv-server-environment-use-real-coordinators"))
       .WillOnce(::testing::Return(false));
 
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
@@ -224,14 +202,6 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
       *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
       .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-connections"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
-      .WillOnce(::testing::Return(1));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
       .WillOnce(::testing::Return(1));
@@ -240,9 +210,6 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
       .WillOnce(::testing::Return(2));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
-      .WillOnce(::testing::Return(false));
-  EXPECT_CALL(*parameter_client,
-              GetBoolParameter("kv-server-environment-use-real-coordinators"))
       .WillOnce(::testing::Return(false));
 
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
@@ -288,14 +255,6 @@ TEST(ServerLocalTest, ForceServerShutdown) {
       *parameter_client,
       GetInt32Parameter("kv-server-environment-data-loading-num-threads"))
       .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-connections"))
-      .WillOnce(::testing::Return(1));
-  EXPECT_CALL(
-      *parameter_client,
-      GetInt32Parameter("kv-server-environment-s3client-max-range-bytes"))
-      .WillOnce(::testing::Return(1));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-num-shards"))
       .WillOnce(::testing::Return(1));
@@ -304,9 +263,6 @@ TEST(ServerLocalTest, ForceServerShutdown) {
       .WillOnce(::testing::Return(2));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
-      .WillOnce(::testing::Return(false));
-  EXPECT_CALL(*parameter_client,
-              GetBoolParameter("kv-server-environment-use-real-coordinators"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));

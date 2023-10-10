@@ -23,60 +23,6 @@ package(default_visibility = [
 ])
 
 cc_library(
-    name = "lookup_client_impl",
-    srcs = [
-        "lookup_client_impl.cc",
-    ],
-    hdrs = [
-        "lookup_client.h",
-    ],
-    deps = [
-        ":constants",
-        ":internal_lookup_cc_grpc",
-        "@com_github_google_glog//:glog",
-        "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/time",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry",
-    ],
-)
-
-cc_library(
-    name = "cache_lookup_client",
-    srcs = [
-        "cache_lookup_client.cc",
-    ],
-    hdrs = [
-        "cache_lookup_client.h",
-    ],
-    deps = [
-        ":internal_lookup_cc_proto",
-        ":lookup_client_impl",
-        "//components/data_server/cache",
-        "@com_github_google_glog//:glog",
-        "@com_google_absl//absl/status:statusor",
-    ],
-)
-
-cc_test(
-    name = "cache_lookup_client_test",
-    size = "small",
-    srcs = [
-        "cache_lookup_client_test.cc",
-    ],
-    deps = [
-        ":cache_lookup_client",
-        ":internal_lookup_cc_proto",
-        "//components/data_server/cache:mocks",
-        "//public/test_util:proto_matcher",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_library(
     name = "lookup_server_impl",
     srcs = [
         "lookup_server_impl.cc",
@@ -86,8 +32,8 @@ cc_library(
     ],
     deps = [
         ":internal_lookup_cc_grpc",
+        ":lookup",
         ":string_padder",
-        "//components/data_server/cache",
         "//components/data_server/request_handler:ohttp_server_encryptor",
         "//components/query:driver",
         "//components/query:scanner",
@@ -107,6 +53,7 @@ cc_test(
     deps = [
         ":internal_lookup_cc_grpc",
         ":lookup_server_impl",
+        ":mocks",
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/cache:mocks",
@@ -134,8 +81,8 @@ cc_library(
     hdrs = ["mocks.h"],
     deps = [
         ":internal_lookup_cc_proto",
-        ":lookup_client_impl",
-        ":run_query_client_impl",
+        ":lookup",
+        ":remote_lookup_client_impl",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest",
     ],
@@ -175,6 +122,75 @@ cc_grpc_library(
 )
 
 cc_library(
+    name = "lookup",
+    hdrs = ["lookup.h"],
+    deps = [
+        ":internal_lookup_cc_proto",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
+cc_library(
+    name =
+        "local_lookup",
+    srcs = ["local_lookup.cc"],
+    hdrs = ["local_lookup.h"],
+    deps = [
+        ":internal_lookup_cc_proto",
+        ":lookup",
+        "//components/data_server/cache",
+        "//components/query:driver",
+        "//components/query:scanner",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+    ],
+)
+
+cc_library(
+    name =
+        "sharded_lookup",
+    srcs = ["sharded_lookup.cc"],
+    hdrs = ["sharded_lookup.h"],
+    deps = [
+        ":internal_lookup_cc_grpc",
+        ":internal_lookup_cc_proto",
+        ":local_lookup",
+        ":remote_lookup_client_impl",
+        "//components/query:driver",
+        "//components/query:scanner",
+        "//components/sharding:shard_manager",
+        "@com_github_google_glog//:glog",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/log:check",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_protobuf//:protobuf",
+        "@distributed_point_functions//pir/hashing:sha256_hash_family",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+    ],
+)
+
+cc_test(
+    name = "sharded_lookup_test",
+    size = "small",
+    srcs = [
+        "sharded_lookup_test.cc",
+    ],
+    deps = [
+        ":internal_lookup_cc_grpc",
+        ":mocks",
+        ":sharded_lookup",
+        "//components/data_server/cache:mocks",
+        "//components/sharding:mocks",
+        "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_library(
     name = "remote_lookup_client_impl",
     srcs = [
         "remote_lookup_client_impl.cc",
@@ -194,68 +210,6 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@google_privacysandbox_servers_common//src/cpp/telemetry",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
-    ],
-)
-
-cc_library(
-    name = "sharded_lookup_server_impl",
-    srcs = [
-        "sharded_lookup_server_impl.cc",
-    ],
-    hdrs = [
-        "sharded_lookup_server_impl.h",
-    ],
-    deps = [
-        ":internal_lookup_cc_grpc",
-        ":remote_lookup_client_impl",
-        "//components/data_server/cache",
-        "//components/query:driver",
-        "//components/query:scanner",
-        "//components/sharding:shard_manager",
-        "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/log:check",
-        "@com_google_protobuf//:protobuf",
-        "@distributed_point_functions//pir/hashing:sha256_hash_family",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
-    ],
-)
-
-cc_test(
-    name = "sharded_lookup_server_impl_test",
-    size = "small",
-    srcs = [
-        "sharded_lookup_server_impl_test.cc",
-    ],
-    deps = [
-        ":internal_lookup_cc_grpc",
-        ":sharded_lookup_server_impl",
-        "//components/data_server/cache:mocks",
-        "//components/sharding:mocks",
-        "//public/test_util:proto_matcher",
-        "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
-    ],
-)
-
-cc_library(
-    name = "run_query_client_impl",
-    srcs = [
-        "run_query_client_impl.cc",
-    ],
-    hdrs = [
-        "run_query_client.h",
-    ],
-    deps = [
-        ":constants",
-        ":internal_lookup_cc_grpc",
-        "@com_github_google_glog//:glog",
-        "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/time",
     ],
 )
 
@@ -296,12 +250,29 @@ cc_test(
     ],
     deps = [
         ":lookup_server_impl",
+        ":mocks",
         ":remote_lookup_client_impl",
         "//components/data_server/cache",
         "//components/data_server/cache:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_test(
+    name = "local_lookup_test",
+    size = "small",
+    srcs = [
+        "local_lookup_test.cc",
+    ],
+    deps = [
+        ":local_lookup",
+        "//components/data_server/cache:mocks",
+        "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest_main",
+        "@com_google_protobuf//:protobuf",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

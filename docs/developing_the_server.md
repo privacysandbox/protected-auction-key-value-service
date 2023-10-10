@@ -3,22 +3,6 @@
 
 # FLEDGE K/V Server developer guide
 
-## Repository set up
-
-### Initialize and update submodules
-
-Before using the repository, initialize the repo's submodules. Run:
-
-```shell
-git submodule update --init
-```
-
-The submodule content can be updated at any time using the following command.
-
-```shell
-git submodule update --remote --merge
-```
-
 ## Data Server
 
 The data server provides the read API for the KV service.
@@ -86,7 +70,7 @@ The data server provides the read API for the KV service.
 1.  Load the image into docker
 
     ```sh
-    docker load -i dist/debian/server_docker_image.tar
+    docker load -i dist/server_docker_image.tar
     ```
 
 1.  Run the container. Port 50051 can be used to query the server directly through gRPC.

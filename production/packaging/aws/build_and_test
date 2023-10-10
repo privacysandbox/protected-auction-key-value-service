@@ -128,7 +128,7 @@ IMAGE_TAG=$(mktemp --dry-run temp-XXXXXX)
 builder::cbuild_al2 $"
 set -o errexit
 # extract server docker image into local docker client and retag it
-docker load -i dist/debian/server_docker_image.tar
+docker load -i dist/server_docker_image.tar
 docker tag ${IMAGE_URI}:server_docker_image ${IMAGE_URI}:'${IMAGE_TAG}'
 rm -f dist/aws/{server_enclave_image.eif,server_enclave_image.json,pcr0.json}
 nitro-cli build-enclave --docker-uri ${IMAGE_URI}:'${IMAGE_TAG}' --output-file dist/aws/server_enclave_image.eif >dist/aws/server_enclave_image.json

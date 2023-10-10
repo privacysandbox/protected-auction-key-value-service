@@ -32,6 +32,8 @@ services:
       target: /srvdata/realtime_data
       tmpfs:
         size: 1MB
+    security_opt:
+      - seccomp:unconfined
 
 networks:
   kvserver-net:

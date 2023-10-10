@@ -33,8 +33,8 @@ pkg_files(
         "bin/init_server_enclave",
         "//components/data_server/server",
         "//components/tools:get_region",
-        "@control_plane_shared//cc/aws/proxy/src:proxify",
-        "@control_plane_shared//cc/aws/proxy/src:socket_vendor",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:socket_vendor",
     ],
     attributes = pkg_attributes(mode = "0555"),
     prefix = "/",
@@ -43,7 +43,7 @@ pkg_files(
 pkg_files(
     name = "server_libs",
     srcs = [
-        "@control_plane_shared//cc/aws/proxy/src:proxy_preload",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxy_preload",
     ],
     attributes = pkg_attributes(mode = "0444"),
     prefix = "/",
@@ -94,14 +94,6 @@ container_layer(
     ],
 )
 
-container_layer(
-    name = "server_socket_directory",
-    empty_dirs = [
-        "/socket",
-    ],
-    mode = "0o777",
-)
-
 # Create a symlink between where kmstool_enclave_cli expects shell to be
 # (/bin/sh) and where it actually is on our image (/busybox/sh).
 container_layer(
@@ -124,15 +116,14 @@ container_image(
         "@platforms//cpu:x86_64": "amd64",
     }),
     base = select({
-        "@platforms//cpu:arm64": "@runtime-debian-arm64//image",
-        "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
+        "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64//image",
     }),
     cmd = [
         "/init_server_enclave",
     ],
     entrypoint = ["/bin/bash"],
     layers = [
-        ":server_socket_directory",
         "//production/packaging/aws/resolv:resolv_config_layer",
         ":server_binary_layer",
         ":kmstool_enclave_cli_layer",
@@ -171,11 +162,13 @@ genrule(
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/debian
-cp $(execpath :server_artifacts) $(execpath :server_docker_image.tar) dist/debian
-cp $(execpath //public/query:query_api_descriptor_set) dist
+cp $(execpath :server_artifacts) dist/debian
+cp $(execpath :server_docker_image.tar) $(execpath //public/query:query_api_descriptor_set) dist
+# retain previous server_docker_image.tar location as a symlink
+ln -rsf dist/server_docker_image.tar dist/debian/server_docker_image.tar
 builders/tools/normalize-dist
 EOF""",
     executable = True,
     local = True,
-    message = "copying server artifacts to dist/debian directory",
+    message = "copying server artifacts to dist directory",
 )

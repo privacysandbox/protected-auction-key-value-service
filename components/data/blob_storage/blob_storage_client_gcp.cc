@@ -12,127 +12,182 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(b/296901861): Modify the implementation with GCP specific logic (the
-// current implementation is copied from local).
+#include "components/data/blob_storage/blob_storage_client_gcp.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/match.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/seeking_input_streambuf.h"
+#include "components/errors/error_util_gcp.h"
 #include "glog/logging.h"
+#include "google/cloud/storage/client.h"
 
 namespace kv_server {
 namespace {
 
 using privacy_sandbox::server_common::MetricsRecorder;
 
-class FileBlobReader : public BlobReader {
+class GcpBlobInputStreamBuf : public SeekingInputStreambuf {
  public:
-  explicit FileBlobReader(const std::string& filename)
-      : file_stream_(filename) {}
-  ~FileBlobReader() = default;
-  std::istream& Stream() override { return file_stream_; }
-  bool CanSeek() const override { return true; }
+  GcpBlobInputStreamBuf(google::cloud::storage::Client& client,
+                        BlobStorageClient::DataLocation location,
+                        MetricsRecorder& metrics_recorder,
+                        SeekingInputStreambuf::Options options)
+      : SeekingInputStreambuf(metrics_recorder, std::move(options)),
+        client_(client),
+        location_(std::move(location)) {}
 
- private:
-  std::ifstream file_stream_;
-};
+  GcpBlobInputStreamBuf(const GcpBlobInputStreamBuf&) = delete;
+  GcpBlobInputStreamBuf& operator=(const GcpBlobInputStreamBuf&) = delete;
 
-class FileBlobStorageClient : public BlobStorageClient {
- public:
-  ~FileBlobStorageClient() = default;
-  static std::unique_ptr<BlobStorageClient> Create(MetricsRecorder& unused) {
-    return std::make_unique<FileBlobStorageClient>();
+ protected:
+  absl::StatusOr<int64_t> SizeImpl() override {
+    auto object_metadata =
+        client_.GetObjectMetadata(location_.bucket, location_.key);
+    if (!object_metadata) {
+      return GoogleErrorStatusToAbslStatus(object_metadata.status());
+    }
+    return object_metadata->size();
   }
-  std::unique_ptr<BlobReader> GetBlobReader(DataLocation location) override {
-    std::unique_ptr<BlobReader> reader =
-        std::make_unique<FileBlobReader>(GetFullPath(location));
 
-    if (!reader->Stream()) {
-      LOG(ERROR) << absl::ErrnoToStatus(
-          errno, absl::StrCat("Unable to open file: ",
-                              GetFullPath(location).string()));
-      return nullptr;
-    }
-    return reader;
-  }
-  absl::Status PutBlob(BlobReader& blob_reader,
-                       DataLocation location) override {
-    // Explicitly open the stream with 'out' so that it will overwrite any
-    // existing file contents.
-    std::ofstream blob_ostream(GetFullPath(location), std::ios_base::out);
-    if (!blob_ostream) {
-      return absl::ErrnoToStatus(errno,
-                                 absl::StrCat("Unable to open file: ",
-                                              GetFullPath(location).string()));
-    }
-    blob_ostream << blob_reader.Stream().rdbuf();
-    blob_ostream.close();
-    if (!blob_ostream) {
-      return absl::ErrnoToStatus(errno,
-                                 absl::StrCat("Unable to write to file: ",
-                                              GetFullPath(location).string()));
-    }
-    return absl::OkStatus();
-  }
-  absl::Status DeleteBlob(DataLocation location) override {
-    auto fullpath = GetFullPath(location);
-    std::error_code error_code;
-    if (std::filesystem::remove(fullpath, error_code)) {
-      return absl::OkStatus();
-    }
-    return absl::InternalError(
-        absl::StrCat("Failed to delete blob: ", error_code.message()));
-  }
-  absl::StatusOr<std::vector<std::string>> ListBlobs(
-      DataLocation location, ListOptions options) override {
-    {
-      std::error_code error_code;
-      std::filesystem::directory_entry directory{location.bucket, error_code};
-      if (error_code) {
-        return absl::InternalError(absl::StrCat(
-            "Error getting directory entry: ", error_code.message()));
-      }
-    }
-    std::error_code error_code;
-    std::vector<std::string> blob_names;
-    for (const auto& dir_entry :
-         std::filesystem::directory_iterator(location.bucket, error_code)) {
-      if (dir_entry.is_directory()) {
-        continue;
-      }
-      auto blob_name = dir_entry.path().filename();
-      if (!absl::StartsWith(blob_name.string(), options.prefix) ||
-          blob_name <= options.start_after) {
-        continue;
-      }
-      blob_names.push_back(std::move(blob_name));
+  absl::StatusOr<int64_t> ReadChunk(int64_t offset, int64_t chunk_size,
+                                    char* dest_buffer) override {
+    auto stream = client_.ReadObject(
+        location_.bucket, location_.key,
+        google::cloud::storage::ReadRange(offset, offset + chunk_size));
+    if (!stream.status().ok()) {
+      return GoogleErrorStatusToAbslStatus(stream.status());
     }
 
-    if (error_code) {
-      return absl::InternalError(
-          absl::StrCat("Error deleting blob: ", error_code.message()));
+    int64_t true_size;
+    if (stream.size().has_value()) {
+      true_size = *(stream.size());
+    } else {
+      std::string contents(std::istreambuf_iterator<char>{stream}, {});
+      true_size = contents.size();
     }
-    std::sort(blob_names.begin(), blob_names.end());
-    return blob_names;
+
+    stream.read(dest_buffer, true_size);
+    return true_size;
   }
 
  private:
-  std::filesystem::path GetFullPath(const DataLocation& location) {
-    return std::filesystem::path(location.bucket) / location.key;
-  }
+  google::cloud::storage::Client& client_;
+  const BlobStorageClient::DataLocation location_;
 };
 
+class GcpBlobReader : public BlobReader {
+ public:
+  GcpBlobReader(google::cloud::storage::Client& client,
+                BlobStorageClient::DataLocation location,
+                MetricsRecorder& metrics_recorder)
+      : BlobReader(),
+        streambuf_(client, location, metrics_recorder,
+                   GetOptions([this, location](absl::Status status) {
+                     LOG(ERROR) << "Blob " << location.key
+                                << " failed stream with: " << status;
+                     is_.setstate(std::ios_base::badbit);
+                   })),
+        is_(&streambuf_) {}
+
+  std::istream& Stream() { return is_; }
+  bool CanSeek() const { return true; }
+
+ private:
+  static SeekingInputStreambuf::Options GetOptions(
+      std::function<void(absl::Status)> error_callback) {
+    SeekingInputStreambuf::Options options;
+    options.error_callback = std::move(error_callback);
+    return options;
+  }
+
+  GcpBlobInputStreamBuf streambuf_;
+  std::istream is_;
+};
 }  // namespace
 
-std::unique_ptr<BlobStorageClient> BlobStorageClient::Create(
+GcpBlobStorageClient::GcpBlobStorageClient(
     MetricsRecorder& metrics_recorder,
-    BlobStorageClient::ClientOptions client_options) {
-  return std::make_unique<FileBlobStorageClient>();
+    std::unique_ptr<google::cloud::storage::Client> client)
+    : metrics_recorder_(metrics_recorder), client_(std::move(client)) {}
+
+std::unique_ptr<BlobReader> GcpBlobStorageClient::GetBlobReader(
+    DataLocation location) {
+  return std::make_unique<GcpBlobReader>(*client_, std::move(location),
+                                         metrics_recorder_);
+}
+
+absl::Status GcpBlobStorageClient::PutBlob(BlobReader& blob_reader,
+                                           DataLocation location) {
+  auto blob_ostream = client_->WriteObject(location.bucket, location.key);
+  if (!blob_ostream) {
+    return GoogleErrorStatusToAbslStatus(blob_ostream.last_status());
+  }
+  blob_ostream << blob_reader.Stream().rdbuf();
+  blob_ostream.Close();
+  return blob_ostream
+             ? absl::OkStatus()
+             : GoogleErrorStatusToAbslStatus(blob_ostream.last_status());
+}
+
+absl::Status GcpBlobStorageClient::DeleteBlob(DataLocation location) {
+  google::cloud::Status status =
+      client_->DeleteObject(location.bucket, location.key);
+  return status.ok() ? absl::OkStatus() : GoogleErrorStatusToAbslStatus(status);
+}
+
+absl::StatusOr<std::vector<std::string>> GcpBlobStorageClient::ListBlobs(
+    DataLocation location, ListOptions options) {
+  auto list_object_reader = client_->ListObjects(
+      location.bucket, google::cloud::storage::Prefix(options.prefix),
+      google::cloud::storage::StartOffset(options.start_after));
+  std::vector<std::string> keys;
+  if (list_object_reader.begin() == list_object_reader.end()) {
+    return keys;
+  }
+  for (auto&& object_metadata : list_object_reader) {
+    if (!object_metadata) {
+      LOG(ERROR) << "Blob error when listing blobs:"
+                 << std::move(object_metadata).status().message();
+      continue;
+    }
+
+    // Manually exclude the starting name as the StartOffset option is
+    // inclusive.
+    if (object_metadata->name() == options.start_after) {
+      continue;
+    }
+    keys.push_back(object_metadata->name());
+  }
+  std::sort(keys.begin(), keys.end());
+  return keys;
+}
+
+namespace {
+class GcpBlobStorageClientFactory : public BlobStorageClientFactory {
+ public:
+  ~GcpBlobStorageClientFactory() = default;
+  std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
+      MetricsRecorder& metrics_recorder,
+      BlobStorageClient::ClientOptions /*client_options*/) override {
+    return std::make_unique<GcpBlobStorageClient>(
+        metrics_recorder, std::make_unique<google::cloud::storage::Client>());
+  }
+};
+}  // namespace
+
+std::unique_ptr<BlobStorageClientFactory> BlobStorageClientFactory::Create() {
+  return std::make_unique<GcpBlobStorageClientFactory>();
 }
 }  // namespace kv_server

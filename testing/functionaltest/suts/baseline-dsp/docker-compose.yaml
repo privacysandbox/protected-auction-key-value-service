@@ -21,7 +21,6 @@ services:
     - --port=2000
     - --delta_directory=/srvdata/deltas
     - --realtime_directory=/srvdata/realtime_data
-    - --internal_lookup_deadline_duration=1s
     hostname: kv-server
     networks:
     - kvserver-net
@@ -34,6 +33,8 @@ services:
       target: /srvdata/realtime_data
       tmpfs:
         size: 1MB
+    security_opt:
+      - seccomp:unconfined
   # envoy proxy specific to the K/V server instance
   kv-envoy-proxy:
     image: envoyproxy/envoy:distroless-v1.26-latest

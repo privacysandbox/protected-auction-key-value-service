@@ -15,6 +15,7 @@
  */
 
 resource "google_compute_network" "kv_server" {
+  count                   = (var.use_existing_vpc) ? 0 : 1
   name                    = "${var.service}-${var.environment}-vpc"
   auto_create_subnetworks = false
 }
@@ -23,7 +24,7 @@ resource "google_compute_subnetwork" "kv_server" {
   for_each = { for index, region in tolist(var.regions) : index => region }
 
   name          = "${var.service}-${var.environment}-${each.value}-subnet"
-  network       = google_compute_network.kv_server.id
+  network       = var.use_existing_vpc ? var.existing_vpc_id : google_compute_network.kv_server[0].id
   purpose       = "PRIVATE"
   region        = each.value
   ip_cidr_range = "10.${each.key}.3.0/24"
@@ -33,7 +34,7 @@ resource "google_compute_router" "kv_server" {
   for_each = var.regions
 
   name    = "${var.service}-${var.environment}-${each.value}-router"
-  network = google_compute_network.kv_server.name
+  network = var.use_existing_vpc ? var.existing_vpc_id : google_compute_network.kv_server[0].id
   region  = each.value
 }
 

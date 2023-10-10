@@ -54,11 +54,12 @@ void WriteKeyValueRecords(std::string_view key, int value_size,
   std::string query(" ");
   for (int i = 0; i < repetition; ++i) {
     const std::string value(value_size, 'A' + (i % 50));
+    const std::string actual_key = absl::StrCat(key, i);
     auto kv_record = KeyValueMutationRecordStruct{
-        KeyValueMutationType::Update, timestamp++, absl::StrCat(key, i), value};
+        KeyValueMutationType::Update, timestamp++, actual_key, value};
     writer.WriteRecord(ToStringView(
         ToFlatBufferBuilder(DataRecordStruct{.record = std::move(kv_record)})));
-    absl::StrAppend(&query, "\"", absl::StrCat(key, i), "\"", ", ");
+    absl::StrAppend(&query, "\"", actual_key, "\"", ", ");
   }
   LOG(INFO) << "Print keys to query " << query;
   LOG(INFO) << "write done";
@@ -96,6 +97,7 @@ void WriteKeyValueSetRecords(std::string_view key, int value_size,
 
 int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
+  google::InitGoogleLogging(argv[0]);
   const std::string output_dir = absl::GetFlag(FLAGS_output_dir);
 
   auto write_records = [](std::ostream* os) {

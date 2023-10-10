@@ -55,14 +55,20 @@ cc_library(
         "//:gcp_platform": ["blob_storage_client_gcp.cc"],
         "//:local_platform": ["blob_storage_client_local.cc"],
     }),
-    hdrs = [
-        "blob_storage_client.h",
-    ],
+    hdrs = select({
+        "//:aws_platform": ["blob_storage_client_s3.h"],
+        "//:gcp_platform": ["blob_storage_client_gcp.h"],
+        "//:local_platform": ["blob_storage_client_local.h"],
+    }) + ["blob_storage_client.h"],
     deps = select({
         "//:aws_platform": [
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:s3",
             "@aws_sdk_cpp//:transfer",
+        ],
+        "//:gcp_platform": [
+            "//components/errors:gcp_error_util",
+            "@com_github_googleapis_google_cloud_cpp//:storage",
         ],
         "//conditions:default": [],
     }) + [
@@ -89,6 +95,11 @@ cc_test(
             "@aws_sdk_cpp//:s3",
             "@aws_sdk_cpp//:transfer",
         ],
+        "//:gcp_platform": [
+            "//components/util:platform_initializer",
+            "@com_github_googleapis_google_cloud_cpp//:storage",
+            "@com_github_googleapis_google_cloud_cpp//google/cloud/storage:storage_client_testing",
+        ],
         "//conditions:default": [],
     }) + [
         ":blob_storage_client",
@@ -114,7 +125,12 @@ cc_library(
     hdrs = [
         "blob_storage_change_notifier.h",
     ],
-    deps = [
+    deps = select({
+        "//:gcp_platform": [
+            "//components/util:sleepfor",
+        ],
+        "//conditions:default": [],
+    }) + [
         "//components/data/common:change_notifier",
         "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/status",

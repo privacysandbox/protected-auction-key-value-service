@@ -43,7 +43,6 @@ using kv_server::MockBlobReader;
 using kv_server::MockBlobStorageChangeNotifier;
 using kv_server::MockBlobStorageClient;
 using kv_server::MockDeltaFileNotifier;
-using kv_server::MockDeltaFileRecordChangeNotifier;
 using kv_server::MockRealtimeNotifier;
 using kv_server::MockStreamRecordReader;
 using kv_server::MockStreamRecordReaderFactory;

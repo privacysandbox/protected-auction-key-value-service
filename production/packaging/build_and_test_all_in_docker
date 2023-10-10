@@ -112,12 +112,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-EXTRA_ARGS_TEMP="${BAZEL_EXTRA_ARGS} --//:instance=${INSTANCE} --//:platform=${PLATFORM} --@control_plane_shared//cc/public/cpio/interface:platform=${PLATFORM}"
-if [[ ${PLATFORM} == local ]]; then
-  EXTRA_ARGS_TEMP="${BAZEL_EXTRA_ARGS} --//:instance=${INSTANCE} --//:platform=${PLATFORM}"
-fi
-BAZEL_EXTRA_ARGS="${EXTRA_ARGS_TEMP}"
-
+BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --config=${INSTANCE}_instance --config=${PLATFORM}_platform"
 
 if [[ ${VERBOSE} -eq 1 ]]; then
   set -o xtrace

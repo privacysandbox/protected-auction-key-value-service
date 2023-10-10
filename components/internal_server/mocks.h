@@ -22,23 +22,31 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
-#include "components/internal_server/lookup.grpc.pb.h"
-#include "components/internal_server/lookup_client.h"
-#include "components/internal_server/run_query_client.h"
+#include "components/internal_server/lookup.h"
+#include "components/internal_server/lookup.pb.h"
+#include "components/internal_server/remote_lookup_client.h"
 #include "gmock/gmock.h"
 
 namespace kv_server {
 
-class MockLookupClient : public LookupClient {
+class MockRemoteLookupClient : public RemoteLookupClient {
  public:
-  MOCK_METHOD((absl::StatusOr<InternalLookupResponse>), GetValues,
-              (const std::vector<std::string>&), (const, override));
+  MockRemoteLookupClient() : RemoteLookupClient() {}
+  MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetValues,
+              (std::string_view serialized_message, int32_t padding_length),
+              (const, override));
+  MOCK_METHOD(std::string_view, GetIpAddress, (), (const, override));
 };
 
-class MockRunQueryClient : public RunQueryClient {
+class MockLookup : public Lookup {
  public:
-  MOCK_METHOD((absl::StatusOr<InternalRunQueryResponse>), RunQuery,
-              (std::string), (const, override));
+  MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetKeyValues,
+              (const std::vector<std::string_view>&), (const, override));
+  MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetKeyValueSet,
+              (const absl::flat_hash_set<std::string_view>&),
+              (const, override));
+  MOCK_METHOD(absl::StatusOr<InternalRunQueryResponse>, RunQuery,
+              (std::string query), (const, override));
 };
 
 }  // namespace kv_server

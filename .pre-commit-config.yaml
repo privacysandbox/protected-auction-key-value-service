@@ -48,8 +48,9 @@ repos:
   - id: script-must-not-have-extension
   - id: script-must-have-extension
   - id: require-ascii
+    exclude: ^(CHANGELOG|.*RELEASE)\.md$
   - id: shellcheck
-    exclude: '^(google_internal|builders/images)/.*$'
+    exclude: ^(google_internal|builders/images)/.*$
 
 - repo: https://github.com/bufbuild/buf
   rev: v1.26.1

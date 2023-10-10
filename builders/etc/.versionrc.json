@@ -1,28 +1,27 @@
 {
-  "types": [
-    {"type": "feat", "section": "Features"},
-    {"type": "feat", "section": "Dependencies", "scope": "deps"},
-    {"type": "fix", "section": "Bug Fixes"},
-    {"type": "build", "section": "Build System"},
-    {"type": "docs", "section": "Documentation"},
-    {"type": "internal", "hidden": true},
-    {"type": "chore", "hidden": true},
-    {"type": "test", "hidden": true},
-    {"type": "refactor", "hidden": true}
+  "bumpFiles": [
+    {
+      "filename": "version.txt",
+      "type": "plain-text"
+    }
   ],
   "commitUrlFormat": " ",
   "issueUrlFormat": " ",
-  "tagPrefix": "release-",
   "packageFiles": [
     {
       "filename": "version.txt",
       "type": "plain-text"
     }
   ],
-  "bumpFiles": [
-    {
-      "filename": "version.txt",
-      "type": "plain-text"
-    }
+  "tagPrefix": "release-",
+  "types": [
+    { "type": "feat", "scope": "deps", "section": "Dependencies" },
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "internal", "hidden": true },
+    { "type": "chore", "hidden": true },
+    { "type": "test", "hidden": true },
+    { "type": "refactor", "hidden": true }
   ]
 }

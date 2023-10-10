@@ -25,7 +25,6 @@
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
-#include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/data/realtime/realtime_notifier.h"
 #include "components/data/realtime/realtime_thread_pool_manager.h"
 #include "components/data_server/cache/cache.h"

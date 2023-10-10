@@ -128,6 +128,13 @@ readonly TOOLS_DIR
 # shellcheck disable=SC1090
 source "${TOOLS_DIR}"/builder.sh
 
+trap _cleanup EXIT
+function _cleanup() {
+  local -r -i status=$?
+  "${TOOLS_DIR}"/normalize-bazel-symlinks
+  exit ${status}
+}
+
 WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
 readonly WORKSPACE_MOUNT
 export WORKSPACE_MOUNT

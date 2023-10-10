@@ -17,6 +17,7 @@
 #ifndef COMPONENTS_DATA_SERVER_SERVER_PARAMETER_FETCHER_H_
 #define COMPONENTS_DATA_SERVER_SERVER_PARAMETER_FETCHER_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -25,6 +26,7 @@
 #include "absl/status/statusor.h"
 #include "components/cloud_config/parameter_client.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
+#include "components/data/blob_storage/blob_storage_client.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
@@ -49,7 +51,10 @@ class ParameterFetcher {
 
   virtual NotifierMetadata GetBlobStorageNotifierMetadata() const;
 
-  virtual NotifierMetadata GetRealtimeNotifierMetadata() const;
+  virtual BlobStorageClient::ClientOptions GetBlobStorageClientOptions() const;
+
+  virtual NotifierMetadata GetRealtimeNotifierMetadata(int32_t num_shards,
+                                                       int32_t shard_num) const;
 
  private:
   std::string GetParamName(std::string_view parameter_suffix) const;

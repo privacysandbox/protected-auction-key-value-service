@@ -30,10 +30,9 @@
 #include "components/data_server/server/key_value_service_v2_impl.h"
 #include "components/errors/retry.h"
 #include "components/internal_server/constants.h"
-#include "components/internal_server/lookup_client.h"
+#include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup_server_impl.h"
-#include "components/internal_server/run_query_client.h"
-#include "components/internal_server/sharded_lookup_server_impl.h"
+#include "components/internal_server/sharded_lookup.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/telemetry/kv_telemetry.h"
 #include "components/udf/hooks/get_values_hook.h"
@@ -53,8 +52,6 @@
 
 ABSL_FLAG(uint16_t, port, 50051,
           "Port the server is listening on. Defaults to 50051.");
-ABSL_FLAG(std::string, internal_server_address, "0.0.0.0:50099",
-          "Internal server address. Defaults to 0.0.0.0:50099.");
 
 namespace kv_server {
 namespace {
@@ -81,10 +78,6 @@ constexpr absl::string_view kRealtimeUpdaterThreadNumberParameterSuffix =
     "realtime-updater-num-threads";
 constexpr absl::string_view kDataLoadingNumThreadsParameterSuffix =
     "data-loading-num-threads";
-constexpr absl::string_view kS3ClientMaxConnectionsParameterSuffix =
-    "s3client-max-connections";
-constexpr absl::string_view kS3ClientMaxRangeBytesParameterSuffix =
-    "s3client-max-range-bytes";
 constexpr absl::string_view kNumShardsParameterSuffix = "num-shards";
 constexpr absl::string_view kUdfNumWorkersParameterSuffix = "udf-num-workers";
 constexpr absl::string_view kRouteV1ToV2Suffix = "route-v1-to-v2";
@@ -150,17 +143,11 @@ absl::optional<std::string> GetMetricsCollectorEndPoint(
 Server::Server()
     : metrics_recorder_(
           TelemetryProvider::GetInstance().CreateMetricsRecorder()),
-      string_get_values_hook_(GetValuesHook::Create(
-          absl::bind_front(LookupClient::Create,
-                           absl::GetFlag(FLAGS_internal_server_address)),
-          GetValuesHook::OutputType::kString)),
-      binary_get_values_hook_(GetValuesHook::Create(
-          absl::bind_front(LookupClient::Create,
-                           absl::GetFlag(FLAGS_internal_server_address)),
-          GetValuesHook::OutputType::kBinary)),
-      run_query_hook_(RunQueryHook::Create(
-          absl::bind_front(RunQueryClient::Create,
-                           absl::GetFlag(FLAGS_internal_server_address)))) {}
+      string_get_values_hook_(
+          GetValuesHook::Create(GetValuesHook::OutputType::kString)),
+      binary_get_values_hook_(
+          GetValuesHook::Create(GetValuesHook::OutputType::kBinary)),
+      run_query_hook_(RunQueryHook::Create()) {}
 
 // Because the cache relies on metrics_recorder_, this function needs to be
 // called right after telemetry has been initialized but before anything that
@@ -285,6 +272,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     return absl::InvalidArgumentError(error);
   }
   LOG(INFO) << "Retrieved shard num: " << shard_num_;
+  metrics_recorder_->SetCommonLabel("shard_number", std::to_string(shard_num_));
   num_shards_ = parameter_fetcher.GetInt32Parameter(kNumShardsParameterSuffix);
   LOG(INFO) << "Retrieved " << kNumShardsParameterSuffix
             << " parameter: " << num_shards_;
@@ -293,9 +281,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   delta_stream_reader_factory_ =
       CreateStreamRecordReaderFactory(parameter_fetcher);
   notifier_ = CreateDeltaFileNotifier(parameter_fetcher);
-
-  key_fetcher_manager_ = CreateKeyFetcherManager(parameter_fetcher);
-
+  auto factory = KeyFetcherFactory::Create();
+  key_fetcher_manager_ = factory->CreateKeyFetcherManager(parameter_fetcher);
   CreateGrpcServices(parameter_fetcher);
   auto metadata = parameter_fetcher.GetBlobStorageNotifierMetadata();
   auto message_service_status = MessageService::Create(metadata);
@@ -306,7 +293,11 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   SetQueueManager(metadata, message_service_blob_.get());
 
   grpc_server_ = CreateAndStartGrpcServer();
-  remote_lookup_server_ = CreateAndStartRemoteLookupServer();
+  local_lookup_ = CreateLocalLookup(*cache_, *metrics_recorder_);
+  auto server_initializer = GetServerInitializer(
+      num_shards_, *metrics_recorder_, *key_fetcher_manager_, *local_lookup_,
+      environment_, shard_num_, *instance_client_, *cache_);
+  remote_lookup_ = server_initializer->CreateAndStartRemoteLookupServer();
   {
     auto status_or_notifier = BlobStorageChangeNotifier::Create(
         std::move(metadata), *metrics_recorder_);
@@ -318,10 +309,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     change_notifier_ = std::move(*status_or_notifier);
   }
   auto realtime_notifier_metadata =
-      parameter_fetcher.GetRealtimeNotifierMetadata();
-  auto realtime_message_service_status = MessageService::Create(
-      realtime_notifier_metadata,
-      (num_shards_ > 1 ? std::optional<int32_t>(shard_num_) : std::nullopt));
+      parameter_fetcher.GetRealtimeNotifierMetadata(num_shards_, shard_num_);
+  auto realtime_message_service_status =
+      MessageService::Create(realtime_notifier_metadata);
   if (!realtime_message_service_status.ok()) {
     return realtime_message_service_status.status();
   }
@@ -348,12 +338,12 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     // other instances can pull it in for their mapping.
     lifecycle_heartbeat->Finish();
   }
-  absl::StatusOr<std::unique_ptr<grpc::Server>> lookup_server_or =
-      CreateAndStartInternalLookupServer();
-  if (!lookup_server_or.ok()) {
-    return lookup_server_or.status();
+  auto maybe_shard_state = server_initializer->InitializeUdfHooks(
+      *string_get_values_hook_, *binary_get_values_hook_, *run_query_hook_);
+  if (!maybe_shard_state.ok()) {
+    return maybe_shard_state.status();
   }
-  internal_lookup_server_ = std::move(*lookup_server_or);
+  shard_manager_state_ = *std::move(maybe_shard_state);
   return absl::OkStatus();
 }
 
@@ -379,8 +369,8 @@ void Server::GracefulShutdown(absl::Duration timeout) {
   if (internal_lookup_server_) {
     internal_lookup_server_->Shutdown();
   }
-  if (remote_lookup_server_) {
-    remote_lookup_server_->Shutdown();
+  if (remote_lookup_.remote_lookup_server) {
+    remote_lookup_.remote_lookup_server->Shutdown();
   }
   if (grpc_server_) {
     grpc_server_->Shutdown(absl::ToChronoTime(absl::Now() + timeout));
@@ -393,8 +383,10 @@ void Server::GracefulShutdown(absl::Duration timeout) {
       LOG(ERROR) << "Failed to stop UDF client: " << status;
     }
   }
-  if (cluster_mappings_manager_ && cluster_mappings_manager_->IsRunning()) {
-    const absl::Status status = cluster_mappings_manager_->Stop();
+  if (shard_manager_state_.cluster_mappings_manager &&
+      shard_manager_state_.cluster_mappings_manager->IsRunning()) {
+    const absl::Status status =
+        shard_manager_state_.cluster_mappings_manager->Stop();
     if (!status.ok()) {
       LOG(ERROR) << "Failed to stop cluster mappings manager: " << status;
     }
@@ -410,8 +402,8 @@ void Server::ForceShutdown() {
   if (internal_lookup_server_) {
     internal_lookup_server_->Shutdown();
   }
-  if (remote_lookup_server_) {
-    remote_lookup_server_->Shutdown();
+  if (remote_lookup_.remote_lookup_server) {
+    remote_lookup_.remote_lookup_server->Shutdown();
   }
   if (grpc_server_) {
     grpc_server_->Shutdown();
@@ -428,8 +420,10 @@ void Server::ForceShutdown() {
       LOG(ERROR) << "Failed to stop UDF client: " << status;
     }
   }
-  if (cluster_mappings_manager_ && cluster_mappings_manager_->IsRunning()) {
-    const absl::Status status = cluster_mappings_manager_->Stop();
+  if (shard_manager_state_.cluster_mappings_manager &&
+      shard_manager_state_.cluster_mappings_manager->IsRunning()) {
+    const absl::Status status =
+        shard_manager_state_.cluster_mappings_manager->Stop();
     if (!status.ok()) {
       LOG(ERROR) << "Failed to stop cluster mappings manager: " << status;
     }
@@ -438,18 +432,12 @@ void Server::ForceShutdown() {
 
 std::unique_ptr<BlobStorageClient> Server::CreateBlobClient(
     const ParameterFetcher& parameter_fetcher) {
-  const int32_t s3client_max_connections = parameter_fetcher.GetInt32Parameter(
-      kS3ClientMaxConnectionsParameterSuffix);
-  LOG(INFO) << "Retrieved " << kS3ClientMaxConnectionsParameterSuffix
-            << " parameter: " << s3client_max_connections;
-  const int32_t s3client_max_range_bytes = parameter_fetcher.GetInt32Parameter(
-      kS3ClientMaxRangeBytesParameterSuffix);
-  LOG(INFO) << "Retrieved " << kS3ClientMaxRangeBytesParameterSuffix
-            << " parameter: " << s3client_max_range_bytes;
-  BlobStorageClient::ClientOptions options;
-  options.max_connections = s3client_max_connections;
-  options.max_range_bytes = s3client_max_range_bytes;
-  return BlobStorageClient::Create(*metrics_recorder_, options);
+  BlobStorageClient::ClientOptions client_options =
+      parameter_fetcher.GetBlobStorageClientOptions();
+  std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
+      BlobStorageClientFactory::Create();
+  return blob_storage_client_factory->CreateBlobStorageClient(
+      *metrics_recorder_, std::move(client_options));
 }
 
 std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
@@ -522,70 +510,6 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
   // Finally assemble the server.
   LOG(INFO) << "Server listening on " << server_address << std::endl;
   return builder.BuildAndStart();
-}
-
-absl::Status Server::CreateShardManager() {
-  cluster_mappings_manager_ = std::make_unique<ClusterMappingsManager>(
-      environment_, num_shards_, *metrics_recorder_, *instance_client_);
-  shard_manager_ = TraceRetryUntilOk(
-      [&cluster_mappings_manager = *cluster_mappings_manager_,
-       &num_shards = num_shards_, &key_fetcher_manager = *key_fetcher_manager_,
-       &metrics_recorder = *metrics_recorder_] {
-        // It might be that the cluster mappings that are passed don't pass
-        // validation. E.g. a particular cluster might not have any replicas
-        // specified. In that case, we need to retry the creation. After an
-        // exponential backoff, that will trigger`GetClusterMappings` which
-        // at that point in time might have new replicas spun up.
-        return ShardManager::Create(
-            num_shards, key_fetcher_manager,
-            cluster_mappings_manager.GetClusterMappings(), metrics_recorder);
-      },
-      "GetShardManager", metrics_recorder_.get());
-  return cluster_mappings_manager_->Start(*shard_manager_);
-}
-
-absl::StatusOr<std::unique_ptr<grpc::Server>>
-Server::CreateAndStartInternalLookupServer() {
-  if (num_shards_ <= 1) {
-    internal_lookup_service_ = std::make_unique<LookupServiceImpl>(
-        *cache_, *key_fetcher_manager_, *metrics_recorder_);
-  } else {
-    if (const absl::Status status = CreateShardManager(); !status.ok()) {
-      return status;
-    }
-    internal_lookup_service_ = std::make_unique<ShardedLookupServiceImpl>(
-        *metrics_recorder_, *cache_, num_shards_, shard_num_, *shard_manager_);
-  }
-
-  grpc::ServerBuilder internal_lookup_server_builder;
-  const std::string internal_server_address =
-      absl::GetFlag(FLAGS_internal_server_address);
-  internal_lookup_server_builder.AddListeningPort(
-      internal_server_address, grpc::InsecureServerCredentials());
-  internal_lookup_server_builder.RegisterService(
-      internal_lookup_service_.get());
-
-  LOG(INFO) << "Internal lookup server listening on " << internal_server_address
-            << std::endl;
-  return internal_lookup_server_builder.BuildAndStart();
-}
-
-std::unique_ptr<grpc::Server> Server::CreateAndStartRemoteLookupServer() {
-  if (num_shards_ <= 1) {
-    return nullptr;
-  }
-
-  remote_lookup_service_ = std::make_unique<LookupServiceImpl>(
-      *cache_, *key_fetcher_manager_, *metrics_recorder_);
-  grpc::ServerBuilder remote_lookup_server_builder;
-  auto remoteLookupServerAddress =
-      absl::StrCat(kLocalIp, ":", kRemoteLookupServerPort);
-  remote_lookup_server_builder.AddListeningPort(
-      remoteLookupServerAddress, grpc::InsecureServerCredentials());
-  remote_lookup_server_builder.RegisterService(remote_lookup_service_.get());
-  LOG(INFO) << "Remote lookup server listening on " << remoteLookupServerAddress
-            << std::endl;
-  return remote_lookup_server_builder.BuildAndStart();
 }
 
 void Server::SetDefaultUdfCodeObject() {

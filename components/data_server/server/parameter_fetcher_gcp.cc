@@ -23,15 +23,21 @@
 
 namespace kv_server {
 constexpr std::string_view kEnvironment = "environment";
-constexpr std::string_view kProjectId = "project_id";
+constexpr std::string_view kProjectId = "project-id";
 constexpr std::string_view kRealtimeUpdaterThreadNumberParameterSuffix =
     "realtime-updater-num-threads";
 NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
-  // TODO: set to proper values. Waiting on the GCP BlobStorage implementation.
+  // TODO: set to proper values. Waiting on the change notifier implementation.
   return GcpNotifierMetadata{};
 }
 
-NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata() const {
+BlobStorageClient::ClientOptions ParameterFetcher::GetBlobStorageClientOptions()
+    const {
+  return BlobStorageClient::ClientOptions();
+}
+
+NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
+    int32_t num_shards, int32_t shard_num) const {
   std::string environment = GetParameter(kEnvironment);
   LOG(INFO) << "Retrieved " << kEnvironment << " parameter: " << environment;
   auto realtime_thread_numbers =
@@ -47,6 +53,8 @@ NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata() const {
       .project_id = project_id,
       .topic_id = topic_id,
       .num_threads = realtime_thread_numbers,
+      .num_shards = num_shards,
+      .shard_num = shard_num,
   };
 }
 

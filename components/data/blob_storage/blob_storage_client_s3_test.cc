@@ -14,11 +14,14 @@
  * limitations under the License.
  */
 
+#include "components/data/blob_storage/blob_storage_client_s3.h"
+
 #include <algorithm>
 #include <string>
 #include <utility>
 
 #include "absl/flags/flag.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "aws/core/Aws.h"
 #include "aws/s3/S3Client.h"
@@ -34,6 +37,8 @@ namespace kv_server {
 namespace {
 
 using privacy_sandbox::server_common::MockMetricsRecorder;
+
+constexpr int64_t kMaxRangeBytes = 1024 * 1024 * 8;
 
 class MockS3Client : public ::Aws::S3::S3Client {
  public:
@@ -53,37 +58,31 @@ class BlobStorageClientS3Test : public ::testing::Test {
 };
 
 TEST_F(BlobStorageClientS3Test, DeleteBlobSucceeds) {
-  auto mock_s3_client = std::make_unique<MockS3Client>();
-  Aws::S3::Model::DeleteObjectResult result;  // An empty result means success.
+  auto mock_s3_client = std::make_shared<MockS3Client>();
+  Aws::S3::Model::DeleteObjectResult result;  // An empty result means success
   EXPECT_CALL(*mock_s3_client, DeleteObject(::testing::_))
       .WillOnce(::testing::Return(result));
 
-  BlobStorageClient::ClientOptions options;
-  options.s3_client_for_unit_testing_ = mock_s3_client.release();
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder_, options);
-  ASSERT_TRUE(client != nullptr);
-
+      std::make_unique<S3BlobStorageClient>(metrics_recorder_, mock_s3_client,
+                                            kMaxRangeBytes);
   BlobStorageClient::DataLocation location;
   EXPECT_TRUE(client->DeleteBlob(location).ok());
 }
 
 TEST_F(BlobStorageClientS3Test, DeleteBlobFails) {
   // By default an error is returned for calls to DeleteBlob().
-  auto mock_s3_client = std::make_unique<MockS3Client>();
+  auto mock_s3_client = std::make_shared<MockS3Client>();
 
-  BlobStorageClient::ClientOptions options;
-  options.s3_client_for_unit_testing_ = mock_s3_client.release();
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder_, options);
-  ASSERT_TRUE(client != nullptr);
-
+      std::make_unique<S3BlobStorageClient>(metrics_recorder_, mock_s3_client,
+                                            kMaxRangeBytes);
   BlobStorageClient::DataLocation location;
   EXPECT_EQ(absl::StatusCode::kUnknown, client->DeleteBlob(location).code());
 }
 
 TEST_F(BlobStorageClientS3Test, ListBlobsSucceeds) {
-  auto mock_s3_client = std::make_unique<MockS3Client>();
+  auto mock_s3_client = std::make_shared<MockS3Client>();
   {
     Aws::S3::Model::ListObjectsV2Result
         result;  // An empty result means success.
@@ -95,12 +94,9 @@ TEST_F(BlobStorageClientS3Test, ListBlobsSucceeds) {
         .WillOnce(::testing::Return(result));
   }
 
-  BlobStorageClient::ClientOptions options;
-  options.s3_client_for_unit_testing_ = mock_s3_client.release();
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder_, options);
-  ASSERT_TRUE(client != nullptr);
-
+      std::make_unique<S3BlobStorageClient>(metrics_recorder_, mock_s3_client,
+                                            kMaxRangeBytes);
   BlobStorageClient::DataLocation location;
   BlobStorageClient::ListOptions list_options;
   absl::StatusOr<std::vector<std::string>> response =
@@ -110,9 +106,9 @@ TEST_F(BlobStorageClientS3Test, ListBlobsSucceeds) {
 }
 
 TEST_F(BlobStorageClientS3Test, ListBlobsSucceedsWithContinuedRequests) {
-  auto mock_s3_client = std::make_unique<MockS3Client>();
-  // Set up two expected requests.  The first one is marked as truncated so that
-  // the second one will happen.
+  auto mock_s3_client = std::make_shared<MockS3Client>();
+  // Set up two expected requests.  The first one is marked as truncated so
+  // that the second one will happen.
   ::testing::InSequence in_sequence;
   {
     Aws::S3::Model::ListObjectsV2Result
@@ -136,12 +132,9 @@ TEST_F(BlobStorageClientS3Test, ListBlobsSucceedsWithContinuedRequests) {
         .WillOnce(::testing::Return(result));
   }
 
-  BlobStorageClient::ClientOptions options;
-  options.s3_client_for_unit_testing_ = mock_s3_client.release();
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder_, options);
-  ASSERT_TRUE(client != nullptr);
-
+      std::make_unique<S3BlobStorageClient>(metrics_recorder_, mock_s3_client,
+                                            kMaxRangeBytes);
   BlobStorageClient::DataLocation location;
   BlobStorageClient::ListOptions list_options;
   absl::StatusOr<std::vector<std::string>> response =
@@ -153,14 +146,11 @@ TEST_F(BlobStorageClientS3Test, ListBlobsSucceedsWithContinuedRequests) {
 
 TEST_F(BlobStorageClientS3Test, ListBlobsFails) {
   // By default an error is returned for calls to ListObjectsV2().
-  auto mock_s3_client = std::make_unique<MockS3Client>();
+  auto mock_s3_client = std::make_shared<MockS3Client>();
 
-  BlobStorageClient::ClientOptions options;
-  options.s3_client_for_unit_testing_ = mock_s3_client.release();
   std::unique_ptr<BlobStorageClient> client =
-      BlobStorageClient::Create(metrics_recorder_, options);
-  ASSERT_TRUE(client != nullptr);
-
+      std::make_unique<S3BlobStorageClient>(metrics_recorder_, mock_s3_client,
+                                            kMaxRangeBytes);
   BlobStorageClient::DataLocation location;
   BlobStorageClient::ListOptions list_options;
   EXPECT_EQ(absl::StatusCode::kUnknown,

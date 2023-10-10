@@ -44,7 +44,7 @@ namespace {
 void PrefillMessageQueue(MessageQueue& queue, int num_of_messages,
                          std::string_view key) {
   for (int i = 0; i < num_of_messages; ++i) {
-    queue.Push(kv_server::CreateKVDSPRequestBodyInJson({std::string(key)}));
+    queue.Push(std::string(key));
   }
 }
 
@@ -84,9 +84,7 @@ TEST_F(ClientWorkerTest, SingleClientWorkerTest) {
 
   MessageQueue message_queue(10000);
   int num_of_messages_prefill = 1500;
-  for (int i = 0; i < num_of_messages_prefill; ++i) {
-    message_queue.Push(kv_server::CreateKVDSPRequestBodyInJson({key}));
-  }
+  PrefillMessageQueue(message_queue, num_of_messages_prefill, key);
 
   int requests_per_second = 1000;
   EXPECT_CALL(*sleep_for_, Duration(_)).WillRepeatedly(Return(true));
@@ -94,9 +92,18 @@ TEST_F(ClientWorkerTest, SingleClientWorkerTest) {
                            std::move(sleep_for_), absl::Seconds(0));
   EXPECT_CALL(*sleep_for_metrics_collector_, Duration(_))
       .WillRepeatedly(Return(true));
+  EXPECT_CALL(metrics_recorder_, RegisterHistogram(_, _, _, _)).Times(5);
   std::unique_ptr<MockMetricsCollector> metrics_collector =
       std::make_unique<MockMetricsCollector>(
           metrics_recorder_, std::move(sleep_for_metrics_collector_));
+  EXPECT_CALL(*metrics_collector, IncrementServerResponseStatusEvent(_))
+      .Times(requests_per_second);
+  EXPECT_CALL(*metrics_collector, IncrementRequestSentPerInterval())
+      .Times(requests_per_second);
+  EXPECT_CALL(*metrics_collector, IncrementRequestsWithOkResponsePerInterval())
+      .Times(requests_per_second);
+  EXPECT_CALL(*metrics_collector, AddLatencyToHistogram(_))
+      .Times(requests_per_second);
   auto worker =
       std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
           0, server_->InProcessChannel(grpc::ChannelArguments()), method,
@@ -129,9 +136,18 @@ TEST_F(ClientWorkerTest, MultipleClientWorkersTest) {
                            std::move(sleep_for_), absl::Seconds(0));
   EXPECT_CALL(*sleep_for_metrics_collector_, Duration(_))
       .WillRepeatedly(Return(true));
+  EXPECT_CALL(metrics_recorder_, RegisterHistogram(_, _, _, _)).Times(5);
   std::unique_ptr<MockMetricsCollector> metrics_collector =
       std::make_unique<MockMetricsCollector>(
           metrics_recorder_, std::move(sleep_for_metrics_collector_));
+  EXPECT_CALL(*metrics_collector, IncrementServerResponseStatusEvent(_))
+      .Times(requests_per_second);
+  EXPECT_CALL(*metrics_collector, IncrementRequestSentPerInterval())
+      .Times(requests_per_second);
+  EXPECT_CALL(*metrics_collector, IncrementRequestsWithOkResponsePerInterval())
+      .Times(requests_per_second);
+  EXPECT_CALL(*metrics_collector, AddLatencyToHistogram(_))
+      .Times(requests_per_second);
   sim_clock_.AdvanceTime(absl::Seconds(1));
   int num_of_workers =
       std::min(50, (int)std::thread::hardware_concurrency() - 1);

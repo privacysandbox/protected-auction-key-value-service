@@ -33,11 +33,19 @@
 #include "absl/strings/str_join.h"
 #include "components/query/driver.h"
 #include "components/query/scanner.h"
+#include "components/tools/query_dot.h"
 
 ABSL_FLAG(std::string, query, "",
           "If provided outputs the result to stdout.  Does not enter "
           "interactive mode. Interactive mode supplies user with repeated "
           "query prompts.");
+
+ABSL_FLAG(
+    std::optional<std::string>, dot_path, std::nullopt,
+    "When set will output the graphviz/dot representation of "
+    "query's abstract syntax tree."
+    "Output is written to the provided, which can then be visualized.  See "
+    "https://graphviz.org/ for details.");
 
 absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> kDb = {
     {"A", {"a", "b", "c"}},
@@ -47,13 +55,6 @@ absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> kDb = {
 };
 
 absl::flat_hash_set<std::string_view> kEmptySet;
-
-template <typename T>
-std::string ToString(const T& set) {
-  std::vector<std::string_view> sorted_set(set.begin(), set.end());
-  std::sort(sorted_set.begin(), sorted_set.end());
-  return absl::StrCat("[", absl::StrJoin(sorted_set, ","), "]");
-}
 
 std::string ToString(
     const absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>&
@@ -69,7 +70,8 @@ std::string ToString(
   for (const auto& key : keys) {
     const auto& it = db.find(key);
     if (it != db.end()) {
-      absl::StrAppend(&result, "\t{", key, ", ", ToString(it->second), "},\n");
+      absl::StrAppend(&result, "\t{", key, ", ",
+                      kv_server::query_toy::ToString(it->second), "},\n");
     }
   }
   absl::StrAppend(&result, "}");
@@ -111,15 +113,21 @@ void ProcessQuery(kv_server::Driver& driver, std::string query) {
     std::cout << result.status() << std::endl;
     return;
   }
-  std::cout << ToString(result.value()) << std::endl;
+  std::cout << kv_server::query_toy::ToString(result.value()) << std::endl;
 }
 
-void PromptForQuery(kv_server::Driver& driver) {
+void PromptForQuery(
+    kv_server::Driver& driver,
+    std::optional<kv_server::query_toy::QueryDotWriter>& dot_writer) {
   while (true) {
     std::cout << ">> ";
     std::string query;
     std::getline(std::cin, query);
     ProcessQuery(driver, query);
+    if (dot_writer && driver.GetRootNode()) {
+      dot_writer->WriteAst(query, *driver.GetRootNode());
+      dot_writer->Flush();
+    }
   }
 }
 
@@ -132,8 +140,16 @@ int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
   kv_server::Driver driver(Lookup);
   const std::string query = absl::GetFlag(FLAGS_query);
+  const std::optional<std::string> dot_path = absl::GetFlag(FLAGS_dot_path);
+  std::optional<kv_server::query_toy::QueryDotWriter> dot_writer =
+      dot_path
+          ? std::make_optional<kv_server::query_toy::QueryDotWriter>(*dot_path)
+          : std::nullopt;
   if (!query.empty()) {
     ProcessQuery(driver, query);
+    if (dot_writer && driver.GetRootNode()) {
+      dot_writer->WriteAst(query, *driver.GetRootNode());
+    }
     return 0;
   }
   signal(SIGINT, SignalHandler);
@@ -141,6 +157,6 @@ int main(int argc, char* argv[]) {
   std::cout << "/*" << std::endl << "Sets available to query:" << std::endl;
   std::cout << ToString(kDb) << std::endl;
   std::cout << "*/" << std::endl;
-  PromptForQuery(driver);
+  PromptForQuery(driver, dot_writer);
   return 0;
 }

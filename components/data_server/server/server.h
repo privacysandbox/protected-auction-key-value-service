@@ -26,7 +26,6 @@
 #include "components/cloud_config/parameter_client.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
-#include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/data/realtime/realtime_thread_pool_manager.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
@@ -34,6 +33,8 @@
 #include "components/data_server/request_handler/get_values_adapter.h"
 #include "components/data_server/server/lifecycle_heartbeat.h"
 #include "components/data_server/server/parameter_fetcher.h"
+#include "components/data_server/server/server_initializer.h"
+#include "components/internal_server/lookup.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/sharding/shard_manager.h"
 #include "components/udf/hooks/get_values_hook.h"
@@ -93,8 +94,7 @@ class Server {
   std::unique_ptr<DeltaFileNotifier> CreateDeltaFileNotifier(
       const ParameterFetcher& parameter_fetcher);
 
-  absl::StatusOr<std::unique_ptr<grpc::Server>>
-  CreateAndStartInternalLookupServer();
+  absl::Status InitializeUdfHooks();
   std::unique_ptr<grpc::Server> CreateAndStartRemoteLookupServer();
 
   void SetDefaultUdfCodeObject();
@@ -134,22 +134,19 @@ class Server {
 
   std::unique_ptr<DataOrchestrator> data_orchestrator_;
 
+  // Helper for lookup.proto calls that reads from local cache only
+  std::unique_ptr<Lookup> local_lookup_;
+  // Helper for lookup.proto calls that reads from shards
+  std::unique_ptr<Lookup> sharded_lookup_;
+
   // Internal Lookup Server -- lookup requests to this server originate (from
   // UDF sandbox) and terminate on the same machine.
   std::unique_ptr<grpc::Service> internal_lookup_service_;
   std::unique_ptr<grpc::Server> internal_lookup_server_;
 
-  std::unique_ptr<ShardManager> shard_manager_;
-  // Internal Sharded Lookup Server --
-  // if `num_shards` > 1, then serves requests originating from servers with
-  // a different `shard_num`. Only has data for `shard_num` assigned to the
-  // server at the start up. if `num_shards` == 1, then null, since no remote
-  // lookups are necessray
-  std::unique_ptr<grpc::Service> remote_lookup_service_;
-  std::unique_ptr<grpc::Server> remote_lookup_server_;
-
+  RemoteLookup remote_lookup_;
   std::unique_ptr<UdfClient> udf_client_;
-  std::unique_ptr<ClusterMappingsManager> cluster_mappings_manager_;
+  ShardManagerState shard_manager_state_;
 
   int32_t shard_num_;
   int32_t num_shards_;

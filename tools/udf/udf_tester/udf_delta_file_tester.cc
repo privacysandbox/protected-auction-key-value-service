@@ -19,7 +19,7 @@
 #include "absl/strings/substitute.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
-#include "components/internal_server/cache_lookup_client.h"
+#include "components/internal_server/local_lookup.h"
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/udf/udf_config_builder.h"
@@ -44,17 +44,32 @@ ABSL_FLAG(
 
 namespace kv_server {
 
-using privacy_sandbox::server_common::TelemetryProvider;
-
-absl::Status LoadCacheFromKVMutationRecord(
-    const KeyValueMutationRecordStruct& record, Cache& cache) {
+// If the arg is const&, the Span construction complains about converting const
+// string_view to non-const string_view. Since this tool is for simple testing,
+// the current solution is to pass by value.
+absl::Status LoadCacheFromKVMutationRecord(KeyValueMutationRecordStruct record,
+                                           Cache& cache) {
   switch (record.mutation_type) {
     case KeyValueMutationType::Update: {
-      LOG(INFO) << "Updating cache with key " << record.key << ", value "
-                << std::get<std::string_view>(record.value)
+      LOG(INFO) << "Updating cache with key " << record.key
                 << ", logical commit time " << record.logical_commit_time;
-      cache.UpdateKeyValue(record.key, std::get<std::string_view>(record.value),
-                           record.logical_commit_time);
+      std::visit(
+          [&cache, &record](auto& value) {
+            using VariantT = std::decay_t<decltype(value)>;
+            if constexpr (std::is_same_v<VariantT, std::string_view>) {
+              cache.UpdateKeyValue(record.key, value,
+                                   record.logical_commit_time);
+              return;
+            }
+            constexpr bool is_list =
+                (std::is_same_v<VariantT, std::vector<std::string_view>>);
+            if constexpr (is_list) {
+              cache.UpdateKeyValueSet(record.key, absl::MakeSpan(value),
+                                      record.logical_commit_time);
+              return;
+            }
+          },
+          record.value);
       break;
     }
     case KeyValueMutationType::Delete: {
@@ -162,8 +177,7 @@ absl::Status TestUdf(std::string kv_delta_file_path,
                      std::string udf_delta_file_path, std::string key,
                      std::string subkey, std::string namespace_tag) {
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  auto noop_metrics_recorder = MetricsRecorder::CreateNoop();
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   auto load_cache_status = LoadCacheFromFile(kv_delta_file_path, *cache);
   if (!load_cache_status.ok()) {
@@ -173,22 +187,20 @@ absl::Status TestUdf(std::string kv_delta_file_path,
 
   LOG(INFO) << "Starting UDF client";
   UdfConfigBuilder config_builder;
-  // oh no i need to have two lookup clients i think
-  auto string_lookup_client = CreateCacheLookupClient(*cache);
-  auto string_get_values_hook = GetValuesHook::Create(
-      [string_lookup_client = std::move(string_lookup_client)]() mutable {
-        return std::move(string_lookup_client);
-      },
-      GetValuesHook::OutputType::kString);
-  auto binary_lookup_client = CreateCacheLookupClient(*cache);
-  auto binary_get_values_hook = GetValuesHook::Create(
-      [binary_lookup_client = std::move(binary_lookup_client)]() mutable {
-        return std::move(binary_lookup_client);
-      },
-      GetValuesHook::OutputType::kBinary);
+  auto string_get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  string_get_values_hook->FinishInit(
+      CreateLocalLookup(*cache, *noop_metrics_recorder));
+  auto binary_get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
+  binary_get_values_hook->FinishInit(
+      CreateLocalLookup(*cache, *noop_metrics_recorder));
+  auto run_query_hook = RunQueryHook::Create();
+  run_query_hook->FinishInit(CreateLocalLookup(*cache, *noop_metrics_recorder));
   auto udf_client = UdfClient::Create(
       config_builder.RegisterStringGetValuesHook(*string_get_values_hook)
           .RegisterBinaryGetValuesHook(*binary_get_values_hook)
+          .RegisterRunQueryHook(*run_query_hook)
           .RegisterLoggingHook()
           .SetNumberOfWorkers(1)
           .Config());

@@ -20,9 +20,9 @@
 #include <utility>
 #include <vector>
 
-#include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/cache/mocks.h"
+#include "components/internal_server/mocks.h"
 #include "components/internal_server/string_padder.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -45,7 +45,7 @@ class LookupServiceImplTest : public ::testing::Test {
  protected:
   LookupServiceImplTest() {
     lookup_service_ = std::make_unique<LookupServiceImpl>(
-        mock_cache_, fake_key_fetcher_manager_, mock_metrics_recorder_);
+        mock_lookup_, fake_key_fetcher_manager_, mock_metrics_recorder_);
     grpc::ServerBuilder builder;
     builder.RegisterService(lookup_service_.get());
     server_ = (builder.BuildAndStart());
@@ -58,7 +58,7 @@ class LookupServiceImplTest : public ::testing::Test {
     server_->Shutdown();
     server_->Wait();
   }
-  MockCache mock_cache_;
+  MockLookup mock_lookup_;
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager_;
   std::unique_ptr<LookupServiceImpl> lookup_service_;
@@ -67,19 +67,10 @@ class LookupServiceImplTest : public ::testing::Test {
   MockMetricsRecorder mock_metrics_recorder_;
 };
 
-TEST_F(LookupServiceImplTest, ReturnsKeysFromCache) {
+TEST_F(LookupServiceImplTest, InternalLookup_Success) {
   InternalLookupRequest request;
   request.add_keys("key1");
   request.add_keys("key2");
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_))
-      .WillOnce(Return(absl::flat_hash_map<std::string, std::string>{
-          {"key1", "value1"}, {"key2", "value2"}}));
-
-  InternalLookupResponse response;
-  grpc::ClientContext context;
-
-  grpc::Status status = stub_->InternalLookup(&context, request, &response);
-
   InternalLookupResponse expected;
   TextFormat::ParseFromString(R"pb(kv_pairs {
                                      key: "key1"
@@ -91,50 +82,39 @@ TEST_F(LookupServiceImplTest, ReturnsKeysFromCache) {
                                    }
                               )pb",
                               &expected);
-  EXPECT_THAT(response, EqualsProto(expected));
-}
-
-TEST_F(LookupServiceImplTest, MissingKeyFromCache) {
-  InternalLookupRequest request;
-  request.add_keys("key1");
-  request.add_keys("key2");
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_))
-      .WillOnce(Return(
-          absl::flat_hash_map<std::string, std::string>{{"key1", "value1"}}));
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_)).WillOnce(Return(expected));
 
   InternalLookupResponse response;
   grpc::ClientContext context;
 
   grpc::Status status = stub_->InternalLookup(&context, request, &response);
-
-  InternalLookupResponse expected;
-  TextFormat::ParseFromString(
-      R"pb(kv_pairs {
-             key: "key1"
-             value { value: "value1" }
-           }
-           kv_pairs {
-             key: "key2"
-             value { status: { code: 5, message: "" } }
-           }
-      )pb",
-      &expected);
   EXPECT_THAT(response, EqualsProto(expected));
 }
 
-TEST_F(LookupServiceImplTest, InternalRunQuerySuccess) {
+TEST_F(LookupServiceImplTest,
+       InternalLookup_LookupReturnsStatus_EmptyResponse) {
+  InternalLookupRequest request;
+  request.add_keys("key1");
+  request.add_keys("key2");
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_))
+      .WillOnce(Return(absl::UnknownError("Some error")));
+
+  InternalLookupResponse response;
+  grpc::ClientContext context;
+
+  grpc::Status status = stub_->InternalLookup(&context, request, &response);
+  InternalLookupResponse expected;
+  EXPECT_THAT(response, EqualsProto(expected));
+}
+
+TEST_F(LookupServiceImplTest, InternalRunQuery_Success) {
   InternalRunQueryRequest request;
   request.set_query("someset");
 
-  absl::flat_hash_set<std::string_view> keys;
-  keys.emplace("someset");
-  auto mock_get_key_value_set_result =
-      std::make_unique<MockGetKeyValueSetResult>();
-  EXPECT_CALL(*mock_get_key_value_set_result, GetValueSet(_))
-      .WillOnce(
-          Return(absl::flat_hash_set<std::string_view>{"value1", "value2"}));
-  EXPECT_CALL(mock_cache_, GetKeyValueSet(_))
-      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
+  InternalRunQueryResponse expected;
+  expected.add_elements("value1");
+  expected.add_elements("value2");
+  EXPECT_CALL(mock_lookup_, RunQuery(_)).WillOnce(Return(expected));
   InternalRunQueryResponse response;
   grpc::ClientContext context;
   grpc::Status status = stub_->InternalRunQuery(&context, request, &response);
@@ -143,13 +123,15 @@ TEST_F(LookupServiceImplTest, InternalRunQuerySuccess) {
               testing::UnorderedElementsAreArray({"value1", "value2"}));
 }
 
-TEST_F(LookupServiceImplTest, InternalRunQueryParseFailure) {
+TEST_F(LookupServiceImplTest, InternalRunQuery_LookupError_Failure) {
   InternalRunQueryRequest request;
   request.set_query("fail|||||now");
+  EXPECT_CALL(mock_lookup_, RunQuery(_))
+      .WillOnce(Return(absl::UnknownError("Some error")));
   InternalRunQueryResponse response;
   grpc::ClientContext context;
   grpc::Status status = stub_->InternalRunQuery(&context, request, &response);
-  auto results = response.elements();
+
   EXPECT_EQ(status.error_code(), grpc::StatusCode::INTERNAL);
 }
 

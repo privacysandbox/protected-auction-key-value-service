@@ -1,0 +1,55 @@
+// Copyright 2022 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package kv_server;
+
+import "google/protobuf/struct.proto";
+
+// This file contains types that may be used in either request/response or UDF.
+// This is always the first argument to the UDF and is the only argument that
+// the KV server is not oblivious to. Example use cases are to pass server side
+// flags or parameters.
+message UDFExecutionMetadata {}
+
+// Context useful for logging and debugging requests compatible with the Bidding
+// and Auction service.
+message LogContext {
+  // UUID for the request (as originating from client).
+  string generation_id = 1;
+  string adtech_debug_id = 2;
+}
+
+message ConsentedDebugConfiguration {
+  bool is_consented = 1;
+  string token = 2;
+}
+
+// Represents one argument to UDF. One UDF invocation may have multiple
+// arguments. The actual meaning and number of the arguments are defined by the
+// specific use case of the KV server. i.e., different use cases will have API
+// overlay which will specify the argument spec. UDF authors is responsible of
+// writing the UDF to conform to the use case specific API.
+//
+// If `tags` is not empty, the argument will be passed to the UDF
+// with 2 fields: "tags" and "data". Otherwise, the content of `data` will be
+// directly passed as the argument.
+message SingleUDFArgument {
+  // optional. Metadata about the data.
+  google.protobuf.ListValue tags = 1;
+
+  // required. Data of the input argument.
+  google.protobuf.Value data = 2;
+}

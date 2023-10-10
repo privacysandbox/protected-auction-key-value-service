@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.13.0 (2023-10-10)
+
+
+### Features
+
+* Add bazel config for code coverage
+* Add proto definition for UDF input.
+* Add string set support in udf delta tester.
+* Add support to output graphviz dot file when playing with queries
+* Move server_docker_image.tar to dist/
+* Set bazel version to 6.3.2
+* Set shard id label for metrics
+* Update to latest PublicKeyFetcher
+
+
+### Bug Fixes
+
+* Add seccomp flag to functional tests for local runs
+* Allow changelog file to contain non-ascii chars
+* bump the terraform version to v1.2.3
+* Correct bazel config_setting visibility
+* Fix blob_storage_client_gcp's polling frequency
+* Fix excessive logging of unmock methods which cause flaky test in local
+* Move server_docker_image.tar into dist dir
+
+
+### GCP: Features
+
+* **GCP:** add GCP blob storage client.
+
+
+### Dependencies
+
+* **deps:** Upgrade build-system to 0.45.0
+
+
+### Documentation
+
+* [Realtime updates] Update docs to reflect GCP details
+* Modify some sentences that I found hard to read.
+* Sharding
+* Sharding -- metrics
+
 ## 0.12.0 (2023-09-14)
 
 

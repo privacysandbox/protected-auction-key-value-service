@@ -67,8 +67,8 @@ container_image(
         "@platforms//cpu:x86_64": "amd64",
     }),
     base = select({
-        "@platforms//cpu:arm64": "@runtime-debian-arm64//image",
-        "@platforms//cpu:x86_64": "@runtime-debian-amd64//image",
+        "@platforms//cpu:arm64": "@runtime-debian-debug-root-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-debian-debug-root-amd64//image",
     }),
     entrypoint = ["/init_server_basic"],
     labels = {"tee.launch_policy.log_redirect": "always"},
@@ -94,8 +94,10 @@ genrule(
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/debian
-cp $(execpath :server_artifacts) $(execpath :server_docker_image.tar) dist/debian
-cp $(execpath //public/query:query_api_descriptor_set) dist
+cp $(execpath :server_artifacts) dist/debian
+cp $(execpath :server_docker_image.tar) $(execpath //public/query:query_api_descriptor_set) dist
+# retain previous server_docker_image.tar location as a symlink
+ln -rsf dist/server_docker_image.tar dist/debian/server_docker_image.tar
 builders/tools/normalize-dist
 EOF""",
     executable = True,

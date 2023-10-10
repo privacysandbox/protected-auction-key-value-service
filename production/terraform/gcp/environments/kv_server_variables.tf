@@ -91,11 +91,6 @@ variable "data_bucket_id" {
   description = "Directory to watch for files."
 }
 
-variable "launch_hook" {
-  type        = string
-  description = "Launch hook."
-}
-
 variable "realtime_directory" {
   type        = string
   description = "Local directory to watch for realtime file changes."
@@ -124,16 +119,6 @@ variable "realtime_updater_num_threads" {
 variable "data_loading_num_threads" {
   type        = number
   description = "Number of parallel threads for reading and loading data files."
-}
-
-variable "s3client_max_connections" {
-  type        = number
-  description = "S3Client max connections for reading data files."
-}
-
-variable "s3client_max_range_bytes" {
-  type        = number
-  description = "S3Client max range bytes for reading data files."
 }
 
 variable "num_shards" {
@@ -183,5 +168,50 @@ variable "collector_machine_type" {
 
 variable "dns_zone" {
   description = "Google Cloud DNS zone name"
+  type        = string
+}
+
+variable "primary_key_service_cloud_function_url" {
+  description = "Primary key service cloud function url."
+  type        = string
+}
+
+variable "primary_workload_identity_pool_provider" {
+  description = "Primary workload identity pool provider."
+  type        = string
+}
+
+variable "secondary_key_service_cloud_function_url" {
+  description = "Secondary key service cloud function url."
+  type        = string
+}
+
+variable "secondary_workload_identity_pool_provider" {
+  description = "Secondary workload identity pool provider."
+  type        = string
+}
+
+variable "primary_coordinator_account_identity" {
+  description = "Account identity for the primary coordinator."
+  type        = string
+}
+
+variable "secondary_coordinator_account_identity" {
+  description = "Account identity for the secondary coordinator."
+  type        = string
+}
+
+variable "tee_impersonate_service_accounts" {
+  type        = string
+  description = "Tee can impersonate these service accounts. Necessary for coordinators."
+}
+
+variable "use_existing_vpc" {
+  description = "Whether to use existing vpc network."
+  type        = bool
+}
+
+variable "existing_vpc_id" {
+  description = "Existing vpc id. This would only be used if use_existing_vpc is true."
   type        = string
 }

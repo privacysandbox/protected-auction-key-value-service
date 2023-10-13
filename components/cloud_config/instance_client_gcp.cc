@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(b/296901861): Modify the implementation with GCP specific logic (the
-// current implementation is copied from local).
-
 #include <memory>
 #include <string>
 #include <string_view>
@@ -42,6 +39,10 @@ using google::cmrt::sdk::instance_service::v1::
     GetInstanceDetailsByResourceNameRequest;
 using google::cmrt::sdk::instance_service::v1::
     GetInstanceDetailsByResourceNameResponse;
+using google::cmrt::sdk::instance_service::v1::
+    ListInstanceDetailsByEnvironmentRequest;
+using google::cmrt::sdk::instance_service::v1::
+    ListInstanceDetailsByEnvironmentResponse;
 using ::google::scp::core::ExecutionResult;
 using ::google::scp::core::errors::GetErrorMessage;
 using google::scp::cpio::InstanceClientInterface;
@@ -111,9 +112,53 @@ class GcpInstanceClient : public InstanceClient {
   }
 
   absl::StatusOr<std::vector<InstanceInfo>> DescribeInstanceGroupInstances(
-      const absl::flat_hash_set<std::string>& instance_groups) override {
-    auto id = GetInstanceId();
-    return DescribeInstances({});
+      DescribeInstanceGroupInput& describe_instance_group_input) override {
+    auto input = std::get_if<GcpDescribeInstanceGroupInput>(
+        &describe_instance_group_input);
+    absl::Notification done;
+    std::vector<InstanceInfo> instance_infos{};
+    std::string page_token;
+    CHECK(!environment_.empty())
+        << "Environment must be set for the gcp instance client.";
+    CHECK(input && !input->project_id.empty()) << "Project id must be set.";
+    do {
+      ListInstanceDetailsByEnvironmentRequest request;
+      request.set_environment(environment_);
+      request.set_project_id(input->project_id);
+      const auto& result = instance_client_->ListInstanceDetailsByEnvironment(
+          std::move(request),
+          [&done, &instance_infos, &page_token, this](
+              const ExecutionResult& result,
+              const ListInstanceDetailsByEnvironmentResponse& response) {
+            if (result.Successful()) {
+              page_token = std::move(response.page_token());
+              for (auto& instance_details : response.instance_details()) {
+                InstanceInfo instance_info;
+                instance_info.id = std::move(instance_details.instance_id());
+                for (auto& network : instance_details.networks()) {
+                  instance_info.private_ip_address =
+                      std::move(network.private_ipv4_address());
+                  break;
+                }
+                absl::flat_hash_map<std::string, std::string> labels(
+                    instance_details.labels().begin(),
+                    instance_details.labels().end());
+                instance_info.labels = std::move(labels);
+                instance_infos.push_back(std::move(instance_info));
+              }
+            } else {
+              page_token = "";
+              LOG(ERROR) << "Failed to get instance details: "
+                         << GetErrorMessage(result.status_code);
+            }
+            done.Notify();
+          });
+      done.WaitForNotification();
+      if (!result.Successful()) {
+        return absl::InternalError(GetErrorMessage(result.status_code));
+      }
+    } while (!page_token.empty());
+    return instance_infos;
   }
 
   absl::StatusOr<std::vector<InstanceInfo>> DescribeInstances(

@@ -64,7 +64,7 @@ class LocalInstanceClient : public InstanceClient {
   }
 
   absl::StatusOr<std::vector<InstanceInfo>> DescribeInstanceGroupInstances(
-      const absl::flat_hash_set<std::string>& instance_groups) override {
+      DescribeInstanceGroupInput& describe_instance_group_input) override {
     auto id = GetInstanceId();
     return DescribeInstances({});
   }

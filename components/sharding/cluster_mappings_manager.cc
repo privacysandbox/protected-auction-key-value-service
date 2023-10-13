@@ -49,11 +49,14 @@ ClusterMappingsManager::GetClusterMappings() {
     instance_group_names.insert(
         absl::StrFormat("kv-server-%s-%d-instance-asg", environment_, i));
   }
+  DescribeInstanceGroupInput describe_instance_group_input =
+      AwsDescribeInstanceGroupInput{.instance_group_names =
+                                        instance_group_names};
   auto& instance_client = instance_client_;
   auto instance_group_instances = TraceRetryUntilOk(
-      [&instance_client, &instance_group_names] {
+      [&instance_client, &describe_instance_group_input] {
         return instance_client.DescribeInstanceGroupInstances(
-            instance_group_names);
+            describe_instance_group_input);
       },
       "DescribeInstanceGroupInstances", &metrics_recorder_);
 

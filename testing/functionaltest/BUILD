@@ -15,7 +15,6 @@
 sut_names = [
     "baseline-dsp",
     "baseline-ssp",
-    "multiple-kv-servers",
     "no-udf",
 ]
 

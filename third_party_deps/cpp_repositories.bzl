@@ -31,7 +31,7 @@ def cpp_repositories():
     #external deps for riegeli
     http_archive(
         name = "net_zstd",
-        build_file = "//third_party:zstd.BUILD",
+        build_file = "//third_party_deps:zstd.BUILD",
         sha256 = "7c42d56fac126929a6a85dbc73ff1db2411d04f104fae9bdea51305663a83fd0",
         strip_prefix = "zstd-1.5.2/lib",
         urls = ["https://github.com/facebook/zstd/releases/download/v1.5.2/zstd-1.5.2.tar.gz"],
@@ -47,7 +47,7 @@ def cpp_repositories():
 
     http_archive(
         name = "highwayhash",
-        build_file = "//third_party:highwayhash.BUILD",
+        build_file = "//third_party_deps:highwayhash.BUILD",
         sha256 = "cf891e024699c82aabce528a024adbe16e529f2b4e57f954455e0bf53efae585",
         strip_prefix = "highwayhash-276dd7b4b6d330e4734b756e97ccfb1b69cc2e12",
         urls = ["https://github.com/google/highwayhash/archive/276dd7b4b6d330e4734b756e97ccfb1b69cc2e12.zip"],
@@ -62,7 +62,7 @@ def cpp_repositories():
 
     http_archive(
         name = "sqlite3",
-        build_file = "//third_party:sqlite3.BUILD",
+        build_file = "//third_party_deps:sqlite3.BUILD",
         sha256 = "9c99955b21d2374f3a385d67a1f64cbacb1d4130947473d25c77ad609c03b4cd",
         strip_prefix = "sqlite-amalgamation-3390400",
         urls = [

@@ -17,5 +17,5 @@ load("@rules_python//python:pip.bzl", "pip_parse")
 def python_repositories():
     pip_parse(
         name = "word2vec",
-        requirements_lock = "//third_party:word2vec_requirements.txt",
+        requirements_lock = "//third_party_deps:word2vec_requirements.txt",
     )

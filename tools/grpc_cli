@@ -25,7 +25,7 @@ readonly GRPC_CLI="${BIN_DIR}"/grpc_cli
 
 if ! [[ -s ${GRPC_CLI} ]]; then
   printf "Building grpc_cli using bazel-debian\n"
-  "${WORKSPACE}"/builders/tools/bazel-debian run third_party:copy_to_dist
+  "${WORKSPACE}"/builders/tools/bazel-debian run third_party_deps:copy_to_dist
 fi
 
 "${GRPC_CLI}" "$@"

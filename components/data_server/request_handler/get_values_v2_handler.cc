@@ -47,7 +47,7 @@ using privacy_sandbox::server_common::GetTracer;
 using quiche::BinaryHttpRequest;
 using quiche::BinaryHttpResponse;
 using v2::BinaryHttpGetValuesRequest;
-using v2::GetValuesRequest;
+using v2::GetValuesHttpRequest;
 using v2::KeyValueService;
 using v2::ObliviousGetValuesRequest;
 
@@ -214,7 +214,7 @@ nlohmann::json GetValuesV2Handler::BuildCompressionGroupsForDebugging(
 }
 
 absl::StatusOr<nlohmann::json> GetValuesV2Handler::GetValuesJsonResponse(
-    const v2::GetValuesRequest& request) const {
+    const v2::GetValuesHttpRequest& request) const {
   absl::StatusOr<nlohmann::json> maybe_core_request_json =
       Parse(request.raw_body().data());
   if (!maybe_core_request_json.ok()) {
@@ -232,8 +232,9 @@ absl::StatusOr<nlohmann::json> GetValuesV2Handler::GetValuesJsonResponse(
   return response_json;
 }
 
-grpc::Status GetValuesV2Handler::GetValues(
-    const GetValuesRequest& request, google::api::HttpBody* response) const {
+grpc::Status GetValuesV2Handler::GetValuesHttp(
+    const GetValuesHttpRequest& request,
+    google::api::HttpBody* response) const {
   const auto maybe_response_json = GetValuesJsonResponse(request);
   if (maybe_response_json.ok()) {
     response->set_data(maybe_response_json.value().dump());

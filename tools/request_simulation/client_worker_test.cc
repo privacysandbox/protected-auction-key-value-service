@@ -75,7 +75,7 @@ class ClientWorkerTest : public ::testing::Test {
 
 TEST_F(ClientWorkerTest, SingleClientWorkerTest) {
   std::string key("key");
-  std::string method("/kv_server.v2.KeyValueService/GetValues");
+  std::string method("/kv_server.v2.KeyValueService/GetValuesHttp");
   auto request_converter = [](const std::string& request_body) {
     RawRequest request;
     request.mutable_raw_body()->set_data(request_body);
@@ -119,7 +119,7 @@ TEST_F(ClientWorkerTest, SingleClientWorkerTest) {
 
 TEST_F(ClientWorkerTest, MultipleClientWorkersTest) {
   std::string key("key");
-  std::string method("/kv_server.v2.KeyValueService/GetValues");
+  std::string method("/kv_server.v2.KeyValueService/GetValuesHttp");
   auto request_converter = [](const std::string& request_body) {
     RawRequest request;
     request.mutable_raw_body()->set_data(request_body);

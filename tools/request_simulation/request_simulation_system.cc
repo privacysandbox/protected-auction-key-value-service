@@ -31,7 +31,8 @@
 ABSL_FLAG(std::string, server_address, "",
           "The address of the server under test,"
           "in format demo.kv-server.your-domain.example");
-ABSL_FLAG(std::string, server_method, "/kv_server.v2.KeyValueService/GetValues",
+ABSL_FLAG(std::string, server_method,
+          "/kv_server.v2.KeyValueService/GetValuesHttp",
           "The api name of the server under test");
 ABSL_FLAG(int64_t, rps, 1500, "Requests per second sent to the server");
 ABSL_FLAG(int, concurrency, 10,

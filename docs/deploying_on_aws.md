@@ -295,7 +295,7 @@ curl -vX PUT -d "$BODY"  ${KV_SERVER_URL}/v2/getvalues
 Or gRPC (using [grpcurl](https://github.com/fullstorydev/grpcurl)):
 
 ```sh
-grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' demo.kv-server.your-domain.example:8443 kv_server.v2.KeyValueService/GetValues
+grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' demo.kv-server.your-domain.example:8443 kv_server.v2.KeyValueService/GetValuesHttp
 ```
 
 ## SSH into EC2

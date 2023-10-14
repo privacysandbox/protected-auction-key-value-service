@@ -28,7 +28,7 @@ service KeyValueService {
   // which contains the compression groups.
   //
   // TODO(b/263284614): Add more comments once the explainer is published.
-  rpc GetValues(GetValuesRequest) returns (google.api.HttpBody) {
+  rpc GetValuesHttp(GetValuesHttpRequest) returns (google.api.HttpBody) {
     option (google.api.http) = {
       put: "/v2/getvalues"
       body: "raw_body"
@@ -59,7 +59,7 @@ service KeyValueService {
   }
 }
 
-message GetValuesRequest {
+message GetValuesHttpRequest {
   google.api.HttpBody raw_body = 1;
 }
 

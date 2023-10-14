@@ -47,7 +47,7 @@ using testing::Return;
 using testing::ReturnRef;
 using testing::UnorderedElementsAre;
 using v2::BinaryHttpGetValuesRequest;
-using v2::GetValuesRequest;
+using v2::GetValuesHttpRequest;
 using v2::ObliviousGetValuesRequest;
 
 enum class ProtocolType {
@@ -70,8 +70,8 @@ class GetValuesHandlerTest
     explicit PlainRequest(std::string plain_request_body)
         : plain_request_body_(std::move(plain_request_body)) {}
 
-    GetValuesRequest Build() const {
-      GetValuesRequest request;
+    GetValuesHttpRequest Build() const {
+      GetValuesHttpRequest request;
       request.mutable_raw_body()->set_data(plain_request_body_);
       return request;
     }
@@ -243,7 +243,7 @@ class GetValuesHandlerTest
 
     if (IsUsing<ProtocolType::kPlain>()) {
       *bhttp_response_code = 200;
-      return handler->GetValues(plain_request.Build(), response);
+      return handler->GetValuesHttp(plain_request.Build(), response);
     }
 
     BHTTPRequest bhttp_request(std::move(plain_request));

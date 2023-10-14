@@ -94,7 +94,7 @@ curl -vX PUT -d "$BODY"  http://localhost:51052/v2/getvalues
 Or gRPC:
 
 ```sh
-grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' -plaintext localhost:50051 kv_server.v2.KeyValueService/GetValues
+grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' -plaintext localhost:50051 kv_server.v2.KeyValueService/GetValuesHttp
 ```
 
 For gRPC, use base64 --decode to convert the output to plaintext.

@@ -53,7 +53,8 @@ nlohmann::json BuildKeyGroup(const RepeatedPtrField<std::string>& keys,
   return keyGroup;
 }
 
-v2::GetValuesRequest BuildV2Request(const v1::GetValuesRequest& v1_request) {
+v2::GetValuesHttpRequest BuildV2Request(
+    const v1::GetValuesRequest& v1_request) {
   nlohmann::json get_values_v2;
 
   get_values_v2["context"]["subkey"] = v1_request.subkey();
@@ -84,7 +85,7 @@ v2::GetValuesRequest BuildV2Request(const v1::GetValuesRequest& v1_request) {
   get_values_v2["partitions"] = nlohmann::json::array({partition});
   get_values_v2["udfInputApiVersion"] = kUdfInputApiVersion;
 
-  v2::GetValuesRequest v2_request;
+  v2::GetValuesHttpRequest v2_request;
   v2_request.mutable_raw_body()->set_data(get_values_v2.dump());
   return v2_request;
 }
@@ -199,7 +200,7 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
 
   grpc::Status CallV2Handler(const v1::GetValuesRequest& v1_request,
                              v1::GetValuesResponse& v1_response) const {
-    v2::GetValuesRequest v2_request = BuildV2Request(v1_request);
+    v2::GetValuesHttpRequest v2_request = BuildV2Request(v1_request);
     auto maybe_v2_response_json =
         v2_handler_->GetValuesJsonResponse(v2_request);
     if (!maybe_v2_response_json.ok()) {

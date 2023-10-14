@@ -25,7 +25,7 @@ namespace {
 
 using grpc::CallbackServerContext;
 using privacy_sandbox::server_common::GetTracer;
-using v2::GetValuesRequest;
+using v2::GetValuesHttpRequest;
 using v2::KeyValueService;
 
 template <typename RequestT, typename ResponseT>
@@ -46,11 +46,11 @@ grpc::ServerUnaryReactor* HandleRequest(
 
 }  // namespace
 
-grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValues(
-    CallbackServerContext* context, const GetValuesRequest* request,
+grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValuesHttp(
+    CallbackServerContext* context, const GetValuesHttpRequest* request,
     google::api::HttpBody* response) {
   return HandleRequest(context, request, response, handler_,
-                       &GetValuesV2Handler::GetValues);
+                       &GetValuesV2Handler::GetValuesHttp);
 }
 
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::BinaryHttpGetValues(

@@ -56,10 +56,10 @@ class GetValuesV2Handler {
         key_fetcher_manager_(key_fetcher_manager) {}
 
   absl::StatusOr<nlohmann::json> GetValuesJsonResponse(
-      const v2::GetValuesRequest& request) const;
+      const v2::GetValuesHttpRequest& request) const;
 
-  grpc::Status GetValues(const v2::GetValuesRequest& request,
-                         google::api::HttpBody* response) const;
+  grpc::Status GetValuesHttp(const v2::GetValuesHttpRequest& request,
+                             google::api::HttpBody* response) const;
 
   grpc::Status BinaryHttpGetValues(
       const v2::BinaryHttpGetValuesRequest& request,

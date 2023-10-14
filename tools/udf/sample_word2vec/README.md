@@ -92,7 +92,7 @@ of information:
 The UDF returns the top 5 results and their scores.
 
 ```sh
-grpc_cli call  localhost:50051 kv_server.v2.KeyValueService/GetValues  \
+grpc_cli call  localhost:50051 kv_server.v2.KeyValueService/GetValuesHttp  \
   "raw_body: {data: $(tr -d '\n' < tools/udf/sample_word2vec/body.txt)}" \
    --channel_creds_type=insecure
 ```

@@ -57,7 +57,7 @@ grpc_test_suites = [
     )
     for test_suite, rpc in [
         ("kvserver_getvalues_v1", "kv_server.v1.KeyValueService.GetValues"),
-        ("kvserver_getvalues_v2", "kv_server.v2.KeyValueService.GetValues"),
+        ("kvserver_getvalues_v2", "kv_server.v2.KeyValueService.GetValuesHttp"),
     ]
     for endpoint_name, endpoint in exposed_endpoints.items()
     if endpoint.endpoint_type == "grpc"

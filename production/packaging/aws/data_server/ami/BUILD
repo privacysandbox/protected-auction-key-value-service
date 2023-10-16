@@ -21,7 +21,6 @@ pkg_zip(
         "//components/aws:sqs_lambda.tar",
         "//production/packaging/aws/otel_collector:aws-otel-collector.rpm",
         "//production/packaging/aws/otel_collector:aws_otel_collector_cfg",
-        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxy",
     ],
 )
 

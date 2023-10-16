@@ -33,19 +33,9 @@ pkg_files(
         "bin/init_server_enclave",
         "//components/data_server/server",
         "//components/tools:get_region",
-        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify",
-        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:socket_vendor",
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify_layer",
     ],
     attributes = pkg_attributes(mode = "0555"),
-    prefix = "/",
-)
-
-pkg_files(
-    name = "server_libs",
-    srcs = [
-        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxy_preload",
-    ],
-    attributes = pkg_attributes(mode = "0444"),
     prefix = "/",
 )
 
@@ -61,7 +51,6 @@ pkg_files(
 server_binaries = [
     ":kmstool_enclave_executable",
     ":server_executables",
-    ":server_libs",
 ]
 
 pkg_zip(

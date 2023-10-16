@@ -32,8 +32,10 @@ proto_library(
     name = "get_values_v2_proto",
     srcs = ["get_values_v2.proto"],
     deps = [
+        "//public:api_schema_proto",
         "@com_google_googleapis//google/api:annotations_proto",
         "@com_google_googleapis//google/api:httpbody_proto",
+        "@com_google_googleapis//google/rpc:status_proto",
         "@com_google_protobuf//:struct_proto",
     ],
 )

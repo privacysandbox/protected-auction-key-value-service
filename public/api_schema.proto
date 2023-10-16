@@ -24,19 +24,6 @@ import "google/protobuf/struct.proto";
 // flags or parameters.
 message UDFExecutionMetadata {}
 
-// Context useful for logging and debugging requests compatible with the Bidding
-// and Auction service.
-message LogContext {
-  // UUID for the request (as originating from client).
-  string generation_id = 1;
-  string adtech_debug_id = 2;
-}
-
-message ConsentedDebugConfiguration {
-  bool is_consented = 1;
-  string token = 2;
-}
-
 // Represents one argument to UDF. One UDF invocation may have multiple
 // arguments. The actual meaning and number of the arguments are defined by the
 // specific use case of the KV server. i.e., different use cases will have API
@@ -46,7 +33,7 @@ message ConsentedDebugConfiguration {
 // If `tags` is not empty, the argument will be passed to the UDF
 // with 2 fields: "tags" and "data". Otherwise, the content of `data` will be
 // directly passed as the argument.
-message SingleUDFArgument {
+message UDFArgument {
   // optional. Metadata about the data.
   google.protobuf.ListValue tags = 1;
 

@@ -34,6 +34,11 @@ class NoopUdfClientImpl : public UdfClient {
   absl::StatusOr<std::string> ExecuteCode(std::vector<std::string> keys) const {
     return "";
   }
+  absl::StatusOr<std::string> ExecuteCode(
+      const UDFExecutionMetadata&,
+      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments) const {
+    return "";
+  }
 
   absl::Status Stop() { return absl::OkStatus(); }
 

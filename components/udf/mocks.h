@@ -33,6 +33,10 @@ class MockUdfClient : public UdfClient {
  public:
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
               (std::vector<std::string>), (const, override));
+  MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
+              (const UDFExecutionMetadata&,
+               const google::protobuf::RepeatedPtrField<UDFArgument>&),
+              (const, override));
   MOCK_METHOD((absl::Status), Stop, (), (override));
   MOCK_METHOD((absl::Status), SetCodeObject, (CodeConfig), (override));
   MOCK_METHOD((absl::Status), SetWasmCodeObject, (CodeConfig), (override));

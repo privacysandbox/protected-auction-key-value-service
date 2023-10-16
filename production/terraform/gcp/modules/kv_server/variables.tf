@@ -24,6 +24,11 @@ variable "environment" {
   type        = string
 }
 
+variable "gcp_image_tag" {
+  description = "Tag of the gcp docker image uploaded to the artifact registry."
+  type        = string
+}
+
 variable "service" {
   description = "Service name of the server."
   type        = string

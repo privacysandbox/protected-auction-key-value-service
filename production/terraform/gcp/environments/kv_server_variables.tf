@@ -34,6 +34,11 @@ variable "regions" {
   type        = set(string)
 }
 
+variable "gcp_image_tag" {
+  description = "Tag of the gcp docker image uploaded to the artifact registry."
+  type        = string
+}
+
 variable "gcp_image_repo" {
   description = "A URL to a docker image repo containing the key-value service."
   type        = string

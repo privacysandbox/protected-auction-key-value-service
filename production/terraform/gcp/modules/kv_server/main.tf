@@ -40,7 +40,7 @@ module "security" {
 module "autoscaling" {
   count                                 = var.num_shards
   source                                = "../../services/autoscaling"
-  gcp_image_tag                         = var.environment
+  gcp_image_tag                         = var.gcp_image_tag
   gcp_image_repo                        = var.gcp_image_repo
   service                               = var.service
   environment                           = var.environment

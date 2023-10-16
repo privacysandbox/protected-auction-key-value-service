@@ -52,6 +52,10 @@
 
     A URL to a docker image repo containing the key-value service.
 
+-   **gcp_image_tag**
+
+    Tag of the gcp docker image uploaded to the artifact registry.
+
 -   **instance_template_waits_for_instances**
 
     True if terraform should wait for instances before returning from instance template application.

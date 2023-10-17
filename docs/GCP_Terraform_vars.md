@@ -44,6 +44,10 @@
 
     Assigned environment name to group related resources. Also servers as gcp image tag.
 
+-   **existing_service_mesh**
+
+    Existing service mesh. This would only be used if use_existing_service_mesh is true.
+
 -   **existing_vpc_id**
 
     Existing vpc id. This would only be used if use_existing_vpc is true.
@@ -150,6 +154,10 @@
     If true, use the Confidential space debug image. Else use the prod image, which does not allow
     SSH. The images containing the service logic will run on top of this image and have their own
     prod and debug builds.
+
+-   **use_existing_service_mesh**
+
+    Whether to use existing service mesh.
 
 -   **use_existing_vpc**
 

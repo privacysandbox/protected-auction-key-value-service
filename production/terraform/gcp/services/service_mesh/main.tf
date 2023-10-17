@@ -16,6 +16,7 @@
 
 resource "google_network_services_mesh" "kv_server" {
   provider = google-beta
+  count    = (var.use_existing_service_mesh) ? 0 : 1
   name     = "${var.service}-${var.environment}-mesh"
 }
 
@@ -23,7 +24,7 @@ resource "google_network_services_grpc_route" "kv_server" {
   provider  = google-beta
   name      = "${var.service}-${var.environment}-grpc-route"
   hostnames = [split("///", var.kv_server_address)[1]]
-  meshes    = [google_network_services_mesh.kv_server.id]
+  meshes    = [var.use_existing_service_mesh ? var.existing_service_mesh : google_network_services_mesh.kv_server[0].id]
   rules {
     action {
       destinations {

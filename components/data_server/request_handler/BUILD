@@ -78,6 +78,7 @@ cc_library(
         ":ohttp_server_encryptor",
         "//components/data_server/cache",
         "//components/udf:udf_client",
+        "//public:api_schema_cc_proto",
         "//public:base_types_cc_proto",
         "//public/query/v2:get_values_v2_cc_grpc",
         "@com_github_google_glog//:glog",

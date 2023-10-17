@@ -52,6 +52,12 @@ grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValuesHttp(
   return HandleRequest(context, request, response, handler_,
                        &GetValuesV2Handler::GetValuesHttp);
 }
+grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValues(
+    grpc::CallbackServerContext* context, const v2::GetValuesRequest* request,
+    v2::GetValuesResponse* response) {
+  return HandleRequest(context, request, response, handler_,
+                       &GetValuesV2Handler::GetValues);
+}
 
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::BinaryHttpGetValues(
     CallbackServerContext* context,

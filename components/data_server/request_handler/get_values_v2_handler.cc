@@ -25,6 +25,7 @@
 #include "absl/strings/ascii.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
 #include "glog/logging.h"
+#include "google/protobuf/util/json_util.h"
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
 #include "public/constants.h"
@@ -42,6 +43,8 @@ constexpr int kUdfOutputApiVersion = 1;
 
 namespace kv_server {
 namespace {
+using google::protobuf::util::JsonStringToMessage;
+using google::protobuf::util::MessageToJsonString;
 using grpc::StatusCode;
 using privacy_sandbox::server_common::GetTracer;
 using quiche::BinaryHttpRequest;
@@ -353,6 +356,36 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
   oblivious_response->set_content_type(std::string(kOHTTPResponseContentType));
   oblivious_response->set_data(*encrypted_response);
   return grpc::Status::OK;
+}
+
+void GetValuesV2Handler::ProcessOnePartition(
+    const v2::RequestPartition& req_partition,
+    v2::ResponsePartition& resp_partition) const {
+  resp_partition.set_id(req_partition.id());
+  const auto maybe_udf_output_string =
+      udf_client_.ExecuteCode({}, req_partition.arguments());
+  if (!maybe_udf_output_string.ok()) {
+    resp_partition.mutable_status()->set_code(
+        static_cast<int>(maybe_udf_output_string.status().code()));
+    resp_partition.mutable_status()->set_message(
+        maybe_udf_output_string.status().message());
+  } else {
+    VLOG(5) << "UDF output: " << maybe_udf_output_string.value();
+    resp_partition.mutable_udf_output()->set_string_value(
+        std::move(maybe_udf_output_string).value());
+  }
+}
+
+grpc::Status GetValuesV2Handler::GetValues(
+    const v2::GetValuesRequest& request,
+    v2::GetValuesResponse* response) const {
+  if (request.partitions().size() == 1) {
+    ProcessOnePartition(request.partitions(0),
+                        *response->mutable_single_partition());
+    return grpc::Status::OK;
+  }
+  return grpc::Status(StatusCode::UNIMPLEMENTED,
+                      "Multiple partition support is not implemented");
 }
 
 }  // namespace kv_server

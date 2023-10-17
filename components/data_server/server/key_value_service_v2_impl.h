@@ -42,6 +42,10 @@ class KeyValueServiceV2Impl final
       const v2::GetValuesHttpRequest* request,
       google::api::HttpBody* response) override;
 
+  grpc::ServerUnaryReactor* GetValues(grpc::CallbackServerContext* context,
+                                      const v2::GetValuesRequest* request,
+                                      v2::GetValuesResponse* response) override;
+
   grpc::ServerUnaryReactor* BinaryHttpGetValues(
       grpc::CallbackServerContext* context,
       const v2::BinaryHttpGetValuesRequest* request,

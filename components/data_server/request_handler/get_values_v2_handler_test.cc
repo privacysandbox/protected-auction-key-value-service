@@ -40,6 +40,7 @@
 namespace kv_server {
 namespace {
 
+using google::protobuf::TextFormat;
 using grpc::StatusCode;
 using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
@@ -1136,6 +1137,63 @@ TEST_P(GetValuesHandlerTest, UdfWrongOutputApiVersion) {
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
   EXPECT_EQ(response.data(), "null");
+}
+
+TEST_F(GetValuesHandlerTest, PureGRPCTest) {
+  v2::GetValuesRequest req;
+  TextFormat::ParseFromString(
+      R"pb(partitions {
+             id: 9
+             arguments { data { string_value: "ECHO" } }
+           })pb",
+      &req);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(testing::_, testing::ElementsAre(EqualsProto(
+                                          req.partitions(0).arguments(0)))))
+      .WillOnce(Return("ECHO"));
+  v2::GetValuesResponse resp;
+  const auto result = handler.GetValues(req, &resp);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  v2::GetValuesResponse res;
+  TextFormat::ParseFromString(R"pb(single_partition {
+                                     id: 9
+                                     udf_output: { string_value: "ECHO" }
+                                   })pb",
+                              &res);
+  EXPECT_THAT(resp, EqualsProto(res));
+}
+
+TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
+  v2::GetValuesRequest req;
+  TextFormat::ParseFromString(
+      R"pb(partitions {
+             id: 9
+             arguments { data { string_value: "ECHO" } }
+           })pb",
+      &req);
+  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
+                             fake_key_fetcher_manager_);
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(testing::_, testing::ElementsAre(EqualsProto(
+                                          req.partitions(0).arguments(0)))))
+      .WillOnce(Return(absl::InternalError("UDF execution error")));
+  v2::GetValuesResponse resp;
+  const auto result = handler.GetValues(req, &resp);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  v2::GetValuesResponse res;
+  TextFormat::ParseFromString(
+      R"pb(single_partition {
+             id: 9
+             status: { code: 13 message: "UDF execution error" }
+           })pb",
+      &res);
+  EXPECT_THAT(resp, EqualsProto(res));
 }
 
 }  // namespace

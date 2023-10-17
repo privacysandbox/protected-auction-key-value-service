@@ -61,6 +61,9 @@ class GetValuesV2Handler {
   grpc::Status GetValuesHttp(const v2::GetValuesHttpRequest& request,
                              google::api::HttpBody* response) const;
 
+  grpc::Status GetValues(const v2::GetValuesRequest& request,
+                         v2::GetValuesResponse* response) const;
+
   grpc::Status BinaryHttpGetValues(
       const v2::BinaryHttpGetValuesRequest& request,
       google::api::HttpBody* response) const;
@@ -100,6 +103,10 @@ class GetValuesV2Handler {
   // Binary HTTP message.
   grpc::Status BinaryHttpGetValues(std::string_view bhttp_request_body,
                                    std::string& response) const;
+
+  // Invokes UDF to process one partition.
+  void ProcessOnePartition(const v2::RequestPartition& req_partition,
+                           v2::ResponsePartition& resp_partition) const;
 
   const UdfClient& udf_client_;
   std::function<CompressionGroupConcatenator::FactoryFunctionType>

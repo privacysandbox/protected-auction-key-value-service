@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.48.0 (2023-10-11)
+
+
+### Features
+
+* Add tools/bazel-amazonlinux2023
+
+
+### Bug Fixes
+
+* Add lldb symlink
+
+## 0.47.0 (2023-10-05)
+
+
+### Features
+
+* Add --cmd-profiler flag to tools/cbuild
+* Add google-pprof to coverage-tools image
+* Add libprofiler.so to build-debian image
+
+
+### Bug Fixes
+
+* Indicate default image in help text
+
+## 0.46.1 (2023-10-04)
+
+
+### Bug Fixes
+
+* cbuild exits normally even if bazel symlinks aren't normalized
+* Revert to clang 15.x
+* Use bash when normalize-dist runs inside docker
+* Use DOCKER_NETWORK if already set
+
+## 0.46.0 (2023-09-22)
+
+
+### Bug Fixes
+
+* Hide normalize-bazel-symlinks in cbuild
+
+
+### Dependencies
+
+* **deps:** Update amazonlinux images to Aug 2023
+* **deps:** Upgrade clang to v16 in build-debian
+
 ## 0.45.0 (2023-09-19)
 
 

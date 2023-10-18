@@ -36,19 +36,24 @@ function usage() {
 usage:
   $0 <options>
     --cmd <string>             bash command string to execute within the docker container
+    --cmd-profiler             enable profiler for the command
     --image <string>           Image name for the build runtime. Valid names:
 USAGE
 
   for elem in "${IMAGE_LIST[@]}"
   do
-    printf "                                   *  %s\n" "${elem}" &>/dev/stderr
+    if [[ ${elem} == "${IMAGE}" ]]; then
+      default_text=" (default)"
+    fi
+    printf "                                   *  %s%s\n" "${elem}" "${default_text}" &>/dev/stderr
+    default_text=""
   done
 
   cat &>/dev/stderr << USAGE
     --env <key>[=<value>]      Name (or name=value) of exported environment variable, propagated into container
     --without-shared-cache     Containers will not mount ${HOME}/.cache/bazel
     --without-embedded-docker  Disable docker client within container
-    --docker-network <value>   Specify docker network type or name, value passed to docker run --network
+    --docker-network <value>   Specify docker network type or name, value passed to docker run --network. Default: ${DOCKER_NETWORK}
     --seccomp-unconfined       Run docker container without a seccomp profile
     --verbose                  Enable verbose output
 
@@ -57,6 +62,7 @@ Environment variables (all optional):
     WORKSPACE_MOUNT            Full path to the workspace on the host filesystem
     EXTRA_DOCKER_RUN_ARGS      Additional arguments to pass to docker run invocations
     CBUILD_IMAGE               docker URI to the specific image to run
+    DOCKER_NETWORK             Specify docker network, equivalent of --docker-network flag.
 
 Environment variables propagated into container:
     BAZEL_STARTUP_ARGS
@@ -66,16 +72,21 @@ USAGE
   exit ${exitval}
 }
 
-WITH_SHARED_CACHE=1
-WITH_DOCKER_SOCK=1
-DOCKER_NETWORK=bridge
-DOCKER_SECCOMP_UNCONFINED=0
+declare -i WITH_SHARED_CACHE=1
+declare -i WITH_DOCKER_SOCK=1
+declare -i WITH_CMD_PROFILER=0
+DOCKER_NETWORK="${DOCKER_NETWORK:-bridge}"
+declare -i DOCKER_SECCOMP_UNCONFINED=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cmd)
       CMD="$2"
       shift 2 || usage
+      ;;
+    --cmd-profiler)
+      WITH_CMD_PROFILER=1
+      shift
       ;;
     --env)
       ENV_VARS+=("$2")
@@ -120,9 +131,16 @@ fi
 # shellcheck disable=SC2076
 if ! [[ " ${IMAGE_LIST[*]} " =~ " ${IMAGE} " ]]; then
     printf -- "error: image [%s] not recognized\n" "${IMAGE}" &>/dev/stderr
-      usage 1
+    usage 1
 fi
 
+if [[ ${WITH_CMD_PROFILER} -eq 1 ]]; then
+  if [[ ${IMAGE} != build-debian ]]; then
+    printf "error: --cmd-profiler is only compatible with build-debian\n" &>/dev/stderr
+    usage 1
+  fi
+  CMD_PROFILER="LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libprofiler.so "
+fi
 TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 readonly TOOLS_DIR
 # shellcheck disable=SC1090
@@ -131,7 +149,7 @@ source "${TOOLS_DIR}"/builder.sh
 trap _cleanup EXIT
 function _cleanup() {
   local -r -i status=$?
-  "${TOOLS_DIR}"/normalize-bazel-symlinks
+  "${TOOLS_DIR}"/normalize-bazel-symlinks &>/dev/null || true
   exit ${status}
 }
 
@@ -209,5 +227,5 @@ else
   docker run \
     ${DOCKER_RUN_ARGS[@]} \
     "${IMAGE_TAGGED}" \
-    --login -c "$CMD"
+    --login -c "${CMD_PROFILER}${CMD}"
 fi

@@ -43,7 +43,14 @@ readonly USER
 readonly TOP_LEVEL_DIRS="dist"
 
 printf "Setting file ownership [%s], group [%s] in dirs [%s]\n" "${USER}" "${GROUP}" "${TOP_LEVEL_DIRS}"
-"${TOOLS_DIR}"/cbuild --image ${IMAGE} --cmd "
+declare -a runner=()
+if [[ -f /.dockerenv ]]; then
+  runner+=(bash -c)
+else
+  runner+=("${TOOLS_DIR}"/cbuild "--image" "${IMAGE}" "--cmd")
+fi
+
+"${runner[@]}" "
 for TOP_LEVEL_DIR in ${TOP_LEVEL_DIRS}; do
   find \${TOP_LEVEL_DIR} -type f ! -executable -exec chmod 644 {} \;
   find \${TOP_LEVEL_DIR} -type f -executable -exec chmod 755 {} \;

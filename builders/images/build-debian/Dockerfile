@@ -12,16 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM docker/buildx-bin:v0.10 AS buildx-bin
-FROM ubuntu:20.04
+ARG BASE_IMAGE=ubuntu:20.04
 
+# ignore this hadolint error as BASE_IMAGE contains an image tag
+# hadolint ignore=DL3006
+FROM ${BASE_IMAGE} as libprofiler-builder
+ENV CC=clang \
+    CXX=clang
+ADD https://github.com/gperftools/gperftools/releases/download/gperftools-2.13/gperftools-2.13.tar.gz /build/gperftools.tar.gz
+ADD https://apt.llvm.org/llvm.sh /build/llvm.sh
+COPY compile_libprofiler /scripts/
+RUN /scripts/compile_libprofiler
+
+FROM docker/buildx-bin:v0.10 AS buildx-bin
+
+# ignore this hadolint error as BASE_IMAGE contains an image tag
+# hadolint ignore=DL3006
+FROM ${BASE_IMAGE}
+ARG LOCALE=en_US.UTF-8
+ARG TARGETARCH
 COPY install_apps install_golang_apps install_go.sh generate_system_bazelrc .bazelversion /scripts/
 COPY get_workspace_mount /usr/local/bin
 COPY gitconfig /etc
 COPY --from=buildx-bin /buildx /usr/libexec/docker/cli-plugins/docker-buildx
+COPY --from=libprofiler-builder /usr/lib/libprofiler.so.* /usr/lib/x86_64-linux-gnu/
+RUN \
+  ln -rs /usr/lib/x86_64-linux-gnu/libprofiler.so.0.* /usr/lib/x86_64-linux-gnu/libprofiler.so.0 && \
+  ln -rs /usr/lib/x86_64-linux-gnu/libprofiler.so.0.* /usr/lib/x86_64-linux-gnu/libprofiler.so
 
-ARG LOCALE=en_US.UTF-8
-ARG TARGETARCH
 ENV BUILD_ARCH="${TARGETARCH}" \
     WORKSPACE=/src/workspace \
     CC=clang \

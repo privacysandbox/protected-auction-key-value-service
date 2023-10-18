@@ -73,7 +73,7 @@ their contents on startup and continue to watch them while it is running.
 ## Start the server
 
 ```sh
-GLOG_alsologtostderr=1 GLOG_v=5 \
+GLOG_alsologtostderr=1 GLOG_v=4 \
   ./bazel-bin/components/data_server/server/server \
   --delta_directory=/tmp/deltas \
   --realtime_directory=/tmp/realtime

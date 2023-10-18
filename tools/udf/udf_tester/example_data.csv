@@ -1,0 +1,2 @@
+key,logical_commit_time,mutation_type,value,value_type
+example_key,12,UPDATE,AAAAAAAAAAAAAAAAAA,string

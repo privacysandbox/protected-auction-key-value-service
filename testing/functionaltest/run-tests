@@ -93,7 +93,7 @@ declare -a -r TESTS=(
 )
 
 # If envrionmental variable is set, no local bazel is run.
-if ! [[ -v ${NO_LOCAL_BAZEL} ]]; then
+if ! [[ -v NO_LOCAL_BAZEL ]]; then
   # run the tests using bazel, if installed
   if command bazel --help &>/dev/null; then
     bazel test "${TESTS[@]}" "${TEST_ARGS[@]}"

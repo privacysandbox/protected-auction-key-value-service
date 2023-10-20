@@ -160,6 +160,11 @@ At the end, to destroy all the GCP resources:
 builders/tools/terraform -chdir=production/terraform/gcp/environments destroy --var-file=--var-file=${ENVIRONMENT}/${REGION}.tfvars.json
 ```
 
+# Loading data into the server
+
+Refer to the [FLEDGE Key/Value data loading guide documentation](./loading_data.md) for loading data
+to be queried into the server.
+
 # Common operations
 
 ## Access your GCP instances

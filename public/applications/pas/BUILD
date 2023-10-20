@@ -12,26 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "proto_matcher",
-    testonly = 1,
-    hdrs = ["proto_matcher.h"],
+    name = "retrieval_request_builder",
+    srcs = ["retrieval_request_builder.cc"],
+    hdrs = ["retrieval_request_builder.h"],
     deps = [
-        "@com_google_googletest//:gtest",
-        "@com_google_protobuf//:protobuf",
+        "//public/query/v2:get_values_v2_cc_proto",
+        "@com_google_absl//absl/container:flat_hash_map",
     ],
 )
 
-cc_library(
-    name = "mocks",
-    testonly = 1,
-    hdrs = ["mocks.h"],
+cc_test(
+    name = "retrieval_request_builder_test",
+    srcs = ["retrieval_request_builder_test.cc"],
     deps = [
-        "//public/data_loading/readers:riegeli_stream_io",
-        "@com_google_googletest//:gtest",
+        ":retrieval_request_builder",
+        "//public/query/cpp:client_utils",
+        "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest_main",
     ],
 )

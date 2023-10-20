@@ -12,26 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
-    name = "proto_matcher",
-    testonly = 1,
-    hdrs = ["proto_matcher.h"],
+    name = "client_utils",
+    srcs = ["client_utils.cc"],
+    hdrs = ["client_utils.h"],
     deps = [
-        "@com_google_googletest//:gtest",
-        "@com_google_protobuf//:protobuf",
+        "//public/query/v2:get_values_v2_cc_proto",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
     ],
 )
 
-cc_library(
-    name = "mocks",
-    testonly = 1,
-    hdrs = ["mocks.h"],
+cc_test(
+    name = "client_utils_test",
+    srcs = ["client_utils_test.cc"],
     deps = [
-        "//public/data_loading/readers:riegeli_stream_io",
-        "@com_google_googletest//:gtest",
+        ":client_utils",
+        "@com_google_googletest//:gtest_main",
     ],
 )

@@ -144,6 +144,9 @@ class GcpInstanceClient : public InstanceClient {
                     instance_details.labels().begin(),
                     instance_details.labels().end());
                 instance_info.labels = std::move(labels);
+                // TODO (b/303483039, tretyakov): propagate and assign
+                instance_info.service_status =
+                    InstanceServiceStatus::kInService;
                 instance_infos.push_back(std::move(instance_info));
               }
             } else {

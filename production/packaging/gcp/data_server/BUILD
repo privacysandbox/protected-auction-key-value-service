@@ -75,7 +75,10 @@ container_image(
     layers = [
         ":server_binary_layer",
     ],
-    ports = ["50051"],
+    ports = [
+        "50051",
+        "50100",
+    ],
 )
 
 # server artifacts

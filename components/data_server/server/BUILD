@@ -40,6 +40,9 @@ cc_library(
         "//:local_platform": ["parameter_fetcher_local.cc"],
     }) + ["parameter_fetcher.cc"],
     hdrs = ["parameter_fetcher.h"],
+    visibility = [
+        "//components/sharding:__subpackages__",
+    ],
     deps = [
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_change_notifier",
@@ -96,6 +99,7 @@ cc_test(
     deps = [
         ":lifecycle_heartbeat",
         ":mocks",
+        "//components/cloud_config:parameter_client",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",

@@ -67,10 +67,10 @@ cc_library(
 
 cc_library(
     name = "cluster_mappings_manager",
-    srcs =
-        [
-            "cluster_mappings_manager.cc",
-        ],
+    srcs = select({
+        "//:gcp_platform": ["cluster_mappings_manager_gcp.cc"],
+        "//conditions:default": ["cluster_mappings_manager_aws.cc"],
+    }) + ["cluster_mappings_manager.cc"],
     hdrs = [
         "cluster_mappings_manager.h",
     ],
@@ -78,6 +78,7 @@ cc_library(
         ":shard_manager",
         "//components/cloud_config:instance_client",
         "//components/data/common:thread_manager",
+        "//components/data_server/server:parameter_fetcher",
         "//components/errors:retry",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -88,10 +89,10 @@ cc_library(
 cc_test(
     name = "cluster_mappings_manager_test",
     size = "small",
-    srcs =
-        [
-            "cluster_mappings_manager_test.cc",
-        ],
+    srcs = select({
+        "//:gcp_platform": ["cluster_mappings_manager_gcp_test.cc"],
+        "//conditions:default": ["cluster_mappings_manager_aws_test.cc"],
+    }),
     deps = [
         ":cluster_mappings_manager",
         ":mocks",

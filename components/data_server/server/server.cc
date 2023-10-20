@@ -297,7 +297,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   local_lookup_ = CreateLocalLookup(*cache_, *metrics_recorder_);
   auto server_initializer = GetServerInitializer(
       num_shards_, *metrics_recorder_, *key_fetcher_manager_, *local_lookup_,
-      environment_, shard_num_, *instance_client_, *cache_);
+      environment_, shard_num_, *instance_client_, *cache_, parameter_fetcher);
   remote_lookup_ = server_initializer->CreateAndStartRemoteLookupServer();
   {
     auto status_or_notifier = BlobStorageChangeNotifier::Create(

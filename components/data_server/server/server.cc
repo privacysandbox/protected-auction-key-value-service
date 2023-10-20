@@ -178,9 +178,11 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
       LOG(ERROR) << "Error in connecting metrics collector: " << status;
     }
   }
-  ConfigureMetrics(CreateKVAttributes(instance_id, environment_),
-                   metrics_options, metrics_collector_endpoint);
-  ConfigureTracer(CreateKVAttributes(std::move(instance_id), environment_),
+  ConfigureMetrics(
+      CreateKVAttributes(instance_id, std::to_string(shard_num_), environment_),
+      metrics_options, metrics_collector_endpoint);
+  ConfigureTracer(CreateKVAttributes(std::move(instance_id),
+                                     std::to_string(shard_num_), environment_),
                   metrics_collector_endpoint);
 
   metrics_recorder_ = TelemetryProvider::GetInstance().CreateMetricsRecorder();
@@ -245,6 +247,18 @@ absl::Status Server::Init(
 }
 
 absl::Status Server::InitOnceInstancesAreCreated() {
+  const auto shard_num_status = instance_client_->GetShardNumTag();
+  if (!shard_num_status.ok()) {
+    return shard_num_status.status();
+  }
+  if (!absl::SimpleAtoi(*shard_num_status, &shard_num_)) {
+    std::string error =
+        absl::StrFormat("Failed converting shard id parameter: %s to int32.",
+                        *shard_num_status);
+    LOG(ERROR) << error;
+    return absl::InvalidArgumentError(error);
+  }
+  LOG(INFO) << "Retrieved shard num: " << shard_num_;
   InitializeTelemetry(*parameter_client_, *instance_client_);
   InitializeKeyValueCache();
   auto span = GetTracer()->StartSpan("InitServer");
@@ -260,19 +274,6 @@ absl::Status Server::InitOnceInstancesAreCreated() {
 
   SetDefaultUdfCodeObject();
 
-  const auto shard_num_status = instance_client_->GetShardNumTag();
-  if (!shard_num_status.ok()) {
-    return shard_num_status.status();
-  }
-  if (!absl::SimpleAtoi(*shard_num_status, &shard_num_)) {
-    std::string error =
-        absl::StrFormat("Failed converting shard id parameter: %s to int32.",
-                        *shard_num_status);
-    LOG(ERROR) << error;
-    return absl::InvalidArgumentError(error);
-  }
-  LOG(INFO) << "Retrieved shard num: " << shard_num_;
-  metrics_recorder_->SetCommonLabel("shard_number", std::to_string(shard_num_));
   num_shards_ = parameter_fetcher.GetInt32Parameter(kNumShardsParameterSuffix);
   LOG(INFO) << "Retrieved " << kNumShardsParameterSuffix
             << " parameter: " << num_shards_;

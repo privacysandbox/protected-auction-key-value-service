@@ -33,7 +33,6 @@ pkg_files(
         "bin/init_server_enclave",
         "//components/data_server/server",
         "//components/tools:get_region",
-        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify_layer",
     ],
     attributes = pkg_attributes(mode = "0555"),
     prefix = "/",
@@ -113,6 +112,7 @@ container_image(
     ],
     entrypoint = ["/bin/bash"],
     layers = [
+        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify_layer",
         "//production/packaging/aws/resolv:resolv_config_layer",
         ":server_binary_layer",
         ":kmstool_enclave_cli_layer",

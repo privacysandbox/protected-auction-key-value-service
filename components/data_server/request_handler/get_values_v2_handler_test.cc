@@ -1159,11 +1159,8 @@ TEST_F(GetValuesHandlerTest, PureGRPCTest) {
                            << ", msg: " << result.error_message();
 
   v2::GetValuesResponse res;
-  TextFormat::ParseFromString(R"pb(single_partition {
-                                     id: 9
-                                     udf_output: { string_value: "ECHO" }
-                                   })pb",
-                              &res);
+  TextFormat::ParseFromString(
+      R"pb(single_partition { id: 9 string_output: "ECHO" })pb", &res);
   EXPECT_THAT(resp, EqualsProto(res));
 }
 

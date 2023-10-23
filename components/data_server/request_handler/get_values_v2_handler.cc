@@ -371,7 +371,7 @@ void GetValuesV2Handler::ProcessOnePartition(
         maybe_udf_output_string.status().message());
   } else {
     VLOG(5) << "UDF output: " << maybe_udf_output_string.value();
-    resp_partition.mutable_udf_output()->set_string_value(
+    resp_partition.set_string_output(
         std::move(maybe_udf_output_string).value());
   }
 }

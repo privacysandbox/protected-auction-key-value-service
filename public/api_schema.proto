@@ -22,7 +22,10 @@ import "google/protobuf/struct.proto";
 // This is always the first argument to the UDF and is the only argument that
 // the KV server is not oblivious to. Example use cases are to pass server side
 // flags or parameters.
-message UDFExecutionMetadata {}
+message UDFExecutionMetadata {
+  // Metadata passed in from the request that are related to the request.
+  google.protobuf.Struct request_metadata = 1;
+}
 
 // Represents one argument to UDF. One UDF invocation may have multiple
 // arguments. The actual meaning and number of the arguments are defined by the

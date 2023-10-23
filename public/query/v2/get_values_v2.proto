@@ -111,7 +111,7 @@ message GetValuesRequest {
 message ResponsePartition {
   int32 id = 1;
   oneof output_type {
-    google.protobuf.Value udf_output = 2;
+    string string_output = 2;
     google.rpc.Status status = 3;
   }
 }
@@ -129,6 +129,9 @@ message CompressionGroups {
 }
 message GetValuesResponse {
   oneof format {
+    // For single partition response, no explicit compression is necessary at
+    // request handling layer. Compression can be applied during the
+    // communication by the protocol layer such as gRPC or HTTP.
     ResponsePartition single_partition = 1;
     CompressionGroups compressed_partition_groups = 2;
   }

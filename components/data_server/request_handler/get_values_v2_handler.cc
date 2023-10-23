@@ -359,20 +359,22 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
 }
 
 void GetValuesV2Handler::ProcessOnePartition(
+    const google::protobuf::Struct& req_metadata,
     const v2::RequestPartition& req_partition,
     v2::ResponsePartition& resp_partition) const {
   resp_partition.set_id(req_partition.id());
-  const auto maybe_udf_output_string =
-      udf_client_.ExecuteCode({}, req_partition.arguments());
-  if (!maybe_udf_output_string.ok()) {
+  UDFExecutionMetadata udf_metadata;
+  *udf_metadata.mutable_request_metadata() = req_metadata;
+  const auto maybe_output_string =
+      udf_client_.ExecuteCode(udf_metadata, req_partition.arguments());
+  if (!maybe_output_string.ok()) {
     resp_partition.mutable_status()->set_code(
-        static_cast<int>(maybe_udf_output_string.status().code()));
+        static_cast<int>(maybe_output_string.status().code()));
     resp_partition.mutable_status()->set_message(
-        maybe_udf_output_string.status().message());
+        maybe_output_string.status().message());
   } else {
-    VLOG(5) << "UDF output: " << maybe_udf_output_string.value();
-    resp_partition.set_string_output(
-        std::move(maybe_udf_output_string).value());
+    VLOG(5) << "UDF output: " << maybe_output_string.value();
+    resp_partition.set_string_output(std::move(maybe_output_string).value());
   }
 }
 
@@ -380,9 +382,13 @@ grpc::Status GetValuesV2Handler::GetValues(
     const v2::GetValuesRequest& request,
     v2::GetValuesResponse* response) const {
   if (request.partitions().size() == 1) {
-    ProcessOnePartition(request.partitions(0),
+    ProcessOnePartition(request.metadata(), request.partitions(0),
                         *response->mutable_single_partition());
     return grpc::Status::OK;
+  }
+  if (request.partitions().empty()) {
+    return grpc::Status(StatusCode::INTERNAL,
+                        "At least 1 partition is required");
   }
   return grpc::Status(StatusCode::UNIMPLEMENTED,
                       "Multiple partition support is not implemented");

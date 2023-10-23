@@ -170,11 +170,15 @@ cc_library(
     deps = [
         ":get_values_v2_handler",
         ":v2_response_data_cc_proto",
+        "//public:api_schema_cc_proto",
+        "//public/applications/pa:api_overlay_cc_proto",
+        "//public/applications/pa:response_utils",
         "//public/query:get_values_cc_grpc",
         "//public/query/v2:get_values_v2_cc_grpc",
         "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
     ],
 )
 
@@ -188,6 +192,8 @@ cc_test(
         ":get_values_adapter",
         ":mocks",
         "//components/udf:mocks",
+        "//public/applications/pa:api_overlay_cc_proto",
+        "//public/applications/pa:response_utils",
         "//public/query:get_values_cc_grpc",
         "//public/test_util:proto_matcher",
         "@com_github_grpc_grpc//:grpc++",
@@ -195,6 +201,7 @@ cc_test(
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+        "@nlohmann_json//:lib",
     ],
 )
 

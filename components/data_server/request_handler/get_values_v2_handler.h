@@ -105,7 +105,8 @@ class GetValuesV2Handler {
                                    std::string& response) const;
 
   // Invokes UDF to process one partition.
-  void ProcessOnePartition(const v2::RequestPartition& req_partition,
+  void ProcessOnePartition(const google::protobuf::Struct& req_metadata,
+                           const v2::RequestPartition& req_partition,
                            v2::ResponsePartition& resp_partition) const;
 
   const UdfClient& udf_client_;

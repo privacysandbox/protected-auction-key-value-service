@@ -34,3 +34,13 @@ cc_library(
         "@io_opentelemetry_cpp//sdk/src/resource",
     ],
 )
+
+cc_library(
+    name = "server_definition",
+    hdrs = [
+        "server_definition.h",
+    ],
+    deps = [
+        "@google_privacysandbox_servers_common//src/cpp/metric:context_map",
+    ],
+)

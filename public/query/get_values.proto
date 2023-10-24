@@ -17,7 +17,6 @@ syntax = "proto3";
 package kv_server.v1;
 
 import "google/api/annotations.proto";
-import "google/api/httpbody.proto";
 import "google/protobuf/struct.proto";
 
 // Key Value Service API.

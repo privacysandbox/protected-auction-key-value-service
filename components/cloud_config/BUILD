@@ -138,7 +138,7 @@ cc_library(
     srcs = select({
         "//:aws_instance": ["instance_client_aws.cc"],
         "//:gcp_instance": ["instance_client_gcp.cc"],
-        "//:local_instance": ["local_instance_client.cc"],
+        "//:local_instance": ["instance_client_local.cc"],
     }),
     hdrs = [
         "instance_client.h",

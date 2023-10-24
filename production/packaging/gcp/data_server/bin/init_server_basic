@@ -27,9 +27,5 @@ readonly SECONDARY_COORDINATOR_PRIVATE_KEY_ENDPOINT="https://privatekeyservice-t
 readonly PRIMARY_COORDINATOR_REGION="us-central1"
 readonly SECONDARY_COORDINATOR_REGION="us-central1"
 
-# TODO: remove these once blog storage logic is implemented
-mkdir -p /tmp/deltas
-mkdir -p /tmp/realtime
-
 # Start the server first.
 /server --public_key_endpoint=${PUBLIC_KEY_ENDPOINT} --primary_coordinator_private_key_endpoint=${PRIMARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --secondary_coordinator_private_key_endpoint=${SECONDARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --primary_coordinator_region=${PRIMARY_COORDINATOR_REGION} --secondary_coordinator_region=${SECONDARY_COORDINATOR_REGION}

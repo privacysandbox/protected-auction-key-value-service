@@ -201,10 +201,6 @@ cc_test(
 cc_binary(
     name = "server",
     srcs = ["main.cc"],
-    features = [
-        "fully_static_link",  # link libc statically
-    ],
-    linkstatic = True,
     visibility = [
         "//google_internal/production/packaging:__subpackages__",
         "//production/packaging:__subpackages__",

@@ -55,7 +55,7 @@ constexpr absl::Duration kCodeUpdateTimeout = absl::Seconds(1);
 // constants.
 constexpr char kCodeObjectId[] = "id";
 constexpr char kInvocationRequestId[] = "id";
-constexpr int kVersionNum = 1;
+constexpr int kUdfInterfaceVersion = 1;
 
 class UdfClientImpl : public UdfClient {
  public:
@@ -63,8 +63,9 @@ class UdfClientImpl : public UdfClient {
 
   // Converts the arguments into plain JSON strings to pass to Roma.
   absl::StatusOr<std::string> ExecuteCode(
-      const UDFExecutionMetadata& execution_metadata,
+      UDFExecutionMetadata&& execution_metadata,
       const google::protobuf::RepeatedPtrField<UDFArgument>& arguments) const {
+    execution_metadata.set_udf_interface_version(kUdfInterfaceVersion);
     std::vector<std::string> string_args;
     string_args.reserve(arguments.size() + 1);
     std::string json_metadata;

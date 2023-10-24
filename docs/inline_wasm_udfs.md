@@ -185,11 +185,12 @@ To test the UDF delta file, use the provided UDF tools.
     TEST_KEY=foo1
     ```
 
-1. Run the `udf_delta_file_tester` which run the UDF provided under with the given key in the input.
+1. Run the `udf_delta_file_tester` which run the UDF provided under with the given argument in the
+   input.
 
     ```sh
     UDF_DELTA=path/to/udf/delta
-    GLOG_v=10 dist/debian/udf_delta_file_tester  --key="$TEST_KEY" --kv_delta_file_path="$KV_DELTA" --udf_delta_file_path="$UDF_DELTA"
+    GLOG_v=10 dist/debian/udf_delta_file_tester  --input_arguments="$TEST_KEY" --kv_delta_file_path="$KV_DELTA" --udf_delta_file_path="$UDF_DELTA"
     ```
 
     See the [generating UDF files doc](./generating_udf_files.md#3-test-the-udf-delta-file) for more

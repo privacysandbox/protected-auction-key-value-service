@@ -1,17 +1,17 @@
 '{
-   "context":{
+   "metadata":{
       "subkey":"example.com"
    },
    "partitions":[
       {
          "id":0,
-         "compressionGroup":0,
-         "keyGroups":[
+         "compressionGroupId":0,
+         "arguments":[
             {
                "tags":[
                   "metadata"
                ],
-               "keyList":[
+               "data":[
                   "animals",
                   "garden",
                   "dinner",
@@ -22,7 +22,7 @@
                "tags":[
                   "signals"
                ],
-               "keyList":[
+               "data":[
                   "food"
                ]
             }

@@ -28,7 +28,6 @@
 #include "components/data_server/request_handler/compression.h"
 #include "components/udf/udf_client.h"
 #include "grpcpp/grpcpp.h"
-#include "nlohmann/json.hpp"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 #include "quiche/binary_http/binary_http_message.h"
 #include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
@@ -54,9 +53,6 @@ class GetValuesV2Handler {
         create_compression_group_concatenator_(
             std::move(create_compression_group_concatenator)),
         key_fetcher_manager_(key_fetcher_manager) {}
-
-  absl::StatusOr<nlohmann::json> GetValuesJsonResponse(
-      const v2::GetValuesHttpRequest& request) const;
 
   grpc::Status GetValuesHttp(const v2::GetValuesHttpRequest& request,
                              google::api::HttpBody* response) const;
@@ -84,12 +80,10 @@ class GetValuesV2Handler {
   grpc::Status ObliviousGetValues(const v2::ObliviousGetValuesRequest& request,
                                   google::api::HttpBody* response) const;
 
-  // Given a list of compression group objects, create a JSON object to
-  // represent the list.
-  static nlohmann::json BuildCompressionGroupsForDebugging(
-      std::vector<nlohmann::json> compression_groups);
-
  private:
+  absl::Status GetValuesHttp(std::string_view request,
+                             std::string& json_response) const;
+
   // On success, returns a BinaryHttpResponse with a successful response. The
   // reason that this is a separate function is so that the error status
   // returned from here can be encoded as a BinaryHTTP response code. So even if
@@ -101,7 +95,7 @@ class GetValuesV2Handler {
   // Returns error only if the response cannot be serialized into Binary HTTP
   // response. For all other failures, the error status will be inside the
   // Binary HTTP message.
-  grpc::Status BinaryHttpGetValues(std::string_view bhttp_request_body,
+  absl::Status BinaryHttpGetValues(std::string_view bhttp_request_body,
                                    std::string& response) const;
 
   // Invokes UDF to process one partition.

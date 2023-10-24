@@ -82,19 +82,19 @@ function associateCosineSimilarity(wordEmbeddings, embedding) {
  * Computes the set union of all `metadata` keys and scores their similarity agains the `signal` word.
  * The words and scores of the top 10 most similar words are returned, in order of similarity.
  *
- * @param input V2 formatted KV request.
+ * @param udf_arguments V2 formatted KV request.
  * @returns A sorted list of top 10 words and their scores.
  */
-function HandleRequest(input) {
+function HandleRequest(executionMetadata, ...udf_arguments) {
     metadataKeys = []
     signal = ""
-    for (const keyGroup of input.keyGroups) {
-        if (keyGroup.tags.includes("metadata")) {
-            metadataKeys = keyGroup.keyList;
+    for (const argument of udf_arguments) {
+        if (argument.tags.includes("metadata")) {
+            metadataKeys = argument.data;
         }
-        else if (keyGroup.tags.includes("signals")) {
+        else if (argument.tags.includes("signals")) {
             // only get one signal
-            signal = keyGroup.keyList[0];
+            signal = argument.data[0];
         }
     }
     results = []

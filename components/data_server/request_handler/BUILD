@@ -90,7 +90,7 @@ cc_library(
         "@com_google_protobuf//:protobuf",
         "@google_privacysandbox_servers_common//src/cpp/telemetry",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
-        "@nlohmann_json//:lib",
+        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
     ],
 )
 
@@ -140,6 +140,8 @@ cc_test(
     srcs = [
         "get_values_v2_handler_test.cc",
     ],
+    env = {"GLOG_v": "9"},
+    linkstatic = True,
     deps = [
         ":get_values_v2_handler",
         "//components/data_server/cache",
@@ -156,6 +158,7 @@ cc_test(
         "@google_privacysandbox_servers_common//src/cpp/encryption/key_fetcher/src:fake_key_fetcher_manager",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+        "@nlohmann_json//:lib",
     ],
 )
 

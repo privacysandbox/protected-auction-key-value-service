@@ -297,7 +297,7 @@ gcloud compute scp dist/query_api_descriptor_set.pb ${ENVIRONMENT}-grpc-client:d
 Finally, you can make the v2 query from the grpc-client instance:
 
 ```sh
-BODY='{ "context": { "subkey": "example.com" }, "partitions": [{ "id": 0, "compressionGroup": 0, "keyGroups": [{ "tags": [ "custom", "keys" ], "keyList": [ "foo1" ] }] }] }'
+BODY='{ "metadata": { "subkey": "example.com" }, "partitions": [{ "id": 0, "compressionGroupId": 0, "arguments": [{ "tags": [ "custom", "keys" ], "data": [ "foo1" ] }] }] }'
 ```
 
 ```sh

@@ -31,7 +31,7 @@ goog.require("proto.kv_server.BinaryGetValuesResponse");
 
 function myFunc(){
   ...
-  var serializedGetValuesBinary = getValuesBinary(keyGroup["keyList"]);
+  var serializedGetValuesBinary = getValuesBinary(keyGroup["data"]);
   var getValuesBinaryProto = proto.kv_server.BinaryGetValuesResponse.deserializeBinary(serializedGetValuesBinary);
   ...
 }

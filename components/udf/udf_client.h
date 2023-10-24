@@ -46,7 +46,7 @@ class UdfClient {
   // Executes the UDF. Code object must be set before making
   // this call.
   virtual absl::StatusOr<std::string> ExecuteCode(
-      const UDFExecutionMetadata& execution_metadata,
+      UDFExecutionMetadata&& execution_metadata,
       const google::protobuf::RepeatedPtrField<UDFArgument>& arguments)
       const = 0;
 

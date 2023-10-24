@@ -24,7 +24,7 @@ namespace kv_server {
 // external configure file
 
 constexpr std::string_view kKVV2KeyValueDSPRequestBodyFormat = R"json(
-{"context": {},"partitions": [{ "id": 0, "compressionGroup": 0,"keyGroups": [{ "tags": [ "custom", "keys" ],"keyList": [ %s ] }] }] })json";
+{"metadata": {},"partitions": [{ "id": 0, "compressionGroupId": 0,"arguments": [{ "tags": [ "custom", "keys" ],"data": [ %s ] }] }] })json";
 
 std::vector<std::string> GenerateRandomKeys(int number_of_keys, int key_size) {
   std::vector<std::string> result;

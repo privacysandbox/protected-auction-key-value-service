@@ -1,18 +1,18 @@
 {
-  "context": {
+  "metadata": {
     "subkey": "example.com"
   },
   "partitions": [
     {
       "id": 4,
-      "compressionGroup": 2,
-      "keyGroups": [
+      "compressionGroupId": 2,
+      "arguments": [
         {
           "tags": [
             "structured",
             "groupNames"
           ],
-          "keyList": [
+          "data": [
             "hi"
           ]
         }

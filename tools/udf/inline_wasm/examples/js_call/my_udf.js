@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-async function HandleRequest(input) {
+async function HandleRequest(executionMetadata, ...input) {
   logMessage("Handling request");
   const module = await getModule();
   logMessage("Done loading WASM Module");

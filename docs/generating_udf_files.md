@@ -34,9 +34,9 @@ Note that the UDF should be in JavaScript (and optionally JavaScript + inline WA
 
 We provide a [simple reference implementation](/tools/udf/sample_udf/udf.js):
 
--   The implementation ignores part of the request, e.g. the `context` field.
--   For each `keyGroup` in the request, it calls `getValues(keyGroup.keyList)` to retrieve the keys
-    from the internal cache and returns the key-value pairs in its response.
+-   The implementation ignores part of the request, e.g. the `metadata` field.
+-   For each `keyGroup` in the request, it calls `getValues(keyGroup)` to retrieve the keys from the
+    internal cache and returns the key-value pairs in its response.
 
 ## 2. Generate a UDF delta file
 

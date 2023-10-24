@@ -19,13 +19,13 @@ constexpr int64_t kDefaultLogicalCommitTime = 0;
 constexpr int64_t kDefaultVersion = 1;
 
 constexpr char kDefaultUdfCodeSnippet[] = R"(
-function getKeyGroupOutputs(input) {
-  const keyGroupOutputs = [];
-  for (const keyGroup of input.keyGroups) {
-    const keyGroupOutput = {};
-    keyGroupOutput.tags = keyGroup.tags;
+function getKeyGroupOutputs(udf_arguments) {
+  let keyGroupOutputs = [];
+  for (let argument of udf_arguments) {
+    let keyGroupOutput = {};
+    keyGroupOutput.tags = argument.tags;
 
-    const getValuesResult = JSON.parse(getValues(keyGroup.keyList));
+    const getValuesResult = JSON.parse(getValues(argument.data));
     // getValuesResult returns "kvPairs" when successful and "code" on failure.
     // Ignore failures and only add successful getValuesResult lookups to output.
     if (getValuesResult.hasOwnProperty("kvPairs")) {
@@ -44,8 +44,8 @@ function getKeyGroupOutputs(input) {
 }
 
 
-function handleRequest(input) {
-  const keyGroupOutputs = getKeyGroupOutputs(input);
+function handleRequest(executionMetadata, ...udf_arguments) {
+  const keyGroupOutputs = getKeyGroupOutputs(udf_arguments);
   return {keyGroupOutputs, udfOutputApiVersion: 1};
 }
 )";

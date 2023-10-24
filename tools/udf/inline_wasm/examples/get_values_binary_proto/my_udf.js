@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-async function HandleRequest(input) {
-  logMessage("Handling request");
+async function HandleRequest(executionMetadata, ...udf_arguments) {
   const module = await getModule();
   logMessage("Done loading WASM Module");
 
   // Pass in the getValuesBinary function for the C++ code to call.
   // getValuesBinary returns a Uint8Array, which emscripten converts to std::string
-  const result = module.handleRequestCc(getValuesBinary, input);
+  const result = module.handleRequestCc(getValuesBinary, udf_arguments);
   logMessage("handleRequestCc result: " + JSON.stringify(result));
   return result;
 }

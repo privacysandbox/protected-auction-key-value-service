@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-function HandleRequest(input) {
+function HandleRequest(executionMetadata, ...input) {
     const keyGroupOutputs = [];
-    for (const keyGroup of input.keyGroups) {
+    for (const keyGroup of input) {
         const keyGroupOutput = {};
         if (!keyGroup.tags.includes("custom") || !keyGroup.tags.includes("queries")) {
             continue;
         }
         keyGroupOutput.tags = keyGroup.tags;
-        if (!Array.isArray(keyGroup.keyList) || !keyGroup.keyList.length) {
+        if (!Array.isArray(keyGroup.data) || !keyGroup.data.length) {
             continue;
         }
 
-        // Get the first key in the keyList.
-        const runQueryArray = runQuery(keyGroup.keyList[0]);
+        // Get the first key in the data.
+        const runQueryArray = runQuery(keyGroup.data[0]);
         // runQuery returns an array of strings when successful and "code" on failure.
         // Ignore failures and only add successful runQuery results to output.
         if (Array.isArray(runQueryArray) && runQueryArray.length) {

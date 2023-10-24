@@ -23,8 +23,11 @@ import "google/protobuf/struct.proto";
 // the KV server is not oblivious to. Example use cases are to pass server side
 // flags or parameters.
 message UDFExecutionMetadata {
+  // Version of the UDF framework interface. The application overlay may define
+  // request version separately in the request metadata.
+  int32 udf_interface_version = 1;
   // Metadata passed in from the request that are related to the request.
-  google.protobuf.Struct request_metadata = 1;
+  google.protobuf.Struct request_metadata = 2;
 }
 
 // Represents one argument to UDF. One UDF invocation may have multiple

@@ -34,7 +34,7 @@ class MockUdfClient : public UdfClient {
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
               (std::vector<std::string>), (const, override));
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
-              (const UDFExecutionMetadata&,
+              (UDFExecutionMetadata&&,
                const google::protobuf::RepeatedPtrField<UDFArgument>&),
               (const, override));
   MOCK_METHOD((absl::Status), Stop, (), (override));

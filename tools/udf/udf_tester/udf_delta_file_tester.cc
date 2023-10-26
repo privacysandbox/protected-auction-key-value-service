@@ -24,6 +24,7 @@
 #include "components/udf/udf_client.h"
 #include "components/udf/udf_config_builder.h"
 #include "glog/logging.h"
+#include "google/protobuf/util/json_util.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/query/v2/get_values_v2.pb.h"
@@ -35,9 +36,13 @@
 ABSL_FLAG(std::string, kv_delta_file_path, "",
           "Path to delta file with KV pairs.");
 ABSL_FLAG(std::string, udf_delta_file_path, "", "Path to UDF delta file.");
-ABSL_FLAG(std::vector<std::string>, input_arguments, {}, "Input arguments");
+ABSL_FLAG(std::string, input_arguments, "",
+          "List of input arguments in JSON format. Each input argument should "
+          "be equivalent to a UDFArgument.");
 
 namespace kv_server {
+
+using google::protobuf::util::JsonStringToMessage;
 
 // If the arg is const&, the Span construction complains about converting const
 // string_view to non-const string_view. Since this tool is for simple testing,
@@ -132,7 +137,7 @@ void ShutdownUdf(UdfClient& udf_client) {
 
 absl::Status TestUdf(const std::string& kv_delta_file_path,
                      const std::string& udf_delta_file_path,
-                     const std::vector<std::string>& input_arguments) {
+                     const std::string& input_arguments) {
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
   auto noop_metrics_recorder = MetricsRecorder::CreateNoop();
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
@@ -175,9 +180,13 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   }
 
   v2::RequestPartition req_partition;
-  for (const auto& arg : input_arguments) {
-    req_partition.add_arguments()->mutable_data()->set_string_value(arg);
-  }
+  std::string req_partition_json =
+      absl::StrCat("{arguments: ", input_arguments, "}");
+  LOG(INFO) << "req_partition_json: " << req_partition_json;
+
+  JsonStringToMessage(req_partition_json, &req_partition);
+
+  LOG(INFO) << "Calling UDF for partition: " << req_partition.DebugString();
   auto udf_result =
       udf_client.value()->ExecuteCode({}, req_partition.arguments());
   if (!udf_result.ok()) {
@@ -202,8 +211,7 @@ int main(int argc, char** argv) {
       absl::GetFlag(FLAGS_kv_delta_file_path);
   const std::string udf_delta_file_path =
       absl::GetFlag(FLAGS_udf_delta_file_path);
-  const std::vector<std::string> input_arguments =
-      absl::GetFlag(FLAGS_input_arguments);
+  const std::string input_arguments = absl::GetFlag(FLAGS_input_arguments);
 
   auto status = kv_server::TestUdf(kv_delta_file_path, udf_delta_file_path,
                                    input_arguments);

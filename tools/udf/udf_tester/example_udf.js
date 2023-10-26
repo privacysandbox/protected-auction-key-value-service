@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-function HandleRequest(input) {
-  return 'echo' + input + getValues(["example_key"]);
+function HandleRequest(executionMetadata, ...udf_arguments) {
+  return 'echo ' + JSON.stringify(udf_arguments) + ' ' + getValues(["example_key"]);
 }

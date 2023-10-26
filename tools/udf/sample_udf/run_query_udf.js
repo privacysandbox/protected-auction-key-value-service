@@ -15,9 +15,9 @@
  */
 
 function HandleRequest(executionMetadata, ...input) {
-    const keyGroupOutputs = [];
+    let keyGroupOutputs = [];
     for (const keyGroup of input) {
-        const keyGroupOutput = {};
+        let keyGroupOutput = {};
         if (!keyGroup.tags.includes("custom") || !keyGroup.tags.includes("queries")) {
             continue;
         }

@@ -24,8 +24,8 @@ function getKeyGroupOutputs(udf_arguments) {
   for (let argument of udf_arguments) {
     let keyGroupOutput = {};
     keyGroupOutput.tags = argument.tags;
-
-    const getValuesResult = JSON.parse(getValues(argument.data));
+    let data = argument.hasOwnProperty("tags") ? argument.data : argument ;
+    const getValuesResult = JSON.parse(getValues(data));
     // getValuesResult returns "kvPairs" when successful and "code" on failure.
     // Ignore failures and only add successful getValuesResult lookups to output.
     if (getValuesResult.hasOwnProperty("kvPairs")) {
@@ -44,12 +44,12 @@ function getKeyGroupOutputs(udf_arguments) {
 }
 
 
-function handleRequest(executionMetadata, ...udf_arguments) {
+function HandleRequest(executionMetadata, ...udf_arguments) {
   const keyGroupOutputs = getKeyGroupOutputs(udf_arguments);
   return {keyGroupOutputs, udfOutputApiVersion: 1};
 }
 )";
 
-constexpr char kDefaultUdfHandlerName[] = "handleRequest";
+constexpr char kDefaultUdfHandlerName[] = "HandleRequest";
 
 }  // namespace kv_server

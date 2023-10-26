@@ -61,8 +61,9 @@ emscripten::val getKeyGroupOutputs(const emscripten::val& get_values_cb,
     emscripten::val key_group_output = emscripten::val::object();
     key_group_output.set("tags", key_group["tags"]);
 
-    absl::StatusOr<emscripten::val> kv_pairs =
-        getKvPairs(get_values_cb, key_group["data"]);
+    const emscripten::val data =
+        key_group.hasOwnProperty("tags") ? key_group["data"] : key_group;
+    absl::StatusOr<emscripten::val> kv_pairs = getKvPairs(get_values_cb, data);
     if (kv_pairs.ok()) {
       key_group_output.set("keyValues", *kv_pairs);
       key_group_outputs.call<void>("push", key_group_output);

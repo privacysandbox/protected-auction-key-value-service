@@ -75,8 +75,7 @@ The delta file must have a `DataRecord` with a `UserDefinedFunctionsConfig` as i
 
 ### Option 3. Using sample UDF configurations
 
-A sample UDF JavaScript file and corresponding Delta file are located under the
-`tools/udf/sample_udf` directory.
+A sample UDF JavaScript file is located under the `tools/udf/sample_udf` directory.
 
 ## 3. Test the UDF delta file
 

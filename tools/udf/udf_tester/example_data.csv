@@ -1,2 +1,5 @@
 key,logical_commit_time,mutation_type,value,value_type
 example_key,12,UPDATE,AAAAAAAAAAAAAAAAAA,string
+key1,1680815895468055,UPDATE,value1,string
+key2,1680815895468056,UPDATE,value2,string
+keyset1,1680815895468055,UPDATE,key1|key2,string_set

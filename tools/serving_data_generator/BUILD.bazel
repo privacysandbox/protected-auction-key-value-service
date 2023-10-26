@@ -22,6 +22,7 @@ cc_binary(
         "//public/data_loading:filename_utils",
         "//public/data_loading:records_utils",
         "//public/data_loading:riegeli_metadata_cc_proto",
+        "//public/sharding:sharding_function",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",

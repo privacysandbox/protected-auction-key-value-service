@@ -23,6 +23,8 @@ cc_library(
     deps = [
         "//public/query/v2:get_values_v2_cc_proto",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -33,6 +35,27 @@ cc_test(
         ":retrieval_request_builder",
         "//public/query/cpp:client_utils",
         "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "retrieval_response_parser",
+    srcs = ["retrieval_response_parser.cc"],
+    hdrs = ["retrieval_response_parser.h"],
+    deps = [
+        "//public/query/v2:get_values_v2_cc_proto",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_test(
+    name = "retrieval_response_parser_test",
+    srcs = ["retrieval_response_parser_test.cc"],
+    deps = [
+        ":retrieval_response_parser",
         "@com_google_googletest//:gtest_main",
     ],
 )

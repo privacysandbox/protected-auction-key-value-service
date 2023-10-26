@@ -23,7 +23,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "public/query/v2/get_values_v2.pb.h"
 
-namespace kv_server {
+namespace kv_server::application_pas {
 
 // Builds a GetValuesRequest. Stores the input arguments into the request.
 //
@@ -35,6 +35,6 @@ v2::GetValuesRequest BuildRetrievalRequest(
     std::string contextual_signals,
     std::vector<std::string> optional_ad_ids = {});
 
-}  // namespace kv_server
+}  // namespace kv_server::application_pas
 
 #endif  // PUBLIC_APPLICATIONS_PAS_RETRIEVAL_REQUEST_BUILDER_H_

@@ -14,7 +14,7 @@
 
 #include "public/applications/pas/retrieval_request_builder.h"
 
-namespace kv_server {
+namespace kv_server::application_pas {
 
 v2::GetValuesRequest BuildRetrievalRequest(
     std::string protected_signals,
@@ -56,4 +56,4 @@ v2::GetValuesRequest BuildRetrievalRequest(
   return req;
 }
 
-}  // namespace kv_server
+}  // namespace kv_server::application_pas

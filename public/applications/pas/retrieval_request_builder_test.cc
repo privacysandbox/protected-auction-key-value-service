@@ -21,7 +21,7 @@
 #include "public/query/cpp/client_utils.h"
 #include "public/test_util/proto_matcher.h"
 
-namespace kv_server {
+namespace kv_server::application_pas {
 namespace {
 
 using google::protobuf::TextFormat;
@@ -73,4 +73,4 @@ TEST(RequestBuilder, Build) {
 }
 
 }  // namespace
-}  // namespace kv_server
+}  // namespace kv_server::application_pas

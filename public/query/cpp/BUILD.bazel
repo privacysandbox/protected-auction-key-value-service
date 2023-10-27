@@ -35,3 +35,25 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "grpc_client",
+    srcs = ["grpc_client.cc"],
+    hdrs = ["grpc_client.h"],
+    deps = [
+        "//public/query/v2:get_values_v2_cc_grpc",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/time",
+    ],
+)
+
+cc_test(
+    name = "grpc_client_test",
+    srcs = ["grpc_client_test.cc"],
+    deps = [
+        ":grpc_client",
+        "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

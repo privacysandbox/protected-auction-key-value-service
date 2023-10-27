@@ -106,22 +106,6 @@ ApproximatelyEquivalentProto(const MessageT& message) {
       ProtoMatcher<MessageT>(message, std::move(comparator)));
 }
 
-// A proto message matches Partially(reference_message) if every field that is
-// set in reference_message is set to the same value in the matchee message.
-template <typename MessageT>
-::testing::PolymorphicMatcher<ProtoMatcher<MessageT>> Partially(
-    const MessageT& message) {
-  std::function<bool(const MessageT&, const MessageT&)> comparator =
-      [](const ::google::protobuf::Message& arg,
-         const ::google::protobuf::Message& other) {
-        ::google::protobuf::util::MessageDifferencer differ;
-        differ.set_scope(::google::protobuf::util::MessageDifferencer::PARTIAL);
-        return differ.Compare(other, arg);
-      };
-  return ::testing::MakePolymorphicMatcher(
-      ProtoMatcher<MessageT>(message, std::move(comparator)));
-}
-
 }  // namespace kv_server
 
 #endif  // PUBLIC_TEST_UTIL_PROTO_MATCHER_H_

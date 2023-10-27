@@ -5,12 +5,8 @@
    "partitions":[
       {
          "id":0,
-         "compressionGroupId":0,
          "arguments":[
             {
-               "tags":[
-                  "metadata"
-               ],
                "data":[
                   "animals",
                   "garden",
@@ -19,12 +15,7 @@
                ]
             },
             {
-               "tags":[
-                  "signals"
-               ],
-               "data":[
-                  "food"
-               ]
+               "data": "food"
             }
          ]
       }

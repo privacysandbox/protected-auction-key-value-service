@@ -82,21 +82,11 @@ function associateCosineSimilarity(wordEmbeddings, embedding) {
  * Computes the set union of all `metadata` keys and scores their similarity agains the `signal` word.
  * The words and scores of the top 10 most similar words are returned, in order of similarity.
  *
- * @param udf_arguments V2 formatted KV request.
+ * @param metadataKeys Keys into the set data which do a UNION of all entries.
+ * @param signal Orders unioned data by similarity to signal word.
  * @returns A sorted list of top 10 words and their scores.
  */
-function HandleRequest(executionMetadata, ...udf_arguments) {
-    metadataKeys = []
-    signal = ""
-    for (const argument of udf_arguments) {
-        if (argument.tags.includes("metadata")) {
-            metadataKeys = argument.data;
-        }
-        else if (argument.tags.includes("signals")) {
-            // only get one signal
-            signal = argument.data[0];
-        }
-    }
+function HandleRequest(executionMetadata, metadataKeys, signal) {
     results = []
     if (metadataKeys.length) {
         // Union all of the sets of the given metadata category
@@ -115,11 +105,5 @@ function HandleRequest(executionMetadata, ...udf_arguments) {
     sortedWords.sort((a, b) => b[1] - a[1]);
     sortedWords = sortedWords.slice(0, 5);
 
-    keyGroupOutput = {};
-    keyValuesOutput = {}
-    keyValuesOutput["result"] = { "value": sortedWords };
-    keyGroupOutput.keyValues = keyValuesOutput;
-    keyGroupOutputs = [];
-    keyGroupOutputs.push(keyGroupOutput);
-    return { keyGroupOutputs, udfOutputApiVersion: 1 };
+    return JSON.stringify(sortedWords);
 }

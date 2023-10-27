@@ -197,3 +197,38 @@ To test the UDF delta file, use the provided UDF tools.
     options.
 
 Repeat the last step whenever you change your inline WASM and want to test it.
+
+## Calling UDF APIs from C++ WASM
+
+To call APIs available to the UDF from C++, the custom JavaScript code needs to pass the function as
+an input to the C++ WASM.
+
+For example, to pass the `getValues` function to C++,
+
+```javascript
+// Pass in the getValues function for the C++ code to call.
+const result = module.handleRequestCc(getValues, input);
+```
+
+On the C++ side, `getValues` is an `emscripten::val`:
+
+```C++
+emscripten::val handleRequestCc(const emscripten::val& get_values_cb,
+                                const emscripten::val& udf_arguments) {
+    ...
+}
+```
+
+`get_values_cb` can be called with an `emscripten::val` of type `array`. The result will be a
+serialized JSON.
+
+```C++
+
+emscripten::val keys = emscripten::val::array();
+...
+
+const std::string get_values_result = get_values_cb(keys).as<std::string>();
+
+```
+
+For a full example see `//tools/udf/inline_wasm/examples/js_call`.

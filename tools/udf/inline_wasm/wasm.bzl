@@ -67,10 +67,6 @@ def inline_wasm_udf_delta(
             return await wasmModule(Module);
         }"""
 
-    # Delegate performance.now(), since emscripten uses it for
-    # emscripten_get_now(), but V8 does not implement it.
-    performance_now_js = "var performance = {now: () => Date.now() }"
-
     native.genrule(
         name = "{}_generated".format(name),
         srcs = [wasm_binary, glue_js, custom_udf_js],
@@ -82,13 +78,11 @@ cat << EOF > $@
 let wasm_array = new Uint8Array([$$WASM_HEX]);
 $$(cat $(location {glue_js}))
 {module_js}
-{performance_now_js}
 $$(cat $(location {udf_js}))
 EOF""".format(
             wasm_binary = wasm_binary,
             glue_js = glue_js,
             module_js = getModule_js,
-            performance_now_js = performance_now_js,
             udf_js = custom_udf_js,
         ),
         visibility = ["//visibility:private"],

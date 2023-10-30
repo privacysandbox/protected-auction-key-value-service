@@ -69,16 +69,9 @@ class GcpBlobInputStreamBuf : public SeekingInputStreambuf {
     if (!stream.status().ok()) {
       return GoogleErrorStatusToAbslStatus(stream.status());
     }
-
-    int64_t true_size;
-    if (stream.size().has_value()) {
-      true_size = *(stream.size());
-    } else {
-      std::string contents(std::istreambuf_iterator<char>{stream}, {});
-      true_size = contents.size();
-    }
-
-    stream.read(dest_buffer, true_size);
+    std::string contents(std::istreambuf_iterator<char>{stream}, {});
+    int64_t true_size = contents.size();
+    std::copy(contents.begin(), contents.end(), dest_buffer);
     return true_size;
   }
 

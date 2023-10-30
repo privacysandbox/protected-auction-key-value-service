@@ -172,7 +172,7 @@ void BM_GetKeyValuePairs(benchmark::State& state, BenchmarkArgs args) {
     }
   }
   auto keys = GetKeys(args.query_size);
-  auto keys_view = ToContainerView<std::vector<std::string_view>>(keys);
+  auto keys_view = ToContainerView<absl::flat_hash_set<std::string_view>>(keys);
   for (auto _ : state) {
     benchmark::DoNotOptimize(args.cache->GetKeyValuePairs(keys_view));
   }
@@ -215,7 +215,8 @@ void BM_UpdateKeyValue(benchmark::State& state, BenchmarkArgs args) {
     while (num_readers-- > 0) {
       reader_tasks.emplace_back([args, &seed]() {
         auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
-        args.cache->GetKeyValuePairs({key});
+        args.cache->GetKeyValuePairs(
+            absl::flat_hash_set<std::string_view>({key}));
       });
     }
   }

@@ -54,11 +54,11 @@ grpc::Status LookupServiceImpl::ToInternalGrpcStatus(
 void LookupServiceImpl::ProcessKeys(const RepeatedPtrField<std::string>& keys,
                                     InternalLookupResponse& response) const {
   if (keys.empty()) return;
-  std::vector<std::string_view> key_list;
+  absl::flat_hash_set<std::string_view> key_set;
   for (const auto& key : keys) {
-    key_list.emplace_back(key);
+    key_set.insert(key);
   }
-  auto lookup_result = lookup_.GetKeyValues(key_list);
+  auto lookup_result = lookup_.GetKeyValues(key_set);
   if (lookup_result.ok()) {
     response = *std::move(lookup_result);
   }

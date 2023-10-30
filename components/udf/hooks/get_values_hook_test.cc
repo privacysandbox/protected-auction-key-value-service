@@ -38,7 +38,7 @@ using testing::_;
 using testing::Return;
 
 TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
-  std::vector<std::string_view> keys = {"key1", "key2"};
+  absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   InternalLookupResponse lookup_response;
   TextFormat::ParseFromString(R"pb(kv_pairs {
                                      key: "key1"
@@ -76,7 +76,7 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
 }
 
 TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
-  std::vector<std::string_view> keys = {"key1"};
+  absl::flat_hash_set<std::string_view> keys = {"key1"};
   InternalLookupResponse lookup_response;
   TextFormat::ParseFromString(
       R"pb(kv_pairs {
@@ -103,7 +103,7 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
 }
 
 TEST(GetValuesHookTest, StringOutput_LookupReturnsError) {
-  std::vector<std::string_view> keys = {"key1"};
+  absl::flat_hash_set<std::string_view> keys = {"key1"};
   auto mock_lookup = std::make_unique<MockLookup>();
   EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
       .WillOnce(Return(absl::UnknownError("Some error")));
@@ -121,7 +121,7 @@ TEST(GetValuesHookTest, StringOutput_LookupReturnsError) {
 }
 
 TEST(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
-  std::vector<std::string_view> keys = {"key1"};
+  absl::flat_hash_set<std::string_view> keys = {"key1"};
   auto mock_lookup = std::make_unique<MockLookup>();
 
   FunctionBindingIoProto io;
@@ -137,7 +137,7 @@ TEST(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
 }
 
 TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
-  std::vector<std::string_view> keys = {"key1", "key2"};
+  absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   InternalLookupResponse lookup_response;
   TextFormat::ParseFromString(
       R"pb(kv_pairs {
@@ -182,7 +182,7 @@ TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
 }
 
 TEST(GetValuesHookTest, BinaryOutput_LookupReturnsError) {
-  std::vector<std::string_view> keys = {"key1"};
+  absl::flat_hash_set<std::string_view> keys = {"key1"};
   auto mock_lookup = std::make_unique<MockLookup>();
   EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
       .WillOnce(Return(absl::UnknownError("Some error")));

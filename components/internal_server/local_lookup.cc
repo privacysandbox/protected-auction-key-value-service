@@ -43,7 +43,7 @@ class LocalLookup : public Lookup {
       : cache_(cache), metrics_recorder_(metrics_recorder) {}
 
   absl::StatusOr<InternalLookupResponse> GetKeyValues(
-      const std::vector<std::string_view>& keys) const override {
+      const absl::flat_hash_set<std::string_view>& keys) const override {
     return ProcessKeys(keys);
   }
 
@@ -59,7 +59,7 @@ class LocalLookup : public Lookup {
 
  private:
   InternalLookupResponse ProcessKeys(
-      const std::vector<std::string_view>& keys) const {
+      const absl::flat_hash_set<std::string_view>& keys) const {
     InternalLookupResponse response;
     if (keys.empty()) {
       return response;

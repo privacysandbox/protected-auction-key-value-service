@@ -145,9 +145,9 @@ class GetValuesHookImpl : public GetValuesHook {
       return;
     }
 
-    std::vector<std::string_view> keys;
+    absl::flat_hash_set<std::string_view> keys;
     for (const auto& key : io.input_list_of_string().data()) {
-      keys.emplace_back(key);
+      keys.insert(key);
     }
 
     VLOG(9) << "Calling internal lookup client";

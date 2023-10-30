@@ -33,7 +33,7 @@ class Lookup {
   virtual ~Lookup() = default;
 
   virtual absl::StatusOr<InternalLookupResponse> GetKeyValues(
-      const std::vector<std::string_view>& keys) const = 0;
+      const absl::flat_hash_set<std::string_view>& keys) const = 0;
 
   virtual absl::StatusOr<InternalLookupResponse> GetKeyValueSet(
       const absl::flat_hash_set<std::string_view>& key_set) const = 0;

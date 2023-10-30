@@ -41,7 +41,8 @@ class MockRemoteLookupClient : public RemoteLookupClient {
 class MockLookup : public Lookup {
  public:
   MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetKeyValues,
-              (const std::vector<std::string_view>&), (const, override));
+              (const absl::flat_hash_set<std::string_view>&),
+              (const, override));
   MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetKeyValueSet,
               (const absl::flat_hash_set<std::string_view>&),
               (const, override));

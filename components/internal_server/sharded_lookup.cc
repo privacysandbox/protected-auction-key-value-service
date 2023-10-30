@@ -117,9 +117,8 @@ class ShardedLookup : public Lookup {
   // return an empty response and `Internal` error as the status for the gRPC
   // status code.
   absl::StatusOr<InternalLookupResponse> GetKeyValues(
-      const std::vector<std::string_view>& keys) const override {
-    absl::flat_hash_set<std::string_view> key_set(keys.begin(), keys.end());
-    return ProcessShardedKeys(key_set);
+      const absl::flat_hash_set<std::string_view>& keys) const override {
+    return ProcessShardedKeys(keys);
   }
 
   absl::StatusOr<InternalLookupResponse> GetKeyValueSet(
@@ -300,7 +299,9 @@ class ShardedLookup : public Lookup {
   absl::StatusOr<InternalLookupResponse> GetLocalValues(
       const std::vector<std::string_view>& key_list) const {
     InternalLookupResponse response;
-    return local_lookup_.GetKeyValues(key_list);
+    absl::flat_hash_set<std::string_view> keys(key_list.begin(),
+                                               key_list.end());
+    return local_lookup_.GetKeyValues(keys);
   }
 
   absl::StatusOr<InternalLookupResponse> GetLocalKeyValuesSet(

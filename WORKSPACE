@@ -125,7 +125,3 @@ install_deps()
 load("//third_party_deps:rules_closure_repositories.bzl", "rules_closure_repositories")
 
 rules_closure_repositories()
-
-load("//third_party_deps:rules_closure_deps.bzl", "rules_closure_deps")
-
-rules_closure_deps()

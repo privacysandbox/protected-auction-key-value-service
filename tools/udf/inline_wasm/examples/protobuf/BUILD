@@ -27,6 +27,8 @@ BASE_LINKOPTS = [
     "-s EXPORTED_FUNCTIONS=_malloc,_free",
     # Disable the filesystem.
     "-s FILESYSTEM=0",
+    # Use environment with fewer "extra" features.
+    "-s ENVIRONMENT=shell",
 ]
 
 cc_binary(

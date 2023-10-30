@@ -29,6 +29,8 @@ BASE_LINKOPTS = [
     "-s EXPORT_NAME=wasmModule",
     # Disable the filesystem.
     "-s FILESYSTEM=0",
+    # Use environment with fewer "extra" features.
+    "-s ENVIRONMENT=shell",
 ]
 
 cc_binary(

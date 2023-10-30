@@ -61,6 +61,8 @@ BASE_LINKOPTS = [
     "--closure=0",
     # Disable the filesystem.
     "-s FILESYSTEM=0",
+    # Use environment with fewer "extra" features.
+    "-s ENVIRONMENT=shell",
 ]
 
 cc_binary(

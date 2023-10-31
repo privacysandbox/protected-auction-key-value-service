@@ -79,6 +79,20 @@ TEST_F(DriverTest, InvalidTokensQuery) {
   EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST_F(DriverTest, MissingOperatorVar) {
+  Parse("A A");
+  EXPECT_EQ(driver_->GetRootNode(), nullptr);
+  auto result = driver_->GetResult();
+  EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST_F(DriverTest, MissingOperatorExp) {
+  Parse("(A) (A)");
+  EXPECT_EQ(driver_->GetRootNode(), nullptr);
+  auto result = driver_->GetResult();
+  EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
 TEST_F(DriverTest, InvalidOp) {
   Parse("A UNION ");
   EXPECT_EQ(driver_->GetRootNode(), nullptr);

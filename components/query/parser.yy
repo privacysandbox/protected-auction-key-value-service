@@ -52,7 +52,7 @@
 %token <std::string> VAR ERROR
 %token YYEOF 0
 
-// Allows defining the types returned by `term` and `exp below.
+/* Allows defining the types returned by `term` and `exp below. */
 %define api.token.constructor
 %define api.value.type variant
 
@@ -62,18 +62,20 @@
 /* Order of operations is left to right */
 %left UNION INTERSECTION DIFFERENCE
 
+/* Cause build failures on grammar conflicts */
+%expect 0
+
 %%
 
 query:
   %empty
- | query exp { driver.SetAst(std::move($2)); }
+ | query exp YYEOF { driver.SetAst(std::move($2)); }
 
 exp: term {$$ = std::move($1);}
  | exp UNION exp { $$ = std::make_unique<UnionNode>(std::move($1), std::move($3)); }
  | exp INTERSECTION exp { $$ = std::make_unique<IntersectionNode>(std::move($1), std::move($3)); }
  | exp DIFFERENCE exp { $$ = std::make_unique<DifferenceNode>(std::move($1), std::move($3)); }
  | LPAREN exp RPAREN   { $$ = std::move($2); }
- | exp exp { driver.SetError("Missing operator"); YYERROR; }
  | ERROR { driver.SetError("Invalid token: " + $1); YYERROR;}
  ;
 

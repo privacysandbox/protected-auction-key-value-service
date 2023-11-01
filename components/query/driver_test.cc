@@ -215,5 +215,14 @@ TEST_F(DriverTest, EmptyResults) {
   EXPECT_EQ(result->size(), 0);
 }
 
+TEST_F(DriverTest, DriverErrorsClearedOnParse) {
+  Parse("A &");
+  auto result = driver_->GetResult();
+  ASSERT_FALSE(result.ok());
+  Parse("A");
+  result = driver_->GetResult();
+  ASSERT_TRUE(result.ok());
+}
+
 }  // namespace
 }  // namespace kv_server

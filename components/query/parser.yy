@@ -65,6 +65,10 @@
 /* Cause build failures on grammar conflicts */
 %expect 0
 
+%initial-action {
+  driver.ClearError();
+}
+
 %%
 
 query:

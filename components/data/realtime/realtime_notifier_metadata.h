@@ -28,11 +28,11 @@ namespace cloud {
 namespace pubsub {
 // GCP uses inline namespaces for versioning. If we update GCP SDK and
 // decide to bump the version, we'd need to update it here too.
-inline namespace v2_8_0 {
+inline namespace v2_17 {
 // This is a forward declare so that we don't need to import the
 //  pubsub Subscriber when we're running on non-GCP platforms.
 class Subscriber;
-}  // namespace v2_8_0
+}  // namespace v2_17
 }  // namespace pubsub
 }  // namespace cloud
 }  // namespace google
@@ -56,7 +56,7 @@ struct GcpRealtimeNotifierMetadata {
   // This can't be a unique pointer, since this will be an incomplete type
   // for certain platforms.
   // Realtime notifier takes ownership of this if set.
-  ::google::cloud::pubsub::v2_8_0::Subscriber* gcp_subscriber_for_unit_testing =
+  ::google::cloud::pubsub::v2_17::Subscriber* gcp_subscriber_for_unit_testing =
       nullptr;
   // Used for tests only.
   std::unique_ptr<SleepFor> maybe_sleep_for;

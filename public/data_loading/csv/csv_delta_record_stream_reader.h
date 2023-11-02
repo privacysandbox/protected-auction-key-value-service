@@ -17,6 +17,7 @@
 #ifndef PUBLIC_DATA_LOADING_CSV_CSV_DELTA_RECORD_STREAM_READER_H_
 #define PUBLIC_DATA_LOADING_CSV_CSV_DELTA_RECORD_STREAM_READER_H_
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -75,6 +76,7 @@ class CsvDeltaRecordStreamReader : public DeltaRecordReader {
     // Used as a separator for set value elements.
     char value_separator = '|';
     DataRecordType record_type = DataRecordType::kKeyValueMutationRecord;
+    CsvEncoding csv_encoding = CsvEncoding::kPlaintext;
   };
 
   CsvDeltaRecordStreamReader(SrcStreamT& src_stream,
@@ -95,9 +97,16 @@ class CsvDeltaRecordStreamReader : public DeltaRecordReader {
 };
 
 namespace internal {
+
+absl::StatusOr<std::string> MaybeGetValue(const riegeli::CsvRecord& csv_record,
+                                          const CsvEncoding& csv_encoding);
+absl::StatusOr<std::vector<std::string>> MaybeGetSetValue(
+    const riegeli::CsvRecord& csv_record, char value_separator,
+    const CsvEncoding& csv_encoding);
+
 absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStruct(
     const riegeli::CsvRecord& csv_record, const DataRecordType& record_type,
-    char value_separator);
+    std::string_view value, const std::vector<std::string>& set_value);
 
 template <typename DestStreamT>
 riegeli::CsvReaderBase::Options GetRecordReaderOptions(
@@ -141,9 +150,28 @@ absl::Status CsvDeltaRecordStreamReader<SrcStreamT>::ReadRecords(
   riegeli::CsvRecord csv_record;
   absl::Status overall_status;
   while (record_reader_.ReadRecord(csv_record)) {
+    std::string value;
+    std::vector<std::string> set_value;
+    if (options_.record_type == DataRecordType::kKeyValueMutationRecord) {
+      auto maybe_value =
+          internal::MaybeGetValue(csv_record, options_.csv_encoding);
+      if (!maybe_value.ok()) {
+        overall_status.Update(maybe_value.status());
+        continue;
+      }
+      value = *maybe_value;
+
+      auto maybe_set_value = internal::MaybeGetSetValue(
+          csv_record, options_.value_separator, options_.csv_encoding);
+      if (!maybe_set_value.ok()) {
+        overall_status.Update(maybe_set_value.status());
+        continue;
+      }
+      set_value = *maybe_set_value;
+    }
     absl::StatusOr<DataRecordStruct> delta_record =
         internal::MakeDeltaFileRecordStruct(csv_record, options_.record_type,
-                                            options_.value_separator);
+                                            value, set_value);
     if (!delta_record.ok()) {
       overall_status.Update(delta_record.status());
       continue;

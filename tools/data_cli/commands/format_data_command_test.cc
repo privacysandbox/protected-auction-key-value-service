@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include "absl/strings/escaping.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/csv/csv_delta_record_stream_reader.h"
@@ -139,6 +140,104 @@ TEST_P(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_KvMutations) {
         return absl::OkStatus();
       });
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
+}
+
+TEST(FormatDataCommandTest,
+     ValidateGeneratingCsvToDeltaData_KVMutations_Base64) {
+  std::stringstream csv_stream;
+  std::stringstream delta_stream;
+  CsvDeltaRecordStreamWriter csv_writer(csv_stream);
+
+  std::string plaintext_value = "value";
+  std::string base64_value;
+  absl::Base64Escape(plaintext_value, &base64_value);
+  const auto& base64_record = GetDataRecord(GetKVMutationRecord(base64_value));
+  EXPECT_TRUE(csv_writer.WriteRecord(base64_record).ok());
+  EXPECT_TRUE(csv_writer.WriteRecord(base64_record).ok());
+  EXPECT_TRUE(csv_writer.WriteRecord(base64_record).ok());
+  csv_writer.Close();
+  EXPECT_FALSE(csv_stream.str().empty());
+  auto params = GetParams();
+  params.csv_encoding = "BASE64";
+  auto command = FormatDataCommand::Create(params, csv_stream, delta_stream);
+  EXPECT_TRUE(command.ok()) << command.status();
+  EXPECT_TRUE((*command)->Execute().ok());
+  DeltaRecordStreamReader delta_reader(delta_stream);
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  const auto expected_record =
+      GetDataRecord(GetKVMutationRecord(plaintext_value));
+  EXPECT_CALL(record_callback, Call)
+      .Times(3)
+      .WillRepeatedly([&expected_record](DataRecordStruct actual_record) {
+        EXPECT_EQ(actual_record, expected_record);
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(delta_reader.ReadRecords(record_callback.AsStdFunction()).ok());
+}
+
+TEST(FormatDataCommandTest,
+     ValidateGeneratingDeltaToCsvData_KvMutations_Base64) {
+  std::stringstream delta_stream;
+  std::stringstream csv_stream;
+  auto delta_writer = DeltaRecordStreamWriter<std::stringstream>::Create(
+      delta_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
+  std::string plaintext_value = "value";
+  const auto& plaintext_record =
+      GetDataRecord(GetKVMutationRecord(plaintext_value));
+  EXPECT_TRUE(delta_writer.ok()) << delta_writer.status();
+  EXPECT_TRUE((*delta_writer)->WriteRecord(plaintext_record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(plaintext_record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(plaintext_record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(plaintext_record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(plaintext_record).ok());
+  (*delta_writer)->Close();
+  auto command = FormatDataCommand::Create(
+      FormatDataCommand::Params{
+          .input_format = "DELTA",
+          .output_format = "CSV",
+          .csv_column_delimiter = ',',
+          .csv_value_delimiter = '|',
+          .record_type = "KEY_VALUE_MUTATION_RECORD",
+          .csv_encoding = "BASE64",
+      },
+      delta_stream, csv_stream);
+  EXPECT_TRUE(command.ok()) << command.status();
+  EXPECT_TRUE((*command)->Execute().ok());
+  CsvDeltaRecordStreamReader csv_reader(csv_stream);
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+
+  std::string base64_value;
+  absl::Base64Escape(plaintext_value, &base64_value);
+  const auto& expected_record =
+      GetDataRecord(GetKVMutationRecord(base64_value));
+  EXPECT_CALL(record_callback, Call)
+      .Times(5)
+      .WillRepeatedly([&expected_record](DataRecordStruct actual_record) {
+        EXPECT_EQ(actual_record, expected_record);
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
+}
+
+TEST(FormatDataCommandTest,
+     ValidateGeneratingCsvToDeltaData_KVMutations_InvalidEncoding) {
+  std::stringstream csv_stream;
+  std::stringstream delta_stream;
+  CsvDeltaRecordStreamWriter csv_writer(csv_stream);
+
+  std::string plaintext_value;
+  std::string base64_value;
+  absl::Base64Escape(plaintext_value, &base64_value);
+  const auto& record = GetDataRecord(GetKVMutationRecord(base64_value));
+  EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
+  EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
+  EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
+  csv_writer.Close();
+  EXPECT_FALSE(csv_stream.str().empty());
+  auto params = GetParams();
+  params.csv_encoding = "UNKNOWN";
+  auto command = FormatDataCommand::Create(params, csv_stream, delta_stream);
+  EXPECT_FALSE(command.ok()) << command.status();
 }
 
 TEST(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData_UdfConfig) {

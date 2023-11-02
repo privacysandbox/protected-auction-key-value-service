@@ -117,6 +117,9 @@ Commands:
     [--record_type]    (Optional) Defaults to "KEY_VALUE_MUTATION_RECORD". Possible
                                   options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG).
                                   If reading/writing a UDF config, use "USER_DEFINED_FUNCTIONS_CONFIG".
+    [--csv_encoding]   (Optional) Defaults to "PLAINTEXT". Encoding for KEY_VALUE_MUTATION_RECORD values for CSVs.
+                                  Possible options=(PLAINTEXT|BASE64).
+                                  If the values are binary, BASE64 is recommended.
 
   Examples:
 ...

@@ -59,6 +59,10 @@ ABSL_FLAG(std::string, record_type, "key_value_mutation_record",
           "Data record type. Possible "
           "options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG|"
           "SHARD_MAPPING_RECORD).");
+ABSL_FLAG(std::string, csv_encoding, "plaintext",
+          "Encoding for KEY_VALUE_MUTATION_RECORD values for "
+          "CSVs. options=(PLAINTEXT|BASE64)."
+          "If the values are binary, BASE64 is recommended.");
 
 constexpr std::string_view kUsageMessage = R"(
 Usage: data_cli <command> <flags>
@@ -73,6 +77,9 @@ Commands:
                                   options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG|SHARD_MAPPING_RECORD).
                                   If reading/writing a UDF config, use "USER_DEFINED_FUNCTIONS_CONFIG".
                                   If reading/writing a shard mapping config, use "SHARD_MAPPING_RECORD".
+    [--csv_encoding]   (Optional) Defaults to "PLAINTEXT". Encoding for KEY_VALUE_MUTATION_RECORD values for CSVs.
+                                  Possible options=(PLAINTEXT|BASE64).
+                                  If the values are binary, BASE64 is recommended.
   Examples:
     (1) Generate a csv file to a delta file and write output records to std::cout.
     - data_cli format_data --input_file="$PWD/data.csv"
@@ -164,6 +171,7 @@ int main(int argc, char** argv) {
                 absl::GetFlag(FLAGS_csv_column_delimiter)[0],
             .csv_value_delimiter = absl::GetFlag(FLAGS_csv_value_delimiter)[0],
             .record_type = absl::GetFlag(FLAGS_record_type),
+            .csv_encoding = absl::GetFlag(FLAGS_csv_encoding),
         },
         *i_stream, *o_stream);
     if (!format_data_command.ok()) {

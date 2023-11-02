@@ -28,6 +28,7 @@
 #include "public/data_loading/csv/csv_delta_record_stream_writer.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
+#include "src/cpp/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {
@@ -38,6 +39,8 @@ constexpr std::string_view kKeyValueMutationRecord =
     "key_value_mutation_record";
 constexpr std::string_view kUserDefinedFunctionsConfig =
     "user_defined_functions_config";
+constexpr std::string_view kEncodingPlaintext = "plaintext";
+constexpr std::string_view kEncodingBase64 = "base64";
 constexpr double kSamplingThreshold = 0.02;
 constexpr std::string_view kShardMappingRecord = "shard_mapping_record";
 
@@ -75,19 +78,30 @@ absl::StatusOr<DataRecordType> GetRecordType(std::string_view record_type) {
       absl::StrCat("Record type ", record_type, " is not supported."));
 }
 
+absl::StatusOr<CsvEncoding> GetCsvEncoding(std::string_view csv_encoding) {
+  std::string lw_csv_encoding = absl::AsciiStrToLower(csv_encoding);
+  if (lw_csv_encoding == kEncodingPlaintext) {
+    return CsvEncoding::kPlaintext;
+  }
+  if (lw_csv_encoding == kEncodingBase64) {
+    return CsvEncoding::kBase64;
+  }
+  return absl::InvalidArgumentError(
+      absl::StrCat("Csv encoding ", csv_encoding, " is not supported."));
+}
+
 absl::StatusOr<std::unique_ptr<DeltaRecordReader>> CreateRecordReader(
     const FormatDataCommand::Params& params, std::istream& input_stream) {
   std::string lw_input_format = absl::AsciiStrToLower(params.input_format);
   if (lw_input_format == kCsvFormat) {
-    const auto record_type = GetRecordType(params.record_type);
-    if (!record_type.ok()) {
-      return record_type.status();
-    }
+    PS_ASSIGN_OR_RETURN(auto record_type, GetRecordType(params.record_type));
+    PS_ASSIGN_OR_RETURN(auto csv_encoding, GetCsvEncoding(params.csv_encoding));
     return std::make_unique<CsvDeltaRecordStreamReader<std::istream>>(
         input_stream, CsvDeltaRecordStreamReader<std::istream>::Options{
                           .field_separator = params.csv_column_delimiter,
                           .value_separator = params.csv_value_delimiter,
-                          .record_type = std::move(record_type.value()),
+                          .record_type = std::move(record_type),
+                          .csv_encoding = std::move(csv_encoding),
                       });
   }
   if (lw_input_format == kDeltaFormat) {
@@ -102,15 +116,14 @@ absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
     const FormatDataCommand::Params& params, std::ostream& output_stream) {
   std::string lw_output_format = absl::AsciiStrToLower(params.output_format);
   if (lw_output_format == kCsvFormat) {
-    const auto record_type = GetRecordType(params.record_type);
-    if (!record_type.ok()) {
-      return record_type.status();
-    }
+    PS_ASSIGN_OR_RETURN(auto record_type, GetRecordType(params.record_type));
+    PS_ASSIGN_OR_RETURN(auto csv_encoding, GetCsvEncoding(params.csv_encoding));
     return std::make_unique<CsvDeltaRecordStreamWriter<std::ostream>>(
         output_stream, CsvDeltaRecordStreamWriter<std::ostream>::Options{
                            .field_separator = params.csv_column_delimiter,
                            .value_separator = params.csv_value_delimiter,
-                           .record_type = std::move(record_type.value()),
+                           .record_type = std::move(record_type),
+                           .csv_encoding = std::move(csv_encoding),
                        });
   }
   if (lw_output_format == kDeltaFormat) {

@@ -75,6 +75,7 @@ class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
     // Used as a separator for set value elements.
     char value_separator = '|';
     DataRecordType record_type = DataRecordType::kKeyValueMutationRecord;
+    CsvEncoding csv_encoding = CsvEncoding::kPlaintext;
   };
 
   CsvDeltaRecordStreamWriter(DestStreamT& dest_stream,
@@ -99,7 +100,7 @@ class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
 namespace internal {
 absl::StatusOr<riegeli::CsvRecord> MakeCsvRecord(
     const DataRecordStruct& data_record, const DataRecordType& record_type,
-    char value_separator);
+    const CsvEncoding& csv_encoding, char value_separator);
 
 template <typename DestStreamT>
 riegeli::CsvWriterBase::Options GetRecordWriterOptions(
@@ -139,8 +140,9 @@ CsvDeltaRecordStreamWriter<DestStreamT>::CsvDeltaRecordStreamWriter(
 template <typename DestStreamT>
 absl::Status CsvDeltaRecordStreamWriter<DestStreamT>::WriteRecord(
     const DataRecordStruct& data_record) {
-  absl::StatusOr<riegeli::CsvRecord> csv_record = internal::MakeCsvRecord(
-      data_record, options_.record_type, options_.value_separator);
+  absl::StatusOr<riegeli::CsvRecord> csv_record =
+      internal::MakeCsvRecord(data_record, options_.record_type,
+                              options_.csv_encoding, options_.value_separator);
   if (!csv_record.ok()) {
     return csv_record.status();
   }

@@ -17,6 +17,7 @@
 #ifndef PUBLIC_DATA_LOADING_RECORDS_UTILS_H_
 #define PUBLIC_DATA_LOADING_RECORDS_UTILS_H_
 
+#include <string>
 #include <string_view>
 #include <utility>
 #include <variant>
@@ -33,6 +34,8 @@ enum class DataRecordType : int {
   kUserDefinedFunctionsConfig,
   kShardMappingRecord
 };
+
+enum class CsvEncoding : int { kPlaintext, kBase64 };
 
 using KeyValueMutationRecordValueT =
     std::variant<std::monostate, std::string_view,

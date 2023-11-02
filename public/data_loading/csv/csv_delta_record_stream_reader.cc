@@ -17,10 +17,12 @@
 #include "public/data_loading/csv/csv_delta_record_stream_reader.h"
 
 #include "absl/strings/ascii.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_split.h"
 #include "glog/logging.h"
 #include "public/data_loading/records_utils.h"
+#include "src/cpp/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {
@@ -48,27 +50,26 @@ absl::StatusOr<KeyValueMutationType> GetDeltaMutationType(
 }
 
 absl::StatusOr<KeyValueMutationRecordValueT> GetRecordValue(
-    const riegeli::CsvRecord& csv_record, char value_separator) {
+    const riegeli::CsvRecord& csv_record, std::string_view value,
+    const std::vector<std::string>& set_value) {
   auto type = absl::AsciiStrToLower(csv_record[kValueTypeColumn]);
   if (kValueTypeString == type) {
-    return csv_record[kValueColumn];
+    return value;
   }
   if (kValueTypeStringSet == type) {
-    return absl::StrSplit(csv_record[kValueColumn], value_separator);
+    return std::vector<std::string_view>(set_value.begin(), set_value.end());
   }
   return absl::InvalidArgumentError(
       absl::StrCat("Value type: ", type, " is not supported"));
 }
 
 absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithKVMutation(
-    const riegeli::CsvRecord& csv_record, char value_separator) {
+    const riegeli::CsvRecord& csv_record, std::string_view value,
+    const std::vector<std::string>& set_value) {
   KeyValueMutationRecordStruct record;
   record.key = csv_record[kKeyColumn];
-  auto value = GetRecordValue(csv_record, value_separator);
-  if (!value.ok()) {
-    return value.status();
-  }
-  record.value = *value;
+  PS_ASSIGN_OR_RETURN(record.value,
+                      GetRecordValue(csv_record, value, set_value));
   absl::StatusOr<int64_t> commit_time =
       GetInt64Column(csv_record, kLogicalCommitTimeColumn);
   if (!commit_time.ok()) {
@@ -149,13 +150,53 @@ absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithShardMapping(
 }  // namespace
 
 namespace internal {
+absl::StatusOr<std::string> MaybeGetValue(const riegeli::CsvRecord& csv_record,
+                                          const CsvEncoding& csv_encoding) {
+  auto type = absl::AsciiStrToLower(csv_record[kValueTypeColumn]);
+  if (kValueTypeString != type) {
+    return "";
+  }
+  if (csv_encoding == CsvEncoding::kBase64) {
+    std::string result;
+    if (absl::Base64Unescape(csv_record[kValueColumn], &result)) {
+      return result;
+    }
+    return absl::InvalidArgumentError(absl::StrCat(
+        "base64 decode failed for value: ", csv_record[kValueColumn]));
+  }
+  return csv_record[kValueColumn];
+}
+
+absl::StatusOr<std::vector<std::string>> MaybeGetSetValue(
+    const riegeli::CsvRecord& csv_record, char value_separator,
+    const CsvEncoding& csv_encoding) {
+  auto type = absl::AsciiStrToLower(csv_record[kValueTypeColumn]);
+  if (kValueTypeStringSet != type) {
+    return std::vector<std::string>();
+  }
+  if (csv_encoding == CsvEncoding::kBase64) {
+    std::vector<std::string> result;
+    for (auto&& set_value :
+         absl::StrSplit(csv_record[kValueColumn], value_separator)) {
+      if (std::string dest; absl::Base64Unescape(set_value, &dest)) {
+        result.push_back(std::move(dest));
+      } else {
+        return absl::InvalidArgumentError(absl::StrCat(
+            "base64 decode failed for value: ", csv_record[kValueColumn]));
+      }
+    }
+    return result;
+  }
+  return absl::StrSplit(csv_record[kValueColumn], value_separator);
+}
+
 absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStruct(
     const riegeli::CsvRecord& csv_record, const DataRecordType& record_type,
-    char value_separator) {
+    std::string_view value, const std::vector<std::string>& set_value) {
   switch (record_type) {
     case DataRecordType::kKeyValueMutationRecord:
-      return MakeDeltaFileRecordStructWithKVMutation(csv_record,
-                                                     value_separator);
+      return MakeDeltaFileRecordStructWithKVMutation(csv_record, value,
+                                                     set_value);
     case DataRecordType::kUserDefinedFunctionsConfig:
       return MakeDeltaFileRecordStructWithUdfConfig(csv_record);
     case DataRecordType::kShardMappingRecord:

@@ -12,8 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-package(
-    default_visibility = ["//visibility:public"],
-)
-
-exports_files(glob(["*.patch"]))
+ARG BASE_IMAGE=ubuntu:20.04
+FROM ${BASE_IMAGE}
+RUN mkdir -p /tmp/deltas
+RUN mkdir -p /tmp/realtime
+COPY server /tmp/server
+ENV GLOG_alsologtostderr=1
+ENV GLOG_v=4
+ENTRYPOINT ["/tmp/server", "--delta_directory=/tmp/deltas", "--realtime_directory=/tmp/realtime"]

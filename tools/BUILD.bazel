@@ -16,4 +16,7 @@ package(
     default_visibility = ["//visibility:public"],
 )
 
-exports_files(glob(["*.patch"]))
+alias(
+    name = "grpc_cli",
+    actual = "@com_github_grpc_grpc//test/cpp/util:grpc_cli",
+)

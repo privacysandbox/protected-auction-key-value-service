@@ -23,8 +23,15 @@ function getKeyGroupOutputs(udf_arguments) {
   let keyGroupOutputs = [];
   for (let argument of udf_arguments) {
     let keyGroupOutput = {};
-    keyGroupOutput.tags = argument.tags;
-    let data = argument.hasOwnProperty("tags") ? argument.data : argument ;
+    let data = argument;
+    if (argument.hasOwnProperty("tags")) {
+      keyGroupOutput.tags = argument.tags;
+      if (argument.hasOwnProperty("data")) {
+        data = argument.data;
+      } else {
+        continue;
+      }
+    }
     const getValuesResult = JSON.parse(getValues(data));
     // getValuesResult returns "kvPairs" when successful and "code" on failure.
     // Ignore failures and only add successful getValuesResult lookups to output.

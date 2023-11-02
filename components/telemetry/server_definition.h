@@ -43,6 +43,29 @@ inline constexpr double kLatencyInMicroSecondsBoundaries[] = {
     5'000,   10'000,    20'000,    40'000,    80'000,    160'000,       320'000,
     640'000, 1'000'000, 1'300'000, 2'600'000, 5'000'000, 10'000'000'000};
 
+// String literals for absl status, the string list and literals match those
+// implemented in the absl::StatusCodeToString method
+// https://github.com/abseil/abseil-cpp/blob/1a03fb9dd1c533e42b6d7d1ebea85b448a07e793/absl/status/status.cc#L47
+inline constexpr absl::string_view kAbslStatusStrings[] = {
+    "OK",
+    "CANCELLED",
+    "UNKNOWN",
+    "INVALID_ARGUMENT",
+    "DEADLINE_EXCEEDED",
+    "NOT_FOUND",
+    "ALREADY_EXISTS",
+    "PERMISSION_DENIED",
+    "UNAUTHENTICATED",
+    "RESOURCE_EXHAUSTED",
+    "FAILED_PRECONDITION",
+    "ABORTED",
+    "OUT_OF_RANGE",
+    "UNIMPLEMENTED",
+    "INTERNAL",
+    "UNAVAILABLE",
+    "DATA_LOSS",
+    ""};
+
 // Metric definitions for request level metrics that are privacy impacting
 // and should be logged unsafe with DP(differential privacy) noises.
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
@@ -222,34 +245,155 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
 
-// TODO(b/304306398): Add safe metrics definitions
+// Metric definitions for safe metrics that are not privacy impacting
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kRealtimeGetNotificationsFailure(
+        "RealtimeGetNotificationsFailure",
+        "Number of failures in getting realtime notifications");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kRealtimeSleepFailure(
+        "RealtimeSleepFailure",
+        "Number of sleep failures in getting realtime notifications");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kRealtimeTotalRowsUpdated("RealtimeTotalRowsUpdated",
+                              "Realtime total rows updated status count",
+                              "status", kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kReceivedLowLatencyNotificationsE2ECloudProvided(
+        "ReceivedLowLatencyNotificationsE2ECloudProvided",
+        "Time between cloud topic publisher inserting message and realtime "
+        "notifier receiving the message",
+        kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kReceivedLowLatencyNotificationsE2E(
+        "ReceivedLowLatencyNotificationsE2E",
+        "Time between producer producing the message and realtime notifier "
+        "receiving the message",
+        kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kReceivedLowLatencyNotifications(
+        "ReceivedLowLatencyNotifications",
+        "Latency in realtime notifier processing the received batch of "
+        "notification messages",
+        kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kRealtimeDecodeMessageFailure(
+        "RealtimeDecodeMessageFailure",
+        "Number of failures in decoding realtime message");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kRealtimeMessageApplicationFailure(
+        "RealtimeMessageApplicationFailure",
+        "Number of realtime message application failures");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kAwsChangeNotifierQueueSetupFailure(
+        "AwsChangeNotifierQueueSetupFailure",
+        "Number of failures in setting up AWS change notifier queue");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kAwsSqsReceiveMessageLatency("AwsSqsReceiveMessageLatency",
+                                 "AWS SQS receive message latency",
+                                 kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kAwsChangeNotifierTagFailure("AwsChangeNotifierTagFailure",
+                                 "Number of failures in tagging AWS SQS queue");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kAwsChangeNotifierMessagesReceivingFailure(
+        "AwsChangeNotifierMessagesReceivingFailure",
+        "Number of failures in receiving message from AWS SQS");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kAwsChangeNotifierMessagesDataLossFailure(
+        "AwsChangeNotifierMessagesDataLossFailure",
+        "Number of failures in extracting data from AWS SQS messages");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kAwsChangeNotifierMessagesDeletionFailure(
+        "AwsChangeNotifierMessagesDeletionFailure",
+        "Number of failures in deleting messages from AWS SQS");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kAwsJsonParseError(
+        "AwsJsonParseError",
+        "Number of errors in parsing Json from AWS S3 notification");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kDeltaFileRecordChangeNotifierParsingFailure(
+        "DeltaFileRecordChangeNotifierParsingFailure",
+        "Number of errors in parsing Json from delta file record change "
+        "notification");
 
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
-        &privacy_sandbox::server_common::metrics::kServerTotalTimeMs,
+        // Unsafe metrics
         &kInternalRunQueryKeySetRetrievalFailure,
         &kKeysNotFoundInKeySetsInShardedLookup,
-        &kKeysNotFoundInKeySetsInLocalLookup,
-        &kInternalRunQueryEmtpyQuery,
-        &kInternalRunQueryMissingKeySet,
-        &kInternalRunQueryParsingFailure,
-        &kLookupClientMissing,
-        &kShardedLookupServerRequestFailed,
+        &kKeysNotFoundInKeySetsInLocalLookup, &kInternalRunQueryEmtpyQuery,
+        &kInternalRunQueryMissingKeySet, &kInternalRunQueryParsingFailure,
+        &kLookupClientMissing, &kShardedLookupServerRequestFailed,
         &kShardedLookupServerKeyCollisionOnCollection,
-        &kLookupFuturesCreationFailure,
-        &kShardedLookupFailure,
-        &kRemoteClientEncryptionFailure,
-        &kRemoteClientSecureLookupFailure,
-        &kRemoteClientDecryptionFailure,
-        &kInternalClientDecryptionFailure,
+        &kLookupFuturesCreationFailure, &kShardedLookupFailure,
+        &kRemoteClientEncryptionFailure, &kRemoteClientSecureLookupFailure,
+        &kRemoteClientDecryptionFailure, &kInternalClientDecryptionFailure,
         &kInternalClientUnpaddingRequestError,
         &kShardedLookupRunQueryLatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros,
-        &kInternalSecureLookupLatencyInMicros,
-        &kGetValuePairsLatencyInMicros,
-        &kGetKeyValueSetLatencyInMicros
-        // TODO(b/304306398): Add safe metrics
-};
+        &kInternalSecureLookupLatencyInMicros, &kGetValuePairsLatencyInMicros,
+        &kGetKeyValueSetLatencyInMicros,
+        // Safe metrics
+        &privacy_sandbox::server_common::metrics::kServerTotalTimeMs,
+        &kRealtimeGetNotificationsFailure, &kRealtimeSleepFailure,
+        &kRealtimeTotalRowsUpdated,
+        &kReceivedLowLatencyNotificationsE2ECloudProvided,
+        &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
+        &kRealtimeDecodeMessageFailure, &kRealtimeMessageApplicationFailure,
+        &kAwsChangeNotifierQueueSetupFailure, &kAwsSqsReceiveMessageLatency,
+        &kAwsChangeNotifierTagFailure,
+        &kAwsChangeNotifierMessagesReceivingFailure,
+        &kAwsChangeNotifierMessagesDataLossFailure,
+        &kAwsChangeNotifierMessagesDeletionFailure, &kAwsJsonParseError,
+        &kDeltaFileRecordChangeNotifierParsingFailure};
 
 }  // namespace kv_server
 

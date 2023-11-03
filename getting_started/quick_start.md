@@ -40,20 +40,18 @@ This command starts a build environment docker container and performs build from
     systems such as blob storage, parameter, etc. Other possible values are cloud-specific, in which
     case the server will use the corresponding cloud APIs to interact.
 
-The output of this step should be a server binary. To confirm, run:
+The output of this step should be a server binary. Run:
 
 ```sh
-ls bazel-bin/components/data_server/server/server
+mkdir dist
+cp bazel-bin/components/data_server/server/server dist/server
 ```
 
 ## Run the server
 
 ```sh
- docker build -f getting_started/quick_start_assets/Dockerfile -t tkv .
-```
-
-```sh
-docker run -it --rm --security-opt=seccomp=unconfined -p=50051:50051 tkv
+docker compose -f getting_started/quick_start_assets/docker-compose.yaml build kvserver
+docker compose -f getting_started/quick_start_assets/docker-compose.yaml run --rm -p 50051:50051 kvserver
 ```
 
 In a separate terminal, at the repo root, run
@@ -77,4 +75,38 @@ kv_internal {
   }
 }
 Rpc succeeded with OK status
+```
+
+Now you can stop the server container (with `docker ps` and `docker kill`).
+
+## Process HTTP requests with Envoy
+
+On production, Envoy (unless the cloud load balancer has native support) is used to convert HTTP requests to gRPC requests.
+
+First build the gRPC RPC descriptor.
+
+```sh
+./builders/tools/bazel-debian build //public/query:query_api_descriptor_set
+cp bazel-bin/public/query/query_api_descriptor_set.pb dist/query_api_descriptor_set.pb
+chmod 744 dist/query_api_descriptor_set.pb
+```
+
+```sh
+docker compose -f getting_started/quick_start_assets/docker-compose.yaml up
+```
+
+In a separate terminal, run:
+
+```sh
+curl http://localhost:51052/v1/getvalues?kv_internal=hi
+```
+
+And you can see:
+
+```json
+{
+ "kvInternal": {
+  "hi": "Hello, world! If you are seeing this, it means you can query me successfully"
+ }
+}
 ```

@@ -81,7 +81,8 @@ Now you can stop the server container (with `docker ps` and `docker kill`).
 
 ## Process HTTP requests with Envoy
 
-On production, Envoy (unless the cloud load balancer has native support) is used to convert HTTP requests to gRPC requests.
+On production, Envoy (unless the cloud load balancer has native support) is used to convert HTTP
+requests to gRPC requests.
 
 First build the gRPC RPC descriptor.
 
@@ -105,8 +106,8 @@ And you can see:
 
 ```json
 {
- "kvInternal": {
-  "hi": "Hello, world! If you are seeing this, it means you can query me successfully"
- }
+    "kvInternal": {
+        "hi": "Hello, world! If you are seeing this, it means you can query me successfully"
+    }
 }
 ```

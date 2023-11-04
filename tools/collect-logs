@@ -32,7 +32,7 @@ function copy_log_outputs() {
   declare -r _rootdest="$1"
   declare -r _prune_to_dir="$2"
   declare -r _filepath="$3"
-  declare -r _logpath="${_filepath##*/${_prune_to_dir}/}"
+  declare -r _logpath="${_filepath##*/"${_prune_to_dir}"/}"
   declare -r _destdir="${_rootdest}/${_logpath%/*}"
   declare -r _fname="${_filepath##*/}"
   declare -r _destfname="${_fname/#test./sponge_log.}"

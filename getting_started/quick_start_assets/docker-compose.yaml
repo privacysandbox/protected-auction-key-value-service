@@ -19,8 +19,14 @@ services:
       context: ../..
       dockerfile: getting_started/quick_start_assets/Dockerfile.server
     network_mode: host
+    environment:
+    - GLOG_alsologtostderr=1
+    - GLOG_v=9
     security_opt:
       - seccomp:unconfined
+    volumes:
+    - ../../dist/deltas:/tmp/deltas
+
   # envoy proxy specific to the K/V server instance
   # See the yaml file for the configured port it listens to
   kv-envoy-proxy:

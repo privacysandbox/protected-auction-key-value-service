@@ -57,8 +57,10 @@ if [[ -t 0 ]] && [[ -t 1 ]]; then
   )
 fi
 
-readonly IMAGE_TAGGED="hashicorp/terraform:1.2.3"
-readonly REL_PWD="$(realpath --relative-to="${WORKSPACE}" "$(pwd)")"
+IMAGE_TAGGED="hashicorp/terraform:1.2.3"
+readonly IMAGE_TAGGED
+REL_PWD="$(realpath --relative-to="${WORKSPACE}" "$(pwd)")"
+readonly REL_PWD
 WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
 readonly WORKSPACE_MOUNT
 

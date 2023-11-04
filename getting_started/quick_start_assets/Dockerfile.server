@@ -14,9 +14,11 @@
 
 ARG BASE_IMAGE=ubuntu:20.04
 FROM ${BASE_IMAGE}
-RUN mkdir -p /tmp/deltas
 RUN mkdir -p /tmp/realtime
 COPY dist/server /tmp/server
-ENV GLOG_alsologtostderr=1
-ENV GLOG_v=4
-ENTRYPOINT ["/tmp/server", "--delta_directory=/tmp/deltas", "--realtime_directory=/tmp/realtime", "--port=50051"]
+
+ENTRYPOINT ["/tmp/server", \
+"--delta_directory=/tmp/deltas", \
+"--realtime_directory=/tmp/realtime", \
+"--port=50051", \
+"--route_v1_to_v2=true"]

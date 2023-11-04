@@ -23,20 +23,24 @@ It requires two delta files:
 
 1. Create UDF delta file.
     - Example dummy udf file is in this directory named `example_udf.js`.
-    - Run `./builders/tools/bazel-debian build //tools/udf/udf_tester:udf_delta`. The output would
-      be `bazel-bin/tools/udf/udf_tester/DELTA_0000000000000001`.
+    - Run
+      `./builders/tools/bazel-debian build //getting_started/examples/canonical_examples:udf_delta`.
+      The output would be
+      `bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000002`.
 1. Create Data delta file.
 
 -   Example data csv file is in this directory named `example_data.csv`.
-    -   Run `./builders/tools/bazel-debian build //tools/udf/udf_tester:generate_data_delta`. The
-        output would be `bazel-bin/tools/udf/udf_tester/DELTA_0000000000000002`.
+    -   Run
+        `./builders/tools/bazel-debian build //getting_started/examples/canonical_examples:generate_data_delta`.
+        The output would be
+        `bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000001`.
 
 1. Build the tester.
-   `./builders/tools/bazel-debian build //tools/udf/udf_tester:udf_delta_file_tester`
+   `./builders/tools/bazel-debian build //getting_started/examples/canonical_examples:udf_delta_file_tester`
 1. Run the tester.
 
     ```sh
-    bazel-bin/tools/udf/udf_tester/udf_delta_file_tester --kv_delta_file_path bazel-bin/tools/udf/udf_tester/DELTA_0000000000000002 --udf_delta_file_path bazel-bin/tools/udf/udf_tester/DELTA_0000000000000001 --input_arguments='[{"data":["a"]}]'
+    bazel-bin/tools/udf/udf_tester/udf_delta_file_tester --kv_delta_file_path bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000001 --udf_delta_file_path bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000002 --input_arguments='[{"data":["a"]}]'
     ```
 
 ## Examples

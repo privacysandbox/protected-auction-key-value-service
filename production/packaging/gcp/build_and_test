@@ -90,8 +90,10 @@ function fail() {
 printf "==== Sourcing builder.sh =====\n"
 # We can't use $WORKSPACE here as it may not be set - it'll be created
 # by builder.sh if it's empty.
-readonly SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-readonly BUILDER="${SCRIPT_DIR}"/../../../builders/tools/builder.sh
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+readonly SCRIPT_DIR
+BUILDER="${SCRIPT_DIR}"/../../../builders/tools/builder.sh
+readonly BUILDER
 if [[ ! -f ${BUILDER} ]]; then
   ERROR_MESSAGE=$(printf "builder.sh file does not exist, expected at: %s\n"  "${BUILDER}")
   fail "$ERROR_MESSAGE"

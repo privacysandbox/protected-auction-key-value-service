@@ -257,7 +257,7 @@ TEST_P(GetValuesHandlerTest, Success) {
   TextFormat::ParseFromString(R"(
 request_metadata {
   fields {
-    key: "subkey"
+    key: "hostname"
     value {
       string_value: "example.com"
     }
@@ -333,7 +333,7 @@ data {
   const std::string core_request_body = R"(
 {
     "metadata": {
-        "subkey": "example.com"
+        "hostname": "example.com"
     },
     "partitions": [
         {
@@ -388,7 +388,7 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
   const std::string core_request_body = R"(
 {
     "metadata": {
-        "subkey": "example.com"
+        "hostname": "example.com"
     }
 })";
   google::api::HttpBody response;

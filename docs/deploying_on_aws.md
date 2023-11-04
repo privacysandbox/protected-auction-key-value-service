@@ -277,7 +277,7 @@ curl ${KV_SERVER_URL}/v1/getvalues?keys=foo1 --http1.1
 To test the UDF functionality, query the V2 endpoint (HTTP or gRPC).
 
 ```sh
-BODY='{ "metadata": { "subkey": "example.com" }, "partitions": [{ "id": 0, "compressionGroupId": 0, "arguments": [{ "tags": [ "custom", "keys" ], "data": [ "foo1" ] }] }] }'
+BODY='{ "metadata": { "hostname": "example.com" }, "partitions": [{ "id": 0, "compressionGroupId": 0, "arguments": [{ "tags": [ "custom", "keys" ], "data": [ "foo1" ] }] }] }'
 ```
 
 HTTP:

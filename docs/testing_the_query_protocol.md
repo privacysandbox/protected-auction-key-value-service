@@ -6,7 +6,7 @@
 
 ```json
 {
-    "metadata": { "subkey": "example.com" },
+    "metadata": { "hostname": "example.com" },
     "partitions": [
         {
             "id": 0,
@@ -82,7 +82,7 @@ For more information on how to test the query protocol with the helper server, s
 ## Plaintext query ("GetValues")
 
 ```sh
-BODY='{ "metadata": { "subkey": "example.com" }, "partitions": [ { "id": 0, "compressionGroupId": 0, "arguments": [ { "tags": [ "structured", "groupNames" ], "data": [ "hi" ] }, { "tags": [ "custom", "keys" ], "data": [ "hi" ] } ] }, { "id": 1, "compressionGroupId": 0, "arguments": [ { "tags": [ "structured", "groupNames" ], "data": [ "hi" ] }, { "tags": [ "custom", "keys" ], "data": [ "hi" ] } ] } ] }'
+BODY='{ "metadata": { "hostname": "example.com" }, "partitions": [ { "id": 0, "compressionGroupId": 0, "arguments": [ { "tags": [ "structured", "groupNames" ], "data": [ "hi" ] }, { "tags": [ "custom", "keys" ], "data": [ "hi" ] } ] }, { "id": 1, "compressionGroupId": 0, "arguments": [ { "tags": [ "structured", "groupNames" ], "data": [ "hi" ] }, { "tags": [ "custom", "keys" ], "data": [ "hi" ] } ] } ] }'
 ```
 
 HTTP:

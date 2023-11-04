@@ -42,7 +42,7 @@ class GetValuesHandler {
         metrics_recorder_(metrics_recorder),
         use_v2_(use_v2) {}
 
-  // TODO: Implement subkey, ad/render url lookups.
+  // TODO: Implement hostname, ad/render url lookups.
   grpc::Status GetValues(const v1::GetValuesRequest& request,
                          v1::GetValuesResponse* response) const;
 

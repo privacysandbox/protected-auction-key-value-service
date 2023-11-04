@@ -58,8 +58,8 @@ UDFArgument BuildArgument(const RepeatedPtrField<std::string>& keys,
 
 v2::GetValuesRequest BuildV2Request(const v1::GetValuesRequest& v1_request) {
   v2::GetValuesRequest v2_request;
-  (*v2_request.mutable_metadata()->mutable_fields())["subkey"].set_string_value(
-      v1_request.subkey());
+  (*v2_request.mutable_metadata()->mutable_fields())["hostname"]
+      .set_string_value(v1_request.subkey());
   auto* partition = v2_request.add_partitions();
 
   if (v1_request.keys_size() > 0) {

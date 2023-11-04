@@ -42,7 +42,7 @@ using testing::Return;
 constexpr std::string_view kEmptyMetadata = R"(
 request_metadata {
   fields {
-    key: "subkey"
+    key: "hostname"
     value {
       string_value: ""
     }

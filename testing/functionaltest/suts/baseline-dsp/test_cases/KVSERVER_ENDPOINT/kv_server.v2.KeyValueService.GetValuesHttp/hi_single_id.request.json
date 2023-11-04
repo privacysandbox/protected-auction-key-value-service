@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "subkey": "example.com"
+    "hostname": "example.com"
   },
   "partitions": [
     {

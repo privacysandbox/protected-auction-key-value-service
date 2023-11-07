@@ -2,6 +2,53 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.14.0 (2023-11-07)
+
+
+### Features
+
+* [API breaking change] Rename subkey to hostname.
+* [Sharding] Add a tool to validate records
+* [Sharding] Generate shard specific delta files
+* Add base64 encoding to CSV delta cli tool
+* Add safe metric definitions
+* Add unsafe metric definitions
+* Fully statically link the server binary
+* Simplified UDF tester.
+
+
+### Bug Fixes
+
+* Add error message when key not found.
+* Add proxy visibility back to aws_artifacts
+* allow internal ingress for otlp
+* Clear errors in driver prior to parsing.
+* Fix bash script flag for -v
+* Fully qualify RegisterBenchmark calls.
+* Package proxify layer on container_image
+* Remove unused import httpbody.proto
+* Update visibility target to public target in common repo
+* Use set for cache key lookups
+
+
+### GCP: Features
+
+* **GCP:** add capability to use existing service_mesh
+
+
+### Documentation
+
+* Add a top level getting_started directory.
+* Add docs about AWS AMI structure
+* Add instructions on how to call UDF APIs from C++ WASM.
+* Update sharding docs with GCP-specific info
+
+
+### Dependencies
+
+* **deps:** Update data-plane-shared to b463f16
+* **deps:** Utilize rules_closure deps via data-plane-shared
+
 ## 0.13.0 (2023-10-10)
 
 

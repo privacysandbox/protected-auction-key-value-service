@@ -20,6 +20,13 @@ Using Git, clone the repository into a folder:
 git clone https://github.com/privacysandbox/fledge-key-value-service.git
 ```
 
+The default branch contains the latest stable release. To get the latest code, switch to the `main`
+branch:
+
+```sh
+git checkout main
+```
+
 ## Build the local binary
 
 From the Key Value server repo folder, execute the following command:

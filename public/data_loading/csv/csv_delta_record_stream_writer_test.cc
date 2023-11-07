@@ -69,6 +69,27 @@ TEST(CsvDeltaRecordStreamWriterTest,
 }
 
 TEST(CsvDeltaRecordStreamWriterTest,
+     ValidateWritingCsvRecord_KVMutation_StringValue_Base64_Success) {
+  std::stringstream string_stream;
+  CsvDeltaRecordStreamWriter record_writer(
+      string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
+                         .csv_encoding = CsvEncoding::kBase64});
+
+  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
+  EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
+  EXPECT_TRUE(record_writer.Flush().ok());
+  CsvDeltaRecordStreamReader record_reader(
+      string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                         .csv_encoding = CsvEncoding::kBase64});
+  EXPECT_TRUE(record_reader
+                  .ReadRecords([&expected](DataRecordStruct record) {
+                    EXPECT_EQ(record, expected);
+                    return absl::OkStatus();
+                  })
+                  .ok());
+}
+
+TEST(CsvDeltaRecordStreamWriterTest,
      ValidateWritingCsvRecord_KVMutation_SetValue_Success) {
   const std::vector<std::string_view> values{
       "elem1",
@@ -82,6 +103,32 @@ TEST(CsvDeltaRecordStreamWriterTest,
   EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
   EXPECT_TRUE(record_writer.Flush().ok());
   CsvDeltaRecordStreamReader record_reader(string_stream);
+  EXPECT_TRUE(record_reader
+                  .ReadRecords([&expected](DataRecordStruct record) {
+                    EXPECT_EQ(record, expected);
+                    return absl::OkStatus();
+                  })
+                  .ok());
+}
+
+TEST(CsvDeltaRecordStreamWriterTest,
+     ValidateWritingCsvRecord_KVMutation_SetValue_Base64_Success) {
+  const std::vector<std::string_view> values{
+      "elem1",
+      "elem2",
+      "elem3",
+  };
+  std::stringstream string_stream;
+  CsvDeltaRecordStreamWriter record_writer(
+      string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
+                         .csv_encoding = CsvEncoding::kBase64});
+
+  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord(values));
+  EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
+  EXPECT_TRUE(record_writer.Flush().ok());
+  CsvDeltaRecordStreamReader record_reader(
+      string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                         .csv_encoding = CsvEncoding::kBase64});
   EXPECT_TRUE(record_reader
                   .ReadRecords([&expected](DataRecordStruct record) {
                     EXPECT_EQ(record, expected);

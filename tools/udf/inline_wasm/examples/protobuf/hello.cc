@@ -20,7 +20,7 @@
 class HelloClass {
  public:
   static std::string SayHello(const std::string& name) {
-    kv_server::v2::GetValuesRequest request;
+    kv_server::v2::GetValuesHttpRequest request;
     request.mutable_raw_body()->set_data(name);
     return "Proto test: " + request.DebugString();
   }

@@ -60,6 +60,7 @@ class FormatDataCommand : public Command {
     char csv_column_delimiter;
     char csv_value_delimiter;
     std::string_view record_type;
+    std::string_view csv_encoding = "PLAINTEXT";
   };
 
   static absl::StatusOr<std::unique_ptr<FormatDataCommand>> Create(

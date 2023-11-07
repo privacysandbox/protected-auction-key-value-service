@@ -34,6 +34,11 @@ variable "regions" {
   type        = set(string)
 }
 
+variable "gcp_image_tag" {
+  description = "Tag of the gcp docker image uploaded to the artifact registry."
+  type        = string
+}
+
 variable "gcp_image_repo" {
   description = "A URL to a docker image repo containing the key-value service."
   type        = string
@@ -213,5 +218,15 @@ variable "use_existing_vpc" {
 
 variable "existing_vpc_id" {
   description = "Existing vpc id. This would only be used if use_existing_vpc is true."
+  type        = string
+}
+
+variable "use_existing_service_mesh" {
+  description = "Whether to use existing service mesh."
+  type        = bool
+}
+
+variable "existing_service_mesh" {
+  description = "Existing service mesh. This would only be used if use_existing_service_mesh is true."
   type        = string
 }

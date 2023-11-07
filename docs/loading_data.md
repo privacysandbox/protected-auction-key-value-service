@@ -117,6 +117,9 @@ Commands:
     [--record_type]    (Optional) Defaults to "KEY_VALUE_MUTATION_RECORD". Possible
                                   options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG).
                                   If reading/writing a UDF config, use "USER_DEFINED_FUNCTIONS_CONFIG".
+    [--csv_encoding]   (Optional) Defaults to "PLAINTEXT". Encoding for KEY_VALUE_MUTATION_RECORD values for CSVs.
+                                  Possible options=(PLAINTEXT|BASE64).
+                                  If the values are binary, BASE64 is recommended.
 
   Examples:
 ...
@@ -240,6 +243,22 @@ You can use the AWS CLI to upload the sample data to S3, or you can also use the
 Confirm that the file is present in the S3 bucket:
 
 ![the delta file listed in the S3 console](assets/s3_delta_file.png)
+
+## Upload data files to GCP
+
+Similar to AWS, the server in GCP watches a Google Cloud Storage (GCS) bucket configured by your
+Terraform config. New files in the bucket will be automatically uploaded to the server. You can
+uploade files to your GCS bucket through Google Cloud Console.
+
+![files listed in the Google Cloud Console](assets/gcp_gcs_bucket.png)
+
+Alternatively, you can use [gsutil tool](https://cloud.google.com/storage/docs/gsutil) to upload
+files to GCS. For example:
+
+```sh
+export GCS_BUCKET=your-gcs-bucket-id
+gsutil cp DELTA_* gs://${GCS_BUCKET}
+```
 
 ## Integrating file uploading with your data source for AWS
 

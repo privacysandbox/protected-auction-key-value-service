@@ -54,7 +54,6 @@ def inline_wasm_udf_delta(
             Defaults to `//tools/udf/udf_generator:udf_delta_file_generator`
         tags: tags to propagate to rules
     """
-
     getModule_js = """async function getModule(){
             var Module = {
             instantiateWasm: function (imports, successCallback) {

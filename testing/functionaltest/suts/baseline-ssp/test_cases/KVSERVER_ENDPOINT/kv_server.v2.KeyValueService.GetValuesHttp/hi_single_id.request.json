@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "hostname": "example.com"
+  },
+  "partitions": [
+    {
+      "id": 4,
+      "compressionGroupId": 2,
+      "arguments": [
+        {
+          "tags": [
+            "structured",
+            "groupNames"
+          ],
+          "data": [
+            "hi"
+          ]
+        }
+      ]
+    }
+  ]
+}

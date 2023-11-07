@@ -257,7 +257,11 @@ class AwsInstanceClient : public InstanceClient {
   }
 
   absl::StatusOr<std::vector<InstanceInfo>> DescribeInstanceGroupInstances(
-      const absl::flat_hash_set<std::string>& instance_groups) override {
+      DescribeInstanceGroupInput& describe_instance_group_input) override {
+    auto input = std::get_if<AwsDescribeInstanceGroupInput>(
+        &describe_instance_group_input);
+    CHECK(input) << "AwsDescribeInstanceGroupInput invalid";
+    const auto& instance_groups = input->instance_group_names;
     std::vector<InstanceInfo> instances;
     DescribeAutoScalingGroupsRequest request;
     request.SetAutoScalingGroupNames(

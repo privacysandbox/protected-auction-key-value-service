@@ -24,6 +24,10 @@
 #include "components/data_server/request_handler/v2_response_data.pb.h"
 #include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
+#include "public/api_schema.pb.h"
+#include "public/applications/pa/api_overlay.pb.h"
+#include "public/applications/pa/response_utils.h"
+#include "src/cpp/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {
@@ -40,57 +44,45 @@ constexpr char kCustomTag[] = "custom";
 
 constexpr int kUdfInputApiVersion = 1;
 
-nlohmann::json BuildKeyGroup(const RepeatedPtrField<std::string>& keys,
-                             std::string namespace_tag) {
-  nlohmann::json keyGroup;
-  keyGroup["tags"] =
-      nlohmann::json::array({"custom", std::move(namespace_tag)});
-  nlohmann::json keyList = nlohmann::json::array();
-  for (auto&& key : keys) {
-    keyList.push_back(key);
+UDFArgument BuildArgument(const RepeatedPtrField<std::string>& keys,
+                          std::string namespace_tag) {
+  UDFArgument arg;
+  arg.mutable_tags()->add_values()->set_string_value(kCustomTag);
+  arg.mutable_tags()->add_values()->set_string_value(namespace_tag);
+  auto* key_list = arg.mutable_data()->mutable_list_value();
+  for (const auto& key : keys) {
+    key_list->add_values()->set_string_value(key);
   }
-  keyGroup["keyList"] = keyList;
-  return keyGroup;
+  return arg;
 }
 
 v2::GetValuesRequest BuildV2Request(const v1::GetValuesRequest& v1_request) {
-  nlohmann::json get_values_v2;
+  v2::GetValuesRequest v2_request;
+  (*v2_request.mutable_metadata()->mutable_fields())["hostname"]
+      .set_string_value(v1_request.subkey());
+  auto* partition = v2_request.add_partitions();
 
-  get_values_v2["context"]["subkey"] = v1_request.subkey();
-
-  nlohmann::json keyGroups = nlohmann::json::array();
   if (v1_request.keys_size() > 0) {
-    keyGroups.push_back(BuildKeyGroup(v1_request.keys(), kKeysTag));
+    *partition->add_arguments() = BuildArgument(v1_request.keys(), kKeysTag);
   }
   if (v1_request.render_urls_size() > 0) {
-    keyGroups.push_back(
-        BuildKeyGroup(v1_request.render_urls(), kRenderUrlsTag));
+    *partition->add_arguments() =
+        BuildArgument(v1_request.render_urls(), kRenderUrlsTag);
   }
   if (v1_request.ad_component_render_urls_size() > 0) {
-    keyGroups.push_back(BuildKeyGroup(v1_request.ad_component_render_urls(),
-                                      kAdComponentRenderUrlsTag));
+    *partition->add_arguments() = BuildArgument(
+        v1_request.ad_component_render_urls(), kAdComponentRenderUrlsTag);
   }
   if (v1_request.kv_internal_size() > 0) {
-    keyGroups.push_back(
-        BuildKeyGroup(v1_request.kv_internal(), kKvInternalTag));
+    *partition->add_arguments() =
+        BuildArgument(v1_request.kv_internal(), kKvInternalTag);
   }
-
-  // We only need one partition, since a V1 request does not aggregate keys.
-  nlohmann::json partition;
-  partition["id"] = 0;
-  partition["compressionGroup"] = 0;
-  partition["keyGroups"] = keyGroups;
-
-  get_values_v2["partitions"] = nlohmann::json::array({partition});
-  get_values_v2["udfInputApiVersion"] = kUdfInputApiVersion;
-
-  v2::GetValuesRequest v2_request;
-  v2_request.mutable_raw_body()->set_data(get_values_v2.dump());
   return v2_request;
 }
 
 // Add key value pairs to the result struct
-void ProcessKeyValues(KeyGroupOutput key_group_output, Struct& result_struct) {
+void ProcessKeyValues(application_pa::KeyGroupOutput key_group_output,
+                      Struct& result_struct) {
   for (auto&& [k, v] : std::move(key_group_output.key_values())) {
     if (v.value().has_string_value()) {
       Value value_proto;
@@ -127,13 +119,13 @@ absl::StatusOr<std::string> FindNamespace(RepeatedPtrField<std::string> tags) {
   return absl::InvalidArgumentError("No namespace tags found");
 }
 
-absl::Status ProcessKeyGroupOutput(KeyGroupOutput key_group_output,
-                                   v1::GetValuesResponse& v1_response) {
+void ProcessKeyGroupOutput(application_pa::KeyGroupOutput key_group_output,
+                           v1::GetValuesResponse& v1_response) {
   // Ignore if no valid namespace tag that is paired with a 'custom' tag
   auto tag_namespace_status_or =
       FindNamespace(std::move(key_group_output.tags()));
   if (!tag_namespace_status_or.ok()) {
-    return tag_namespace_status_or.status();
+    return;
   }
   if (tag_namespace_status_or.value() == kKeysTag) {
     ProcessKeyValues(std::move(key_group_output), *v1_response.mutable_keys());
@@ -150,43 +142,32 @@ absl::Status ProcessKeyGroupOutput(KeyGroupOutput key_group_output,
     ProcessKeyValues(std::move(key_group_output),
                      *v1_response.mutable_kv_internal());
   }
-  return absl::OkStatus();
 }
 
-// Process a V2 response object. The response JSON consists of an array of
-// compression groups, each of which is a group of partition outputs.
-absl::Status BuildV1Response(const nlohmann::json& v2_response_json,
-                             v1::GetValuesResponse& v1_response) {
-  if (v2_response_json.is_null()) {
-    return absl::InternalError("v2 GetValues response is null");
+// Converts a v2 response into v1 response.
+absl::Status ConvertToV1Response(const v2::GetValuesResponse& v2_response,
+                                 v1::GetValuesResponse& v1_response) {
+  if (!v2_response.has_single_partition()) {
+    // This should not happen. V1 request always maps to 1 partition so the
+    // output should always have 1 partition.
+    return absl::InternalError(
+        "Bug in KV server! response does not have single_partition set for V1 "
+        "response.");
   }
-  if (!v2_response_json.is_array()) {
-    return absl::InvalidArgumentError(
-        "Response should be an array of compression groups.");
+  if (v2_response.single_partition().has_status()) {
+    return absl::Status(static_cast<absl::StatusCode>(
+                            v2_response.single_partition().status().code()),
+                        v2_response.single_partition().status().message());
+  }
+  const std::string& string_output =
+      v2_response.single_partition().string_output();
+  // string_output should be a JSON object
+  PS_ASSIGN_OR_RETURN(application_pa::KeyGroupOutputs outputs,
+                      application_pa::KeyGroupOutputsFromJson(string_output));
+  for (const auto& key_group_output : outputs.key_group_outputs()) {
+    ProcessKeyGroupOutput(key_group_output, v1_response);
   }
 
-  for (const auto& compression_group_json : v2_response_json) {
-    V2CompressionGroup compression_group_proto;
-    auto status = JsonStringToMessage(compression_group_json.dump(),
-                                      &compression_group_proto);
-    if (!status.ok()) {
-      return absl::InternalError(
-          absl::StrCat("Could not convert compression group json to proto: ",
-                       status.message()));
-    }
-    for (auto&& partition_proto : compression_group_proto.partitions()) {
-      for (auto&& key_group_output_proto :
-           partition_proto.key_group_outputs()) {
-        const auto key_group_output_status = ProcessKeyGroupOutput(
-            std::move(key_group_output_proto), v1_response);
-        if (!key_group_output_status.ok()) {
-          // Skip and log failed key group outputs
-          LOG(ERROR) << "Error processing key group output: "
-                     << key_group_output_status;
-        }
-      }
-    }
-  }
   return absl::OkStatus();
 }
 
@@ -200,21 +181,13 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
   grpc::Status CallV2Handler(const v1::GetValuesRequest& v1_request,
                              v1::GetValuesResponse& v1_response) const {
     v2::GetValuesRequest v2_request = BuildV2Request(v1_request);
-    auto maybe_v2_response_json =
-        v2_handler_->GetValuesJsonResponse(v2_request);
-    if (!maybe_v2_response_json.ok()) {
-      return grpc::Status(
-          grpc::StatusCode::INTERNAL,
-          std::string(maybe_v2_response_json.status().message()));
+    v2::GetValuesResponse v2_response;
+    if (auto status = v2_handler_->GetValues(v2_request, &v2_response);
+        !status.ok()) {
+      return status;
     }
-
-    auto build_response_status =
-        BuildV1Response(maybe_v2_response_json.value(), v1_response);
-    if (!build_response_status.ok()) {
-      return grpc::Status(grpc::StatusCode::INTERNAL,
-                          std::string(build_response_status.message()));
-    }
-    return grpc::Status::OK;
+    return privacy_sandbox::server_common::FromAbslStatus(
+        ConvertToV1Response(v2_response, v1_response));
   }
 
  private:

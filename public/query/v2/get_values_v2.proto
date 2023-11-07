@@ -18,9 +18,13 @@ package kv_server.v2;
 
 import "google/api/annotations.proto";
 import "google/api/httpbody.proto";
+import "google/protobuf/struct.proto";
+import "google/rpc/status.proto";
+import "public/api_schema.proto";
 
 // Key Value Service API V2.
-// Spec: https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#query-api-version-2
+// Spec:
+// https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#query-api-version-2
 // Note: V2 API is still in an experimental state. Please use the V1 API.
 service KeyValueService {
   // Plain text version of the V2 GetValues query API. This is intended to be
@@ -28,12 +32,14 @@ service KeyValueService {
   // which contains the compression groups.
   //
   // TODO(b/263284614): Add more comments once the explainer is published.
-  rpc GetValues(GetValuesRequest) returns (google.api.HttpBody) {
+  rpc GetValuesHttp(GetValuesHttpRequest) returns (google.api.HttpBody) {
     option (google.api.http) = {
       put: "/v2/getvalues"
       body: "raw_body"
     };
   }
+
+  rpc GetValues(GetValuesRequest) returns (GetValuesResponse) {}
 
   // Debugging API to communication in Binary Http.
   //
@@ -59,7 +65,7 @@ service KeyValueService {
   }
 }
 
-message GetValuesRequest {
+message GetValuesHttpRequest {
   google.api.HttpBody raw_body = 1;
 }
 
@@ -69,4 +75,64 @@ message BinaryHttpGetValuesRequest {
 
 message ObliviousGetValuesRequest {
   google.api.HttpBody raw_body = 1;
+}
+
+// One partition is executed by one UDF. The content, mostly the arguments of
+// one partition is from the same source so there is no cross-source privacy
+// concerns for the UDF to process the arguments together. For data from
+// different sources, they must be put in different partitions to avoid having
+// one UDF process them all at once. In Protected Audience, one interest group
+// may be one partition. All the trusted bidding/scoring keys from that interest
+// group can be sent in the same partition. If group-by-site is enabled on the
+// client side, more than one interest group can be put into the same parititon
+// as long as they are from the same site. This is used as a concrete example.
+// Reference the official device side Protected Audience documentation for the
+// most up-to-date information.
+message RequestPartition {
+  int32 id = 1;
+  // Partitions from the same owner can be compressed together so they can
+  // belong to the same compression group. The actual number does not matter as
+  // long as it is unique from other owners' compression groups.
+  int32 compression_group_id = 2;
+  // Each input is one argument to UDF
+  // They are passed to the UDF in the same order as stored here.
+  repeated UDFArgument arguments = 5;
+}
+
+// Key Value Service GetValues core request in proto
+message GetValuesRequest {
+  // Client and its version. Used for debugging and bookkeeping purposes.
+  string client_version = 1;
+  // Metadata that is useful for all partitions in a request.
+  google.protobuf.Struct metadata = 2;
+  repeated RequestPartition partitions = 3;
+}
+
+message ResponsePartition {
+  int32 id = 1;
+  oneof output_type {
+    string string_output = 2;
+    google.rpc.Status status = 3;
+  }
+}
+
+// In response, ONLY partitions from the same compression group can be
+// compressed together.
+//
+// Different use cases of the KV server may have different number of partitions.
+// For use cases where there may be more than one partition, the server
+// will compress while it builds the response, before letting gRPC send them
+// over the wire. In use cases where there is always only one partition, the
+// server will rely on gRPC compression instead.
+message CompressionGroups {
+  repeated bytes compressed_partition_groups = 1;
+}
+message GetValuesResponse {
+  oneof format {
+    // For single partition response, no explicit compression is necessary at
+    // request handling layer. Compression can be applied during the
+    // communication by the protocol layer such as gRPC or HTTP.
+    ResponsePartition single_partition = 1;
+    CompressionGroups compressed_partition_groups = 2;
+  }
 }

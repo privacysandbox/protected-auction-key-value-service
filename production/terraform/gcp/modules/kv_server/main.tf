@@ -40,7 +40,7 @@ module "security" {
 module "autoscaling" {
   count                                 = var.num_shards
   source                                = "../../services/autoscaling"
-  gcp_image_tag                         = var.environment
+  gcp_image_tag                         = var.gcp_image_tag
   gcp_image_repo                        = var.gcp_image_repo
   service                               = var.service
   environment                           = var.environment
@@ -95,6 +95,8 @@ module "service_mesh" {
   instance_groups           = flatten(module.autoscaling[*].kv_server_instance_groups)
   collector_forwarding_rule = module.metrics_collector.collector_forwarding_rule
   collector_tcp_proxy       = module.metrics_collector.collector_tcp_proxy
+  use_existing_service_mesh = var.use_existing_service_mesh
+  existing_service_mesh     = var.existing_service_mesh
 }
 
 

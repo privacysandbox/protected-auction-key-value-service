@@ -265,19 +265,19 @@ TEST_F(ShardedLookupTest, GetKeyValues_FailedDownstreamRequest) {
 
 TEST_F(ShardedLookupTest, GetKeyValues_ReturnsKeysFromCachePadding) {
   auto num_shards = 4;
-  std::vector<std::string_view> keys;
+  absl::flat_hash_set<std::string_view> keys;
   // 0
-  keys.push_back("key4");
-  keys.push_back("verylongkey2");
+  keys.insert("key4");
+  keys.insert("verylongkey2");
   // 1
-  keys.push_back("key1");
-  keys.push_back("key2");
-  keys.push_back("key3");
+  keys.insert("key1");
+  keys.insert("key2");
+  keys.insert("key3");
   // 2
-  keys.push_back("randomkey5");
+  keys.insert("randomkey5");
   // 3
-  keys.push_back("longkey1");
-  keys.push_back("randomkey3");
+  keys.insert("longkey1");
+  keys.insert("randomkey3");
 
   int total_length = 22;
 
@@ -296,7 +296,7 @@ TEST_F(ShardedLookupTest, GetKeyValues_ReturnsKeysFromCachePadding) {
       &local_lookup_response);
   EXPECT_CALL(mock_local_lookup_, GetKeyValues(_))
       .WillOnce([&key_list, &local_lookup_response](
-                    std::vector<std::string_view> key_list_input) {
+                    absl::flat_hash_set<std::string_view> key_list_input) {
         EXPECT_THAT(key_list,
                     testing::UnorderedElementsAreArray(key_list_input));
         return local_lookup_response;

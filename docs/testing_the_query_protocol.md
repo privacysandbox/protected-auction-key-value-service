@@ -6,22 +6,22 @@
 
 ```json
 {
-    "context": { "subkey": "example.com" },
+    "metadata": { "hostname": "example.com" },
     "partitions": [
         {
             "id": 0,
-            "compressionGroup": 0,
-            "keyGroups": [
-                { "tags": ["structured", "groupNames"], "keyList": ["hi"] },
-                { "tags": ["custom", "keys"], "keyList": ["hi"] }
+            "compressionGroupId": 0,
+            "arguments": [
+                { "tags": ["structured", "groupNames"], "data": ["hi"] },
+                { "tags": ["custom", "keys"], "data": ["hi"] }
             ]
         },
         {
             "id": 1,
-            "compressionGroup": 0,
-            "keyGroups": [
-                { "tags": ["structured", "groupNames"], "keyList": ["hi"] },
-                { "tags": ["custom", "keys"], "keyList": ["hi"] }
+            "compressionGroupId": 0,
+            "arguments": [
+                { "tags": ["structured", "groupNames"], "data": ["hi"] },
+                { "tags": ["custom", "keys"], "data": ["hi"] }
             ]
         }
     ]
@@ -82,7 +82,7 @@ For more information on how to test the query protocol with the helper server, s
 ## Plaintext query ("GetValues")
 
 ```sh
-BODY='{ "context": { "subkey": "example.com" }, "partitions": [ { "id": 0, "compressionGroup": 0, "keyGroups": [ { "tags": [ "structured", "groupNames" ], "keyList": [ "hi" ] }, { "tags": [ "custom", "keys" ], "keyList": [ "hi" ] } ] }, { "id": 1, "compressionGroup": 0, "keyGroups": [ { "tags": [ "structured", "groupNames" ], "keyList": [ "hi" ] }, { "tags": [ "custom", "keys" ], "keyList": [ "hi" ] } ] } ] }'
+BODY='{ "metadata": { "hostname": "example.com" }, "partitions": [ { "id": 0, "compressionGroupId": 0, "arguments": [ { "tags": [ "structured", "groupNames" ], "data": [ "hi" ] }, { "tags": [ "custom", "keys" ], "data": [ "hi" ] } ] }, { "id": 1, "compressionGroupId": 0, "arguments": [ { "tags": [ "structured", "groupNames" ], "data": [ "hi" ] }, { "tags": [ "custom", "keys" ], "data": [ "hi" ] } ] } ] }'
 ```
 
 HTTP:
@@ -94,7 +94,7 @@ curl -vX PUT -d "$BODY"  http://localhost:51052/v2/getvalues
 Or gRPC:
 
 ```sh
-grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' -plaintext localhost:50051 kv_server.v2.KeyValueService/GetValues
+grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' -plaintext localhost:50051 kv_server.v2.KeyValueService/GetValuesHttp
 ```
 
 For gRPC, use base64 --decode to convert the output to plaintext.

@@ -25,6 +25,7 @@
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
+#include "public/sharding/sharding_function.h"
 #include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/records/record_writer.h"
 
@@ -32,6 +33,8 @@ ABSL_FLAG(std::string, key, "foo", "Specify the key for lookups");
 ABSL_FLAG(int, value_size, 10, "Specify the size of value for the key");
 ABSL_FLAG(std::string, output_dir, "", "Output file directory");
 ABSL_FLAG(int, num_records, 5, "Number of records to generate");
+ABSL_FLAG(int, num_shards, 1, "Number of shards");
+ABSL_FLAG(int, shard_number, 0, "Shard number");
 ABSL_FLAG(int64_t, timestamp, absl::ToUnixMicros(absl::Now()),
           "Record timestamp");
 ABSL_FLAG(bool, generate_set_record, false,
@@ -43,6 +46,7 @@ using kv_server::DataRecordStruct;
 using kv_server::KeyValueMutationRecordStruct;
 using kv_server::KeyValueMutationType;
 using kv_server::KVFileMetadata;
+using kv_server::ShardingMetadata;
 using kv_server::ToDeltaFileName;
 using kv_server::ToFlatBufferBuilder;
 using kv_server::ToStringView;
@@ -51,10 +55,20 @@ void WriteKeyValueRecords(std::string_view key, int value_size,
                           riegeli::RecordWriterBase& writer) {
   const int repetition = absl::GetFlag(FLAGS_num_records);
   int64_t timestamp = absl::GetFlag(FLAGS_timestamp);
+  const int64_t num_shards = absl::GetFlag(FLAGS_num_shards);
+  const int64_t current_shard_number = absl::GetFlag(FLAGS_shard_number);
   std::string query(" ");
   for (int i = 0; i < repetition; ++i) {
     const std::string value(value_size, 'A' + (i % 50));
     const std::string actual_key = absl::StrCat(key, i);
+    if (num_shards > 1) {
+      kv_server::ShardingFunction sharding_func("");
+      auto shard_number =
+          sharding_func.GetShardNumForKey(actual_key, num_shards);
+      if (shard_number != current_shard_number) {
+        continue;
+      }
+    }
     auto kv_record = KeyValueMutationRecordStruct{
         KeyValueMutationType::Update, timestamp++, actual_key, value};
     writer.WriteRecord(ToStringView(
@@ -95,6 +109,18 @@ void WriteKeyValueSetRecords(std::string_view key, int value_size,
   LOG(INFO) << "write done for set records";
 }
 
+KVFileMetadata GetKVFileMetadata() {
+  KVFileMetadata file_metadata;
+  const int num_shards = absl::GetFlag(FLAGS_num_shards);
+  if (num_shards > 1) {
+    const int shard_number = absl::GetFlag(FLAGS_shard_number);
+    ShardingMetadata sharding_metadata;
+    sharding_metadata.set_shard_num(shard_number);
+    *file_metadata.mutable_sharding_metadata() = sharding_metadata;
+  }
+  return file_metadata;
+}
+
 int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
   google::InitGoogleLogging(argv[0]);
@@ -108,9 +134,8 @@ int main(int argc, char** argv) {
     riegeli::RecordWriterBase::Options options;
     options.set_uncompressed();
     riegeli::RecordsMetadata metadata;
-    KVFileMetadata file_metadata;
-
-    *metadata.MutableExtension(kv_server::kv_file_metadata) = file_metadata;
+    *metadata.MutableExtension(kv_server::kv_file_metadata) =
+        GetKVFileMetadata();
     options.set_metadata(std::move(metadata));
     auto record_writer = riegeli::RecordWriter(std::move(os_writer), options);
     if (absl::GetFlag(FLAGS_generate_set_record)) {

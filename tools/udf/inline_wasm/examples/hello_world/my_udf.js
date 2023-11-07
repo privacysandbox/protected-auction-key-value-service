@@ -15,13 +15,13 @@
  */
 
 
-function getKeyGroupOutputs(input, module) {
-  const keyGroupOutputs = [];
-  for (const keyGroup of input.keyGroups) {
-    const keyGroupOutput = {};
-    keyGroupOutput.tags = keyGroup.tags;
-
-    const getValuesResult = JSON.parse(getValues(keyGroup.keyList));
+function getKeyGroupOutputs(udf_arguments, module) {
+  let keyGroupOutputs = [];
+  for (const argument of udf_arguments) {
+    let keyGroupOutput = {};
+    keyGroupOutput.tags = argument.tags;
+    let data = argument.hasOwnProperty("tags") ? argument.data : argument;
+    const getValuesResult = JSON.parse(getValues(data));
     // getValuesResult returns "kvPairs" when successful and "code" on failure.
     // Ignore failures and only add successful getValuesResult lookups to output.
     if (getValuesResult.hasOwnProperty("kvPairs")) {
@@ -41,10 +41,10 @@ function getKeyGroupOutputs(input, module) {
   return keyGroupOutputs;
 }
 
-async function HandleRequest(input) {
+async function HandleRequest(executionMetadata, ...udf_arguments) {
   logMessage("Handling request");
   const module = await getModule();
   logMessage("Done loading WASM Module");
-  const keyGroupOutputs = getKeyGroupOutputs(input, module);
+  const keyGroupOutputs = getKeyGroupOutputs(udf_arguments, module);
   return { keyGroupOutputs, udfOutputApiVersion: 1 };
 }

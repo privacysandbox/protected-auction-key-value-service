@@ -13,11 +13,11 @@ python_deps("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit 09042cd502156e341626d0e94560b2cac4e322a2 2023-10-09
-    sha256 = "12fa1c6d322a3b5034e12a78275fc02b535bcbaefd70426230ad675b84906472",
-    strip_prefix = "data-plane-shared-libraries-09042cd502156e341626d0e94560b2cac4e322a2",
+    # commit 3a47a5e 2023-11-01
+    sha256 = "d1a5cc31686e04f7c192f103600431f804689fbea54722250484ef38f9c8c7bf",
+    strip_prefix = "data-plane-shared-libraries-bd2efade9f130c7c8e0dbe964183204c6ee220ce",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/09042cd502156e341626d0e94560b2cac4e322a2.tar.gz",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/bd2efade9f130c7c8e0dbe964183204c6ee220ce.zip",
     ],
 )
 
@@ -45,7 +45,7 @@ load("@google_privacysandbox_servers_common//third_party:deps4.bzl", data_plane_
 data_plane_shared_deps4()
 
 load(
-    "//third_party:cpp_repositories.bzl",
+    "//third_party_deps:cpp_repositories.bzl",
     "cpp_repositories",
     "emscripten_repositories",
 )
@@ -54,15 +54,15 @@ cpp_repositories()
 
 EMSCRIPTEN_VER = emscripten_repositories()
 
-load("//third_party:container_deps.bzl", "container_deps")
+load("//third_party_deps:container_deps.bzl", "container_deps")
 
 container_deps()
 
-load("//third_party:emscripten_deps1.bzl", "emscripten_deps1")
+load("//third_party_deps:emscripten_deps1.bzl", "emscripten_deps1")
 
 emscripten_deps1()
 
-load("//third_party:emscripten_deps2.bzl", "emscripten_deps2")
+load("//third_party_deps:emscripten_deps2.bzl", "emscripten_deps2")
 
 emscripten_deps2(EMSCRIPTEN_VER)
 
@@ -112,7 +112,7 @@ load("@rules_flex//flex:flex.bzl", "flex_register_toolchains")
 
 flex_register_toolchains(version = "2.6.4")
 
-load("//third_party:python_deps.bzl", "python_repositories")
+load("//third_party_deps:python_deps.bzl", "python_repositories")
 
 python_repositories()
 
@@ -122,10 +122,6 @@ load("@word2vec//:requirements.bzl", "install_deps")
 # Call it to define repos for your requirements.
 install_deps()
 
-load("//third_party:rules_closure_repositories.bzl", "rules_closure_repositories")
+load("//third_party_deps:rules_closure_repositories.bzl", "rules_closure_repositories")
 
 rules_closure_repositories()
-
-load("//third_party:rules_closure_deps.bzl", "rules_closure_deps")
-
-rules_closure_deps()

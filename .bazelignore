@@ -1,2 +1,3 @@
 bazel-kv-server
 tools/wasm_example/
+google_internal/

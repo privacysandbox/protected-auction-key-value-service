@@ -92,11 +92,8 @@ run into any Docker access errors, follow the instructions for
 The code for the FLEDGE Key/Value server is released on
 [GitHub](https://github.com/privacysandbox/fledge-key-value-service).
 
-Using Git, clone the repository into a folder:
-
-```sh
-git clone https://github.com/privacysandbox/fledge-key-value-service.git
-```
+The main branch is under active development. For a more stable experience, please use the
+[latest release branch](https://github.com/privacysandbox/fledge-key-value-service/releases).
 
 ## Build the Amazon Machine Image (AMI)
 
@@ -280,7 +277,7 @@ curl ${KV_SERVER_URL}/v1/getvalues?keys=foo1 --http1.1
 To test the UDF functionality, query the V2 endpoint (HTTP or gRPC).
 
 ```sh
-BODY='{ "context": { "subkey": "example.com" }, "partitions": [{ "id": 0, "compressionGroup": 0, "keyGroups": [{ "tags": [ "custom", "keys" ], "keyList": [ "foo1" ] }] }] }'
+BODY='{ "metadata": { "hostname": "example.com" }, "partitions": [{ "id": 0, "compressionGroupId": 0, "arguments": [{ "tags": [ "custom", "keys" ], "data": [ "foo1" ] }] }] }'
 ```
 
 HTTP:
@@ -295,7 +292,7 @@ curl -vX PUT -d "$BODY"  ${KV_SERVER_URL}/v2/getvalues
 Or gRPC (using [grpcurl](https://github.com/fullstorydev/grpcurl)):
 
 ```sh
-grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' demo.kv-server.your-domain.example:8443 kv_server.v2.KeyValueService/GetValues
+grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' demo.kv-server.your-domain.example:8443 kv_server.v2.KeyValueService/GetValuesHttp
 ```
 
 ## SSH into EC2

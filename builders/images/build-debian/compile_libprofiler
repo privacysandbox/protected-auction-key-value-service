@@ -1,0 +1,45 @@
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+
+declare -r -i CLANG_VER=15
+
+function apt_update() {
+  apt-get --quiet -o 'Acquire::https::No-Cache=True' -o 'Acquire::http::No-Cache=True' update
+}
+
+function install_build_tools() {
+  DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y --no-install-recommends \
+    gnupg="2.2.*" \
+    lsb-release="11.1.*" \
+    make="4.*" \
+    software-properties-common="0.99.*" \
+    wget="1.20.*"
+}
+
+function install_clang() {
+  ls -l /build
+  chmod +x /build/llvm.sh
+  /build/llvm.sh ${CLANG_VER}
+  apt-get --quiet install -y --no-install-recommends libc++-${CLANG_VER}-dev
+  update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${CLANG_VER} 100
+  rm -f llvm.sh
+
+  clang --version
+}
+
+function install_profiler() {
+  cd /build
+  tar xz --strip-components 1 -f gperftools.tar.gz
+  ./configure
+  make libprofiler.la
+  declare -r ver=0.5.9
+  cp .libs/libprofiler.so.${ver} /usr/lib
+  ls -l /usr/lib/libprofiler*
+}
+
+apt_update
+install_build_tools
+install_clang
+install_profiler

@@ -1,3 +1,0 @@
-key,logical_commit_time,mutation_type,value,value_type
-abc1,1,UPDATE,AAAAAABBBBBBCCCCCC111111,string
-abc2,2,UPDATE,AAAAAABBBBBBCCCCCC222222,string

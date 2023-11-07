@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(b/296901861): Modify the implementation with GCP specific logic (the
-// current implementation is copied from local).
-
 #include <memory>
 #include <string>
 #include <string_view>
@@ -24,9 +21,11 @@
 #include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_format.h"
 #include "absl/synchronization/notification.h"
 #include "components/cloud_config/instance_client.h"
 #include "glog/logging.h"
+#include "google/cloud/compute/instances/v1/instances_client.h"
 #include "scp/cc/public/core/interface/execution_result.h"
 #include "scp/cc/public/cpio/interface/instance_client/instance_client_interface.h"
 
@@ -34,6 +33,8 @@ ABSL_FLAG(std::string, shard_num, "0", "Shard number.");
 
 namespace kv_server {
 namespace {
+using google::cloud::cpp::compute::instances::v1::
+    AggregatedListInstancesRequest;
 using google::cmrt::sdk::instance_service::v1::
     GetCurrentInstanceResourceNameRequest;
 using google::cmrt::sdk::instance_service::v1::
@@ -42,14 +43,42 @@ using google::cmrt::sdk::instance_service::v1::
     GetInstanceDetailsByResourceNameRequest;
 using google::cmrt::sdk::instance_service::v1::
     GetInstanceDetailsByResourceNameResponse;
+using google::cmrt::sdk::instance_service::v1::
+    ListInstanceDetailsByEnvironmentRequest;
+using google::cmrt::sdk::instance_service::v1::
+    ListInstanceDetailsByEnvironmentResponse;
 using ::google::scp::core::ExecutionResult;
 using ::google::scp::core::errors::GetErrorMessage;
 using google::scp::cpio::InstanceClientInterface;
 using google::scp::cpio::InstanceClientOptions;
 using privacy_sandbox::server_common::MetricsRecorder;
 
+namespace compute = ::google::cloud::compute_instances_v1;
+
 constexpr std::string_view kEnvironment = "environment";
 constexpr std::string_view kShardNumberLabel = "shard-num";
+
+// https://github.com/googleapis/google-cloud-cpp/blob/8234252ab1f661e210ec8773f68cd08d1cfc00d6/protos/google/cloud/compute/v1/internal/common_021.proto#L296
+const absl::flat_hash_set<std::string> kInstancePreServiceStatuses = {
+    "PROVISIONING",
+    "STAGING",
+};
+const absl::flat_hash_set<std::string> kInstancePostServiceStatuses = {
+    "STOPPING", "REPAIRING", "TERMINATED", "SUSPENDING", "SUSPENDED",
+};
+
+InstanceServiceStatus GetInstanceServiceStatus(const std::string& status) {
+  if (status == "RUNNING") {
+    return InstanceServiceStatus::kInService;
+  }
+  if (kInstancePreServiceStatuses.contains(status)) {
+    return InstanceServiceStatus::kPreService;
+  }
+  if (kInstancePostServiceStatuses.contains(status)) {
+    return InstanceServiceStatus::kPostService;
+  }
+  return InstanceServiceStatus::kUnknown;
+}
 
 class GcpInstanceClient : public InstanceClient {
  public:
@@ -111,9 +140,42 @@ class GcpInstanceClient : public InstanceClient {
   }
 
   absl::StatusOr<std::vector<InstanceInfo>> DescribeInstanceGroupInstances(
-      const absl::flat_hash_set<std::string>& instance_groups) override {
-    auto id = GetInstanceId();
-    return DescribeInstances({});
+      DescribeInstanceGroupInput& describe_instance_group_input) override {
+    auto input = std::get_if<GcpDescribeInstanceGroupInput>(
+        &describe_instance_group_input);
+    std::vector<InstanceInfo> instance_infos{};
+    CHECK(!environment_.empty())
+        << "Environment must be set for the gcp instance client.";
+    CHECK(input && !input->project_id.empty()) << "Project id must be set.";
+    AggregatedListInstancesRequest request;
+    *request.mutable_filter() =
+        absl::StrFormat("labels.environment=%s", environment_);
+    *request.mutable_project() = input->project_id;
+    auto aggregated_instances = client_.AggregatedListInstances(request);
+    for (auto& maybe_aggregated_instances_per_zone : aggregated_instances) {
+      if (!maybe_aggregated_instances_per_zone.ok()) {
+        continue;
+      }
+      auto aggregated_instances_per_zone =
+          std::move(*maybe_aggregated_instances_per_zone);
+      for (auto& instance :
+           *aggregated_instances_per_zone.second.mutable_instances()) {
+        absl::flat_hash_map<std::string, std::string> labels(
+            instance.labels().begin(), instance.labels().end());
+        InstanceInfo instance_info = {
+            .id = std::move(instance.id()),
+            .service_status =
+                GetInstanceServiceStatus(std::move(instance.status())),
+            .labels = std::move(labels),
+        };
+        for (auto& network : instance.network_interfaces()) {
+          instance_info.private_ip_address = std::move(network.network_ip());
+          break;
+        }
+        instance_infos.push_back(std::move(instance_info));
+      }
+    }
+    return instance_infos;
   }
 
   absl::StatusOr<std::vector<InstanceInfo>> DescribeInstances(
@@ -126,11 +188,6 @@ class GcpInstanceClient : public InstanceClient {
   }
 
  private:
-  std::string instance_id_;
-  std::string environment_;
-  std::string shard_number_;
-  std::unique_ptr<InstanceClientInterface> instance_client_;
-
   absl::Status GetInstanceDetails() {
     absl::StatusOr<std::string> resource_name =
         GetResourceName(instance_client_);
@@ -193,6 +250,13 @@ class GcpInstanceClient : public InstanceClient {
     }
     return resource_name;
   }
+
+  std::string instance_id_;
+  std::string environment_;
+  std::string shard_number_;
+  std::unique_ptr<InstanceClientInterface> instance_client_;
+  compute::InstancesClient client_ =
+      compute::InstancesClient(compute::MakeInstancesConnectionRest());
 };
 }  // namespace
 

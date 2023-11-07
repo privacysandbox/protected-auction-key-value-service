@@ -28,6 +28,7 @@
 #include "absl/time/time.h"
 #include "components/errors/retry.h"
 #include "glog/logging.h"
+#include "google/protobuf/util/json_util.h"
 #include "roma/config/src/config.h"
 #include "roma/interface/roma.h"
 
@@ -37,6 +38,7 @@ ABSL_FLAG(absl::Duration, udf_timeout, absl::Minutes(1),
 namespace kv_server {
 
 namespace {
+using google::protobuf::json::MessageToJsonString;
 using google::scp::roma::CodeObject;
 using google::scp::roma::Config;
 using google::scp::roma::Execute;
@@ -53,11 +55,44 @@ constexpr absl::Duration kCodeUpdateTimeout = absl::Seconds(1);
 // constants.
 constexpr char kCodeObjectId[] = "id";
 constexpr char kInvocationRequestId[] = "id";
-constexpr int kVersionNum = 1;
+constexpr int kUdfInterfaceVersion = 1;
 
 class UdfClientImpl : public UdfClient {
  public:
   UdfClientImpl() : udf_timeout_(absl::GetFlag(FLAGS_udf_timeout)) {}
+
+  // Converts the arguments into plain JSON strings to pass to Roma.
+  absl::StatusOr<std::string> ExecuteCode(
+      UDFExecutionMetadata&& execution_metadata,
+      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments) const {
+    execution_metadata.set_udf_interface_version(kUdfInterfaceVersion);
+    std::vector<std::string> string_args;
+    string_args.reserve(arguments.size() + 1);
+    std::string json_metadata;
+    if (const auto json_status =
+            MessageToJsonString(execution_metadata, &json_metadata);
+        !json_status.ok()) {
+      return json_status;
+    }
+    string_args.push_back(json_metadata);
+
+    for (int i = 0; i < arguments.size(); ++i) {
+      const auto& arg = arguments[i];
+      const google::protobuf::Message* arg_data;
+      if (arg.tags().values().empty()) {
+        arg_data = &arg.data();
+      } else {
+        arg_data = &arg;
+      }
+      std::string json_arg;
+      if (const auto json_status = MessageToJsonString(*arg_data, &json_arg);
+          !json_status.ok()) {
+        return json_status;
+      }
+      string_args.push_back(json_arg);
+    }
+    return ExecuteCode(std::move(string_args));
+  }
 
   absl::StatusOr<std::string> ExecuteCode(std::vector<std::string> keys) const {
     std::shared_ptr<absl::Status> response_status =

@@ -37,9 +37,14 @@ class KeyValueServiceV2Impl final
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
       : handler_(std::move(handler)), metrics_recorder_(metrics_recorder) {}
 
+  grpc::ServerUnaryReactor* GetValuesHttp(
+      grpc::CallbackServerContext* context,
+      const v2::GetValuesHttpRequest* request,
+      google::api::HttpBody* response) override;
+
   grpc::ServerUnaryReactor* GetValues(grpc::CallbackServerContext* context,
                                       const v2::GetValuesRequest* request,
-                                      google::api::HttpBody* response) override;
+                                      v2::GetValuesResponse* response) override;
 
   grpc::ServerUnaryReactor* BinaryHttpGetValues(
       grpc::CallbackServerContext* context,

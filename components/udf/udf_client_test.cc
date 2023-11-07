@@ -123,6 +123,125 @@ TEST(UdfClientTest, JsEchoCallSucceeds) {
   EXPECT_TRUE(stop.ok());
 }
 
+TEST(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string) {
+  auto udf_client = CreateUdfClient();
+  EXPECT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = (metadata, input) => 'Hello world! ' + "
+            "JSON.stringify(input);",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+
+  google::protobuf::RepeatedPtrField<UDFArgument> args;
+  args.Add([] {
+    UDFArgument arg;
+    arg.mutable_data()->set_string_value("ECHO");
+    return arg;
+  }());
+  absl::StatusOr<std::string> result =
+      udf_client.value()->ExecuteCode({}, args);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"("Hello world! \"ECHO\"")");
+
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
+TEST(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string_tagged) {
+  auto udf_client = CreateUdfClient();
+  EXPECT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = (metadata, input) => 'Hello world! ' + "
+            "JSON.stringify(input);",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+
+  google::protobuf::RepeatedPtrField<UDFArgument> args;
+  args.Add([] {
+    UDFArgument arg;
+    arg.mutable_tags()->add_values()->set_string_value("tag1");
+    arg.mutable_data()->set_string_value("ECHO");
+    return arg;
+  }());
+  absl::StatusOr<std::string> result =
+      udf_client.value()->ExecuteCode({}, args);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result,
+            R"("Hello world! {\"tags\":[\"tag1\"],\"data\":\"ECHO\"}")");
+
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+TEST(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string_tagged_list) {
+  auto udf_client = CreateUdfClient();
+  EXPECT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = (metadata, input) => 'Hello world! ' + "
+            "JSON.stringify(input);",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+
+  google::protobuf::RepeatedPtrField<UDFArgument> args;
+  args.Add([] {
+    UDFArgument arg;
+    arg.mutable_tags()->add_values()->set_string_value("tag1");
+    auto* list_value = arg.mutable_data()->mutable_list_value();
+    list_value->add_values()->set_string_value("key1");
+    list_value->add_values()->set_string_value("key2");
+    return arg;
+  }());
+  absl::StatusOr<std::string> result =
+      udf_client.value()->ExecuteCode({}, args);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(
+      *result,
+      R"("Hello world! {\"tags\":[\"tag1\"],\"data\":[\"key1\",\"key2\"]}")");
+
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
+TEST(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_struct) {
+  auto udf_client = CreateUdfClient();
+  EXPECT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = (metadata, input) => 'Hello world! ' + "
+            "JSON.stringify(input);",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+
+  google::protobuf::RepeatedPtrField<UDFArgument> args;
+  args.Add([] {
+    UDFArgument arg;
+    (*arg.mutable_data()->mutable_struct_value()->mutable_fields())["key"]
+        .set_string_value("value");
+    return arg;
+  }());
+  absl::StatusOr<std::string> result =
+      udf_client.value()->ExecuteCode({}, args);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"("Hello world! {\"key\":\"value\"}")");
+
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
 static void udfCbEcho(FunctionBindingIoProto& io) {
   io.set_output_string("Echo: " + io.input_string());
 }

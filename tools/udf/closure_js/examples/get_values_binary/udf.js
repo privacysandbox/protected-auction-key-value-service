@@ -20,15 +20,16 @@
 goog.require("proto.kv_server.BinaryGetValuesResponse");
 
 /**
- * @param {!Object} input
+ * @param {!Array} udf_arguments
+ * @suppress {reportUnknownTypes}
  * @return {Object}
  */
-function getKeyGroupOutputs(input) {
-    const keyGroupOutputs = [];
-    const keyGroups = /** @type {!Array<Object<string,Array<string>>>} */ (input["keyGroups"]);
-    for (const keyGroup of keyGroups) {
-        const keyGroupOutput = {};
-        keyGroupOutput["tags"] = keyGroup["tags"];
+function getKeyGroupOutputs(udf_arguments) {
+    var keyGroupOutputs = [];
+    for (const argument of udf_arguments) {
+        var keyGroupOutput = {};
+        keyGroupOutput["tags"] = argument["tags"];
+        var data = argument.hasOwnProperty("tags") ? argument.data : argument ;
 
         // Get the bytes from the C++ side
         // The annotation below is meaningful since the compiler doesn't know the return type
@@ -38,7 +39,7 @@ function getKeyGroupOutputs(input) {
          * @type {!Array}
          * @suppress {reportUnknownTypes}
          */
-        var serializedGetValuesBinary = /** @type {!Array} */ (getValuesBinary(keyGroup["keyList"]));
+        var serializedGetValuesBinary = /** @type {!Array} */ (getValuesBinary(data));
         var getValuesBinaryProto = proto.kv_server.BinaryGetValuesResponse.deserializeBinary(serializedGetValuesBinary);
         var kvMap = getValuesBinaryProto.getKvPairsMap();
         const keyValuesOutput = {};
@@ -71,10 +72,11 @@ function getKeyGroupOutputs(input) {
  * from being minified.
  *
  * @export
- * @param {!Object} input
+ * @param {!Object} executionMetadata
+ * @param {...?} udf_arguments
  * @return {Object}
  */
-function HandleRequest(input) {
-    const keyGroupOutputs = getKeyGroupOutputs(input);
+function HandleRequest(executionMetadata, ...udf_arguments) {
+    const keyGroupOutputs = getKeyGroupOutputs(udf_arguments);
     return { "keyGroupOutputs": keyGroupOutputs, "udfOutputApiVersion": 1 };
 }

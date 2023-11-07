@@ -22,6 +22,9 @@
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
+#include "nlohmann/json.hpp"
+#include "public/applications/pa/api_overlay.pb.h"
+#include "public/applications/pa/response_utils.h"
 #include "public/test_util/proto_matcher.h"
 #include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
@@ -35,6 +38,17 @@ using google::protobuf::TextFormat;
 using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Return;
+
+constexpr std::string_view kEmptyMetadata = R"(
+request_metadata {
+  fields {
+    key: "hostname"
+    value {
+      string_value: ""
+    }
+  }
+}
+  )";
 
 class GetValuesAdapterTest : public ::testing::Test {
  protected:
@@ -53,13 +67,13 @@ class GetValuesAdapterTest : public ::testing::Test {
 };
 
 TEST_F(GetValuesAdapterTest, EmptyRequestReturnsEmptyResponse) {
-  nlohmann::json udf_input =
-      R"({"context":{"subkey":""},"keyGroups":[],"udfInputApiVersion":1})"_json;
-  nlohmann::json udf_output =
-      R"({"keyGroupOutputs": [], "udfOutputApiVersion": 1})"_json;
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
+  nlohmann::json output = nlohmann::json::parse(R"({"keyGroupOutputs": {}})");
+
   EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+              ExecuteCode(EqualsProto(udf_metadata), testing::IsEmpty()))
+      .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1::GetValuesResponse v1_response;
@@ -71,25 +85,58 @@ TEST_F(GetValuesAdapterTest, EmptyRequestReturnsEmptyResponse) {
 }
 
 TEST_F(GetValuesAdapterTest, V1RequestWithTwoKeysReturnsOk) {
-  nlohmann::json udf_input = R"({
-    "context": {"subkey": ""},
-    "keyGroups": [{"tags": ["custom","keys"],"keyList": ["key1", "key2"]}],
-    "udfInputApiVersion": 1
-  })"_json;
-
-  nlohmann::json udf_output = R"({
-    "keyGroupOutputs": [{
-        "keyValues": {
-            "key1": { "value": "value1" },
-            "key2": { "value": "value2" }
-        },
-        "tags": ["custom","keys"]
-    }],
-    "udfOutputApiVersion": 1
-  })"_json;
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
+  UDFArgument arg;
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key1"
+    }
+    values {
+      string_value: "key2"
+    }
+  }
+})",
+                              &arg);
+  application_pa::KeyGroupOutputs key_group_outputs;
+  TextFormat::ParseFromString(R"(
+  key_group_outputs: {
+    tags: "custom"
+    tags: "keys"
+    key_values: {
+      key: "key1"
+      value: {
+        value: {
+          string_value: "value1"
+        }
+      }
+    }
+    key_values: {
+      key: "key2"
+      value: {
+        value: {
+          string_value: "value2"
+        }
+      }
+    }
+  }
+)",
+                              &key_group_outputs);
   EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+              ExecuteCode(EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg))))
+      .WillOnce(Return(
+          application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
@@ -115,25 +162,77 @@ TEST_F(GetValuesAdapterTest, V1RequestWithTwoKeysReturnsOk) {
 }
 
 TEST_F(GetValuesAdapterTest, V1RequestWithTwoKeyGroupsReturnsOk) {
-  nlohmann::json udf_input = R"({
-    "context": {"subkey": ""},
-    "keyGroups": [{"tags": ["custom","renderUrls"],"keyList": ["key1"]},{"keyList":["key2"],"tags":["custom","adComponentRenderUrls"]}],
-    "udfInputApiVersion": 1
-  })"_json;
-
-  nlohmann::json udf_output = R"({
-    "keyGroupOutputs": [{
-        "keyValues": { "key1": { "value": "value1" } },
-        "tags": ["custom","renderUrls"]
-    },{
-        "keyValues": { "key2": { "value": "value2" } },
-        "tags": ["custom","adComponentRenderUrls"]
-    }],
-    "udfOutputApiVersion": 1
-  })"_json;
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
+  UDFArgument arg1, arg2;
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "renderUrls"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key1"
+    }
+  }
+})",
+                              &arg1);
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "adComponentRenderUrls"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key2"
+    }
+  }
+})",
+                              &arg2);
+  application_pa::KeyGroupOutputs key_group_outputs;
+  TextFormat::ParseFromString(R"(
+  key_group_outputs: {
+    tags: "custom"
+    tags: "renderUrls"
+    key_values: {
+      key: "key1"
+      value: {
+        value: {
+          string_value: "value1"
+        }
+      }
+    }
+  }
+  key_group_outputs: {
+    tags: "custom"
+    tags: "adComponentRenderUrls"
+    key_values: {
+      key: "key2"
+      value: {
+        value: {
+          string_value: "value2"
+        }
+      }
+    }
+  }
+)",
+                              &key_group_outputs);
+  EXPECT_CALL(
+      mock_udf_client_,
+      ExecuteCode(EqualsProto(udf_metadata),
+                  testing::ElementsAre(EqualsProto(arg1), EqualsProto(arg2))))
+      .WillOnce(Return(
+          application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_render_urls("key1");
@@ -160,18 +259,11 @@ TEST_F(GetValuesAdapterTest, V1RequestWithTwoKeyGroupsReturnsOk) {
 }
 
 TEST_F(GetValuesAdapterTest, V2ResponseIsNullReturnsError) {
-  nlohmann::json udf_input = R"({
-    "context": {"subkey": ""},
-    "keyGroups": [{"tags": ["custom","keys"],"keyList": ["key1"]}],
-    "udfInputApiVersion": 1
-  })"_json;
-
-  nlohmann::json udf_output = R"({
+  nlohmann::json output = R"({
     "keyGroupOutpus": []
   })"_json;
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+      .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
@@ -184,22 +276,15 @@ TEST_F(GetValuesAdapterTest, V2ResponseIsNullReturnsError) {
 }
 
 TEST_F(GetValuesAdapterTest, KeyGroupOutputWithEmptyKVsReturnsOk) {
-  nlohmann::json udf_input = R"({
-    "context": {"subkey": ""},
-    "keyGroups": [{"tags": ["custom","keys"],"keyList": ["key1"]}],
-    "udfInputApiVersion": 1
-  })"_json;
-
-  nlohmann::json udf_output = R"({
+  nlohmann::json output = R"({
     "keyGroupOutputs": [{
         "keyValues": {},
         "tags": ["custom","keys"]
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+      .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
@@ -212,22 +297,15 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithEmptyKVsReturnsOk) {
 }
 
 TEST_F(GetValuesAdapterTest, KeyGroupOutputWithInvalidNamespaceTagIsIgnored) {
-  nlohmann::json udf_input = R"({
-    "context": {"subkey": ""},
-    "keyGroups": [{"tags": ["custom","keys"],"keyList": ["key1"]}],
-    "udfInputApiVersion": 1
-  })"_json;
-
-  nlohmann::json udf_output = R"({
+  nlohmann::json output = R"({
     "keyGroupOutputs": [{
         "keyValues": { "key1": { "value": "value1" } },
         "tags": ["custom","invalidTag"]
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+      .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
@@ -240,22 +318,15 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithInvalidNamespaceTagIsIgnored) {
 }
 
 TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoCustomTagIsIgnored) {
-  nlohmann::json udf_input = R"({
-    "context": {"subkey": ""},
-    "keyGroups": [{"tags": ["custom","keys"],"keyList": ["key1"]}],
-    "udfInputApiVersion": 1
-  })"_json;
-
-  nlohmann::json udf_output = R"({
+  nlohmann::json output = R"({
     "keyGroupOutputs": [{
         "keyValues": { "key1": { "value": "value1" } },
         "tags": ["keys", "somethingelse"]
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+      .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
@@ -268,22 +339,15 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoCustomTagIsIgnored) {
 }
 
 TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoNamespaceTagIsIgnored) {
-  nlohmann::json udf_input = R"({
-    "context": {"subkey": ""},
-    "keyGroups": [{"tags": ["custom","keys"],"keyList": ["key1"]}],
-    "udfInputApiVersion": 1
-  })"_json;
-
-  nlohmann::json udf_output = R"({
+  nlohmann::json output = R"({
     "keyGroupOutputs": [{
         "keyValues": { "key1": { "value": "value1" } },
         "tags": ["custom"]
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+      .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
@@ -297,13 +361,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoNamespaceTagIsIgnored) {
 
 TEST_F(GetValuesAdapterTest,
        KeyGroupOutputHasDuplicateNamespaceTagReturnsAllKeys) {
-  nlohmann::json udf_input = R"({
-    "context": {"subkey": ""},
-    "keyGroups": [{"tags": ["custom","keys"],"keyList": ["key1"]}],
-    "udfInputApiVersion": 1
-  })"_json;
-
-  nlohmann::json udf_output = R"({
+  nlohmann::json output = R"({
     "keyGroupOutputs": [{
         "keyValues": { "key1": { "value": "value1" } },
         "tags": ["custom", "keys"]
@@ -314,9 +372,8 @@ TEST_F(GetValuesAdapterTest,
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+      .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
@@ -340,13 +397,7 @@ TEST_F(GetValuesAdapterTest,
 }
 
 TEST_F(GetValuesAdapterTest, KeyGroupOutputHasDifferentValueTypesReturnsOk) {
-  nlohmann::json udf_input = R"({
-    "context": {"subkey": ""},
-    "keyGroups": [{"tags": ["custom","keys"],"keyList": ["key1"]}],
-    "udfInputApiVersion": 1
-  })"_json;
-
-  nlohmann::json udf_output = R"({
+  nlohmann::json output = R"({
     "keyGroupOutputs": [{
         "keyValues": {
           "key1": { "value": [[[1,2,3,4]],null,["123456789","123456789"],["v1"]] },
@@ -357,9 +408,8 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputHasDifferentValueTypesReturnsOk) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+      .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
@@ -421,13 +471,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputHasDifferentValueTypesReturnsOk) {
 }
 
 TEST_F(GetValuesAdapterTest, ValueWithStatusSuccess) {
-  nlohmann::json udf_input = R"({
-    "context": {"subkey": ""},
-    "keyGroups": [{"tags": ["custom","keys"],"keyList": ["key1"]}],
-    "udfInputApiVersion": 1
-  })"_json;
-
-  nlohmann::json udf_output = R"({
+  nlohmann::json output = R"({
     "keyGroupOutputs": [{
         "keyValues": { "key1": {
             "value": {
@@ -441,9 +485,8 @@ TEST_F(GetValuesAdapterTest, ValueWithStatusSuccess) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(std::vector<std::string>({udf_input.dump()})))
-      .WillOnce(Return(udf_output.dump()));
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+      .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");

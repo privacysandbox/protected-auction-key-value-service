@@ -33,9 +33,9 @@ class FakeKeyValueServiceImpl final : public v2::KeyValueService::Service {
       absl::flat_hash_map<std::string, std::string> data) {
     data_ = std::move(data);
   }
-  grpc::Status GetValues(grpc::ServerContext* context,
-                         const v2::GetValuesRequest* request,
-                         google::api::HttpBody* response) override {
+  grpc::Status GetValuesHttp(grpc::ServerContext* context,
+                             const v2::GetValuesHttpRequest* request,
+                             google::api::HttpBody* response) override {
     auto key = request->raw_body().data();
     auto itr = data_.find(key);
     if (itr == data_.end()) {

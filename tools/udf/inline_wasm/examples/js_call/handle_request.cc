@@ -52,17 +52,18 @@ absl::StatusOr<emscripten::val> getKvPairs(const emscripten::val& get_values_cb,
 }
 
 emscripten::val getKeyGroupOutputs(const emscripten::val& get_values_cb,
-                                   const emscripten::val& input) {
+                                   const emscripten::val& udf_arguments) {
   emscripten::val key_group_outputs = emscripten::val::array();
   // Convert a JS array to a std::vector so we can iterate through it.
   const std::vector<emscripten::val> key_groups =
-      emscripten::vecFromJSArray<emscripten::val>(input["keyGroups"]);
+      emscripten::vecFromJSArray<emscripten::val>(udf_arguments);
   for (auto key_group : key_groups) {
     emscripten::val key_group_output = emscripten::val::object();
     key_group_output.set("tags", key_group["tags"]);
 
-    absl::StatusOr<emscripten::val> kv_pairs =
-        getKvPairs(get_values_cb, key_group["keyList"]);
+    const emscripten::val data =
+        key_group.hasOwnProperty("tags") ? key_group["data"] : key_group;
+    absl::StatusOr<emscripten::val> kv_pairs = getKvPairs(get_values_cb, data);
     if (kv_pairs.ok()) {
       key_group_output.set("keyValues", *kv_pairs);
       key_group_outputs.call<void>("push", key_group_output);
@@ -74,10 +75,10 @@ emscripten::val getKeyGroupOutputs(const emscripten::val& get_values_cb,
 }  // namespace
 
 emscripten::val handleRequestCc(const emscripten::val& get_values_cb,
-                                const emscripten::val& input) {
+                                const emscripten::val& udf_arguments) {
   emscripten::val result = emscripten::val::object();
   result.set("keyGroupOutputs",
-             getKeyGroupOutputs(get_values_cb, std::move(input)));
+             getKeyGroupOutputs(get_values_cb, std::move(udf_arguments)));
   result.set("udfOutputApiVersion", emscripten::val(1));
   return result;
 }

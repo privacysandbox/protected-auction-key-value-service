@@ -96,10 +96,10 @@ TEST(CacheTest, RetrievesMatchingEntry) {
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   cache->UpdateKeyValue("my_key", "my_value", 1);
-  std::vector<std::string_view> keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
-  std::vector<std::string_view> wrong_keys = {"wrong_key"};
+  absl::flat_hash_set<std::string_view> wrong_keys = {"wrong_key"};
   EXPECT_FALSE(cache->GetKeyValuePairs(keys).empty());
   EXPECT_TRUE(cache->GetKeyValuePairs(wrong_keys).empty());
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
@@ -113,7 +113,7 @@ TEST(CacheTest, GetWithMultipleKeysReturnsMatchingValues) {
   cache->UpdateKeyValue("key2", "value2", 2);
   cache->UpdateKeyValue("key3", "value3", 3);
 
-  std::vector<std::string_view> full_keys = {"key1", "key2"};
+  absl::flat_hash_set<std::string_view> full_keys = {"key1", "key2"};
 
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
@@ -128,7 +128,7 @@ TEST(CacheTest, GetAfterUpdateReturnsNewValue) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   cache->UpdateKeyValue("my_key", "my_value", 1);
 
-  std::vector<std::string_view> keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> keys = {"my_key"};
 
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
@@ -149,7 +149,7 @@ TEST(CacheTest, GetAfterUpdateDifferentKeyReturnsSameValue) {
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->UpdateKeyValue("new_key", "new_value", 2);
 
-  std::vector<std::string_view> keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> keys = {"my_key"};
 
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
@@ -160,7 +160,7 @@ TEST(CacheTest, GetForEmptyCacheReturnsEmptyList) {
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
-  std::vector<std::string_view> keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
   EXPECT_EQ(kv_pairs.size(), 0);
@@ -196,7 +196,7 @@ TEST(DeleteKeyTest, RemovesKeyEntry) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->DeleteKey("my_key", 2);
-  std::vector<std::string_view> full_keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 0);
@@ -208,7 +208,7 @@ TEST(DeleteKeyValueSetTest, WrongkeyDoesNotRemoveEntry) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->DeleteKey("wrong_key", 1);
-  std::vector<std::string_view> keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
@@ -310,7 +310,7 @@ TEST(CacheTest, OutOfOrderUpdateAfterUpdateWorks) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   cache->UpdateKeyValue("my_key", "my_value", 2);
 
-  std::vector<std::string_view> keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> keys = {"my_key"};
 
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);
@@ -329,7 +329,7 @@ TEST(DeleteKeyTest, OutOfOrderDeleteAfterUpdateWorks) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   cache->DeleteKey("my_key", 2);
   cache->UpdateKeyValue("my_key", "my_value", 1);
-  std::vector<std::string_view> full_keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 0);
@@ -341,7 +341,7 @@ TEST(DeleteKeyTest, OutOfOrderUpdateAfterDeleteWorks) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   cache->UpdateKeyValue("my_key", "my_value", 2);
   cache->DeleteKey("my_key", 1);
-  std::vector<std::string_view> full_keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 1);
@@ -354,7 +354,7 @@ TEST(DeleteKeyTest, InOrderUpdateAfterDeleteWorks) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   cache->DeleteKey("my_key", 1);
   cache->UpdateKeyValue("my_key", "my_value", 2);
-  std::vector<std::string_view> full_keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 1);
@@ -367,7 +367,7 @@ TEST(DeleteKeyTest, InOrderDeleteAfterUpdateWorks) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->DeleteKey("my_key", 2);
-  std::vector<std::string_view> full_keys = {"my_key"};
+  absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(full_keys);
   EXPECT_EQ(kv_pairs.size(), 0);
@@ -555,7 +555,7 @@ TEST(CleanUpTimestamps,
   }
   EXPECT_THAT(deleted_values, UnorderedElementsAre("key_tombstone", "my_key3"));
 
-  std::vector<std::string_view> full_keys = {
+  absl::flat_hash_set<std::string_view> full_keys = {
       "my_key1", "my_key2", "my_key3", "my_key4", "my_key5",
   };
   absl::flat_hash_map<std::string, std::string> kv_pairs =
@@ -579,7 +579,7 @@ TEST(CleanUpTimestamps, CantInsertOldRecordsAfterCleanup) {
 
   cache->UpdateKeyValue("my_key1", "my_value", 10);
 
-  std::vector<std::string_view> keys = {"my_key1"};
+  absl::flat_hash_set<std::string_view> keys = {"my_key1"};
 
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(keys);

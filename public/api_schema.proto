@@ -22,19 +22,12 @@ import "google/protobuf/struct.proto";
 // This is always the first argument to the UDF and is the only argument that
 // the KV server is not oblivious to. Example use cases are to pass server side
 // flags or parameters.
-message UDFExecutionMetadata {}
-
-// Context useful for logging and debugging requests compatible with the Bidding
-// and Auction service.
-message LogContext {
-  // UUID for the request (as originating from client).
-  string generation_id = 1;
-  string adtech_debug_id = 2;
-}
-
-message ConsentedDebugConfiguration {
-  bool is_consented = 1;
-  string token = 2;
+message UDFExecutionMetadata {
+  // Version of the UDF framework interface. The application overlay may define
+  // request version separately in the request metadata.
+  int32 udf_interface_version = 1;
+  // Metadata passed in from the request that are related to the request.
+  google.protobuf.Struct request_metadata = 2;
 }
 
 // Represents one argument to UDF. One UDF invocation may have multiple
@@ -46,7 +39,7 @@ message ConsentedDebugConfiguration {
 // If `tags` is not empty, the argument will be passed to the UDF
 // with 2 fields: "tags" and "data". Otherwise, the content of `data` will be
 // directly passed as the argument.
-message SingleUDFArgument {
+message UDFArgument {
   // optional. Metadata about the data.
   google.protobuf.ListValue tags = 1;
 

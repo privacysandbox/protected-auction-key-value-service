@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
@@ -38,7 +39,19 @@ struct InstanceInfo {
   InstanceServiceStatus service_status;
   std::string instance_group;
   std::string private_ip_address;
+  absl::flat_hash_map<std::string, std::string> labels;
 };
+
+struct AwsDescribeInstanceGroupInput {
+  absl::flat_hash_set<std::string>& instance_group_names;
+};
+
+struct GcpDescribeInstanceGroupInput {
+  std::string project_id;
+};
+
+using DescribeInstanceGroupInput =
+    std::variant<AwsDescribeInstanceGroupInput, GcpDescribeInstanceGroupInput>;
 
 // Client to perform instance-specific operations.
 class InstanceClient {
@@ -66,12 +79,14 @@ class InstanceClient {
   // key "shard_num".
   virtual absl::StatusOr<std::string> GetShardNumTag() = 0;
 
-  // Retrieves descriptive information about all instances managed by the
-  // specified by instance_groups, e.g., on AWS, instance groups would map to
-  // auto scaling groups.
+  // Retrieves descriptive information about all instances matching the input
+  // filter.
+  // On AWS, instance groups would map to auto scaling groups. The function
+  // will return the ones that match `instance_group_names`.
+  // On GCP, instance groups matching project_id and envrionment will be
+  // returned.
   virtual absl::StatusOr<std::vector<InstanceInfo>>
-  DescribeInstanceGroupInstances(
-      const absl::flat_hash_set<std::string>& instance_group_names) = 0;
+  DescribeInstanceGroupInstances(DescribeInstanceGroupInput& input) = 0;
 
   // Retrieves descriptive information about the given instances.
   virtual absl::StatusOr<std::vector<InstanceInfo>> DescribeInstances(

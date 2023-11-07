@@ -16,9 +16,9 @@
 # See https://pre-commit.com/hooks.html for more hooks
 exclude: (?x)^(
              bazel-(bin|out|testlogs|workspace)/.*|
-             google_internal/coordinator_environments/.*$|
              .bazel_output/.*|
              builders/.*|
+             .*/BUILD|
              testing/functionaltest-system/.*|
              version.txt
          )$

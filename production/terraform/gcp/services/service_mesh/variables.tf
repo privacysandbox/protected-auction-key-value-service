@@ -53,3 +53,13 @@ variable "collector_tcp_proxy" {
   description = "The tcp proxy for collector"
   type        = any
 }
+
+variable "use_existing_service_mesh" {
+  description = "Whether to use existing service mesh."
+  type        = bool
+}
+
+variable "existing_service_mesh" {
+  description = "Existing service mesh. This would only be used if use_existing_service_mesh is true."
+  type        = string
+}

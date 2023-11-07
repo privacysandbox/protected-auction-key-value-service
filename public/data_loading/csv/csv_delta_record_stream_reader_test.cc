@@ -69,6 +69,46 @@ TEST(CsvDeltaRecordStreamReaderTest,
 }
 
 TEST(CsvDeltaRecordStreamReaderTest,
+     ValidateReadingAndWriting_KVMutation_StringValues_Base64_Success) {
+  std::stringstream string_stream;
+
+  CsvDeltaRecordStreamWriter record_writer(
+      string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
+                         .csv_encoding = CsvEncoding::kBase64});
+  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
+  EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
+  EXPECT_TRUE(record_writer.Flush().ok());
+  CsvDeltaRecordStreamReader record_reader(
+      string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                         .csv_encoding = CsvEncoding::kBase64});
+  EXPECT_TRUE(record_reader
+                  .ReadRecords([&expected](DataRecordStruct record) {
+                    EXPECT_EQ(record, expected);
+                    return absl::OkStatus();
+                  })
+                  .ok());
+}
+
+TEST(CsvDeltaRecordStreamReaderTest,
+     ValidateReadingAndWriting_KVMutation_StringValues_Base64_Invalid_Failure) {
+  const char data[] =
+      R"csv(key,value,value_type,mutation_type,logical_commit_time
+  key,value,string,Update,1)csv";
+  std::stringstream csv_stream;
+  csv_stream.str(data);
+  CsvDeltaRecordStreamReader record_reader(
+      csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                      .csv_encoding = CsvEncoding::kBase64});
+  auto status = record_reader.ReadRecords(
+      [](DataRecordStruct record) { return absl::OkStatus(); });
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_STREQ(std::string(status.message()).c_str(),
+               "base64 decode failed for value: value")
+      << status;
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
+}
+
+TEST(CsvDeltaRecordStreamReaderTest,
      ValidateReadingCsvRecords_KVMutation_InvalidTimestamps_Failure) {
   const char invalid_data[] =
       R"csv(key,value,value_type,mutation_type,logical_commit_time
@@ -123,6 +163,48 @@ TEST(CsvDeltaRecordStreamReaderTest,
     return absl::OkStatus();
   });
   EXPECT_TRUE(status.ok()) << status;
+}
+TEST(CsvDeltaRecordStreamReaderTest,
+     ValidateReadingAndWriting_KVMutation_SetValues_Base64_Success) {
+  const std::vector<std::string_view> values{
+      "elem1",
+      "elem2",
+      "elem3",
+  };
+  std::stringstream string_stream;
+  CsvDeltaRecordStreamWriter record_writer(
+      string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
+                         .csv_encoding = CsvEncoding::kBase64});
+
+  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord(values));
+  auto status = record_writer.WriteRecord(expected);
+  EXPECT_TRUE(status.ok()) << status;
+  status = record_writer.Flush();
+  EXPECT_TRUE(status.ok()) << status;
+  CsvDeltaRecordStreamReader record_reader(
+      string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                         .csv_encoding = CsvEncoding::kBase64});
+  status = record_reader.ReadRecords([&expected](DataRecordStruct record) {
+    EXPECT_EQ(record, expected);
+    return absl::OkStatus();
+  });
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(CsvDeltaRecordStreamReaderTest,
+     ValidateReadingAndWriting_KVMutation_SetValues_Base64_Invalid_Failure) {
+  const char data[] =
+      R"csv(key,value,value_type,mutation_type,logical_commit_time
+  key,value,string,Update,1)csv";
+  std::stringstream csv_stream;
+  csv_stream.str(data);
+  CsvDeltaRecordStreamReader record_reader(
+      csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                      .csv_encoding = CsvEncoding::kBase64});
+  const auto status = record_reader.ReadRecords(
+      [](DataRecordStruct) { return absl::OkStatus(); });
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
 
 TEST(CsvDeltaRecordStreamReaderTest,

@@ -97,15 +97,18 @@ function fail() {
 printf "==== Sourcing builder.sh =====\n"
 # We can't use $WORKSPACE here as it may not be set - it'll be created
 # by builder.sh if it's empty.
-readonly SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
-readonly BUILDER="${SCRIPT_DIR}"/../../../builders/tools/builder.sh
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+readonly SCRIPT_DIR
+BUILDER="${SCRIPT_DIR}"/../../../builders/tools/builder.sh
+readonly BUILDER
 if [[ ! -f ${BUILDER} ]]; then
   ERROR_MESSAGE=$(printf "builder.sh file does not exist, expected at: %s\n"  "${BUILDER}")
   fail "$ERROR_MESSAGE"
 fi
 # shellcheck source=builders/tools/builder.sh
 source "${BUILDER}" || fail "Failed to source builder.sh"
-readonly DIST="${WORKSPACE}"/dist
+DIST="${WORKSPACE}"/dist
+readonly DIST
 
 printf "==== Running build_and_test_all_in_docker =====\n"
 if ! [[ -r ${WORKSPACE}/production/packaging/build_and_test_all_in_docker && -x ${WORKSPACE}/production/packaging/build_and_test_all_in_docker ]]; then
@@ -122,7 +125,8 @@ chmod 770 "${DIST}" "${DIST}"/aws
 
 printf "==== build AWS artifacts using build-amazonlinux2 =====\n"
 # build nitro enclave image, collect eif artifacts
-readonly IMAGE_URI=bazel/production/packaging/aws/data_server
+IMAGE_URI=bazel/production/packaging/aws/data_server
+readonly IMAGE_URI
 BUILD_ARCH=$("${WORKSPACE}"/builders/tools/get-architecture)
 IMAGE_TAG=$(mktemp --dry-run temp-XXXXXX)
 builder::cbuild_al2 $"
@@ -144,9 +148,12 @@ exit 0
 docker image rm --force ${IMAGE_URI}:"${IMAGE_TAG}" || fail "Unable to remove Docker image"
 
 printf "==== Checking PCR0 =====\n"
-readonly PCR0_REL_DIR=production/packaging/aws/data_server/nitro-pcr0
-readonly PCR0_DIR="${WORKSPACE}"/${PCR0_REL_DIR}
-readonly PCR0_FILE="${PCR0_DIR}"/${BUILD_ARCH}.json
+PCR0_REL_DIR=production/packaging/aws/data_server/nitro-pcr0
+readonly PCR0_REL_DIR
+PCR0_DIR="${WORKSPACE}"/${PCR0_REL_DIR}
+readonly PCR0_DIR
+PCR0_FILE="${PCR0_DIR}"/${BUILD_ARCH}.json
+readonly PCR0_FILE
 declare -i OUTDATED_PCR0=0
 if [[ ! -s ${PCR0_FILE} ]]; then
   printf "warning: PCR0 file doesn't exist or is empty [%s]\n" "${PCR0_FILE}"

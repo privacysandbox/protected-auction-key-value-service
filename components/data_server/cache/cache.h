@@ -38,7 +38,7 @@ class Cache {
 
   // Looks up and returns key-value pairs for the given keys.
   virtual absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
-      const std::vector<std::string_view>& key_list) const = 0;
+      const absl::flat_hash_set<std::string_view>& key_list) const = 0;
 
   // Looks up and returns key-value set result for the given key set.
   virtual std::unique_ptr<GetKeyValueSetResult> GetKeyValueSet(

@@ -1,0 +1,6 @@
+{
+  "singlePartition": {
+    "id": 4,
+    "stringOutput": "{\"keyGroupOutputs\":[{\"tags\":[\"structured\",\"groupNames\"],\"keyValues\":{\"hi\":{\"value\":\"Hello, world! If you are seeing this, it means you can query me successfully\"}}}],\"udfOutputApiVersion\":1}"
+  }
+}

@@ -23,7 +23,7 @@
 
 namespace kv_server {
 opentelemetry::sdk::resource::Resource CreateKVAttributes(
-    std::string instance_id, std::string environment);
+    std::string instance_id, std::string shard_number, std::string environment);
 
 }  // namespace kv_server
 #endif  // COMPONENTS_TELEMETRY_KV_CONFIG_H_

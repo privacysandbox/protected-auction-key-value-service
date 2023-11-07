@@ -21,10 +21,14 @@
 
 #include "absl/status/status.h"
 #include "components/cloud_config/instance_client.h"
+#include "components/data_server/server/parameter_fetcher.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
+using privacy_sandbox::server_common::MockMetricsRecorder;
+
 class MockInstanceClient : public InstanceClient {
  public:
   MOCK_METHOD(absl::StatusOr<std::string>, GetEnvironmentTag, (), (override));
@@ -36,9 +40,35 @@ class MockInstanceClient : public InstanceClient {
   MOCK_METHOD(absl::StatusOr<std::string>, GetInstanceId, (), (override));
   MOCK_METHOD(absl::StatusOr<std::vector<InstanceInfo>>,
               DescribeInstanceGroupInstances,
-              (const absl::flat_hash_set<std::string>&), (override));
+              (DescribeInstanceGroupInput & input), (override));
   MOCK_METHOD(absl::StatusOr<std::vector<InstanceInfo>>, DescribeInstances,
               (const absl::flat_hash_set<std::string>&), (override));
+};
+
+class MockParameterClient : public ParameterClient {
+ public:
+  MOCK_METHOD(absl::StatusOr<std::string>, GetParameter,
+              (std::string_view parameter_name), (const, override));
+  MOCK_METHOD(absl::StatusOr<int32_t>, GetInt32Parameter,
+              (std::string_view parameter_name), (const, override));
+  MOCK_METHOD(absl::StatusOr<bool>, GetBoolParameter,
+              (std::string_view parameter_name), (const, override));
+};
+
+class MockParameterFetcher : public ParameterFetcher {
+ public:
+  MockParameterFetcher()
+      : ParameterFetcher("environment", client, &metrics_recorder) {}
+  MOCK_METHOD(std::string, GetParameter, (std::string_view parameter_suffix),
+              (const, override));
+  MOCK_METHOD(int32_t, GetInt32Parameter, (std::string_view parameter_suffix),
+              (const, override));
+  MOCK_METHOD(bool, GetBoolParameter, (std::string_view parameter_suffix),
+              (const, override));
+
+ private:
+  MockParameterClient client;
+  MockMetricsRecorder metrics_recorder;
 };
 
 }  // namespace kv_server

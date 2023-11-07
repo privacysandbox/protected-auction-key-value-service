@@ -34,7 +34,7 @@ function usage() {
   cat >&2 << USAGE
 usage:
   $0 <options>
-    --environment     [REQUIRED] (All lowercase) Assigned environment name to group related resources. Also servers as gcp image tag.
+    --gcp-image-tag   [REQUIRED] (All lowercase) Used to identify the GCP image.
     --gcp-image-repo  [REQUIRED] Used to identify the target repo for TEE image upload.
 USAGE
   exit "${exitval}"
@@ -47,8 +47,8 @@ while [[ $# -gt 0 ]]; do
       GCP_IMAGE_REPO="$2"
       shift 2 || usage
       ;;
-    --environment)
-      ENVIRONMENT="$2"
+    --gcp-image-tag)
+      GCP_IMAGE_TAG="$2"
       shift 2 || usage
       ;;
     --verbose)
@@ -63,7 +63,7 @@ done
 
 
 IMAGE_URI=bazel/production/packaging/gcp/data_server:server_docker_image
-TAGGED_IMAGE_URI=${GCP_IMAGE_REPO}:${ENVIRONMENT}
+TAGGED_IMAGE_URI=${GCP_IMAGE_REPO}:${GCP_IMAGE_TAG}
 
 docker load -i dist/server_docker_image.tar
 docker tag ${IMAGE_URI} "${TAGGED_IMAGE_URI}"
@@ -71,6 +71,3 @@ docker push "${TAGGED_IMAGE_URI}"
 
 # Before using this script, please make sure that the docker image is already prepared using the folloing command (from the kv-server root repo):
 # ./production/packaging/gcp/build_and_test
-
-# To use this script, run (from the kv-server root repo):
-# ./production/packaging/gcp/docker_push_gcp_repo --gcp-image-repo us-docker.pkg.dev/kv-server-shared/kvs-docker-repo-shared/kv-service --environment env_name_of_your_choice

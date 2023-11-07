@@ -59,9 +59,8 @@ resource "google_compute_firewall" "kvs_fw_allow_backend_ingress" {
   }
   target_tags = ["allow-backend-ingress"]
 
-  # TODO(b/304313245): Remove this temporary source_ranges once envoy/https query is supported
-  source_ranges = ["0.0.0.0/0"]
-  # source_ranges = [for subnet in var.subnets : subnet.ip_cidr_range]
+  # TODO(b/304313245): Remove this temporary source_ranges (["0.0.0.0/0"]) once envoy/https query is supported
+  source_ranges = concat(["0.0.0.0/0"], [for subnet in var.subnets : subnet.ip_cidr_range])
 }
 
 resource "google_compute_firewall" "fw_allow_otlp" {

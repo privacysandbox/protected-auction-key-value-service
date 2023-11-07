@@ -20,12 +20,11 @@ set -o errexit
 
 WORKSPACE="${WORKSPACE-"$(git rev-parse --show-toplevel)"}"
 readonly WORKSPACE
-readonly BIN_DIR="${WORKSPACE}"/dist/debian
-readonly GRPC_CLI="${BIN_DIR}"/grpc_cli
+readonly GRPC_CLI=bazel-bin/external/com_github_grpc_grpc/test/cpp/util/grpc_cli
 
 if ! [[ -s ${GRPC_CLI} ]]; then
-  printf "Building grpc_cli using bazel-debian\n"
-  "${WORKSPACE}"/builders/tools/bazel-debian run third_party:copy_to_dist
+  printf "Building grpc_cli\n"
+  "${WORKSPACE}"/builders/tools/bazel-debian build //tools:grpc_cli
 fi
 
 "${GRPC_CLI}" "$@"

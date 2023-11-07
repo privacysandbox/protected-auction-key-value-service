@@ -46,13 +46,13 @@ using v1::GetValuesRequest;
 using v1::GetValuesResponse;
 using v1::KeyValueService;
 
-std::vector<std::string_view> GetKeys(
+absl::flat_hash_set<std::string_view> GetKeys(
     const RepeatedPtrField<std::string>& keys) {
-  std::vector<std::string_view> key_list;
+  absl::flat_hash_set<std::string_view> key_list;
   for (const auto& key : keys) {
     for (absl::string_view individual_key :
          absl::StrSplit(key, kQueryArgDelimiter)) {
-      key_list.emplace_back(individual_key);
+      key_list.insert(individual_key);
     }
   }
   return key_list;

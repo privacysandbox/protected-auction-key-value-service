@@ -22,6 +22,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "components/data_server/server/parameter_fetcher.h"
 #include "components/internal_server/lookup.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/udf/hooks/get_values_hook.h"
@@ -61,7 +62,8 @@ std::unique_ptr<ServerInitializer> GetServerInitializer(
     privacy_sandbox::server_common::KeyFetcherManagerInterface&
         key_fetcher_manager,
     Lookup& local_lookup, std::string environment, int32_t current_shard_num,
-    InstanceClient& instance_client, Cache& cache);
+    InstanceClient& instance_client, Cache& cache,
+    ParameterFetcher& parameter_fetcher);
 
 }  // namespace kv_server
 #endif  // COMPONENTS_DATA_SERVER_SERVER_INITIALIZER_H_

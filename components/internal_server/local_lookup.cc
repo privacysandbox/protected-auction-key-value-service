@@ -43,7 +43,7 @@ class LocalLookup : public Lookup {
       : cache_(cache), metrics_recorder_(metrics_recorder) {}
 
   absl::StatusOr<InternalLookupResponse> GetKeyValues(
-      const std::vector<std::string_view>& keys) const override {
+      const absl::flat_hash_set<std::string_view>& keys) const override {
     return ProcessKeys(keys);
   }
 
@@ -59,7 +59,7 @@ class LocalLookup : public Lookup {
 
  private:
   InternalLookupResponse ProcessKeys(
-      const std::vector<std::string_view>& keys) const {
+      const absl::flat_hash_set<std::string_view>& keys) const {
     InternalLookupResponse response;
     if (keys.empty()) {
       return response;
@@ -72,6 +72,7 @@ class LocalLookup : public Lookup {
       if (key_iter == kv_pairs.end()) {
         auto status = result.mutable_status();
         status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+        status->set_message("Key not found");
       } else {
         result.set_value(std::move(key_iter->second));
       }
@@ -93,6 +94,7 @@ class LocalLookup : public Lookup {
       if (value_set.empty()) {
         auto status = result.mutable_status();
         status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+        status->set_message("Key not found");
         metrics_recorder_.IncrementEventCounter(kKeySetNotFound);
       } else {
         auto keyset_values = result.mutable_keyset_values();

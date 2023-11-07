@@ -64,6 +64,25 @@ TEST_F(LocalLookupTest, GetKeyValues_KeysFound_Success) {
   EXPECT_THAT(response.value(), EqualsProto(expected));
 }
 
+TEST_F(LocalLookupTest, GetKeyValues_DuplicateKeys_Success) {
+  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_))
+      .WillOnce(Return(absl::flat_hash_map<std::string, std::string>{
+          {"key1", "value1"}, {"key2", "value2"}}));
+
+  auto local_lookup = CreateLocalLookup(mock_cache_, mock_metrics_recorder_);
+  auto response = local_lookup->GetKeyValues({"key1", "key1"});
+  EXPECT_TRUE(response.ok());
+
+  InternalLookupResponse expected;
+  TextFormat::ParseFromString(R"pb(kv_pairs {
+                                     key: "key1"
+                                     value { value: "value1" }
+                                   }
+                              )pb",
+                              &expected);
+  EXPECT_THAT(response.value(), EqualsProto(expected));
+}
+
 TEST_F(LocalLookupTest, GetKeyValues_KeyMissing_ReturnsStatusForKey) {
   EXPECT_CALL(mock_cache_, GetKeyValuePairs(_))
       .WillOnce(Return(
@@ -74,16 +93,17 @@ TEST_F(LocalLookupTest, GetKeyValues_KeyMissing_ReturnsStatusForKey) {
   EXPECT_TRUE(response.ok());
 
   InternalLookupResponse expected;
-  TextFormat::ParseFromString(R"pb(kv_pairs {
-                                     key: "key1"
-                                     value { value: "value1" }
-                                   }
-                                   kv_pairs {
-                                     key: "key2"
-                                     value { status { code: 5 message: "" } }
-                                   }
-                              )pb",
-                              &expected);
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key1"
+             value { value: "value1" }
+           }
+           kv_pairs {
+             key: "key2"
+             value { status { code: 5 message: "Key not found" } }
+           }
+      )pb",
+      &expected);
   EXPECT_THAT(response.value(), EqualsProto(expected));
 }
 
@@ -127,12 +147,13 @@ TEST_F(LocalLookupTest, GetKeyValueSets_SetEmpty_Success) {
   EXPECT_TRUE(response.ok());
 
   InternalLookupResponse expected;
-  TextFormat::ParseFromString(R"pb(kv_pairs {
-                                     key: "key1"
-                                     value { status { code: 5 } }
-                                   }
-                              )pb",
-                              &expected);
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key1"
+             value { status { code: 5 message: "Key not found" } }
+           }
+      )pb",
+      &expected);
   EXPECT_THAT(response.value(), EqualsProto(expected));
 }
 

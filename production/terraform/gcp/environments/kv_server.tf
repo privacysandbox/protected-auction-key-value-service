@@ -31,6 +31,7 @@ module "kv_server" {
   service                               = local.kv_service
   service_account_email                 = var.service_account_email
   regions                               = var.regions
+  gcp_image_tag                         = var.gcp_image_tag
   gcp_image_repo                        = var.gcp_image_repo
   kv_service_port                       = var.kv_service_port
   min_replicas_per_service_region       = var.min_replicas_per_service_region
@@ -50,6 +51,8 @@ module "kv_server" {
   use_existing_vpc                      = var.use_existing_vpc
   existing_vpc_id                       = var.existing_vpc_id
   num_shards                            = var.num_shards
+  use_existing_service_mesh             = var.use_existing_service_mesh
+  existing_service_mesh                 = var.existing_service_mesh
   # TODO(b/299623229): remove the following reminder once b/299623229 is done.
   # Reminder: for any new parameters added here, please also add them to "components/cloud_config/parameter_client_local.cc".
   parameters = {

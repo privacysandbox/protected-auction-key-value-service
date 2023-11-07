@@ -42,12 +42,12 @@ constexpr char kCleanUpKeyValueMapEvent[] = "CleanUpKeyValueMap";
 constexpr char kCleanUpKeyValueSetMapEvent[] = "CleanUpKeyValueSetMap";
 
 absl::flat_hash_map<std::string, std::string> KeyValueCache::GetKeyValuePairs(
-    const std::vector<std::string_view>& key_list) const {
+    const absl::flat_hash_set<std::string_view>& key_set) const {
   ScopeLatencyRecorder latency_recorder(kGetKeyValuePairsEvent,
                                         metrics_recorder_);
   absl::flat_hash_map<std::string, std::string> kv_pairs;
   absl::ReaderMutexLock lock(&mutex_);
-  for (std::string_view key : key_list) {
+  for (std::string_view key : key_set) {
     const auto key_iter = map_.find(key);
     if (key_iter == map_.end() || key_iter->second.value == nullptr) {
       continue;

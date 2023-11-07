@@ -28,7 +28,9 @@ namespace semantic_conventions =
     opentelemetry::sdk::resource::SemanticConventions;
 
 namespace kv_server {
-Resource CreateKVAttributes(std::string instance_id, std::string environment) {
+constexpr char* kShardNumber = "shard_number";
+Resource CreateKVAttributes(std::string instance_id, std::string shard_number,
+                            std::string environment) {
   std::string build_version = std::string(BuildVersion());
   std::string build_platform = std::string(BuildPlatform());
   const auto attributes = ResourceAttributes{
@@ -36,7 +38,8 @@ Resource CreateKVAttributes(std::string instance_id, std::string environment) {
       {semantic_conventions::kServiceVersion, std::move(build_version)},
       {semantic_conventions::kHostArch, std::move(build_platform)},
       {semantic_conventions::kDeploymentEnvironment, std::move(environment)},
-      {semantic_conventions::kServiceInstanceId, std::move(instance_id)}};
+      {semantic_conventions::kServiceInstanceId, std::move(instance_id)},
+      {kShardNumber, std::move(shard_number)}};
   return Resource::Create(attributes);
 }
 }  // namespace kv_server

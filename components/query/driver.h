@@ -60,6 +60,7 @@ class Driver {
   // Clients should not call these functions, they are called by the parser.
   void SetAst(std::unique_ptr<kv_server::Node>);
   void SetError(std::string error);
+  void ClearError() { status_ = absl::OkStatus(); }
 
   // Looks up the set which contains a view of the DB data.
   absl::flat_hash_set<std::string_view> Lookup(std::string_view key) const;

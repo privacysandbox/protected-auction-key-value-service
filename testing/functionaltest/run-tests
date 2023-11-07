@@ -79,12 +79,12 @@ readonly TOOLS_DIR
 SUTS_DIR="${SCRIPT_DIR}"/suts
 readonly SUTS_DIR
 declare -r SUT_DIR="${SUTS_DIR}/${SUT_NAME}"
+
 if ! [[ -d ${SUT_DIR} ]]; then
   printf "SUT directory not found: [%s]\n" "${SUT_DIR}" &>/dev/stderr
   exit 1
 fi
 
-readonly TOOLS_DIR
 declare -a -r TEST_ARGS=(
   "--test_env=TEST_TOOLS_IMAGE=$("${TOOLS_DIR}"/get-builder-image-tagged --image test-tools)"
 )
@@ -92,11 +92,14 @@ declare -a -r TESTS=(
   "//testing/functionaltest/suts/${SUT_NAME}:grpcurl_test_suite"
 )
 
-# run the tests using bazel, if installed
-if command bazel --help &>/dev/null; then
-  bazel test "${TESTS[@]}" "${TEST_ARGS[@]}"
-  if [[ ${SHORT_CIRCUIT} -eq 1 ]]; then
-    exit
+# If envrionmental variable is set, no local bazel is run.
+if ! [[ -v NO_LOCAL_BAZEL ]]; then
+  # run the tests using bazel, if installed
+  if command bazel --help &>/dev/null; then
+    bazel test "${TESTS[@]}" "${TEST_ARGS[@]}"
+    if [[ ${SHORT_CIRCUIT} -eq 1 ]]; then
+      exit
+    fi
   fi
 fi
 

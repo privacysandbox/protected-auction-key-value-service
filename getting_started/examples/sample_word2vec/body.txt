@@ -1,0 +1,23 @@
+'{
+   "metadata":{
+      "hostname":"example.com"
+   },
+   "partitions":[
+      {
+         "id":0,
+         "arguments":[
+            {
+               "data":[
+                  "animals",
+                  "garden",
+                  "dinner",
+                  "hotels"
+               ]
+            },
+            {
+               "data": "food"
+            }
+         ]
+      }
+   ]
+}'

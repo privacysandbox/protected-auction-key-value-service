@@ -24,6 +24,8 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/udf/code_config.h"
+#include "google/protobuf/message.h"
+#include "public/api_schema.pb.h"
 #include "roma/config/src/config.h"
 #include "roma/interface/roma.h"
 
@@ -34,10 +36,19 @@ class UdfClient {
  public:
   virtual ~UdfClient() = default;
 
-  // Executes the UDF with the given keys. Code object must be set before making
-  // this call.
+  // This interface is too liberal. We may need to change this to an internal
+  // function so the public interface aligns with our public documentation on
+  // UDF signature.
+  ABSL_DEPRECATED("Use ExecuteCode(metadata, arguments) instead")
   virtual absl::StatusOr<std::string> ExecuteCode(
       std::vector<std::string> keys) const = 0;
+
+  // Executes the UDF. Code object must be set before making
+  // this call.
+  virtual absl::StatusOr<std::string> ExecuteCode(
+      UDFExecutionMetadata&& execution_metadata,
+      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments)
+      const = 0;
 
   virtual absl::Status Stop() = 0;
 

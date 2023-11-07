@@ -26,7 +26,7 @@ namespace kv_server {
 class NoOpKeyValueCache : public Cache {
  public:
   absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
-      const std::vector<std::string_view>& key_list) const override {
+      const absl::flat_hash_set<std::string_view>& key_set) const override {
     return {};
   };
   std::unique_ptr<kv_server::GetKeyValueSetResult> GetKeyValueSet(

@@ -34,9 +34,9 @@ Note that the UDF should be in JavaScript (and optionally JavaScript + inline WA
 
 We provide a [simple reference implementation](/tools/udf/sample_udf/udf.js):
 
--   The implementation ignores part of the request, e.g. the `context` field.
--   For each `keyGroup` in the request, it calls `getValues(keyGroup.keyList)` to retrieve the keys
-    from the internal cache and returns the key-value pairs in its response.
+-   The implementation ignores part of the request, e.g. the `metadata` field.
+-   For each `keyGroup` in the request, it calls `getValues(keyGroup)` to retrieve the keys from the
+    internal cache and returns the key-value pairs in its response.
 
 ## 2. Generate a UDF delta file
 
@@ -75,40 +75,11 @@ The delta file must have a `DataRecord` with a `UserDefinedFunctionsConfig` as i
 
 ### Option 3. Using sample UDF configurations
 
-A sample UDF JavaScript file and corresponding Delta file are located under the
-`tools/udf/sample_udf` directory.
+A sample UDF JavaScript file is located under the `tools/udf/sample_udf` directory.
 
 ## 3. Test the UDF delta file
 
-Test the generated UDF delta file using the `dist/debian/udf_delta_file_tester` executable.
-
-It requires two delta files:
-
--   Delta file with key-value pairs to be stored in memory
--   Delta file with the UDF configuration (from Step 2).
-
-Optionally, you can pass a key, subkey, and namespace that are included in the request to the UDF.
-
-Flags:
-
--   `--kv_delta_file_path`: Path to delta file with KV pairs
--   `--udf_delta_file_path`: Path to delta file with UDF configuration
--   `--key`: Key to query. Defaults to an empty string.
--   `--subkey`: Subkey of the
-    [`context` field](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#schema-of-the-request).
-    Defaults to an empty string.
--   `--namespace_tag`:
-    [Namespace tag for key](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#available-tags).
-    Defaults to `keys`.
-
-Example:
-
-```sh
--$ dist/debian/udf_delta_file_tester --kv_delta_file_path="path/to/DELTA_WITH_KEYS" --udf_delta_file_path="path/to/DELTA_WITH_UDF" --key="my_test_key"
-```
-
-> Note: The UDF testing tool only checks if the execution is successful and the output is a valid
-> JSON. It does not perform any schema validation.
+Test the generated UDF delta file using the [UDF Delta file tester](/tools/udf/udf_tester).
 
 ## 4. Provide a UDF to the server
 

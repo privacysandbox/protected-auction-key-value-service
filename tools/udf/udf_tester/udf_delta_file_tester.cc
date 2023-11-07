@@ -24,25 +24,25 @@
 #include "components/udf/udf_client.h"
 #include "components/udf/udf_config_builder.h"
 #include "glog/logging.h"
-#include "nlohmann/json.hpp"
+#include "google/protobuf/util/json_util.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
+#include "public/query/v2/get_values_v2.pb.h"
 #include "public/udf/constants.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/cpp/util/status_macro/status_macros.h"
 
 ABSL_FLAG(std::string, kv_delta_file_path, "",
           "Path to delta file with KV pairs.");
 ABSL_FLAG(std::string, udf_delta_file_path, "", "Path to UDF delta file.");
-ABSL_FLAG(std::string, key, "", "Key to send in request to UDF.");
-ABSL_FLAG(std::string, subkey, "", "Context subkey to send in request to UDF.");
-ABSL_FLAG(
-    std::string, namespace_tag, "keys",
-    "Namespace tag for keys (see "
-    "https://github.com/WICG/turtledove/blob/main/"
-    "FLEDGE_Key_Value_Server_API.md#available-tags). Defaults to `keys`. ");
+ABSL_FLAG(std::string, input_arguments, "",
+          "List of input arguments in JSON format. Each input argument should "
+          "be equivalent to a UDFArgument.");
 
 namespace kv_server {
+
+using google::protobuf::util::JsonStringToMessage;
 
 // If the arg is const&, the Span construction complains about converting const
 // string_view to non-const string_view. Since this tool is for simple testing,
@@ -114,7 +114,7 @@ absl::Status ReadCodeConfigFromFile(std::string file_path,
                                     CodeConfig& code_config) {
   std::ifstream delta_file(file_path);
   DeltaRecordStreamReader record_reader(delta_file);
-  absl::Status status = record_reader.ReadRecords(
+  return record_reader.ReadRecords(
       [&code_config](const DataRecordStruct& data_record) {
         if (std::holds_alternative<UserDefinedFunctionsConfigStruct>(
                 data_record.record)) {
@@ -125,44 +125,6 @@ absl::Status ReadCodeConfigFromFile(std::string file_path,
         }
         return absl::InvalidArgumentError("Invalid record type.");
       });
-  if (!status.ok()) {
-    return status;
-  }
-  return absl::OkStatus();
-}
-
-absl::StatusOr<std::vector<std::string>> GetUdfInput(std::string subkey,
-                                                     std::string namespace_tag,
-                                                     std::string key) {
-  const std::string input_string = absl::Substitute(R"({
-    "context": {"subkey": "$0"},
-    "keyGroups": [
-      {
-        "tags": [
-          "custom",
-          "$1"
-        ],
-        "keyList": [
-          "$2"
-        ]
-      }
-    ],
-    "udfApiInputVersion": 1
-  })",
-                                                    subkey, namespace_tag, key);
-  const nlohmann::json udf_input = nlohmann::json::parse(input_string);
-  if (udf_input.is_discarded()) {
-    return absl::InvalidArgumentError("Failed to parse the request json");
-  }
-  return std::vector<std::string>{udf_input.dump()};
-}
-
-absl::Status ParseUdfResult(std::string result) {
-  nlohmann::json result_json = nlohmann::json::parse(result);
-  if (result_json.is_discarded()) {
-    return absl::InvalidArgumentError("Invalid JSON format of UDF output.");
-  }
-  return absl::OkStatus();
 }
 
 void ShutdownUdf(UdfClient& udf_client) {
@@ -173,17 +135,20 @@ void ShutdownUdf(UdfClient& udf_client) {
   }
 }
 
-absl::Status TestUdf(std::string kv_delta_file_path,
-                     std::string udf_delta_file_path, std::string key,
-                     std::string subkey, std::string namespace_tag) {
+absl::Status TestUdf(const std::string& kv_delta_file_path,
+                     const std::string& udf_delta_file_path,
+                     const std::string& input_arguments) {
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
   auto noop_metrics_recorder = MetricsRecorder::CreateNoop();
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
-  auto load_cache_status = LoadCacheFromFile(kv_delta_file_path, *cache);
-  if (!load_cache_status.ok()) {
-    LOG(ERROR) << "Error loading cache from file: " << load_cache_status;
-    return load_cache_status;
-  }
+  PS_RETURN_IF_ERROR(LoadCacheFromFile(kv_delta_file_path, *cache))
+      << "Error loading cache from file";
+
+  LOG(INFO) << "Loading udf code config from delta file: "
+            << udf_delta_file_path;
+  CodeConfig code_config;
+  PS_RETURN_IF_ERROR(ReadCodeConfigFromFile(udf_delta_file_path, code_config))
+      << "Error loading UDF code from file";
 
   LOG(INFO) << "Starting UDF client";
   UdfConfigBuilder config_builder;
@@ -197,29 +162,15 @@ absl::Status TestUdf(std::string kv_delta_file_path,
       CreateLocalLookup(*cache, *noop_metrics_recorder));
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(CreateLocalLookup(*cache, *noop_metrics_recorder));
-  auto udf_client = UdfClient::Create(
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
       config_builder.RegisterStringGetValuesHook(*string_get_values_hook)
           .RegisterBinaryGetValuesHook(*binary_get_values_hook)
           .RegisterRunQueryHook(*run_query_hook)
           .RegisterLoggingHook()
           .SetNumberOfWorkers(1)
           .Config());
-  if (!udf_client.ok()) {
-    LOG(ERROR) << "Error starting UDF execution engine: "
-               << udf_client.status();
-    return udf_client.status();
-  }
-
-  LOG(INFO) << "Loading udf code config from delta file: "
-            << udf_delta_file_path;
-  CodeConfig code_config;
-  auto code_config_status =
-      ReadCodeConfigFromFile(udf_delta_file_path, code_config);
-  if (!code_config_status.ok()) {
-    LOG(ERROR) << "Error loading UDF code from file: " << code_config_status;
-    ShutdownUdf(*udf_client.value());
-    return code_config_status;
-  }
+  PS_RETURN_IF_ERROR(udf_client.status())
+      << "Error starting UDF execution engine";
 
   auto code_object_status = udf_client.value()->SetCodeObject(code_config);
   if (!code_object_status.ok()) {
@@ -228,16 +179,16 @@ absl::Status TestUdf(std::string kv_delta_file_path,
     return code_object_status;
   }
 
-  LOG(INFO) << "Building udf input with key: " << key;
-  absl::StatusOr<std::vector<std::string>> udf_input =
-      GetUdfInput(subkey, namespace_tag, key);
-  if (!udf_input.ok()) {
-    LOG(ERROR) << "Error building UDF input: " << udf_input.status();
-    return udf_input.status();
-  }
+  v2::RequestPartition req_partition;
+  std::string req_partition_json =
+      absl::StrCat("{arguments: ", input_arguments, "}");
+  LOG(INFO) << "req_partition_json: " << req_partition_json;
 
-  LOG(INFO) << "Executing UDF with input:" << udf_input.value()[0];
-  auto udf_result = udf_client.value()->ExecuteCode(udf_input.value());
+  JsonStringToMessage(req_partition_json, &req_partition);
+
+  LOG(INFO) << "Calling UDF for partition: " << req_partition.DebugString();
+  auto udf_result =
+      udf_client.value()->ExecuteCode({}, req_partition.arguments());
   if (!udf_result.ok()) {
     LOG(ERROR) << "UDF execution failed: " << udf_result.status();
     ShutdownUdf(*udf_client.value());
@@ -245,13 +196,7 @@ absl::Status TestUdf(std::string kv_delta_file_path,
   }
   ShutdownUdf(*udf_client.value());
 
-  LOG(INFO) << "UDF unparsed result: " << udf_result.value();
-
-  auto parse_status = ParseUdfResult(udf_result.value());
-  if (!parse_status.ok()) {
-    return parse_status;
-  }
-
+  LOG(INFO) << "UDF execution result: " << udf_result.value();
   std::cout << "UDF execution result: " << udf_result.value() << std::endl;
 
   return absl::OkStatus();
@@ -266,12 +211,10 @@ int main(int argc, char** argv) {
       absl::GetFlag(FLAGS_kv_delta_file_path);
   const std::string udf_delta_file_path =
       absl::GetFlag(FLAGS_udf_delta_file_path);
-  const std::string key = absl::GetFlag(FLAGS_key);
-  const std::string subkey = absl::GetFlag(FLAGS_subkey);
-  const std::string namespace_tag = absl::GetFlag(FLAGS_namespace_tag);
+  const std::string input_arguments = absl::GetFlag(FLAGS_input_arguments);
 
-  auto status = kv_server::TestUdf(kv_delta_file_path, udf_delta_file_path, key,
-                                   subkey, namespace_tag);
+  auto status = kv_server::TestUdf(kv_delta_file_path, udf_delta_file_path,
+                                   input_arguments);
   if (!status.ok()) {
     return -1;
   }

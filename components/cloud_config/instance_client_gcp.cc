@@ -22,12 +22,15 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "absl/strings/str_split.h"
 #include "absl/synchronization/notification.h"
 #include "components/cloud_config/instance_client.h"
+#include "components/errors/error_util_gcp.h"
 #include "glog/logging.h"
 #include "google/cloud/compute/instances/v1/instances_client.h"
 #include "scp/cc/public/core/interface/execution_result.h"
 #include "scp/cc/public/cpio/interface/instance_client/instance_client_interface.h"
+#include "src/cpp/util/status_macro/status_macros.h"
 
 ABSL_FLAG(std::string, shard_num, "0", "Shard number.");
 
@@ -35,6 +38,7 @@ namespace kv_server {
 namespace {
 using google::cloud::cpp::compute::instances::v1::
     AggregatedListInstancesRequest;
+using google::cloud::cpp::compute::v1::InstancesSetLabelsRequest;
 using google::cmrt::sdk::instance_service::v1::
     GetCurrentInstanceResourceNameRequest;
 using google::cmrt::sdk::instance_service::v1::
@@ -57,6 +61,7 @@ namespace compute = ::google::cloud::compute_instances_v1;
 
 constexpr std::string_view kEnvironment = "environment";
 constexpr std::string_view kShardNumberLabel = "shard-num";
+constexpr std::string_view kInitializedTag = "initialized";
 
 // https://github.com/googleapis/google-cloud-cpp/blob/8234252ab1f661e210ec8773f68cd08d1cfc00d6/protos/google/cloud/compute/v1/internal/common_021.proto#L296
 const absl::flat_hash_set<std::string> kInstancePreServiceStatuses = {
@@ -120,8 +125,44 @@ class GcpInstanceClient : public InstanceClient {
     return absl::OkStatus();
   }
 
+  absl::Status SetInitializedLabel() {
+    if (resource_name_.empty()) {
+      PS_ASSIGN_OR_RETURN(resource_name_, GetResourceName(instance_client_));
+    }
+    // Resource name is of format:
+    // //compute.googleapis.com/projects/PROJECT_ID/zones/ZONE_ID/instances/INSTANCE_ID
+    std::vector<absl::string_view> resource_name_parts =
+        absl::StrSplit(resource_name_, '/');
+    if (resource_name_parts.size() < 9) {
+      return absl::InternalError("Invalid VM resource name");
+    }
+    auto project_id = std::string(resource_name_parts[4]);
+    auto zone_id = std::string(resource_name_parts[6]);
+    auto instance_name = std::string(resource_name_parts[8]);
+    auto maybe_instance =
+        client_.GetInstance(project_id, zone_id, instance_name);
+    if (!maybe_instance.ok()) {
+      return GoogleErrorStatusToAbslStatus(maybe_instance.status());
+    }
+    InstancesSetLabelsRequest set_labels_request;
+    *set_labels_request.mutable_label_fingerprint() =
+        maybe_instance->label_fingerprint();
+    *set_labels_request.mutable_labels() = maybe_instance->labels();
+    (*set_labels_request.mutable_labels())[kInitializedTag] = kInitializedTag;
+    auto set_labels_result =
+        client_
+            .SetLabels(project_id, zone_id, instance_name, set_labels_request)
+            .get();
+    if (!set_labels_result.ok()) {
+      return GoogleErrorStatusToAbslStatus(set_labels_result.status());
+    }
+    return absl::OkStatus();
+  }
+
   absl::Status CompleteLifecycle(
       std::string_view lifecycle_hook_name) override {
+    PS_RETURN_IF_ERROR(SetInitializedLabel())
+        << "Error setting the initialized label";
     LOG(INFO) << "Complete lifecycle.";
     return absl::OkStatus();
   }
@@ -194,7 +235,7 @@ class GcpInstanceClient : public InstanceClient {
     if (!resource_name.ok()) {
       return resource_name.status();
     }
-
+    resource_name_ = resource_name.value();
     absl::Notification done;
     GetInstanceDetailsByResourceNameRequest request;
     request.set_instance_resource_name(resource_name.value());
@@ -254,6 +295,8 @@ class GcpInstanceClient : public InstanceClient {
   std::string instance_id_;
   std::string environment_;
   std::string shard_number_;
+
+  std::string resource_name_;
   std::unique_ptr<InstanceClientInterface> instance_client_;
   compute::InstancesClient client_ =
       compute::InstancesClient(compute::MakeInstancesConnectionRest());

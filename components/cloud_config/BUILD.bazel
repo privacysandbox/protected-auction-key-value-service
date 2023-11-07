@@ -151,6 +151,7 @@ cc_library(
             "@aws_sdk_cpp//:ec2",
         ],
         "//:gcp_instance": [
+            "//components/errors:gcp_error_util",
             "@com_github_googleapis_google_cloud_cpp//:compute_instances",
             "@com_google_absl//absl/flags:flag",
             "@com_google_absl//absl/log:check",
@@ -167,6 +168,8 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
     ],
 )

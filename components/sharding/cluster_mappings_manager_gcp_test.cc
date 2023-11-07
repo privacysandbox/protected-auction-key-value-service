@@ -42,17 +42,17 @@ TEST(ClusterMappingsGcpTest, RetrieveMappingsSuccessfully) {
         InstanceInfo ii1 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip1",
-            .labels = {{"shard-num", "0"}},
+            .labels = {{"shard-num", "0"}, {"initialized", "initialized"}},
         };
         InstanceInfo ii2 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip2",
-            .labels = {{"shard-num", "0"}},
+            .labels = {{"shard-num", "0"}, {"initialized", "initialized"}},
         };
         InstanceInfo ii3 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip3",
-            .labels = {{"shard-num", "1"}},
+            .labels = {{"shard-num", "1"}, {"initialized", "initialized"}},
         };
         InstanceInfo ii4 = {
             .service_status = InstanceServiceStatus::kPreService,
@@ -99,7 +99,7 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
         InstanceInfo ii1 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip1",
-            .labels = {{"shard-num", "0"}},
+            .labels = {{"shard-num", "0"}, {"initialized", "initialized"}},
         };
         std::vector<InstanceInfo> instances{ii1};
         return instances;
@@ -144,7 +144,7 @@ TEST(ClusterMappingsAwsTest, UpdateMappings) {
         InstanceInfo ii1 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip10",
-            .labels = {{"shard-num", "0"}},
+            .labels = {{"shard-num", "0"}, {"initialized", "initialized"}},
         };
         std::vector<InstanceInfo> instances{ii1};
         return instances;
@@ -156,7 +156,7 @@ TEST(ClusterMappingsAwsTest, UpdateMappings) {
         InstanceInfo ii1 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip20",
-            .labels = {{"shard-num", "0"}},
+            .labels = {{"shard-num", "0"}, {"initialized", "initialized"}},
         };
         std::vector<InstanceInfo> instances{ii1};
         finished.Notify();

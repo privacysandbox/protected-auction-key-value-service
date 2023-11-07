@@ -19,8 +19,9 @@
 
 namespace kv_server {
 namespace {
-constexpr char kShardNumberTag[] = "shard-num";
-constexpr char kProjectIdParameterName[] = "project-id";
+constexpr std::string_view kShardNumberTag = "shard-num";
+constexpr std::string_view kProjectIdParameterName = "project-id";
+constexpr std::string_view kInitializedTag = "initialized";
 }  // namespace
 
 class GcpClusterMappingsManager : public ClusterMappingsManager {
@@ -70,7 +71,9 @@ class GcpClusterMappingsManager : public ClusterMappingsManager {
       if (instance.service_status != InstanceServiceStatus::kInService) {
         continue;
       }
-
+      if (!instance.labels.contains(kInitializedTag)) {
+        continue;
+      }
       auto shard_num_status = GetShardNumberOffLabels(instance.labels);
       if (!shard_num_status.ok()) {
         continue;

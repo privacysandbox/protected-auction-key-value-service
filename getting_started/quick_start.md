@@ -93,6 +93,7 @@ chmod 744 dist/query_api_descriptor_set.pb
 ```
 
 ```sh
+chmod 444 components/envoy_proxy/envoy.yaml
 docker compose -f getting_started/quick_start_assets/docker-compose.yaml up
 ```
 

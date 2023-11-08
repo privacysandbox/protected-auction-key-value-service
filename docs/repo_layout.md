@@ -11,5 +11,6 @@ This is a high level overview of the repository structure.
 -   [production](/production/): Configuration for packaging and deployment of the system into cloud
     platforms.
 -   [public](/public/): APIs and client libraries provided to users of this system.
--   [third_party_deps](/third_party_deps/): Configuration to allow the use of third party dependencies.
+-   [third_party_deps](/third_party_deps/): Configuration to allow the use of third party
+    dependencies.
 -   [tools](/tools/): Convenient tools provided to users of the system for common operations.

@@ -40,6 +40,7 @@ message ShardingMetadata {
   optional int64 shard_num = 1;
 }
 
+// Work in progress. Do not use.
 // Metadata specific to LOGICAL_SHARDING_CONFIG files.
 message LogicalShardingConfigMetadata {
   // [Required] Number of logical shards, recommended to be a power of 2 and

@@ -107,9 +107,12 @@ and load it.
 
 A snapshot/delta file indicates its shard number through this
 [field](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/public/data_loading/riegeli_metadata.proto#L40).
-If it is not set, the whole file will be read by all machines. However, only records that belong to
-that particular shard will be loaded in memory. If the shard number in the file does not match the
-server's shard number, the server can skip the file without reading the records.
+This
+[tool](https://github.com/privacysandbox/fledge-key-value-service/blob/252d361c7a3b291f50ffbf36d86fc4405af6a147/tools/serving_data_generator/test_serving_data_generator.cc#L36-L37)
+shows how that field can be set. If it is not set, the whole file will be read by all machines.
+However, only records that belong to that particular shard will be loaded in memory. If the shard
+number in the file does not match the server's shard number, the server can skip the file without
+reading the records.
 
 ### Relatime update path
 
@@ -203,3 +206,8 @@ machine types. The one with the biggest amount of RAM is `n2d-standard-224` -- 8
 
 KV server was tested on GCP with 10 TB of data loaded spread across 20 shards. Each shard had 3
 replicas.
+
+## Work in progress
+
+[Logical Sharding Config](https://github.com/privacysandbox/fledge-key-value-service/blob/0e9b454825d641786255f11df4a2b62eee893a98/public/data_loading/riegeli_metadata.proto#L44)
+is a work in progress and you should not be using it at the moment.

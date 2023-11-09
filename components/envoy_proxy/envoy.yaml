@@ -48,7 +48,7 @@ static_resources:
                 num_retries: 10
             response_headers_to_add:
             - header:
-                key: 'x-allow-FLEDGE'
+                key: 'Ad-Auction-Allowed'
                 value: 'true'
               append: false
             - header:

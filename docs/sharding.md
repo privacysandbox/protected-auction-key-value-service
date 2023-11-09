@@ -172,3 +172,34 @@ implemented:
     live on which shards.
 -   for any given kv server read request, when data shards are queried, the payloads of
     corresponding requests are of the same size, for the same reason.
+
+## Machine sizes
+
+### AWS
+
+AWS has many different types of machines. However, an enclave can only run in a single NUMA cluster.
+If a machine has many clusters, an enclave can only run in one of them. So it is advisable to choose
+a machine with a single NUMA cluster to better utilize resources.
+
+Unfortunately, the docs don't say how many NUMA clusters a machine has. And there is no API for it.
+You can deploy a machine and using this
+[link](https://repost.aws/knowledge-center/ec2-review-numa-statistics) see how many NUMA clusters it
+has.
+
+Even though there are machines available with up to 20 TB RAM, those machines have many NUMA
+clusters in them. `r7i.24xlarge` or `r7a.24xlarge` has the biggest NUMA cluster of 768 GiB among EC2
+machines that we are aware of.
+
+That is effectively the upper bound, and actual amount of data you can store is smaller, since you
+need space for OS and other things.
+
+### GCP
+
+GCP supports the
+[following](https://cloud.google.com/confidential-computing/confidential-vm/docs/os-and-machine-type)
+machine types. The one with the biggest amount of RAM is `n2d-standard-224` -- 896GB.
+
+## Capability
+
+KV server was tested on GCP with 10 TB of data loaded spread across 20 shards. Each shard had 3
+replicas.

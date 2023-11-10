@@ -100,6 +100,7 @@ chmod 744 dist/query_api_descriptor_set.pb
 ```
 
 ```sh
+chmod 444 components/envoy_proxy/envoy.yaml
 docker compose -f getting_started/quick_start_assets/docker-compose.yaml up
 ```
 
@@ -143,6 +144,13 @@ command to use `data_cli` to generate the data.
 ```sh
 ./builders/tools/bazel-debian build //getting_started/examples/canonical_examples:generate_data_delta
 cp bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000001 dist/deltas/DELTA_0000000000000001
+```
+
+The `data_cli` command can also be run outside the predefined build target for your own CSV:
+
+```sh
+./builders/tools/bazel-debian build //tools/data_cli
+bazel-bin/tools/data-cli format_data --input_file /path/to/your/file.csv --input_format CSV --output_file dist/deltas/DELTA_0000000000000001 --output_format DELTA
 ```
 
 The kv server log shows:
@@ -195,6 +203,10 @@ command to use `udf_delta_file_generator` to generate the udf delta file.
 cp bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000002 dist/deltas/DELTA_0000000000000002
 ```
 
+(Similar to the data file, the UDF file can also be generated with building the tool specified in
+the build target and running it with your own command line flags. See
+[details](docs/generating_udf_files.md).)
+
 And query:
 
 ```sh
@@ -213,7 +225,9 @@ Output:
 
 Note that this uses a v2 getvalues endpoint. This endpoint uses a generic API definition which maps
 to the generic UDF signature and is not limited to a particular application such as Protected
-Audience. The v1 API used previously on the other hand is specific to Protected Audience.
+Audience. The v1 API used previously on the other hand is specific to Protected Audience. The
+example UDF used here does not conform to the Protected Audience API so the v1/getvalues curl call
+which is specific to Protected Audience would not succeed.
 
 ## Protected Audience UDF
 
@@ -275,7 +289,7 @@ run_binary(
         "--output_path",
         "$(location DELTA_0000000000000003)",
         "--logical_commit_time",
-        "2",
+        "1800000000",
     ],
     tool = "//tools/udf/udf_generator:udf_delta_file_generator",
 )
@@ -289,17 +303,10 @@ Note the logical_commit_time is higher than the first UDF. Build the delta file:
 cp bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000003 dist/deltas/DELTA_0000000000000003
 ```
 
-Query:
-
-```sh
-BODY='{ "metadata": { "hostname": "example.com" }, "partitions": [{ "id": 0, "compressionGroupId": 0, "arguments": [{ "tags": [ "custom", "keys" ], "data": [ "hi", "example_key" ] }] }] }'
-curl -X PUT http://localhost:51052/v2/getvalues -d "$BODY"
-```
-
 Query with Protected Audience Chrome V1 API:
 
 ```sh
-curl http://localhost:51052/v1/getvalues?keys=example_key&hostname=example.com
+curl 'http://localhost:51052/v1/getvalues?keys=example_key&hostname=example.com'
 ```
 
 ## Further steps

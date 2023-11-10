@@ -181,11 +181,14 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
   grpc::Status CallV2Handler(const v1::GetValuesRequest& v1_request,
                              v1::GetValuesResponse& v1_response) const {
     v2::GetValuesRequest v2_request = BuildV2Request(v1_request);
+    VLOG(7) << "Converting V1 request " << v1_request.DebugString()
+            << " to v2 request " << v2_request.DebugString();
     v2::GetValuesResponse v2_response;
     if (auto status = v2_handler_->GetValues(v2_request, &v2_response);
         !status.ok()) {
       return status;
     }
+    VLOG(7) << "Received v2 response: " << v2_response.DebugString();
     return privacy_sandbox::server_common::FromAbslStatus(
         ConvertToV1Response(v2_response, v1_response));
   }

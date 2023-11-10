@@ -269,7 +269,7 @@ run_binary(
         "--output_path",
         "$(location DELTA_0000000000000003)",
         "--logical_commit_time",
-        "2",
+        "1800000000",
     ],
     tool = "//tools/udf/udf_generator:udf_delta_file_generator",
 )
@@ -293,7 +293,7 @@ curl -X PUT http://localhost:51052/v2/getvalues -d "$BODY"
 Query with Protected Audience Chrome V1 API:
 
 ```sh
-curl http://localhost:51052/v1/getvalues?keys=example_key&hostname=example.com
+curl 'http://localhost:51052/v1/getvalues?keys=example_key&hostname=example.com'
 ```
 
 ## Further steps

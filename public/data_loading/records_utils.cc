@@ -294,21 +294,6 @@ flatbuffers::FlatBufferBuilder ToFlatBufferBuilder(
 
 absl::Status DeserializeRecord(
     std::string_view record_bytes,
-    const std::function<absl::Status(const KeyValueMutationRecord&)>&
-        record_callback) {
-  auto fbs_record =
-      DeserializeAndVerifyRecord<KeyValueMutationRecord>(record_bytes);
-  if (!fbs_record.ok()) {
-    return fbs_record.status();
-  }
-  if (fbs_record.value()->value_type() == Value::NONE) {
-    return absl::InvalidArgumentError("Record value is not set.");
-  }
-  return record_callback(**fbs_record);
-}
-
-absl::Status DeserializeRecord(
-    std::string_view record_bytes,
     const std::function<absl::Status(const KeyValueMutationRecordStruct&)>&
         record_callback) {
   return DeserializeRecord(

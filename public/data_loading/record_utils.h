@@ -17,6 +17,7 @@
 #ifndef PUBLIC_DATA_LOADING_RECORD_UTILS_H_
 #define PUBLIC_DATA_LOADING_RECORD_UTILS_H_
 
+#include <ostream>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -30,6 +31,76 @@
 namespace kv_server {
 
 enum class CsvEncoding : int { kPlaintext, kBase64 };
+
+inline std::ostream& operator<<(std::ostream& os, const StringT& string_value) {
+  os << string_value.value;
+  return os;
+}
+inline std::ostream& operator<<(std::ostream& os,
+                                const StringSetT& string_set_value) {
+  for (const auto& string_value : string_set_value.value) {
+    os << string_value << ", ";
+  }
+  return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const ValueUnion& value_union) {
+  switch (value_union.type) {
+    case Value::String: {
+      os << *(reinterpret_cast<const StringT*>(value_union.value));
+      break;
+    }
+    case Value::StringSet: {
+      os << *(reinterpret_cast<const StringSetT*>(value_union.value));
+      break;
+    }
+  }
+
+  return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const KeyValueMutationRecordT& mutation) {
+  os << "key: " << mutation.key
+     << ", logical_commit_time: " << mutation.logical_commit_time
+     << ", mutation type: "
+     << EnumNameKeyValueMutationType(mutation.mutation_type)
+     << ", value: " << mutation.value;
+  return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const UserDefinedFunctionsConfigT& udf_config) {
+  os << udf_config.handler_name;
+  return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os,
+                                const RecordUnion& record_union) {
+  switch (record_union.type) {
+    case Record::KeyValueMutationRecord: {
+      auto ptr =
+          reinterpret_cast<const KeyValueMutationRecordT*>(record_union.value);
+      os << *ptr;
+      break;
+    }
+    case Record::UserDefinedFunctionsConfig: {
+      auto ptr = reinterpret_cast<const UserDefinedFunctionsConfigT*>(
+          record_union.value);
+      os << *ptr;
+      break;
+    }
+    default:
+      break;
+  }
+  return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const DataRecordT& record) {
+  os << record.record;
+  return os;
+}
 
 // Casts the flat buffer `record_buffer` into a string representation.
 inline std::string_view ToStringView(

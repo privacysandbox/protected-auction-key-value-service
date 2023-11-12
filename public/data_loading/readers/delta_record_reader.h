@@ -18,7 +18,7 @@
 #define PUBLIC_DATA_LOADING_READERS_DELTA_RECORD_READER_H_
 
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
+#include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/records_utils.h"
 
 namespace kv_server {
@@ -32,7 +32,7 @@ namespace kv_server {
 // ```
 // DeltaRecordReader record_reader = ...
 // absl::Status status = record_reader.ReadRecords(
-//     [](const DataRecordStruct& record) {
+//     [](const DataRecord& record) {
 //        UseRecord(record);
 //        return absl::OkStatus();
 //     }
@@ -46,6 +46,13 @@ class DeltaRecordReader {
   virtual ~DeltaRecordReader() = default;
   // Reads `DataRecordStruct` records from the underlying record
   // source and passes them to `record_callback` function.
+  virtual absl::Status ReadRecords(
+      const std::function<absl::Status(const DataRecord&)>&
+          record_callback) = 0;
+
+  ABSL_DEPRECATED(
+      "Use ReadRecords(std::function<absl::Status(const DataRecord&)>&) "
+      "instead")
   virtual absl::Status ReadRecords(
       const std::function<absl::Status(DataRecordStruct)>& record_callback) = 0;
   // Returns true if the reader is open for reading records.

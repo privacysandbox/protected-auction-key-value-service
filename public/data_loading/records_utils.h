@@ -103,16 +103,6 @@ flatbuffers::FlatBufferBuilder ToFlatBufferBuilder(
     const DataRecordStruct& data_record);
 
 // Deserializes "data_loading.fbs:KeyValueMutationRecord" raw flatbuffer record
-// bytes and calls `record_callback` with the resulting `KeyValueMutationRecord`
-// object.
-// Returns `absl::InvalidArgumentError` if deserilization fails, otherwise
-// returns the result of calling `record_callback`.
-absl::Status DeserializeRecord(
-    std::string_view record_bytes,
-    const std::function<absl::Status(const KeyValueMutationRecord&)>&
-        record_callback);
-
-// Deserializes "data_loading.fbs:KeyValueMutationRecord" raw flatbuffer record
 // bytes and calls `record_callback` with the resulting
 // `KeyValueMutationRecordStruct` object.
 // Returns `absl::InvalidArgumentError` if deserilization fails, otherwise

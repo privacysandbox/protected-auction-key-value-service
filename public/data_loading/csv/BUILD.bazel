@@ -75,9 +75,11 @@ cc_test(
     name = "csv_delta_record_stream_reader_test",
     size = "small",
     srcs = ["csv_delta_record_stream_reader_test.cc"],
+    env = {"GLOG_v": "10"},
     deps = [
         ":csv_delta_record_stream_reader",
         ":csv_delta_record_stream_writer",
+        "@com_github_google_glog//:glog",
         "@com_google_googletest//:gtest_main",
     ],
 )

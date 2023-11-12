@@ -150,7 +150,7 @@ The `data_cli` command can also be run outside the predefined build target for y
 
 ```sh
 ./builders/tools/bazel-debian build //tools/data_cli
-bazel-bin/tools/data-cli format_data --input_file /path/to/your/file.csv --input_format CSV --output_file dist/deltas/DELTA_0000000000000001 --output_format DELTA
+bazel-bin/tools/data_cli/data_cli format_data --input_file /path/to/your/file.csv --input_format CSV --output_file dist/deltas/DELTA_0000000000000001 --output_format DELTA
 ```
 
 The kv server log shows:

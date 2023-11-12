@@ -132,11 +132,21 @@ TEST_P(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_KvMutations) {
   EXPECT_TRUE(command.ok()) << command.status();
   EXPECT_TRUE((*command)->Execute().ok());
   CsvDeltaRecordStreamReader csv_reader(csv_stream);
-  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(5)
-      .WillRepeatedly([&record](DataRecordStruct actual_record) {
-        EXPECT_EQ(actual_record, record);
+      .WillRepeatedly([&record](const DataRecord& actual_record) {
+        std::unique_ptr<DataRecordT> data_record_native(actual_record.UnPack());
+        auto [fbs_buffer, serialized_string_view] =
+            Serialize(*data_record_native);
+        EXPECT_TRUE(DeserializeDataRecord(
+                        serialized_string_view,
+                        [&record](const DataRecordStruct& data_record) {
+                          EXPECT_EQ(data_record, record);
+                          return absl::OkStatus();
+                        })
+                        .ok());
+
         return absl::OkStatus();
       });
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
@@ -204,7 +214,7 @@ TEST(FormatDataCommandTest,
   EXPECT_TRUE(command.ok()) << command.status();
   EXPECT_TRUE((*command)->Execute().ok());
   CsvDeltaRecordStreamReader csv_reader(csv_stream);
-  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
 
   std::string base64_value;
   absl::Base64Escape(plaintext_value, &base64_value);
@@ -212,8 +222,19 @@ TEST(FormatDataCommandTest,
       GetDataRecord(GetKVMutationRecord(base64_value));
   EXPECT_CALL(record_callback, Call)
       .Times(5)
-      .WillRepeatedly([&expected_record](DataRecordStruct actual_record) {
-        EXPECT_EQ(actual_record, expected_record);
+      .WillRepeatedly([&expected_record](const DataRecord& actual_record) {
+        std::unique_ptr<DataRecordT> data_record_native(actual_record.UnPack());
+        auto [fbs_buffer, serialized_string_view] =
+            Serialize(*data_record_native);
+        EXPECT_TRUE(
+            DeserializeDataRecord(
+                serialized_string_view,
+                [&expected_record](const DataRecordStruct& data_record) {
+                  EXPECT_EQ(data_record, expected_record);
+                  return absl::OkStatus();
+                })
+                .ok());
+
         return absl::OkStatus();
       });
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
@@ -290,15 +311,24 @@ TEST(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_UdfConfig) {
   EXPECT_TRUE(command.ok()) << command.status();
   EXPECT_TRUE((*command)->Execute().ok());
   CsvDeltaRecordStreamReader csv_reader(
-      csv_stream,
-      CsvDeltaRecordStreamReader<std::stringstream>::Options{
-          .record_type = DataRecordType::kUserDefinedFunctionsConfig,
-      });
-  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+      csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                      .record_type = Record::UserDefinedFunctionsConfig,
+                  });
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(3)
-      .WillRepeatedly([](DataRecordStruct record) {
-        EXPECT_EQ(record, GetDataRecord(GetUdfConfig()));
+      .WillRepeatedly([](const DataRecord& actual_record) {
+        std::unique_ptr<DataRecordT> data_record_native(actual_record.UnPack());
+        auto [fbs_buffer, serialized_string_view] =
+            Serialize(*data_record_native);
+        EXPECT_TRUE(DeserializeDataRecord(
+                        serialized_string_view,
+                        [](const DataRecordStruct& data_record) {
+                          EXPECT_EQ(data_record, GetDataRecord(GetUdfConfig()));
+                          return absl::OkStatus();
+                        })
+                        .ok());
+
         return absl::OkStatus();
       });
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
@@ -344,16 +374,27 @@ TEST(FormatDataCommandTest,
   EXPECT_TRUE(status.ok()) << status;
   CsvDeltaRecordStreamReader csv_reader(
       csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
-                      .record_type = DataRecordType::kShardMappingRecord,
+                      .record_type = Record::ShardMappingRecord,
                   });
-  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(3)
-      .WillRepeatedly([](DataRecordStruct record) {
-        EXPECT_EQ(record, GetDataRecord(ShardMappingRecordStruct{
-                              .logical_shard = 0,
-                              .physical_shard = 0,
-                          }));
+      .WillRepeatedly([](const DataRecord& actual_record) {
+        std::unique_ptr<DataRecordT> data_record_native(actual_record.UnPack());
+        auto [fbs_buffer, serialized_string_view] =
+            Serialize(*data_record_native);
+        EXPECT_TRUE(DeserializeDataRecord(
+                        serialized_string_view,
+                        [](const DataRecordStruct& data_record) {
+                          EXPECT_EQ(data_record,
+                                    GetDataRecord(ShardMappingRecordStruct{
+                                        .logical_shard = 0,
+                                        .physical_shard = 0,
+                                    }));
+                          return absl::OkStatus();
+                        })
+                        .ok());
+
         return absl::OkStatus();
       });
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
@@ -366,14 +407,13 @@ TEST(FormatDataCommandTest, ValidateIncorrectInputParams) {
   absl::Status status =
       FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
-  EXPECT_STREQ(status.message().data(), "Input format cannot be empty.")
-      << status;
+  EXPECT_EQ(status.message(), "Input format cannot be empty.") << status;
   params.input_format = "UNSUPPORTED_FORMAT";
   status =
       FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
-  EXPECT_STREQ(status.message().data(),
-               "Input format: UNSUPPORTED_FORMAT is not supported.")
+  EXPECT_EQ(status.message(),
+            "Input format: UNSUPPORTED_FORMAT is not supported.")
       << status;
 }
 
@@ -383,14 +423,13 @@ TEST(FormatDataCommandTest, ValidateIncorrectRecordTypeParams) {
   absl::Status status =
       FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
-  EXPECT_STREQ(status.message().data(), "Record type cannot be empty.")
-      << status;
+  EXPECT_EQ(status.message(), "Record type cannot be empty.") << status;
   params.record_type = "invalid record type";
   status =
       FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
-  EXPECT_STREQ(status.message().data(),
-               "Record type invalid record type is not supported.")
+  EXPECT_EQ(status.message(),
+            "Record type invalid record type is not supported.")
       << status;
 }
 
@@ -401,8 +440,7 @@ TEST(FormatDataCommandTest, ValidateIncorrectOutputParams) {
   absl::Status status =
       FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
-  EXPECT_STREQ(status.message().data(), "Output format cannot be empty.")
-      << status;
+  EXPECT_EQ(status.message(), "Output format cannot be empty.") << status;
   params.output_format = "delta";
   status =
       FormatDataCommand::Create(params, unused_stream, unused_stream).status();
@@ -411,8 +449,8 @@ TEST(FormatDataCommandTest, ValidateIncorrectOutputParams) {
   status =
       FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
-  EXPECT_STREQ(status.message().data(),
-               "Output format: UNSUPPORTED_FORMAT is not supported.")
+  EXPECT_EQ(status.message(),
+            "Output format: UNSUPPORTED_FORMAT is not supported.")
       << status;
 }
 
@@ -454,10 +492,10 @@ TEST(FormatDataCommandTest, ValidateIncorrectShardingMetadataParams) {
   absl::Status status =
       FormatDataCommand::Create(params, unused_stream, unused_stream).status();
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
-  EXPECT_STREQ(status.message().data(),
-               "Shard metadata is invalid. shard_number is 2 and "
-               "number_of_shards is -1. Valid inputs must satisfy the "
-               "requirement: 0 <= shard_number < number_of_shards")
+  EXPECT_EQ(status.message(),
+            "Shard metadata is invalid. shard_number is 2 and "
+            "number_of_shards is -1. Valid inputs must satisfy the "
+            "requirement: 0 <= shard_number < number_of_shards")
       << status;
 }
 

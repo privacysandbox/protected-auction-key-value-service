@@ -29,6 +29,7 @@ flatbuffer_cc_library(
     flatc_args = [
         "--cpp-std c++17",
         "--gen-object-api",
+        "--gen-compare",
     ],
 )
 

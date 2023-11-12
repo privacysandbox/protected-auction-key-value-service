@@ -23,7 +23,6 @@ proto_library(
     name = "base_types_proto",
     srcs = ["base_types.proto"],
     cc_api_version = 2,
-    strip_import_prefix = "/third_party/fledge_kv_server",
 )
 
 cc_proto_library(

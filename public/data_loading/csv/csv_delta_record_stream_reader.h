@@ -21,16 +21,17 @@
 #include <utility>
 #include <vector>
 
+#include "glog/logging.h"
 #include "public/data_loading/csv/constants.h"
 #include "public/data_loading/readers/delta_record_reader.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "riegeli/bytes/istream_reader.h"
 #include "riegeli/csv/csv_reader.h"
 
 namespace kv_server {
 
 // A `CsvDeltaRecordStreamReader` reads CSV records as
-// `DataRecordStruct` records from a `std::iostream` or
+// `DataRecord` records from a `std::iostream` or
 // `std::istream` with CSV formatted data.
 //
 // A `CsvDeltaRecordStreamReader` can be used to read records as follows:
@@ -38,27 +39,27 @@ namespace kv_server {
 // std::ifstream csv_file(my_filename);
 // CsvDeltaRecordStreamReader record_reader(csv_file);
 // absl::Status status = record_reader.ReadRecords(
-//  [](const DataRecordStruct& record) {
+//  [](const DataRecord& record) {
 //    UseRecord(record);
 //    return absl::OkStatus();
 //  }
 // );
 // ```
 //
-// The record reader has the following default options, which can be overriden
+// The record reader has the following default options, which can be overridden
 // by specifying `Options` when initializing the record reader.
 //
-// - `record_type` (Default `DataRecordType::kKeyValueMutationRecord`):
-//   (1) If DataRecordType::kKeyValueMutationRecord, records are assumed to be
+// - `record_type` (Default `Record::KeyValueMutationRecord`):
+//   (1) If Record::KeyValueMutationRecord, records are assumed to be
 //   key value mutation records with the following header:
 //   ["mutation_type", "logical_commit_time", "key", "value", "value_type"]`.
 //
-//   (2) If DataRecordType::kUserDefinedFunctionsConfig, records are assumed to
+//   (2) If Record::UserDefinedFunctionsConfig, records are assumed to
 //   be user-defined function configs with the following header:
 //   `["code_snippet", "handler_name", "language", "logical_commit_time",
 //   "version"]`.
 //
-//  (3) If DataRecordType::kShardMappingRecord, records are assumed to
+//  (3) If Record::ShardMappingRecord, records are assumed to
 //   be shard mapping records with the following header:
 //   `["logical_shard", "physical_shard"]`.
 //
@@ -68,17 +69,18 @@ namespace kv_server {
 // - `value_separator`: For set values, the delimiter for values in a set.
 //   Default `|`.
 
+struct CsvDeltaRecordStreamReaderOptions {
+  char field_separator = ',';
+  // Used as a separator for set value elements.
+  char value_separator = '|';
+  Record record_type = Record::KeyValueMutationRecord;
+  CsvEncoding csv_encoding = CsvEncoding::kPlaintext;
+};
+
 template <typename SrcStreamT = std::iostream>
 class CsvDeltaRecordStreamReader : public DeltaRecordReader {
  public:
-  struct Options {
-    char field_separator = ',';
-    // Used as a separator for set value elements.
-    char value_separator = '|';
-    DataRecordType record_type = DataRecordType::kKeyValueMutationRecord;
-    CsvEncoding csv_encoding = CsvEncoding::kPlaintext;
-  };
-
+  using Options = CsvDeltaRecordStreamReaderOptions;
   CsvDeltaRecordStreamReader(SrcStreamT& src_stream,
                              Options options = Options());
   ~CsvDeltaRecordStreamReader() { record_reader_.Close(); }
@@ -86,8 +88,13 @@ class CsvDeltaRecordStreamReader : public DeltaRecordReader {
   CsvDeltaRecordStreamReader& operator=(const CsvDeltaRecordStreamReader&) =
       delete;
 
-  absl::Status ReadRecords(const std::function<absl::Status(DataRecordStruct)>&
+  absl::Status ReadRecords(const std::function<absl::Status(const DataRecord&)>&
                                record_callback) override;
+  absl::Status ReadRecords(const std::function<absl::Status(DataRecordStruct)>&
+                               record_callback) override {
+    return absl::UnimplementedError(
+        "CSV reader is updated to use newer data structures");
+  }
   bool IsOpen() const override { return record_reader_.is_open(); };
   absl::Status Status() const override { return record_reader_.status(); }
 
@@ -98,40 +105,37 @@ class CsvDeltaRecordStreamReader : public DeltaRecordReader {
 
 namespace internal {
 
-absl::StatusOr<std::string> MaybeGetValue(const riegeli::CsvRecord& csv_record,
-                                          const CsvEncoding& csv_encoding);
-absl::StatusOr<std::vector<std::string>> MaybeGetSetValue(
-    const riegeli::CsvRecord& csv_record, char value_separator,
-    const CsvEncoding& csv_encoding);
-
-absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStruct(
-    const riegeli::CsvRecord& csv_record, const DataRecordType& record_type,
-    std::string_view value, const std::vector<std::string>& set_value);
+absl::StatusOr<DataRecordT> MakeDeltaFileRecordStruct(
+    const riegeli::CsvRecord& csv_record,
+    const CsvDeltaRecordStreamReaderOptions& options);
 
 template <typename DestStreamT>
 riegeli::CsvReaderBase::Options GetRecordReaderOptions(
     const typename CsvDeltaRecordStreamReader<DestStreamT>::Options& options) {
+  LOG(INFO) << "Building CSV Record reader options.";
   riegeli::CsvReaderBase::Options reader_options;
   reader_options.set_field_separator(options.field_separator);
 
   std::vector<std::string_view> header;
   switch (options.record_type) {
-    case DataRecordType::kKeyValueMutationRecord:
+    case Record::KeyValueMutationRecord:
       header =
           std::vector<std::string_view>(kKeyValueMutationRecordHeader.begin(),
                                         kKeyValueMutationRecordHeader.end());
       break;
-    case DataRecordType::kUserDefinedFunctionsConfig:
+    case Record::UserDefinedFunctionsConfig:
       header = std::vector<std::string_view>(
           kUserDefinedFunctionsConfigHeader.begin(),
           kUserDefinedFunctionsConfigHeader.end());
       break;
-    case DataRecordType::kShardMappingRecord:
+    case Record::ShardMappingRecord:
       header = std::vector<std::string_view>(kShardMappingRecordHeader.begin(),
                                              kShardMappingRecordHeader.end());
       break;
+    default:
+      LOG(ERROR) << "Unable to set CSV reader header";
   }
-  reader_options.set_required_header(std::move(header));
+  reader_options.set_required_header(riegeli::CsvHeader(std::move(header)));
   return reader_options;
 }
 }  // namespace internal
@@ -146,37 +150,24 @@ CsvDeltaRecordStreamReader<SrcStreamT>::CsvDeltaRecordStreamReader(
 
 template <typename SrcStreamT>
 absl::Status CsvDeltaRecordStreamReader<SrcStreamT>::ReadRecords(
-    const std::function<absl::Status(DataRecordStruct)>& record_callback) {
+    const std::function<absl::Status(const DataRecord&)>& record_callback) {
+  VLOG(9) << "Reading CSV records. Record type: "
+          << EnumNameRecord(options_.record_type);
   riegeli::CsvRecord csv_record;
   absl::Status overall_status;
   while (record_reader_.ReadRecord(csv_record)) {
-    std::string value;
-    std::vector<std::string> set_value;
-    if (options_.record_type == DataRecordType::kKeyValueMutationRecord) {
-      auto maybe_value =
-          internal::MaybeGetValue(csv_record, options_.csv_encoding);
-      if (!maybe_value.ok()) {
-        overall_status.Update(maybe_value.status());
-        continue;
-      }
-      value = *maybe_value;
-
-      auto maybe_set_value = internal::MaybeGetSetValue(
-          csv_record, options_.value_separator, options_.csv_encoding);
-      if (!maybe_set_value.ok()) {
-        overall_status.Update(maybe_set_value.status());
-        continue;
-      }
-      set_value = *maybe_set_value;
-    }
-    absl::StatusOr<DataRecordStruct> delta_record =
-        internal::MakeDeltaFileRecordStruct(csv_record, options_.record_type,
-                                            value, set_value);
+    VLOG(9) << "Read CSV record: " << csv_record.DebugString();
+    absl::StatusOr<DataRecordT> delta_record =
+        internal::MakeDeltaFileRecordStruct(csv_record, options_);
     if (!delta_record.ok()) {
       overall_status.Update(delta_record.status());
       continue;
     }
-    overall_status.Update(record_callback(*delta_record));
+    VLOG(9) << "Converted CSV record to C++ DataRecord: " << *delta_record;
+
+    auto [builder, serialized_string_view] = Serialize(*delta_record);
+    overall_status.Update(record_callback(
+        *flatbuffers::GetRoot<DataRecord>(serialized_string_view.data())));
   }
   overall_status.Update(record_reader_.status());
   return overall_status;

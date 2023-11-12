@@ -87,6 +87,21 @@ absl::StatusOr<DataRecordType> GetRecordType(std::string_view record_type) {
       absl::StrCat("Record type ", record_type, " is not supported."));
 }
 
+absl::StatusOr<Record> GetRecordKind(std::string_view record_type) {
+  std::string lw_record_type = absl::AsciiStrToLower(record_type);
+  if (lw_record_type == kKeyValueMutationRecord) {
+    return Record::KeyValueMutationRecord;
+  }
+  if (lw_record_type == kUserDefinedFunctionsConfig) {
+    return Record::UserDefinedFunctionsConfig;
+  }
+  if (lw_record_type == kShardMappingRecord) {
+    return Record::ShardMappingRecord;
+  }
+  return absl::InvalidArgumentError(
+      absl::StrCat("Record type ", record_type, " is not supported."));
+}
+
 absl::StatusOr<CsvEncoding> GetCsvEncoding(std::string_view csv_encoding) {
   std::string lw_csv_encoding = absl::AsciiStrToLower(csv_encoding);
   if (lw_csv_encoding == kEncodingPlaintext) {
@@ -103,7 +118,7 @@ absl::StatusOr<std::unique_ptr<DeltaRecordReader>> CreateRecordReader(
     const FormatDataCommand::Params& params, std::istream& input_stream) {
   std::string lw_input_format = absl::AsciiStrToLower(params.input_format);
   if (lw_input_format == kCsvFormat) {
-    PS_ASSIGN_OR_RETURN(auto record_type, GetRecordType(params.record_type));
+    PS_ASSIGN_OR_RETURN(auto record_type, GetRecordKind(params.record_type));
     PS_ASSIGN_OR_RETURN(auto csv_encoding, GetCsvEncoding(params.csv_encoding));
     return std::make_unique<CsvDeltaRecordStreamReader<std::istream>>(
         input_stream, CsvDeltaRecordStreamReader<std::istream>::Options{
@@ -175,30 +190,46 @@ absl::Status FormatDataCommand::Execute() {
   LOG(INFO) << "Formatting records ...";
   int64_t records_count = 0;
   ShardingFunction sharding_function(/*seed=*/"");
-  absl::Status status = record_reader_->ReadRecords(
-      [&records_count, &sharding_function, this](DataRecordStruct data_record) {
-        if (params_.shard_number >= 0 &&
-            std::holds_alternative<KeyValueMutationRecordStruct>(
-                data_record.record)) {
-          KeyValueMutationRecordStruct record_struct =
-              std::get<KeyValueMutationRecordStruct>(data_record.record);
-          auto record_shard_num = sharding_function.GetShardNumForKey(
-              record_struct.key, params_.number_of_shards);
-          if (params_.shard_number != record_shard_num) {
-            LOG(INFO) << "Skipping record with key: " << record_struct.key
-                      << " . The record belongs to shard: " << record_shard_num
-                      << ", but shard_number is " << params_.shard_number;
-            return absl::OkStatus();
+  absl::Status status = record_reader_->ReadRecords([&records_count,
+                                                     &sharding_function,
+                                                     this](const DataRecord&
+                                                               data_record) {
+    if (params_.shard_number >= 0 &&
+        data_record.record_type() == Record::KeyValueMutationRecord) {
+      auto record_shard_num = sharding_function.GetShardNumForKey(
+          data_record.record_as_KeyValueMutationRecord()->key()->string_view(),
+          params_.number_of_shards);
+      if (params_.shard_number != record_shard_num) {
+        LOG(INFO) << "Skipping record with key: "
+                  << data_record.record_as_KeyValueMutationRecord()
+                         ->key()
+                         ->string_view()
+                  << " . The record belongs to shard: " << record_shard_num
+                  << ", but shard_number is " << params_.shard_number;
+        return absl::OkStatus();
+      }
+    }
+    records_count++;
+    if ((double)std::rand() / RAND_MAX <= kSamplingThreshold) {
+      LOG(INFO) << "Formatting record: " << records_count;
+    }
+    std::unique_ptr<DataRecordT> data_record_native(data_record.UnPack());
+    auto [fbs_buffer, serialized_string_view] = Serialize(*data_record_native);
+    return DeserializeDataRecord(
+        serialized_string_view, [this](const DataRecordStruct& data_record) {
+          auto status = record_writer_->WriteRecord(data_record);
+          if (!status.ok()) {
+            LOG(ERROR) << "Failed to write record: " << status;
           }
-        }
-        records_count++;
-        if ((double)std::rand() / RAND_MAX <= kSamplingThreshold) {
-          LOG(INFO) << "Formatting record: " << records_count;
-        }
-        return record_writer_->WriteRecord(data_record);
-      });
+          return status;
+        });
+  });
   record_writer_->Close();
-  LOG(INFO) << "Sucessfully formated records.";
+  if (status.ok()) {
+    LOG(INFO) << "Sucessfully formated records.";
+  } else {
+    LOG(ERROR) << "Failed to format records: " << status;
+  }
   return status;
 }
 

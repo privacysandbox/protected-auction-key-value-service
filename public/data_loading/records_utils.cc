@@ -292,12 +292,6 @@ flatbuffers::FlatBufferBuilder ToFlatBufferBuilder(
   return builder;
 }
 
-std::string_view ToStringView(const flatbuffers::FlatBufferBuilder& fb_buffer) {
-  return std::string_view(
-      reinterpret_cast<const char*>(fb_buffer.GetBufferPointer()),
-      fb_buffer.GetSize());
-}
-
 absl::Status DeserializeRecord(
     std::string_view record_bytes,
     const std::function<absl::Status(const KeyValueMutationRecord&)>&

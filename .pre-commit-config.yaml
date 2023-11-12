@@ -19,6 +19,7 @@ exclude: (?x)^(
              .bazel_output/.*|
              builders/.*|
              .*/BUILD|
+             public/data_loading/data_loading_generated.h|
              testing/functionaltest-system/.*|
              version.txt
          )$

@@ -12,5 +12,5 @@ This is a high level overview of the repository structure.
     platforms.
 -   [public](/public/): APIs and client libraries provided to users of this system.
 -   [third_party_deps](/third_party_deps/): Configuration to allow the use of third party
-    dependencies.
+    dependency libraries.
 -   [tools](/tools/): Convenient tools provided to users of the system for common operations.

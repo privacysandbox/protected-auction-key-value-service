@@ -360,8 +360,11 @@ class AwsInstanceClient : public InstanceClient {
     Aws::EC2::Model::DescribeTagsRequest request;
     request.SetFilters({resource_id_filter, key_filter});
 
+    LOG(INFO) << "Sending Aws::EC2::Model::DescribeTagsRequest to get tag: "
+              << tag;
     const auto outcome = ec2_client_->DescribeTags(request);
     if (!outcome.IsSuccess()) {
+      LOG(ERROR) << "Failed to get tag: " << outcome.GetError();
       return AwsErrorToStatus(outcome.GetError());
     }
     if (outcome.GetResult().GetTags().size() != 1) {

@@ -73,6 +73,7 @@ changes.
 -   [FLEDGE K/V server trust model](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_trust_model.md)
 -   [Local server quickstart guide](/docs/developing_the_server.md)
 -   [AWS server user deployment documentation](/docs/deploying_on_aws.md)
+-   [GCP server user deployment documentation](/docs/deploying_on_gcp.md)
 -   [Integrating the K/V server with FLEDGE](/docs/integrating_with_fledge.md)
 -   [FLEDGE K/V server sharding explainer](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_sharding.md)
 -   Operating documentation

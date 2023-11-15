@@ -41,7 +41,7 @@ pkg_files(
 pkg_files(
     name = "kmstool_enclave_executable",
     srcs = [
-        "@kmstool_enclave_cli//file",
+        "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:kms_cli",
     ],
     attributes = pkg_attributes(mode = "0555"),
     prefix = "/",
@@ -66,7 +66,7 @@ pkg_tar(
 pkg_tar(
     name = "libnsm-tar",
     srcs = [
-        "@libnsm//file",
+        "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:libnsm_so",
     ],
     mode = "0644",
     package_dir = "/lib/x86_64-linux-gnu/",

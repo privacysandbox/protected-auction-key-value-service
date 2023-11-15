@@ -12,14 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO(b/296901861): Modify the implementation with GCP specific logic (the
-// current implementation is copied from local).
-
+#include "absl/flags/declare.h"
+#include "absl/flags/flag.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "public/cpio/interface/cpio.h"
 #include "scp/cc/public/core/interface/errors.h"
 #include "scp/cc/public/core/interface/execution_result.h"
+
+// This flag is added to allow for a local instance to use GCP as the cloud
+// platform. Ideally, this would be fetched from the parameter_client, but the
+// parameter client can't be used until a project is specified, chicken and egg.
+// This flag is defined during build only when //:gcp_platform is specified.
+ABSL_FLAG(std::string, gcp_project_id, "",
+          "Overrides the GCP Project ID to run the parameter client."
+          "Required when running on a local instance."
+          "When not provided, CPIO finds the gcp_project_id by calling the "
+          "Google Compute Engine metadata server on the GCP instance client.");
 
 namespace kv_server {
 namespace {
@@ -32,6 +41,7 @@ google::scp::cpio::CpioOptions cpio_options_;
 
 PlatformInitializer::PlatformInitializer() {
   cpio_options_.log_option = LogOption::kConsoleLog;
+  cpio_options_.project_id = absl::GetFlag(FLAGS_gcp_project_id);
   auto execution_result = Cpio::InitCpio(cpio_options_);
   CHECK(execution_result.Successful())
       << "Failed to initialize CPIO: "

@@ -25,9 +25,6 @@
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 
-ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
-ABSL_FLAG(std::string, gcp_project_id, "", "GCP project id");
-ABSL_FLAG(std::string, gcp_topic_id, "", "GCP topic id");
 ABSL_FLAG(std::string, deltas_folder_path, "",
           "Path to the folder with delta files");
 ABSL_FLAG(int, insertion_num_threads, 1,
@@ -108,25 +105,9 @@ void ConsumeAndPublish(NotifierMetadata notifier_metadata, int thread_idx) {
   }
 }
 
-absl::StatusOr<NotifierMetadata> GetNotifierMetadata() {
-  const std::string gcp_project_id = absl::GetFlag(FLAGS_gcp_project_id);
-  const std::string gcp_topic_id = absl::GetFlag(FLAGS_gcp_topic_id);
-  if (!gcp_project_id.empty() && !gcp_topic_id.empty()) {
-    return GcpNotifierMetadata{.project_id = gcp_project_id,
-                               .topic_id = gcp_topic_id};
-  }
-  const std::string sns_arn = absl::GetFlag(FLAGS_sns_arn);
-  if (!sns_arn.empty()) {
-    return AwsNotifierMetadata{.sns_arn = sns_arn};
-  }
-  return absl::InvalidArgumentError(
-      "Please specify a full set of parameters at least for one of the "
-      "following platforms: GCP or AWS.");
-}
-
 absl::Status Run() {
   PlatformInitializer initializer;
-  auto maybe_notifier_metadata = GetNotifierMetadata();
+  auto maybe_notifier_metadata = PublisherService::GetNotifierMetadata();
   if (!maybe_notifier_metadata.ok()) {
     return maybe_notifier_metadata.status();
   }
@@ -163,10 +144,10 @@ absl::Status Run() {
 // the specified SNS. It will insert 15 delta files per second from 2 threads.
 // (The amount of threads can be updated through `insertion_num_threads`). 15 is
 // amount of insertion you can do from a single thread per second that was
-// empirically measured. Sample AWS command: bazel run
+// empirically measured. Sample AWS command: bazel run --config=aws_platform
 // //components/tools:realtime_updates_publisher
 // --deltas_folder_path='pathtoyourdeltas'
-// --sns_arn='yourrealtimeSNSARN' To generate test delta files you can run
+// --aws_sns_arn='yourrealtimeSNSARN' To generate test delta files you can run
 // `tools/serving_data_generator/generate_load_test_data`.
 int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);

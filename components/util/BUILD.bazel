@@ -123,6 +123,10 @@ cc_library(
     hdrs = [
         "platform_initializer.h",
     ],
+    copts = select({
+        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
+        "//conditions:default": [],
+    }),
     visibility = [
         "//components:__subpackages__",
         "//tools:__subpackages__",

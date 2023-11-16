@@ -58,6 +58,10 @@ load("//third_party_deps:container_deps.bzl", "container_deps")
 
 container_deps()
 
+load("@io_bazel_rules_docker//go:image.bzl", go_image_repos = "repositories")
+
+go_image_repos()
+
 load("//third_party_deps:emscripten_deps1.bzl", "emscripten_deps1")
 
 emscripten_deps1()

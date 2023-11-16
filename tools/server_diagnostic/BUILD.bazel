@@ -1,0 +1,75 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+load("@io_bazel_rules_docker//go:image.bzl", "go_image")
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "diagnostic_lib",
+    srcs = ["diagnostic.go"],
+    importpath = "tools/server_diagnostic",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "diagnostic",
+    embed = [":diagnostic_lib"],
+    visibility = ["//visibility:public"],
+)
+
+[
+    go_image(
+        name = "diagnostic_go_image_{}".format(arch),
+        embed = [":diagnostic_lib"],
+        goarch = arch,
+        goos = "linux",
+        visibility = ["//visibility:public"],
+    )
+    for arch in [
+        "arm64",
+        "amd64",
+    ]
+]
+
+[
+    container_image(
+        name = "diagnostic_docker_image_{}".format(arch),
+        base = ":diagnostic_go_image_{}".format(arch),
+        visibility = ["//visibility:public"],
+    )
+    for arch in [
+        "arm64",
+        "amd64",
+    ]
+]
+
+genrule(
+    name = "copy_to_dist",
+    srcs = [
+        ":diagnostic_docker_image_arm64.tar",
+        ":diagnostic_docker_image_amd64.tar",
+    ],
+    outs = ["copy_to_dist.bin"],
+    cmd_bash = """cat << EOF > '$@'
+mkdir -p dist/tools/arm64/server_diagnostic
+cp $(execpath :diagnostic_docker_image_arm64.tar) dist/tools/arm64/server_diagnostic
+mkdir -p dist/tools/amd64/server_diagnostic
+cp $(execpath :diagnostic_docker_image_amd64.tar) dist/tools/amd64/server_diagnostic
+builders/tools/normalize-dist
+EOF""",
+    executable = True,
+    local = True,
+    message = "Copying server diagnostic artifacts to dist/tools/arm64/server_diagnostic and dist/tools/amd64/server_diagnostic directories",
+)

@@ -42,6 +42,7 @@ proto_descriptor_set(
     name = "query_api_descriptor_set",
     deps = [
         ":get_values_proto",
+        "//components/health_check:health",
         "//public/query/v2:get_values_v2_proto",
     ],
 )

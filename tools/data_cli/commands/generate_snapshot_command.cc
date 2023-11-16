@@ -35,6 +35,7 @@
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
+#include "public/sharding/sharding_function.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {
@@ -80,6 +81,14 @@ absl::Status ValidateRequiredParams(GenerateSnapshotCommand::Params& params) {
       !IsDeltaFilename(params.ending_delta_file)) {
     return absl::InvalidArgumentError("Ending delta file is not valid.");
   }
+  if (params.shard_number >= 0 &&
+      params.number_of_shards <= params.shard_number) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Shard metadata is invalid. shard_number is ", params.shard_number,
+        " and number_of_shards is ", params.number_of_shards,
+        ". Valid inputs must satisfy the requirement: 0 <= shard_number < "
+        "number_of_shards"));
+  }
   return absl::OkStatus();
 }
 
@@ -109,12 +118,42 @@ absl::StatusOr<KVFileMetadata> CreateSnapshotMetadata(
   auto snapshot_metadata = metadata.mutable_snapshot();
   *snapshot_metadata->mutable_starting_file() = params.starting_file;
   *snapshot_metadata->mutable_ending_delta_file() = params.ending_delta_file;
+  if (params.shard_number >= 0) {
+    auto* sharding_metadata = metadata.mutable_sharding_metadata();
+    sharding_metadata->set_shard_num(params.shard_number);
+  }
   return metadata;
 }
 
 void ResetInputStream(std::istream& istream) {
   istream.clear();
   istream.seekg(0, std::ios::beg);
+}
+
+absl::Status WriteRecordsToSnapshotStream(
+    const GenerateSnapshotCommand::Params& params,
+    DeltaRecordStreamReader<std::istream>& record_reader,
+    SnapshotStreamWriter<std::ostream>& snapshot_writer) {
+  ShardingFunction sharding_function(/*seed=*/"");
+  return record_reader.ReadRecords(
+      [&params, &snapshot_writer,
+       &sharding_function](DataRecordStruct data_record) {
+        if (params.shard_number >= 0 &&
+            std::holds_alternative<KeyValueMutationRecordStruct>(
+                data_record.record)) {
+          KeyValueMutationRecordStruct record_struct =
+              std::get<KeyValueMutationRecordStruct>(data_record.record);
+          auto record_shard_num = sharding_function.GetShardNumForKey(
+              record_struct.key, params.number_of_shards);
+          if (params.shard_number != record_shard_num) {
+            LOG(INFO) << "Skipping record with key: " << record_struct.key
+                      << " . The record belongs to shard: " << record_shard_num
+                      << ", but shard_number is " << params.shard_number;
+            return absl::OkStatus();
+          }
+        }
+        return snapshot_writer.WriteRecord(data_record);
+      });
 }
 
 absl::StatusOr<std::string> WriteBaseSnapshotData(
@@ -129,13 +168,8 @@ absl::StatusOr<std::string> WriteBaseSnapshotData(
   if (!metadata.ok()) {
     return metadata.status();
   }
-  if (blob_reader->CanSeek()) {
-    ResetInputStream(blob_reader->Stream());
-  } else {
-    blob_reader = blob_client.GetBlobReader(
-        {.bucket = params.data_dir.data(), .key = params.starting_file.data()});
-  }
-  if (auto status = snapshot_writer.WriteRecordStream(blob_reader->Stream());
+  if (auto status =
+          WriteRecordsToSnapshotStream(params, record_reader, snapshot_writer);
       !status.ok()) {
     return status;
   }
@@ -163,17 +197,8 @@ absl::Status WriteDeltaFilesToSnapshot(
     auto blob_reader = blob_client.GetBlobReader(
         {.bucket = params.data_dir.data(), .key = delta_file});
     DeltaRecordStreamReader record_reader(blob_reader->Stream());
-    auto metadata = record_reader.ReadMetadata();
-    if (!metadata.ok()) {
-      return metadata.status();
-    }
-    if (blob_reader->CanSeek()) {
-      ResetInputStream(blob_reader->Stream());
-    } else {
-      blob_reader = blob_client.GetBlobReader(
-          {.bucket = params.data_dir.data(), .key = delta_file});
-    }
-    if (auto status = snapshot_writer.WriteRecordStream(blob_reader->Stream());
+    if (auto status = WriteRecordsToSnapshotStream(params, record_reader,
+                                                   snapshot_writer);
         !status.ok()) {
       return status;
     }

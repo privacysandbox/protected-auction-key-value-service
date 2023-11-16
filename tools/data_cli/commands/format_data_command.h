@@ -55,27 +55,31 @@ namespace kv_server {
 class FormatDataCommand : public Command {
  public:
   struct Params {
-    std::string_view input_format;
-    std::string_view output_format;
-    char csv_column_delimiter;
-    char csv_value_delimiter;
-    std::string_view record_type;
-    std::string_view csv_encoding = "PLAINTEXT";
+    std::string input_format = "CSV";
+    std::string output_format = "DELTA";
+    char csv_column_delimiter = ',';
+    char csv_value_delimiter = '|';
+    std::string record_type = "KEY_VALUE_MUTATION_RECORD";
+    std::string csv_encoding = "PLAINTEXT";
+    int64_t shard_number = -1;
+    int64_t number_of_shards = -1;
   };
 
   static absl::StatusOr<std::unique_ptr<FormatDataCommand>> Create(
-      const Params& params, std::istream& input_stream,
-      std::ostream& output_stream);
+      Params params, std::istream& input_stream, std::ostream& output_stream);
   absl::Status Execute() override;
 
  private:
   FormatDataCommand(std::unique_ptr<DeltaRecordReader> record_reader,
-                    std::unique_ptr<DeltaRecordWriter> record_writer)
+                    std::unique_ptr<DeltaRecordWriter> record_writer,
+                    Params params)
       : record_reader_(std::move(record_reader)),
-        record_writer_(std::move(record_writer)) {}
+        record_writer_(std::move(record_writer)),
+        params_(std::move(params)) {}
 
   std::unique_ptr<DeltaRecordReader> record_reader_;
   std::unique_ptr<DeltaRecordWriter> record_writer_;
+  Params params_;
 };
 
 }  //  namespace kv_server

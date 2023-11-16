@@ -36,7 +36,7 @@ FormatDataCommand::Params GetParams(
       .output_format = "DELTA",
       .csv_column_delimiter = ',',
       .csv_value_delimiter = '|',
-      .record_type = std::move(record_type),
+      .record_type = std::string(record_type),
   };
 }
 
@@ -413,6 +413,51 @@ TEST(FormatDataCommandTest, ValidateIncorrectOutputParams) {
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
   EXPECT_STREQ(status.message().data(),
                "Output format: UNSUPPORTED_FORMAT is not supported.")
+      << status;
+}
+
+TEST(FormatDataCommandTest,
+     ValidateGeneratingCsvToDeltaData_KVMutations_ShardNum) {
+  std::stringstream csv_stream;
+  std::stringstream delta_stream;
+  CsvDeltaRecordStreamWriter csv_writer(csv_stream);
+  const auto& record = GetDataRecord(GetKVMutationRecord());
+  EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
+  EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
+  EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
+  csv_writer.Close();
+  EXPECT_FALSE(csv_stream.str().empty());
+  auto params = GetParams();
+  params.shard_number = 2;
+  params.number_of_shards = 3;
+  auto command = FormatDataCommand::Create(params, csv_stream, delta_stream);
+  EXPECT_TRUE(command.ok()) << command.status();
+  EXPECT_TRUE((*command)->Execute().ok());
+  DeltaRecordStreamReader delta_reader(delta_stream);
+  auto metadata = delta_reader.ReadMetadata();
+  EXPECT_TRUE(metadata.ok());
+  EXPECT_EQ(metadata->sharding_metadata().shard_num(), 2);
+  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(3)
+      .WillRepeatedly([&record](DataRecordStruct actual_record) {
+        EXPECT_EQ(actual_record, record);
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(delta_reader.ReadRecords(record_callback.AsStdFunction()).ok());
+}
+
+TEST(FormatDataCommandTest, ValidateIncorrectShardingMetadataParams) {
+  std::stringstream unused_stream;
+  auto params = GetParams();
+  params.shard_number = 2;
+  absl::Status status =
+      FormatDataCommand::Create(params, unused_stream, unused_stream).status();
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
+  EXPECT_STREQ(status.message().data(),
+               "Shard metadata is invalid. shard_number is 2 and "
+               "number_of_shards is -1. Valid inputs must satisfy the "
+               "requirement: 0 <= shard_number < number_of_shards")
       << status;
 }
 

@@ -37,6 +37,8 @@ class GenerateSnapshotCommand : public Command {
     std::string ending_delta_file;
     std::string snapshot_file;
     bool in_memory_compaction;
+    int64_t shard_number = -1;
+    int64_t number_of_shards = -1;
   };
 
   ~GenerateSnapshotCommand();

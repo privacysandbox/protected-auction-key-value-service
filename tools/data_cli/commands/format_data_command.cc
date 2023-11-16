@@ -28,6 +28,7 @@
 #include "public/data_loading/csv/csv_delta_record_stream_writer.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
+#include "public/sharding/sharding_function.h"
 #include "src/cpp/util/status_macro/status_macros.h"
 
 namespace kv_server {
@@ -59,6 +60,14 @@ absl::Status ValidateParams(const FormatDataCommand::Params& params) {
     return absl::InvalidArgumentError(absl::StrCat(
         "Input and output format must be different. Input format: ",
         params.input_format, " Output format: ", params.output_format));
+  }
+  if (params.shard_number >= 0 &&
+      params.number_of_shards <= params.shard_number) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Shard metadata is invalid. shard_number is ", params.shard_number,
+        " and number_of_shards is ", params.number_of_shards,
+        ". Valid inputs must satisfy the requirement: 0 <= shard_number < "
+        "number_of_shards"));
   }
   return absl::OkStatus();
 }
@@ -128,6 +137,10 @@ absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
   }
   if (lw_output_format == kDeltaFormat) {
     KVFileMetadata metadata;
+    if (params.shard_number >= 0) {
+      auto* shard_metadata = metadata.mutable_sharding_metadata();
+      shard_metadata->set_shard_num(params.shard_number);
+    }
     auto delta_record_writer = DeltaRecordStreamWriter<std::ostream>::Create(
         output_stream, DeltaRecordWriter::Options{.metadata = metadata});
     if (!delta_record_writer.ok()) {
@@ -142,8 +155,7 @@ absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<FormatDataCommand>> FormatDataCommand::Create(
-    const Params& params, std::istream& input_stream,
-    std::ostream& output_stream) {
+    Params params, std::istream& input_stream, std::ostream& output_stream) {
   if (absl::Status status = ValidateParams(params); !status.ok()) {
     return status;
   }
@@ -155,21 +167,35 @@ absl::StatusOr<std::unique_ptr<FormatDataCommand>> FormatDataCommand::Create(
   if (!record_writer.ok()) {
     return record_writer.status();
   }
-  return absl::WrapUnique(new FormatDataCommand(std::move(*record_reader),
-                                                std::move(*record_writer)));
+  return absl::WrapUnique(new FormatDataCommand(
+      std::move(*record_reader), std::move(*record_writer), params));
 }
 
 absl::Status FormatDataCommand::Execute() {
   LOG(INFO) << "Formatting records ...";
   int64_t records_count = 0;
+  ShardingFunction sharding_function(/*seed=*/"");
   absl::Status status = record_reader_->ReadRecords(
-      [record_writer = record_writer_.get(),
-       &records_count](DataRecordStruct data_record) {
+      [&records_count, &sharding_function, this](DataRecordStruct data_record) {
+        if (params_.shard_number >= 0 &&
+            std::holds_alternative<KeyValueMutationRecordStruct>(
+                data_record.record)) {
+          KeyValueMutationRecordStruct record_struct =
+              std::get<KeyValueMutationRecordStruct>(data_record.record);
+          auto record_shard_num = sharding_function.GetShardNumForKey(
+              record_struct.key, params_.number_of_shards);
+          if (params_.shard_number != record_shard_num) {
+            LOG(INFO) << "Skipping record with key: " << record_struct.key
+                      << " . The record belongs to shard: " << record_shard_num
+                      << ", but shard_number is " << params_.shard_number;
+            return absl::OkStatus();
+          }
+        }
         records_count++;
         if ((double)std::rand() / RAND_MAX <= kSamplingThreshold) {
           LOG(INFO) << "Formatting record: " << records_count;
         }
-        return record_writer->WriteRecord(data_record);
+        return record_writer_->WriteRecord(data_record);
       });
   record_writer_->Close();
   LOG(INFO) << "Sucessfully formated records.";

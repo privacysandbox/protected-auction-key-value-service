@@ -59,8 +59,9 @@ resource "google_compute_backend_service" "kv_server" {
 resource "google_compute_health_check" "kv_server" {
   name = "${var.service}-${var.environment}-mesh-hc"
   grpc_health_check {
-    port_name = "grpc"
-    port      = var.service_port
+    port_name         = "grpc"
+    port              = var.service_port
+    grpc_service_name = "loadbalancer-healthcheck"
   }
 
   timeout_sec         = 3

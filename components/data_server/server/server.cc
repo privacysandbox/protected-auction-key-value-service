@@ -81,6 +81,9 @@ constexpr absl::string_view kDataLoadingNumThreadsParameterSuffix =
 constexpr absl::string_view kNumShardsParameterSuffix = "num-shards";
 constexpr absl::string_view kUdfNumWorkersParameterSuffix = "udf-num-workers";
 constexpr absl::string_view kRouteV1ToV2Suffix = "route-v1-to-v2";
+constexpr absl::string_view kAutoscalerHealthcheck = "autoscaler-healthcheck";
+constexpr absl::string_view kLoadbalancerHealthcheck =
+    "loadbalancer-healthcheck";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -345,6 +348,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     return maybe_shard_state.status();
   }
   shard_manager_state_ = *std::move(maybe_shard_state);
+
+  grpc_server_->GetHealthCheckService()->SetServingStatus(
+      std::string(kLoadbalancerHealthcheck), true);
   return absl::OkStatus();
 }
 
@@ -510,7 +516,12 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
   }
   // Finally assemble the server.
   LOG(INFO) << "Server listening on " << server_address << std::endl;
-  return builder.BuildAndStart();
+  auto server = builder.BuildAndStart();
+  server->GetHealthCheckService()->SetServingStatus(
+      std::string(kAutoscalerHealthcheck), true);
+  server->GetHealthCheckService()->SetServingStatus(
+      std::string(kLoadbalancerHealthcheck), false);
+  return std::move(server);
 }
 
 void Server::SetDefaultUdfCodeObject() {

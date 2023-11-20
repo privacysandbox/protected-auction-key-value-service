@@ -29,7 +29,7 @@
 namespace kv_server {
 namespace {
 
-using google::scp::roma::proto::FunctionBindingIoProto;
+using google::scp::roma::FunctionBindingPayload;
 
 class RunQueryHookImpl : public RunQueryHook {
  public:
@@ -39,43 +39,43 @@ class RunQueryHookImpl : public RunQueryHook {
     }
   }
 
-  void operator()(FunctionBindingIoProto& io) {
+  void operator()(FunctionBindingPayload& payload) {
     if (lookup_ == nullptr) {
       nlohmann::json status;
       status["code"] = absl::StatusCode::kInternal;
       status["message"] = "runQuery has not been initialized yet";
-      io.mutable_output_list_of_string()->add_data(status.dump());
+      payload.io_proto.mutable_output_list_of_string()->add_data(status.dump());
       LOG(ERROR)
           << "runQuery hook is not initialized properly: lookup is nullptr";
       return;
     }
 
-    VLOG(9) << "runQuery request: " << io.DebugString();
-    if (!io.has_input_string()) {
+    VLOG(9) << "runQuery request: " << payload.io_proto.DebugString();
+    if (!payload.io_proto.has_input_string()) {
       nlohmann::json status;
       status["code"] = absl::StatusCode::kInvalidArgument;
       status["message"] = "runQuery input must be a string";
-      io.mutable_output_list_of_string()->add_data(status.dump());
-      VLOG(1) << "runQuery result: " << io.DebugString();
+      payload.io_proto.mutable_output_list_of_string()->add_data(status.dump());
+      VLOG(1) << "runQuery result: " << payload.io_proto.DebugString();
       return;
     }
 
     VLOG(9) << "Calling internal run query client";
     absl::StatusOr<InternalRunQueryResponse> response_or_status =
-        lookup_->RunQuery(io.input_string());
+        lookup_->RunQuery(payload.io_proto.input_string());
 
     if (!response_or_status.ok()) {
       LOG(ERROR) << "Internal run query returned error: "
                  << response_or_status.status();
-      io.mutable_output_list_of_string()->mutable_data();
-      VLOG(1) << "runQuery result: " << io.DebugString();
+      payload.io_proto.mutable_output_list_of_string()->mutable_data();
+      VLOG(1) << "runQuery result: " << payload.io_proto.DebugString();
       return;
     }
 
     VLOG(9) << "Processing internal run query response";
-    *io.mutable_output_list_of_string()->mutable_data() =
+    *payload.io_proto.mutable_output_list_of_string()->mutable_data() =
         *std::move(response_or_status.value().mutable_elements());
-    VLOG(9) << "runQuery result: " << io.DebugString();
+    VLOG(9) << "runQuery result: " << payload.io_proto.DebugString();
   }
 
  private:

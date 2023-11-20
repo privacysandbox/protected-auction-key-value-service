@@ -37,8 +37,8 @@
 using google::protobuf::TextFormat;
 using google::scp::roma::Config;
 using google::scp::roma::FunctionBindingObjectV2;
+using google::scp::roma::FunctionBindingPayload;
 using google::scp::roma::WasmDataType;
-using google::scp::roma::proto::FunctionBindingIoProto;
 using testing::_;
 using testing::Return;
 
@@ -242,8 +242,9 @@ TEST(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_struct) {
   EXPECT_TRUE(stop.ok());
 }
 
-static void udfCbEcho(FunctionBindingIoProto& io) {
-  io.set_output_string("Echo: " + io.input_string());
+static void udfCbEcho(FunctionBindingPayload& payload) {
+  payload.io_proto.set_output_string("Echo: " +
+                                     payload.io_proto.input_string());
 }
 
 TEST(UdfClientTest, JsEchoHookCallSucceeds) {

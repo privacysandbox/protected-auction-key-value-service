@@ -33,7 +33,7 @@ namespace {
 
 using google::scp::roma::Config;
 using google::scp::roma::FunctionBindingObjectV2;
-using google::scp::roma::proto::FunctionBindingIoProto;
+using google::scp::roma::FunctionBindingPayload;
 
 constexpr char kStringGetValuesHookJsName[] = "getValues";
 constexpr char kBinaryGetValuesHookJsName[] = "getValuesBinary";
@@ -45,7 +45,7 @@ std::unique_ptr<FunctionBindingObjectV2> GetValuesFunctionObject(
   auto get_values_function_object = std::make_unique<FunctionBindingObjectV2>();
   get_values_function_object->function_name = std::move(handler_name);
   get_values_function_object->function =
-      [&get_values_hook](FunctionBindingIoProto& in) { get_values_hook(in); };
+      [&get_values_hook](FunctionBindingPayload& in) { get_values_hook(in); };
   return get_values_function_object;
 }
 
@@ -70,7 +70,7 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterRunQueryHook(
   auto run_query_function_object = std::make_unique<FunctionBindingObjectV2>();
   run_query_function_object->function_name = kRunQueryHookJsName;
   run_query_function_object->function =
-      [&run_query_hook](FunctionBindingIoProto& in) { run_query_hook(in); };
+      [&run_query_hook](FunctionBindingPayload& in) { run_query_hook(in); };
   config_.RegisterFunctionBinding(std::move(run_query_function_object));
   return *this;
 }

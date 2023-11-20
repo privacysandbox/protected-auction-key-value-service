@@ -33,6 +33,7 @@ namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
+using google::scp::roma::FunctionBindingPayload;
 using google::scp::roma::proto::FunctionBindingIoProto;
 using testing::_;
 using testing::Return;
@@ -59,7 +60,8 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  (*get_values_hook)(io);
+  FunctionBindingPayload payload{io};
+  (*get_values_hook)(payload);
 
   nlohmann::json result_json =
       nlohmann::json::parse(io.output_string(), nullptr,
@@ -95,7 +97,8 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  (*get_values_hook)(io);
+  FunctionBindingPayload payload{io};
+  (*get_values_hook)(payload);
 
   nlohmann::json expected =
       R"({"kvPairs":{"key1":{"status":{"code":2,"message":"Some error"}}},"status":{"code":0,"message":"ok"}})"_json;
@@ -114,7 +117,8 @@ TEST(GetValuesHookTest, StringOutput_LookupReturnsError) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  (*get_values_hook)(io);
+  FunctionBindingPayload payload{io};
+  (*get_values_hook)(payload);
 
   nlohmann::json expected = R"({"code":2,"message":"Some error"})"_json;
   EXPECT_EQ(io.output_string(), expected.dump());
@@ -129,7 +133,8 @@ TEST(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  (*get_values_hook)(io);
+  FunctionBindingPayload payload{io};
+  (*get_values_hook)(payload);
 
   nlohmann::json expected =
       R"({"code":3,"message":"getValues input must be list of strings"})"_json;
@@ -159,7 +164,8 @@ TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  (*get_values_hook)(io);
+  FunctionBindingPayload payload{io};
+  (*get_values_hook)(payload);
 
   EXPECT_TRUE(io.has_output_bytes());
   std::string data = io.output_bytes();
@@ -193,7 +199,8 @@ TEST(GetValuesHookTest, BinaryOutput_LookupReturnsError) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  (*get_values_hook)(io);
+  FunctionBindingPayload payload{io};
+  (*get_values_hook)(payload);
 
   EXPECT_TRUE(io.has_output_bytes());
   std::string data = io.output_bytes();

@@ -12,9 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@io_bazel_rules_docker//container:container.bzl", "container_image")
+load(
+    "@io_bazel_rules_docker//container:container.bzl",
+    "container_image",
+    "container_layer",
+)
 load("@io_bazel_rules_docker//go:image.bzl", "go_image")
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load(
+    "@rules_pkg//pkg:mappings.bzl",
+    "pkg_attributes",
+    "pkg_files",
+)
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 go_library(
     name = "diagnostic_lib",
@@ -55,18 +65,57 @@ go_binary(
     ]
 ]
 
+pkg_files(
+    name = "server_executables",
+    srcs = [
+        "//tools/server_diagnostic/helloworld_server",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/",
+)
+
+pkg_tar(
+    name = "server_binaries_tar",
+    srcs = [":server_executables"],
+)
+
+container_layer(
+    name = "helloworld_server_binary_layer",
+    directory = "/",
+    tars = [
+        ":server_binaries_tar",
+    ],
+)
+
+[
+    container_image(
+        name = "helloworld_server_docker_image_{}".format(arch),
+        architecture = arch,
+        base = "@runtime-debian-debug-nonroot-{}//image".format(arch),
+        layers = [
+            ":helloworld_server_binary_layer",
+        ],
+    )
+    for arch in [
+        "arm64",
+        "amd64",
+    ]
+]
+
 genrule(
     name = "copy_to_dist",
     srcs = [
         ":diagnostic_docker_image_arm64.tar",
         ":diagnostic_docker_image_amd64.tar",
+        ":helloworld_server_docker_image_arm64.tar",
+        ":helloworld_server_docker_image_amd64.tar",
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/tools/arm64/server_diagnostic
-cp $(execpath :diagnostic_docker_image_arm64.tar) dist/tools/arm64/server_diagnostic
+cp $(execpath :diagnostic_docker_image_arm64.tar) $(execpath :helloworld_server_docker_image_arm64.tar) dist/tools/arm64/server_diagnostic
 mkdir -p dist/tools/amd64/server_diagnostic
-cp $(execpath :diagnostic_docker_image_amd64.tar) dist/tools/amd64/server_diagnostic
+cp $(execpath :diagnostic_docker_image_amd64.tar) $(execpath :helloworld_server_docker_image_amd64.tar) dist/tools/amd64/server_diagnostic
 builders/tools/normalize-dist
 EOF""",
     executable = True,

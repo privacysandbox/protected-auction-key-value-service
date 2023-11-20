@@ -156,12 +156,8 @@ absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
       auto* shard_metadata = metadata.mutable_sharding_metadata();
       shard_metadata->set_shard_num(params.shard_number);
     }
-    auto delta_record_writer = DeltaRecordStreamWriter<std::ostream>::Create(
+    return DeltaRecordStreamWriter<std::ostream>::Create(
         output_stream, DeltaRecordWriter::Options{.metadata = metadata});
-    if (!delta_record_writer.ok()) {
-      return delta_record_writer.status();
-    }
-    return std::move(*delta_record_writer);
   }
   return absl::InvalidArgumentError(absl::StrCat(
       "Output format: ", params.output_format, " is not supported."));

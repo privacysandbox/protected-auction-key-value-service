@@ -95,7 +95,7 @@ repos:
     description: Run terraform via docker to format Terraform files
     language: script
     pass_filenames: false
-    entry: tools/terraform fmt -write=true -recursive production/terraform
+    entry: builders/tools/terraform fmt -write=true -recursive production/terraform
     types_or:
     - terraform
 

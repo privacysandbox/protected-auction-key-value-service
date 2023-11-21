@@ -14,10 +14,16 @@
 
 provider "google" {
   project = var.project_id
+  default_labels = {
+    environment = var.environment
+  }
 }
 
 provider "google-beta" {
   project = var.project_id
+  default_labels = {
+    environment = var.environment
+  }
 }
 
 locals {

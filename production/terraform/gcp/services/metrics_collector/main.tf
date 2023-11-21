@@ -50,8 +50,7 @@ resource "google_compute_global_forwarding_rule" "collector" {
   ip_address            = var.collector_ip_address
 
   labels = {
-    environment = var.environment
-    service     = var.collector_service_name
+    service = var.collector_service_name
   }
 }
 

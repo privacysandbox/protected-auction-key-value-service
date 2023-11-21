@@ -26,7 +26,9 @@
 #include "absl/strings/str_cat.h"
 #include "public/data_loading/csv/csv_delta_record_stream_reader.h"
 #include "public/data_loading/csv/csv_delta_record_stream_writer.h"
+#include "public/data_loading/readers/avro_delta_record_stream_reader.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
+#include "public/data_loading/writers/avro_delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/sharding/sharding_function.h"
 #include "src/cpp/util/status_macro/status_macros.h"
@@ -36,6 +38,7 @@ namespace {
 
 constexpr std::string_view kDeltaFormat = "delta";
 constexpr std::string_view kCsvFormat = "csv";
+constexpr std::string_view kAvroFormat = "avro";
 constexpr std::string_view kKeyValueMutationRecord =
     "key_value_mutation_record";
 constexpr std::string_view kUserDefinedFunctionsConfig =
@@ -132,6 +135,12 @@ absl::StatusOr<std::unique_ptr<DeltaRecordReader>> CreateRecordReader(
     return std::make_unique<DeltaRecordStreamReader<std::istream>>(
         input_stream);
   }
+  if (lw_input_format == kAvroFormat) {
+    std::unique_ptr<DeltaRecordReader> record_reader =
+        std::make_unique<AvroDeltaRecordStreamReader<std::istream>>(
+            input_stream);
+    return std::move(record_reader);
+  }
   return absl::InvalidArgumentError(absl::StrCat(
       "Input format: ", params.input_format, " is not supported."));
 }
@@ -159,6 +168,16 @@ absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
     return DeltaRecordStreamWriter<std::ostream>::Create(
         output_stream, DeltaRecordWriter::Options{.metadata = metadata});
   }
+  if (lw_output_format == kAvroFormat) {
+    auto delta_record_writer =
+        AvroDeltaRecordStreamWriter<std::ostream>::Create(
+            output_stream, DeltaRecordWriter::Options{});
+    if (!delta_record_writer.ok()) {
+      return delta_record_writer.status();
+    }
+    return std::move(*delta_record_writer);
+  }
+
   return absl::InvalidArgumentError(absl::StrCat(
       "Output format: ", params.output_format, " is not supported."));
 }

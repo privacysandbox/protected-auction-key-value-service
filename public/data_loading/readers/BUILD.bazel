@@ -162,6 +162,25 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "avro_delta_record_stream_reader",
+    hdrs = ["avro_delta_record_stream_reader.h"],
+    copts = [
+        "-fexceptions",
+        "-Wno-error",
+        "-Wno-implicit-fallthrough",
+        "-Wno-non-virtual-dtor",
+    ],
+    deps = [
+        ":delta_record_reader",
+        "//public/data_loading:records_utils",
+        "@avro//:avrocpp",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 cc_test(
     name = "delta_record_stream_reader_test",
     size = "small",

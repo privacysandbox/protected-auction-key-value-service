@@ -22,8 +22,7 @@ Sequence diagrams below outline initilization steps for AWS/GCP Sharded/Non shar
 
 ![AWS Sharded initialization](assets/aws_sharded_init.png)
 
-// copybara:strip_begin(internal bookkeeping)
-
+<!-- copybara:strip_begin(internal bookkeeping) -->
 <!-- prettier-ignore-start -->
 <!-- mdformat off(sequence diagram format) -->
 <!-- markdownlint-disable ol-prefix -->
@@ -159,5 +158,4 @@ Note over Lb: Start serving traffic \n from VM
 <!-- markdownlint-enable ol-prefix -->
 <!-- mdformat on -->
 <!-- prettier-ignore-end -->
-
-// copybara:strip_end
+<!-- copybara:strip_end -->

@@ -57,8 +57,8 @@ cp bazel-bin/components/data_server/server/server dist/server
 ## Run the server
 
 ```sh
-docker compose -f getting_started/quick_start_assets/docker-compose.yaml build kvserver
-docker compose -f getting_started/quick_start_assets/docker-compose.yaml run --rm -p 50051:50051 kvserver
+docker-compose -f getting_started/quick_start_assets/docker-compose.yaml build kvserver
+docker-compose -f getting_started/quick_start_assets/docker-compose.yaml run --rm kvserver
 ```
 
 In a separate terminal, at the repo root, run
@@ -101,7 +101,7 @@ chmod 744 dist/query_api_descriptor_set.pb
 
 ```sh
 chmod 444 components/envoy_proxy/envoy.yaml
-docker compose -f getting_started/quick_start_assets/docker-compose.yaml up
+docker-compose -f getting_started/quick_start_assets/docker-compose.yaml up
 ```
 
 In a separate terminal, run:

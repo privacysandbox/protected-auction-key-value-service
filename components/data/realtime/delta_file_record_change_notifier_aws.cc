@@ -65,7 +65,8 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
     for (const auto& message : *notifications) {
       const auto parsedMessage = ParseObjectKeyFromJson(message);
       if (!parsedMessage.ok()) {
-        LOG(ERROR) << "Failed to parse JSON: " << message;
+        LOG(ERROR) << "Failed to parse JSON: " << message
+                   << ", error: " << parsedMessage.status();
         metrics_recorder_.IncrementEventCounter(
             kDeltaFileRecordChangeNotifierParsingFailure);
         continue;

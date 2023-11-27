@@ -96,17 +96,14 @@ build:gcp_instance --@google_privacysandbox_servers_common//:instance=gcp
 
 # --config local_platform: builds the service to run locally
 build:local_platform --//:platform=local
-build:local_platform --@google_privacysandbox_servers_common//:platform=local
 
 # --config aws_platform: builds the service to run with AWS
 build:aws_platform --//:platform=aws
 build:aws_platform --@google_privacysandbox_servers_common//:platform=aws
-build:aws_platform --@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:platform=aws
 
 # --config gcp_platform: builds the service to run with GCP
 build:gcp_platform --//:platform=gcp
 build:gcp_platform --@google_privacysandbox_servers_common//:platform=gcp
-build:gcp_platform --@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:platform=gcp
 
 try-import %workspace%/builders/.coverage.bazelrc
 coverage --test_tag_filters=-nocoverage

@@ -35,9 +35,9 @@ class OhttpClientEncryptor {
           key_fetcher_manager)
       : key_fetcher_manager_(key_fetcher_manager) {
 #if defined(CLOUD_PLATFORM_AWS)
-    cloud_platform_ = privacy_sandbox::server_common::CloudPlatform::AWS;
+    cloud_platform_ = privacy_sandbox::server_common::CloudPlatform::kAws;
 #elif defined(CLOUD_PLATFORM_GCP)
-    cloud_platform_ = privacy_sandbox::server_common::CloudPlatform::GCP;
+    cloud_platform_ = privacy_sandbox::server_common::CloudPlatform::kGcp;
 #endif
   }
   // Encrypts ougoing request.
@@ -53,7 +53,7 @@ class OhttpClientEncryptor {
 
  private:
   ::privacy_sandbox::server_common::CloudPlatform cloud_platform_ =
-      ::privacy_sandbox::server_common::CloudPlatform::LOCAL;
+      ::privacy_sandbox::server_common::CloudPlatform::kLocal;
   std::optional<quiche::ObliviousHttpClient> http_client_;
   std::optional<quiche::ObliviousHttpRequest::Context> http_request_context_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&

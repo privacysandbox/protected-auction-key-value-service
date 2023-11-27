@@ -65,7 +65,9 @@ class KeyFetcherFactoryGcp : public CloudKeyFetcherFactory {
     return endpoint;
   }
 
-  CloudPlatform GetCloudPlatform() const override { return CloudPlatform::GCP; }
+  CloudPlatform GetCloudPlatform() const override {
+    return CloudPlatform::kGcp;
+  }
 };
 }  // namespace
 

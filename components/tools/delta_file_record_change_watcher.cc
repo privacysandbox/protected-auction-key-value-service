@@ -23,7 +23,7 @@
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/records_utils.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
@@ -35,11 +35,13 @@ using kv_server::KeyValueMutationRecord;
 using kv_server::Value;
 using privacy_sandbox::server_common::TelemetryProvider;
 
-void Print(std::string string_decoded) {
+void Print(std::string string_decoded,
+           privacy_sandbox::server_common::MetricsRecorder& metrics_recorder) {
   std::istringstream is(string_decoded);
 
   auto delta_stream_reader_factory =
-      kv_server::StreamRecordReaderFactory<std::string_view>::Create();
+      std::make_unique<kv_server::RiegeliStreamRecordReaderFactory>(
+          metrics_recorder);
 
   auto record_reader = delta_stream_reader_factory->CreateReader(is);
 
@@ -127,7 +129,7 @@ int main(int argc, char** argv) {
                                            []() { return false; });
     if (keys.ok()) {
       for (const auto& key : keys->realtime_messages) {
-        Print(key.parsed_notification);
+        Print(key.parsed_notification, *noop_metrics_recorder);
       }
     } else {
       std::cerr << keys.status() << std::endl;

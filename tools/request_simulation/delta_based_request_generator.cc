@@ -111,7 +111,6 @@ DeltaBasedRequestGenerator::CreateRequestsAndAddToMessageQueue(
   auto& blob_client = options_.blob_client;
   auto record_reader =
       options_.delta_stream_reader_factory.CreateConcurrentReader(
-          metrics_recorder_,
           /*stream_factory=*/[&location, &blob_client]() {
             return std::make_unique<BlobRecordStream>(
                 blob_client.GetBlobReader(location));

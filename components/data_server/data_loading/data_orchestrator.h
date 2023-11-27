@@ -30,6 +30,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/udf/udf_client.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/readers/stream_record_reader_factory.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
@@ -50,7 +51,7 @@ class DataOrchestrator {
     DeltaFileNotifier& delta_notifier;
     BlobStorageChangeNotifier& change_notifier;
     UdfClient& udf_client;
-    StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory;
+    StreamRecordReaderFactory& delta_stream_reader_factory;
     RealtimeThreadPoolManager& realtime_thread_pool_manager;
     const int32_t shard_num = 0;
     const int32_t num_shards = 1;

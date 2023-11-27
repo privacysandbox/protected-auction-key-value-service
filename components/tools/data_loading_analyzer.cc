@@ -31,6 +31,7 @@
 #include "public/base_types.pb.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
@@ -66,36 +67,46 @@ class NoopRealtimeThreadPoolManager : public RealtimeThreadPoolManager {
   absl::Status Stop() override { return absl::OkStatus(); }
 };
 
-template <typename RecordT>
-class NoopReader : public StreamRecordReader<RecordT> {
+class NoopReader : public StreamRecordReader {
   absl::StatusOr<KVFileMetadata> GetKVFileMetadata() override {
     return KVFileMetadata();
   }
   absl::Status ReadStreamRecords(
-      const std::function<absl::Status(const RecordT&)>& callback) override {
+      const std::function<absl::Status(const std::string_view&)>& callback)
+      override {
     return absl::OkStatus();
   }
 };
 
 // Reader that only reads the stream.
 // Stateless and thread-safe.
-template <typename RecordT>
-class PassThroughStreamReaderFactory
-    : public StreamRecordReaderFactory<RecordT> {
+class PassThroughStreamReaderFactory : public StreamRecordReaderFactory {
  public:
-  std::unique_ptr<StreamRecordReader<RecordT>> CreateReader(
+  PassThroughStreamReaderFactory(
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
+      : StreamRecordReaderFactory(metrics_recorder) {}
+
+  std::unique_ptr<StreamRecordReader> CreateReader(
       std::istream& data_input) const override {
     std::ofstream devnull("/dev/null");
     devnull << data_input.rdbuf();
     devnull.close();
-    return std::make_unique<NoopReader<RecordT>>();
+    return std::make_unique<NoopReader>();
+  }
+  std::unique_ptr<StreamRecordReader> CreateConcurrentReader(
+      std::function<std::unique_ptr<RecordStream>()> stream_factory)
+      const override {
+    return nullptr;
   }
 };
 
-template <typename RecordT>
-class ReadonlyStreamReaderFactory : public StreamRecordReaderFactory<RecordT> {
+class ReadonlyStreamReaderFactory : public StreamRecordReaderFactory {
  public:
-  std::unique_ptr<StreamRecordReader<RecordT>> CreateReader(
+  ReadonlyStreamReaderFactory(
+      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
+      : StreamRecordReaderFactory(metrics_recorder) {}
+
+  std::unique_ptr<StreamRecordReader> CreateReader(
       std::istream& data_input) const override {
     auto reader = riegeli::RecordReader(riegeli::IStreamReader(&data_input));
     absl::Cleanup reader_closer([&reader] { reader.Close(); });
@@ -108,7 +119,12 @@ class ReadonlyStreamReaderFactory : public StreamRecordReaderFactory<RecordT> {
                      "not expected.";
       }
     }
-    return std::make_unique<NoopReader<RecordT>>();
+    return std::make_unique<NoopReader>();
+  }
+  std::unique_ptr<StreamRecordReader> CreateConcurrentReader(
+      std::function<std::unique_ptr<RecordStream>()> stream_factory)
+      const override {
+    return nullptr;
   }
 };
 
@@ -149,25 +165,26 @@ absl::Status InitOnce(Operation operation) {
       blob_storage_client_factory->CreateBlobStorageClient(*metrics_recorder);
   std::unique_ptr<DeltaFileNotifier> notifier =
       DeltaFileNotifier::Create(*blob_client);
-  std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
-      delta_stream_reader_factory;
+  std::unique_ptr<StreamRecordReaderFactory> delta_stream_reader_factory;
   switch (operation) {
     case Operation::kPassThrough:
       LOG(INFO) << "Initializing by passing through the stream";
       delta_stream_reader_factory =
-          std::make_unique<PassThroughStreamReaderFactory<std::string_view>>();
+          std::make_unique<PassThroughStreamReaderFactory>(
+              *noop_metrics_recorder);
       break;
     case Operation::kReadOnly:
       LOG(INFO)
           << "Initializing by building records but not processing the records";
       delta_stream_reader_factory =
-          std::make_unique<ReadonlyStreamReaderFactory<std::string_view>>();
+          std::make_unique<ReadonlyStreamReaderFactory>(*noop_metrics_recorder);
       break;
     case Operation::kCache:
     default:
       LOG(INFO) << "Initializing fully";
       delta_stream_reader_factory =
-          StreamRecordReaderFactory<std::string_view>::Create();
+          std::make_unique<RiegeliStreamRecordReaderFactory>(
+              *noop_metrics_recorder);
       break;
   }
   NoopBlobStorageChangeNotifier change_notifier;

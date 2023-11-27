@@ -43,7 +43,8 @@
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
 #include "grpcpp/health_check_service_interface.h"
 #include "public/constants.h"
-#include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
+#include "public/data_loading/readers/stream_record_reader_factory.h"
 #include "public/udf/constants.h"
 #include "src/cpp/telemetry/init.h"
 #include "src/cpp/telemetry/telemetry.h"
@@ -447,7 +448,7 @@ std::unique_ptr<BlobStorageClient> Server::CreateBlobClient(
       *metrics_recorder_, std::move(client_options));
 }
 
-std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
+std::unique_ptr<StreamRecordReaderFactory>
 Server::CreateStreamRecordReaderFactory(
     const ParameterFetcher& parameter_fetcher) {
   const int32_t data_loading_num_threads = parameter_fetcher.GetInt32Parameter(
@@ -456,7 +457,8 @@ Server::CreateStreamRecordReaderFactory(
             << " parameter: " << data_loading_num_threads;
   ConcurrentStreamRecordReader<std::string_view>::Options options;
   options.num_worker_threads = data_loading_num_threads;
-  return StreamRecordReaderFactory<std::string_view>::Create(options);
+  return std::make_unique<RiegeliStreamRecordReaderFactory>(*metrics_recorder_,
+                                                            options);
 }
 
 std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(

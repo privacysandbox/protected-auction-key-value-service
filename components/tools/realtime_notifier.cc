@@ -25,7 +25,7 @@
 #include "components/util/platform_initializer.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/records_utils.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
@@ -43,10 +43,12 @@ using privacy_sandbox::server_common::TelemetryProvider;
 
 std::unique_ptr<kv_server::MessageService> queue_manager_;
 
-void Print(std::string string_decoded) {
+void Print(std::string string_decoded,
+           privacy_sandbox::server_common::MetricsRecorder& metrics_recorder) {
   std::istringstream is(string_decoded);
   auto delta_stream_reader_factory =
-      StreamRecordReaderFactory<std::string_view>::Create();
+      std::make_unique<kv_server::RiegeliStreamRecordReaderFactory>(
+          metrics_recorder);
   auto record_reader = delta_stream_reader_factory->CreateReader(is);
   auto result = record_reader->ReadStreamRecords([](std::string_view raw) {
     return DeserializeDataRecord(raw, [](const DataRecord& data_record) {
@@ -109,11 +111,12 @@ absl::Status Run() {
     return realtime_notifier_maybe.status();
   }
   auto realtime_notifier = std::move(*realtime_notifier_maybe);
-  realtime_notifier->Start([](const std::string& message) {
-    Print(message);
-    DataLoadingStats stats;
-    return stats;
-  });
+  realtime_notifier->Start(
+      [&noop_metrics_recorder](const std::string& message) {
+        Print(message, *noop_metrics_recorder);
+        DataLoadingStats stats;
+        return stats;
+      });
   LOG(INFO) << "Listening ....";
   absl::SleepFor(absl::InfiniteDuration());
   return absl::OkStatus();

@@ -32,6 +32,8 @@ cc_library(
     hdrs = ["mocks.h"],
     deps = [
         "//public/data_loading/readers:riegeli_stream_io",
+        "//public/data_loading/readers:stream_record_reader",
         "@com_google_googletest//:gtest",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

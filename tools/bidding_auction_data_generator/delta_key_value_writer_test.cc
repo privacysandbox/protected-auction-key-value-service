@@ -20,6 +20,8 @@
 
 #include "gtest/gtest.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
+#include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
@@ -51,8 +53,9 @@ TEST(DeltaKeyValueWriterTest, ValidateDeltaDataTest) {
           ->Write(GetTestKeyValueMap(), kTestLogicalCommitTime,
                   kTestDeltaMutationType);
   EXPECT_TRUE(write_status.ok());
+  privacy_sandbox::server_common::MockMetricsRecorder metrics_recorder;
   auto stream_reader_factory =
-      StreamRecordReaderFactory<std::string_view>::Create();
+      std::make_unique<RiegeliStreamRecordReaderFactory>(metrics_recorder);
   auto stream_reader = stream_reader_factory->CreateReader(delta_stream);
   EXPECT_TRUE(stream_reader
                   ->ReadStreamRecords(

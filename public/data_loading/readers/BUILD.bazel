@@ -30,6 +30,7 @@ cc_library(
     name = "riegeli_stream_io",
     hdrs = ["riegeli_stream_io.h"],
     deps = [
+        ":stream_record_reader",
         "//public/data_loading:riegeli_metadata_cc_proto",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",
@@ -44,6 +45,36 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "stream_record_reader_factory",
+    hdrs = ["stream_record_reader_factory.h"],
+    deps = [
+        ":stream_record_reader",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+    ],
+)
+
+cc_library(
+    name = "riegeli_stream_record_reader_factory",
+    srcs = ["riegeli_stream_record_reader_factory.cc"],
+    hdrs = ["riegeli_stream_record_reader_factory.h"],
+    deps = [
+        ":riegeli_stream_io",
+        ":stream_record_reader_factory",
+    ],
+)
+
+cc_library(
+    name = "stream_record_reader",
+    hdrs = ["stream_record_reader.h"],
+    deps = [
+        "//public/data_loading:riegeli_metadata_cc_proto",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+    ],
+)
+
 cc_test(
     name = "riegeli_stream_io_test",
     size = "small",
@@ -52,6 +83,7 @@ cc_test(
     ],
     deps = [
         ":riegeli_stream_io",
+        ":riegeli_stream_record_reader_factory",
         "//public/test_util:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",

@@ -81,8 +81,8 @@ class Server {
 
   std::unique_ptr<BlobStorageClient> CreateBlobClient(
       const ParameterFetcher& parameter_fetcher);
-  std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
-  CreateStreamRecordReaderFactory(const ParameterFetcher& parameter_fetcher);
+  std::unique_ptr<StreamRecordReaderFactory> CreateStreamRecordReaderFactory(
+      const ParameterFetcher& parameter_fetcher);
   std::unique_ptr<DataOrchestrator> CreateDataOrchestrator(
       const ParameterFetcher& parameter_fetcher);
 
@@ -129,8 +129,7 @@ class Server {
   std::unique_ptr<DeltaFileNotifier> notifier_;
   std::unique_ptr<BlobStorageChangeNotifier> change_notifier_;
   std::unique_ptr<RealtimeThreadPoolManager> realtime_thread_pool_manager_;
-  std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
-      delta_stream_reader_factory_;
+  std::unique_ptr<StreamRecordReaderFactory> delta_stream_reader_factory_;
 
   std::unique_ptr<DataOrchestrator> data_orchestrator_;
 

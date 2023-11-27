@@ -23,6 +23,7 @@
 #include "grpcpp/grpcpp.h"
 #include "opentelemetry/sdk/resource/resource.h"
 #include "opentelemetry/sdk/resource/semantic_conventions.h"
+#include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "tools/request_simulation/request/raw_request.pb.h"
 #include "tools/request_simulation/request_generation_util.h"
@@ -301,11 +302,12 @@ RequestSimulationSystem::CreateDeltaFileNotifier() {
       *blob_storage_client_,
       absl::Seconds(absl::GetFlag(FLAGS_backup_poll_frequency_secs)));
 }
-std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
+std::unique_ptr<StreamRecordReaderFactory>
 RequestSimulationSystem::CreateStreamRecordReaderFactory() {
   ConcurrentStreamRecordReader<std::string_view>::Options options;
   options.num_worker_threads = absl::GetFlag(FLAGS_data_loading_num_threads);
-  return StreamRecordReaderFactory<std::string_view>::Create(options);
+  return std::make_unique<RiegeliStreamRecordReaderFactory>(metrics_recorder_,
+                                                            options);
 }
 absl::AnyInvocable<std::string(std::string_view)>
 RequestSimulationSystem::CreateRequestFromKeyFn() {

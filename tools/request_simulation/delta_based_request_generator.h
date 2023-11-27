@@ -29,6 +29,7 @@
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/realtime/realtime_notifier.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/readers/stream_record_reader_factory.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "tools/request_simulation/message_queue.h"
 #include "tools/request_simulation/request_generation_util.h"
@@ -48,7 +49,7 @@ class DeltaBasedRequestGenerator {
     BlobStorageClient& blob_client;
     DeltaFileNotifier& delta_notifier;
     BlobStorageChangeNotifier& change_notifier;
-    StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory;
+    StreamRecordReaderFactory& delta_stream_reader_factory;
   };
   DeltaBasedRequestGenerator(
       Options options,

@@ -135,10 +135,9 @@ absl::Status ApplyKeyValueMutationToCache(
 }
 
 absl::StatusOr<DataLoadingStats> LoadCacheWithData(
-    StreamRecordReader<std::string_view>& record_reader, Cache& cache,
-    int64_t& max_timestamp, const int32_t server_shard_num,
-    const int32_t num_shards, MetricsRecorder& metrics_recorder,
-    UdfClient& udf_client) {
+    StreamRecordReader& record_reader, Cache& cache, int64_t& max_timestamp,
+    const int32_t server_shard_num, const int32_t num_shards,
+    MetricsRecorder& metrics_recorder, UdfClient& udf_client) {
   DataLoadingStats data_loading_stats;
   const auto process_data_record_fn =
       [&cache, &max_timestamp, &data_loading_stats, server_shard_num,
@@ -190,7 +189,6 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
   auto& cache = options.cache;
   auto record_reader =
       options.delta_stream_reader_factory.CreateConcurrentReader(
-          metrics_recorder,
           /*stream_factory=*/[&location, &options]() {
             return std::make_unique<BlobRecordStream>(
                 options.blob_client.GetBlobReader(location));
@@ -394,7 +392,6 @@ class DataOrchestratorImpl : public DataOrchestrator {
                                                .key = snapshot.data()};
       auto record_reader =
           options.delta_stream_reader_factory.CreateConcurrentReader(
-              metrics_recorder,
               /*stream_factory=*/[&location, &options]() {
                 return std::make_unique<BlobRecordStream>(
                     options.blob_client.GetBlobReader(location));
@@ -427,7 +424,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
   }
 
   absl::StatusOr<DataLoadingStats> LoadCacheWithHighPriorityUpdates(
-      StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory,
+      StreamRecordReaderFactory& delta_stream_reader_factory,
       const std::string& record_string, Cache& cache) {
     std::istringstream is(record_string);
     int64_t max_timestamp = 0;

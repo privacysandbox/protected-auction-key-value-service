@@ -14,6 +14,8 @@
 
 #include "public/data_loading/readers/riegeli_stream_io.h"
 
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -25,12 +27,15 @@
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/test_util/mocks.h"
 #include "public/test_util/proto_matcher.h"
+#include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/bytes/string_writer.h"
 #include "riegeli/records/record_writer.h"
 #include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
+constexpr std::string_view kTestRecord = "testrecord";
+constexpr int64_t kIterations = 1024 * 1024;
 
 using google::protobuf::TextFormat;
 using privacy_sandbox::server_common::MockMetricsRecorder;
@@ -283,6 +288,54 @@ TEST(ConcurrentStreamRecordReaderTest, FailsToReadNonSeekingStream) {
   EXPECT_FALSE(status.ok());
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
   EXPECT_EQ(status.message(), "Input streams do not support seeking.");
+}
+
+void WriteRiegeliToFile(const std::vector<std::string_view>& records,
+                        std::ostream& dest_stream) {
+  riegeli::RecordWriter record_writer(
+      riegeli::OStreamWriter(&dest_stream),
+      riegeli::RecordWriterBase::Options().set_uncompressed());
+  for (int64_t i = 0; i < kIterations; i++) {
+    for (const std::string_view& record : records) {
+      record_writer.WriteRecord(std::string(record));
+    }
+  }
+  CHECK(record_writer.Close()) << record_writer.status();
+}
+
+class iStreamRecordStream : public RecordStream {
+ public:
+  explicit iStreamRecordStream(const std::string& path) : stream_(path) {}
+  std::istream& Stream() { return stream_; }
+
+ private:
+  std::ifstream stream_;
+};
+
+TEST(RiegeliStreamIO, Riegeli) {
+  constexpr std::string_view kFileName = "file.riegeli";
+  const std::filesystem::path path =
+      std::filesystem::path(::testing::TempDir()) / kFileName;
+  std::ofstream output_stream(path);
+  WriteRiegeliToFile({kTestRecord}, output_stream);
+  output_stream.close();
+
+  ConcurrentStreamRecordReader<std::string_view>::Options options;
+  MockMetricsRecorder metrics_recorder;
+  EXPECT_CALL(metrics_recorder, RecordLatency).Times(testing::AtLeast(1));
+  testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(kIterations)
+      .WillRepeatedly([](std::string_view raw) {
+        EXPECT_EQ(raw, kTestRecord);
+        return absl::OkStatus();
+      });
+  ConcurrentStreamRecordReader<std::string_view> record_reader(
+      metrics_recorder,
+      [&path] { return std::make_unique<iStreamRecordStream>(path); }, options);
+  auto status =
+      record_reader.ReadStreamRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 }  // namespace

@@ -46,6 +46,31 @@ cc_library(
 )
 
 cc_library(
+    name = "avro_stream_io",
+    srcs = ["avro_stream_io.cc"],
+    hdrs = ["avro_stream_io.h"],
+    copts = [
+        "-fexceptions",
+        "-Wno-error",
+        "-Wno-implicit-fallthrough",
+        "-Wno-non-virtual-dtor",
+    ],
+    deps = [
+        ":stream_record_reader",
+        "//public/data_loading:riegeli_metadata_cc_proto",
+        "@avro//:avrocpp",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+    ],
+)
+
+cc_library(
     name = "stream_record_reader_factory",
     hdrs = ["stream_record_reader_factory.h"],
     deps = [
@@ -87,8 +112,30 @@ cc_test(
         "//public/test_util:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",
+        "@com_google_riegeli//riegeli/bytes:ostream_writer",
         "@com_google_riegeli//riegeli/bytes:string_writer",
         "@com_google_riegeli//riegeli/records:record_writer",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_test(
+    name = "avro_stream_io_test",
+    size = "small",
+    srcs = [
+        "avro_stream_io_test.cc",
+    ],
+    copts = [
+        "-fexceptions",
+        "-Wno-error",
+        "-Wno-implicit-fallthrough",
+        "-Wno-non-virtual-dtor",
+    ],
+    deps = [
+        ":avro_stream_io",
+        "//public/test_util:mocks",
+        "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

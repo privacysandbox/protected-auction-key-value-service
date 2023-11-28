@@ -112,7 +112,6 @@ cc_library(
         "@boost//:locale",
         "@boost//:lockfree",
         "@boost//:log",
-        "@boost//:log_dump_ssse3",
         "@boost//:math",
         "@boost//:mem_fn",
         "@boost//:move",

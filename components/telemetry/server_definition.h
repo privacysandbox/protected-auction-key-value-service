@@ -22,6 +22,7 @@
 #include <utility>
 
 #include "src/cpp/metric/context_map.h"
+#include "src/cpp/util/read_system.h"
 
 namespace kv_server {
 
@@ -43,28 +44,32 @@ inline constexpr double kLatencyInMicroSecondsBoundaries[] = {
     5'000,   10'000,    20'000,    40'000,    80'000,    160'000,       320'000,
     640'000, 1'000'000, 1'300'000, 2'600'000, 5'000'000, 10'000'000'000};
 
-// String literals for absl status, the string list and literals match those
-// implemented in the absl::StatusCodeToString method
+// String literals for absl status partition, the string list and literals match
+// those implemented in the absl::StatusCodeToString method
 // https://github.com/abseil/abseil-cpp/blob/1a03fb9dd1c533e42b6d7d1ebea85b448a07e793/absl/status/status.cc#L47
+// Strings in the partition are required to be sorted
 inline constexpr absl::string_view kAbslStatusStrings[] = {
-    "OK",
-    "CANCELLED",
-    "UNKNOWN",
-    "INVALID_ARGUMENT",
-    "DEADLINE_EXCEEDED",
-    "NOT_FOUND",
-    "ALREADY_EXISTS",
-    "PERMISSION_DENIED",
-    "UNAUTHENTICATED",
-    "RESOURCE_EXHAUSTED",
-    "FAILED_PRECONDITION",
+    "",
     "ABORTED",
-    "OUT_OF_RANGE",
-    "UNIMPLEMENTED",
-    "INTERNAL",
-    "UNAVAILABLE",
+    "ALREADY_EXISTS",
+    "CANCELLED",
     "DATA_LOSS",
-    ""};
+    "DEADLINE_EXCEEDED",
+    "FAILED_PRECONDITION",
+    "INTERNAL",
+    "INVALID_ARGUMENT",
+    "NOT_FOUND",
+    "OK",
+    "OUT_OF_RANGE",
+    "PERMISSION_DENIED",
+    "RESOURCE_EXHAUSTED",
+    "UNAUTHENTICATED",
+    "UNAVAILABLE",
+    "UNIMPLEMENTED",
+    "UNKNOWN"};
+
+inline constexpr privacy_sandbox::server_common::metrics::PrivacyBudget
+    privacy_total_budget{/*epsilon*/ 5};
 
 // Metric definitions for request level metrics that are privacy impacting
 // and should be logged unsafe with DP(differential privacy) noises.
@@ -394,6 +399,32 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kAwsChangeNotifierMessagesDataLossFailure,
         &kAwsChangeNotifierMessagesDeletionFailure, &kAwsJsonParseError,
         &kDeltaFileRecordChangeNotifierParsingFailure};
+
+inline constexpr absl::Span<
+    const privacy_sandbox::server_common::metrics::DefinitionName* const>
+    kKVServerMetricSpan = kKVServerMetricList;
+
+inline auto* KVServerContextMap(
+    std::optional<
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig>
+        config = std::nullopt,
+    std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
+    absl::string_view service = "", absl::string_view version = "") {
+  return privacy_sandbox::server_common::metrics::GetContextMap<
+      const std::string, kKVServerMetricSpan>(std::move(config),
+                                              std::move(provider), service,
+                                              version, privacy_total_budget);
+}
+
+template <typename T>
+inline void AddSystemMetric(T* context_map) {
+  context_map->AddObserverable(
+      privacy_sandbox::server_common::metrics::kCpuPercent,
+      privacy_sandbox::server_common::GetCpu);
+  context_map->AddObserverable(
+      privacy_sandbox::server_common::metrics::kMemoryKB,
+      privacy_sandbox::server_common::GetMemory);
+}
 
 }  // namespace kv_server
 

@@ -35,6 +35,7 @@
 #include "components/internal_server/sharded_lookup.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/telemetry/kv_telemetry.h"
+#include "components/telemetry/server_definition.h"
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/hooks/run_query_hook.h"
 #include "components/udf/udf_config_builder.h"
@@ -58,10 +59,12 @@ namespace kv_server {
 namespace {
 
 using privacy_sandbox::server_common::ConfigureMetrics;
+using privacy_sandbox::server_common::ConfigurePrivateMetrics;
 using privacy_sandbox::server_common::ConfigureTracer;
 using privacy_sandbox::server_common::GetTracer;
 using privacy_sandbox::server_common::InitTelemetry;
 using privacy_sandbox::server_common::TelemetryProvider;
+using privacy_sandbox::server_common::telemetry::BuildDependentConfig;
 
 // TODO: Use config cpio client to get this from the environment
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
@@ -142,6 +145,16 @@ absl::optional<std::string> GetMetricsCollectorEndPoint(
   return std::move(metrics_collection_endpoint);
 }
 
+privacy_sandbox::server_common::telemetry::TelemetryConfig
+GetServerTelemetryConfig(const ParameterClient& parameter_client,
+                         const std::string& environment) {
+  // TODO(b/304306398): Read telemetry config from parameter
+  privacy_sandbox::server_common::telemetry::TelemetryConfig config;
+  config.set_mode(
+      privacy_sandbox::server_common::telemetry::TelemetryConfig::EXPERIMENT);
+  return config;
+}
+
 }  // namespace
 
 Server::Server()
@@ -182,6 +195,17 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
       LOG(ERROR) << "Error in connecting metrics collector: " << status;
     }
   }
+  BuildDependentConfig telemetry_config(
+      GetServerTelemetryConfig(parameter_client, environment_));
+  auto* context_map = KVServerContextMap(
+      telemetry_config,
+      ConfigurePrivateMetrics(
+          CreateKVAttributes(instance_id, std::to_string(shard_num_),
+                             environment_),
+          metrics_options, metrics_collector_endpoint));
+  AddSystemMetric(context_map);
+  // TODO(b/300137699): Deprecate ConfigureMetrics once all metrics are migrated
+  // to new telemetry API
   ConfigureMetrics(
       CreateKVAttributes(instance_id, std::to_string(shard_num_), environment_),
       metrics_options, metrics_collector_endpoint);

@@ -37,7 +37,8 @@ class ParameterClient {
   virtual ~ParameterClient() = default;
 
   virtual absl::StatusOr<std::string> GetParameter(
-      std::string_view parameter_name) const = 0;
+      std::string_view parameter_name,
+      std::optional<std::string> default_value = std::nullopt) const = 0;
 
   virtual absl::StatusOr<int32_t> GetInt32Parameter(
       std::string_view parameter_name) const = 0;

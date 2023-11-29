@@ -30,35 +30,30 @@ using opentelemetry::sdk::resource::Resource;
 using privacy_sandbox::server_common::ConfigureMetrics;
 using testing::_;
 
-class MockParameterClient : public ParameterClient {
- public:
-  MOCK_METHOD(absl::StatusOr<std::string>, GetParameter,
-              (std::string_view parameter_name), (const, override));
-  MOCK_METHOD(absl::StatusOr<int32_t>, GetInt32Parameter,
-              (std::string_view parameter_name), (const, override));
-  MOCK_METHOD(absl::StatusOr<bool>, GetBoolParameter,
-              (std::string_view parameter_name), (const, override));
+void RegisterRequiredTelemetryExpectations(MockParameterClient& client) {
+  EXPECT_CALL(client, GetBoolParameter("kv-server-environment-use-external-"
+                                       "metrics-collector-endpoint"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(
+      client,
+      GetInt32Parameter("kv-server-environment-metrics-export-interval-millis"))
+      .WillOnce(::testing::Return(100));
+  EXPECT_CALL(
+      client,
+      GetInt32Parameter("kv-server-environment-metrics-export-timeout-millis"))
+      .WillOnce(::testing::Return(200));
 
-  void RegisterRequiredTelemetryExpectations() {
-    EXPECT_CALL(*this, GetBoolParameter("kv-server-environment-use-external-"
-                                        "metrics-collector-endpoint"))
-        .WillOnce(::testing::Return(false));
-    EXPECT_CALL(*this,
-                GetInt32Parameter(
-                    "kv-server-environment-metrics-export-interval-millis"))
-        .WillOnce(::testing::Return(100));
-    EXPECT_CALL(*this,
-                GetInt32Parameter(
-                    "kv-server-environment-metrics-export-timeout-millis"))
-        .WillOnce(::testing::Return(200));
-
-    EXPECT_CALL(*this, GetParameter("kv-server-environment-launch-hook"))
-        .WillOnce(::testing::Return("mock launch hook"));
-    EXPECT_CALL(*this, GetInt32Parameter(
-                           "kv-server-environment-backup-poll-frequency-secs"))
-        .WillOnce(::testing::Return(123));
-  }
-};
+  EXPECT_CALL(client, GetParameter("kv-server-environment-launch-hook",
+                                   testing::Eq(std::nullopt)))
+      .WillOnce(::testing::Return("mock launch hook"));
+  EXPECT_CALL(client,
+              GetParameter("kv-server-environment-data-loading-file-format",
+                           testing::Optional(std::string("riegeli"))))
+      .WillOnce(::testing::Return("riegeli"));
+  EXPECT_CALL(client, GetInt32Parameter(
+                          "kv-server-environment-backup-poll-frequency-secs"))
+      .WillOnce(::testing::Return(123));
+}
 
 void InitializeMetrics() {
   opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
@@ -88,7 +83,7 @@ TEST(ServerLocalTest, ShutdownWithoutStart) {
 TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
-  parameter_client->RegisterRequiredTelemetryExpectations();
+  RegisterRequiredTelemetryExpectations(*parameter_client);
   auto mock_udf_client = std::make_unique<MockUdfClient>();
 
   EXPECT_CALL(*instance_client, GetEnvironmentTag())
@@ -98,8 +93,8 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   EXPECT_CALL(*instance_client, GetShardNumTag())
       .WillOnce(::testing::Return("1"));
 
-  EXPECT_CALL(*parameter_client,
-              GetParameter("kv-server-environment-directory"))
+  EXPECT_CALL(*parameter_client, GetParameter("kv-server-environment-directory",
+                                              testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return("this is not a directory"));
   EXPECT_CALL(
       *parameter_client,
@@ -125,7 +120,7 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
 TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
-  parameter_client->RegisterRequiredTelemetryExpectations();
+  RegisterRequiredTelemetryExpectations(*parameter_client);
   auto mock_udf_client = std::make_unique<MockUdfClient>();
 
   EXPECT_CALL(*instance_client, GetEnvironmentTag())
@@ -135,14 +130,16 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   EXPECT_CALL(*instance_client, GetShardNumTag())
       .WillOnce(::testing::Return("1"));
 
-  EXPECT_CALL(*parameter_client,
-              GetParameter("kv-server-environment-directory"))
+  EXPECT_CALL(*parameter_client, GetParameter("kv-server-environment-directory",
+                                              testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(*parameter_client,
-              GetParameter("kv-server-environment-data-bucket-id"))
+              GetParameter("kv-server-environment-data-bucket-id",
+                           testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(*parameter_client,
-              GetParameter("kv-server-environment-realtime-directory"))
+              GetParameter("kv-server-environment-realtime-directory",
+                           testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(
       *parameter_client,
@@ -175,7 +172,7 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
 TEST(ServerLocalTest, GracefulServerShutdown) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
-  parameter_client->RegisterRequiredTelemetryExpectations();
+  RegisterRequiredTelemetryExpectations(*parameter_client);
   auto mock_udf_client = std::make_unique<MockUdfClient>();
 
   EXPECT_CALL(*instance_client, GetEnvironmentTag())
@@ -185,14 +182,16 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
   EXPECT_CALL(*instance_client, GetShardNumTag())
       .WillOnce(::testing::Return("1"));
 
-  EXPECT_CALL(*parameter_client,
-              GetParameter("kv-server-environment-directory"))
+  EXPECT_CALL(*parameter_client, GetParameter("kv-server-environment-directory",
+                                              testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(*parameter_client,
-              GetParameter("kv-server-environment-data-bucket-id"))
+              GetParameter("kv-server-environment-data-bucket-id",
+                           testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(*parameter_client,
-              GetParameter("kv-server-environment-realtime-directory"))
+              GetParameter("kv-server-environment-realtime-directory",
+                           testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(
       *parameter_client,
@@ -228,7 +227,7 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
 TEST(ServerLocalTest, ForceServerShutdown) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
-  parameter_client->RegisterRequiredTelemetryExpectations();
+  RegisterRequiredTelemetryExpectations(*parameter_client);
   auto mock_udf_client = std::make_unique<MockUdfClient>();
 
   EXPECT_CALL(*instance_client, GetEnvironmentTag())
@@ -238,14 +237,16 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(*instance_client, GetShardNumTag())
       .WillOnce(::testing::Return("1"));
 
-  EXPECT_CALL(*parameter_client,
-              GetParameter("kv-server-environment-directory"))
+  EXPECT_CALL(*parameter_client, GetParameter("kv-server-environment-directory",
+                                              testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(*parameter_client,
-              GetParameter("kv-server-environment-data-bucket-id"))
+              GetParameter("kv-server-environment-data-bucket-id",
+                           testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(*parameter_client,
-              GetParameter("kv-server-environment-realtime-directory"))
+              GetParameter("kv-server-environment-realtime-directory",
+                           testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
   EXPECT_CALL(
       *parameter_client,

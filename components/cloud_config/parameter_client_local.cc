@@ -22,6 +22,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "components/cloud_config/parameter_client.h"
+#include "public/constants.h"
 
 ABSL_FLAG(std::string, delta_directory, "",
           "Local directory to watch for files.");
@@ -47,6 +48,10 @@ ABSL_FLAG(int32_t, num_shards, 1, "Total number of shards.");
 ABSL_FLAG(int32_t, udf_num_workers, 2, "Number of workers for UDF execution.");
 ABSL_FLAG(bool, route_v1_to_v2, false,
           "Whether to route V1 requests through V2.");
+ABSL_FLAG(std::string, data_loading_file_format,
+          std::string(kv_server::kFileFormats[static_cast<int>(
+              kv_server::FileFormat::kRiegeli)]),
+          "File format of the input data files.");
 
 // TODO(b/299623229): Remove GCP parameters here once the GCP parameter client
 // supports local instance.
@@ -85,6 +90,8 @@ class LocalParameterClient : public ParameterClient {
         {"kv-server-local-launch-hook", absl::GetFlag(FLAGS_launch_hook)});
     string_flag_values_.insert({"kv-server-local-realtime-directory",
                                 absl::GetFlag(FLAGS_realtime_directory)});
+    string_flag_values_.insert({"data-loading-file-format",
+                                absl::GetFlag(FLAGS_data_loading_file_format)});
     // Insert more string flag values here.
 
     int32_t_flag_values_.insert(
@@ -122,7 +129,8 @@ class LocalParameterClient : public ParameterClient {
   }
 
   absl::StatusOr<std::string> GetParameter(
-      std::string_view parameter_name) const override {
+      std::string_view parameter_name,
+      std::optional<std::string> default_value = std::nullopt) const override {
     const auto& it = string_flag_values_.find(parameter_name);
     if (it != string_flag_values_.end()) {
       return it->second;

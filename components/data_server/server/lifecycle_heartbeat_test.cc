@@ -64,7 +64,8 @@ TEST(LifecycleHeartbeat, CantRunTwice) {
       LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client,
                                  metrics_recorder);
   MockParameterFetcher parameter_fetcher;
-  EXPECT_CALL(parameter_fetcher, GetParameter("launch-hook"))
+  EXPECT_CALL(parameter_fetcher,
+              GetParameter("launch-hook", testing::Eq(std::nullopt)))
       .WillOnce(testing::Return("hi"));
   absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
   ASSERT_TRUE(status.ok());
@@ -85,7 +86,8 @@ TEST(LifecycleHeartbeat, RecordsHeartbeat) {
       LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client,
                                  metrics_recorder);
   MockParameterFetcher parameter_fetcher;
-  EXPECT_CALL(parameter_fetcher, GetParameter("launch-hook"))
+  EXPECT_CALL(parameter_fetcher,
+              GetParameter("launch-hook", testing::Eq(std::nullopt)))
       .WillOnce(testing::Return("hi"));
   absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
   ASSERT_TRUE(status.ok());
@@ -109,7 +111,8 @@ TEST(LifecycleHeartbeat, OnlyFinishOnce) {
         LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client,
                                    metrics_recorder);
     MockParameterFetcher parameter_fetcher;
-    EXPECT_CALL(parameter_fetcher, GetParameter("launch-hook"))
+    EXPECT_CALL(parameter_fetcher,
+                GetParameter("launch-hook", testing::Eq(std::nullopt)))
         .WillOnce(testing::Return("hi"));
     absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
     lifecycle_heartbeat->Finish();

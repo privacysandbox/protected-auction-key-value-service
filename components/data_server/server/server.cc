@@ -83,6 +83,8 @@ constexpr absl::string_view kRealtimeUpdaterThreadNumberParameterSuffix =
     "realtime-updater-num-threads";
 constexpr absl::string_view kDataLoadingNumThreadsParameterSuffix =
     "data-loading-num-threads";
+constexpr absl::string_view kDataLoadingFileFormatSuffix =
+    "data-loading-file-format";
 constexpr absl::string_view kNumShardsParameterSuffix = "num-shards";
 constexpr absl::string_view kUdfNumWorkersParameterSuffix = "udf-num-workers";
 constexpr absl::string_view kRouteV1ToV2Suffix = "route-v1-to-v2";
@@ -478,12 +480,10 @@ Server::CreateStreamRecordReaderFactory(
     const ParameterFetcher& parameter_fetcher) {
   const int32_t data_loading_num_threads = parameter_fetcher.GetInt32Parameter(
       kDataLoadingNumThreadsParameterSuffix);
-  LOG(INFO) << "Retrieved " << kDataLoadingNumThreadsParameterSuffix
-            << " parameter: " << data_loading_num_threads;
+  const std::string file_format = parameter_fetcher.GetParameter(
+      kDataLoadingFileFormatSuffix,
+      std::string(kFileFormats[static_cast<int>(FileFormat::kRiegeli)]));
 
-  // TODO(b/313468899): Get the file format from parameter store
-  std::string_view file_format =
-      kFileFormats[static_cast<int>(FileFormat::kRiegeli)];
   if (file_format == kFileFormats[static_cast<int>(FileFormat::kAvro)]) {
     AvroConcurrentStreamRecordReader::Options options;
     options.num_worker_threads = data_loading_num_threads;

@@ -68,7 +68,8 @@ TEST(ClusterMappingsGcpTest, RetrieveMappingsSuccessfully) {
         return instances;
       });
   MockParameterFetcher parameter_fetcher;
-  EXPECT_CALL(parameter_fetcher, GetParameter("project-id"))
+  EXPECT_CALL(parameter_fetcher,
+              GetParameter("project-id", testing::Eq(std::nullopt)))
       .WillOnce(testing::Return(project_id));
   auto mgr = ClusterMappingsManager::Create(
       environment, num_shards, mock_metrics_recorder, *instance_client,
@@ -105,7 +106,8 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
         return instances;
       });
   MockParameterFetcher parameter_fetcher;
-  EXPECT_CALL(parameter_fetcher, GetParameter("project-id"))
+  EXPECT_CALL(parameter_fetcher,
+              GetParameter("project-id", testing::Eq(std::nullopt)))
       .WillOnce(testing::Return(project_id));
   auto mgr = ClusterMappingsManager::Create(
       environment, num_shards, mock_metrics_recorder, *instance_client,
@@ -163,7 +165,8 @@ TEST(ClusterMappingsAwsTest, UpdateMappings) {
         return instances;
       });
   MockParameterFetcher parameter_fetcher;
-  EXPECT_CALL(parameter_fetcher, GetParameter("project-id"))
+  EXPECT_CALL(parameter_fetcher,
+              GetParameter("project-id", testing::Eq(std::nullopt)))
       .WillOnce(testing::Return(project_id));
   auto mgr = ClusterMappingsManager::Create(
       environment, num_shards, mock_metrics_recorder, *instance_client,

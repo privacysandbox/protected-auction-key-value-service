@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -41,7 +42,9 @@ class ParameterFetcher {
   virtual ~ParameterFetcher() = default;
 
   // This function will retry any necessary requests until it succeeds.
-  virtual std::string GetParameter(std::string_view parameter_suffix) const;
+  virtual std::string GetParameter(
+      std::string_view parameter_suffix,
+      std::optional<std::string> default_value = std::nullopt) const;
 
   // This function will retry any necessary requests until it succeeds.
   virtual int32_t GetInt32Parameter(std::string_view parameter_suffix) const;

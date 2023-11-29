@@ -14,6 +14,10 @@
 
 #include "public/data_loading/readers/avro_stream_io.h"
 
+#include "third_party/avro/api/DataFile.hh"
+#include "third_party/avro/api/Schema.hh"
+#include "third_party/avro/api/Stream.hh"
+
 namespace kv_server {
 constexpr std::string_view kAvroReadByteRangeRecordsLatencyEvent =
     "AvroConcurrentStreamRecordReader::ReadByteRange";
@@ -95,8 +99,9 @@ absl::Status AvroConcurrentStreamRecordReader::ReadStreamRecords(
     // std::async is generally not preferred, but works fine as an
     // initial implementation.
     byte_range_reader_tasks.push_back(std::async(
-        std::launch::async, &AvroConcurrentStreamRecordReader::ReadByteRange,
-        this, std::ref(byte_range), std::ref(callback)));
+        std::launch::async,
+        &AvroConcurrentStreamRecordReader::ReadByteRangeExceptionless, this,
+        std::ref(byte_range), std::ref(callback)));
   }
   int64_t total_records_read = 0;
   for (auto& task : byte_range_reader_tasks) {
@@ -113,6 +118,18 @@ absl::Status AvroConcurrentStreamRecordReader::ReadStreamRecords(
           << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
           << " ms.";
   return absl::OkStatus();
+}
+
+absl::StatusOr<typename AvroConcurrentStreamRecordReader::ByteRangeResult>
+AvroConcurrentStreamRecordReader::ReadByteRangeExceptionless(
+    const ByteRange& byte_range,
+    const std::function<absl::Status(const std::string_view&)>&
+        record_callback) noexcept {
+  try {
+    return ReadByteRange(byte_range, record_callback);
+  } catch (const std::exception& e) {
+    return absl::InternalError(e.what());
+  }
 }
 
 absl::StatusOr<typename AvroConcurrentStreamRecordReader::ByteRangeResult>

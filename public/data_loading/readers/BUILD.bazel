@@ -91,6 +91,16 @@ cc_library(
 )
 
 cc_library(
+    name = "avro_stream_record_reader_factory",
+    srcs = ["avro_stream_record_reader_factory.cc"],
+    hdrs = ["avro_stream_record_reader_factory.h"],
+    deps = [
+        ":avro_stream_io",
+        ":stream_record_reader_factory",
+    ],
+)
+
+cc_library(
     name = "stream_record_reader",
     hdrs = ["stream_record_reader.h"],
     deps = [

@@ -95,6 +95,10 @@ constexpr std::string_view kServiceName = "kv-server";
 //            indicates a more recent logical sharding config.
 const std::regex& LogicalShardingConfigFileFormatRegex();
 
+// Store one of these as parameter to instruct the server to load data files in
+// the corresponding format. If none is specified, Riegeli is the default.
+constexpr std::array<std::string_view, 2> kFileFormats{"avro", "riegeli"};
+
 }  // namespace kv_server
 
 #endif  // PUBLIC_CONSTANTS_H_

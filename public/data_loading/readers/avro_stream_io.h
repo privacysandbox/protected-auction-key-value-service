@@ -35,9 +35,6 @@
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
-#include "third_party/avro/api/DataFile.hh"
-#include "third_party/avro/api/Schema.hh"
-#include "third_party/avro/api/Stream.hh"
 
 namespace kv_server {
 
@@ -111,6 +108,10 @@ class AvroConcurrentStreamRecordReader : public StreamRecordReader {
       const ByteRange& shard,
       const std::function<absl::Status(const std::string_view&)>&
           record_callback);
+  absl::StatusOr<ByteRangeResult> ReadByteRangeExceptionless(
+      const ByteRange& shard,
+      const std::function<absl::Status(const std::string_view&)>&
+          record_callback) noexcept;
   absl::StatusOr<std::vector<ByteRange>> BuildByteRanges();
   absl::StatusOr<int64_t> RecordStreamSize();
 

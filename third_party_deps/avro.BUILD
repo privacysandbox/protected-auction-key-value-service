@@ -19,7 +19,6 @@ cc_library(
     name = "avrocpp",
     srcs = glob(
         [
-            "third_party/avro/api/**/*.hh",
             "third_party/avro/impl/**/*.hh",
             "third_party/avro/impl/**/*.cc",
         ],
@@ -27,11 +26,15 @@ cc_library(
             "third_party/avro/impl/avrogencpp.cc",
         ],
     ),
+    hdrs = glob(
+        [
+            "third_party/avro/api/**/*.hh",
+        ],
+    ),
     copts = copts,
     includes = [
         "third_party/avro/api",
     ],
-    linkopts = [],
     visibility = ["//visibility:public"],
     deps = [
         "@boost//:accumulators",

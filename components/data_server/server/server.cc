@@ -44,6 +44,7 @@
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
 #include "grpcpp/health_check_service_interface.h"
 #include "public/constants.h"
+#include "public/data_loading/readers/avro_stream_record_reader_factory.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/readers/stream_record_reader_factory.h"
 #include "public/udf/constants.h"
@@ -479,10 +480,20 @@ Server::CreateStreamRecordReaderFactory(
       kDataLoadingNumThreadsParameterSuffix);
   LOG(INFO) << "Retrieved " << kDataLoadingNumThreadsParameterSuffix
             << " parameter: " << data_loading_num_threads;
-  ConcurrentStreamRecordReader<std::string_view>::Options options;
-  options.num_worker_threads = data_loading_num_threads;
-  return std::make_unique<RiegeliStreamRecordReaderFactory>(*metrics_recorder_,
-                                                            options);
+
+  // TODO(b/313468899): Get the file format from parameter store
+  std::string_view file_format = kFileFormats[1];
+  if (file_format == kFileFormats[0]) {
+    AvroConcurrentStreamRecordReader::Options options;
+    options.num_worker_threads = data_loading_num_threads;
+    return std::make_unique<AvroStreamRecordReaderFactory>(*metrics_recorder_,
+                                                           options);
+  } else if (file_format == kFileFormats[1]) {
+    ConcurrentStreamRecordReader<std::string_view>::Options options;
+    options.num_worker_threads = data_loading_num_threads;
+    return std::make_unique<RiegeliStreamRecordReaderFactory>(
+        *metrics_recorder_, options);
+  }
 }
 
 std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(

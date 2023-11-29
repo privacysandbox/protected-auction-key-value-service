@@ -162,6 +162,7 @@ cc_library(
         "//components/util:version_linkstamp",
         "//public:base_types_cc_proto",
         "//public:constants",
+        "//public/data_loading/readers:avro_stream_record_reader_factory",
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "//public/data_loading/readers:stream_record_reader_factory",
         "//public/query:get_values_cc_grpc",

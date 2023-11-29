@@ -150,3 +150,10 @@ resource "aws_ssm_parameter" "secondary_coordinator_account_identity_parameter" 
   value     = var.secondary_coordinator_account_identity_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "data_loading_file_format_parameter" {
+  name      = "${var.service}-${var.environment}-data-loading-file-format"
+  type      = "String"
+  value     = var.data_loading_file_format_parameter_value
+  overwrite = true
+}

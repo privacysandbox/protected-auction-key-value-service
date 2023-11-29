@@ -93,3 +93,7 @@ output "primary_coordinator_account_identity_parameter_arn" {
 output "secondary_coordinator_account_identity_parameter_arn" {
   value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.secondary_coordinator_account_identity_parameter[0].arn : ""
 }
+
+output "data_loading_file_format_parameter_arn" {
+  value = aws_ssm_parameter.data_loading_file_format_parameter.arn
+}

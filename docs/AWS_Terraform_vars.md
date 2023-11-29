@@ -24,6 +24,11 @@
     If you want to import an existing public certificate into ACM, follow these steps to
     [import the certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html).
 
+-   **data_loading_file_format**
+
+    Data file format for blob storage and realtime updates. See /public/constants.h for possible
+    values.
+
 -   **data_loading_num_threads**
 
     the number of concurrent threads used to read and load a single delta or snapshot file from blob

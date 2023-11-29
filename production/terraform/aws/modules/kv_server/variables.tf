@@ -217,3 +217,8 @@ variable "secondary_coordinator_account_identity" {
   description = "Account identity for the secondary coordinator."
   type        = string
 }
+
+variable "data_loading_file_format" {
+  description = "Data file format for blob storage and realtime updates. See /public/constants.h for possible values."
+  type        = string
+}

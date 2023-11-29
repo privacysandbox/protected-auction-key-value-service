@@ -113,3 +113,8 @@ variable "use_external_metrics_collector_endpoint" {
   description = "Whether to connect external metrics collector endpoint"
   type        = bool
 }
+
+variable "data_loading_file_format_parameter_value" {
+  description = "Data file format for blob storage and realtime updates. See /public/constants.h for possible values."
+  type        = string
+}

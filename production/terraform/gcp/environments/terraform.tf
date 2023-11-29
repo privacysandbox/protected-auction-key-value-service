@@ -13,6 +13,8 @@
 # limitations under the License.
 
 terraform {
+  backend "gcs" {}
+
   required_version = ">= 1.2.3"
 
   required_providers {

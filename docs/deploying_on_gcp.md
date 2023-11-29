@@ -68,6 +68,13 @@ storage.googleapis.com
 trafficdirector.googleapis.com
 ```
 
+# Set up GCS bucket for Terraform states
+
+Terraform state data can be stored into Google Cloud Storage (GCS) bucket, and the bucket must be
+manually created first. Follow this
+[official link](https://cloud.google.com/storage/docs/creating-buckets#storage-create-bucket-console)
+to create a GCS bucket.
+
 # Build the Key/Value server artifacts
 
 OS: The current build process can run on Debian. Other OS may not be well supported at this moment.
@@ -132,6 +139,12 @@ deploy to, and update the `[[REGION]].tfvars.json` with Terraform variables for 
 The description of each variable is described in
 [GCP Terraform Vars doc](/docs/GCP_Terraform_vars.md).
 
+Update the `[[REGION]].backend.conf`:
+
+-   `bucket` - Set the bucket name that Terraform will use. The bucket was created in the previous
+    [Set up GCS bucket for Terraform states](#set-up-gcs-bucket-for-terraform-states) step.
+-   `prefix` - Set a path/to/directory to contain the Terraform state.
+
 ## Apply Terraform
 
 From the Key/Value server repo folder, run:
@@ -145,7 +158,7 @@ where `[[YOUR_ENVIRONMENT_NAME]]` should be the folder name you just created. Th
 Terraform configuration:
 
 ```sh
-builders/tools/terraform -chdir=production/terraform/gcp/environments init --var-file=${ENVIRONMENT}/${REGION}.tfvars.json --reconfigure
+builders/tools/terraform -chdir=production/terraform/gcp/environments init --backend-config=${ENVIRONMENT}/${REGION}.backend.conf --var-file=${ENVIRONMENT}/${REGION}.tfvars.json --reconfigure
 ```
 
 Generate/update GCP resources:

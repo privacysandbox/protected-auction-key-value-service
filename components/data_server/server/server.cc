@@ -482,13 +482,15 @@ Server::CreateStreamRecordReaderFactory(
             << " parameter: " << data_loading_num_threads;
 
   // TODO(b/313468899): Get the file format from parameter store
-  std::string_view file_format = kFileFormats[1];
-  if (file_format == kFileFormats[0]) {
+  std::string_view file_format =
+      kFileFormats[static_cast<int>(FileFormat::kRiegeli)];
+  if (file_format == kFileFormats[static_cast<int>(FileFormat::kAvro)]) {
     AvroConcurrentStreamRecordReader::Options options;
     options.num_worker_threads = data_loading_num_threads;
     return std::make_unique<AvroStreamRecordReaderFactory>(*metrics_recorder_,
                                                            options);
-  } else if (file_format == kFileFormats[1]) {
+  } else if (file_format ==
+             kFileFormats[static_cast<int>(FileFormat::kRiegeli)]) {
     ConcurrentStreamRecordReader<std::string_view>::Options options;
     options.num_worker_threads = data_loading_num_threads;
     return std::make_unique<RiegeliStreamRecordReaderFactory>(

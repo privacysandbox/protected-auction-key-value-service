@@ -97,6 +97,7 @@ const std::regex& LogicalShardingConfigFileFormatRegex();
 
 // Store one of these as parameter to instruct the server to load data files in
 // the corresponding format. If none is specified, Riegeli is the default.
+enum class FileFormat { kAvro, kRiegeli };
 constexpr std::array<std::string_view, 2> kFileFormats{"avro", "riegeli"};
 
 }  // namespace kv_server

@@ -118,6 +118,79 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                     }
                 }
             }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 18,
+            "width": 9,
+            "height": 9,
+            "properties": {
+                "metrics": [
+                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} main process utilization', 'Average', 60)", "id": "e1", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ],
+                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total utilization', 'Average', 60)", "id": "e2", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "us-east-1",
+                "stat": "Average",
+                "period": 60,
+                "title": "CPU Utilization",
+                "yAxis": {
+                    "left": {
+                        "showUnits": false,
+                        "min": 0
+                    }
+                }
+            }
+        },
+        {
+            "type": "metric",
+            "x": 9,
+            "y": 18,
+            "width": 9,
+            "height": 9,
+            "properties": {
+                "metrics": [
+                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total load', 'Average', 60)", "id": "e1", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "us-east-1",
+                "stat": "Average",
+                "period": 60,
+                "title": "CPU total load",
+                "yAxis": {
+                    "left": {
+                        "showUnits": false,
+                        "min": 0
+                    }
+                }
+            }
+        },
+        {
+            "type": "metric",
+            "x": 0,
+            "y": 27,
+            "width": 9,
+            "height": 9,
+            "properties": {
+                "metrics": [
+                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} system.memory.usage main process', 'Average', 60)", "id": "e1", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "us-east-1",
+                "stat": "Average",
+                "period": 60,
+                "title": "Memory Utilization(kb)",
+                "yAxis": {
+                    "left": {
+                        "showUnits": false,
+                        "min": 0
+                    }
+                }
+            }
         }
     ]
 }

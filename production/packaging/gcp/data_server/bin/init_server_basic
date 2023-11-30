@@ -1,0 +1,31 @@
+#!/busybox/sh
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -o errexit
+set -x
+export GLOG_logtostderr=1
+export GLOG_stderrthreshold=0
+export GRPC_DNS_RESOLVER=native
+
+# These affect PCR0, so changing these would result in the loss of access to
+# private keys for decryption
+readonly PUBLIC_KEY_ENDPOINT="https://publickeyservice-test1.bas-kms.xyz/v1alpha/publicKeys"
+readonly PRIMARY_COORDINATOR_PRIVATE_KEY_ENDPOINT="https://privatekeyservice-test1.bas-kms.xyz/v1alpha/encryptionKeys"
+readonly SECONDARY_COORDINATOR_PRIVATE_KEY_ENDPOINT="https://privatekeyservice-test2.bas-kms.xyz/v1alpha/encryptionKeys"
+readonly PRIMARY_COORDINATOR_REGION="us-central1"
+readonly SECONDARY_COORDINATOR_REGION="us-central1"
+
+# Start the server first.
+/server --public_key_endpoint=${PUBLIC_KEY_ENDPOINT} --primary_coordinator_private_key_endpoint=${PRIMARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --secondary_coordinator_private_key_endpoint=${SECONDARY_COORDINATOR_PRIVATE_KEY_ENDPOINT} --primary_coordinator_region=${PRIMARY_COORDINATOR_REGION} --secondary_coordinator_region=${SECONDARY_COORDINATOR_REGION}

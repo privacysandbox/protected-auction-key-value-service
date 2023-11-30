@@ -28,6 +28,7 @@ load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
 pkg_files(
     name = "server_executables",
     srcs = [
+        "bin/init_server_basic",
         "//components/data_server/server",
     ],
     attributes = pkg_attributes(mode = "0555"),
@@ -69,21 +70,7 @@ container_image(
         "@platforms//cpu:arm64": "@runtime-debian-debug-root-arm64//image",
         "@platforms//cpu:x86_64": "@runtime-debian-debug-root-amd64//image",
     }),
-    entrypoint = [
-        "/server",
-        # These affect PCR0, so changing these would result in the loss of
-        # access to private keys for decryption.
-        "--public_key_endpoint='https://publickeyservice-test1.bas-kms.xyz/v1alpha/publicKeys'",
-        "--primary_coordinator_private_key_endpoint='https://privatekeyservice-test1.bas-kms.xyz/v1alpha/encryptionKeys'",
-        "--secondary_coordinator_private_key_endpoint='https://privatekeyservice-test2.bas-kms.xyz/v1alpha/encryptionKeys'",
-        "--primary_coordinator_region='us-central1'",
-        "--secondary_coordinator_region='us-central1'",
-    ],
-    env = {
-        "GLOG_logtostderr": "1",
-        "GLOG_stderrthreshold": "0",
-        "GRPC_DNS_RESOLVER": "native",
-    },
+    entrypoint = ["/init_server_basic"],
     labels = {"tee.launch_policy.log_redirect": "always"},
     layers = [
         ":server_binary_layer",

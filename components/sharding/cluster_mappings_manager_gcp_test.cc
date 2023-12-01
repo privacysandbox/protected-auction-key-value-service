@@ -28,7 +28,20 @@
 
 namespace kv_server {
 namespace {
-TEST(ClusterMappingsGcpTest, RetrieveMappingsSuccessfully) {
+
+class ClusterMappingsGcpTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
+};
+
+TEST_F(ClusterMappingsGcpTest, RetrieveMappingsSuccessfully) {
   std::string environment = "testenv";
   std::string project_id = "some-project-id";
   int32_t num_shards = 4;
@@ -85,7 +98,7 @@ TEST(ClusterMappingsGcpTest, RetrieveMappingsSuccessfully) {
   EXPECT_THAT(cluster_mappings[3], testing::UnorderedElementsAreArray(set2));
 }
 
-TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
+TEST_F(ClusterMappingsGcpTest, RetrieveMappingsWithRetrySuccessfully) {
   std::string environment = "testenv";
   std::string project_id = "some-project-id";
   int32_t num_shards = 2;
@@ -120,7 +133,7 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
   EXPECT_THAT(cluster_mappings[1], testing::UnorderedElementsAreArray(set1));
 }
 
-TEST(ClusterMappingsAwsTest, UpdateMappings) {
+TEST_F(ClusterMappingsGcpTest, UpdateMappings) {
   std::string environment = "testenv";
   std::string project_id = "some-project-id";
   int32_t num_shards = 2;

@@ -355,7 +355,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
                 metrics_recorder_,
                 {.bucket = options_.data_bucket, .key = basename}, options_);
           },
-          "LoadNewFile", &metrics_recorder_);
+          "LoadNewFile", LogStatusSafeMetricsFn<kLoadNewFilesStatus>());
     }
   }
 

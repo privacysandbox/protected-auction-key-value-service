@@ -28,8 +28,6 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
-
 using ::testing::Return;
 
 TEST(RetryTest, RetryUntilOk) {
@@ -42,14 +40,12 @@ TEST(RetryTest, RetryUntilOk) {
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(2)))
       .Times(1)
       .WillOnce(Return(true));
-  MockMetricsRecorder metrics_recorder;
-  EXPECT_CALL(metrics_recorder,
-              IncrementEventStatus("TestFunc",
-                                   absl::InvalidArgumentError("whatever"), 1));
-  EXPECT_CALL(metrics_recorder,
-              IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
+  absl::AnyInvocable<void(const absl::Status&, int) const>
+      status_count_metric_callback = [](const absl::Status&, int) {
+        // no-op
+      };
   absl::StatusOr<int> v = RetryUntilOk(func.AsStdFunction(), "TestFunc",
-                                       &metrics_recorder, sleep_for);
+                                       status_count_metric_callback, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
@@ -64,13 +60,12 @@ TEST(RetryTest, RetryUnilOkStatusOnly) {
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(2)))
       .Times(1)
       .WillOnce(Return(true));
-  MockMetricsRecorder metrics_recorder;
-  EXPECT_CALL(metrics_recorder,
-              IncrementEventStatus("TestFunc",
-                                   absl::InvalidArgumentError("whatever"), 1));
-  EXPECT_CALL(metrics_recorder,
-              IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
-  RetryUntilOk(func.AsStdFunction(), "TestFunc", &metrics_recorder, sleep_for);
+  absl::AnyInvocable<void(const absl::Status&, int) const>
+      status_count_metric_callback = [](const absl::Status&, int) {
+        // no-op
+      };
+  RetryUntilOk(func.AsStdFunction(), "TestFunc", status_count_metric_callback,
+               sleep_for);
 }
 
 TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
@@ -86,13 +81,12 @@ TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(4)))
       .Times(1)
       .WillOnce(Return(true));
-  MockMetricsRecorder metrics_recorder;
-  EXPECT_CALL(metrics_recorder,
-              IncrementEventStatus("TestFunc",
-                                   absl::InvalidArgumentError("whatever"), 1))
-      .Times(2);
+  absl::AnyInvocable<void(const absl::Status&, int) const>
+      status_count_metric_callback = [](const absl::Status&, int) {
+        // no-op
+      };
   absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2,
-                                       &metrics_recorder, sleep_for);
+                                       status_count_metric_callback, sleep_for);
   EXPECT_FALSE(v.ok());
   EXPECT_EQ(v.status(), absl::InvalidArgumentError("whatever"));
 }
@@ -108,14 +102,12 @@ TEST(RetryTest, RetryWithMaxSucceedsOnMax) {
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(2)))
       .Times(1)
       .WillOnce(Return(true));
-  MockMetricsRecorder metrics_recorder;
-  EXPECT_CALL(metrics_recorder,
-              IncrementEventStatus("TestFunc",
-                                   absl::InvalidArgumentError("whatever"), 1));
-  EXPECT_CALL(metrics_recorder,
-              IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
+  absl::AnyInvocable<void(const absl::Status&, int) const>
+      status_count_metric_callback = [](const absl::Status&, int) {
+        // no-op
+      };
   absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2,
-                                       &metrics_recorder, sleep_for);
+                                       status_count_metric_callback, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
@@ -130,14 +122,12 @@ TEST(RetryTest, RetryWithMaxSucceedsEarly) {
   EXPECT_CALL(sleep_for, Duration(absl::Seconds(2)))
       .Times(1)
       .WillOnce(Return(true));
-  MockMetricsRecorder metrics_recorder;
-  EXPECT_CALL(metrics_recorder,
-              IncrementEventStatus("TestFunc",
-                                   absl::InvalidArgumentError("whatever"), 1));
-  EXPECT_CALL(metrics_recorder,
-              IncrementEventStatus("TestFunc", absl::OkStatus(), 1));
+  absl::AnyInvocable<void(const absl::Status&, int) const>
+      status_count_metric_callback = [](const absl::Status&, int) {
+        // no-op
+      };
   absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 300,
-                                       &metrics_recorder, sleep_for);
+                                       status_count_metric_callback, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }

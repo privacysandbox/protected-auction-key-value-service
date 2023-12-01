@@ -46,7 +46,8 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
           return instance_client.DescribeInstanceGroupInstances(
               describe_instance_group_input);
         },
-        "DescribeInstanceGroupInstances", &metrics_recorder_);
+        "DescribeInstanceGroupInstances",
+        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>());
 
     return GroupInstancesToClusterMappings(instance_group_instances);
   }
@@ -81,7 +82,8 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
         [&instance_client, &instance_ids] {
           return instance_client.DescribeInstances(instance_ids);
         },
-        "DescribeInstances", &metrics_recorder_);
+        "DescribeInstances",
+        LogStatusSafeMetricsFn<kDescribeInstancesStatus>());
 
     absl::flat_hash_map<std::string, std::string> mapping;
     for (const auto& instance : instances_detailed_info) {

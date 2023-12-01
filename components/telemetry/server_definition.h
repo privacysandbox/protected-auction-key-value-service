@@ -253,6 +253,60 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 // Metric definitions for safe metrics that are not privacy impacting
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kGetParameterStatus("GetParameterStatus", "Get parameter status", "status",
+                        kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kCompleteLifecycleStatus("CompleteLifecycleStatus",
+                             "Server complete life cycle status", "status",
+                             kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kCreateDataOrchestratorStatus("CreateDataOrchestratorStatus",
+                                  "Data orchestrator creation status", "status",
+                                  kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kStartDataOrchestratorStatus("StartDataOrchestratorStatus",
+                                 "Data orchestrator start status count",
+                                 "status", kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kLoadNewFilesStatus("LoadNewFilesStatus", "Load new file status", "status",
+                        kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kGetShardManagerStatus("GetShardManagerStatus", "Get shard manager status",
+                           "status", kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kDescribeInstanceGroupInstancesStatus(
+        "DescribeInstanceGroupInstancesStatus",
+        "Describe instance group instances status", "status",
+        kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kDescribeInstancesStatus("DescribeInstancesStatus",
+                             "Describe instances status", "status",
+                             kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
     kRealtimeGetNotificationsFailure(
         "RealtimeGetNotificationsFailure",
@@ -388,6 +442,10 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kGetKeyValueSetLatencyInMicros,
         // Safe metrics
         &privacy_sandbox::server_common::metrics::kServerTotalTimeMs,
+        &kGetParameterStatus, &kCompleteLifecycleStatus,
+        &kCreateDataOrchestratorStatus, &kStartDataOrchestratorStatus,
+        &kLoadNewFilesStatus, &kGetShardManagerStatus,
+        &kDescribeInstanceGroupInstancesStatus, &kDescribeInstancesStatus,
         &kRealtimeGetNotificationsFailure, &kRealtimeSleepFailure,
         &kRealtimeTotalRowsUpdated,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
@@ -424,6 +482,30 @@ inline void AddSystemMetric(T* context_map) {
   context_map->AddObserverable(
       privacy_sandbox::server_common::metrics::kMemoryKB,
       privacy_sandbox::server_common::GetMemory);
+}
+
+inline void LogIfError(const absl::Status& s,
+                       absl::string_view message = "when logging metric",
+                       privacy_sandbox::server_common::SourceLocation location
+                           PS_LOC_CURRENT_DEFAULT_ARG) {
+  if (s.ok()) return;
+  ABSL_LOG_EVERY_N_SEC(WARNING, 60)
+          .AtLocation(location.file_name(), location.line())
+      << message << ": " << s;
+}
+
+template <const auto& definition>
+inline absl::AnyInvocable<void(const absl::Status&, int) const>
+LogStatusSafeMetricsFn() {
+  return [](const absl::Status& status, int count) {
+    LogIfError(KVServerContextMap()->SafeMetric().LogUpDownCounter<definition>(
+        {{absl::StatusCodeToString(status.code()), count}}));
+  };
+}
+
+inline absl::AnyInvocable<void(const absl::Status&, int) const>
+LogMetricsNoOpCallback() {
+  return [](const absl::Status& status, int count) {};
 }
 
 }  // namespace kv_server

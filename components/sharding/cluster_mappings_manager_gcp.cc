@@ -42,7 +42,8 @@ class GcpClusterMappingsManager : public ClusterMappingsManager {
           return instance_client.DescribeInstanceGroupInstances(
               describe_instance_group_input);
         },
-        "DescribeInstanceGroupInstances", &metrics_recorder_);
+        "DescribeInstanceGroupInstances",
+        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>());
 
     return GroupInstancesToClusterMappings(instance_group_instances);
   }

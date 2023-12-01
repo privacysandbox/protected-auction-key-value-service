@@ -28,7 +28,6 @@
 #include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
-using privacy_sandbox::server_common::MockMetricsRecorder;
 
 class MockInstanceClient : public InstanceClient {
  public:
@@ -60,8 +59,7 @@ class MockParameterClient : public ParameterClient {
 
 class MockParameterFetcher : public ParameterFetcher {
  public:
-  MockParameterFetcher()
-      : ParameterFetcher("environment", client_, &metrics_recorder_) {}
+  MockParameterFetcher() : ParameterFetcher("environment", client_) {}
   MOCK_METHOD(std::string, GetParameter,
               (std::string_view parameter_suffix,
                std::optional<std::string> default_value),
@@ -73,7 +71,6 @@ class MockParameterFetcher : public ParameterFetcher {
 
  private:
   MockParameterClient client_;
-  MockMetricsRecorder metrics_recorder_;
 };
 
 }  // namespace kv_server

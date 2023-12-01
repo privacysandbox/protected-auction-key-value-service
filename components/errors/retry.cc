@@ -37,13 +37,14 @@ absl::Duration ExponentialBackoffForRetry(uint32_t retries) {
 
 void TraceRetryUntilOk(std::function<absl::Status()> func,
                        std::string task_name,
-                       MetricsRecorder* metrics_recorder) {
+                       const absl::AnyInvocable<void(const absl::Status&, int)
+                                                    const>& metrics_callback) {
   auto span = GetTracer()->StartSpan("RetryUntilOk - " + task_name);
   auto scope = opentelemetry::trace::Scope(span);
   auto wrapped = [func = std::move(func), task_name]() {
     return TraceWithStatus(std::move(func), task_name);
   };
-  RetryUntilOk(std::move(wrapped), std::move(task_name), metrics_recorder);
+  RetryUntilOk(std::move(wrapped), std::move(task_name), metrics_callback);
 }
 
 }  // namespace kv_server

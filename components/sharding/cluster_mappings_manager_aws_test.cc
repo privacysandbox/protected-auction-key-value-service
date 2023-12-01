@@ -29,7 +29,19 @@
 namespace kv_server {
 namespace {
 
-TEST(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
+class ClusterMappingsAwsTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
+};
+
+TEST_F(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
   std::string environment = "testenv";
   int32_t num_shards = 4;
   privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
@@ -108,7 +120,7 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
   EXPECT_THAT(cluster_mappings[3], testing::UnorderedElementsAreArray(set2));
 }
 
-TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
+TEST_F(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
   std::string environment = "testenv";
   int32_t num_shards = 2;
   privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
@@ -160,7 +172,7 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
   EXPECT_THAT(cluster_mappings[1], testing::UnorderedElementsAreArray(set1));
 }
 
-TEST(ClusterMappingsAwsTest, UpdateMappings) {
+TEST_F(ClusterMappingsAwsTest, UpdateMappings) {
   std::string environment = "testenv";
   int32_t num_shards = 2;
   privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;

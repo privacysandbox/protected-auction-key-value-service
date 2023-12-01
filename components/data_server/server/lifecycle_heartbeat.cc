@@ -32,11 +32,8 @@ constexpr absl::Duration kLifecycleHeartbeatFrequency = absl::Seconds(30);
 class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
  public:
   explicit LifecycleHeartbeatImpl(std::unique_ptr<PeriodicClosure> heartbeat,
-                                  InstanceClient& instance_client,
-                                  MetricsRecorder& metrics_recorder)
-      : heartbeat_(std::move(heartbeat)),
-        instance_client_(instance_client),
-        metrics_recorder_(metrics_recorder) {}
+                                  InstanceClient& instance_client)
+      : heartbeat_(std::move(heartbeat)), instance_client_(instance_client) {}
 
   ~LifecycleHeartbeatImpl() {
     if (is_running_) {
@@ -77,14 +74,14 @@ class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
         [this] {
           return instance_client_.CompleteLifecycle(launch_hook_name_);
         },
-        "CompleteLifecycle", &metrics_recorder_);
+        "CompleteLifecycle",
+        LogStatusSafeMetricsFn<kCompleteLifecycleStatus>());
     LOG(INFO) << "Completed lifecycle hook " << launch_hook_name_;
   }
 
  private:
   std::unique_ptr<PeriodicClosure> heartbeat_;
   InstanceClient& instance_client_;
-  MetricsRecorder& metrics_recorder_;
   std::string launch_hook_name_;
   bool is_running_ = false;
 };
@@ -92,15 +89,15 @@ class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
 }  // namespace
 
 std::unique_ptr<LifecycleHeartbeat> LifecycleHeartbeat::Create(
-    std::unique_ptr<PeriodicClosure> heartbeat, InstanceClient& instance_client,
-    MetricsRecorder& metrics_recorder) {
-  return std::make_unique<LifecycleHeartbeatImpl>(
-      std::move(heartbeat), instance_client, metrics_recorder);
+    std::unique_ptr<PeriodicClosure> heartbeat,
+    InstanceClient& instance_client) {
+  return std::make_unique<LifecycleHeartbeatImpl>(std::move(heartbeat),
+                                                  instance_client);
 }
 
 std::unique_ptr<LifecycleHeartbeat> LifecycleHeartbeat::Create(
-    InstanceClient& instance_client, MetricsRecorder& metrics_recorder) {
-  return std::make_unique<LifecycleHeartbeatImpl>(
-      PeriodicClosure::Create(), instance_client, metrics_recorder);
+    InstanceClient& instance_client) {
+  return std::make_unique<LifecycleHeartbeatImpl>(PeriodicClosure::Create(),
+                                                  instance_client);
 }
 }  // namespace kv_server

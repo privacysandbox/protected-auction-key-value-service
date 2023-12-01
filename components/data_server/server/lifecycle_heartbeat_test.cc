@@ -25,8 +25,6 @@
 
 namespace kv_server {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
-
 class FakePeriodicClosure : public PeriodicClosure {
  public:
   absl::Status StartNow(absl::Duration interval,
@@ -55,14 +53,24 @@ class FakePeriodicClosure : public PeriodicClosure {
   std::function<void()> closure_;
 };
 
-TEST(LifecycleHeartbeat, CantRunTwice) {
+class LifecycleHeartbeatTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
+};
+
+TEST_F(LifecycleHeartbeatTest, CantRunTwice) {
   std::unique_ptr<PeriodicClosure> periodic_closure =
       std::make_unique<FakePeriodicClosure>();
   MockInstanceClient instance_client;
-  MockMetricsRecorder metrics_recorder;
   std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
-      LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client,
-                                 metrics_recorder);
+      LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client);
   MockParameterFetcher parameter_fetcher;
   EXPECT_CALL(parameter_fetcher,
               GetParameter("launch-hook", testing::Eq(std::nullopt)))
@@ -75,16 +83,14 @@ TEST(LifecycleHeartbeat, CantRunTwice) {
       .WillOnce(testing::Return(absl::OkStatus()));
 }
 
-TEST(LifecycleHeartbeat, RecordsHeartbeat) {
+TEST_F(LifecycleHeartbeatTest, RecordsHeartbeat) {
   std::unique_ptr<PeriodicClosure> periodic_closure =
       std::make_unique<FakePeriodicClosure>();
   FakePeriodicClosure* periodic_closurep =
       dynamic_cast<FakePeriodicClosure*>(periodic_closure.get());
   MockInstanceClient instance_client;
-  MockMetricsRecorder metrics_recorder;
   std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
-      LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client,
-                                 metrics_recorder);
+      LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client);
   MockParameterFetcher parameter_fetcher;
   EXPECT_CALL(parameter_fetcher,
               GetParameter("launch-hook", testing::Eq(std::nullopt)))
@@ -98,25 +104,21 @@ TEST(LifecycleHeartbeat, RecordsHeartbeat) {
   periodic_closurep->RunFunc();
 }
 
-TEST(LifecycleHeartbeat, OnlyFinishOnce) {
+TEST_F(LifecycleHeartbeatTest, OnlyFinishOnce) {
   std::unique_ptr<PeriodicClosure> periodic_closure =
       std::make_unique<FakePeriodicClosure>();
   MockInstanceClient instance_client;
-  MockMetricsRecorder metrics_recorder;
   EXPECT_CALL(instance_client, CompleteLifecycle("hi"))
       .Times(1)
       .WillOnce(testing::Return(absl::OkStatus()));
-  {
-    std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
-        LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client,
-                                   metrics_recorder);
-    MockParameterFetcher parameter_fetcher;
-    EXPECT_CALL(parameter_fetcher,
-                GetParameter("launch-hook", testing::Eq(std::nullopt)))
-        .WillOnce(testing::Return("hi"));
-    absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
-    lifecycle_heartbeat->Finish();
-  }
+  std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
+      LifecycleHeartbeat::Create(std::move(periodic_closure), instance_client);
+  MockParameterFetcher parameter_fetcher;
+  EXPECT_CALL(parameter_fetcher,
+              GetParameter("launch-hook", testing::Eq(std::nullopt)))
+      .WillOnce(testing::Return("hi"));
+  absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
+  lifecycle_heartbeat->Finish();
 }
 
 }  // namespace kv_server

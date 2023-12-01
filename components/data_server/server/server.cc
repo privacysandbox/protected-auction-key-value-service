@@ -100,7 +100,7 @@ GetMetricsOptions(const ParameterClient& parameter_client,
   opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
       metrics_options;
 
-  ParameterFetcher parameter_fetcher(environment, parameter_client, nullptr);
+  ParameterFetcher parameter_fetcher(environment, parameter_client);
 
   uint32_t export_interval_millis = parameter_fetcher.GetInt32Parameter(
       kMetricsExportIntervalMillisParameterSuffix);
@@ -136,7 +136,7 @@ absl::Status CheckMetricsCollectorEndPointConnection(
 absl::optional<std::string> GetMetricsCollectorEndPoint(
     const ParameterClient& parameter_client, const std::string& environment) {
   absl::optional<std::string> metrics_collection_endpoint;
-  ParameterFetcher parameter_fetcher(environment, parameter_client, nullptr);
+  ParameterFetcher parameter_fetcher(environment, parameter_client);
   auto should_connect_to_external_metrics_collector =
       parameter_fetcher.GetBoolParameter(
           kUseExternalMetricsCollectorEndpointSuffix);
@@ -187,7 +187,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
                                  InstanceClient& instance_client) {
   std::string instance_id = RetryUntilOk(
       [&instance_client]() { return instance_client.GetInstanceId(); },
-      "GetInstanceId", nullptr);
+      "GetInstanceId", LogMetricsNoOpCallback());
 
   InitTelemetry(std::string(kServiceName), std::string(BuildVersion()));
   auto metrics_options = GetMetricsOptions(parameter_client, environment_);
@@ -200,6 +200,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
       LOG(ERROR) << "Error in connecting metrics collector: " << status;
     }
   }
+  LOG(INFO) << "Done retrieving metrics collector endpoint";
   BuildDependentConfig telemetry_config(
       GetServerTelemetryConfig(parameter_client, environment_));
   auto* context_map = KVServerContextMap(
@@ -219,6 +220,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
                   metrics_collector_endpoint);
 
   metrics_recorder_ = TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  LOG(INFO) << "Done init telemetry";
 }
 
 absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
@@ -232,10 +234,9 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
                          : std::move(instance_client);
   environment_ = TraceRetryUntilOk(
       [this]() { return instance_client_->GetEnvironmentTag(); },
-      "GetEnvironment", nullptr);
+      "GetEnvironment", LogMetricsNoOpCallback());
   LOG(INFO) << "Retrieved environment: " << environment_;
-  ParameterFetcher parameter_fetcher(environment_, *parameter_client_,
-                                     metrics_recorder_.get());
+  ParameterFetcher parameter_fetcher(environment_, *parameter_client_);
 
   int32_t number_of_workers =
       parameter_fetcher.GetInt32Parameter(kUdfNumWorkersParameterSuffix);
@@ -302,10 +303,12 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   InitializeKeyValueCache();
   auto span = GetTracer()->StartSpan("InitServer");
   auto scope = opentelemetry::trace::Scope(span);
+  LOG(INFO) << "Creating lifecycle heartbeat...";
   std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
-      LifecycleHeartbeat::Create(*instance_client_, *metrics_recorder_);
-  ParameterFetcher parameter_fetcher(environment_, *parameter_client_,
-                                     metrics_recorder_.get());
+      LifecycleHeartbeat::Create(*instance_client_);
+  ParameterFetcher parameter_fetcher(
+      environment_, *parameter_client_,
+      std::move(LogStatusSafeMetricsFn<kGetParameterStatus>()));
   if (absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
       status != absl::OkStatus()) {
     return status;
@@ -370,7 +373,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       std::move(*maybe_realtime_thread_pool_manager);
   data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher);
   TraceRetryUntilOk([this] { return data_orchestrator_->Start(); },
-                    "StartDataOrchestrator", metrics_recorder_.get());
+                    "StartDataOrchestrator",
+                    LogStatusSafeMetricsFn<kStartDataOrchestratorStatus>());
   if (num_shards_ > 1) {
     // At this point the server is healthy and the initialization is over.
     // The only missing piece is having a shard map, which is dependent on
@@ -512,6 +516,8 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
       parameter_fetcher.GetParameter(kDataBucketParameterSuffix);
   LOG(INFO) << "Retrieved " << kDataBucketParameterSuffix
             << " parameter: " << data_bucket;
+  auto metrics_callback =
+      LogStatusSafeMetricsFn<kCreateDataOrchestratorStatus>();
   return TraceRetryUntilOk(
       [&] {
         return DataOrchestrator::TryCreate(
@@ -529,7 +535,7 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
             },
             *metrics_recorder_);
       },
-      "CreateDataOrchestrator", metrics_recorder_.get());
+      "CreateDataOrchestrator", metrics_callback);
 }
 
 void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {

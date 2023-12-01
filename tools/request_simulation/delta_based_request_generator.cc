@@ -101,7 +101,7 @@ void DeltaBasedRequestGenerator::ProcessNewFiles() {
           return TraceCreateRequestsAndAddToMessageQueue(
               {.bucket = options_.data_bucket, .key = basename});
         },
-        "LoadNewFileAndCreateRequest", &metrics_recorder_);
+        "LoadNewFileAndCreateRequest", [](const absl::Status&, int) {});
   }
 }
 absl::StatusOr<DataLoadingStats>

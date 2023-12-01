@@ -153,7 +153,7 @@ class ShardedServerInitializer : public ServerInitializer {
               num_shards, key_fetcher_manager,
               cluster_mappings_manager.GetClusterMappings(), metrics_recorder);
         },
-        "GetShardManager", &metrics_recorder_);
+        "GetShardManager", LogStatusSafeMetricsFn<kGetShardManagerStatus>());
     auto start_status = shard_manager_state.cluster_mappings_manager->Start(
         *shard_manager_state.shard_manager);
     if (!start_status.ok()) {

@@ -150,6 +150,10 @@ AvroConcurrentStreamRecordReader::ReadByteRange(
   auto record_reader = std::make_unique<avro::DataFileReader<std::string>>(
       std::move(input_stream));
   VLOG(9) << "syncing to block";
+  if (record_stream->Stream().bad()) {
+    return absl::InternalError("Avro stream is bad");
+  }
+  record_stream->Stream().clear();
   record_reader->sync(byte_range.begin_offset);
   int64_t num_records_read = 0;
   std::string record;

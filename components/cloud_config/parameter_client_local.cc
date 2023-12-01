@@ -90,7 +90,7 @@ class LocalParameterClient : public ParameterClient {
         {"kv-server-local-launch-hook", absl::GetFlag(FLAGS_launch_hook)});
     string_flag_values_.insert({"kv-server-local-realtime-directory",
                                 absl::GetFlag(FLAGS_realtime_directory)});
-    string_flag_values_.insert({"data-loading-file-format",
+    string_flag_values_.insert({"kv-server-local-data-loading-file-format",
                                 absl::GetFlag(FLAGS_data_loading_file_format)});
     // Insert more string flag values here.
 

@@ -127,8 +127,8 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "height": 9,
             "properties": {
                 "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} main process utilization', 'Average', 60)", "id": "e1", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ],
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total utilization', 'Average', 60)", "id": "e2", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ]
+                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} main process utilization', 'Average', 60)", "id": "e1", "period": 60 } ],
+                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total utilization', 'Average', 60)", "id": "e2", "period": 60 } ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,

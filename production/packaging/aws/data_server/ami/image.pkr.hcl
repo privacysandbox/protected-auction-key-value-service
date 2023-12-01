@@ -101,6 +101,10 @@ build {
     destination = "/home/ec2-user/server_enclave_image.eif"
   }
   provisioner "file" {
+    source      = join("/", [var.distribution_dir, "/server_docker_image.tar"])
+    destination = "/home/ec2-user/server_docker_image.tar"
+  }
+  provisioner "file" {
     source = join("/", [var.workspace, "production/packaging/aws/data_server/ami/vsockproxy.service"])
     destination = "/home/ec2-user/vsockproxy.service"
   }

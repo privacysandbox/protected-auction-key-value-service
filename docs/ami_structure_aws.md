@@ -39,6 +39,9 @@ Let:
 |                             | instance.                     |                                         |
 | otel_collector_config.yaml  | Configuration for the         | - After building locally:               |
 |                             | OTEL collector.               | `$DIST/aws/otel_collector_config.yaml`  |
+| server_docker_image.tar     | Contains the docker image     | - After building locally:               |
+|                             | use to launch the KV server   | `$DIST/server_docker_image.tar`         |
+|                             | outside the enclave.          |                                         |
 
 ## How are the binaries and files deployed on an EC2 instance?
 

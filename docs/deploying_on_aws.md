@@ -408,7 +408,7 @@ nitro-cli run-enclave --cpu-count 2 --memory 3072 --eif-path /home/ec2-user/serv
 Terminate the Key/Value server by executing the following command:
 
 ```sh
-ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID"); [ "$ENCLAVE_ID" != "null" ] && nitro-cli terminate-enclave --enclave-id ${ENCLAVE_ID}
+ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID"); [ "$ENCLAVE_ID" != "null" ] && sudo nitro-cli terminate-enclave --enclave-id ${ENCLAVE_ID}
 ```
 
 ## Updating the server

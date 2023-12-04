@@ -39,7 +39,7 @@ class RunQueryHookImpl : public RunQueryHook {
     }
   }
 
-  void operator()(FunctionBindingPayload& payload) {
+  void operator()(FunctionBindingPayload<>& payload) {
     if (lookup_ == nullptr) {
       nlohmann::json status;
       status["code"] = absl::StatusCode::kInternal;

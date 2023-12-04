@@ -49,7 +49,7 @@ TEST(RunQueryHookTest, SuccessfullyProcessesValue) {
   TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload payload{io};
+  FunctionBindingPayload<> payload{io, {}};
   (*run_query_hook)(payload);
   EXPECT_THAT(io.output_list_of_string().data(),
               UnorderedElementsAreArray({"a", "b"}));
@@ -65,7 +65,7 @@ TEST(GetValuesHookTest, RunQueryClientReturnsError) {
   TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload payload{io};
+  FunctionBindingPayload<> payload{io, {}};
   (*run_query_hook)(payload);
   EXPECT_TRUE(io.output_list_of_string().data().empty());
 }
@@ -78,7 +78,7 @@ TEST(GetValuesHookTest, InputIsNotString) {
                               &io);
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload payload{io};
+  FunctionBindingPayload<> payload{io, {}};
   (*run_query_hook)(payload);
 
   EXPECT_THAT(

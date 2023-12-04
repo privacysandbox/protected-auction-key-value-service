@@ -42,7 +42,7 @@ class RunQueryHook {
   // This is registered with v8 and is exposed to the UDF. Internally, it calls
   // the internal query client.
   virtual void operator()(
-      google::scp::roma::FunctionBindingPayload& payload) = 0;
+      google::scp::roma::FunctionBindingPayload<>& payload) = 0;
 
   static std::unique_ptr<RunQueryHook> Create();
 };

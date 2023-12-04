@@ -31,7 +31,6 @@
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 #include "roma/config/src/config.h"
-#include "roma/config/src/function_binding_object.h"
 #include "roma/interface/roma.h"
 
 using google::protobuf::TextFormat;
@@ -242,13 +241,13 @@ TEST(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_struct) {
   EXPECT_TRUE(stop.ok());
 }
 
-static void udfCbEcho(FunctionBindingPayload& payload) {
+static void udfCbEcho(FunctionBindingPayload<>& payload) {
   payload.io_proto.set_output_string("Echo: " +
                                      payload.io_proto.input_string());
 }
 
 TEST(UdfClientTest, JsEchoHookCallSucceeds) {
-  auto function_object = std::make_unique<FunctionBindingObjectV2>();
+  auto function_object = std::make_unique<FunctionBindingObjectV2<>>();
   function_object->function_name = "echo";
   function_object->function = udfCbEcho;
 

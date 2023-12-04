@@ -60,7 +60,7 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload payload{io};
+  FunctionBindingPayload<> payload{io, {}};
   (*get_values_hook)(payload);
 
   nlohmann::json result_json =
@@ -97,7 +97,7 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload payload{io};
+  FunctionBindingPayload<> payload{io, {}};
   (*get_values_hook)(payload);
 
   nlohmann::json expected =
@@ -117,7 +117,7 @@ TEST(GetValuesHookTest, StringOutput_LookupReturnsError) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload payload{io};
+  FunctionBindingPayload<> payload{io, {}};
   (*get_values_hook)(payload);
 
   nlohmann::json expected = R"({"code":2,"message":"Some error"})"_json;
@@ -133,7 +133,7 @@ TEST(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload payload{io};
+  FunctionBindingPayload<> payload{io, {}};
   (*get_values_hook)(payload);
 
   nlohmann::json expected =
@@ -164,7 +164,7 @@ TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload payload{io};
+  FunctionBindingPayload<> payload{io, {}};
   (*get_values_hook)(payload);
 
   EXPECT_TRUE(io.has_output_bytes());
@@ -199,7 +199,7 @@ TEST(GetValuesHookTest, BinaryOutput_LookupReturnsError) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload payload{io};
+  FunctionBindingPayload<> payload{io, {}};
   (*get_values_hook)(payload);
 
   EXPECT_TRUE(io.has_output_bytes());

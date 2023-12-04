@@ -60,7 +60,7 @@ class UdfClient {
 
   // Creates a UDF executor. This calls Roma::Init, which forks.
   static absl::StatusOr<std::unique_ptr<UdfClient>> Create(
-      const google::scp::roma::Config& config = google::scp::roma::Config());
+      const google::scp::roma::Config<>& config = google::scp::roma::Config());
 };
 
 }  // namespace kv_server

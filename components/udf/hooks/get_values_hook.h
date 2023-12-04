@@ -48,7 +48,7 @@ class GetValuesHook {
   // This is registered with v8 and is exposed to the UDF. Internally, it calls
   // the internal lookup client.
   virtual void operator()(
-      google::scp::roma::FunctionBindingPayload& payload) = 0;
+      google::scp::roma::FunctionBindingPayload<>& payload) = 0;
 
   static std::unique_ptr<GetValuesHook> Create(OutputType output_type);
 };

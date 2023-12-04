@@ -33,9 +33,9 @@ class UdfConfigBuilder {
 
   UdfConfigBuilder& SetNumberOfWorkers(int number_of_workers);
 
-  const google::scp::roma::Config& Config() const;
+  const google::scp::roma::Config<>& Config() const;
 
  private:
-  google::scp::roma::Config config_;
+  google::scp::roma::Config<> config_;
 };
 }  // namespace kv_server

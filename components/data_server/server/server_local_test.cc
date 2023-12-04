@@ -109,7 +109,10 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
-
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
+      .WillOnce(::testing::Return(0));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -158,7 +161,10 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
-
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
+      .WillOnce(::testing::Return(0));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
 
@@ -181,7 +187,10 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
       .WillOnce(::testing::Return("instance id"));
   EXPECT_CALL(*instance_client, GetShardNumTag())
       .WillOnce(::testing::Return("1"));
-
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
+      .WillOnce(::testing::Return(0));
   EXPECT_CALL(*parameter_client, GetParameter("kv-server-environment-directory",
                                               testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
@@ -265,6 +274,10 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
+      .WillOnce(::testing::Return(0));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
 

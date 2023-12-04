@@ -85,5 +85,6 @@ module "kv_server" {
     secondary-workload-identity-pool-provider = var.secondary_workload_identity_pool_provider
     primary-coordinator-account-identity      = var.primary_coordinator_account_identity
     secondary-coordinator-account-identity    = var.secondary_coordinator_account_identity
+    logging-verbosity-level                   = var.logging_verbosity_level
   }
 }

@@ -52,6 +52,8 @@ ABSL_FLAG(std::string, data_loading_file_format,
           std::string(kv_server::kFileFormats[static_cast<int>(
               kv_server::FileFormat::kRiegeli)]),
           "File format of the input data files.");
+ABSL_FLAG(std::int32_t, logging_verbosity_level, 0,
+          "Loggging verbosity level.");
 
 // TODO(b/299623229): Remove GCP parameters here once the GCP parameter client
 // supports local instance.
@@ -119,6 +121,8 @@ class LocalParameterClient : public ParameterClient {
         {"kv-server-local-num-shards", absl::GetFlag(FLAGS_num_shards)});
     int32_t_flag_values_.insert({"kv-server-local-udf-num-workers",
                                  absl::GetFlag(FLAGS_udf_num_workers)});
+    int32_t_flag_values_.insert({"kv-server-local-logging-verbosity-level",
+                                 absl::GetFlag(FLAGS_logging_verbosity_level)});
     // Insert more int32 flag values here.
     bool_flag_values_.insert({"kv-server-local-route-v1-to-v2",
                               absl::GetFlag(FLAGS_route_v1_to_v2)});

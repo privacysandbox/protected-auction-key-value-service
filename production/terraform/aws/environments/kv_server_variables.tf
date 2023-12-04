@@ -223,3 +223,9 @@ variable "data_loading_file_format" {
   default     = "riegeli"
   type        = string
 }
+
+variable "logging_verbosity_level" {
+  description = "Logging verbosity level."
+  default     = "0"
+  type        = number
+}

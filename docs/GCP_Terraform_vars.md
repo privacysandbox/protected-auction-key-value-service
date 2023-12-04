@@ -69,6 +69,10 @@
 
     The grpc port that receives traffic destined for the frontend service.
 
+-   **logging_verbosity_level**
+
+    Logging verbosity level
+
 -   **machine_type**
 
     Machine type for the key-value service. Must be compatible with confidential compute.

@@ -118,3 +118,8 @@ variable "data_loading_file_format_parameter_value" {
   description = "Data file format for blob storage and realtime updates. See /public/constants.h for possible values."
   type        = string
 }
+
+variable "logging_verbosity_level_parameter_value" {
+  description = "Logging verbosity."
+  type        = number
+}

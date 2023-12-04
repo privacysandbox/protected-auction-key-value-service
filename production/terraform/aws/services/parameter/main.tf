@@ -157,3 +157,10 @@ resource "aws_ssm_parameter" "data_loading_file_format_parameter" {
   value     = var.data_loading_file_format_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "logging_verbosity_level_parameter" {
+  name      = "${var.service}-${var.environment}-logging-verbosity-level"
+  type      = "String"
+  value     = var.logging_verbosity_level_parameter_value
+  overwrite = true
+}

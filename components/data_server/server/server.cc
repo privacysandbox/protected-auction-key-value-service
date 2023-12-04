@@ -87,6 +87,8 @@ constexpr absl::string_view kDataLoadingFileFormatSuffix =
     "data-loading-file-format";
 constexpr absl::string_view kNumShardsParameterSuffix = "num-shards";
 constexpr absl::string_view kUdfNumWorkersParameterSuffix = "udf-num-workers";
+constexpr absl::string_view kLoggingVerbosityLevelParameterSuffix =
+    "logging-verbosity-level";
 constexpr absl::string_view kRouteV1ToV2Suffix = "route-v1-to-v2";
 constexpr absl::string_view kAutoscalerHealthcheck = "autoscaler-healthcheck";
 constexpr absl::string_view kLoadbalancerHealthcheck =
@@ -238,6 +240,12 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
   int32_t number_of_workers =
       parameter_fetcher.GetInt32Parameter(kUdfNumWorkersParameterSuffix);
 
+  // updating verbosity level flag as early as we can, as it affects all logging
+  // downstream.
+  // see
+  // https://github.com/google/glog/blob/931323df212c46e3a01b743d761c6ab8dc9f0d09/README.rst#setting-flags
+  FLAGS_v = parameter_fetcher.GetInt32Parameter(
+      kLoggingVerbosityLevelParameterSuffix);
   if (udf_client != nullptr) {
     udf_client_ = std::move(udf_client);
     return absl::OkStatus();

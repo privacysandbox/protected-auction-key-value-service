@@ -230,3 +230,9 @@ variable "existing_service_mesh" {
   description = "Existing service mesh. This would only be used if use_existing_service_mesh is true."
   type        = string
 }
+
+variable "logging_verbosity_level" {
+  description = "Logging verbosity level."
+  default     = "0"
+  type        = string
+}

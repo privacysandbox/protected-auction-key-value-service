@@ -97,3 +97,7 @@ output "secondary_coordinator_account_identity_parameter_arn" {
 output "data_loading_file_format_parameter_arn" {
   value = aws_ssm_parameter.data_loading_file_format_parameter.arn
 }
+
+output "logging_verbosity_level_parameter_arn" {
+  value = aws_ssm_parameter.logging_verbosity_level_parameter.arn
+}

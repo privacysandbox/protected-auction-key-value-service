@@ -77,6 +77,10 @@
     supported from the
     [AWS article](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
 
+-   **logging_verbosity_level**
+
+    Logging verbosity level
+
 -   **metrics_collector_endpoint**
 
     The open telemetry metrics collector endpoint, for AWS it will be empty string and open

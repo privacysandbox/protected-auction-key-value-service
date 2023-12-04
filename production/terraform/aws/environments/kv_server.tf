@@ -85,6 +85,9 @@ module "kv_server" {
   use_real_coordinators                  = var.use_real_coordinators
   primary_coordinator_account_identity   = var.primary_coordinator_account_identity
   secondary_coordinator_account_identity = var.secondary_coordinator_account_identity
+
+  # Variables related to logging
+  logging_verbosity_level = var.logging_verbosity_level
 }
 
 output "kv_server_url" {

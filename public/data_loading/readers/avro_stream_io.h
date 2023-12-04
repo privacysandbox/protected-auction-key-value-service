@@ -38,6 +38,27 @@
 
 namespace kv_server {
 
+// Single thread reader that can read streams in Avro format.
+class AvroStreamReader : public StreamRecordReader {
+ public:
+  // `data_input` must be at the file beginning when passed in.
+  explicit AvroStreamReader(std::istream& data_input);
+
+  absl::StatusOr<KVFileMetadata> GetKVFileMetadata() override {
+    return KVFileMetadata();
+  }
+
+  absl::Status ReadStreamRecords(
+      const std::function<absl::Status(const std::string_view&)>& callback)
+      override;
+
+  bool IsOpen() const { return true; }
+  absl::Status Status() const { return absl::OkStatus(); }
+
+ private:
+  std::istream& data_input_;
+};
+
 // An `AvroConcurrentStreamRecordReader` reads a Avro data stream containing
 // string records concurrently. The reader splits the data stream
 // into byte ranges with an approximately equal number of bytes and reads the

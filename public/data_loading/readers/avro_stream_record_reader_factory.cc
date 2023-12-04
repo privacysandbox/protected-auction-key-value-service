@@ -18,6 +18,11 @@
 
 namespace kv_server {
 
+std::unique_ptr<StreamRecordReader> AvroStreamRecordReaderFactory::CreateReader(
+    std::istream& data_input) const {
+  return std::make_unique<AvroStreamReader>(data_input);
+}
+
 std::unique_ptr<StreamRecordReader>
 AvroStreamRecordReaderFactory::CreateConcurrentReader(
     std::function<std::unique_ptr<RecordStream>()> stream_factory) const {

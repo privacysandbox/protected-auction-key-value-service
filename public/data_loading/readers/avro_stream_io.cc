@@ -24,6 +24,22 @@ constexpr std::string_view kAvroReadByteRangeRecordsLatencyEvent =
 constexpr std::string_view kAvroReadStreamRecordsLatencyEvent =
     "AvroConcurrentStreamRecordReader::ReadStreamRecords";
 
+AvroStreamReader::AvroStreamReader(std::istream& data_input)
+    : data_input_(data_input) {}
+
+absl::Status AvroStreamReader::ReadStreamRecords(
+    const std::function<absl::Status(const std::string_view&)>& callback) {
+  avro::InputStreamPtr input_stream = avro::istreamInputStream(data_input_);
+  avro::DataFileReader<std::string> reader(std::move(input_stream));
+
+  std::string record;
+  absl::Status overall_status;
+  while (reader.read(record)) {
+    overall_status.Update(callback(record));
+  }
+  return overall_status;
+}
+
 AvroConcurrentStreamRecordReader::AvroConcurrentStreamRecordReader(
     privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     std::function<std::unique_ptr<RecordStream>()> stream_factory,

@@ -75,8 +75,8 @@ class iStreamRecordStream : public RecordStream {
   std::ifstream stream_;
 };
 
-TEST(AvroStreamIO, AvroReading) {
-  constexpr std::string_view kFileName = "file.avro";
+TEST(AvroStreamIO, ConcurrentReading) {
+  constexpr std::string_view kFileName = "ConcurrentReading.avro";
   const std::filesystem::path path =
       std::filesystem::path(::testing::TempDir()) / kFileName;
   std::ofstream output_stream(path);
@@ -89,6 +89,29 @@ TEST(AvroStreamIO, AvroReading) {
   AvroConcurrentStreamRecordReader record_reader(
       metrics_recorder,
       [&path] { return std::make_unique<iStreamRecordStream>(path); }, options);
+
+  testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(kIterations)
+      .WillRepeatedly([](std::string_view raw) {
+        EXPECT_EQ(raw, kTestRecord);
+        return absl::OkStatus();
+      });
+  auto status =
+      record_reader.ReadStreamRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(AvroStreamIO, SequentialReading) {
+  constexpr std::string_view kFileName = "SequentialReading.avro";
+  const std::filesystem::path path =
+      std::filesystem::path(::testing::TempDir()) / kFileName;
+  std::ofstream output_stream(path);
+  WriteAvroToFile({kTestRecord}, output_stream);
+  output_stream.close();
+
+  std::ifstream is(path);
+  AvroStreamReader record_reader(is);
 
   testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
   EXPECT_CALL(record_callback, Call)

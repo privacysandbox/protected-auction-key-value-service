@@ -37,10 +37,7 @@ class AvroStreamRecordReaderFactory : public StreamRecordReaderFactory {
         options_(std::move(options)) {}
 
   std::unique_ptr<StreamRecordReader> CreateReader(
-      std::istream& data_input) const override {
-    // todo fix this
-    return nullptr;
-  }
+      std::istream& data_input) const override;
 
   std::unique_ptr<StreamRecordReader> CreateConcurrentReader(
       std::function<std::unique_ptr<RecordStream>()> stream_factory)

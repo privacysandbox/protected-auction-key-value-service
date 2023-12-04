@@ -31,7 +31,7 @@
 #include "google/protobuf/util/json_util.h"
 #include "roma/config/src/config.h"
 #include "roma/interface/roma.h"
-#include "roma/sandbox/roma_service/src/roma_service.h"
+#include "roma/roma_service/roma_service.h"
 
 ABSL_FLAG(absl::Duration, udf_timeout, absl::Minutes(1),
           "Timeout for one UDF invocation");

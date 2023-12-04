@@ -29,34 +29,43 @@ do
 done
 echo "Proceeding after waiting for envoy..."
 
-# Make sure nitro enclave allocator service is stopped
-systemctl stop nitro-enclaves-allocator.service
-
-# Allocate resources available to enclave
-export ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
-export MEM_KEY=memory_mib
-export DEFAULT_MEM=${enclave_memory_mib}
-sed -r "s/^(\s*$${MEM_KEY}\s*:\s*).*/\1$${DEFAULT_MEM}/" -i "$${ALLOCATOR_YAML}"
-export CPU_KEY=cpu_count
-export DEFAULT_CPU=${enclave_cpu_count}
-sed -r "s/^(\s*$${CPU_KEY}\s*:\s*).*/\1$${DEFAULT_CPU}/" -i "$${ALLOCATOR_YAML}"
-
-# Start nitro enclave service
-systemctl start nitro-enclaves-allocator.service
-systemctl enable nitro-enclaves-allocator.service
-
-# Start the SCP nitro proxy service
-systemctl start vsockproxy.service
-systemctl enable vsockproxy.service
-
 # Update otel collector config
 sed -i -e 's/$REGION/'${prometheus_service_region}'/g' -e 's/$WORKSPACE_ID/'${prometheus_workspace_id}'/g' /opt/aws/aws-otel-collector/etc/otel_collector_config.yaml
 # Start the otel collector
 sudo /opt/aws/aws-otel-collector/bin/aws-otel-collector-ctl -c /opt/aws/aws-otel-collector/etc/otel_collector_config.yaml -a start
 
-# Start nitro enclave (server)
-nitro-cli run-enclave \
-  --cpu-count ${enclave_cpu_count} \
-  --memory ${enclave_memory_mib} \
-  --eif-path /opt/privacysandbox/server_enclave_image.eif \
-  --enclave-cid 16 ${enclave_enable_debug_mode}
+if [ ${run_server_outside_tee} = false ];
+then
+  # Make sure nitro enclave allocator service is stopped
+  systemctl stop nitro-enclaves-allocator.service
+
+  # Allocate resources available to enclave
+  export ALLOCATOR_YAML=/etc/nitro_enclaves/allocator.yaml
+  export MEM_KEY=memory_mib
+  export DEFAULT_MEM=${enclave_memory_mib}
+  sed -r "s/^(\s*$${MEM_KEY}\s*:\s*).*/\1$${DEFAULT_MEM}/" -i "$${ALLOCATOR_YAML}"
+  export CPU_KEY=cpu_count
+  export DEFAULT_CPU=${enclave_cpu_count}
+  sed -r "s/^(\s*$${CPU_KEY}\s*:\s*).*/\1$${DEFAULT_CPU}/" -i "$${ALLOCATOR_YAML}"
+
+  # Start nitro enclave service
+  systemctl start nitro-enclaves-allocator.service
+  systemctl enable nitro-enclaves-allocator.service
+
+  # Start the SCP nitro proxy service
+  systemctl start vsockproxy.service
+  systemctl enable vsockproxy.service
+
+  # Start nitro enclave (server)
+  nitro-cli run-enclave \
+    --cpu-count ${enclave_cpu_count} \
+    --memory ${enclave_memory_mib} \
+    --eif-path /opt/privacysandbox/server_enclave_image.eif \
+    --enclave-cid 16 ${enclave_enable_debug_mode}
+else
+  # Load the docker image
+  docker load -i /home/ec2-user/server_docker_image.tar
+  # Run the docker image
+  docker run --detach --rm --network host --security-opt=seccomp=unconfined  \
+  --entrypoint=/init_server_basic bazel/production/packaging/aws/data_server:server_docker_image
+fi

@@ -37,6 +37,7 @@ module "kv_server" {
   enclave_cpu_count         = var.enclave_cpu_count
   enclave_memory_mib        = var.enclave_memory_mib
   enclave_enable_debug_mode = var.enclave_enable_debug_mode
+  run_server_outside_tee    = var.run_server_outside_tee
 
   # Variables related to autoscaling and load balancing.
   autoscaling_desired_capacity = var.autoscaling_desired_capacity

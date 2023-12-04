@@ -21,6 +21,8 @@ resource "aws_launch_template" "instance_launch_template" {
   image_id      = var.instance_ami_id
   instance_type = var.instance_type
 
+  update_default_version = true
+
   iam_instance_profile {
     arn = var.instance_profile_arn
   }
@@ -43,6 +45,7 @@ resource "aws_launch_template" "instance_launch_template" {
       region                    = var.region,
       prometheus_service_region = var.prometheus_service_region
       prometheus_workspace_id   = var.prometheus_workspace_id
+      run_server_outside_tee    = var.run_server_outside_tee
   }))
 
   # Enforce IMDSv2.

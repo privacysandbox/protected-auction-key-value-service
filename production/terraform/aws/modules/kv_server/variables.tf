@@ -227,3 +227,8 @@ variable "logging_verbosity_level" {
   description = "Logging verbosity."
   type        = number
 }
+
+variable "run_server_outside_tee" {
+  description = "Whether to run the server outside the TEE, in a docker container. Untrusted mode, for debugging."
+  type        = bool
+}

@@ -127,6 +127,7 @@ module "autoscaling" {
   prometheus_service_region    = var.prometheus_service_region
   prometheus_workspace_id      = var.prometheus_workspace_id != "" ? var.prometheus_workspace_id : module.telemetry.prometheus_workspace_id
   shard_num                    = count.index
+  run_server_outside_tee       = var.run_server_outside_tee
 }
 
 module "ssh" {

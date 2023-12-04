@@ -142,6 +142,11 @@
 
     Whether to route V1 requests through V2
 
+-   **run_server_outside_tee**
+
+    Whether to run the server outside the TEE. Not suitable for production. This runs the server in
+    a Docker container and can be useful for debugging.
+
 -   **s3_delta_file_bucket_name**
 
     Set a name for the bucket that the server will read data from. The bucket name must be globally

@@ -32,12 +32,7 @@ fileExistenceTests:
     shouldExist: true
     isExecutableBy: any
 
-  - name: init_server_enclave.sh
-    path: /init_server_enclave
-    shouldExist: true
-    isExecutableBy: any
-
-  - name: init_server_basic.sh
+  - name: init_server_basic
     path: /init_server_basic
     shouldExist: true
     isExecutableBy: any

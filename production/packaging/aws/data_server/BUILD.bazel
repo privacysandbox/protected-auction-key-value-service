@@ -31,7 +31,7 @@ pkg_files(
     srcs = [
         "//components/data_server/server",
         "//components/tools:get_region",
-        "//production/packaging/aws/data_server/bin:init_server",
+        "//production/packaging/aws/data_server/bin:init_server_basic",
     ],
     attributes = pkg_attributes(mode = "0555"),
     prefix = "/",
@@ -107,7 +107,7 @@ container_image(
         "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64//image",
     }),
     entrypoint = [
-        "/init_server",
+        "/init_server_basic",
         "--with_proxify",
         # Remaining flags are forwarded to `/server`.
         "--",

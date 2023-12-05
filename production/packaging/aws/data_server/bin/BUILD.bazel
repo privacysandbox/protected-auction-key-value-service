@@ -5,7 +5,7 @@ package(default_visibility = [
 ])
 
 cc_binary(
-    name = "init_server",
+    name = "init_server_basic",
     srcs = ["init_server_main.cc"],
     deps = [
         "@com_google_absl//absl/flags:flag",

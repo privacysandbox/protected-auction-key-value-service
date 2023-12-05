@@ -169,9 +169,8 @@ absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
         output_stream, DeltaRecordWriter::Options{.metadata = metadata});
   }
   if (lw_output_format == kAvroFormat) {
-    auto delta_record_writer =
-        AvroDeltaRecordStreamWriter<std::ostream>::Create(
-            output_stream, DeltaRecordWriter::Options{});
+    auto delta_record_writer = AvroDeltaRecordStreamWriter::Create(
+        output_stream, DeltaRecordWriter::Options{});
     if (!delta_record_writer.ok()) {
       return delta_record_writer.status();
     }

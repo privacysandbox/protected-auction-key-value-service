@@ -34,13 +34,13 @@
 
 namespace kv_server {
 
-template <typename DestStreamT = std::iostream>
 class AvroDeltaRecordStreamWriter : public DeltaRecordWriter {
  public:
   AvroDeltaRecordStreamWriter(const AvroDeltaRecordStreamWriter&) = delete;
   AvroDeltaRecordStreamWriter& operator=(const AvroDeltaRecordStreamWriter&) =
       delete;
 
+  template <typename DestStreamT = std::iostream>
   static absl::StatusOr<std::unique_ptr<AvroDeltaRecordStreamWriter>> Create(
       DestStreamT& dest_stream, Options options);
   absl::Status WriteRecord(const DataRecordStruct& data_record) override;
@@ -58,15 +58,13 @@ class AvroDeltaRecordStreamWriter : public DeltaRecordWriter {
   std::unique_ptr<avro::DataFileWriter<std::string>> record_writer_;
 };
 
-template <typename DestStreamT>
-AvroDeltaRecordStreamWriter<DestStreamT>::AvroDeltaRecordStreamWriter(
+AvroDeltaRecordStreamWriter::AvroDeltaRecordStreamWriter(
     std::unique_ptr<avro::DataFileWriter<std::string>> record_writer)
     : record_writer_(std::move(record_writer)) {}
 
 template <typename DestStreamT>
-absl::StatusOr<std::unique_ptr<AvroDeltaRecordStreamWriter<DestStreamT>>>
-AvroDeltaRecordStreamWriter<DestStreamT>::Create(DestStreamT& dest_stream,
-                                                 Options options) {
+absl::StatusOr<std::unique_ptr<AvroDeltaRecordStreamWriter>>
+AvroDeltaRecordStreamWriter::Create(DestStreamT& dest_stream, Options options) {
   avro::OutputStreamPtr avro_output_stream =
       avro::ostreamOutputStream(dest_stream);
   auto stream_writer = std::make_unique<avro::DataFileWriter<std::string>>(
@@ -75,8 +73,7 @@ AvroDeltaRecordStreamWriter<DestStreamT>::Create(DestStreamT& dest_stream,
       new AvroDeltaRecordStreamWriter(std::move(stream_writer)));
 }
 
-template <typename DestStreamT>
-absl::Status AvroDeltaRecordStreamWriter<DestStreamT>::WriteRecord(
+absl::Status AvroDeltaRecordStreamWriter::WriteRecord(
     const DataRecordStruct& data_record) {
   auto fbs_builder = ToFlatBufferBuilder(data_record);
   std::string_view bytes_to_write = ToStringView(fbs_builder);
@@ -84,8 +81,7 @@ absl::Status AvroDeltaRecordStreamWriter<DestStreamT>::WriteRecord(
   return absl::OkStatus();
 }
 
-template <typename DestStreamT>
-absl::Status AvroDeltaRecordStreamWriter<DestStreamT>::Flush() {
+absl::Status AvroDeltaRecordStreamWriter::Flush() {
   record_writer_->flush();
   return absl::OkStatus();
 }

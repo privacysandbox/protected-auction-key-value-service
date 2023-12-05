@@ -87,7 +87,7 @@ The data server provides the read API for the KV service.
 To run the server by itself
 
 ```sh
-docker run -it --rm --entrypoint=/init_server_basic --security-opt=seccomp=unconfined --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
+docker run -it --rm --entrypoint=/init_server_basic --security-opt=seccomp=unconfined --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image -- --port 50051 --environment=your_aws_environment
 ```
 
 To start Envoy (required to test HTTP access) a similar pattern is used to build the image, load it
@@ -254,7 +254,7 @@ To export telemetry to Jaeger from within a local Docker container,
    flags `--network host --add-host=host.docker.internal:host-gateway`:
 
 ```sh
-docker run -it --rm --network host --add-host=host.docker.internal:host-gateway --entrypoint=/init_server_basic --security-opt=seccomp=unconfined --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image --port 50051 --environment=your_aws_environment
+docker run -it --rm --network host --add-host=host.docker.internal:host-gateway --entrypoint=/init_server_basic --security-opt=seccomp=unconfined --env AWS_DEFAULT_REGION --env AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY -p 127.0.0.1:50051:50051 bazel/production/packaging/aws/data_server:server_docker_image -- --port 50051 --environment=your_aws_environment
 ```
 
 ### Modifying CloudWatch dashboard

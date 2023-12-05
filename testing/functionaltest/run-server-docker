@@ -38,6 +38,7 @@ function run_docker() {
     --volume "${DELTA_DIR}":/deltas \
     --tmpfs /realtime_data \
     bazel/production/packaging/aws/data_server:server_docker_image \
+      -- \
       --port "${_port}" \
       --delta_directory /deltas \
       --realtime_directory /realtime_data \

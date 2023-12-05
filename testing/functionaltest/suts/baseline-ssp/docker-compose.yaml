@@ -18,6 +18,7 @@ services:
     image: bazel/production/packaging/aws/data_server:server_docker_image
     entrypoint:
     - /init_server_basic
+    - --
     - --port=2000
     - --delta_directory=/srvdata/deltas
     - --realtime_directory=/srvdata/realtime_data

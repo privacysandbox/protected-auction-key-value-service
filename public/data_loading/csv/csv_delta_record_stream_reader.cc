@@ -92,12 +92,12 @@ absl::Status SetRecordValue(char value_separator,
                             KeyValueMutationRecordT& mutation_record) {
   auto type = csv_record[kValueTypeColumn];
   VLOG(10) << "Setting record value of type: " << type;
-  if (absl::EqualsIgnoreCase(type, EnumNameValue(Value::String))) {
+  if (absl::EqualsIgnoreCase(type, kValueTypeString)) {
     if (auto maybe_value = GetValue(csv_record, value_separator, csv_encoding);
         !maybe_value.ok()) {
       return maybe_value.status();
     } else {
-      StringT string_native;
+      StringValueT string_native;
       string_native.value = *maybe_value;
       VLOG(9) << "value in CSV record is:" << string_native.value;
       mutation_record.value.Set(std::move(string_native));
@@ -105,8 +105,7 @@ absl::Status SetRecordValue(char value_separator,
     }
     return absl::OkStatus();
   }
-  if (absl::EqualsIgnoreCase(type, EnumNameValue(Value::StringSet)) ||
-      type == kValueTypeStringSet) {
+  if (absl::EqualsIgnoreCase(type, kValueTypeStringSet)) {
     auto maybe_value = GetSetValue(csv_record, value_separator, csv_encoding);
     if (!maybe_value.ok()) {
       return maybe_value.status();

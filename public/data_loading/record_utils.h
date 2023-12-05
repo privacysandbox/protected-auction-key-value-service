@@ -32,7 +32,8 @@ namespace kv_server {
 
 enum class CsvEncoding : int { kPlaintext, kBase64 };
 
-inline std::ostream& operator<<(std::ostream& os, const StringT& string_value) {
+inline std::ostream& operator<<(std::ostream& os,
+                                const StringValueT& string_value) {
   os << string_value.value;
   return os;
 }
@@ -47,8 +48,8 @@ inline std::ostream& operator<<(std::ostream& os,
 inline std::ostream& operator<<(std::ostream& os,
                                 const ValueUnion& value_union) {
   switch (value_union.type) {
-    case Value::String: {
-      os << *(reinterpret_cast<const StringT*>(value_union.value));
+    case Value::StringValue: {
+      os << *(reinterpret_cast<const StringValueT*>(value_union.value));
       break;
     }
     case Value::StringSet: {

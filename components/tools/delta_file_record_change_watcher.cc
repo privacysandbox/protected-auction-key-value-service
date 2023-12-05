@@ -68,7 +68,7 @@ void Print(std::string string_decoded,
 
     auto format_value_func =
         [](const KeyValueMutationRecord& record) -> std::string {
-      if (record.value_type() == Value::String) {
+      if (record.value_type() == Value::StringValue) {
         return std::string(GetRecordValue<std::string_view>(record));
       }
       if (record.value_type() == Value::StringSet) {

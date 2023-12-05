@@ -25,14 +25,14 @@
 namespace kv_server {
 namespace {
 
-TEST(RecordUtilsTest, String) {
+TEST(RecordUtilsTest, StringValue) {
   // Serialize
-  StringT string_native;
+  StringValueT string_native;
   string_native.value = "hi";
   auto [fbs_buffer, serialized_string_view] = Serialize(string_native);
 
-  const String* fbs_record =
-      flatbuffers::GetRoot<String>(serialized_string_view.data());
+  const StringValue* fbs_record =
+      flatbuffers::GetRoot<StringValue>(serialized_string_view.data());
   EXPECT_EQ(fbs_record->value()->string_view(), "hi");
 }
 
@@ -52,7 +52,7 @@ TEST(RecordUtilsTest, KeyValueMutationRecordWithStringValue) {
   KeyValueMutationRecordT kv_mutation_record_native;
   kv_mutation_record_native.key = "key";
   kv_mutation_record_native.logical_commit_time = 5;
-  StringT string_native;
+  StringValueT string_native;
   string_native.value = "hi";
   kv_mutation_record_native.value.Set(std::move(string_native));
   auto [fbs_buffer, serialized_string_view] =
@@ -117,7 +117,7 @@ TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithStringValue) {
   KeyValueMutationRecordT kv_mutation_record_native;
   kv_mutation_record_native.key = "key";
   kv_mutation_record_native.logical_commit_time = 5;
-  StringT string_native;
+  StringValueT string_native;
   string_native.value = "hi";
   kv_mutation_record_native.value.Set(std::move(string_native));
   DataRecordT data_record_native;
@@ -200,7 +200,7 @@ TEST(DataRecordTest,
   // Serialize
   KeyValueMutationRecordT kv_mutation_record_native;
   kv_mutation_record_native.logical_commit_time = 5;
-  StringT string_native;
+  StringValueT string_native;
   string_native.value = "hi";
   kv_mutation_record_native.value.Set(std::move(string_native));
   DataRecordT data_record_native;

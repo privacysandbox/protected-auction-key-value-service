@@ -262,7 +262,7 @@ TEST_F(DataOrchestratorTest, InitCache_SkipsInvalidKVMutation) {
       /*mutation_type=*/KeyValueMutationType::Update,
       /*logical_commit_time=*/0,
       /*key=*/nullptr,
-      /*value_type=*/Value::String,
+      /*value_type=*/Value::StringValue,
       /*value=*/0);
   const auto data_record_fbs =
       CreateDataRecord(builder, /*record_type=*/Record::KeyValueMutationRecord,

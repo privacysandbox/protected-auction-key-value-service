@@ -186,7 +186,7 @@ void RegisterBenchmarks(MetricsRecorder& metrics_recorder) {
 
 absl::Status ApplyUpdateMutation(const KeyValueMutationRecord& record,
                                  Cache& cache) {
-  if (record.value_type() == Value::String) {
+  if (record.value_type() == Value::StringValue) {
     cache.UpdateKeyValue(record.key()->string_view(),
                          GetRecordValue<std::string_view>(record),
                          record.logical_commit_time());
@@ -205,7 +205,7 @@ absl::Status ApplyUpdateMutation(const KeyValueMutationRecord& record,
 
 absl::Status ApplyDeleteMutation(const KeyValueMutationRecord& record,
                                  Cache& cache) {
-  if (record.value_type() == Value::String) {
+  if (record.value_type() == Value::StringValue) {
     cache.DeleteKey(record.key()->string_view(), record.logical_commit_time());
     return absl::OkStatus();
   }

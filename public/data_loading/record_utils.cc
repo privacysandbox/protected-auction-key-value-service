@@ -38,9 +38,9 @@ absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
   if (kv_mutation_record.value() == nullptr) {
     return absl::InvalidArgumentError("Value not set.");
   }
-  if (kv_mutation_record.value_type() == Value::String &&
-      (kv_mutation_record.value_as_String() == nullptr ||
-       kv_mutation_record.value_as_String()->value() == nullptr)) {
+  if (kv_mutation_record.value_type() == Value::StringValue &&
+      (kv_mutation_record.value_as_StringValue() == nullptr ||
+       kv_mutation_record.value_as_StringValue()->value() == nullptr)) {
     return absl::InvalidArgumentError("String value not set.");
   }
   if (kv_mutation_record.value_type() == Value::StringSet &&
@@ -129,7 +129,7 @@ absl::Status DeserializeRecord(
 template <>
 absl::StatusOr<std::string_view> MaybeGetRecordValue(
     const KeyValueMutationRecord& record) {
-  const kv_server::String* maybe_value = record.value_as_String();
+  const kv_server::StringValue* maybe_value = record.value_as_StringValue();
   if (!maybe_value) {
     return absl::InvalidArgumentError(absl::StrCat(
         "KeyValueMutationRecord does not contain expected value type. "

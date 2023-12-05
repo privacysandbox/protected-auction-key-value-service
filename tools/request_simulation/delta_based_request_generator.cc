@@ -124,7 +124,7 @@ DeltaBasedRequestGenerator::CreateRequestsAndAddToMessageQueue(
                                           const DataRecord& data_record) {
     if (data_record.record_type() == Record::KeyValueMutationRecord) {
       const auto* record = data_record.record_as_KeyValueMutationRecord();
-      if (record->value_type() == Value::String) {
+      if (record->value_type() == Value::StringValue) {
         options_.message_queue.Push(
             request_generation_fn_(record->key()->string_view()));
         if (record->mutation_type() == KeyValueMutationType::Update) {

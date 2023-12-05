@@ -27,8 +27,8 @@
 namespace kv_server {
 namespace {
 
-StringT GetSimpleStringValue(std::string value = "value") {
-  StringT string_value;
+StringValueT GetSimpleStringValue(std::string value = "value") {
+  StringValueT string_value;
   string_value.value = value;
   return string_value;
 }
@@ -98,14 +98,13 @@ TEST(CsvDeltaRecordStreamReaderTest,
   EXPECT_TRUE(record_writer.Flush().ok());
   LOG(INFO) << string_stream.str();
   CsvDeltaRecordStreamReader record_reader(string_stream);
-  EXPECT_TRUE(record_reader
-                  .ReadRecords([&expected](const DataRecord& record) {
-                    std::unique_ptr<DataRecordT> native_type_record(
-                        record.UnPack());
-                    EXPECT_EQ(*native_type_record, expected);
-                    return absl::OkStatus();
-                  })
-                  .ok());
+  auto status =
+      record_reader.ReadRecords([&expected](const DataRecord& record) {
+        std::unique_ptr<DataRecordT> native_type_record(record.UnPack());
+        EXPECT_EQ(*native_type_record, expected);
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST(CsvDeltaRecordStreamReaderTest,

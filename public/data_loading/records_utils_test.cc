@@ -120,7 +120,7 @@ void ExpectEqual(const KeyValueMutationRecordStruct& record,
   EXPECT_EQ(record.key, fbs_record.key()->string_view());
   EXPECT_EQ(record.logical_commit_time, fbs_record.logical_commit_time());
   EXPECT_EQ(record.mutation_type, fbs_record.mutation_type());
-  if (fbs_record.value_type() == Value::String) {
+  if (fbs_record.value_type() == Value::StringValue) {
     EXPECT_EQ(std::get<std::string_view>(record.value),
               GetRecordValue<std::string_view>(fbs_record));
   }
@@ -246,7 +246,7 @@ TEST(DataRecordTest,
       /*logical_commit_time=*/0,
       /*key=*/nullptr,
       /*value_type=*/Value::NONE,
-      /*value=*/CreateStringDirect(builder, "value").Union());
+      /*value=*/CreateStringValueDirect(builder, "value").Union());
   const auto data_record_fbs =
       CreateDataRecord(builder, /*record_type=*/Record::KeyValueMutationRecord,
                        kv_mutation_fbs.Union());
@@ -291,8 +291,8 @@ TEST(DataRecordTest,
       /*mutation_type=*/KeyValueMutationType::Update,
       /*logical_commit_time=*/0,
       /*key=*/"key",
-      /*value_type=*/Value::String,
-      /*value=*/CreateStringDirect(builder).Union());
+      /*value_type=*/Value::StringValue,
+      /*value=*/CreateStringValueDirect(builder).Union());
   const auto data_record_fbs =
       CreateDataRecord(builder, /*record_type=*/Record::KeyValueMutationRecord,
                        kv_mutation_fbs.Union());

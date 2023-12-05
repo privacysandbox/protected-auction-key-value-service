@@ -39,8 +39,8 @@ ValueUnion BuildValueUnion(const KeyValueMutationRecordValueT& value,
         using VariantT = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<VariantT, std::string_view>) {
           return ValueUnion{
-              .value_type = Value::String,
-              .value = CreateStringDirect(builder, arg.data()).Union(),
+              .value_type = Value::StringValue,
+              .value = CreateStringValueDirect(builder, arg.data()).Union(),
           };
         }
         if constexpr (std::is_same_v<VariantT, std::vector<std::string_view>>) {
@@ -138,9 +138,9 @@ absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
   if (kv_mutation_record.value() == nullptr) {
     return absl::InvalidArgumentError("Value not set.");
   }
-  if (kv_mutation_record.value_type() == Value::String &&
-      (kv_mutation_record.value_as_String() == nullptr ||
-       kv_mutation_record.value_as_String()->value() == nullptr)) {
+  if (kv_mutation_record.value_type() == Value::StringValue &&
+      (kv_mutation_record.value_as_StringValue() == nullptr ||
+       kv_mutation_record.value_as_StringValue()->value() == nullptr)) {
     return absl::InvalidArgumentError("String value not set.");
   }
   if (kv_mutation_record.value_type() == Value::StringSet &&
@@ -196,7 +196,7 @@ absl::Status ValidateData(const DataRecord& data_record) {
 KeyValueMutationRecordValueT GetRecordStructValue(
     const KeyValueMutationRecord& fbs_record) {
   KeyValueMutationRecordValueT value;
-  if (fbs_record.value_type() == Value::String) {
+  if (fbs_record.value_type() == Value::StringValue) {
     value = GetRecordValue<std::string_view>(fbs_record);
   }
   if (fbs_record.value_type() == Value::StringSet) {
@@ -338,7 +338,7 @@ absl::Status DeserializeDataRecord(
 
 template <>
 std::string_view GetRecordValue(const KeyValueMutationRecord& record) {
-  return record.value_as_String()->value()->string_view();
+  return record.value_as_StringValue()->value()->string_view();
 }
 
 template <>

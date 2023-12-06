@@ -83,6 +83,7 @@ ABSL_FLAG(std::string, delta_file_bucket, "", "The name of delta file bucket");
 namespace kv_server {
 
 constexpr char* kServiceName = "request-simulation";
+constexpr char* kTestingServer = "testing.server";
 constexpr int kMetricsExportIntervalInMs = 5000;
 constexpr int kMetricsExportTimeoutInMs = 500;
 
@@ -323,10 +324,12 @@ void RequestSimulationSystem::InitializeTelemetry() {
       std::chrono::milliseconds(kMetricsExportIntervalInMs);
   metrics_options.export_timeout_millis =
       std::chrono::milliseconds(kMetricsExportTimeoutInMs);
+  auto server_address = absl::GetFlag(FLAGS_server_address);
   const auto attributes = ResourceAttributes{
       {semantic_conventions::kServiceName, kServiceName},
       {semantic_conventions::kServiceVersion, std::string(BuildVersion())},
-      {semantic_conventions::kHostArch, std::string(BuildPlatform())}};
+      {semantic_conventions::kHostArch, std::string(BuildPlatform())},
+      {kTestingServer, server_address}};
   auto resource = Resource::Create(attributes);
   ConfigureMetrics(resource, metrics_options);
 }

@@ -113,7 +113,7 @@ set -o errexit
 bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/tools/request_simulation/ami:copy_to_dist
 "
 
-unzip -o "$DIST_DIR"/aws_artifacts.zip
+unzip -o "$DIST_DIR"/aws_artifacts.zip -d "$DIST_DIR"
 
 printf "==== Copying to dist for the request_simulation artifacts=====\n"
 builder::cbuild_debian $"

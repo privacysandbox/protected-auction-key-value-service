@@ -130,6 +130,7 @@ class GetValuesHookImpl : public GetValuesHook {
   }
 
   void operator()(FunctionBindingPayload<>& payload) {
+    VLOG(9) << "Called getValues hook";
     if (lookup_ == nullptr) {
       SetStatus(absl::StatusCode::kInternal,
                 "getValues has not been initialized yet", payload.io_proto);

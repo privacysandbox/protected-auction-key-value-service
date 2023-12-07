@@ -54,9 +54,11 @@ class HelloWorldV1Impl final
       const kv_server::v1::GetValuesRequest* request,
       kv_server::v1::GetValuesResponse* response) override {
     LOG(INFO) << "Received v1 request " << request->DebugString();
-    auto data_map = response->mutable_kv_internal()->mutable_fields();
-    (*data_map)["request"].set_string_value("Hello, received v1 request " +
-                                            request->DebugString());
+    auto data_map = response->mutable_kv_internal();
+    google::protobuf::Value value;
+    value.set_string_value("Hello, received v1 request " +
+                           request->DebugString());
+    *(*data_map)["request"].mutable_value() = value;
     auto* reactor = context->DefaultReactor();
     reactor->Finish(grpc::Status::OK);
     LOG(INFO) << "Response is sent!";

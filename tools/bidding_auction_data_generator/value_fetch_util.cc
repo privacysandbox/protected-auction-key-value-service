@@ -67,10 +67,10 @@ std::function<
 GetDataExtractorForKeys() {
   return [](v1::GetValuesResponse& response,
             absl::flat_hash_map<std::string, std::string>& key_value_map) {
-    for (auto& [k, v] : response.keys().fields()) {
-      if (!IsEmptyValue(v)) {
+    for (auto& [k, v] : response.keys()) {
+      if (!IsEmptyValue(v.value())) {
         std::string value;
-        google::protobuf::util::MessageToJsonString(v, &value);
+        google::protobuf::util::MessageToJsonString(v.value(), &value);
         key_value_map.emplace(k, value);
       }
     }
@@ -83,10 +83,10 @@ std::function<
 GetDataExtractorForRenderUrls() {
   return [](v1::GetValuesResponse& response,
             absl::flat_hash_map<std::string, std::string>& key_value_map) {
-    for (auto& [k, v] : response.render_urls().fields()) {
-      if (!IsEmptyValue(v)) {
+    for (auto& [k, v] : response.render_urls()) {
+      if (!IsEmptyValue(v.value())) {
         std::string value;
-        google::protobuf::util::MessageToJsonString(v, &value);
+        google::protobuf::util::MessageToJsonString(v.value(), &value);
         key_value_map.emplace(k, value);
       }
     }

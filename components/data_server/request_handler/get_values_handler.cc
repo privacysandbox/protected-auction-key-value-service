@@ -59,27 +59,39 @@ absl::flat_hash_set<std::string_view> GetKeys(
 }
 
 void ProcessKeys(const RepeatedPtrField<std::string>& keys, const Cache& cache,
-                 MetricsRecorder& metrics_recorder, Struct& result_struct) {
+                 MetricsRecorder& metrics_recorder,
+                 google::protobuf::Map<std::string, v1::V1SingleLookupResult>&
+                     result_struct) {
   if (keys.empty()) return;
-  auto kv_pairs = cache.GetKeyValuePairs(GetKeys(keys));
+  auto actual_keys = GetKeys(keys);
+  auto kv_pairs = cache.GetKeyValuePairs(actual_keys);
 
   if (kv_pairs.empty())
     metrics_recorder.IncrementEventCounter(kCacheKeyMiss);
   else
     metrics_recorder.IncrementEventCounter(kCacheKeyHit);
-
-  for (auto&& [k, v] : std::move(kv_pairs)) {
-    Value value_proto;
-    absl::Status status =
-        google::protobuf::util::JsonStringToMessage(v, &value_proto);
-    if (status.ok()) {
-      (*result_struct.mutable_fields())[std::move(k)] = value_proto;
+  for (const auto& key : actual_keys) {
+    v1::V1SingleLookupResult result;
+    const auto key_iter = kv_pairs.find(key);
+    if (key_iter == kv_pairs.end()) {
+      auto status = result.mutable_status();
+      status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+      status->set_message("Key not found");
     } else {
-      // If string is not a Json string that can be parsed into Value proto,
-      // simply set it as pure string value to the response.
-      (*result_struct.mutable_fields())[std::move(k)].set_string_value(
-          std::move(v));
+      Value value_proto;
+      absl::Status status = google::protobuf::util::JsonStringToMessage(
+          key_iter->second, &value_proto);
+      if (status.ok()) {
+        *result.mutable_value() = value_proto;
+      } else {
+        // If string is not a Json string that can be parsed into Value
+        // proto, simply set it as pure string value to the response.
+        google::protobuf::Value value;
+        value.set_string_value(std::move(key_iter->second));
+        *result.mutable_value() = std::move(value);
+      }
     }
+    result_struct[key] = std::move(result);
   }
 }
 

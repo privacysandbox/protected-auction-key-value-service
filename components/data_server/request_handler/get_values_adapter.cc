@@ -81,18 +81,28 @@ v2::GetValuesRequest BuildV2Request(const v1::GetValuesRequest& v1_request) {
 }
 
 // Add key value pairs to the result struct
-void ProcessKeyValues(application_pa::KeyGroupOutput key_group_output,
-                      Struct& result_struct) {
+void ProcessKeyValues(
+    application_pa::KeyGroupOutput key_group_output,
+    google::protobuf::Map<std::string, v1::V1SingleLookupResult>&
+        result_struct) {
   for (auto&& [k, v] : std::move(key_group_output.key_values())) {
+    v1::V1SingleLookupResult result;
     if (v.value().has_string_value()) {
       Value value_proto;
       absl::Status status =
           JsonStringToMessage(v.value().string_value(), &value_proto);
       if (status.ok()) {
-        (*result_struct.mutable_fields())[std::move(k)] = value_proto;
+        *result.mutable_value() = value_proto;
+      } else {
+        // If string is not a Json string that can be parsed into Value
+        // proto,
+        // simply set it as pure string value to the response.
+        *result.mutable_value() = std::move(v.value());
       }
+    } else {
+      *result.mutable_value() = std::move(v.value());
     }
-    (*result_struct.mutable_fields())[std::move(k)] = v.value();
+    result_struct[std::move(k)] = std::move(result);
   }
 }
 

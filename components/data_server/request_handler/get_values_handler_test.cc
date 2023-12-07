@@ -69,13 +69,12 @@ TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
                            << ", msg: " << result.error_message();
 
   GetValuesResponse expected;
-  TextFormat::ParseFromString(R"pb(keys {
-                                     fields {
-                                       key: "my_key"
-                                       value { string_value: "my_value" }
-                                     }
-                                   })pb",
-                              &expected);
+  TextFormat::ParseFromString(
+      R"pb(keys {
+             key: "my_key"
+             value { value { string_value: "my_value" } }
+           })pb",
+      &expected);
   EXPECT_THAT(response, EqualsProto(expected));
 
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
@@ -97,13 +96,22 @@ TEST_F(GetValuesHandlerTest, RepeatedKeys) {
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
-  TextFormat::ParseFromString(R"pb(keys {
-                                     fields {
-                                       key: "key1"
-                                       value { string_value: "value1" }
-                                     }
-                                   })pb",
-                              &expected);
+  TextFormat::ParseFromString(
+      R"pb(
+        keys {
+          key: "key1"
+          value { value { string_value: "value1" } }
+        }
+        keys {
+          key: "key2"
+          value { status { code: 5 message: "Key not found" } }
+        }
+        keys {
+          key: "key3"
+          value { status { code: 5 message: "Key not found" } }
+        }
+      )pb",
+      &expected);
   EXPECT_THAT(response, EqualsProto(expected));
 }
 
@@ -123,16 +131,15 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   ASSERT_TRUE(handler.GetValues(request, &response).ok());
 
   GetValuesResponse expected;
-  TextFormat::ParseFromString(R"pb(keys {
-                                     fields {
-                                       key: "key1"
-                                       value { string_value: "value1" }
-                                     }
-                                     fields {
-                                       key: "key2"
-                                       value { string_value: "value2" }
-                                     }
-                                   })pb",
+  TextFormat::ParseFromString(R"pb(
+                                keys {
+                                  key: "key1"
+                                  value { value { string_value: "value1" } }
+                                }
+                                keys {
+                                  key: "key2"
+                                  value { value { string_value: "value2" } }
+                                })pb",
                               &expected);
   EXPECT_THAT(response, EqualsProto(expected));
 }
@@ -157,16 +164,12 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
 
   GetValuesResponse expected;
   TextFormat::ParseFromString(R"pb(render_urls {
-                                     fields {
-                                       key: "key1"
-                                       value { string_value: "value1" }
-                                     }
+                                     key: "key1"
+                                     value { value { string_value: "value1" } }
                                    }
                                    ad_component_render_urls {
-                                     fields {
-                                       key: "key2"
-                                       value { string_value: "value2" }
-                                     }
+                                     key: "key2"
+                                     value { value { string_value: "value2" } }
                                    })pb",
                               &expected);
   EXPECT_THAT(response, EqualsProto(expected));
@@ -189,61 +192,63 @@ TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
   std::string value3("v3");
 
   std::string response_pb_string =
-      R"pb(keys {
-             fields {
-               key: "key1"
-               value {
-                 list_value {
-                   values {
-                     list_value {
-                       values {
-                         list_value {
-                           values { number_value: 1 }
-                           values { number_value: 2 }
-                           values { number_value: 3 }
-                           values { number_value: 4 }
-                         }
-                       }
-                     }
-                   }
-                   values { null_value: NULL_VALUE }
-                   values {
-                     list_value {
-                       values { string_value: "123456789" }
-                       values { string_value: "123456789" }
-                     }
-                   }
-                   values { list_value { values { string_value: "v1" } } }
-                 }
-               }
-             }
-             fields {
-               key: "key2"
-               value {
-                 struct_value {
-                   fields {
-                     key: "k1"
-                     value { number_value: 123 }
-                   }
-                   fields {
-                     key: "k2"
-                     value { string_value: "v" }
-                   }
-                 }
-               }
-             }
-             fields {
-               key: "key3"
-               value { string_value: "v3" }
-             }
-           }
-      )pb";
+      R"pb(
+    keys {
+      key: "key1"
+      value {
+        value {
+          list_value {
+            values {
+              list_value {
+                values {
+                  list_value {
+                    values { number_value: 1 }
+                    values { number_value: 2 }
+                    values { number_value: 3 }
+                    values { number_value: 4 }
+                  }
+                }
+              }
+            }
+            values { null_value: NULL_VALUE }
+            values {
+              list_value {
+                values { string_value: "123456789" }
+                values { string_value: "123456789" }
+              }
+            }
+            values { list_value { values { string_value: "v1" } } }
+          }
+        }
+      }
+    }
+    keys {
+      key: "key2"
+      value {
+        value {
+          struct_value {
+            fields {
+              key: "k1"
+              value { number_value: 123 }
+            }
+            fields {
+              key: "k2"
+              value { string_value: "v" }
+            }
+          }
+        }
+      }
+    }
+    keys {
+      key: "key3"
+      value { value { string_value: "v3" } }
+    })pb";
 
   std::string response_json_string = R"json({
     "keys":{
-      "key1":[[[1,2,3,4]],null,["123456789","123456789"],["v1"]],
-      "key2":{"k2":"v","k1":123},
-      "key3":"v3"}
+      "key1": { "value": [[[1,2,3,4]],null,["123456789","123456789"],["v1"]] },
+      "key2":{ "value": {"k2":"v","k1":123} },
+      "key3":{ "value": "v3" }
   })json";
 
   EXPECT_CALL(mock_cache_,

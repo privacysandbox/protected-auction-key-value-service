@@ -191,6 +191,31 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                     }
                 }
             }
+        },
+        {
+            "type": "metric",
+            "x": 9,
+            "y": 27,
+            "width": 9,
+            "height": 9,
+            "properties": {
+                "metrics": [
+                     [ { "expression": "SELECT COUNT(ChangeNotifierErrors) FROM SCHEMA(\"KV-Server\", Noise,\"deployment.environment\",error_code,\"host.arch\",\"service.instance.id\",\"service.name\",\"service.version\",shard_number,\"telemetry.sdk.language\",\"telemetry.sdk.name\",\"telemetry.sdk.version\") WHERE \"deployment.environment\" = '${var.environment}' GROUP BY error_code, \"service.instance.id\"", "label": "error rate", "id": "m1", "stat": "Average", "visible": false } ],
+                     [ { "expression": "DIFF(m1)", "label": "error count", "id": "e1" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "us-east-1",
+                "title": "Change notifier error count",
+                "period": 60,
+                "stat": "Average",
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                }
+            }
         }
     ]
 }

@@ -342,8 +342,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       environment_, shard_num_, *instance_client_, *cache_, parameter_fetcher);
   remote_lookup_ = server_initializer->CreateAndStartRemoteLookupServer();
   {
-    auto status_or_notifier = BlobStorageChangeNotifier::Create(
-        std::move(metadata), *metrics_recorder_);
+    auto status_or_notifier =
+        BlobStorageChangeNotifier::Create(std::move(metadata));
     if (!status_or_notifier.ok()) {
       // The ChangeNotifier is required to read delta files, if it's not
       // available that's a critical error and so return immediately.

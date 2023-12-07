@@ -18,6 +18,7 @@
 #include "aws/core/utils/json/JsonSerializer.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/common/change_notifier.h"
+#include "components/telemetry/server_definition.h"
 #include "glog/logging.h"
 
 namespace kv_server {
@@ -25,14 +26,10 @@ namespace {
 
 using privacy_sandbox::server_common::MetricsRecorder;
 
-constexpr char* kAwsJsonParseError = "AwsJsonParseError";
-
 class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
-  explicit S3BlobStorageChangeNotifier(std::unique_ptr<ChangeNotifier> notifier,
-                                       MetricsRecorder& metrics_recorder)
-      : change_notifier_(std::move(notifier)),
-        metrics_recorder_(metrics_recorder) {}
+  explicit S3BlobStorageChangeNotifier(std::unique_ptr<ChangeNotifier> notifier)
+      : change_notifier_(std::move(notifier)) {}
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
@@ -52,7 +49,10 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
       if (!parsedMessage.ok()) {
         LOG(ERROR) << "Failed to parse JSON. Error: " << parsedMessage.status()
                    << " Message:" << message;
-        metrics_recorder_.IncrementEventCounter(kAwsJsonParseError);
+        LogIfError(KVServerContextMap()
+                       ->SafeMetric()
+                       .LogUpDownCounter<kChangeNotifierErrors>(
+                           {{std::string(kAwsJsonParseError), 1}}));
         continue;
       }
       parsed_notifications.push_back(std::move(*parsedMessage));
@@ -102,14 +102,12 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
   }
 
   std::unique_ptr<ChangeNotifier> change_notifier_;
-  MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>>
-BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata,
-                                  MetricsRecorder& metrics_recorder) {
+BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata) {
   auto cloud_notifier_metadata =
       std::get<AwsNotifierMetadata>(notifier_metadata);
   cloud_notifier_metadata.queue_prefix = "BlobNotifier_";
@@ -120,8 +118,7 @@ BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata,
     return status_or.status();
   }
 
-  return std::make_unique<S3BlobStorageChangeNotifier>(std::move(*status_or),
-                                                       metrics_recorder);
+  return std::make_unique<S3BlobStorageChangeNotifier>(std::move(*status_or));
 }
 
 }  // namespace kv_server

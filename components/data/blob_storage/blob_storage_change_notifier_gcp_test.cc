@@ -21,21 +21,17 @@
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
-
-using privacy_sandbox::server_common::MockMetricsRecorder;
 
 // We don't need to test the watching of files as that's covered in tests
 // for the ChangeNotifier that this class delegates to.
 TEST(BlobStorageChangeNotifierGcpTest, SmokeTest) {
   GcpNotifierMetadata metadata{};
 
-  MockMetricsRecorder metrics_recorder;
   absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> notifier =
-      BlobStorageChangeNotifier::Create(metadata, metrics_recorder);
+      BlobStorageChangeNotifier::Create(metadata);
   EXPECT_TRUE(notifier.ok());
 }
 

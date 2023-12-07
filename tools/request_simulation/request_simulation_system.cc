@@ -163,6 +163,15 @@ absl::Status RequestSimulationSystem::Init(
           ? std::make_unique<MetricsCollector>(metrics_recorder_,
                                                std::make_unique<SleepFor>())
           : std::move(metrics_collector);
+  // Initialize no-op telemetry for the new Telemetry API
+  // TODO(b/304306398): deprecate metric recorder and use new telemetry API to
+  // log metrics
+  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+  config_proto.set_mode(
+      privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+  kv_server::KVServerContextMap(
+      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+          config_proto));
 
   if (auto status = InitializeGrpcClientWorkers(); !status.ok()) {
     return status;
@@ -180,8 +189,8 @@ absl::Status RequestSimulationSystem::Init(
   message_service_blob_ = std::move(*message_service_status);
   SetQueueManager(blob_notifier_meta_data, message_service_blob_.get());
   {
-    auto status_or_notifier = BlobStorageChangeNotifier::Create(
-        std::move(blob_notifier_meta_data), metrics_recorder_);
+    auto status_or_notifier =
+        BlobStorageChangeNotifier::Create(std::move(blob_notifier_meta_data));
     if (!status_or_notifier.ok()) {
       // The ChangeNotifier is required to read delta files, if it's not
       // available that's a critical error and so return immediately.

@@ -18,6 +18,7 @@
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
+#include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
@@ -35,7 +36,13 @@ int main(int argc, char** argv) {
     std::cerr << "Must specify sns_arn" << std::endl;
     return -1;
   }
-
+  // Initialize no-op telemetry
+  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+  config_proto.set_mode(
+      privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+  kv_server::KVServerContextMap(
+      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+          config_proto));
   auto message_service_status = kv_server::MessageService::Create(
       kv_server::AwsNotifierMetadata{"BlobNotifier_", sns_arn});
 
@@ -47,10 +54,9 @@ int main(int argc, char** argv) {
 
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto status_or_notifier = BlobStorageChangeNotifier::Create(
-      kv_server::AwsNotifierMetadata{
-          .sns_arn = sns_arn, .queue_manager = message_service_status->get()},
-      *noop_metrics_recorder);
+  auto status_or_notifier =
+      BlobStorageChangeNotifier::Create(kv_server::AwsNotifierMetadata{
+          .sns_arn = sns_arn, .queue_manager = message_service_status->get()});
 
   if (!status_or_notifier.ok()) {
     std::cerr << "Unable to create BlobStorageChangeNotifier: "

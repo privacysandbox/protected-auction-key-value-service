@@ -29,7 +29,7 @@ using privacy_sandbox::server_common::MetricsRecorder;
 class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   explicit GcpBlobStorageChangeNotifier(
-      std::unique_ptr<ChangeNotifier> notifier, MetricsRecorder& unused)
+      std::unique_ptr<ChangeNotifier> notifier)
       : notifier_(std::move(notifier)) {}
 
   ~GcpBlobStorageChangeNotifier() override { sleep_for_.Stop(); }
@@ -53,16 +53,14 @@ class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>>
-BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata,
-                                  MetricsRecorder& metrics_recorder) {
+BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
       ChangeNotifier::Create(std::get<GcpNotifierMetadata>(notifier_metadata));
   if (!notifier.ok()) {
     return notifier.status();
   }
 
-  return std::make_unique<GcpBlobStorageChangeNotifier>(std::move(*notifier),
-                                                        metrics_recorder);
+  return std::make_unique<GcpBlobStorageChangeNotifier>(std::move(*notifier));
 }
 
 }  // namespace kv_server

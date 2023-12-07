@@ -19,6 +19,7 @@
 #include "absl/flags/usage.h"
 #include "absl/strings/str_join.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
@@ -107,12 +108,19 @@ int main(int argc, char** argv) {
 
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto status_or_notifier = kv_server::ChangeNotifier::Create(
-      kv_server::AwsNotifierMetadata{
+
+  // Initialize no-op telemetry
+  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+  config_proto.set_mode(
+      privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+  kv_server::KVServerContextMap(
+      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+          config_proto));
+  auto status_or_notifier =
+      kv_server::ChangeNotifier::Create(kv_server::AwsNotifierMetadata{
           .queue_prefix = "QueueNotifier_",
           .sns_arn = std::move(sns_arn),
-          .queue_manager = message_service_status->get()},
-      *noop_metrics_recorder);
+          .queue_manager = message_service_status->get()});
 
   if (!status_or_notifier.ok()) {
     std::cerr << "Unable to create ChangeNotifier: "
@@ -120,6 +128,8 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  // TODO (b/304311724) Remove noop metrics once metric recorder is
+  //  deprecated from DeltaFileRecordChangeNotifier
   std::unique_ptr<DeltaFileRecordChangeNotifier> notifier =
       DeltaFileRecordChangeNotifier::Create(std::move(*status_or_notifier),
                                             *noop_metrics_recorder);

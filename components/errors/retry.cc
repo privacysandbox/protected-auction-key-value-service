@@ -22,7 +22,6 @@ namespace kv_server {
 namespace {
 
 using privacy_sandbox::server_common::GetTracer;
-using privacy_sandbox::server_common::MetricsRecorder;
 using privacy_sandbox::server_common::TelemetryAttribute;
 using privacy_sandbox::server_common::TraceWithStatus;
 

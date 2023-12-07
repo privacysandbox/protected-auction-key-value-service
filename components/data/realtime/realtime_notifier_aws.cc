@@ -174,7 +174,7 @@ absl::StatusOr<std::unique_ptr<RealtimeNotifier>> RealtimeNotifier::Create(
         options->change_notifier_for_unit_testing);
   } else {
     auto status_or_notifier =
-        ChangeNotifier::Create(std::move(notifier_metadata), metrics_recorder);
+        ChangeNotifier::Create(std::move(notifier_metadata));
     if (!status_or_notifier.ok()) {
       return status_or_notifier.status();
     }

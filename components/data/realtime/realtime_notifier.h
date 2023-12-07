@@ -25,6 +25,7 @@
 #include "components/data/realtime/realtime_notifier_metadata.h"
 #include "components/errors/retry.h"
 #include "components/util/sleepfor.h"
+#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 struct DataLoadingStats {

@@ -52,7 +52,7 @@ class GcpChangeNotifier : public ChangeNotifier {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
-    NotifierMetadata notifier_metadata, MetricsRecorder& unused) {
+    NotifierMetadata notifier_metadata) {
   return std::make_unique<GcpChangeNotifier>();
 }
 

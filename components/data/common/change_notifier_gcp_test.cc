@@ -56,14 +56,12 @@ class ChangeNotifierGcpTest : public ::testing::Test {
     file << "arbitrary file contents";
     return path;
   }
-  MockMetricsRecorder metrics_recorder_;
 };
 
 TEST_F(ChangeNotifierGcpTest, CallbackAbortsWatchImmediately) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
       ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
+          kv_server::LocalNotifierMetadata{::testing::TempDir()});
   ASSERT_TRUE(notifier.ok());
 
   // There is a new file here but the callback says to abort immediately so it's

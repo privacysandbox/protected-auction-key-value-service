@@ -24,7 +24,6 @@
 #include "components/telemetry/server_definition.h"
 #include "components/util/sleepfor.h"
 #include "glog/logging.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/tracing.h"
 
 namespace kv_server {

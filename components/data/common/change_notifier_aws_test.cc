@@ -22,11 +22,11 @@
 #include "aws/sqs/model/ReceiveMessageRequest.h"
 #include "components/data/common/change_notifier.h"
 #include "components/data/common/msg_svc.h"
+#include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
@@ -55,8 +55,15 @@ class MockSqsClient : public ::Aws::SQS::SQSClient {
 
 class ChangeNotifierAwsTest : public ::testing::Test {
  protected:
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    kv_server::KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
   PlatformInitializer initializer_;
-  privacy_sandbox::server_common::MockMetricsRecorder metrics_recorder_;
 };
 
 TEST_F(ChangeNotifierAwsTest, SmokeTest) {
@@ -65,7 +72,7 @@ TEST_F(ChangeNotifierAwsTest, SmokeTest) {
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+      ChangeNotifier::Create(notifier_metadata);
   EXPECT_TRUE(notifier.status().ok());
 }
 
@@ -86,7 +93,7 @@ TEST_F(ChangeNotifierAwsTest, ReceiveMessageFails) {
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+      ChangeNotifier::Create(notifier_metadata);
   ASSERT_TRUE(notifier.status().ok());
 
   const absl::StatusOr<std::vector<std::string>> notifications =
@@ -117,7 +124,7 @@ TEST_F(ChangeNotifierAwsTest,
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+      ChangeNotifier::Create(notifier_metadata);
   ASSERT_TRUE(notifier.status().ok());
 
   const absl::StatusOr<std::vector<std::string>> notifications =
@@ -151,7 +158,7 @@ TEST_F(ChangeNotifierAwsTest, ReceiveMessagePassesAndHasMessages) {
   notifier_metadata.only_for_testing_sqs_client_ = mock_sqs_client.release();
 
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(notifier_metadata, metrics_recorder_);
+      ChangeNotifier::Create(notifier_metadata);
   ASSERT_TRUE(notifier.status().ok());
 
   const absl::StatusOr<std::vector<std::string>> notifications =

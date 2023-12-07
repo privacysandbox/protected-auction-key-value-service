@@ -114,8 +114,7 @@ BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata,
       std::get<AwsNotifierMetadata>(notifier_metadata);
   cloud_notifier_metadata.queue_prefix = "BlobNotifier_";
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> status_or =
-      ChangeNotifier::Create(std::move(cloud_notifier_metadata),
-                             metrics_recorder);
+      ChangeNotifier::Create(std::move(cloud_notifier_metadata));
 
   if (!status_or.ok()) {
     return status_or.status();

@@ -21,6 +21,7 @@
 #include <string>
 #include <utility>
 
+#include "components/telemetry/error_code.h"
 #include "src/cpp/metric/context_map.h"
 #include "src/cpp/util/read_system.h"
 
@@ -368,14 +369,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         "Number of realtime message application failures");
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsChangeNotifierQueueSetupFailure(
-        "AwsChangeNotifierQueueSetupFailure",
-        "Number of failures in setting up AWS change notifier queue");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kAwsSqsReceiveMessageLatency("AwsSqsReceiveMessageLatency",
                                  "AWS SQS receive message latency",
@@ -383,45 +377,10 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsChangeNotifierTagFailure("AwsChangeNotifierTagFailure",
-                                 "Number of failures in tagging AWS SQS queue");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsChangeNotifierMessagesReceivingFailure(
-        "AwsChangeNotifierMessagesReceivingFailure",
-        "Number of failures in receiving message from AWS SQS");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsChangeNotifierMessagesDataLossFailure(
-        "AwsChangeNotifierMessagesDataLossFailure",
-        "Number of failures in extracting data from AWS SQS messages");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsChangeNotifierMessagesDeletionFailure(
-        "AwsChangeNotifierMessagesDeletionFailure",
-        "Number of failures in deleting messages from AWS SQS");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsJsonParseError(
-        "AwsJsonParseError",
-        "Number of errors in parsing Json from AWS S3 notification");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kDeltaFileRecordChangeNotifierParsingFailure(
-        "DeltaFileRecordChangeNotifierParsingFailure",
-        "Number of errors in parsing Json from delta file record change "
-        "notification");
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kChangeNotifierErrors("ChangeNotifierErrors",
+                          "Errors in the change notifier", "error_code",
+                          kChangeNotifierErrorCode);
 
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
@@ -451,12 +410,7 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
         &kRealtimeDecodeMessageFailure, &kRealtimeMessageApplicationFailure,
-        &kAwsChangeNotifierQueueSetupFailure, &kAwsSqsReceiveMessageLatency,
-        &kAwsChangeNotifierTagFailure,
-        &kAwsChangeNotifierMessagesReceivingFailure,
-        &kAwsChangeNotifierMessagesDataLossFailure,
-        &kAwsChangeNotifierMessagesDeletionFailure, &kAwsJsonParseError,
-        &kDeltaFileRecordChangeNotifierParsingFailure};
+        &kChangeNotifierErrors, &kAwsSqsReceiveMessageLatency};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>

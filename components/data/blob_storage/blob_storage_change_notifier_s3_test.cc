@@ -19,6 +19,7 @@
 #include "aws/sqs/model/ReceiveMessageRequest.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/common/msg_svc.h"
+#include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 #include "gmock/gmock.h"
@@ -55,6 +56,14 @@ class MockSqsClient : public ::Aws::SQS::SQSClient {
 // https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html
 class BlobStorageChangeNotifierS3Test : public ::testing::Test {
  protected:
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
   void CreateRequiredSqsCallExpectations() {
     static const std::string mock_sqs_url("mock sqs url");
     EXPECT_CALL(mock_message_service_, IsSetupComplete)
@@ -200,8 +209,6 @@ TEST_F(BlobStorageChangeNotifierS3Test, RecordsIsNotAList) {
   // other metrics.
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
       .Times(::testing::AnyNumber());
-  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
-      .Times(1);
 
   AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
@@ -231,8 +238,6 @@ TEST_F(BlobStorageChangeNotifierS3Test, NoS3RecordPresent) {
   // other metrics.
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
       .Times(::testing::AnyNumber());
-  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
-      .Times(1);
 
   AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
@@ -286,8 +291,6 @@ TEST_F(BlobStorageChangeNotifierS3Test, S3ObjectIsNull) {
   // other metrics.
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
       .Times(::testing::AnyNumber());
-  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
-      .Times(1);
 
   AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;
@@ -317,8 +320,6 @@ TEST_F(BlobStorageChangeNotifierS3Test, S3KeyIsNotAString) {
   // other metrics.
   EXPECT_CALL(metrics_recorder_, IncrementEventCounter(::testing::_))
       .Times(::testing::AnyNumber());
-  EXPECT_CALL(metrics_recorder_, IncrementEventCounter("AwsJsonParseError"))
-      .Times(1);
 
   AwsNotifierMetadata notifier_metadata;
   notifier_metadata.queue_manager = &mock_message_service_;

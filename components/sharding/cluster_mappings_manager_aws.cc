@@ -67,7 +67,7 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
     return absl::InvalidArgumentError(absl::StrCat("Can't parse: ", asg_name));
   }
 
-  absl::flat_hash_map<std::string, std::string> GetInstaceIdToIpMapping(
+  absl::flat_hash_map<std::string, std::string> GetInstanceIdToIpMapping(
       const std::vector<InstanceInfo>& instance_group_instances) const {
     absl::flat_hash_set<std::string> instance_ids;
     for (const auto& instance : instance_group_instances) {
@@ -94,7 +94,7 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
 
   std::vector<absl::flat_hash_set<std::string>> GroupInstancesToClusterMappings(
       std::vector<InstanceInfo>& instance_group_instances) const {
-    auto id_to_ip = GetInstaceIdToIpMapping(instance_group_instances);
+    auto id_to_ip = GetInstanceIdToIpMapping(instance_group_instances);
     std::vector<absl::flat_hash_set<std::string>> cluster_mappings(num_shards_);
     for (const auto& instance : instance_group_instances) {
       if (instance.service_status != InstanceServiceStatus::kInService) {

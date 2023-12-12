@@ -115,9 +115,14 @@ class GrpcClient {
   //
   // Timeout duration to define a period of time that a unary call passes the
   // deadline
+  //
+  // Whether the grpc channel is a client channel rather than a in-process
+  // channel
   explicit GrpcClient(std::shared_ptr<grpc::Channel> channel,
-                      absl::Duration timeout)
-      : timeout_(std::move(timeout)) {
+                      absl::Duration timeout, bool is_client_channel = true)
+      : grpc_channel_(channel),
+        is_client_channel_(is_client_channel),
+        timeout_(std::move(timeout)) {
     generic_stub_ =
         std::make_unique<grpc::TemplatedGenericStub<RequestT, ResponseT>>(
             channel);
@@ -128,6 +133,10 @@ class GrpcClient {
   absl::Status SendMessage(const RequestT& request,
                            const std::string& request_method,
                            std::shared_ptr<ResponseT> response) {
+    if (is_client_channel_ &&
+        grpc_channel_->GetState(true) != GRPC_CHANNEL_READY) {
+      return absl::FailedPreconditionError("GRPC channel is disconnected");
+    }
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();
     std::shared_ptr<grpc::ClientContext> client_context =
@@ -150,6 +159,8 @@ class GrpcClient {
 
  private:
   absl::Duration timeout_;
+  std::shared_ptr<grpc::Channel> grpc_channel_;
+  bool is_client_channel_;
   std::unique_ptr<grpc::TemplatedGenericStub<RequestT, ResponseT>>
       generic_stub_;
 };

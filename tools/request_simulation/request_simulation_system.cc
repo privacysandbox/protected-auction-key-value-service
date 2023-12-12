@@ -68,6 +68,8 @@ ABSL_FLAG(int64_t, message_queue_max_capacity, 10000000,
 ABSL_FLAG(kv_server::GrpcAuthenticationMode, server_auth_mode,
           kv_server::GrpcAuthenticationMode::kSsl,
           "The server authentication mode");
+ABSL_FLAG(bool, is_client_channel, true,
+          "Whether the grpc client is connecting to non in-process server");
 ABSL_FLAG(int32_t, s3client_max_connections, 1,
           "S3Client max connections for reading data files.");
 ABSL_FLAG(int32_t, s3client_max_range_bytes, 8388608,
@@ -229,6 +231,8 @@ absl::Status RequestSimulationSystem::InitializeGrpcClientWorkers() {
 
   auto channel = channel_creation_fn_(server_address_,
                                       absl::GetFlag(FLAGS_server_auth_mode));
+  bool is_client_channel = absl::GetFlag(FLAGS_is_client_channel);
+
   for (int i = 0; i < num_of_workers; ++i) {
     auto request_converter = [](const std::string& request_body) {
       RawRequest request;
@@ -238,7 +242,8 @@ absl::Status RequestSimulationSystem::InitializeGrpcClientWorkers() {
     auto worker =
         std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
             i, channel, server_method_, absl::Seconds(1), request_converter,
-            *message_queue_, *grpc_request_rate_limiter_, *metrics_collector_);
+            *message_queue_, *grpc_request_rate_limiter_, *metrics_collector_,
+            is_client_channel);
     grpc_client_workers_.push_back(std::move(worker));
   }
   return absl::OkStatus();

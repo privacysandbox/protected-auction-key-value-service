@@ -45,6 +45,7 @@
 
 ABSL_DECLARE_FLAG(std::string, server_address);
 ABSL_DECLARE_FLAG(std::string, server_method);
+ABSL_DECLARE_FLAG(bool, is_client_channel);
 ABSL_DECLARE_FLAG(int64_t, rps);
 ABSL_DECLARE_FLAG(int, concurrency);
 ABSL_DECLARE_FLAG(absl::Duration, request_timeout);

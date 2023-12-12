@@ -44,6 +44,7 @@ class ShardedLookupTest : public ::testing::Test {
 
   MockLookup mock_local_lookup_;
   MockMetricsRecorder mock_metrics_recorder_;
+  KeySharder key_sharder_ = KeySharder(ShardingFunction{/*seed=*/""});
 };
 
 TEST_F(ShardedLookupTest, GetKeyValues_Success) {
@@ -87,10 +88,9 @@ TEST_F(ShardedLookupTest, GetKeyValues_Success) {
 
         return mock_remote_lookup_client_1;
       });
-
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->GetKeyValues({"key1", "key4"});
   EXPECT_TRUE(response.ok());
 
@@ -161,9 +161,9 @@ TEST_F(ShardedLookupTest, GetKeyValues_KeyMissing_ReturnsStatus) {
         return mock_remote_lookup_client_1;
       });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->GetKeyValues({"key1", "key4", "key5"});
   EXPECT_TRUE(response.ok());
 
@@ -196,9 +196,9 @@ TEST_F(ShardedLookupTest, GetKeyValues_EmptyRequest_ReturnsEmptyResponse) {
       std::make_unique<MockRandomGenerator>(), [](const std::string& ip) {
         return std::make_unique<MockRemoteLookupClient>();
       });
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->GetKeyValues({});
   EXPECT_TRUE(response.ok());
 
@@ -242,9 +242,9 @@ TEST_F(ShardedLookupTest, GetKeyValues_FailedDownstreamRequest) {
         return mock_remote_lookup_client_1;
       });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->GetKeyValues({"key1", "key4"});
   EXPECT_TRUE(response.ok());
 
@@ -402,9 +402,9 @@ TEST_F(ShardedLookupTest, GetKeyValues_ReturnsKeysFromCachePadding) {
         return std::make_unique<MockRemoteLookupClient>();
       });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->GetKeyValues(keys);
   EXPECT_TRUE(response.ok());
 
@@ -494,9 +494,9 @@ TEST_F(ShardedLookupTest, GetKeyValueSets_KeysFound_Success) {
         return mock_remote_lookup_client_1;
       });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->GetKeyValueSet({"key1", "key4"});
   EXPECT_TRUE(response.ok());
 
@@ -569,9 +569,9 @@ TEST_F(ShardedLookupTest, GetKeyValueSets_KeysMissing_ReturnsStatus) {
         return mock_remote_lookup_client_1;
       });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->GetKeyValueSet({"key1", "key4", "key5"});
   EXPECT_TRUE(response.ok());
 
@@ -604,9 +604,9 @@ TEST_F(ShardedLookupTest, GetKeyValueSet_EmptyRequest_ReturnsEmptyResponse) {
       std::make_unique<MockRandomGenerator>(), [](const std::string& ip) {
         return std::make_unique<MockRemoteLookupClient>();
       });
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->GetKeyValueSet({});
   EXPECT_TRUE(response.ok());
 
@@ -651,9 +651,9 @@ TEST_F(ShardedLookupTest, GetKeyValueSet_FailedDownstreamRequest) {
         return mock_remote_lookup_client_1;
       });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->GetKeyValueSet({"key1", "key4"});
   EXPECT_FALSE(response.ok());
   EXPECT_EQ(response.status().code(), absl::StatusCode::kDeadlineExceeded);
@@ -707,9 +707,9 @@ TEST_F(ShardedLookupTest, RunQuery_Success) {
         return mock_remote_lookup_client_1;
       });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->RunQuery("key1|key4");
   EXPECT_TRUE(response.ok());
 
@@ -765,9 +765,9 @@ TEST_F(ShardedLookupTest, RunQuery_MissingKeySet_IgnoresMissingSet_Success) {
         return mock_remote_lookup_client_1;
       });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->RunQuery("key1|key4");
   EXPECT_TRUE(response.ok());
 
@@ -796,9 +796,9 @@ TEST_F(ShardedLookupTest, RunQuery_ShardedLookupFails_Error) {
                            std::make_unique<MockRandomGenerator>(),
                            [](const std::string& ip) { return nullptr; });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->RunQuery("key1|key4");
   EXPECT_FALSE(response.ok());
 
@@ -816,9 +816,9 @@ TEST_F(ShardedLookupTest, RunQuery_ParseError_ReturnStatus) {
         return std::make_unique<MockRemoteLookupClient>();
       });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->RunQuery("key1|");
   EXPECT_FALSE(response.ok());
 
@@ -836,9 +836,9 @@ TEST_F(ShardedLookupTest, RunQuery_EmptyRequest_EmptyResponse) {
         return std::make_unique<MockRemoteLookupClient>();
       });
 
-  auto sharded_lookup =
-      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
-                          *(*shard_manager), mock_metrics_recorder_);
+  auto sharded_lookup = CreateShardedLookup(
+      mock_local_lookup_, num_shards_, shard_num_, *(*shard_manager),
+      mock_metrics_recorder_, key_sharder_);
   auto response = sharded_lookup->RunQuery("");
   EXPECT_TRUE(response.ok());
   EXPECT_TRUE(response.value().elements().empty());

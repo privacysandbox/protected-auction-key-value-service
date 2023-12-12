@@ -28,6 +28,7 @@
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/hooks/run_query_hook.h"
 #include "grpcpp/grpcpp.h"
+#include "public/sharding/key_sharder.h"
 #include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
@@ -63,7 +64,7 @@ std::unique_ptr<ServerInitializer> GetServerInitializer(
         key_fetcher_manager,
     Lookup& local_lookup, std::string environment, int32_t current_shard_num,
     InstanceClient& instance_client, Cache& cache,
-    ParameterFetcher& parameter_fetcher);
+    ParameterFetcher& parameter_fetcher, KeySharder key_sharder);
 
 }  // namespace kv_server
 #endif  // COMPONENTS_DATA_SERVER_SERVER_INITIALIZER_H_

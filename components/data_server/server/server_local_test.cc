@@ -113,6 +113,9 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
       *parameter_client,
       GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
       .WillOnce(::testing::Return(0));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
+      .WillOnce(::testing::Return(false));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -165,6 +168,9 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
       *parameter_client,
       GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
       .WillOnce(::testing::Return(0));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
+      .WillOnce(::testing::Return(false));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
 
@@ -219,7 +225,9 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
-
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
+      .WillOnce(::testing::Return(false));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
 
@@ -278,6 +286,10 @@ TEST(ServerLocalTest, ForceServerShutdown) {
       *parameter_client,
       GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
       .WillOnce(::testing::Return(0));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
+      .WillOnce(::testing::Return(false));
+
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
 

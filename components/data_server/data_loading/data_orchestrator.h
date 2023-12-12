@@ -31,6 +31,7 @@
 #include "components/udf/udf_client.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/readers/stream_record_reader_factory.h"
+#include "public/sharding/key_sharder.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
@@ -55,6 +56,7 @@ class DataOrchestrator {
     RealtimeThreadPoolManager& realtime_thread_pool_manager;
     const int32_t shard_num = 0;
     const int32_t num_shards = 1;
+    const KeySharder key_sharder;
   };
 
   // Creates initial state. Scans the bucket and initializes the cache with data

@@ -32,6 +32,7 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
+#include "public/sharding/key_sharder.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
@@ -202,6 +203,7 @@ absl::Status InitOnce(Operation operation) {
           .delta_stream_reader_factory = *delta_stream_reader_factory,
           .realtime_thread_pool_manager = realtime_thread_pool_manager,
           .udf_client = *noop_udf_client,
+          .key_sharder = KeySharder(ShardingFunction{/*seed=*/""}),
       },
       *metrics_recorder);
   absl::Time end_time = absl::Now();

@@ -32,6 +32,8 @@
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
+#include "public/sharding/key_sharder.h"
+#include "public/sharding/sharding_function.h"
 #include "public/test_util/mocks.h"
 #include "public/test_util/proto_matcher.h"
 #include "src/cpp/telemetry/mocks.h"
@@ -101,7 +103,9 @@ class DataOrchestratorTest : public ::testing::Test {
             .change_notifier = change_notifier_,
             .udf_client = udf_client_,
             .delta_stream_reader_factory = delta_stream_reader_factory_,
-            .realtime_thread_pool_manager = realtime_thread_pool_manager_}) {}
+            .realtime_thread_pool_manager = realtime_thread_pool_manager_,
+            .key_sharder = kv_server::KeySharder(
+                kv_server::ShardingFunction{/*seed=*/""})}) {}
 
   MockBlobStorageClient blob_client_;
   MockDeltaFileNotifier notifier_;
@@ -625,7 +629,8 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .realtime_thread_pool_manager = realtime_thread_pool_manager_,
       .shard_num = 1,
       .num_shards = 2,
-  };
+      .key_sharder =
+          kv_server::KeySharder(kv_server::ShardingFunction{/*seed=*/""})};
 
   auto maybe_orchestrator =
       DataOrchestrator::TryCreate(sharded_options, metrics_recorder_);

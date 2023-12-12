@@ -44,6 +44,7 @@
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
 #include "public/query/get_values.grpc.pb.h"
+#include "public/sharding/key_sharder.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 
@@ -84,7 +85,7 @@ class Server {
   std::unique_ptr<StreamRecordReaderFactory> CreateStreamRecordReaderFactory(
       const ParameterFetcher& parameter_fetcher);
   std::unique_ptr<DataOrchestrator> CreateDataOrchestrator(
-      const ParameterFetcher& parameter_fetcher);
+      const ParameterFetcher& parameter_fetcher, KeySharder key_sharder);
 
   void CreateGrpcServices(const ParameterFetcher& parameter_fetcher);
   absl::Status MaybeShutdownNotifiers();

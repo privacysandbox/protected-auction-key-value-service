@@ -88,21 +88,23 @@ absl::Status ApplyDeleteMutation(const KeyValueMutationRecord& record,
 
 bool ShouldProcessRecord(const KeyValueMutationRecord& record,
                          int64_t num_shards, int64_t server_shard_num,
-                         MetricsRecorder& metrics_recorder) {
+                         MetricsRecorder& metrics_recorder,
+                         const KeySharder& key_sharder) {
   if (num_shards <= 1) {
     return true;
   }
-  auto shard_num =
-      ShardingFunction(/*seed=*/"")
-          .GetShardNumForKey(record.key()->string_view(), num_shards);
-  if (shard_num == server_shard_num) {
+  auto sharding_result =
+      key_sharder.GetShardNumForKey(record.key()->string_view(), num_shards);
+  if (sharding_result.shard_num == server_shard_num) {
     return true;
   }
   metrics_recorder.IncrementEventCounter(kTotalRowsDroppedIncorrectShardNumber);
   LOG_EVERY_N(ERROR, 100000) << absl::StrFormat(
-      "Data does not belong to this shard replica. Key: %s, Actual "
+      "Data does not belong to this shard replica. Key: %s, Sharding key (if "
+      "regex matched): %s, Actual "
       "shard id: %d, Server's shard id: %d.",
-      record.key()->string_view(), shard_num, server_shard_num);
+      record.key()->string_view(), sharding_result.sharding_key,
+      sharding_result.shard_num, server_shard_num);
   return false;
 }
 
@@ -137,16 +139,17 @@ absl::Status ApplyKeyValueMutationToCache(
 absl::StatusOr<DataLoadingStats> LoadCacheWithData(
     StreamRecordReader& record_reader, Cache& cache, int64_t& max_timestamp,
     const int32_t server_shard_num, const int32_t num_shards,
-    MetricsRecorder& metrics_recorder, UdfClient& udf_client) {
+    MetricsRecorder& metrics_recorder, UdfClient& udf_client,
+    const KeySharder& key_sharder) {
   DataLoadingStats data_loading_stats;
   const auto process_data_record_fn =
       [&cache, &max_timestamp, &data_loading_stats, server_shard_num,
-       num_shards, &metrics_recorder,
-       &udf_client](const DataRecord& data_record) {
+       num_shards, &metrics_recorder, &udf_client,
+       &key_sharder](const DataRecord& data_record) {
         if (data_record.record_type() == Record::KeyValueMutationRecord) {
           const auto* record = data_record.record_as_KeyValueMutationRecord();
           if (!ShouldProcessRecord(*record, num_shards, server_shard_num,
-                                   metrics_recorder)) {
+                                   metrics_recorder, key_sharder)) {
             // NOTE: currently upstream logic retries on non-ok status
             // this will get us in a loop
             return absl::OkStatus();
@@ -208,9 +211,10 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
         .total_deleted_records = 0,
     };
   }
-  auto status = LoadCacheWithData(*record_reader, cache, max_timestamp,
-                                  options.shard_num, options.num_shards,
-                                  metrics_recorder, options.udf_client);
+  auto status =
+      LoadCacheWithData(*record_reader, cache, max_timestamp, options.shard_num,
+                        options.num_shards, metrics_recorder,
+                        options.udf_client, options.key_sharder);
   if (status.ok()) {
     cache.RemoveDeletedKeys(max_timestamp);
   }
@@ -431,7 +435,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
     auto record_reader = delta_stream_reader_factory.CreateReader(is);
     return LoadCacheWithData(*record_reader, cache, max_timestamp,
                              options_.shard_num, options_.num_shards,
-                             metrics_recorder_, options_.udf_client);
+                             metrics_recorder_, options_.udf_client,
+                             options_.key_sharder);
   }
 
   const Options options_;

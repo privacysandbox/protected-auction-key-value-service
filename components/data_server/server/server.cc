@@ -89,6 +89,10 @@ constexpr absl::string_view kNumShardsParameterSuffix = "num-shards";
 constexpr absl::string_view kUdfNumWorkersParameterSuffix = "udf-num-workers";
 constexpr absl::string_view kLoggingVerbosityLevelParameterSuffix =
     "logging-verbosity-level";
+constexpr absl::string_view kUseShardingKeyRegexParameterSuffix =
+    "use-sharding-key-regex";
+constexpr absl::string_view kShardingKeyRegexParameterSuffix =
+    "sharding-key-regex";
 constexpr absl::string_view kRouteV1ToV2Suffix = "route-v1-to-v2";
 constexpr absl::string_view kAutoscalerHealthcheck = "autoscaler-healthcheck";
 constexpr absl::string_view kLoadbalancerHealthcheck =
@@ -286,6 +290,29 @@ absl::Status Server::Init(
   return InitOnceInstancesAreCreated();
 }
 
+KeySharder GetKeySharder(const ParameterFetcher& parameter_fetcher) {
+  const bool use_sharding_key_regex =
+      parameter_fetcher.GetBoolParameter(kUseShardingKeyRegexParameterSuffix);
+  LOG(INFO) << "Retrieved " << kUseShardingKeyRegexParameterSuffix
+            << " parameter: " << use_sharding_key_regex;
+  ShardingFunction func(/*seed=*/"");
+  std::optional<std::regex> shard_key_regex;
+  if (use_sharding_key_regex) {
+    std::string sharding_key_regex_value =
+        parameter_fetcher.GetParameter(kShardingKeyRegexParameterSuffix);
+    LOG(INFO) << "Retrieved " << kShardingKeyRegexParameterSuffix
+              << " parameter: " << sharding_key_regex_value;
+    // https://en.cppreference.com/w/cpp/regex/syntax_option_type
+    // optimize -- "Instructs the regular expression engine to make matching
+    // faster, with the potential cost of making construction slower. For
+    // example, this might mean converting a non-deterministic FSA to a
+    // deterministic FSA." this matches our usecase.
+    shard_key_regex = std::regex(std::move(sharding_key_regex_value),
+                                 std::regex_constants::optimize);
+  }
+  return KeySharder(func, std::move(shard_key_regex));
+}
+
 absl::Status Server::InitOnceInstancesAreCreated() {
   const auto shard_num_status = instance_client_->GetShardNumTag();
   if (!shard_num_status.ok()) {
@@ -337,9 +364,11 @@ absl::Status Server::InitOnceInstancesAreCreated() {
 
   grpc_server_ = CreateAndStartGrpcServer();
   local_lookup_ = CreateLocalLookup(*cache_, *metrics_recorder_);
+  auto key_sharder = GetKeySharder(parameter_fetcher);
   auto server_initializer = GetServerInitializer(
       num_shards_, *metrics_recorder_, *key_fetcher_manager_, *local_lookup_,
-      environment_, shard_num_, *instance_client_, *cache_, parameter_fetcher);
+      environment_, shard_num_, *instance_client_, *cache_, parameter_fetcher,
+      key_sharder);
   remote_lookup_ = server_initializer->CreateAndStartRemoteLookupServer();
   {
     auto status_or_notifier =
@@ -371,7 +400,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   }
   realtime_thread_pool_manager_ =
       std::move(*maybe_realtime_thread_pool_manager);
-  data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher);
+  data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher, key_sharder);
   TraceRetryUntilOk([this] { return data_orchestrator_->Start(); },
                     "StartDataOrchestrator",
                     LogStatusSafeMetricsFn<kStartDataOrchestratorStatus>());
@@ -511,7 +540,7 @@ Server::CreateStreamRecordReaderFactory(
 }
 
 std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
-    const ParameterFetcher& parameter_fetcher) {
+    const ParameterFetcher& parameter_fetcher, KeySharder key_sharder) {
   const std::string data_bucket =
       parameter_fetcher.GetParameter(kDataBucketParameterSuffix);
   LOG(INFO) << "Retrieved " << kDataBucketParameterSuffix
@@ -532,6 +561,7 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
                 .udf_client = *udf_client_,
                 .shard_num = shard_num_,
                 .num_shards = num_shards_,
+                .key_sharder = std::move(key_sharder),
             },
             *metrics_recorder_);
       },

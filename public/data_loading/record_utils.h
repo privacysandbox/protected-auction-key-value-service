@@ -56,6 +56,9 @@ inline std::ostream& operator<<(std::ostream& os,
       os << *(reinterpret_cast<const StringSetT*>(value_union.value));
       break;
     }
+    case Value::NONE: {
+      break;
+    }
   }
 
   return os;

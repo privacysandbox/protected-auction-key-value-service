@@ -119,3 +119,8 @@ module "data_storage" {
   environment    = var.environment
   data_bucket_id = var.data_bucket_id
 }
+
+module "metrics_dashboard" {
+  source      = "../../services/dashboards"
+  environment = var.environment
+}

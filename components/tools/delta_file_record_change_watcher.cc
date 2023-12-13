@@ -128,11 +128,8 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  // TODO (b/304311724) Remove noop metrics once metric recorder is
-  //  deprecated from DeltaFileRecordChangeNotifier
   std::unique_ptr<DeltaFileRecordChangeNotifier> notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(*status_or_notifier),
-                                            *noop_metrics_recorder);
+      DeltaFileRecordChangeNotifier::Create(std::move(*status_or_notifier));
 
   while (true) {
     auto keys = notifier->GetNotifications(absl::InfiniteDuration(),

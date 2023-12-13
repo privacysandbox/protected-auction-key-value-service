@@ -29,14 +29,20 @@
 namespace kv_server {
 namespace {
 using privacy_sandbox::server_common::GetTracer;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Field;
 using testing::Return;
 
 class RealtimeThreadPoolNotifierAwsTest : public ::testing::Test {
  protected:
-  MockMetricsRecorder mock_metrics_recorder_;
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    kv_server::KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
   int32_t thread_number_ = 4;
 };
 
@@ -53,8 +59,7 @@ TEST_F(RealtimeThreadPoolNotifierAwsTest, SuccesfullyCreated) {
   }
   NotifierMetadata metadata = AwsNotifierMetadata{};
   auto maybe_pool_manager = RealtimeThreadPoolManager::Create(
-      mock_metrics_recorder_, metadata, thread_number_,
-      std::move(test_metadata));
+      metadata, thread_number_, std::move(test_metadata));
   ASSERT_TRUE(maybe_pool_manager.ok());
 }
 
@@ -71,8 +76,7 @@ TEST_F(RealtimeThreadPoolNotifierAwsTest, SuccesfullyStartsAndStops) {
   }
   NotifierMetadata metadata = AwsNotifierMetadata{};
   auto maybe_pool_manager = RealtimeThreadPoolManager::Create(
-      mock_metrics_recorder_, metadata, thread_number_,
-      std::move(test_metadata));
+      metadata, thread_number_, std::move(test_metadata));
   ASSERT_TRUE(maybe_pool_manager.ok());
   absl::Status status = (*maybe_pool_manager)->Start([](const std::string&) {
     return absl::OkStatus();

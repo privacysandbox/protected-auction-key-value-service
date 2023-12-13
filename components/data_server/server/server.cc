@@ -394,7 +394,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   LOG(INFO) << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
             << " parameter: " << realtime_thread_numbers;
   auto maybe_realtime_thread_pool_manager = RealtimeThreadPoolManager::Create(
-      *metrics_recorder_, realtime_notifier_metadata, realtime_thread_numbers);
+      realtime_notifier_metadata, realtime_thread_numbers);
   if (!maybe_realtime_thread_pool_manager.ok()) {
     return maybe_realtime_thread_pool_manager.status();
   }

@@ -47,7 +47,6 @@ class RealtimeThreadPoolManager {
   // Create a realtime thread pool manager that will use the specified
   // numbers of threads to read from the queue.
   static absl::StatusOr<std::unique_ptr<RealtimeThreadPoolManager>> Create(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       NotifierMetadata notifier_metadata, int32_t num_threads,
       // This parameter allows overrides that are used for tests
       std::vector<RealtimeNotifierMetadata> realtime_notifier_metadata = {});

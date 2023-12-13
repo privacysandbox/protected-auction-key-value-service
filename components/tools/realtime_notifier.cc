@@ -105,8 +105,7 @@ absl::Status Run() {
 
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto realtime_notifier_maybe =
-      RealtimeNotifier::Create(*noop_metrics_recorder, metadata);
+  auto realtime_notifier_maybe = RealtimeNotifier::Create(metadata);
   if (!realtime_notifier_maybe.ok()) {
     return realtime_notifier_maybe.status();
   }

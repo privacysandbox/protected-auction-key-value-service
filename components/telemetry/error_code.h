@@ -43,6 +43,22 @@ inline constexpr absl::string_view
 // Error in parsing json from AWS S3 notification
 inline constexpr absl::string_view kAwsJsonParseError = "AwsJsonParseError";
 
+// Realtime message application failure
+inline constexpr absl::string_view kRealtimeMessageApplicationFailure =
+    "RealtimeMessageApplicationFailure";
+// Failure in getting realtime notifications
+inline constexpr absl::string_view kRealtimeGetNotificationsFailure =
+    "RealtimeGetNotificationsFailure";
+// Sleep failure in getting realtime notifications
+inline constexpr absl::string_view kRealtimeSleepFailure =
+    "RealtimeSleepFailure";
+// Failure in decoding realtime message
+inline constexpr absl::string_view kRealtimeDecodeMessageFailure =
+    "RealtimeDecodeMessageFailure";
+
+// TODO(b/304311724): Revisit the error codes and provide utililities to make
+//  it easier to log error metrics
+
 // Strings must be sorted, this is required by the API of partitioned metrics
 inline constexpr absl::string_view kChangeNotifierErrorCode[] = {
     kAwsChangeNotifierMessagesDataLoss,
@@ -52,6 +68,14 @@ inline constexpr absl::string_view kChangeNotifierErrorCode[] = {
     kAwsChangeNotifierTagFailure,
     kAwsJsonParseError,
     kDeltaFileRecordChangeNotifierParsingFailure,
+};
+
+// Strings must be sorted, this is required by the API of partitioned metrics
+inline constexpr absl::string_view kRealtimeErrorCode[] = {
+    kRealtimeDecodeMessageFailure,
+    kRealtimeGetNotificationsFailure,
+    kRealtimeMessageApplicationFailure,
+    kRealtimeSleepFailure,
 };
 
 }  // namespace kv_server

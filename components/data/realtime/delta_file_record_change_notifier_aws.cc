@@ -20,6 +20,7 @@
 #include "aws/core/utils/json/JsonSerializer.h"
 #include "components/data/common/change_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/telemetry/server_definition.h"
 #include "glog/logging.h"
 #include "src/cpp/telemetry/telemetry.h"
 
@@ -43,10 +44,8 @@ struct ParsedBody {
 class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
  public:
   explicit AwsDeltaFileRecordChangeNotifier(
-      std::unique_ptr<ChangeNotifier> change_notifier,
-      MetricsRecorder& metrics_recorder)
-      : change_notifier_(std::move(change_notifier)),
-        metrics_recorder_(metrics_recorder) {}
+      std::unique_ptr<ChangeNotifier> change_notifier)
+      : change_notifier_(std::move(change_notifier)) {}
 
   absl::StatusOr<NotificationsContext> GetNotifications(
       absl::Duration max_wait,
@@ -67,8 +66,12 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
       if (!parsedMessage.ok()) {
         LOG(ERROR) << "Failed to parse JSON: " << message
                    << ", error: " << parsedMessage.status();
-        metrics_recorder_.IncrementEventCounter(
-            kDeltaFileRecordChangeNotifierParsingFailure);
+        LogIfError(
+            KVServerContextMap()
+                ->SafeMetric()
+                .LogUpDownCounter<kChangeNotifierErrors>(
+                    {{std::string(kDeltaFileRecordChangeNotifierParsingFailure),
+                      1}}));
         continue;
       }
       nc.realtime_messages.push_back(RealtimeMessage{
@@ -130,16 +133,14 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
   }
 
   std::unique_ptr<ChangeNotifier> change_notifier_;
-  MetricsRecorder& metrics_recorder_;
 };
 }  // namespace
 
 std::unique_ptr<DeltaFileRecordChangeNotifier>
 DeltaFileRecordChangeNotifier::Create(
-    std::unique_ptr<ChangeNotifier> change_notifier,
-    MetricsRecorder& metrics_recorder) {
+    std::unique_ptr<ChangeNotifier> change_notifier) {
   return std::make_unique<AwsDeltaFileRecordChangeNotifier>(
-      std::move(change_notifier), metrics_recorder);
+      std::move(change_notifier));
 }
 
 }  // namespace kv_server

@@ -34,14 +34,19 @@ namespace kv_server {
 namespace {
 
 using privacy_sandbox::server_common::GetTracer;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 
 class RealtimeNotifierAwsTest : public ::testing::Test {
  protected:
-  void SetUp() override {}
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    kv_server::KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
   std::unique_ptr<MockDeltaFileRecordChangeNotifier> change_notifier_ =
       std::make_unique<MockDeltaFileRecordChangeNotifier>();
-  MockMetricsRecorder mock_metrics_recorder_;
   std::unique_ptr<MockSleepFor> mock_sleep_for_ =
       std::make_unique<MockSleepFor>();
 };
@@ -56,8 +61,7 @@ TEST_F(RealtimeNotifierAwsTest, NotRunning) {
       .maybe_sleep_for = std::move(mock_sleep_for_),
       .change_notifier_for_unit_testing = change_notifier_.release(),
   };
-  auto maybe_notifier =
-      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   ASSERT_TRUE(maybe_notifier.ok());
   ASSERT_FALSE((*maybe_notifier)->IsRunning());
 }
@@ -67,8 +71,7 @@ TEST_F(RealtimeNotifierAwsTest, ConsecutiveStartsWork) {
       .maybe_sleep_for = std::move(mock_sleep_for_),
       .change_notifier_for_unit_testing = change_notifier_.release(),
   };
-  auto maybe_notifier =
-      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start([](const std::string&) {
     return absl::OkStatus();
   });
@@ -84,8 +87,7 @@ TEST_F(RealtimeNotifierAwsTest, StartsAndStops) {
       .maybe_sleep_for = std::move(mock_sleep_for_),
       .change_notifier_for_unit_testing = change_notifier_.release(),
   };
-  auto maybe_notifier =
-      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start([](const std::string&) {
     return absl::OkStatus();
   });
@@ -139,8 +141,7 @@ TEST_F(RealtimeNotifierAwsTest, NotifiesWithHighPriorityUpdates) {
       .maybe_sleep_for = std::move(mock_sleep_for_),
       .change_notifier_for_unit_testing = change_notifier_.release(),
   };
-  auto maybe_notifier =
-      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start(callback.AsStdFunction());
   ASSERT_TRUE(status.ok());
   EXPECT_TRUE((*maybe_notifier)->IsRunning());
@@ -184,8 +185,7 @@ TEST_F(RealtimeNotifierAwsTest, GetChangesFailure) {
       .maybe_sleep_for = std::move(mock_sleep_for_),
       .change_notifier_for_unit_testing = change_notifier_.release(),
   };
-  auto maybe_notifier =
-      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start(callback.AsStdFunction());
   ASSERT_TRUE(status.ok());
   EXPECT_TRUE((*maybe_notifier)->IsRunning());

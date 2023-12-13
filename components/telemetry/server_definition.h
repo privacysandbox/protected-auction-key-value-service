@@ -307,28 +307,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
                              kAbslStatusStrings);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRealtimeGetNotificationsFailure(
-        "RealtimeGetNotificationsFailure",
-        "Number of failures in getting realtime notifications");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRealtimeSleepFailure(
-        "RealtimeSleepFailure",
-        "Number of sleep failures in getting realtime notifications");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
     kRealtimeTotalRowsUpdated("RealtimeTotalRowsUpdated",
-                              "Realtime total rows updated status count",
-                              "status", kAbslStatusStrings);
+                              "Realtime total rows updated count");
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kReceivedLowLatencyNotificationsE2ECloudProvided(
         "ReceivedLowLatencyNotificationsE2ECloudProvided",
@@ -337,7 +322,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kReceivedLowLatencyNotificationsE2E(
         "ReceivedLowLatencyNotificationsE2E",
@@ -346,27 +331,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kReceivedLowLatencyNotifications(
         "ReceivedLowLatencyNotifications",
         "Latency in realtime notifier processing the received batch of "
         "notification messages",
         kLatencyInMicroSecondsBoundaries);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRealtimeDecodeMessageFailure(
-        "RealtimeDecodeMessageFailure",
-        "Number of failures in decoding realtime message");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRealtimeMessageApplicationFailure(
-        "RealtimeMessageApplicationFailure",
-        "Number of realtime message application failures");
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
@@ -381,6 +352,12 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     kChangeNotifierErrors("ChangeNotifierErrors",
                           "Errors in the change notifier", "error_code",
                           kChangeNotifierErrorCode);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kRealtimeErrors("RealtimeErrors", "Errors in realtime data loading",
+                    "error_code", kRealtimeErrorCode);
 
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
@@ -405,12 +382,11 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kCreateDataOrchestratorStatus, &kStartDataOrchestratorStatus,
         &kLoadNewFilesStatus, &kGetShardManagerStatus,
         &kDescribeInstanceGroupInstancesStatus, &kDescribeInstancesStatus,
-        &kRealtimeGetNotificationsFailure, &kRealtimeSleepFailure,
         &kRealtimeTotalRowsUpdated,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
-        &kRealtimeDecodeMessageFailure, &kRealtimeMessageApplicationFailure,
-        &kChangeNotifierErrors, &kAwsSqsReceiveMessageLatency};
+        &kChangeNotifierErrors, &kRealtimeErrors,
+        &kAwsSqsReceiveMessageLatency};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>

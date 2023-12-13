@@ -54,16 +54,14 @@ class RealtimeThreadPoolManagerGCP : public RealtimeThreadPoolManager {
 
 absl::StatusOr<std::unique_ptr<RealtimeThreadPoolManager>>
 RealtimeThreadPoolManager::Create(
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     NotifierMetadata notifier_metadata, int32_t num_threads,
     std::vector<RealtimeNotifierMetadata> realtime_notifier_metadata) {
   RealtimeNotifierMetadata realtime_notifier_metadatum =
       realtime_notifier_metadata.empty()
           ? RealtimeNotifierMetadata{}
           : std::move(realtime_notifier_metadata[0]);
-  auto maybe_realtime_notifier =
-      RealtimeNotifier::Create(metrics_recorder, std::move(notifier_metadata),
-                               std::move(realtime_notifier_metadatum));
+  auto maybe_realtime_notifier = RealtimeNotifier::Create(
+      std::move(notifier_metadata), std::move(realtime_notifier_metadatum));
   if (!maybe_realtime_notifier.ok()) {
     return maybe_realtime_notifier.status();
   }

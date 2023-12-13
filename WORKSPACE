@@ -129,3 +129,10 @@ install_deps()
 load("//third_party_deps:rules_closure_repositories.bzl", "rules_closure_repositories")
 
 rules_closure_repositories()
+
+# Use nogo to run `go vet` with bazel
+load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
+
+go_rules_dependencies()
+
+go_register_toolchains(nogo = "@//:kv_nogo")

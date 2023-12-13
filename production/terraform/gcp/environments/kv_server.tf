@@ -59,8 +59,7 @@ module "kv_server" {
   num_shards                            = var.num_shards
   use_existing_service_mesh             = var.use_existing_service_mesh
   existing_service_mesh                 = var.existing_service_mesh
-  # TODO(b/299623229): remove the following reminder once b/299623229 is done.
-  # Reminder: for any new parameters added here, please also add them to "components/cloud_config/parameter_client_local.cc".
+
   parameters = {
     directory                                 = var.directory
     data-bucket-id                            = var.data_bucket_id

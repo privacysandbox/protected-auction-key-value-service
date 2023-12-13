@@ -534,3 +534,7 @@ You may run into a case where the server fails to start due to resource allocati
 
 The resources are allocated by specifying the per-TEE values in the terraform variable file,
 `enclave_cpu_count` and `enclave_memory_mib`.
+
+## How is private communication configured?
+
+See this [doc](private_communication_aws.md) for more details.

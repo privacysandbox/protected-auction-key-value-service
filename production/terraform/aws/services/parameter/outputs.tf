@@ -101,3 +101,11 @@ output "data_loading_file_format_parameter_arn" {
 output "logging_verbosity_level_parameter_arn" {
   value = aws_ssm_parameter.logging_verbosity_level_parameter.arn
 }
+
+output "use_sharding_key_regex_parameter_arn" {
+  value = aws_ssm_parameter.use_sharding_key_regex_parameter.arn
+}
+
+output "sharding_key_regex_parameter_arn" {
+  value = (var.use_sharding_key_regex_parameter_value) ? aws_ssm_parameter.sharding_key_regex_parameter[0].arn : ""
+}

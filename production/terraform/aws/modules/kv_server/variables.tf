@@ -242,3 +242,13 @@ variable "http_api_paths" {
     "/healthcheck"
   ]
 }
+
+variable "use_sharding_key_regex" {
+  description = "Use sharding key regex. This is useful if you want to use data locality feature for sharding."
+  type        = bool
+}
+
+variable "sharding_key_regex" {
+  description = "Sharding key regex."
+  type        = string
+}

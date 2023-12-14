@@ -54,6 +54,11 @@ variable "metrics_collector_endpoint_arns" {
   type        = set(string)
 }
 
+variable "sharding_key_regex_arns" {
+  description = "A set of arns for sharding key regex"
+  type        = set(string)
+}
+
 variable "sns_data_updates_topic_arn" {
   description = "ARN for the sns topic that receives s3 delta file updates."
   type        = string

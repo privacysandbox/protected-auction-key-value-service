@@ -112,6 +112,7 @@ class LocalParameterClient : public ParameterClient {
     bool_flag_values_.insert({"kv-server-local-use-real-coordinators", false});
     bool_flag_values_.insert(
         {"kv-server-local-use-external-metrics-collector-endpoint", false});
+    bool_flag_values_.insert({"kv-server-local-use-sharding-key-regex", false});
     // Insert more bool flag values here.
   }
 

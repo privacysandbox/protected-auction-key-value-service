@@ -123,3 +123,13 @@ variable "logging_verbosity_level_parameter_value" {
   description = "Logging verbosity."
   type        = number
 }
+
+variable "use_sharding_key_regex_parameter_value" {
+  description = "Use sharding key regex. This is useful if you want to use data locality feature for sharding."
+  type        = bool
+}
+
+variable "sharding_key_regex_parameter_value" {
+  description = "Sharding key regex."
+  type        = string
+}

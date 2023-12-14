@@ -236,3 +236,15 @@ variable "logging_verbosity_level" {
   default     = "0"
   type        = string
 }
+
+variable "use_sharding_key_regex" {
+  description = "Use sharding key regex. This is useful if you want to use data locality feature for sharding."
+  default     = false
+  type        = bool
+}
+
+variable "sharding_key_regex" {
+  description = "Sharding key regex."
+  default     = "EMPTY_STRING"
+  type        = string
+}

@@ -85,5 +85,7 @@ module "kv_server" {
     primary-coordinator-account-identity      = var.primary_coordinator_account_identity
     secondary-coordinator-account-identity    = var.secondary_coordinator_account_identity
     logging-verbosity-level                   = var.logging_verbosity_level
+    use-sharding-key-regex                    = var.use_sharding_key_regex
+    sharding-key-regex                        = var.sharding_key_regex
   }
 }

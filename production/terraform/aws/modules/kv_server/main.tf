@@ -164,6 +164,8 @@ module "parameter" {
   secondary_coordinator_account_identity_parameter_value = var.secondary_coordinator_account_identity
   data_loading_file_format_parameter_value               = var.data_loading_file_format
   logging_verbosity_level_parameter_value                = var.logging_verbosity_level
+  use_sharding_key_regex_parameter_value                 = var.use_sharding_key_regex
+  sharding_key_regex_parameter_value                     = var.sharding_key_regex
 }
 
 module "security_group_rules" {
@@ -209,7 +211,8 @@ module "iam_role_policies" {
     module.parameter.route_v1_requests_to_v2_parameter_arn,
     module.parameter.data_loading_file_format_parameter_arn,
     module.parameter.logging_verbosity_level_parameter_arn,
-  module.parameter.use_real_coordinators_parameter_arn]
+    module.parameter.use_real_coordinators_parameter_arn,
+  module.parameter.use_sharding_key_regex_parameter_arn]
   coordinator_parameter_arns = (
     var.use_real_coordinators ? [
       module.parameter.primary_coordinator_account_identity_parameter_arn,
@@ -219,6 +222,11 @@ module "iam_role_policies" {
   metrics_collector_endpoint_arns = (
     var.use_external_metrics_collector_endpoint ? [
       module.parameter.metrics_collector_endpoint_arn
+    ] : []
+  )
+  sharding_key_regex_arns = (
+    var.use_sharding_key_regex ? [
+      module.parameter.sharding_key_regex_parameter_arn
     ] : []
   )
 }

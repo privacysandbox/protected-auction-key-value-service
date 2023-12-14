@@ -164,3 +164,18 @@ resource "aws_ssm_parameter" "logging_verbosity_level_parameter" {
   value     = var.logging_verbosity_level_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "use_sharding_key_regex_parameter" {
+  name      = "${var.service}-${var.environment}-use-sharding-key-regex"
+  type      = "String"
+  value     = var.use_sharding_key_regex_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "sharding_key_regex_parameter" {
+  count     = (var.use_sharding_key_regex_parameter_value) ? 1 : 0
+  name      = "${var.service}-${var.environment}-sharding-key-regex"
+  type      = "String"
+  value     = var.sharding_key_regex_parameter_value
+  overwrite = true
+}

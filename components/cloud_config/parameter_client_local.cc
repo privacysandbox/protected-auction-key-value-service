@@ -69,6 +69,8 @@ class LocalParameterClient : public ParameterClient {
   LocalParameterClient() {
     string_flag_values_.insert(
         {"kv-server-local-directory", absl::GetFlag(FLAGS_delta_directory)});
+    string_flag_values_.insert({"kv-server-local-data-bucket-id",
+                                absl::GetFlag(FLAGS_delta_directory)});
     string_flag_values_.insert(
         {"kv-server-local-launch-hook", absl::GetFlag(FLAGS_launch_hook)});
     string_flag_values_.insert({"kv-server-local-realtime-directory",

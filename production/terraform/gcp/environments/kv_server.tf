@@ -61,10 +61,8 @@ module "kv_server" {
   existing_service_mesh                 = var.existing_service_mesh
 
   parameters = {
-    directory                                 = var.directory
     data-bucket-id                            = var.data_bucket_id
     launch-hook                               = "${local.kv_service}-${var.environment}-launch-hook"
-    realtime-directory                        = var.realtime_directory
     use-external-metrics-collector-endpoint   = var.use_external_metrics_collector_endpoint
     metrics-collector-endpoint                = "${var.environment}-${var.collector_service_name}.${var.collector_domain_name}:${var.collector_service_port}"
     metrics-export-interval-millis            = var.metrics_export_interval_millis

@@ -32,10 +32,6 @@
 
     Number of parallel threads for reading and loading data files.
 
--   **directory**
-
-    Directory to watch for files.
-
 -   **dns_zone**
 
     The DNS zone name
@@ -112,10 +108,6 @@
 -   **project_id**
 
     GCP project id.
-
--   **realtime_directory**
-
-    Local directory to watch for realtime file changes.
 
 -   **realtime_updater_num_threads**
 

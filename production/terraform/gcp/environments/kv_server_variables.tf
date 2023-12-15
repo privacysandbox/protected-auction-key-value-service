@@ -86,19 +86,9 @@ variable "cpu_utilization_percent" {
   type        = number
 }
 
-variable "directory" {
-  type        = string
-  description = "Directory to watch for files."
-}
-
 variable "data_bucket_id" {
   type        = string
   description = "Directory to watch for files."
-}
-
-variable "realtime_directory" {
-  type        = string
-  description = "Local directory to watch for realtime file changes."
 }
 
 variable "metrics_export_interval_millis" {

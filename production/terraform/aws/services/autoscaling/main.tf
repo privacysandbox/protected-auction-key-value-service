@@ -21,8 +21,6 @@ resource "aws_launch_template" "instance_launch_template" {
   image_id      = var.instance_ami_id
   instance_type = var.instance_type
 
-  update_default_version = true
-
   iam_instance_profile {
     arn = var.instance_profile_arn
   }

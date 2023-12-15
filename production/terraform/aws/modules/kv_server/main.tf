@@ -100,6 +100,7 @@ module "load_balancing" {
   healthcheck_healthy_threshold   = var.healthcheck_healthy_threshold
   healthcheck_interval_sec        = var.healthcheck_interval_sec
   healthcheck_unhealthy_threshold = var.healthcheck_unhealthy_threshold
+  http_api_paths                  = var.http_api_paths
 }
 
 module "autoscaling" {

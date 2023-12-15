@@ -67,6 +67,11 @@
 
     Consecutive health check failures required to be considered unhealthy.
 
+-   **http_api_paths**
+
+    URL paths the load balancer will forward to the server. By default the load balancer will
+    forward requests with `/v1/*`, `/v2/*`, and `/healthcheck`.
+
 -   **instance_ami_id**
 
     Set the value to the AMI ID that was generated when the image was built.

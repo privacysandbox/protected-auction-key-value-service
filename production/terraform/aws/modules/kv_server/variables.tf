@@ -232,3 +232,13 @@ variable "run_server_outside_tee" {
   description = "Whether to run the server outside the TEE, in a docker container. Untrusted mode, for debugging."
   type        = bool
 }
+
+variable "http_api_paths" {
+  description = "URL paths the load balancer will forward to the server."
+  type        = set(string)
+  default = [
+    "/v1/*",
+    "/v2/*",
+    "/healthcheck"
+  ]
+}

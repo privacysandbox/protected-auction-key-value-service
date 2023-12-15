@@ -43,6 +43,7 @@ module "kv_server" {
   autoscaling_desired_capacity = var.autoscaling_desired_capacity
   autoscaling_max_size         = var.autoscaling_max_size
   autoscaling_min_size         = var.autoscaling_min_size
+  http_api_paths               = var.http_api_paths
 
   # Variables related to data storage and cleanup.
   s3_delta_file_bucket_name    = var.s3_delta_file_bucket_name

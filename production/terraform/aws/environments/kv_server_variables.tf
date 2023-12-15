@@ -235,3 +235,12 @@ variable "run_server_outside_tee" {
   default     = false
   type        = bool
 }
+
+variable "http_api_paths" {
+  type = set(string)
+  default = [
+    "/v1/*",
+    "/v2/*",
+    "/healthcheck"
+  ]
+}

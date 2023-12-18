@@ -21,6 +21,7 @@
 #include "absl/flags/parse.h"
 #include "absl/strings/substitute.h"
 #include "components/data/common/msg_svc.h"
+#include "components/tools/concurrent_publishing_engine.h"
 #include "components/tools/publisher_service.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
@@ -37,7 +38,7 @@ using RecursiveDirectoryIterator =
     std::filesystem::recursive_directory_iterator;
 using namespace std::chrono_literals;  // NOLINT
 
-absl::Mutex mutex_;
+absl::Mutex mutex;
 std::queue<std::string> updates_queue;
 
 void PopulateQueue(const std::string& deltas_folder_path) {
@@ -48,60 +49,6 @@ void PopulateQueue(const std::string& deltas_folder_path) {
     buffer << delta_file_stream.rdbuf();
     std::string file_encoded = absl::Base64Escape(buffer.str());
     updates_queue.push(file_encoded);
-  }
-}
-
-std::optional<std::string> Pop() {
-  absl::MutexLock lock(&mutex_);
-  {
-    if (updates_queue.empty()) {
-      return std::nullopt;
-    }
-    auto file_encoded = updates_queue.front();
-    updates_queue.pop();
-    return file_encoded;
-  }
-}
-
-void ConsumeAndPublish(NotifierMetadata notifier_metadata, int thread_idx) {
-  auto start = absl::Now();
-  int delta_file_index = 1;
-  // can't insert more than that many messages per second.
-  int files_insertion_rate = 15;
-  auto batch_end = absl::Now() + absl::Seconds(1);
-  auto message = Pop();
-  auto maybe_msg_service = PublisherService::Create(notifier_metadata);
-  if (!maybe_msg_service.ok()) {
-    LOG(ERROR) << "Failed creating a publisher service";
-    return;
-  }
-  auto msg_service = std::move(*maybe_msg_service);
-  while (message.has_value()) {
-    LOG(INFO) << absl::Now() << ": Inserting to the SNS: " << delta_file_index
-              << " Thread idx " << thread_idx;
-    auto status = msg_service->Publish(*message);
-    if (!status.ok()) {
-      LOG(ERROR) << absl::Now() << status << std::endl;
-    }
-    delta_file_index++;
-    // rate limit to N files per second
-    if (delta_file_index % files_insertion_rate == 0) {
-      if (batch_end > absl::Now()) {
-        absl::SleepFor(batch_end - absl::Now());
-        LOG(INFO) << absl::Now() << ": sleeping " << delta_file_index;
-      }
-      batch_end += absl::Seconds(1);
-    }
-    message = Pop();
-  }
-
-  int64_t elapsed_seconds = absl::ToInt64Seconds(absl::Now() - start);
-  LOG(INFO) << absl::Now() << ": Total inserted: " << delta_file_index
-            << " Seconds elapsed " << elapsed_seconds << " Thread idx "
-            << thread_idx;
-  if (elapsed_seconds > 0) {
-    LOG(INFO) << absl::Now() << " Actual rate "
-              << (delta_file_index / elapsed_seconds);
   }
 }
 
@@ -118,22 +65,16 @@ absl::Status Run() {
   }
   PopulateQueue(deltas_folder_path);
   const int insertion_num_threads = absl::GetFlag(FLAGS_insertion_num_threads);
-  std::vector<std::unique_ptr<std::thread>> publishers;
-  for (int i = 0; i < insertion_num_threads; i++) {
-    publishers.emplace_back(
-        std::make_unique<std::thread>([maybe_notifier_metadata, i] {
-          ConsumeAndPublish(*maybe_notifier_metadata, i);
-        }));
-  }
-
+  int files_insertion_rate = 15;
+  auto publishing_engine = ConcurrentPublishingEngine(
+      insertion_num_threads, std::move(*maybe_notifier_metadata),
+      files_insertion_rate, mutex, updates_queue);
+  publishing_engine.Start();
   while (!updates_queue.empty()) {
     LOG(INFO) << "Waiting on consumers";
     std::this_thread::sleep_for(1000ms);
   }
-  for (auto& publisher_thread : publishers) {
-    publisher_thread->join();
-  }
-
+  publishing_engine.Stop();
   return absl::OkStatus();
 }
 

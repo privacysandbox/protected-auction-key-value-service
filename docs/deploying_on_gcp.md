@@ -157,7 +157,7 @@ builders/tools/terraform -chdir=production/terraform/gcp/environments apply --va
 At the end, to destroy all the GCP resources:
 
 ```sh
-builders/tools/terraform -chdir=production/terraform/gcp/environments destroy --var-file=--var-file=${ENVIRONMENT}/${REGION}.tfvars.json
+builders/tools/terraform -chdir=production/terraform/gcp/environments destroy --var-file=${ENVIRONMENT}/${REGION}.tfvars.json
 ```
 
 # Loading data into the server

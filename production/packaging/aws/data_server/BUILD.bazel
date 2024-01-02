@@ -38,16 +38,26 @@ pkg_files(
 )
 
 pkg_files(
-    name = "kmstool_enclave_executable",
+    name = "kmstool_enclave_executables",
     srcs = [
         "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:kms_cli",
     ],
     attributes = pkg_attributes(mode = "0555"),
-    prefix = "/",
+    prefix = "/cpio/bin",
+)
+
+pkg_files(
+    name = "kmstool_enclave_libs",
+    srcs = [
+        "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:libnsm_so",
+    ],
+    attributes = pkg_attributes(mode = "0444"),
+    prefix = "/cpio/lib",
 )
 
 server_binaries = [
-    ":kmstool_enclave_executable",
+    ":kmstool_enclave_executables",
+    ":kmstool_enclave_libs",
     ":server_executables",
 ]
 
@@ -67,8 +77,8 @@ pkg_tar(
     srcs = [
         "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:libnsm_so",
     ],
-    mode = "0644",
-    package_dir = "/lib/x86_64-linux-gnu/",
+    mode = "0444",
+    package_dir = "/cpio/lib",
     visibility = ["//visibility:public"],
 )
 

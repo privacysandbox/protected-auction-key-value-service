@@ -55,6 +55,7 @@ cc_binary(
         ":record_aggregator",
         "//public/data_loading:records_utils",
         "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/strings",
         "@com_google_benchmark//:benchmark",
     ],
 )

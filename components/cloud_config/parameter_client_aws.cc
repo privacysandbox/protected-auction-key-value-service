@@ -22,6 +22,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_format.h"
 #include "aws/core/Aws.h"
 #include "aws/core/utils/Outcome.h"

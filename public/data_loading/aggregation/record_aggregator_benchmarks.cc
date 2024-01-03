@@ -15,6 +15,7 @@
  */
 
 #include "absl/hash/hash.h"
+#include "absl/strings/str_cat.h"
 #include "benchmark/benchmark.h"
 #include "public/data_loading/aggregation/record_aggregator.h"
 #include "public/data_loading/records_utils.h"

@@ -19,6 +19,7 @@
 #include <thread>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "aws/core/Aws.h"
 #include "aws/core/utils/threading/Executor.h"
 #include "aws/s3/S3Client.h"

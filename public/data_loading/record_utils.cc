@@ -15,6 +15,7 @@
 #include "public/data_loading/record_utils.h"
 
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "glog/logging.h"
 
 namespace kv_server {

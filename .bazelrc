@@ -35,6 +35,7 @@ build:clang --client_env=CC=clang
 build:clang --cxxopt=-std=c++17
 build:clang --host_cxxopt=-std=c++17
 build:clang --client_env=BAZEL_CXXOPTS=-std=c++17
+build:clang --per_file_copt=external/nitrokmscli_.*\.c@-Wno-int-conversion
 
 # Required to use protos in wasm_cc_binary
 build:emscripten --per_file_copt=.*zlib.*@-Wno-deprecated-non-prototype

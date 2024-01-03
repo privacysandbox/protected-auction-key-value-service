@@ -32,9 +32,6 @@
 #include "roma/interface/roma.h"
 #include "roma/roma_service/roma_service.h"
 
-ABSL_FLAG(absl::Duration, udf_timeout, absl::Minutes(1),
-          "Timeout for one UDF invocation");
-
 namespace kv_server {
 
 namespace {
@@ -42,6 +39,7 @@ using google::protobuf::json::MessageToJsonString;
 using google::scp::roma::CodeObject;
 using google::scp::roma::Config;
 using google::scp::roma::InvocationStrRequest;
+using google::scp::roma::kTimeoutDurationTag;
 using google::scp::roma::ResponseObject;
 using google::scp::roma::sandbox::roma_service::RomaService;
 
@@ -56,8 +54,9 @@ constexpr int kUdfInterfaceVersion = 1;
 
 class UdfClientImpl : public UdfClient {
  public:
-  explicit UdfClientImpl(Config<> config = Config())
-      : udf_timeout_(absl::GetFlag(FLAGS_udf_timeout)), roma_service_(config) {}
+  explicit UdfClientImpl(Config<> config = Config(),
+                         absl::Duration udf_timeout = absl::Seconds(5))
+      : udf_timeout_(udf_timeout), roma_service_(config) {}
 
   // Converts the arguments into plain JSON strings to pass to Roma.
   absl::StatusOr<std::string> ExecuteCode(
@@ -190,6 +189,7 @@ class UdfClientImpl : public UdfClient {
     return {.id = kInvocationRequestId,
             .version_string = absl::StrCat("v", version_),
             .handler_name = handler_name_,
+            .tags = {{kTimeoutDurationTag, FormatDuration(udf_timeout_)}},
             .input = std::move(keys)};
   }
 
@@ -218,8 +218,8 @@ class UdfClientImpl : public UdfClient {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<UdfClient>> UdfClient::Create(
-    const Config<>& config) {
-  auto udf_client = std::make_unique<UdfClientImpl>(config);
+    const Config<>& config, absl::Duration udf_timeout) {
+  auto udf_client = std::make_unique<UdfClientImpl>(config, udf_timeout);
   const auto init_status = udf_client->Init();
   if (!init_status.ok()) {
     return init_status;

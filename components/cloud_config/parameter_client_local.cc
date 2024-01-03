@@ -54,6 +54,8 @@ ABSL_FLAG(std::string, data_loading_file_format,
           "File format of the input data files.");
 ABSL_FLAG(std::int32_t, logging_verbosity_level, 0,
           "Loggging verbosity level.");
+ABSL_FLAG(absl::Duration, udf_timeout, absl::Seconds(5),
+          "Timeout for one UDF invocation");
 
 namespace kv_server {
 namespace {
@@ -106,6 +108,9 @@ class LocalParameterClient : public ParameterClient {
                                  absl::GetFlag(FLAGS_udf_num_workers)});
     int32_t_flag_values_.insert({"kv-server-local-logging-verbosity-level",
                                  absl::GetFlag(FLAGS_logging_verbosity_level)});
+    int32_t_flag_values_.insert(
+        {"kv-server-local-udf-timeout-millis",
+         absl::ToInt64Milliseconds(absl::GetFlag(FLAGS_udf_timeout))});
     // Insert more int32 flag values here.
     bool_flag_values_.insert({"kv-server-local-route-v1-to-v2",
                               absl::GetFlag(FLAGS_route_v1_to_v2)});

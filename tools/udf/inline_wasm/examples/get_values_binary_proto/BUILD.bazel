@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_proto_library")
+load("@rules_cc//cc:defs.bzl", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 load("//tools/udf/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta")
 
@@ -37,12 +37,13 @@ BASE_LINKOPTS = [
     "-s ENVIRONMENT=shell",
 ]
 
-cc_binary(
-    name = "handle_request_cc",
+# builders/tools/bazel-debian run --config=emscripten \
+# //tools/udf/inline_wasm/examples/get_values_binary_proto:handle_request_cc_delta
+cc_inline_wasm_udf_delta(
+    name = "handle_request_cc_delta",
     srcs = ["handle_request.cc"],
+    custom_udf_js = "my_udf.js",
     linkopts = BASE_LINKOPTS,
-    # This target won't build successfully on its own because of missing emscripten
-    # headers etc. Therefore, we hide it from wildcards.
     tags = ["manual"],
     deps = [
         ":stored_value_cc_proto",
@@ -50,15 +51,6 @@ cc_binary(
         "@com_google_absl//absl/status:statusor",
         "@nlohmann_json//:lib",
     ],
-)
-
-# builders/tools/bazel-debian run --config=emscripten \
-# //tools/udf/inline_wasm/examples/get_values_binary_proto:handle_request_cc_delta
-cc_inline_wasm_udf_delta(
-    name = "handle_request_cc_delta",
-    cc_target = ":handle_request_cc",
-    custom_udf_js = "my_udf.js",
-    tags = ["manual"],
 )
 
 proto_library(

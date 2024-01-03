@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@emsdk//emscripten_toolchain:wasm_rules.bzl", "wasm_cc_binary")
-load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@google_privacysandbox_servers_common//build_defs/cc:wasm.bzl", "inline_wasm_cc_binary")
 load("//tools/udf/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta", "inline_wasm_udf_delta")
 
 BASE_LINKOPTS = [
@@ -33,24 +32,15 @@ BASE_LINKOPTS = [
     "-s ENVIRONMENT=shell",
 ]
 
-cc_binary(
-    name = "hello_cc",
+inline_wasm_cc_binary(
+    name = "hello_em",
     srcs = ["hello.cc"],
     linkopts = BASE_LINKOPTS,
-    # This target won't build successfully on its own because of missing emscripten
-    # headers etc. Therefore, we hide it from wildcards.
-    tags = ["manual"],
-)
-
-wasm_cc_binary(
-    name = "hello_em",
-    cc_target = ":hello_cc",
     outputs = [
         "hello.wasm",
         "hello.js",
     ],
     tags = ["manual"],
-    visibility = ["//visibility:private"],
 )
 
 # builders/tools/bazel-debian run --config=emscripten \
@@ -68,8 +58,9 @@ inline_wasm_udf_delta(
 # //tools/udf/inline_wasm/examples/hello_world:hello_delta_cc
 cc_inline_wasm_udf_delta(
     name = "hello_delta_cc",
-    cc_target = ":hello_cc",
+    srcs = ["hello.cc"],
     custom_udf_js = "my_udf.js",
+    linkopts = BASE_LINKOPTS,
     output_file_name = "DELTA_0000000000000007",
     tags = ["manual"],
 )

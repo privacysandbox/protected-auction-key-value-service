@@ -13,11 +13,11 @@ python_deps("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit 31eac77 2023-12-04
-    sha256 = "a75e12c467a4f49b3602f1e4fae162f2241a69b969411a0a415476c3749b102f",
-    strip_prefix = "data-plane-shared-libraries-31eac77dd280714d7330145b1809f2ff4d004387",
+    # commit 9a6c230 2024-01-03
+    sha256 = "cff9940d092d93547fcdd0999725c58c2d5c0b025dca18438cfa8f8945e79a8c",
+    strip_prefix = "data-plane-shared-libraries-9a6c230e584a91af466530cda5f4eaab13cff4d6",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/31eac77dd280714d7330145b1809f2ff4d004387.zip",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/9a6c230e584a91af466530cda5f4eaab13cff4d6.zip",
     ],
 )
 
@@ -47,12 +47,9 @@ data_plane_shared_deps4()
 load(
     "//third_party_deps:cpp_repositories.bzl",
     "cpp_repositories",
-    "emscripten_repositories",
 )
 
 cpp_repositories()
-
-EMSCRIPTEN_VER = emscripten_repositories()
 
 load("//third_party_deps:container_deps.bzl", "container_deps")
 
@@ -61,14 +58,6 @@ container_deps()
 load("@io_bazel_rules_docker//go:image.bzl", go_image_repos = "repositories")
 
 go_image_repos()
-
-load("//third_party_deps:emscripten_deps1.bzl", "emscripten_deps1")
-
-emscripten_deps1()
-
-load("//third_party_deps:emscripten_deps2.bzl", "emscripten_deps2")
-
-emscripten_deps2(EMSCRIPTEN_VER)
 
 # googleapis
 http_archive(

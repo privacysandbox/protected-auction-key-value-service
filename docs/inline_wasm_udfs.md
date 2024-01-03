@@ -117,7 +117,10 @@ load("//tools/udf/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta")
 
 cc_inline_wasm_udf_delta (
     name = "hello_delta",
-    cc_target = ":hello_cc",
+    srcs = ["hello.cc"],
+    deps = [
+      ":hello_deps",
+    ],
     custom_udf_js = "my_udf.js",
     custom_udf_js_handler = "HandleRequest",
     output_file_name = "DELTA_0000000000000001"

@@ -133,3 +133,8 @@ variable "sharding_key_regex_parameter_value" {
   description = "Sharding key regex."
   type        = string
 }
+
+variable "udf_timeout_millis_parameter_value" {
+  description = "UDF execution timeout in milliseconds."
+  type        = number
+}

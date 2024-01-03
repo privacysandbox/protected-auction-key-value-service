@@ -126,6 +126,12 @@ variable "udf_num_workers" {
   description = "Number of workers for UDF execution."
 }
 
+variable "udf_timeout_millis" {
+  type        = number
+  default     = 5000
+  description = "UDF execution timeout in milliseconds."
+}
+
 variable "route_v1_to_v2" {
   type        = bool
   description = "Whether to route V1 requests through V2."

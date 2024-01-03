@@ -179,3 +179,10 @@ resource "aws_ssm_parameter" "sharding_key_regex_parameter" {
   value     = var.sharding_key_regex_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "udf_timeout_millis_parameter" {
+  name      = "${var.service}-${var.environment}-udf-timeout-millis"
+  type      = "String"
+  value     = var.udf_timeout_millis_parameter_value
+  overwrite = true
+}

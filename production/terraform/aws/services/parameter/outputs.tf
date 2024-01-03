@@ -109,3 +109,7 @@ output "use_sharding_key_regex_parameter_arn" {
 output "sharding_key_regex_parameter_arn" {
   value = (var.use_sharding_key_regex_parameter_value) ? aws_ssm_parameter.sharding_key_regex_parameter[0].arn : ""
 }
+
+output "udf_timeout_millis_parameter_arn" {
+  value = aws_ssm_parameter.udf_timeout_millis_parameter.arn
+}

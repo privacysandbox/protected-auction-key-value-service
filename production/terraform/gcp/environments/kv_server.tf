@@ -72,6 +72,7 @@ module "kv_server" {
     data-loading-num-threads                  = var.data_loading_num_threads
     num-shards                                = var.num_shards
     udf-num-workers                           = var.udf_num_workers
+    udf-timeout-millis                        = var.udf_timeout_millis
     route-v1-to-v2                            = var.route_v1_to_v2
     use-real-coordinators                     = var.use_real_coordinators
     environment                               = var.environment

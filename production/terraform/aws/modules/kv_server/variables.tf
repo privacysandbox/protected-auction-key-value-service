@@ -252,3 +252,9 @@ variable "sharding_key_regex" {
   description = "Sharding key regex."
   type        = string
 }
+
+variable "udf_timeout_millis" {
+  description = "UDF execution timeout in milliseconds. Default is 5000."
+  default     = 5000
+  type        = number
+}

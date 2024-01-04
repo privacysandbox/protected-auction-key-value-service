@@ -14,7 +14,7 @@ docker run \
   --volume /etc/envoy:/etc/envoy \
   envoyproxy/envoy-distroless:v1.24.1 \
   --config-path /etc/envoy/envoy.yaml \
-  --log-level debug
+  --log-level info
 # Because of the bug described above, we need to try and wait for envoy to respond before
 # proceeding with the rest of the script to avoid a race condition between launching envoy
 # and reloading the nitro enclaves allocator service. We do not want to wait forever,

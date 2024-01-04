@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
-load("@google_privacysandbox_servers_common//build_defs/cc:wasm.bzl", "inline_wasm_cc_binary")
+load("@google_privacysandbox_servers_common//build_defs/cc:wasm.bzl", "inline_wasm_cc_binary", "inline_wasm_udf_js")
 
 def inline_wasm_udf_delta(
         name,
@@ -58,36 +58,22 @@ def inline_wasm_udf_delta(
             Defaults to `//tools/udf/udf_generator:udf_delta_file_generator`
         tags: tags to propagate to rules
     """
-    getModule_js = """async function getModule(){
-            var Module = {
-            instantiateWasm: function (imports, successCallback) {
-                var module = new WebAssembly.Module(wasm_array);
-                var instance = new WebAssembly.Instance(module, imports);
-                Module.testWasmInstantiationSucceeded = 1;
-                successCallback(instance);
-                return instance.exports;
-            }
-            };
-            return await wasmModule(Module);
-        }"""
+    inline_wasm_udf_js(
+        name = "{}_inline_wasm_js".format(name),
+        wasm_binary = wasm_binary,
+        glue_js = glue_js,
+    )
+
+    inline_wasm_js_file = "{}_inline_wasm_js_generated.js".format(name)
 
     native.genrule(
         name = "{}_generated".format(name),
-        srcs = [wasm_binary, glue_js, custom_udf_js],
+        srcs = [custom_udf_js, inline_wasm_js_file],
         outs = ["{}_generated.js".format(name)],
-        cmd_bash = """WASM_HEX=$$(
-hexdump -v -e '1/1 "0x%02x,"' $(location {wasm_binary})
-)
-cat << EOF > $@
-let wasm_array = new Uint8Array([$$WASM_HEX]);
-$$(cat $(location {glue_js}))
-{module_js}
-$$(cat $(location {udf_js}))
-EOF""".format(
-            wasm_binary = wasm_binary,
-            glue_js = glue_js,
-            module_js = getModule_js,
-            udf_js = custom_udf_js,
+        cmd_bash = """cat "$(location {inline_wasm_js_file})" "$(location {custom_udf_js})" >"$@"
+""".format(
+            inline_wasm_js_file = inline_wasm_js_file,
+            custom_udf_js = custom_udf_js,
         ),
         visibility = ["//visibility:private"],
         tags = tags,

@@ -15,27 +15,9 @@
 load("@google_privacysandbox_servers_common//build_defs/cc:wasm.bzl", "inline_wasm_cc_binary")
 load("//tools/udf/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta", "inline_wasm_udf_delta")
 
-BASE_LINKOPTS = [
-    # Enable embind
-    "--bind",
-    # no main function
-    "--no-entry",
-    # optimization
-    "-O3",
-    # Do not use closure. We probably want to use closure eventually.
-    "--closure=0",
-    "-s MODULARIZE=1",
-    "-s EXPORT_NAME=wasmModule",
-    # Disable the filesystem.
-    "-s FILESYSTEM=0",
-    # Use environment with fewer "extra" features.
-    "-s ENVIRONMENT=shell",
-]
-
 inline_wasm_cc_binary(
     name = "hello_em",
     srcs = ["hello.cc"],
-    linkopts = BASE_LINKOPTS,
     outputs = [
         "hello.wasm",
         "hello.js",
@@ -54,13 +36,12 @@ inline_wasm_udf_delta(
     wasm_binary = ":hello.wasm",
 )
 
-# builders/tools/bazel-debian run --config=emscripten \
+# builders/tools/bazel-debian run \
 # //tools/udf/inline_wasm/examples/hello_world:hello_delta_cc
 cc_inline_wasm_udf_delta(
     name = "hello_delta_cc",
     srcs = ["hello.cc"],
     custom_udf_js = "my_udf.js",
-    linkopts = BASE_LINKOPTS,
     output_file_name = "DELTA_0000000000000007",
     tags = ["manual"],
 )

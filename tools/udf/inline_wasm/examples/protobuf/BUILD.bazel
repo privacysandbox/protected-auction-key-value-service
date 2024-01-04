@@ -14,20 +14,8 @@
 
 load("//tools/udf/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta")
 
-BASE_LINKOPTS = [
-    # Enable embind
-    "--bind",
-    # no main function
-    "--no-entry",
-    # optimization
-    "-O3",
-    "-s MODULARIZE=1",
-    "-s EXPORT_NAME=wasmModule",
+ADDITIONAL_LINKOPTS = [
     "-s EXPORTED_FUNCTIONS=_malloc,_free",
-    # Disable the filesystem.
-    "-s FILESYSTEM=0",
-    # Use environment with fewer "extra" features.
-    "-s ENVIRONMENT=shell",
 ]
 
 # builders/tools/bazel-debian run --config=emscripten \
@@ -36,7 +24,7 @@ cc_inline_wasm_udf_delta(
     name = "hello_delta",
     srcs = ["hello.cc"],
     custom_udf_js = "my_udf.js",
-    linkopts = BASE_LINKOPTS,
+    linkopts = ADDITIONAL_LINKOPTS,
     tags = ["manual"],
     deps = [
         "//public/query/v2:get_values_v2_cc_proto",

@@ -20,30 +20,12 @@ package(default_visibility = [
     "//visibility:public",
 ])
 
-BASE_LINKOPTS = [
-    # Enable embind
-    "--bind",
-    # no main function
-    "--no-entry",
-    # optimization
-    "-O3",
-    # Do not use closure. We probably want to use closure eventually.
-    "--closure=0",
-    "-s MODULARIZE=1",
-    "-s EXPORT_NAME=wasmModule",
-    # Disable the filesystem.
-    "-s FILESYSTEM=0",
-    # Use environment with fewer "extra" features.
-    "-s ENVIRONMENT=shell",
-]
-
 # builders/tools/bazel-debian run --config=emscripten \
 # //tools/udf/inline_wasm/examples/get_values_binary_proto:handle_request_cc_delta
 cc_inline_wasm_udf_delta(
     name = "handle_request_cc_delta",
     srcs = ["handle_request.cc"],
     custom_udf_js = "my_udf.js",
-    linkopts = BASE_LINKOPTS,
     tags = ["manual"],
     deps = [
         ":stored_value_cc_proto",

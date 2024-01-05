@@ -55,7 +55,6 @@ using ::google::scp::core::ExecutionResult;
 using ::google::scp::core::errors::GetErrorMessage;
 using google::scp::cpio::InstanceClientInterface;
 using google::scp::cpio::InstanceClientOptions;
-using privacy_sandbox::server_common::MetricsRecorder;
 
 namespace compute = ::google::cloud::compute_instances_v1;
 
@@ -303,8 +302,7 @@ class GcpInstanceClient : public InstanceClient {
 };
 }  // namespace
 
-std::unique_ptr<InstanceClient> InstanceClient::Create(
-    MetricsRecorder& metrics_recorder) {
+std::unique_ptr<InstanceClient> InstanceClient::Create() {
   return std::make_unique<GcpInstanceClient>();
 }
 }  // namespace kv_server

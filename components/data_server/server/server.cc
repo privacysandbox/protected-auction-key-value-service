@@ -233,9 +233,8 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
     std::unique_ptr<UdfClient> udf_client) {
   parameter_client_ = parameter_client == nullptr ? ParameterClient::Create()
                                                   : std::move(parameter_client);
-  instance_client_ = instance_client == nullptr
-                         ? InstanceClient::Create(*metrics_recorder_)
-                         : std::move(instance_client);
+  instance_client_ = instance_client == nullptr ? InstanceClient::Create()
+                                                : std::move(instance_client);
   environment_ = TraceRetryUntilOk(
       [this]() { return instance_client_->GetEnvironmentTag(); },
       "GetEnvironment", LogMetricsNoOpCallback());

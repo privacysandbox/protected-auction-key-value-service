@@ -225,13 +225,10 @@ GenerateSnapshotCommand::Create(Params params) {
   if (absl::Status status = ValidateRequiredParams(params); !status.ok()) {
     return status;
   }
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> blob_client =
-      blob_storage_client_factory->CreateBlobStorageClient(
-          *noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient();
   return absl::WrapUnique(
       new GenerateSnapshotCommand(std::move(params), std::move(blob_client)));
 }

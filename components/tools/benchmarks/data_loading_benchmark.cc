@@ -229,8 +229,7 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args,
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> blob_client =
-      blob_storage_client_factory->CreateBlobStorageClient(metrics_recorder,
-                                                           options);
+      blob_storage_client_factory->CreateBlobStorageClient(options);
   ConcurrentStreamRecordReader<std::string_view> record_reader(
       metrics_recorder,
       /*stream_factory=*/
@@ -320,8 +319,7 @@ int main(int argc, char** argv) {
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> blob_client =
-      blob_storage_client_factory->CreateBlobStorageClient(
-          *noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient();
   if (absl::GetFlag(FLAGS_create_input_file)) {
     LOG(INFO) << "Creating input file: " << GetBlobLocation();
     std::stringstream data_stream;

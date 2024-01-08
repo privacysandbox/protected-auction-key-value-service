@@ -25,13 +25,13 @@
 
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "components/telemetry/server_definition.h"
 #include "gtest/gtest.h"
 #include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using privacy_sandbox::server_common::TelemetryProvider;
 
 SeekingInputStreambuf::Options GetOptions(int64_t buffer_size) {
@@ -44,8 +44,7 @@ class StringBlobInputStreambuf : public SeekingInputStreambuf {
  public:
   StringBlobInputStreambuf(std::string_view blob,
                            SeekingInputStreambuf::Options options)
-      : SeekingInputStreambuf(metrics_recorder_, std::move(options)),
-        blob_(blob) {}
+      : SeekingInputStreambuf(std::move(options)), blob_(blob) {}
 
  protected:
   absl::StatusOr<int64_t> ReadChunk(int64_t offset, int64_t chunk_size,
@@ -63,12 +62,19 @@ class StringBlobInputStreambuf : public SeekingInputStreambuf {
 
  private:
   std::string blob_;
-  MockMetricsRecorder metrics_recorder_;
 };
 
 class SeekingInputStreambufTest
     : public testing::TestWithParam<SeekingInputStreambuf::Options> {
  protected:
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    kv_server::KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
   StringBlobInputStreambuf CreateStringBlobStreambuf(std::string_view blob) {
     TelemetryProvider::Init("test", "test");
     return StringBlobInputStreambuf(blob, GetParam());

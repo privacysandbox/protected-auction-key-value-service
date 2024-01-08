@@ -130,7 +130,6 @@ class LocalBlobStorageClientFactory : public BlobStorageClientFactory {
  public:
   ~LocalBlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
-      MetricsRecorder& /*metrics_recorder*/,
       BlobStorageClient::ClientOptions /*client_options*/) override {
     return std::make_unique<FileBlobStorageClient>();
   }

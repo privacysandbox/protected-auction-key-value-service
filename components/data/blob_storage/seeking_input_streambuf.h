@@ -20,7 +20,6 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
 #ifndef COMPONENTS_DATA_BLOB_STORAGE_SEEKING_INPUT_STREAMBUF_H_
@@ -72,9 +71,7 @@ class SeekingInputStreambuf : public std::streambuf {
     std::function<void(absl::Status)> error_callback = [](absl::Status) {};
   };
 
-  explicit SeekingInputStreambuf(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      Options options = Options());
+  explicit SeekingInputStreambuf(Options options = Options());
   virtual ~SeekingInputStreambuf() = default;
   SeekingInputStreambuf(const SeekingInputStreambuf&) = delete;
   SeekingInputStreambuf& operator=(const SeekingInputStreambuf&) = delete;
@@ -113,7 +110,6 @@ class SeekingInputStreambuf : public std::streambuf {
   int64_t BufferCursorPosition();
   void MaybeReportError(absl::Status error);
 
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   Options options_;
   std::string buffer_;
   // `src_limit_position_` points to the next byte to be read from the

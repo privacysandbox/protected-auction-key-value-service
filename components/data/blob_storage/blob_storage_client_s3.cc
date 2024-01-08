@@ -40,16 +40,13 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
 // Sequentially load byte range data with a fixed amount of memory usage.
 class S3BlobInputStreamBuf : public SeekingInputStreambuf {
  public:
   S3BlobInputStreamBuf(Aws::S3::S3Client& client,
                        BlobStorageClient::DataLocation location,
-                       MetricsRecorder& metrics_recorder,
                        SeekingInputStreambuf::Options options)
-      : SeekingInputStreambuf(metrics_recorder, std::move(options)),
+      : SeekingInputStreambuf(std::move(options)),
         client_(client),
         location_(std::move(location)) {}
 
@@ -103,9 +100,9 @@ class S3BlobReader : public BlobReader {
  public:
   S3BlobReader(Aws::S3::S3Client& client,
                BlobStorageClient::DataLocation location,
-               MetricsRecorder& metrics_recorder, int64_t max_range_bytes)
+               int64_t max_range_bytes)
       : BlobReader(),
-        streambuf_(client, location, metrics_recorder,
+        streambuf_(client, location,
                    GetOptions(max_range_bytes,
                               [this, location](absl::Status status) {
                                 LOG(ERROR) << "Blob " << location.key
@@ -132,11 +129,8 @@ class S3BlobReader : public BlobReader {
 }  // namespace
 
 S3BlobStorageClient::S3BlobStorageClient(
-    MetricsRecorder& metrics_recorder,
     std::shared_ptr<Aws::S3::S3Client> client, int64_t max_range_bytes)
-    : metrics_recorder_(metrics_recorder),
-      client_(client),
-      max_range_bytes_(max_range_bytes) {
+    : client_(client), max_range_bytes_(max_range_bytes) {
   executor_ = std::make_unique<Aws::Utils::Threading::PooledThreadExecutor>(
       std::thread::hardware_concurrency());
   Aws::Transfer::TransferManagerConfiguration transfer_config(executor_.get());
@@ -147,7 +141,7 @@ S3BlobStorageClient::S3BlobStorageClient(
 std::unique_ptr<BlobReader> S3BlobStorageClient::GetBlobReader(
     DataLocation location) {
   return std::make_unique<S3BlobReader>(*client_, std::move(location),
-                                        metrics_recorder_, max_range_bytes_);
+                                        max_range_bytes_);
 }
 
 absl::Status S3BlobStorageClient::PutBlob(BlobReader& reader,
@@ -218,7 +212,6 @@ class S3BlobStorageClientFactory : public BlobStorageClientFactory {
  public:
   ~S3BlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
-      MetricsRecorder& metrics_recorder,
       BlobStorageClient::ClientOptions client_options) override {
     Aws::Client::ClientConfiguration config;
     config.maxConnections = client_options.max_connections;
@@ -226,7 +219,7 @@ class S3BlobStorageClientFactory : public BlobStorageClientFactory {
         std::make_shared<Aws::S3::S3Client>(config);
 
     return std::make_unique<S3BlobStorageClient>(
-        metrics_recorder, client, client_options.max_range_bytes);
+        client, client_options.max_range_bytes);
   }
 };
 }  // namespace

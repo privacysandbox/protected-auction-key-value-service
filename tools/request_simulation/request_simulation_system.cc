@@ -308,8 +308,7 @@ std::unique_ptr<BlobStorageClient> RequestSimulationSystem::CreateBlobClient() {
 
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
-  return blob_storage_client_factory->CreateBlobStorageClient(metrics_recorder_,
-                                                              options);
+  return blob_storage_client_factory->CreateBlobStorageClient(options);
 }
 std::unique_ptr<DeltaFileNotifier>
 RequestSimulationSystem::CreateDeltaFileNotifier() {

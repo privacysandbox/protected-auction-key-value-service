@@ -359,6 +359,29 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     kRealtimeErrors("RealtimeErrors", "Errors in realtime data loading",
                     "error_code", kRealtimeErrorCode);
 
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kSeekingInputStreambufSizeLatency("SeekingInputStreambufSizeLatency",
+                                      "Latency in seeking input streambuf size",
+                                      kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kSeekingInputStreambufUnderflowLatency(
+        "SeekingInputStreambufUnderflowLatency",
+        "Latency in seeking input streambuf underflow",
+        kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kSeekingInputStreambufSeekoffLatency(
+        "SeekingInputStreambufSeekoffLatency",
+        "Latency in seeking input streambuf seekoff",
+        kLatencyInMicroSecondsBoundaries);
+
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
         // Unsafe metrics
@@ -385,8 +408,10 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kRealtimeTotalRowsUpdated,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
-        &kChangeNotifierErrors, &kRealtimeErrors,
-        &kAwsSqsReceiveMessageLatency};
+        &kChangeNotifierErrors, &kRealtimeErrors, &kAwsSqsReceiveMessageLatency,
+        &kSeekingInputStreambufSeekoffLatency,
+        &kSeekingInputStreambufSizeLatency,
+        &kSeekingInputStreambufUnderflowLatency};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>

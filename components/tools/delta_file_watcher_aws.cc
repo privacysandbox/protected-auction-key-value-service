@@ -59,8 +59,7 @@ int main(int argc, char** argv) {
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
-      blob_storage_client_factory->CreateBlobStorageClient(
-          *noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient();
   std::unique_ptr<DeltaFileNotifier> notifier =
       DeltaFileNotifier::Create(*client);
 

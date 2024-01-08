@@ -26,7 +26,6 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -90,7 +89,6 @@ class BlobStorageClientFactory {
  public:
   virtual ~BlobStorageClientFactory() = default;
   virtual std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       BlobStorageClient::ClientOptions client_options =
           BlobStorageClient::ClientOptions()) = 0;
   static std::unique_ptr<BlobStorageClientFactory> Create();

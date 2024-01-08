@@ -163,7 +163,7 @@ absl::Status InitOnce(Operation operation) {
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> blob_client =
-      blob_storage_client_factory->CreateBlobStorageClient(*metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient();
   std::unique_ptr<DeltaFileNotifier> notifier =
       DeltaFileNotifier::Create(*blob_client);
   std::unique_ptr<StreamRecordReaderFactory> delta_stream_reader_factory;

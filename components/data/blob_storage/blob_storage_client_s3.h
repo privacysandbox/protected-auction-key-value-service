@@ -25,15 +25,13 @@
 #include "aws/s3/S3Client.h"
 #include "aws/transfer/TransferManager.h"
 #include "components/data/blob_storage/blob_storage_client.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
 class S3BlobStorageClient : public BlobStorageClient {
  public:
-  explicit S3BlobStorageClient(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      std::shared_ptr<Aws::S3::S3Client> client, int64_t max_range_bytes);
+  explicit S3BlobStorageClient(std::shared_ptr<Aws::S3::S3Client> client,
+                               int64_t max_range_bytes);
 
   ~S3BlobStorageClient() = default;
 
@@ -49,7 +47,6 @@ class S3BlobStorageClient : public BlobStorageClient {
  private:
   // TODO: Consider switch to CRT client.
   // AWS API requires shared_ptr
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   std::unique_ptr<Aws::Utils::Threading::PooledThreadExecutor> executor_;
   std::shared_ptr<Aws::S3::S3Client> client_;
   std::shared_ptr<Aws::Transfer::TransferManager> transfer_manager_;

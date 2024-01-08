@@ -48,8 +48,6 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
 constexpr absl::Duration kMaxLongPollDuration = absl::Seconds(20);
 constexpr absl::Duration kLastUpdatedFrequency = absl::Minutes(2);
 constexpr char kLastUpdatedTag[] = "last_updated";

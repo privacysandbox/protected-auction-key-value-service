@@ -24,13 +24,11 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "components/telemetry/server_definition.h"
 #include "glog/logging.h"
 
 namespace kv_server {
 namespace {
-
-using privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::ScopeLatencyRecorder;
 
 constexpr std::string_view kSizeEventName = "SeekingInputStreambuf::Size";
 constexpr std::string_view kUnderflowEventName =
@@ -46,9 +44,8 @@ void MaybeVerboseLogLatency(std::string_view event_name, absl::Duration latency,
 }
 }  // namespace
 
-SeekingInputStreambuf::SeekingInputStreambuf(MetricsRecorder& metrics_recorder,
-                                             Options options)
-    : metrics_recorder_(metrics_recorder), options_(std::move(options)) {
+SeekingInputStreambuf::SeekingInputStreambuf(Options options)
+    : options_(std::move(options)) {
   setg(buffer_.data(), buffer_.data(), buffer_.data() + buffer_.length());
 }
 
@@ -60,8 +57,7 @@ std::streampos SeekingInputStreambuf::seekpos(std::streampos pos,
 std::streampos SeekingInputStreambuf::seekoff(std::streamoff off,
                                               std::ios_base::seekdir dir,
                                               std::ios_base::openmode which) {
-  ScopeLatencyRecorder latency_recorder(std::string(kSeekoffEventName),
-                                        metrics_recorder_);
+  auto start_time = absl::Now();
   const auto size = Size();
   if (ABSL_PREDICT_FALSE(!size.ok())) {
     MaybeReportError(size.status());
@@ -109,13 +105,17 @@ std::streampos SeekingInputStreambuf::seekoff(std::streamoff off,
          buffer_.data() + (new_position - BufferStartPosition()),
          buffer_.data() + buffer_.length());
   }
-  MaybeVerboseLogLatency(kSeekoffEventName, latency_recorder.GetLatency());
+  auto duration = absl::Now() - start_time;
+  LogIfError(KVServerContextMap()
+                 ->SafeMetric()
+                 .LogHistogram<kSeekingInputStreambufSeekoffLatency>(
+                     absl::ToDoubleMicroseconds(duration)));
+  MaybeVerboseLogLatency(kSeekoffEventName, duration);
   return std::streampos(std::streamoff(new_position));
 }
 
 std::streambuf::int_type SeekingInputStreambuf::underflow() {
-  ScopeLatencyRecorder latency_recorder(std::string(kUnderflowEventName),
-                                        metrics_recorder_);
+  auto start_time = absl::Now();
   const auto size = Size();
   if (ABSL_PREDICT_FALSE(!size.ok())) {
     MaybeReportError(size.status());
@@ -149,7 +149,12 @@ std::streambuf::int_type SeekingInputStreambuf::underflow() {
     buffer_.resize(total_bytes_read);
   }
   setg(buffer_.data(), buffer_.data(), buffer_.data() + buffer_.length());
-  MaybeVerboseLogLatency(kUnderflowEventName, latency_recorder.GetLatency());
+  auto duration = absl::Now() - start_time;
+  LogIfError(KVServerContextMap()
+                 ->SafeMetric()
+                 .LogHistogram<kSeekingInputStreambufUnderflowLatency>(
+                     absl::ToDoubleMicroseconds(duration)));
+  MaybeVerboseLogLatency(kUnderflowEventName, duration);
   return traits_type::to_int_type(buffer_[0]);
 }
 
@@ -170,8 +175,7 @@ int64_t SeekingInputStreambuf::BufferCursorPosition() {
 }
 
 absl::StatusOr<int64_t> SeekingInputStreambuf::Size() {
-  ScopeLatencyRecorder latency_recorder(std::string(kSizeEventName),
-                                        metrics_recorder_);
+  auto start_time = absl::Now();
   if (ABSL_PREDICT_TRUE(src_cached_size_ >= 0)) {
     return src_cached_size_;
   }
@@ -180,7 +184,12 @@ absl::StatusOr<int64_t> SeekingInputStreambuf::Size() {
     return size.status();
   }
   src_cached_size_ = *size;
-  MaybeVerboseLogLatency(kSizeEventName, latency_recorder.GetLatency());
+  auto duration = absl::Now() - start_time;
+  LogIfError(KVServerContextMap()
+                 ->SafeMetric()
+                 .LogHistogram<kSeekingInputStreambufSizeLatency>(
+                     absl::ToDoubleMicroseconds(duration)));
+  MaybeVerboseLogLatency(kSizeEventName, duration);
   return *size;
 }
 

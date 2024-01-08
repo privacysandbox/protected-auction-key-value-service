@@ -52,8 +52,6 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
   auto status_or_notifier =
       BlobStorageChangeNotifier::Create(kv_server::AwsNotifierMetadata{
           .sns_arn = sns_arn, .queue_manager = message_service_status->get()});

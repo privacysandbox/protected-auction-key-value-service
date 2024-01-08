@@ -24,12 +24,12 @@ cc_library(
     srcs = ["seeking_input_streambuf.cc"],
     hdrs = ["seeking_input_streambuf.h"],
     deps = [
+        "//components/telemetry:server_definition",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
     ],
 )

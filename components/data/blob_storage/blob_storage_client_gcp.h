@@ -29,7 +29,6 @@ namespace kv_server {
 class GcpBlobStorageClient : public BlobStorageClient {
  public:
   explicit GcpBlobStorageClient(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       std::unique_ptr<google::cloud::storage::Client> client);
 
   ~GcpBlobStorageClient() = default;
@@ -45,6 +44,5 @@ class GcpBlobStorageClient : public BlobStorageClient {
 
  private:
   std::unique_ptr<google::cloud::storage::Client> client_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 }  // namespace kv_server

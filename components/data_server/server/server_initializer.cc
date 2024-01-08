@@ -139,8 +139,7 @@ class ShardedServerInitializer : public ServerInitializer {
     VLOG(10) << "Creating shard manager";
     shard_manager_state.cluster_mappings_manager =
         ClusterMappingsManager::Create(environment_, num_shards_,
-                                       metrics_recorder_, instance_client_,
-                                       parameter_fetcher_);
+                                       instance_client_, parameter_fetcher_);
     shard_manager_state.shard_manager = TraceRetryUntilOk(
         [&cluster_mappings_manager =
              *shard_manager_state.cluster_mappings_manager,

@@ -21,12 +21,10 @@
 namespace kv_server {
 ClusterMappingsManager::ClusterMappingsManager(
     std::string environment, int32_t num_shards,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     InstanceClient& instance_client, std::unique_ptr<SleepFor> sleep_for,
     int32_t update_interval_millis)
     : environment_{std::move(environment)},
       num_shards_{num_shards},
-      metrics_recorder_{metrics_recorder},
       instance_client_{instance_client},
       thread_manager_(TheadManager::Create("Cluster mappings updater")),
       sleep_for_(std::move(sleep_for)),

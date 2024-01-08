@@ -22,12 +22,11 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
  public:
   AwsClusterMappingsManager(
       std::string environment, int32_t num_shards,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       InstanceClient& instance_client,
       std::unique_ptr<SleepFor> sleep_for = std::make_unique<SleepFor>(),
       int32_t update_interval_millis = 1000)
       : ClusterMappingsManager(std::move(environment), num_shards,
-                               metrics_recorder, instance_client),
+                               instance_client),
         asg_regex_{std::regex(absl::StrCat("kv-server-", environment_,
                                            R"(-(\d+)-instance-asg)"))} {}
 
@@ -124,10 +123,9 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
 
 std::unique_ptr<ClusterMappingsManager> ClusterMappingsManager::Create(
     std::string environment, int32_t num_shards,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     InstanceClient& instance_client, ParameterFetcher& parameter_fetcher) {
-  return std::make_unique<AwsClusterMappingsManager>(
-      environment, num_shards, metrics_recorder, instance_client);
+  return std::make_unique<AwsClusterMappingsManager>(environment, num_shards,
+                                                     instance_client);
 }
 
 }  // namespace kv_server

@@ -107,8 +107,7 @@ TEST_F(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
 
   MockParameterFetcher parameter_fetcher;
   auto mgr = ClusterMappingsManager::Create(
-      environment, num_shards, mock_metrics_recorder, *instance_client,
-      parameter_fetcher);
+      environment, num_shards, *instance_client, parameter_fetcher);
   auto cluster_mappings = mgr->GetClusterMappings();
   EXPECT_EQ(cluster_mappings.size(), 4);
   absl::flat_hash_set<std::string> set0 = {"ip1", "ip2"};
@@ -123,7 +122,6 @@ TEST_F(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
 TEST_F(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
   std::string environment = "testenv";
   int32_t num_shards = 2;
-  privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
   auto instance_client = std::make_unique<MockInstanceClient>();
   EXPECT_CALL(*instance_client, DescribeInstanceGroupInstances(::testing::_))
       .WillOnce(testing::Return(absl::InternalError("Oops.")))
@@ -162,8 +160,7 @@ TEST_F(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
           });
   MockParameterFetcher parameter_fetcher;
   auto mgr = ClusterMappingsManager::Create(
-      environment, num_shards, mock_metrics_recorder, *instance_client,
-      parameter_fetcher);
+      environment, num_shards, *instance_client, parameter_fetcher);
   auto cluster_mappings = mgr->GetClusterMappings();
   EXPECT_EQ(cluster_mappings.size(), 2);
   absl::flat_hash_set<std::string> set0 = {"ip1"};
@@ -259,8 +256,7 @@ TEST_F(ClusterMappingsAwsTest, UpdateMappings) {
           });
   MockParameterFetcher parameter_fetcher;
   auto mgr = ClusterMappingsManager::Create(
-      environment, num_shards, mock_metrics_recorder, *instance_client,
-      parameter_fetcher);
+      environment, num_shards, *instance_client, parameter_fetcher);
   mgr->Start(*shard_manager);
   finished.WaitForNotification();
   ASSERT_TRUE(mgr->Stop().ok());

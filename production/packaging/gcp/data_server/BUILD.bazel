@@ -25,6 +25,10 @@ load(
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
 
+package(default_visibility = [
+    "//production/packaging:__subpackages__",
+])
+
 pkg_files(
     name = "server_executables",
     srcs = [

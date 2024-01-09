@@ -11,6 +11,9 @@ build --config=noexcept
 # Disable some ROMA error checking
 build --per_file_copt=.*sandboxed_api.*@-Wno-return-type
 
+build:run_all_tests --cache_test_results=no
+test:run_all_tests --test_verbose_timeout_warnings
+
 # Broadly disable C++ Exceptions
 # https://google.github.io/styleguide/cppguide.html#Exceptions
 build:noexcept --copt=-fno-exceptions

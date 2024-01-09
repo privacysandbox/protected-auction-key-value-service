@@ -31,6 +31,7 @@ namespace kv_server {
 struct DataLoadingStats {
   int64_t total_updated_records = 0;
   int64_t total_deleted_records = 0;
+  int64_t total_dropped_records = 0;
 };
 
 class RealtimeNotifier {

@@ -193,19 +193,17 @@ absl::Status InitOnce(Operation operation) {
   absl::StatusOr<std::unique_ptr<DataOrchestrator>> maybe_data_orchestrator;
   absl::Time start_time = absl::Now();
   NoopRealtimeThreadPoolManager realtime_thread_pool_manager;
-  maybe_data_orchestrator = DataOrchestrator::TryCreate(
-      {
-          .data_bucket = absl::GetFlag(FLAGS_bucket),
-          .cache = *cache,
-          .blob_client = *blob_client,
-          .delta_notifier = *notifier,
-          .change_notifier = change_notifier,
-          .delta_stream_reader_factory = *delta_stream_reader_factory,
-          .realtime_thread_pool_manager = realtime_thread_pool_manager,
-          .udf_client = *noop_udf_client,
-          .key_sharder = KeySharder(ShardingFunction{/*seed=*/""}),
-      },
-      *metrics_recorder);
+  maybe_data_orchestrator = DataOrchestrator::TryCreate({
+      .data_bucket = absl::GetFlag(FLAGS_bucket),
+      .cache = *cache,
+      .blob_client = *blob_client,
+      .delta_notifier = *notifier,
+      .change_notifier = change_notifier,
+      .delta_stream_reader_factory = *delta_stream_reader_factory,
+      .realtime_thread_pool_manager = realtime_thread_pool_manager,
+      .udf_client = *noop_udf_client,
+      .key_sharder = KeySharder(ShardingFunction{/*seed=*/""}),
+  });
   absl::Time end_time = absl::Now();
   LOG(INFO) << "Init used " << (end_time - start_time);
   return maybe_data_orchestrator.status();

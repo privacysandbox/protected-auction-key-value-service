@@ -382,6 +382,24 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         "Latency in seeking input streambuf seekoff",
         kLatencyInMicroSecondsBoundaries);
 
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kTotalRowsDroppedInDataLoading("TotalRowsDroppedInDataLoading",
+                                   "Total rows dropped during data loading");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kTotalRowsUpdatedInDataLoading("TotalRowsUpdatedInDataLoading",
+                                   "Total rows updated during data loading");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kTotalRowsDeletedInDataLoading("TotalRowsDeletedInDataLoading",
+                                   "Total rows deleted during data loading");
+
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
         // Unsafe metrics
@@ -411,7 +429,9 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kChangeNotifierErrors, &kRealtimeErrors, &kAwsSqsReceiveMessageLatency,
         &kSeekingInputStreambufSeekoffLatency,
         &kSeekingInputStreambufSizeLatency,
-        &kSeekingInputStreambufUnderflowLatency};
+        &kSeekingInputStreambufUnderflowLatency,
+        &kTotalRowsDroppedInDataLoading, &kTotalRowsUpdatedInDataLoading,
+        &kTotalRowsDeletedInDataLoading};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>

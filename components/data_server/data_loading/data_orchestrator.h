@@ -32,7 +32,6 @@
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/readers/stream_record_reader_factory.h"
 #include "public/sharding/key_sharder.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -62,8 +61,7 @@ class DataOrchestrator {
   // Creates initial state. Scans the bucket and initializes the cache with data
   // read from the files in the bucket.
   static absl::StatusOr<std::unique_ptr<DataOrchestrator>> TryCreate(
-      Options options,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
+      Options options);
 
   // Starts a separate thread to monitor and load new data until the returned
   // this object is destructed.

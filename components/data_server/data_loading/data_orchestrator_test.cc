@@ -66,7 +66,6 @@ using kv_server::ToStringView;
 using kv_server::UserDefinedFunctionsConfigStruct;
 using kv_server::UserDefinedFunctionsLanguage;
 using kv_server::Value;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::AllOf;
 using testing::ByMove;
@@ -115,7 +114,6 @@ class DataOrchestratorTest : public ::testing::Test {
   MockCache cache_;
   MockRealtimeThreadPoolManager realtime_thread_pool_manager_;
   DataOrchestrator::Options options_;
-  MockMetricsRecorder metrics_recorder_;
 };
 
 TEST_F(DataOrchestratorTest, InitCacheListRetriesOnFailure) {
@@ -136,7 +134,7 @@ TEST_F(DataOrchestratorTest, InitCacheListRetriesOnFailure) {
       .Times(1)
       .WillOnce(Return(absl::UnknownError("list failed")));
 
-  EXPECT_EQ(DataOrchestrator::TryCreate(options_, metrics_recorder_).status(),
+  EXPECT_EQ(DataOrchestrator::TryCreate(options_).status(),
             absl::UnknownError("list failed"));
 }
 
@@ -149,7 +147,7 @@ TEST_F(DataOrchestratorTest, InitCacheListSnapshotsFailure) {
                             FilePrefix<FileType::SNAPSHOT>()))))
       .Times(1)
       .WillOnce(Return(absl::UnknownError("list snapshots failed")));
-  EXPECT_EQ(DataOrchestrator::TryCreate(options_, metrics_recorder_).status(),
+  EXPECT_EQ(DataOrchestrator::TryCreate(options_).status(),
             absl::UnknownError("list snapshots failed"));
 }
 
@@ -172,7 +170,7 @@ TEST_F(DataOrchestratorTest, InitCacheNoFiles) {
 
   EXPECT_CALL(blob_client_, GetBlobReader).Times(0);
 
-  EXPECT_TRUE(DataOrchestrator::TryCreate(options_, metrics_recorder_).ok());
+  EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
 }
 
 TEST_F(DataOrchestratorTest, InitCacheFilteroutInvalidFiles) {
@@ -194,7 +192,7 @@ TEST_F(DataOrchestratorTest, InitCacheFilteroutInvalidFiles) {
 
   EXPECT_CALL(blob_client_, GetBlobReader).Times(0);
 
-  EXPECT_TRUE(DataOrchestrator::TryCreate(options_, metrics_recorder_).ok());
+  EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
 }
 
 TEST_F(DataOrchestratorTest, InitCacheFiltersDeltasUsingSnapshotEndingFile) {
@@ -233,7 +231,7 @@ TEST_F(DataOrchestratorTest, InitCacheFiltersDeltasUsingSnapshotEndingFile) {
                       Field(&BlobStorageClient::ListOptions::prefix,
                             FilePrefix<FileType::DELTA>()))))
       .WillOnce(Return(std::vector<std::string>()));
-  EXPECT_TRUE(DataOrchestrator::TryCreate(options_, metrics_recorder_).ok());
+  EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
 }
 
 TEST_F(DataOrchestratorTest, InitCache_SkipsInvalidKVMutation) {
@@ -288,8 +286,7 @@ TEST_F(DataOrchestratorTest, InitCache_SkipsInvalidKVMutation) {
 
   EXPECT_CALL(cache_, UpdateKeyValue).Times(0);
 
-  auto maybe_orchestrator =
-      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
   ASSERT_TRUE(maybe_orchestrator.ok());
 
   const std::string last_basename = ToDeltaFileName(1).value();
@@ -359,8 +356,7 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
   EXPECT_CALL(cache_, DeleteKey("bar", 3)).Times(1);
   EXPECT_CALL(cache_, RemoveDeletedKeys(3)).Times(2);
 
-  auto maybe_orchestrator =
-      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
   ASSERT_TRUE(maybe_orchestrator.ok());
 
   const std::string last_basename = ToDeltaFileName(2).value();
@@ -410,8 +406,7 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeSuccess) {
                                                     .udf_handler_name = "hello",
                                                     .logical_commit_time = 1}))
       .WillOnce(Return(absl::OkStatus()));
-  auto maybe_orchestrator =
-      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
   ASSERT_TRUE(maybe_orchestrator.ok());
 
   const std::string last_basename = ToDeltaFileName(1).value();
@@ -461,8 +456,7 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeFails_OrchestratorContinues) {
                                                     .udf_handler_name = "hello",
                                                     .logical_commit_time = 1}))
       .WillOnce(Return(absl::UnknownError("Some error.")));
-  auto maybe_orchestrator =
-      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
   ASSERT_TRUE(maybe_orchestrator.ok());
 
   const std::string last_basename = ToDeltaFileName(1).value();
@@ -474,8 +468,7 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeFails_OrchestratorContinues) {
 TEST_F(DataOrchestratorTest, StartLoading) {
   ON_CALL(blob_client_, ListBlobs)
       .WillByDefault(Return(std::vector<std::string>({})));
-  auto maybe_orchestrator =
-      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
   ASSERT_TRUE(maybe_orchestrator.ok());
   auto orchestrator = std::move(maybe_orchestrator.value());
 
@@ -547,8 +540,7 @@ TEST_F(DataOrchestratorTest, StartLoading) {
 TEST_F(DataOrchestratorTest, CreateOrchestratorWithRealtimeDisabled) {
   ON_CALL(blob_client_, ListBlobs)
       .WillByDefault(Return(std::vector<std::string>({})));
-  auto maybe_orchestrator =
-      DataOrchestrator::TryCreate(options_, metrics_recorder_);
+  auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
   ASSERT_TRUE(maybe_orchestrator.ok());
 }
 
@@ -613,7 +605,6 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .WillOnce(Return(ByMove(std::move(update_reader))))
       .WillOnce(Return(ByMove(std::move(delete_reader))));
 
-  EXPECT_CALL(metrics_recorder_, IncrementEventCounter).Times(1);
   EXPECT_CALL(strict_cache, RemoveDeletedKeys(0)).Times(1);
   EXPECT_CALL(strict_cache, DeleteKey("shard2", 3)).Times(1);
   EXPECT_CALL(strict_cache, RemoveDeletedKeys(3)).Times(1);
@@ -632,8 +623,7 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .key_sharder =
           kv_server::KeySharder(kv_server::ShardingFunction{/*seed=*/""})};
 
-  auto maybe_orchestrator =
-      DataOrchestrator::TryCreate(sharded_options, metrics_recorder_);
+  auto maybe_orchestrator = DataOrchestrator::TryCreate(sharded_options);
   ASSERT_TRUE(maybe_orchestrator.ok());
 }
 
@@ -666,7 +656,7 @@ TEST_F(DataOrchestratorTest, InitCacheSkipsSnapshotFilesForOtherShards) {
                       Field(&BlobStorageClient::ListOptions::prefix,
                             FilePrefix<FileType::DELTA>()))))
       .WillOnce(Return(std::vector<std::string>()));
-  EXPECT_TRUE(DataOrchestrator::TryCreate(options_, metrics_recorder_).ok());
+  EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
 }
 
 }  // namespace

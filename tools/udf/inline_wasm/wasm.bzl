@@ -135,7 +135,7 @@ def cc_inline_wasm_udf_delta(
     """Generate a JS + inline WASM UDF delta file and put it under dist/ directory
 
     Performs the following steps:
-    1. Takes a cc_target and uses emscripten to compile it to inline WASM + JS.
+    1. Takes a C++ source file and uses emscripten to compile it to inline WASM + JS.
     2. The generated JS file is then prepended to the custom udf JS.
     3. The final JS file is used to generate a UDF delta file.
 
@@ -151,10 +151,10 @@ def cc_inline_wasm_udf_delta(
             output_file_name = "DELTA_0000000000000005",
             logical_commit_time="123123123",
             linkopts = [
-              # Enable embind
-              "--bind",
-              # no main function
-              "--no-entry",
+              # Allow memory growth
+              "-s ALLOW_MEMORY_GROWTH=1",
+              # Max memory limit of 1000MB
+              "-s MAXIMUM_MEMORY=1000MB"
             ],
         )
 
@@ -172,7 +172,9 @@ def cc_inline_wasm_udf_delta(
             Defaults to `//tools/udf/udf_generator:udf_delta_file_generator`
         tags: tags to propagate to rules
         deps: List of other libraries to be linked in to the cc_binary target
-        linkopts: Add these flags to the C++ linker command
+        linkopts: Add these flags to the C++ linker command in addition to default
+            linkopts at
+            https://github.com/privacysandbox/data-plane-shared-libraries/blob/dad1d78eaffc0e74eb70090cb3a5560166d5f4c6/build_defs/cc/wasm.bzl#L18
     """
 
     # Generate WASM + JS using emscripten

@@ -19,6 +19,20 @@ This guide will not cover usage of Emscripten/Embind beyond what is needed for t
 [Emscripten documentation](https://emscripten.org/docs/introducing_emscripten/index.html) for
 detailed usage.
 
+## Memory limits
+
+By default, Emscripten sets the default WASM memory limit to 16MB.
+
+This can be adjusted by compiling the WASM with certain linkopts such as
+`s INITIAL_MEMORY=<initial memory size>`, `-s ALLOW_MEMORY_GROWTH=1`,
+`-s MAXIMUM_MEMORY=<maximum memory size>`
+
+The maximum memory that the K/V server's JS engine will allow for WASM is 4GB.
+
+See
+[Emscripten documentation](https://emscripten.org/docs/api_reference/module.html?highlight=initial_memory#Module.wasmMemory)
+for more info on WASM memory.
+
 ## Example
 
 Sample code is at `//tools/udf/inline_wasm/examples/hello_world`.
@@ -40,39 +54,6 @@ EMSCRIPTEN_BINDINGS(Hello) {
       .constructor<>()
       .class_function("SayHello", &HelloClass::SayHello);
 }
-```
-
-Write a `cc_binary` target with at least the required options:
-
-```bazel
-BASE_LINKOPTS = [
-    # REQUIRED
-    # Enable embind
-    "--bind",
-    "-s MODULARIZE=1",
-    "-s EXPORT_NAME=wasmModule",
-
-    # OPTIONAL
-    # no main function
-    "--no-entry",
-    # optimization
-    "-O3",
-    # Do not use closure. We probably want to use closure eventually.
-    "--closure=0",
-    # Disable the filesystem.
-    "-s FILESYSTEM=0",
-    # Use environment with fewer "extra" features.
-    "-s ENVIRONMENT=shell",
-]
-
-cc_binary(
-    name = "hello_cc",
-    srcs = ["hello.cc"],
-    linkopts = BASE_LINKOPTS,
-    # This target won't build successfully on its own because of missing emscripten
-    # headers etc. Therefore, we hide it from wildcards.
-    tags = ["manual"],
-)
 ```
 
 ### Write JS code
@@ -107,8 +88,14 @@ module.HelloClass.SayHello('hi');
 
 #### C++
 
-We have a bazel macro for generating a UDF file given a C++ BUILD target and a custom UDF
-JavaScript. The output will be under the `dist/` directory.
+We have a bazel macro for generating a UDF file given a C++ source file and a custom UDF JavaScript.
+The output will be under the `dist/` directory.
+
+The macro will
+
+1. Compile an inline WASM binary with JS glue
+2. Appends the custom JS
+3. Generates a UDF delta file
 
 -   Define your BUILD target:
 
@@ -123,9 +110,14 @@ cc_inline_wasm_udf_delta (
     ],
     custom_udf_js = "my_udf.js",
     custom_udf_js_handler = "HandleRequest",
-    output_file_name = "DELTA_0000000000000001"
+    output_file_name = "DELTA_0000000000000001",
+    linkopts = ["-s ALLOW_MEMORY_GROWTH=1", "-s MAXIMUM_MEMORY=1000MB"]
 )
 ```
+
+The macro compiles the WASM binary with a set of
+[default linkopts](https://github.com/privacysandbox/data-plane-shared-libraries/blob/dad1d78eaffc0e74eb70090cb3a5560166d5f4c6/build_defs/cc/wasm.bzl#L18).
+Additional linkopts can be passed in through the `linkopts` parameter.
 
 -   Generate the DELTA file:
 

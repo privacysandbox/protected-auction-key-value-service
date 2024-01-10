@@ -120,3 +120,29 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "delta_record_limiting_file_writer",
+    srcs = ["delta_record_limiting_file_writer.cc"],
+    hdrs = ["delta_record_limiting_file_writer.h"],
+    deps = [
+        ":delta_record_writer",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_riegeli//riegeli/bytes:fd_writer",
+        "@com_google_riegeli//riegeli/bytes:limiting_writer",
+        "@com_google_riegeli//riegeli/records:record_writer",
+    ],
+)
+
+cc_test(
+    name = "delta_record_limiting_file_writer_test",
+    size = "small",
+    srcs = ["delta_record_limiting_file_writer_test.cc"],
+    deps = [
+        ":delta_record_limiting_file_writer",
+        "//public/data_loading/readers:delta_record_stream_reader",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

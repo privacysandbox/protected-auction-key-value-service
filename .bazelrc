@@ -109,3 +109,6 @@ build:gcp_platform --@google_privacysandbox_servers_common//:platform=gcp
 try-import %workspace%/builders/.coverage.bazelrc
 coverage --test_tag_filters=-nocoverage
 coverage --test_size_filters=-enormous
+
+build:non_prod --@google_privacysandbox_servers_common//:build_flavor=non_prod
+build:prod --@google_privacysandbox_servers_common//:build_flavor=prod

@@ -104,8 +104,9 @@ repos:
   hooks:
   - id: prettier
     types_or:
-    - markdown
+    - javascript
     - json
+    - markdown
     exclude: (?x)^(
                  testing/functionaltest/.*/test_cases/.*|
                  production/packaging/aws/data_server/nitro-pcr0/.*

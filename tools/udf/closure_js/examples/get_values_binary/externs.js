@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-
 /**
  * Returns a serialized BinaryGetValuesResponse for the keyList.
  *
@@ -23,4 +22,4 @@
  *
  * @externs
  */
-function getValuesBinary(keyList) { }; // Note the empty body.
+function getValuesBinary(keyList) {} // Note the empty body.

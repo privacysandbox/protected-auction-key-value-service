@@ -3,3 +3,4 @@ terraform.tfstate*
 .terraform/
 crds.yml
 .terraform.lock.hcl
+secrets.auto.tfvars

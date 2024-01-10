@@ -40,6 +40,10 @@ module "kv_server" {
   gcp_image_tag                         = var.gcp_image_tag
   gcp_image_repo                        = var.gcp_image_repo
   kv_service_port                       = var.kv_service_port
+  envoy_port                            = var.envoy_port
+  server_url                            = var.server_url
+  server_dns_zone                       = var.server_dns_zone
+  server_domain_ssl_certificate_id      = var.server_domain_ssl_certificate_id
   min_replicas_per_service_region       = var.min_replicas_per_service_region
   max_replicas_per_service_region       = var.max_replicas_per_service_region
   use_confidential_space_debug_image    = var.use_confidential_space_debug_image
@@ -51,7 +55,7 @@ module "kv_server" {
   collector_machine_type                = var.collector_machine_type
   collector_service_port                = var.collector_service_port
   collector_domain_name                 = var.collector_domain_name
-  dns_zone                              = var.dns_zone
+  collector_dns_zone                    = var.collector_dns_zone
   data_bucket_id                        = var.data_bucket_id
   tee_impersonate_service_accounts      = var.tee_impersonate_service_accounts
   use_existing_vpc                      = var.use_existing_vpc
@@ -86,5 +90,7 @@ module "kv_server" {
     logging-verbosity-level                   = var.logging_verbosity_level
     use-sharding-key-regex                    = var.use_sharding_key_regex
     sharding-key-regex                        = var.sharding_key_regex
+    tls-key                                   = var.tls_key
+    tls-cert                                  = var.tls_cert
   }
 }

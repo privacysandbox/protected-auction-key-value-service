@@ -129,6 +129,7 @@ cc_library(
     }),
     visibility = [
         "//components:__subpackages__",
+        "//production/packaging:__subpackages__",
         "//tools:__subpackages__",
     ],
     deps = select({

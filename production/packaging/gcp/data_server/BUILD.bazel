@@ -14,6 +14,7 @@
 
 load(
     "@io_bazel_rules_docker//container:container.bzl",
+    "container_flatten",
     "container_image",
     "container_layer",
 )
@@ -33,6 +34,7 @@ pkg_files(
     name = "server_executables",
     srcs = [
         "//components/data_server/server",
+        "//production/packaging/gcp/data_server/bin:init_server_basic",
     ],
     attributes = pkg_attributes(mode = "0555"),
     prefix = "/",
@@ -60,6 +62,57 @@ container_layer(
     ],
 )
 
+pkg_files(
+    name = "etc_envoy_files",
+    srcs = [
+        "envoy/envoy.yaml",
+        "//public/query:query_api_descriptor_set",
+    ],
+    attributes = pkg_attributes(mode = "0444"),
+    prefix = "/etc/envoy",
+    visibility = [
+        "//production/packaging:__subpackages__",
+    ],
+)
+
+pkg_tar(
+    name = "envoy_config_tar",
+    srcs = [
+        ":etc_envoy_files",
+    ],
+)
+
+container_layer(
+    name = "envoy_config_layer",
+    directory = "/",
+    tars = [
+        ":envoy_config_tar",
+    ],
+    visibility = [
+        "//production/packaging:__subpackages__",
+        "//services:__subpackages__",
+    ],
+)
+
+container_flatten(
+    name = "envoy_distroless_flat",
+    image = select({
+        "@platforms//cpu:arm64": "@envoy-distroless-arm64//image",
+        "@platforms//cpu:x86_64": "@envoy-distroless-amd64//image",
+    }),
+)
+
+container_layer(
+    name = "envoy_distroless_layer",
+    tars = [
+        ":envoy_distroless_flat.tar",
+    ],
+    visibility = [
+        "//components:__subpackages__",
+        "//production/packaging:__subpackages__",
+    ],
+)
+
 # This image target is meant for testing running the server in an enclave using.
 #
 # See project README.md on how to run the image.
@@ -74,7 +127,7 @@ container_image(
         "@platforms//cpu:x86_64": "@runtime-debian-debug-root-amd64//image",
     }),
     entrypoint = [
-        "/server",
+        "/init_server_basic",
         # These affect PCR0, so changing these would result in the loss of
         # access to private keys for decryption.
         "--public_key_endpoint='https://publickeyservice-test1.bas-kms.xyz/v1alpha/publicKeys'",
@@ -91,10 +144,14 @@ container_image(
     labels = {"tee.launch_policy.log_redirect": "always"},
     layers = [
         ":server_binary_layer",
+        ":envoy_distroless_layer",
+        ":envoy_config_layer",
     ],
     ports = [
+        "50050",
         "50051",
         "50100",
+        "51052",
     ],
 )
 

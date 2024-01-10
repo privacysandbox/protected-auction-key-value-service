@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,10 @@
  * limitations under the License.
  */
 
-output "network_id" {
-  value = var.use_existing_vpc ? var.existing_vpc_id : google_compute_network.kv_server[0].id
+output "internal_load_balancer" {
+  value = var.use_existing_service_mesh ? var.existing_service_mesh : google_network_services_mesh.kv_server[0].id
 }
 
-output "subnets" {
-  description = "All service subnets."
-  value       = google_compute_subnetwork.kv_server
-}
-
-output "collector_ip_address" {
-  value = google_compute_global_address.collector.address
-}
-
-output "server_ip_address" {
-  value = google_compute_global_address.kv_server.address
+output "grpc_route" {
+  value = google_network_services_grpc_route.kv_server.id
 }

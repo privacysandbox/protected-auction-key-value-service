@@ -102,6 +102,7 @@ config_setting(
     },
     visibility = [
         "//components:__subpackages__",
+        "//production/packaging:__subpackages__",
         "//tools:__subpackages__",
     ],
 )

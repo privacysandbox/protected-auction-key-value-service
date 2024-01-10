@@ -57,3 +57,8 @@ resource "google_compute_global_address" "collector" {
   name       = "${var.collector_service_name}-${var.environment}-lb"
   ip_version = "IPV4"
 }
+
+resource "google_compute_global_address" "kv_server" {
+  name       = "${var.service}-${var.environment}-xlb-ip"
+  ip_version = "IPV4"
+}

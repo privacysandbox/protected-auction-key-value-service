@@ -56,7 +56,7 @@ resource "google_compute_global_forwarding_rule" "collector" {
 
 resource "google_dns_record_set" "collector" {
   name         = "${var.environment}-${var.collector_service_name}.${var.collector_domain_name}."
-  managed_zone = var.dns_zone
+  managed_zone = var.collector_dns_zone
   type         = "A"
   ttl          = 10
   rrdatas = [

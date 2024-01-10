@@ -42,6 +42,7 @@ cc_library(
     hdrs = ["parameter_fetcher.h"],
     visibility = [
         "//components/sharding:__subpackages__",
+        "//production/packaging:__subpackages__",
     ],
     deps = [
         "//components/cloud_config:parameter_client",

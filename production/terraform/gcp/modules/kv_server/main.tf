@@ -48,6 +48,7 @@ module "autoscaling" {
   subnets                               = module.networking.subnets
   service_account_email                 = var.service_account_email
   service_port                          = var.kv_service_port
+  envoy_port                            = var.envoy_port
   min_replicas_per_service_region       = var.min_replicas_per_service_region
   max_replicas_per_service_region       = var.max_replicas_per_service_region
   use_confidential_space_debug_image    = var.use_confidential_space_debug_image
@@ -81,7 +82,7 @@ module "metrics_collector" {
   collector_instance_groups = module.metrics_collector_autoscaling.collector_instance_groups
   collector_service_name    = var.collector_service_name
   collector_service_port    = var.collector_service_port
-  dns_zone                  = var.dns_zone
+  collector_dns_zone        = var.collector_dns_zone
   collector_domain_name     = var.collector_domain_name
 }
 
@@ -99,6 +100,19 @@ module "service_mesh" {
   existing_service_mesh     = var.existing_service_mesh
 }
 
+module "external_load_balancing" {
+  source                           = "../../services/external_load_balancing"
+  service                          = var.service
+  environment                      = var.environment
+  service_port                     = var.kv_service_port
+  server_url                       = var.server_url
+  server_dns_zone                  = var.server_dns_zone
+  server_domain_ssl_certificate_id = var.server_domain_ssl_certificate_id
+  instance_groups                  = flatten(module.autoscaling[*].kv_server_instance_groups)
+  internal_load_balancer           = module.service_mesh.internal_load_balancer
+  grpc_route                       = module.service_mesh.grpc_route
+  server_ip_address                = module.networking.server_ip_address
+}
 
 module "parameter" {
   source      = "../../services/parameter"

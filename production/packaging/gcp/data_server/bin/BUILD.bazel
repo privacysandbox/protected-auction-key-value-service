@@ -1,0 +1,23 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+
+package(default_visibility = [
+    "//production/packaging/gcp/data_server:__subpackages__",
+])
+
+cc_binary(
+    name = "init_server_basic",
+    srcs = ["init_server_main.cc"],
+    copts = select({
+        "//:local_instance": ["-DINSTANCE_LOCAL=1"],
+        "//conditions:default": [],
+    }),
+    deps = [
+        "//components/cloud_config:instance_client",
+        "//components/cloud_config:parameter_client",
+        "//components/data_server/server:parameter_fetcher",
+        "//components/errors:retry",
+        "//components/telemetry:server_definition",
+        "//components/util:platform_initializer",
+        "@com_google_absl//absl/flags:parse",
+    ],
+)

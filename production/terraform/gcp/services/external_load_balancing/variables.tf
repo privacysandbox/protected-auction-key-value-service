@@ -1,5 +1,5 @@
 /**
- * Copyright 2023 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,13 +29,23 @@ variable "service_port" {
   type        = number
 }
 
-variable "kv_server_address" {
-  description = "gRPC-compatible address. Example: xds:///example_address"
+variable "server_url" {
+  description = "Kv-serer URL. Example: kv-server-environment.example.com"
   type        = string
 }
 
-variable "project_id" {
-  description = "GCP project id."
+variable "server_dns_zone" {
+  description = "Google Cloud Dns zone for Kv-serer."
+  type        = string
+}
+
+variable "server_domain_ssl_certificate_id" {
+  description = "Ssl certificate id of the Kv-server domain."
+  type        = string
+}
+
+variable "server_ip_address" {
+  description = "IP address of the Kv-server."
   type        = string
 }
 
@@ -44,22 +54,12 @@ variable "instance_groups" {
   type        = set(string)
 }
 
-variable "collector_forwarding_rule" {
-  description = "collector forwarding rule"
-  type        = any
+variable "internal_load_balancer" {
+  description = "Service mesh."
+  type        = string
 }
 
-variable "collector_tcp_proxy" {
-  description = "The tcp proxy for collector"
-  type        = any
-}
-
-variable "use_existing_service_mesh" {
-  description = "Whether to use existing service mesh."
-  type        = bool
-}
-
-variable "existing_service_mesh" {
-  description = "Existing service mesh. This would only be used if use_existing_service_mesh is true."
+variable "grpc_route" {
+  description = "Google network services grpc route for kv_server"
   type        = string
 }

@@ -486,7 +486,7 @@ Alternatively, you can SSH into an existing server instance and start the Docker
 ### Metrics
 
 Metrics are exported to both Cloudwatch and Prometheus, both are hosted services by Amazon
-([otel_collector_config.yaml](../production/packaging/aws/otel_collector/otel_collector_config.yaml)).
+([otel_collector_config.yaml](../../production/packaging/aws/otel_collector/otel_collector_config.yaml)).
 
 #### Cloudwatch
 

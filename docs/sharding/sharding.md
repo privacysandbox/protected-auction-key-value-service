@@ -69,7 +69,7 @@ described in more details below. In terms of resource footprint, as you can see 
 sharded case, N auto scaling groups are created, whereas in the non-sharded world only one is
 created.
 
-![Sharding high level](assets/sharding.png)
+![Sharding high level](../assets/sharding.png)
 
 ## Enabling sharding
 
@@ -103,7 +103,7 @@ should use this [sharding function](#sharding-function) to calculate the shard n
 key. To load data, each data server replica finds the file for the shard that it's responsible for
 and load it.
 
-![Realtime sequence](assets/grouping_records.png)
+![Realtime sequence](../assets/grouping_records.png)
 
 A snapshot/delta file indicates its shard number through this
 [field](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/public/data_loading/riegeli_metadata.proto#L40).

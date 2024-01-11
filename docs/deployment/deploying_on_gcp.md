@@ -184,18 +184,18 @@ to be queried into the server.
 
 You can access your GCP instances through [Google Cloud](https://cloud.google.com/) Console.
 
-![how to access Google Cloud Console](assets/gcp_main_page.png)
+![how to access Google Cloud Console](../assets/gcp_main_page.png)
 
 Go to Compute Engine.
 
-![how to access Compute Engine](assets/gcp_compute_engine.png)
+![how to access Compute Engine](../assets/gcp_compute_engine.png)
 
 Make sure `VM instances` is selected in the left panel. All VM instances under your project id are
 listed to the right. Instances associated with your Kv-server have the name starting with
 `kv-server-your_environment`, where `your_environment` is the environment variable you set in
 `[[REGION]].tfvars.json`. Click the instance name for more details.
 
-![how to access GCP instance](assets/gcp_instance_selection.png)
+![how to access GCP instance](../assets/gcp_instance_selection.png)
 
 ## Access server logs
 
@@ -203,7 +203,7 @@ In the instance details page, under `Logs`, you can access server logs in both `
 `Serial port (console)`. The `Logging` option is more powerful with better filtering and query
 support.
 
-![how to access GCP instance logs](assets/gcp_instance_logs.png)
+![how to access GCP instance logs](../assets/gcp_instance_logs.png)
 
 ## Query the server
 
@@ -264,7 +264,7 @@ resources (you can do this by changing Terraform variables), please specify the 
 Then, access the VM instance of this temporary server (`[[your environment]]-grcp-client`), and in
 the details page, click `SSH` on top to access the terminal.
 
-![how to access GCP instance SSH](assets/gcp_instance_ssh.png)
+![how to access GCP instance SSH](../assets/gcp_instance_ssh.png)
 
 In the terminal of your grpc-client instance, run the following command to download and install the
 grpcurl tool:

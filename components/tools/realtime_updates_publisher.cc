@@ -39,7 +39,7 @@ using RecursiveDirectoryIterator =
 using namespace std::chrono_literals;  // NOLINT
 
 absl::Mutex mutex;
-std::queue<std::string> updates_queue;
+std::queue<RealtimeMessage> updates_queue;
 
 void PopulateQueue(const std::string& deltas_folder_path) {
   for (const auto& delta_file_name :
@@ -47,8 +47,9 @@ void PopulateQueue(const std::string& deltas_folder_path) {
     std::ifstream delta_file_stream(delta_file_name.path().string());
     std::stringstream buffer;
     buffer << delta_file_stream.rdbuf();
-    std::string file_encoded = absl::Base64Escape(buffer.str());
-    updates_queue.push(file_encoded);
+    RealtimeMessage rm;
+    rm.message = absl::Base64Escape(buffer.str());
+    updates_queue.push(std::move(rm));
   }
 }
 

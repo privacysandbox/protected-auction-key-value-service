@@ -21,7 +21,7 @@ namespace kv_server {
 ConcurrentPublishingEngine::ConcurrentPublishingEngine(
     int insertion_num_threads, NotifierMetadata notifier_metadata,
     int files_insertion_rate, absl::Mutex& queue_mutex,
-    std::queue<std::string>& updates_queue)
+    std::queue<RealtimeMessage>& updates_queue)
     : insertion_num_threads_(insertion_num_threads),
       notifier_metadata_(std::move(notifier_metadata)),
       files_insertion_rate_(files_insertion_rate),
@@ -42,7 +42,7 @@ void ConcurrentPublishingEngine::Stop() {
   }
 }
 
-std::optional<std::string> ConcurrentPublishingEngine::Pop() {
+std::optional<RealtimeMessage> ConcurrentPublishingEngine::Pop() {
   absl::MutexLock lock(&mutex_);
   if (updates_queue_.empty()) {
     return std::nullopt;
@@ -66,7 +66,7 @@ void ConcurrentPublishingEngine::ConsumeAndPublish(int thread_idx) {
   while (message.has_value()) {
     LOG(INFO) << ": Inserting to the SNS: " << delta_file_index
               << " Thread idx " << thread_idx;
-    auto status = msg_service->Publish(*message);
+    auto status = msg_service->Publish(message->message, message->shard_num);
     if (!status.ok()) {
       LOG(ERROR) << status;
     }

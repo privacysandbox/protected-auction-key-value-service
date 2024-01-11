@@ -27,6 +27,11 @@
 
 namespace kv_server {
 
+struct RealtimeMessage {
+  std::string message;
+  std::optional<int> shard_num;
+};
+
 // ConcurrentPublishingEngine concurrently reads message of the queue and
 // publishes them to the pubsub/sns specified by `notifier_metadata`.
 class ConcurrentPublishingEngine {
@@ -39,7 +44,7 @@ class ConcurrentPublishingEngine {
   ConcurrentPublishingEngine(int insertion_num_threads,
                              NotifierMetadata notifier_metadata,
                              int files_insertion_rate, absl::Mutex& queue_mutex,
-                             std::queue<std::string>& updates_queue);
+                             std::queue<RealtimeMessage>& updates_queue);
   // Starts the publishing engine.
   void Start();
   // Stops the publishing engine.
@@ -51,14 +56,14 @@ class ConcurrentPublishingEngine {
       delete;
 
  private:
-  std::optional<std::string> Pop();
+  std::optional<RealtimeMessage> Pop();
   void ConsumeAndPublish(int thread_idx);
 
   const int insertion_num_threads_;
   const NotifierMetadata notifier_metadata_;
   const int files_insertion_rate_;
   absl::Mutex& mutex_;
-  std::queue<std::string>& updates_queue_ ABSL_GUARDED_BY(mutex_);
+  std::queue<RealtimeMessage>& updates_queue_ ABSL_GUARDED_BY(mutex_);
   std::vector<std::unique_ptr<std::thread>> publishers_;
   privacy_sandbox::server_common::SteadyClock& clock_ =
       privacy_sandbox::server_common::SteadyClock::RealClock();

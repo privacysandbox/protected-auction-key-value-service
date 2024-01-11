@@ -36,15 +36,16 @@ class GcpPublisherService : public PublisherService {
       : publisher_(pubsub::Publisher(pubsub::MakePublisherConnection(
             pubsub::Topic(project_id, topic_id)))) {}
 
-  absl::Status Publish(const std::string& body) {
+  absl::Status Publish(const std::string& body, std::optional<int> shard_num) {
     std::string nanos_since_epoch =
         std::to_string(absl::ToUnixNanos(absl::Now()));
-    auto id = publisher_
-                  .Publish(pubsub::MessageBuilder{}
-                               .SetData(body)
-                               .SetAttribute("time_sent", nanos_since_epoch)
-                               .Build())
-                  .get();
+    auto message_builder = pubsub::MessageBuilder{}.SetData(body).SetAttribute(
+        "time_sent", nanos_since_epoch);
+    if (shard_num.has_value()) {
+      message_builder.SetAttribute("shard_num",
+                                   std::to_string(shard_num.value()));
+    }
+    auto id = publisher_.Publish(std::move(message_builder).Build()).get();
     if (!id.ok()) {
       return GoogleErrorStatusToAbslStatus(id.status());
     }

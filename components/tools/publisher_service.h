@@ -29,7 +29,8 @@ class PublisherService {
  public:
   virtual ~PublisherService() = default;
   // Publish a message
-  virtual absl::Status Publish(const std::string& message) = 0;
+  virtual absl::Status Publish(const std::string& message,
+                               std::optional<int> shard_num = std::nullopt) = 0;
 
   // Calls GetNotifierMetadata and sets queue attributes.
   virtual absl::StatusOr<NotifierMetadata>

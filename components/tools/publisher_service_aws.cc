@@ -31,7 +31,7 @@ class AwsPublisherService : public PublisherService {
   explicit AwsPublisherService(std::string sns_arn)
       : sns_arn_(std::move(sns_arn)) {}
 
-  absl::Status Publish(const std::string& body) {
+  absl::Status Publish(const std::string& body, std::optional<int> shard_num) {
     Aws::SNS::Model::PublishRequest req;
     req.SetTopicArn(sns_arn_);
     req.SetMessage(body);
@@ -41,6 +41,13 @@ class AwsPublisherService : public PublisherService {
         std::to_string(absl::ToUnixNanos(absl::Now()));
     messageAttributeValue.SetStringValue(nanos_since_epoch);
     req.AddMessageAttributes("time_sent", messageAttributeValue);
+    if (shard_num.has_value()) {
+      Aws::SNS::Model::MessageAttributeValue shardMessageAttributeValue;
+      shardMessageAttributeValue.SetDataType("String");
+      shardMessageAttributeValue.SetStringValue(
+          std::to_string(shard_num.value()));
+      req.AddMessageAttributes("shard_num", shardMessageAttributeValue);
+    }
     auto outcome = sns_client_.Publish(req);
     return outcome.IsSuccess()
                ? absl::OkStatus()

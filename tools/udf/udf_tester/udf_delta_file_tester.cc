@@ -162,13 +162,14 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
       CreateLocalLookup(*cache, *noop_metrics_recorder));
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(CreateLocalLookup(*cache, *noop_metrics_recorder));
-  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
-      config_builder.RegisterStringGetValuesHook(*string_get_values_hook)
-          .RegisterBinaryGetValuesHook(*binary_get_values_hook)
-          .RegisterRunQueryHook(*run_query_hook)
-          .RegisterLoggingHook()
-          .SetNumberOfWorkers(1)
-          .Config());
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
+      UdfClient::Create(std::move(
+          config_builder.RegisterStringGetValuesHook(*string_get_values_hook)
+              .RegisterBinaryGetValuesHook(*binary_get_values_hook)
+              .RegisterRunQueryHook(*run_query_hook)
+              .RegisterLoggingHook()
+              .SetNumberOfWorkers(1)
+              .Config()));
   PS_RETURN_IF_ERROR(udf_client.status())
       << "Error starting UDF execution engine";
 

@@ -263,12 +263,13 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
   // can be removed and we can own the unique ptr to the hooks.
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
       UdfClient::Create(
-          config_builder.RegisterStringGetValuesHook(*string_get_values_hook_)
-              .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
-              .RegisterRunQueryHook(*run_query_hook_)
-              .RegisterLoggingHook()
-              .SetNumberOfWorkers(number_of_workers)
-              .Config(),
+          std::move(config_builder
+                        .RegisterStringGetValuesHook(*string_get_values_hook_)
+                        .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
+                        .RegisterRunQueryHook(*run_query_hook_)
+                        .RegisterLoggingHook()
+                        .SetNumberOfWorkers(number_of_workers)
+                        .Config()),
           absl::Milliseconds(udf_timeout_ms));
   if (udf_client_or_status.ok()) {
     udf_client_ = std::move(*udf_client_or_status);

@@ -91,8 +91,6 @@ UdfConfigBuilder& UdfConfigBuilder::SetNumberOfWorkers(
   return *this;
 }
 
-const google::scp::roma::Config<>& UdfConfigBuilder::Config() const {
-  return config_;
-}
+google::scp::roma::Config<>& UdfConfigBuilder::Config() { return config_; }
 
 }  // namespace kv_server

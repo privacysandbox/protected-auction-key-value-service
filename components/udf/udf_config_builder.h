@@ -33,7 +33,7 @@ class UdfConfigBuilder {
 
   UdfConfigBuilder& SetNumberOfWorkers(int number_of_workers);
 
-  const google::scp::roma::Config<>& Config() const;
+  google::scp::roma::Config<>& Config();
 
  private:
   google::scp::roma::Config<> config_;

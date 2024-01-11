@@ -54,9 +54,9 @@ constexpr int kUdfInterfaceVersion = 1;
 
 class UdfClientImpl : public UdfClient {
  public:
-  explicit UdfClientImpl(Config<> config = Config(),
+  explicit UdfClientImpl(Config<>&& config = Config(),
                          absl::Duration udf_timeout = absl::Seconds(5))
-      : udf_timeout_(udf_timeout), roma_service_(config) {}
+      : udf_timeout_(udf_timeout), roma_service_(std::move(config)) {}
 
   // Converts the arguments into plain JSON strings to pass to Roma.
   absl::StatusOr<std::string> ExecuteCode(
@@ -218,8 +218,9 @@ class UdfClientImpl : public UdfClient {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<UdfClient>> UdfClient::Create(
-    const Config<>& config, absl::Duration udf_timeout) {
-  auto udf_client = std::make_unique<UdfClientImpl>(config, udf_timeout);
+    Config<>&& config, absl::Duration udf_timeout) {
+  auto udf_client =
+      std::make_unique<UdfClientImpl>(std::move(config), udf_timeout);
   const auto init_status = udf_client->Init();
   if (!init_status.ok()) {
     return init_status;

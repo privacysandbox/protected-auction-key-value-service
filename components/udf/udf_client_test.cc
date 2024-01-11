@@ -47,7 +47,7 @@ namespace {
 absl::StatusOr<std::unique_ptr<UdfClient>> CreateUdfClient() {
   Config config;
   config.number_of_workers = 1;
-  return UdfClient::Create(config);
+  return UdfClient::Create(std::move(config));
 }
 
 TEST(UdfClientTest, UdfClient_Create_Success) {
@@ -256,7 +256,7 @@ TEST(UdfClientTest, JsEchoHookCallSucceeds) {
   config.RegisterFunctionBinding(std::move(function_object));
 
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
-      UdfClient::Create(config);
+      UdfClient::Create(std::move(config));
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
@@ -292,9 +292,9 @@ TEST(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
   get_values_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
-      config_builder.RegisterStringGetValuesHook(*get_values_hook)
-          .SetNumberOfWorkers(1)
-          .Config());
+      std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
+                    .SetNumberOfWorkers(1)
+                    .Config()));
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
@@ -341,9 +341,9 @@ TEST(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
   get_values_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
-      config_builder.RegisterStringGetValuesHook(*get_values_hook)
-          .SetNumberOfWorkers(1)
-          .Config());
+      std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
+                    .SetNumberOfWorkers(1)
+                    .Config()));
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
@@ -386,10 +386,10 @@ TEST(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
-  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
-      UdfClient::Create(config_builder.RegisterRunQueryHook(*run_query_hook)
-                            .SetNumberOfWorkers(1)
-                            .Config());
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      std::move(config_builder.RegisterRunQueryHook(*run_query_hook)
+                    .SetNumberOfWorkers(1)
+                    .Config()));
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
@@ -417,8 +417,9 @@ TEST(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
 
 TEST(UdfClientTest, JsCallsLogMessageTwiceSucceeds) {
   UdfConfigBuilder config_builder;
-  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
-      config_builder.RegisterLoggingHook().SetNumberOfWorkers(1).Config());
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
+      UdfClient::Create(std::move(
+          config_builder.RegisterLoggingHook().SetNumberOfWorkers(1).Config()));
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{

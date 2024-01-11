@@ -51,7 +51,7 @@ class AvroDeltaRecordStreamWriter : public DeltaRecordWriter {
   absl::Status Status() override { return absl::OkStatus(); }
 
  private:
-  AvroDeltaRecordStreamWriter(
+  explicit AvroDeltaRecordStreamWriter(
       std::unique_ptr<avro::DataFileWriter<std::string>> record_writer);
 
   Options options_;

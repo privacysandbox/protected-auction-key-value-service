@@ -38,7 +38,6 @@ constexpr std::string_view kTestRecord = "testrecord";
 constexpr int64_t kIterations = 1024 * 1024;
 
 using google::protobuf::TextFormat;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 
 enum class ReaderType : int8_t {
   kSequential = 1,
@@ -57,9 +56,9 @@ class StringBlobStream : public RecordStream {
 
 class StreamRecordReaderTest : public ::testing::TestWithParam<ReaderType> {
  protected:
+  void SetUp() override { kv_server::InitMetricsContextMap(); }
   std::unique_ptr<StreamRecordReader> CreateReader(std::stringstream& stream) {
     auto reader_factory = std::make_unique<RiegeliStreamRecordReaderFactory>(
-        metrics_recorder_,
         ConcurrentStreamRecordReader<std::string_view>::Options{
             .num_worker_threads = 1});
     if (ReaderType::kConcurrent == GetParam()) {
@@ -73,7 +72,6 @@ class StreamRecordReaderTest : public ::testing::TestWithParam<ReaderType> {
     }
     return reader_factory->CreateReader(stream);
   }
-  MockMetricsRecorder metrics_recorder_;
 };
 
 using ConcurrentReaderOptions =
@@ -81,15 +79,15 @@ using ConcurrentReaderOptions =
 class ConcurrentStreamRecordReaderTest
     : public ::testing::TestWithParam<ConcurrentReaderOptions> {
  protected:
+  void SetUp() override { kv_server::InitMetricsContextMap(); }
   std::unique_ptr<StreamRecordReader> CreateConcurrentReader(
       const std::string& blob_content) {
-    auto reader_factory = std::make_unique<RiegeliStreamRecordReaderFactory>(
-        metrics_recorder_, GetParam());
+    auto reader_factory =
+        std::make_unique<RiegeliStreamRecordReaderFactory>(GetParam());
     return reader_factory->CreateConcurrentReader([&blob_content]() {
       return std::make_unique<StringBlobStream>(blob_content);
     });
   }
-  MockMetricsRecorder metrics_recorder_;
 };
 
 INSTANTIATE_TEST_SUITE_P(ReaderType, StreamRecordReaderTest,
@@ -279,11 +277,9 @@ TEST(ConcurrentStreamRecordReaderTest, FailsToReadNonSeekingStream) {
     writer.WriteRecord(record);
   }
   ASSERT_TRUE(writer.Close());
-  MockMetricsRecorder metrics_recorder;
-  ConcurrentStreamRecordReader<std::string_view> record_reader(
-      metrics_recorder, [&content]() {
-        return std::make_unique<NonSeekingStringBlobStream>(content);
-      });
+  ConcurrentStreamRecordReader<std::string_view> record_reader([&content]() {
+    return std::make_unique<NonSeekingStringBlobStream>(content);
+  });
   auto status = record_reader.ReadStreamRecords(callback.AsStdFunction());
   EXPECT_FALSE(status.ok());
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
@@ -313,6 +309,7 @@ class iStreamRecordStream : public RecordStream {
 };
 
 TEST(RiegeliStreamIO, Riegeli) {
+  kv_server::InitMetricsContextMap();
   constexpr std::string_view kFileName = "file.riegeli";
   const std::filesystem::path path =
       std::filesystem::path(::testing::TempDir()) / kFileName;
@@ -321,8 +318,6 @@ TEST(RiegeliStreamIO, Riegeli) {
   output_stream.close();
 
   ConcurrentStreamRecordReader<std::string_view>::Options options;
-  MockMetricsRecorder metrics_recorder;
-  EXPECT_CALL(metrics_recorder, RecordLatency).Times(testing::AtLeast(1));
   testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(kIterations)
@@ -331,7 +326,6 @@ TEST(RiegeliStreamIO, Riegeli) {
         return absl::OkStatus();
       });
   ConcurrentStreamRecordReader<std::string_view> record_reader(
-      metrics_recorder,
       [&path] { return std::make_unique<iStreamRecordStream>(path); }, options);
   auto status =
       record_reader.ReadStreamRecords(record_callback.AsStdFunction());

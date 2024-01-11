@@ -71,6 +71,7 @@ KeyValueMutationRecordStruct GetDeltaSetRecord() {
 class DeltaRecordStreamWriterTest
     : public testing::TestWithParam<DeltaRecordWriter::Options> {
  protected:
+  void SetUp() override { kv_server::InitMetricsContextMap(); }
   template <typename StreamT>
   absl::StatusOr<std::unique_ptr<DeltaRecordStreamWriter<StreamT>>>
   CreateDeltaRecordStreamWriter(StreamT& stream) {
@@ -98,9 +99,8 @@ TEST_P(DeltaRecordStreamWriterTest,
       << "Failed to write delta record.";
   (*record_writer)->Close();
   EXPECT_FALSE((*record_writer)->IsOpen());
-  privacy_sandbox::server_common::MockMetricsRecorder metrics_recorder;
   auto stream_reader_factory =
-      std::make_unique<RiegeliStreamRecordReaderFactory>(metrics_recorder);
+      std::make_unique<RiegeliStreamRecordReaderFactory>();
   auto stream_reader = stream_reader_factory->CreateReader(string_stream);
   absl::StatusOr<KVFileMetadata> metadata = stream_reader->GetKVFileMetadata();
   EXPECT_TRUE(metadata.ok()) << "Failed to read metadata";
@@ -134,9 +134,8 @@ TEST_P(DeltaRecordStreamWriterTest,
       << "Failed to write delta record.";
   (*record_writer)->Close();
   EXPECT_FALSE((*record_writer)->IsOpen());
-  privacy_sandbox::server_common::MockMetricsRecorder metrics_recorder;
   auto stream_reader_factory =
-      std::make_unique<RiegeliStreamRecordReaderFactory>(metrics_recorder);
+      std::make_unique<RiegeliStreamRecordReaderFactory>();
   auto stream_reader = stream_reader_factory->CreateReader(string_stream);
   absl::StatusOr<KVFileMetadata> metadata = stream_reader->GetKVFileMetadata();
   EXPECT_TRUE(metadata.ok()) << "Failed to read metadata";
@@ -169,9 +168,8 @@ TEST_P(DeltaRecordStreamWriterTest,
       << "Failed to write delta record.";
   (*record_writer)->Close();
   EXPECT_FALSE((*record_writer)->IsOpen());
-  privacy_sandbox::server_common::MockMetricsRecorder metrics_recorder;
   auto stream_reader_factory =
-      std::make_unique<RiegeliStreamRecordReaderFactory>(metrics_recorder);
+      std::make_unique<RiegeliStreamRecordReaderFactory>();
   auto stream_reader = stream_reader_factory->CreateReader(string_stream);
   absl::StatusOr<KVFileMetadata> metadata = stream_reader->GetKVFileMetadata();
   EXPECT_TRUE(metadata.ok()) << "Failed to read metadata";

@@ -400,6 +400,30 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     kTotalRowsDeletedInDataLoading("TotalRowsDeletedInDataLoading",
                                    "Total rows deleted during data loading");
 
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kConcurrentStreamRecordReaderReadShardRecordsLatency(
+        "ConcurrentStreamRecordReaderReadShardRecordsLatency",
+        "Latency in ConcurrentStreamRecordReader reading shard records",
+        kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kConcurrentStreamRecordReaderReadStreamRecordsLatency(
+        "ConcurrentStreamRecordReaderReadStreamRecordsLatency",
+        "Latency in ConcurrentStreamRecordReader reading stream records",
+        kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kConcurrentStreamRecordReaderReadByteRangeLatency(
+        "ConcurrentStreamRecordReaderReadByteRangeLatency",
+        "Latency in ConcurrentStreamRecordReader reading byte range",
+        kLatencyInMicroSecondsBoundaries);
+
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
         // Unsafe metrics
@@ -431,7 +455,10 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kSeekingInputStreambufSizeLatency,
         &kSeekingInputStreambufUnderflowLatency,
         &kTotalRowsDroppedInDataLoading, &kTotalRowsUpdatedInDataLoading,
-        &kTotalRowsDeletedInDataLoading};
+        &kTotalRowsDeletedInDataLoading,
+        &kConcurrentStreamRecordReaderReadShardRecordsLatency,
+        &kConcurrentStreamRecordReaderReadStreamRecordsLatency,
+        &kConcurrentStreamRecordReaderReadByteRangeLatency};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>
@@ -481,6 +508,17 @@ LogStatusSafeMetricsFn() {
 inline absl::AnyInvocable<void(const absl::Status&, int) const>
 LogMetricsNoOpCallback() {
   return [](const absl::Status& status, int count) {};
+}
+
+// Initialize metrics context map
+// This is the minimum requirement to initialize the noop telemetry
+inline void InitMetricsContextMap() {
+  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+  config_proto.set_mode(
+      privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+  kv_server::KVServerContextMap(
+      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+          config_proto));
 }
 
 }  // namespace kv_server

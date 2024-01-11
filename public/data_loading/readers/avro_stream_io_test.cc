@@ -26,7 +26,6 @@
 
 namespace kv_server {
 namespace {
-using privacy_sandbox::server_common::MockMetricsRecorder;
 
 constexpr std::string_view kTestRecord = "testrecord";
 constexpr int64_t kIterations = 1024 * 1024 * 9;
@@ -76,6 +75,7 @@ class iStreamRecordStream : public RecordStream {
 };
 
 TEST(AvroStreamIO, ConcurrentReading) {
+  kv_server::InitMetricsContextMap();
   constexpr std::string_view kFileName = "ConcurrentReading.avro";
   const std::filesystem::path path =
       std::filesystem::path(::testing::TempDir()) / kFileName;
@@ -84,10 +84,7 @@ TEST(AvroStreamIO, ConcurrentReading) {
   output_stream.close();
 
   AvroConcurrentStreamRecordReader::Options options;
-  MockMetricsRecorder metrics_recorder;
-  EXPECT_CALL(metrics_recorder, RecordLatency).Times(testing::AtLeast(1));
   AvroConcurrentStreamRecordReader record_reader(
-      metrics_recorder,
       [&path] { return std::make_unique<iStreamRecordStream>(path); }, options);
 
   testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
@@ -103,6 +100,7 @@ TEST(AvroStreamIO, ConcurrentReading) {
 }
 
 TEST(AvroStreamIO, SequentialReading) {
+  kv_server::InitMetricsContextMap();
   constexpr std::string_view kFileName = "SequentialReading.avro";
   const std::filesystem::path path =
       std::filesystem::path(::testing::TempDir()) / kFileName;

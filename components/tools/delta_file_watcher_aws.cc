@@ -46,16 +46,7 @@ int main(int argc, char** argv) {
     std::cerr << "Must specify sns_arn" << std::endl;
     return -1;
   }
-  // Initialize no-op telemetry
-  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
-  config_proto.set_mode(
-      privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
-  kv_server::KVServerContextMap(
-      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
-          config_proto));
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-
+  kv_server::InitMetricsContextMap();
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =

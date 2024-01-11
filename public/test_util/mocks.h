@@ -42,16 +42,12 @@ class MockStreamRecordReader : public StreamRecordReader {
 
 class MockStreamRecordReaderFactory : public StreamRecordReaderFactory {
  public:
-  MockStreamRecordReaderFactory()
-      : StreamRecordReaderFactory(metrics_recorder_) {}
+  MockStreamRecordReaderFactory() : StreamRecordReaderFactory() {}
   MOCK_METHOD(std::unique_ptr<StreamRecordReader>, CreateReader,
               (std::istream & data_input), (const, override));
   MOCK_METHOD(std::unique_ptr<StreamRecordReader>, CreateConcurrentReader,
               (std::function<std::unique_ptr<RecordStream>()>),
               (const, override));
-
- private:
-  privacy_sandbox::server_common::MockMetricsRecorder metrics_recorder_;
 };
 
 }  // namespace kv_server

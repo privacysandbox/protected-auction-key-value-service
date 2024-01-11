@@ -19,10 +19,6 @@
 #include "third_party/avro/api/Stream.hh"
 
 namespace kv_server {
-constexpr std::string_view kAvroReadByteRangeRecordsLatencyEvent =
-    "AvroConcurrentStreamRecordReader::ReadByteRange";
-constexpr std::string_view kAvroReadStreamRecordsLatencyEvent =
-    "AvroConcurrentStreamRecordReader::ReadStreamRecords";
 
 AvroStreamReader::AvroStreamReader(std::istream& data_input)
     : data_input_(data_input) {}
@@ -41,12 +37,9 @@ absl::Status AvroStreamReader::ReadStreamRecords(
 }
 
 AvroConcurrentStreamRecordReader::AvroConcurrentStreamRecordReader(
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     std::function<std::unique_ptr<RecordStream>()> stream_factory,
     Options options)
-    : metrics_recorder_(metrics_recorder),
-      stream_factory_(std::move(stream_factory)),
-      options_(std::move(options)) {
+    : stream_factory_(std::move(stream_factory)), options_(std::move(options)) {
   CHECK(options.num_worker_threads >= 1)
       << "Number of work threads must be at least 1.";
 }
@@ -102,8 +95,7 @@ AvroConcurrentStreamRecordReader::BuildByteRanges() {
 // stream are read.
 absl::Status AvroConcurrentStreamRecordReader::ReadStreamRecords(
     const std::function<absl::Status(const std::string_view&)>& callback) {
-  privacy_sandbox::server_common::ScopeLatencyRecorder latency_recorder(
-      std::string(kAvroReadStreamRecordsLatencyEvent), metrics_recorder_);
+  auto start_time = absl::Now();
   auto byte_ranges = BuildByteRanges();
   if (!byte_ranges.ok() || byte_ranges->empty()) {
     return byte_ranges.status();
@@ -130,9 +122,14 @@ absl::Status AvroConcurrentStreamRecordReader::ReadStreamRecords(
     }
     total_records_read += curr_byte_range_result->num_records_read;
   }
+  auto duration = absl::Now() - start_time;
   VLOG(2) << "Done reading " << total_records_read << " records in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+          << absl::ToDoubleMilliseconds(duration) << " ms.";
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<kConcurrentStreamRecordReaderReadStreamRecordsLatency>(
+              absl::ToDoubleMicroseconds(duration)));
   return absl::OkStatus();
 }
 
@@ -156,8 +153,7 @@ AvroConcurrentStreamRecordReader::ReadByteRange(
   VLOG(2) << "Reading byte_range: "
           << "[" << byte_range.begin_offset << "," << byte_range.end_offset
           << "]";
-  privacy_sandbox::server_common::ScopeLatencyRecorder latency_recorder(
-      std::string(kAvroReadByteRangeRecordsLatencyEvent), metrics_recorder_);
+  auto start_time = absl::Now();
   auto record_stream = stream_factory_();
   VLOG(9) << "creating input stream";
   avro::InputStreamPtr input_stream =
@@ -186,10 +182,15 @@ AvroConcurrentStreamRecordReader::ReadByteRange(
                << overall_status;
     return overall_status;
   }
+  auto duration = absl::Now() - start_time;
   VLOG(2) << "Done reading " << num_records_read << " records in byte_range: ["
           << byte_range.begin_offset << "," << byte_range.end_offset << "] in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+          << absl::ToDoubleMilliseconds(duration) << " ms.";
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<kConcurrentStreamRecordReaderReadByteRangeLatency>(
+              absl::ToDoubleMicroseconds(duration)));
   ByteRangeResult result;
   result.num_records_read = num_records_read;
   return result;

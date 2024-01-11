@@ -29,12 +29,10 @@ namespace kv_server {
 // file, one reader should be created.
 class AvroStreamRecordReaderFactory : public StreamRecordReaderFactory {
  public:
-  AvroStreamRecordReaderFactory(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
+  explicit AvroStreamRecordReaderFactory(
       AvroConcurrentStreamRecordReader::Options options =
           AvroConcurrentStreamRecordReader::Options())
-      : StreamRecordReaderFactory(metrics_recorder),
-        options_(std::move(options)) {}
+      : options_(std::move(options)) {}
 
   std::unique_ptr<StreamRecordReader> CreateReader(
       std::istream& data_input) const override;

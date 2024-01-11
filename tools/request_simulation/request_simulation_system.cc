@@ -320,8 +320,7 @@ std::unique_ptr<StreamRecordReaderFactory>
 RequestSimulationSystem::CreateStreamRecordReaderFactory() {
   ConcurrentStreamRecordReader<std::string_view>::Options options;
   options.num_worker_threads = absl::GetFlag(FLAGS_data_loading_num_threads);
-  return std::make_unique<RiegeliStreamRecordReaderFactory>(metrics_recorder_,
-                                                            options);
+  return std::make_unique<RiegeliStreamRecordReaderFactory>(options);
 }
 absl::AnyInvocable<std::string(std::string_view)>
 RequestSimulationSystem::CreateRequestFromKeyFn() {
@@ -345,6 +344,7 @@ void RequestSimulationSystem::InitializeTelemetry() {
       {kTestingServer, server_address}};
   auto resource = Resource::Create(attributes);
   ConfigureMetrics(resource, metrics_options);
+  kv_server::InitMetricsContextMap();
 }
 
 }  // namespace kv_server

@@ -30,10 +30,10 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "components/telemetry/server_definition.h"
 #include "glog/logging.h"
 #include "public/data_loading/readers/stream_record_reader.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {
@@ -96,7 +96,6 @@ class AvroConcurrentStreamRecordReader : public StreamRecordReader {
     Options() {}
   };
   AvroConcurrentStreamRecordReader(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       std::function<std::unique_ptr<RecordStream>()> stream_factory,
       Options options = Options{});
 
@@ -135,8 +134,6 @@ class AvroConcurrentStreamRecordReader : public StreamRecordReader {
           record_callback) noexcept;
   absl::StatusOr<std::vector<ByteRange>> BuildByteRanges();
   absl::StatusOr<int64_t> RecordStreamSize();
-
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   std::function<std::unique_ptr<RecordStream>()> stream_factory_;
   Options options_;
 };

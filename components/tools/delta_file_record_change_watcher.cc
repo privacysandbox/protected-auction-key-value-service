@@ -36,13 +36,11 @@ using kv_server::KeyValueMutationRecord;
 using kv_server::Value;
 using privacy_sandbox::server_common::TelemetryProvider;
 
-void Print(std::string string_decoded,
-           privacy_sandbox::server_common::MetricsRecorder& metrics_recorder) {
+void Print(std::string string_decoded) {
   std::istringstream is(string_decoded);
 
   auto delta_stream_reader_factory =
-      std::make_unique<kv_server::RiegeliStreamRecordReaderFactory>(
-          metrics_recorder);
+      std::make_unique<kv_server::RiegeliStreamRecordReaderFactory>();
 
   auto record_reader = delta_stream_reader_factory->CreateReader(is);
 
@@ -106,16 +104,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-
-  // Initialize no-op telemetry
-  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
-  config_proto.set_mode(
-      privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
-  kv_server::KVServerContextMap(
-      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
-          config_proto));
+  kv_server::InitMetricsContextMap();
   auto status_or_notifier =
       kv_server::ChangeNotifier::Create(kv_server::AwsNotifierMetadata{
           .queue_prefix = "QueueNotifier_",
@@ -136,7 +125,7 @@ int main(int argc, char** argv) {
                                            []() { return false; });
     if (keys.ok()) {
       for (const auto& key : keys->realtime_messages) {
-        Print(key.parsed_notification, *noop_metrics_recorder);
+        Print(key.parsed_notification);
       }
     } else {
       std::cerr << keys.status() << std::endl;

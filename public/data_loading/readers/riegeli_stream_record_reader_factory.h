@@ -28,11 +28,10 @@ namespace kv_server {
 // file, one reader should be created.
 class RiegeliStreamRecordReaderFactory : public StreamRecordReaderFactory {
  public:
-  RiegeliStreamRecordReaderFactory(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
+  explicit RiegeliStreamRecordReaderFactory(
       ConcurrentStreamRecordReader<std::string_view>::Options options =
           ConcurrentStreamRecordReader<std::string_view>::Options())
-      : StreamRecordReaderFactory(metrics_recorder), options_(options) {}
+      : options_(options) {}
 
   std::unique_ptr<StreamRecordReader> CreateReader(
       std::istream& data_input) const override;

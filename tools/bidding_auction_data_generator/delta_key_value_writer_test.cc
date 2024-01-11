@@ -45,6 +45,7 @@ absl::flat_hash_map<std::string, std::string> GetTestKeyValueMap() {
 }
 
 TEST(DeltaKeyValueWriterTest, ValidateDeltaDataTest) {
+  kv_server::InitMetricsContextMap();
   std::stringstream delta_stream;
   auto delta_key_value_writer = DeltaKeyValueWriter::Create(delta_stream);
   EXPECT_TRUE(delta_key_value_writer.ok()) << delta_key_value_writer.status();
@@ -53,9 +54,8 @@ TEST(DeltaKeyValueWriterTest, ValidateDeltaDataTest) {
           ->Write(GetTestKeyValueMap(), kTestLogicalCommitTime,
                   kTestDeltaMutationType);
   EXPECT_TRUE(write_status.ok());
-  privacy_sandbox::server_common::MockMetricsRecorder metrics_recorder;
   auto stream_reader_factory =
-      std::make_unique<RiegeliStreamRecordReaderFactory>(metrics_recorder);
+      std::make_unique<RiegeliStreamRecordReaderFactory>();
   auto stream_reader = stream_reader_factory->CreateReader(delta_stream);
   EXPECT_TRUE(stream_reader
                   ->ReadStreamRecords(

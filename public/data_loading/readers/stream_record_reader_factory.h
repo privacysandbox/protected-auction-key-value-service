@@ -29,10 +29,6 @@ namespace kv_server {
 // one reader should be created.
 class StreamRecordReaderFactory {
  public:
-  StreamRecordReaderFactory(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
-      : metrics_recorder_(metrics_recorder) {}
-
   virtual ~StreamRecordReaderFactory() = default;
 
   virtual std::unique_ptr<StreamRecordReader> CreateReader(
@@ -40,9 +36,6 @@ class StreamRecordReaderFactory {
 
   virtual std::unique_ptr<StreamRecordReader> CreateConcurrentReader(
       std::function<std::unique_ptr<RecordStream>()> stream_factory) const = 0;
-
- protected:
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

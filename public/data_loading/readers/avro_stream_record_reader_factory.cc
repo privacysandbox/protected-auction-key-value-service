@@ -26,8 +26,8 @@ std::unique_ptr<StreamRecordReader> AvroStreamRecordReaderFactory::CreateReader(
 std::unique_ptr<StreamRecordReader>
 AvroStreamRecordReaderFactory::CreateConcurrentReader(
     std::function<std::unique_ptr<RecordStream>()> stream_factory) const {
-  return std::make_unique<AvroConcurrentStreamRecordReader>(
-      metrics_recorder_, stream_factory, options_);
+  return std::make_unique<AvroConcurrentStreamRecordReader>(stream_factory,
+                                                            options_);
 }
 
 }  // namespace kv_server

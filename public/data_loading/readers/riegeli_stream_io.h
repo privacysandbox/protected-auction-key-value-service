@@ -30,6 +30,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "components/telemetry/server_definition.h"
 #include "glog/logging.h"
 #include "public/data_loading/readers/stream_record_reader.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
@@ -137,7 +138,6 @@ class ConcurrentStreamRecordReader : public StreamRecordReader {
         };
   };
   ConcurrentStreamRecordReader(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       std::function<std::unique_ptr<RecordStream>()> stream_factory,
       Options options = Options());
   ~ConcurrentStreamRecordReader() = default;
@@ -167,20 +167,15 @@ class ConcurrentStreamRecordReader : public StreamRecordReader {
       const std::function<absl::Status(const RecordT&)>& record_callback);
   absl::StatusOr<std::vector<ShardRange>> BuildShards();
   absl::StatusOr<int64_t> RecordStreamSize();
-
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   std::function<std::unique_ptr<RecordStream>()> stream_factory_;
   Options options_;
 };
 
 template <typename RecordT>
 ConcurrentStreamRecordReader<RecordT>::ConcurrentStreamRecordReader(
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     std::function<std::unique_ptr<RecordStream>()> stream_factory,
     Options options)
-    : metrics_recorder_(metrics_recorder),
-      stream_factory_(std::move(stream_factory)),
-      options_(std::move(options)) {
+    : stream_factory_(std::move(stream_factory)), options_(std::move(options)) {
   CHECK(options.num_worker_threads >= 1)
       << "Number of work threads must be at least 1.";
 }
@@ -253,8 +248,7 @@ ConcurrentStreamRecordReader<RecordT>::BuildShards() {
 template <typename RecordT>
 absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     const std::function<absl::Status(const RecordT&)>& callback) {
-  privacy_sandbox::server_common::ScopeLatencyRecorder latency_recorder(
-      std::string(kReadStreamRecordsLatencyEvent), metrics_recorder_);
+  auto start_time = absl::Now();
   auto shards = BuildShards();
   if (!shards.ok() || shards->empty()) {
     return shards.status();
@@ -292,9 +286,14 @@ absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     total_records_read += curr_shard_result->num_records_read;
     prev_shard_result = curr_shard_result;
   }
+  auto duration = absl::Now() - start_time;
   VLOG(2) << "Done reading " << total_records_read << " records in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+          << absl::ToDoubleMilliseconds(duration) << " ms.";
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<kConcurrentStreamRecordReaderReadStreamRecordsLatency>(
+              absl::ToDoubleMicroseconds(duration)));
   return absl::OkStatus();
 }
 
@@ -305,8 +304,7 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
     const std::function<absl::Status(const RecordT&)>& record_callback) {
   VLOG(2) << "Reading shard: "
           << "[" << shard.start_pos << "," << shard.end_pos << "]";
-  privacy_sandbox::server_common::ScopeLatencyRecorder latency_recorder(
-      std::string(kReadShardRecordsLatencyEvent), metrics_recorder_);
+  auto start_time = absl::Now();
   auto record_stream = stream_factory_();
   riegeli::RecordReader<riegeli::IStreamReader<>> record_reader(
       riegeli::IStreamReader(&record_stream->Stream()),
@@ -337,10 +335,15 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
   }
   shard_result.next_shard_first_record_pos = next_record_pos;
   shard_result.num_records_read = num_records_read;
+  auto duration = absl::Now() - start_time;
   VLOG(2) << "Done reading " << num_records_read << " records in shard: ["
           << shard.start_pos << "," << shard.end_pos << "] in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+          << absl::ToDoubleMilliseconds(duration) << " ms.";
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<kConcurrentStreamRecordReaderReadShardRecordsLatency>(
+              absl::ToDoubleMicroseconds(duration)));
   return shard_result;
 }
 

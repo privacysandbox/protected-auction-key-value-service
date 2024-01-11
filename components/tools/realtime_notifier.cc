@@ -43,12 +43,10 @@ using privacy_sandbox::server_common::TelemetryProvider;
 
 std::unique_ptr<kv_server::MessageService> queue_manager_;
 
-void Print(std::string string_decoded,
-           privacy_sandbox::server_common::MetricsRecorder& metrics_recorder) {
+void Print(std::string string_decoded) {
   std::istringstream is(string_decoded);
   auto delta_stream_reader_factory =
-      std::make_unique<kv_server::RiegeliStreamRecordReaderFactory>(
-          metrics_recorder);
+      std::make_unique<kv_server::RiegeliStreamRecordReaderFactory>();
   auto record_reader = delta_stream_reader_factory->CreateReader(is);
   auto result = record_reader->ReadStreamRecords([](std::string_view raw) {
     return DeserializeDataRecord(raw, [](const DataRecord& data_record) {
@@ -86,6 +84,7 @@ void Print(std::string string_decoded,
 absl::Status Run() {
   PlatformInitializer initializer;
   NotifierMetadata metadata;
+  kv_server::InitMetricsContextMap();
 // TODO(b/299623229): Remove CLOUD_PLATFORM_LOCAL macro and extract to
 // publisher_service.
 #if defined(CLOUD_PLATFORM_LOCAL)
@@ -103,19 +102,16 @@ absl::Status Run() {
   metadata = std::move(*maybe_notifier_metadata);
 #endif
 
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
   auto realtime_notifier_maybe = RealtimeNotifier::Create(metadata);
   if (!realtime_notifier_maybe.ok()) {
     return realtime_notifier_maybe.status();
   }
   auto realtime_notifier = std::move(*realtime_notifier_maybe);
-  realtime_notifier->Start(
-      [&noop_metrics_recorder](const std::string& message) {
-        Print(message, *noop_metrics_recorder);
-        DataLoadingStats stats;
-        return stats;
-      });
+  realtime_notifier->Start([](const std::string& message) {
+    Print(message);
+    DataLoadingStats stats;
+    return stats;
+  });
   LOG(INFO) << "Listening ....";
   absl::SleepFor(absl::InfiniteDuration());
   return absl::OkStatus();

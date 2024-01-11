@@ -31,6 +31,6 @@ std::unique_ptr<StreamRecordReader>
 RiegeliStreamRecordReaderFactory::CreateConcurrentReader(
     std::function<std::unique_ptr<RecordStream>()> stream_factory) const {
   return std::make_unique<ConcurrentStreamRecordReader<std::string_view>>(
-      metrics_recorder_, stream_factory, options_);
+      stream_factory, options_);
 }
 }  // namespace kv_server

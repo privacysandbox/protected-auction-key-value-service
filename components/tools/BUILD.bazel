@@ -285,6 +285,7 @@ cc_library(
     hdrs = [
         "concurrent_publishing_engine.h",
     ],
+    visibility = ["//tools:__subpackages__"],
     deps = [
         ":publisher_service",
         "@com_github_google_glog//:glog",

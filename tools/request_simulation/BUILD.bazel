@@ -318,3 +318,26 @@ cc_test(
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
+
+cc_library(
+    name = "realtime_message_batcher",
+    srcs = ["realtime_message_batcher.cc"],
+    hdrs = ["realtime_message_batcher.h"],
+    deps = [
+        "//components/tools:concurrent_publishing_engine",
+        "//public/data_loading/writers:delta_record_limiting_file_writer",
+        "//public/sharding:key_sharder",
+        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
+    ],
+)
+
+cc_test(
+    name = "realtime_message_batcher_test",
+    size = "small",
+    srcs = ["realtime_message_batcher_test.cc"],
+    deps = [
+        ":realtime_message_batcher",
+        "//public/data_loading/readers:riegeli_stream_record_reader_factory",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

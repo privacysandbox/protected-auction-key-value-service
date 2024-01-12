@@ -43,9 +43,9 @@ class DeltaRecordLimitingFileWriter : public DeltaRecordWriter {
   DeltaRecordLimitingFileWriter(const DeltaRecordLimitingFileWriter&) = delete;
   DeltaRecordLimitingFileWriter& operator=(
       const DeltaRecordLimitingFileWriter&) = delete;
-  // Create the DeltaRecordLimitingFileWriter. The `file_name` must refer to
-  // real file. Usually `DeltaRecordLimitingFileWriter` is used to set the
-  // maximum byte size of the output file. that can be done with
+  // Create the DeltaRecordLimitingFileWriter. The `file_name` must refer to a
+  // real file. `DeltaRecordLimitingFileWriter` should be used to set the
+  // maximum byte size of the output file. That can be done with
   // `max_file_size_bytes`.
   static absl::StatusOr<std::unique_ptr<DeltaRecordLimitingFileWriter>> Create(
       std::string file_name, Options options,
@@ -64,13 +64,13 @@ class DeltaRecordLimitingFileWriter : public DeltaRecordWriter {
   void Close() override;
   bool IsOpen() override;
   absl::Status Status() override;
-  absl::Status ProcessWritingFailure();
 
  private:
   DeltaRecordLimitingFileWriter(
       std::string file_name, Options options,
       int64_t max_file_size_bytes = std::numeric_limits<int64_t>::max());
   Options options_;
+  absl::Status ProcessWritingFailure();
   std::unique_ptr<riegeli::FdWriter<riegeli::OwnedFd>> file_writer_;
   std::unique_ptr<riegeli::RecordWriter<
       riegeli::LimitingWriter<riegeli::FdWriter<riegeli::OwnedFd>*>>>

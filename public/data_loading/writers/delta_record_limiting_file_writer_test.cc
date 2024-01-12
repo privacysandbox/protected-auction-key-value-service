@@ -98,8 +98,6 @@ TEST_P(ParametrizedDeltaRecordLimitingFileWriterTest, WriteRead) {
   unlink(file_name);
   close(fd);
   EXPECT_TRUE(file_size_limit_bytes >= file_size_bytes);
-  // the number is based on the imperical measurements.
-  // making sure that we wrote and read some records
   EXPECT_EQ(records_read, num_records);
 }
 

@@ -20,7 +20,6 @@
 #include <memory>
 
 #include "public/data_loading/readers/stream_record_reader.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {

@@ -41,7 +41,7 @@ class RetryableWithMax {
   static constexpr int kUnlimitedRetry = -1;
 
   // If max_attempts <= 0, will retry until OK.
-  // `metrics_recorder` is optional.
+  // `metrics_callback` is optional.
   RetryableWithMax(Func&& f, std::string task_name, int max_attempts,
                    const absl::AnyInvocable<void(const absl::Status&, int)
                                                 const>& metrics_callback,

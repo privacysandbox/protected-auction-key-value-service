@@ -31,8 +31,6 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
 class FileBlobReader : public BlobReader {
  public:
   explicit FileBlobReader(const std::string& filename)

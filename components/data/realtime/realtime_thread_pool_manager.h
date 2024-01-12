@@ -25,7 +25,6 @@
 #include "absl/status/statusor.h"
 #include "components/data/common/notifier_metadata.h"
 #include "components/data/realtime/realtime_notifier.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {

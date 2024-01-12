@@ -24,8 +24,6 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
 class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   explicit GcpBlobStorageChangeNotifier(

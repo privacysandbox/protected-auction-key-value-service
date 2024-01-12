@@ -22,7 +22,6 @@
 #include "glog/logging.h"
 #include "google/cloud/pubsub/message.h"
 #include "google/cloud/pubsub/subscriber.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {

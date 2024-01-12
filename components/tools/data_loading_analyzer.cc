@@ -149,8 +149,6 @@ absl::Status InitOnce(Operation operation) {
   auto noop_metrics_recorder =
       TelemetryProvider::GetInstance().CreateMetricsRecorder();
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
-  std::unique_ptr<MetricsRecorder> metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
 
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();

@@ -22,7 +22,6 @@
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "google/cloud/storage/client.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 

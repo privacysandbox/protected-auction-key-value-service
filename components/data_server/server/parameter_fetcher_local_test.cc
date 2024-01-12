@@ -25,8 +25,6 @@
 
 namespace kv_server {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
-
 TEST(ParameterFetcherTest, CreateChangeNotifierSmokeTest) {
   MockParameterClient client;
   EXPECT_CALL(client, GetParameter("kv-server-local-directory",

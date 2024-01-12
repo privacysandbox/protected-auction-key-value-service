@@ -29,8 +29,6 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
 // TODO fix this or delete
 
 class GcpChangeNotifier : public ChangeNotifier {

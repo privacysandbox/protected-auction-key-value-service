@@ -22,7 +22,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/data/common/msg_svc.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 

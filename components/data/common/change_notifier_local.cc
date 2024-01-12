@@ -27,8 +27,6 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
 // TODO(b/237669491): This is arbitrary, consider changing it.
 constexpr absl::Duration kPollInterval = absl::Seconds(5);
 

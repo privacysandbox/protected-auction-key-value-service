@@ -29,8 +29,6 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
-
 class ChangeNotifierLocalTest : public ::testing::Test {
  protected:
   void SetUp() override {

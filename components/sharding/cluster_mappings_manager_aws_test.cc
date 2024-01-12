@@ -44,7 +44,6 @@ class ClusterMappingsAwsTest : public ::testing::Test {
 TEST_F(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
   std::string environment = "testenv";
   int32_t num_shards = 4;
-  privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
   auto instance_client = std::make_unique<MockInstanceClient>();
   EXPECT_CALL(*instance_client, DescribeInstanceGroupInstances(::testing::_))
       .WillOnce([&](DescribeInstanceGroupInput& input) {

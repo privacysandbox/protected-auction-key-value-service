@@ -23,7 +23,6 @@
 #include "components/cloud_config/instance_client.h"
 #include "components/data_server/server/parameter_fetcher.h"
 #include "components/util/periodic_closure.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 

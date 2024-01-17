@@ -21,6 +21,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "public/base_types.pb.h"
 
 namespace kv_server {
 
@@ -54,6 +55,19 @@ bool IsLogicalShardingConfigFilename(std::string_view basename);
 // construct a valid logical sharding config filename.
 absl::StatusOr<std::string> ToLogicalShardingConfigFilename(
     uint64_t logical_commit_time);
+
+// Returns true if `filename` is a valid file group filename.
+//
+// Valid file group filenames conform to the regex return by
+// `FileGroupFilenameFormatRegex()` in constants.h
+bool IsFileGroupFileName(std::string_view filename);
+
+// Attempts to construct a valid  file group file name from the inputs.
+// Returns a descriptive `absl::InvalidArgumentError` on error.
+absl::StatusOr<std::string> ToFileGroupFileName(FileType::Enum file_type,
+                                                uint64_t logical_commit_time,
+                                                uint64_t file_index,
+                                                uint64_t file_group_size);
 
 }  // namespace kv_server
 

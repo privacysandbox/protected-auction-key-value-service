@@ -112,6 +112,7 @@ cc_library(
     srcs = ["filename_utils.cc"],
     hdrs = ["filename_utils.h"],
     deps = [
+        "//public:base_types_cc_proto",
         "//public:constants",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status",

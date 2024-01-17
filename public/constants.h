@@ -38,6 +38,12 @@ constexpr std::string_view kFileComponentDelimiter = "_";
 // Number of digits in logical time in file basename.
 constexpr int kLogicalTimeDigits = 16;
 
+// Number of digits used to represent the index of a file in a file group.
+constexpr int kFileGroupFileIndexDigits = 5;
+
+// Number of digits used to represent the size of a file group.
+constexpr int kFileGroupSizeDigits = 6;
+
 // "DELTA_\d{16}"
 // The first component represents the file type.
 //
@@ -65,10 +71,26 @@ constexpr char kQueryArgDelimiter = ',';
 //            indicates a more recent snapshot.
 const std::regex& SnapshotFileFormatRegex();
 
+// Returns a compiled file group file name regex defined as follows:
+//
+// Compiled regex = "(DELTA|SNAPSHOT)_\d{16}_\d{5}_OF_\d{6}". Regex parts
+// correspond to the following parts:
+// NAME REGEX:
+//   <FILE_TYPE>_<LOGICAL_TIMESTAMP>_<PART_FILE_INDEX>_OF_<NUM_PART_FILES>
+// WHERE:
+//   (1) FILE_TYPE - type of file. Valid values: [DELTA, SNAPSHOT].
+//   (2) LOGICAL_TIMESTAMP - strictly increasing 16 digit number that represents
+//   logical time, a larger value means a more recent file.
+//   (3) PART_FILE_INDEX - zero-based 5 digit index of file in the file group.
+//   Valid range: [0..NUM_PART_FILES).
+//   (4) NUM_PART_FILES = a 6 digit number representing the total number of
+//   files in a file group. Valid range: [1..100,000]
+const std::regex& FileGroupFilenameFormatRegex();
+
 // X25519 public key used to test/debug/demo the ObliviousGetValues query API.
 // ObliviousGetValues requests encrypted with this key can be processed by the
 // server.
-// For cross code base consistency, matches the test key we use in the commong
+// For cross code base consistency, matches the test key we use in the common
 // repo, see ../encryption/key_fetcher/src/fake_key_fetcher_manager.h
 constexpr std::string_view kTestPublicKey =
     "f3b7b2f1764f5c077effecad2afd86154596e63f7375ea522761b881e6c3c323";

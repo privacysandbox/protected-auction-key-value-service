@@ -44,4 +44,11 @@ const std::regex& LogicalShardingConfigFileFormatRegex() {
   return *regex;
 }
 
+const std::regex& FileGroupFilenameFormatRegex() {
+  static const std::regex* const regex = new std::regex(absl::StrFormat(
+      R"((DELTA|SNAPSHOT)_\d{%d}_\d{%d}_OF_\d{%d})", kLogicalTimeDigits,
+      kFileGroupFileIndexDigits, kFileGroupSizeDigits));
+  return *regex;
+}
+
 }  // namespace kv_server

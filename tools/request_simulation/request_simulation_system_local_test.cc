@@ -54,6 +54,7 @@ class MockRequestSimulationParameterFetcher
     : public RequestSimulationParameterFetcher {
  public:
   MOCK_METHOD(NotifierMetadata, GetBlobStorageNotifierMetadata, (), (const));
+  MOCK_METHOD(NotifierMetadata, GetRealtimeNotifierMetadata, (), (const));
 };
 
 namespace {
@@ -162,6 +163,10 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
 
   EXPECT_CALL(*mock_request_simulation_parameter_fetcher_,
               GetBlobStorageNotifierMetadata())
+      .WillRepeatedly(Return(
+          LocalNotifierMetadata{.local_directory = ::testing::TempDir()}));
+  EXPECT_CALL(*mock_request_simulation_parameter_fetcher_,
+              GetRealtimeNotifierMetadata())
       .WillRepeatedly(Return(
           LocalNotifierMetadata{.local_directory = ::testing::TempDir()}));
   RequestSimulationSystem system(

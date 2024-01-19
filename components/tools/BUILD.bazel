@@ -202,6 +202,9 @@ cc_library(
         "//:gcp_platform": [
             "publisher_service_gcp.cc",
         ],
+        "//:local_platform": [
+            "publisher_service_local.cc",
+        ],
         "//conditions:default": [
             "publisher_service_aws.cc",
         ],
@@ -219,6 +222,8 @@ cc_library(
             "//components/errors:gcp_error_util",
             "//components/util:platform_initializer",
             "@com_github_googleapis_google_cloud_cpp//:pubsub",
+        ],
+        "//:local_platform": [
         ],
         "//conditions:default": [
             "//components/errors:aws_error_util",

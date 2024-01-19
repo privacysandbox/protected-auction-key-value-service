@@ -56,13 +56,16 @@ class ConcurrentPublishingEngine {
       delete;
 
  private:
-  std::optional<RealtimeMessage> Pop();
+  std::optional<RealtimeMessage> Pop(absl::Condition& has_new_event);
+  bool ShouldStop();
   void ConsumeAndPublish(int thread_idx);
 
   const int insertion_num_threads_;
   const NotifierMetadata notifier_metadata_;
   const int files_insertion_rate_;
   absl::Mutex& mutex_;
+  bool stop_ ABSL_GUARDED_BY(mutex_) = false;
+  bool HasNewMessageToProcess() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(mutex_);
   std::queue<RealtimeMessage>& updates_queue_ ABSL_GUARDED_BY(mutex_);
   std::vector<std::unique_ptr<std::thread>> publishers_;
   privacy_sandbox::server_common::SteadyClock& clock_ =

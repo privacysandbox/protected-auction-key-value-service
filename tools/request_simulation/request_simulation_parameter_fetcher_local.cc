@@ -19,6 +19,8 @@
 #include "tools/request_simulation/request_simulation_parameter_fetcher.h"
 
 ABSL_FLAG(std::string, delta_dir, "", "The local directory for delta files");
+ABSL_FLAG(std::string, realtime_delta_dir, "",
+          "The local directory for realtime delta files");
 
 namespace kv_server {
 
@@ -26,6 +28,13 @@ NotifierMetadata
 RequestSimulationParameterFetcher::GetBlobStorageNotifierMetadata() const {
   std::string directory = absl::GetFlag(FLAGS_delta_dir);
   LOG(INFO) << "The local delta file directory is " << directory;
+  return LocalNotifierMetadata{.local_directory = std::move(directory)};
+}
+
+NotifierMetadata
+RequestSimulationParameterFetcher::GetRealtimeNotifierMetadata() const {
+  std::string directory = absl::GetFlag(FLAGS_realtime_delta_dir);
+  LOG(INFO) << "The local realtim delta file directory is " << directory;
   return LocalNotifierMetadata{.local_directory = std::move(directory)};
 }
 

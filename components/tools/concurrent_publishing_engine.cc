@@ -37,14 +37,24 @@ void ConcurrentPublishingEngine::Start() {
 }
 
 void ConcurrentPublishingEngine::Stop() {
+  {
+    absl::MutexLock l(&mutex_);
+    stop_ = true;
+  }
   for (auto& publisher_thread : publishers_) {
     publisher_thread->join();
   }
 }
 
-std::optional<RealtimeMessage> ConcurrentPublishingEngine::Pop() {
-  absl::MutexLock lock(&mutex_);
-  if (updates_queue_.empty()) {
+bool ConcurrentPublishingEngine::HasNewMessageToProcess() const {
+  return !updates_queue_.empty() || stop_;
+}
+
+std::optional<RealtimeMessage> ConcurrentPublishingEngine::Pop(
+    absl::Condition& has_new_event) {
+  absl::MutexLock lock(&mutex_, has_new_event);
+  if (stop_) {
+    LOG(INFO) << "Thread for new file processing stopped";
     return std::nullopt;
   }
   auto file_encoded = updates_queue_.front();
@@ -52,18 +62,29 @@ std::optional<RealtimeMessage> ConcurrentPublishingEngine::Pop() {
   return file_encoded;
 }
 
+bool ConcurrentPublishingEngine::ShouldStop() {
+  absl::MutexLock l(&mutex_);
+  return stop_;
+}
+
 void ConcurrentPublishingEngine::ConsumeAndPublish(int thread_idx) {
   const auto start = clock_.Now();
   int delta_file_index = 1;
   auto batch_end = clock_.Now() + absl::Seconds(1);
-  auto message = Pop();
   auto maybe_msg_service = PublisherService::Create(notifier_metadata_);
   if (!maybe_msg_service.ok()) {
     LOG(ERROR) << "Failed creating a publisher service";
     return;
   }
   auto msg_service = std::move(*maybe_msg_service);
-  while (message.has_value()) {
+  absl::Condition has_new_event(
+      this, &ConcurrentPublishingEngine::HasNewMessageToProcess);
+
+  while (!ShouldStop()) {
+    auto message = Pop(has_new_event);
+    if (!message.has_value()) {
+      return;
+    }
     LOG(INFO) << ": Inserting to the SNS: " << delta_file_index
               << " Thread idx " << thread_idx;
     auto status = msg_service->Publish(message->message, message->shard_num);
@@ -79,7 +100,6 @@ void ConcurrentPublishingEngine::ConsumeAndPublish(int thread_idx) {
       }
       batch_end += absl::Seconds(1);
     }
-    message = Pop();
   }
 
   int64_t elapsed_seconds = absl::ToInt64Seconds(clock_.Now() - start);

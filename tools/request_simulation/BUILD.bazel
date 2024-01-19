@@ -147,8 +147,10 @@ cc_library(
     deps = [
         ":client_worker",
         ":delta_based_request_generator",
+        ":detla_based_realtime_updates_publisher",
         ":grpc_client",
         ":metrics_collector",
+        ":realtime_message_batcher",
         ":request_generation_util",
         ":request_simulation_parameter_fetcher",
         ":synthetic_request_generator",

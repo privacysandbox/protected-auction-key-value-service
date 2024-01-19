@@ -18,6 +18,7 @@
 
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/substitute.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 
@@ -27,7 +28,9 @@ namespace {
 absl::StatusOr<std::vector<kv_server::KeyValueMutationRecordStruct>> Convert(
     RealtimeMessage rt) {
   std::vector<kv_server::KeyValueMutationRecordStruct> rows;
-  std::istringstream is(rt.message);
+  std::string string_decoded;
+  absl::Base64Unescape(rt.message, &string_decoded);
+  std::istringstream is(string_decoded);
   auto delta_stream_reader_factory =
       std::make_unique<kv_server::RiegeliStreamRecordReaderFactory>();
   auto record_reader = delta_stream_reader_factory->CreateReader(is);

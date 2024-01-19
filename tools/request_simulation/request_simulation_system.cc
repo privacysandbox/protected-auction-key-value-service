@@ -15,16 +15,20 @@
 #include "tools/request_simulation/request_simulation_system.h"
 
 #include <algorithm>
+#include <queue>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "components/tools/concurrent_publishing_engine.h"
 #include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 #include "opentelemetry/sdk/resource/resource.h"
 #include "opentelemetry/sdk/resource/semantic_conventions.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/query/get_values.grpc.pb.h"
+#include "src/cpp/util/status_macro/status_macros.h"
+#include "tools/request_simulation/realtime_message_batcher.h"
 #include "tools/request_simulation/request/raw_request.pb.h"
 #include "tools/request_simulation/request_generation_util.h"
 #include "tools/request_simulation/request_simulation_parameter_fetcher.h"
@@ -81,6 +85,13 @@ ABSL_FLAG(
 ABSL_FLAG(int32_t, data_loading_num_threads, 1,
           "Number of parallel threads for reading and loading data files.");
 ABSL_FLAG(std::string, delta_file_bucket, "", "The name of delta file bucket");
+ABSL_FLAG(int32_t, num_shards, 1, "Number of shards on the kv-server");
+ABSL_FLAG(int32_t, realtime_message_size_kb, 10,
+          "Realtime message size threshold in kb");
+ABSL_FLAG(int32_t, realtime_publisher_insertion_num_threads, 1,
+          "Number of threads used to write to pubsub in parallel.");
+ABSL_FLAG(int32_t, realtime_publisher_files_insertion_rate, 15,
+          "Number of messages sent per insertion thread to pubsub per second");
 
 namespace kv_server {
 
@@ -180,6 +191,7 @@ absl::Status RequestSimulationSystem::Init(
   }
   blob_storage_client_ = CreateBlobClient();
   delta_file_notifier_ = CreateDeltaFileNotifier();
+  realtime_delta_file_notifier_ = CreateDeltaFileNotifier();
   delta_stream_reader_factory_ = CreateStreamRecordReaderFactory();
 
   auto blob_notifier_meta_data =
@@ -192,7 +204,7 @@ absl::Status RequestSimulationSystem::Init(
   SetQueueManager(blob_notifier_meta_data, message_service_blob_.get());
   {
     auto status_or_notifier =
-        BlobStorageChangeNotifier::Create(std::move(blob_notifier_meta_data));
+        BlobStorageChangeNotifier::Create(blob_notifier_meta_data);
     if (!status_or_notifier.ok()) {
       // The ChangeNotifier is required to read delta files, if it's not
       // available that's a critical error and so return immediately.
@@ -202,7 +214,9 @@ absl::Status RequestSimulationSystem::Init(
     }
     blob_change_notifier_ = std::move(*status_or_notifier);
   }
-
+  PS_ASSIGN_OR_RETURN(
+      realtime_blob_change_notifier_,
+      BlobStorageChangeNotifier::Create(std::move(blob_notifier_meta_data)));
   delta_based_request_generator_ = std::make_unique<DeltaBasedRequestGenerator>(
       DeltaBasedRequestGenerator::Options{
           .data_bucket = absl::GetFlag(FLAGS_delta_file_bucket),
@@ -212,6 +226,34 @@ absl::Status RequestSimulationSystem::Init(
           .change_notifier = *blob_change_notifier_,
           .delta_stream_reader_factory = *delta_stream_reader_factory_},
       CreateRequestFromKeyFn(), metrics_recorder_);
+  PS_ASSIGN_OR_RETURN(realtime_message_batcher_,
+                      RealtimeMessageBatcher::Create(
+                          realtime_messages_, realtime_messages_mutex_,
+                          absl::GetFlag(FLAGS_num_shards),
+                          absl::GetFlag(FLAGS_realtime_message_size_kb)));
+  auto notifier_metadata = parameter_fetcher_->GetRealtimeNotifierMetadata();
+  const int realtime_publisher_insertion_num_threads =
+      absl::GetFlag(FLAGS_realtime_publisher_insertion_num_threads);
+  const int realtime_publisher_files_insertion_rate =
+      absl::GetFlag(FLAGS_realtime_publisher_files_insertion_rate);
+  concurrent_publishing_engine_ = std::make_unique<ConcurrentPublishingEngine>(
+      realtime_publisher_insertion_num_threads, std::move(notifier_metadata),
+      realtime_publisher_files_insertion_rate, realtime_messages_mutex_,
+      realtime_messages_);
+  delta_based_realtime_updates_publisher_ =
+      std::make_unique<DeltaBasedRealtimeUpdatesPublisher>(
+          std::move(realtime_message_batcher_),
+          std::move(concurrent_publishing_engine_),
+          DeltaBasedRealtimeUpdatesPublisher::Options{
+              .data_bucket = absl::GetFlag(FLAGS_delta_file_bucket),
+              .blob_client = *blob_storage_client_,
+              .delta_notifier = *realtime_delta_file_notifier_,
+              .change_notifier = *realtime_blob_change_notifier_,
+              .delta_stream_reader_factory = *delta_stream_reader_factory_,
+              .realtime_messages = realtime_messages_,
+              .realtime_messages_mutex = realtime_messages_mutex_,
+          });
+
   LOG(INFO) << "Request simulation system is initialized,"
                "target server address is "
             << server_address_ << " and server method is " << server_method_;
@@ -254,6 +296,8 @@ absl::Status RequestSimulationSystem::Start() {
   if (auto status = delta_based_request_generator_->Start(); !status.ok()) {
     return status;
   }
+  LOG(INFO) << "Starting delta based realtime updates publisher";
+  PS_RETURN_IF_ERROR(delta_based_realtime_updates_publisher_->Start());
   if (synthetic_requests_fill_qps_ > 0) {
     LOG(INFO) << "Starting synthetic request generator";
     if (auto status = synthetic_request_generator_->Start(); !status.ok()) {
@@ -276,6 +320,8 @@ absl::Status RequestSimulationSystem::Start() {
   return absl::OkStatus();
 }
 absl::Status RequestSimulationSystem::Stop() {
+  LOG(INFO) << "Stopping delta based realtime updates publisher";
+  PS_RETURN_IF_ERROR(delta_based_realtime_updates_publisher_->Stop());
   LOG(INFO) << "Stopping delta based request generator";
   if (auto status = delta_based_request_generator_->Stop(); !status.ok()) {
     return status;

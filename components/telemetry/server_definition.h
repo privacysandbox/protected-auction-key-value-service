@@ -521,6 +521,9 @@ inline void InitMetricsContextMap() {
           config_proto));
 }
 
+using KVMetricsContext =
+    privacy_sandbox::server_common::metrics::ServerContext<kKVServerMetricSpan>;
+
 }  // namespace kv_server
 
 #endif  // COMPONENTS_TELEMETRY_SERVER_DEFINITION_H_

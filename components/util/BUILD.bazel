@@ -198,3 +198,17 @@ cc_library(
         "@com_google_googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "request_context",
+    srcs = [
+        "request_context.cc",
+    ],
+    hdrs = [
+        "request_context.h",
+    ],
+    deps = [
+        "//components/telemetry:server_definition",
+        "@google_privacysandbox_servers_common//scp/cc/core/common/uuid/src:uuid_lib",
+    ],
+)

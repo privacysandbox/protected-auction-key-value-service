@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+data "aws_default_tags" "current" {}
+
 resource "aws_launch_template" "instance_launch_template" {
   name          = "${var.service}-${var.environment}-${var.shard_num}-instance-lt"
   image_id      = var.instance_ami_id
@@ -41,6 +43,7 @@ resource "aws_launch_template" "instance_launch_template" {
       region                    = var.region,
       prometheus_service_region = var.prometheus_service_region
       prometheus_workspace_id   = var.prometheus_workspace_id
+      run_server_outside_tee    = var.run_server_outside_tee
   }))
 
   # Enforce IMDSv2.
@@ -74,6 +77,15 @@ resource "aws_autoscaling_group" "instance_asg" {
   launch_template {
     id      = aws_launch_template.instance_launch_template.id
     version = aws_launch_template.instance_launch_template.latest_version
+  }
+
+  dynamic "tag" {
+    for_each = data.aws_default_tags.current.tags
+    content {
+      key                 = tag.key
+      value               = tag.value
+      propagate_at_launch = true
+    }
   }
 
   instance_refresh {

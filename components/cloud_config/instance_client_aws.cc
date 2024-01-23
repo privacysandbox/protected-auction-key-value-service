@@ -47,8 +47,6 @@ using Aws::AutoScaling::Model::DescribeAutoScalingGroupsRequest;
 using Aws::AutoScaling::Model::Instance;
 using Aws::AutoScaling::Model::LifecycleState;
 using Aws::EC2::Model::DescribeInstancesRequest;
-using privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::ScopeLatencyRecorder;
 
 constexpr char kEnvironmentTag[] = "environment";
 constexpr char kShardNumTag[] = "shard-num";
@@ -61,9 +59,6 @@ constexpr char kImdsTokenResourcePath[] = "/latest/api/token";
 constexpr char kImdsEndpoint[] = "http://169.254.169.254";
 constexpr char kInstanceIdResourcePath[] = "/latest/meta-data/instance-id";
 constexpr char kContinueAction[] = "CONTINUE";
-constexpr char kDescribeInstanceGroupInstancesEvent[] =
-    "DescribeInstanceGroupInstances";
-constexpr char kDescribeInstancesEvent[] = "DescribeInstances";
 
 const absl::flat_hash_set<LifecycleState> kInstancePreServiceStatuses = {
     LifecycleState::Pending,
@@ -324,9 +319,8 @@ class AwsInstanceClient : public InstanceClient {
     return instances;
   }
 
-  explicit AwsInstanceClient(MetricsRecorder& metrics_recorder)
-      : metrics_recorder_(metrics_recorder),
-        ec2_client_(std::make_unique<Aws::EC2::EC2Client>()),
+  AwsInstanceClient()
+      : ec2_client_(std::make_unique<Aws::EC2::EC2Client>()),
         // EC2MetadataClient does not fall back to the default client
         // configuration, needs to specify it to
         //  fall back default configuration such as connectTimeoutMs (1000ms)
@@ -337,7 +331,6 @@ class AwsInstanceClient : public InstanceClient {
             std::make_unique<Aws::AutoScaling::AutoScalingClient>()) {}
 
  private:
-  MetricsRecorder& metrics_recorder_;
   std::unique_ptr<Aws::EC2::EC2Client> ec2_client_;
   std::unique_ptr<Aws::Internal::EC2MetadataClient> ec2_metadata_client_;
   std::unique_ptr<Aws::AutoScaling::AutoScalingClient> auto_scaling_client_;
@@ -360,8 +353,11 @@ class AwsInstanceClient : public InstanceClient {
     Aws::EC2::Model::DescribeTagsRequest request;
     request.SetFilters({resource_id_filter, key_filter});
 
+    LOG(INFO) << "Sending Aws::EC2::Model::DescribeTagsRequest to get tag: "
+              << tag;
     const auto outcome = ec2_client_->DescribeTags(request);
     if (!outcome.IsSuccess()) {
+      LOG(ERROR) << "Failed to get tag: " << outcome.GetError();
       return AwsErrorToStatus(outcome.GetError());
     }
     if (outcome.GetResult().GetTags().size() != 1) {
@@ -377,9 +373,8 @@ class AwsInstanceClient : public InstanceClient {
 
 }  // namespace
 
-std::unique_ptr<InstanceClient> InstanceClient::Create(
-    MetricsRecorder& metrics_recorder) {
-  return std::make_unique<AwsInstanceClient>(metrics_recorder);
+std::unique_ptr<InstanceClient> InstanceClient::Create() {
+  return std::make_unique<AwsInstanceClient>();
 }
 
 }  // namespace kv_server

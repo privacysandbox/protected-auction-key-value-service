@@ -15,5 +15,5 @@
  */
 
 function HandleRequest(executionMetadata, ...udf_arguments) {
-  return 'echo ' + JSON.stringify(udf_arguments) + ' ' + getValues(["example_key"]);
+  return 'echo ' + JSON.stringify(udf_arguments) + ' ' + getValues(['example_key']);
 }

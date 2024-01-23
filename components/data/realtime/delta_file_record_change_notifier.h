@@ -70,8 +70,7 @@ class DeltaFileRecordChangeNotifier {
       const std::function<bool()>& should_stop_callback) = 0;
 
   static std::unique_ptr<DeltaFileRecordChangeNotifier> Create(
-      std::unique_ptr<ChangeNotifier> change_notifier,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
+      std::unique_ptr<ChangeNotifier> change_notifier);
 };
 
 }  // namespace kv_server

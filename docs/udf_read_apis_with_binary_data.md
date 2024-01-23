@@ -71,7 +71,7 @@ closure_js_binary(
 A few notes:
 
 -   `externs.js` contains an empty function definition of `getValuesBinary` to register that
-    function with the closure compilert
+    function with the closure compiler
 -   `udf.js` contains the actual custom code snippett
 
 #### Closure js library to delta bazel macro

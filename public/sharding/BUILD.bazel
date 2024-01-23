@@ -36,3 +36,24 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "key_sharder",
+    srcs = ["key_sharder.cc"],
+    hdrs = ["key_sharder.h"],
+    deps = [
+        ":sharding_function",
+    ],
+)
+
+cc_test(
+    name = "key_sharder_test",
+    size = "small",
+    srcs = [
+        "key_sharder_test.cc",
+    ],
+    deps = [
+        ":key_sharder",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

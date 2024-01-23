@@ -21,7 +21,7 @@
                 "plotType": "LINE",
                 "targetAxis": "Y1",
                 "timeSeriesQuery": {
-                  "prometheusQuery": "workload_googleapis_com:EventStatus{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"RealtimeTotalRowsUpdated\"}",
+                  "prometheusQuery": "increase(workload_googleapis_com:RealtimeTotalRowsUpdated{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\"}[${__interval}])",
                   "unitOverride": ""
                 }
               }
@@ -51,7 +51,7 @@
                 "plotType": "LINE",
                 "targetAxis": "Y1",
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.5, delta(workload_googleapis_com:ReceivedLowLatencyNotificationsE2EGcpProvided_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\"}[15m]))",
+                  "prometheusQuery": "histogram_quantile(0.5, delta(workload_googleapis_com:ReceivedLowLatencyNotificationsE2ECloudProvided_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\"}[15m]))",
                   "unitOverride": "us"
                 }
               }
@@ -82,7 +82,7 @@
                 "plotType": "LINE",
                 "targetAxis": "Y1",
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.999,delta(workload_googleapis_com:ReceivedLowLatencyNotificationsE2EGcpProvided_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\"}[15m]))",
+                  "prometheusQuery": "histogram_quantile(0.999,delta(workload_googleapis_com:ReceivedLowLatencyNotificationsE2ECloudProvided_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\"}[15m]))",
                   "unitOverride": "us"
                 }
               }
@@ -176,7 +176,7 @@
                 "plotType": "LINE",
                 "targetAxis": "Y1",
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.50,delta(workload_googleapis_com:Latency_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"ReceivedLowLatencyNotifications\"}[15m]))",
+                  "prometheusQuery": "histogram_quantile(0.50,delta(workload_googleapis_com:ReceivedLowLatencyNotifications_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\"}[15m]))",
                   "unitOverride": "ns"
                 }
               }
@@ -208,7 +208,7 @@
                 "plotType": "LINE",
                 "targetAxis": "Y1",
                 "timeSeriesQuery": {
-                  "prometheusQuery": "histogram_quantile(0.999,delta(workload_googleapis_com:Latency_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\",event=\"ReceivedLowLatencyNotifications\"}[15m]))",
+                  "prometheusQuery": "histogram_quantile(0.999,delta(workload_googleapis_com:ReceivedLowLatencyNotifications_bucket{monitored_resource=\"generic_task\",project_id=\"PROJECT_ID\",deployment_environment=\"ENVIRONMENT\"}[15m]))",
                   "unitOverride": "ns"
                 }
               }

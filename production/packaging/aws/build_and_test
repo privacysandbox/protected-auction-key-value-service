@@ -180,6 +180,7 @@ function _collect_logs() {
 }
 set -o errexit
 bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/aws/data_server/ami:copy_to_dist
+cp dist/server_docker_image.tar dist/aws/server_docker_image.tar
 "
 
 printf "==== Running normalize_dist.sh =====\n"

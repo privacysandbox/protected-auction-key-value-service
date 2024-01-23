@@ -13,11 +13,11 @@ python_deps("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit 3a47a5e 2023-11-01
-    sha256 = "d1a5cc31686e04f7c192f103600431f804689fbea54722250484ef38f9c8c7bf",
-    strip_prefix = "data-plane-shared-libraries-bd2efade9f130c7c8e0dbe964183204c6ee220ce",
+    # commit f198e86 2024-01-16
+    sha256 = "979d467165bef950ed69bc913e9ea743bfc068714fb43cf61e02b52b910a5561",
+    strip_prefix = "data-plane-shared-libraries-f198e86307028ad98c38a8ed1c72189eefa97334",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/bd2efade9f130c7c8e0dbe964183204c6ee220ce.zip",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/f198e86307028ad98c38a8ed1c72189eefa97334.zip",
     ],
 )
 
@@ -47,24 +47,17 @@ data_plane_shared_deps4()
 load(
     "//third_party_deps:cpp_repositories.bzl",
     "cpp_repositories",
-    "emscripten_repositories",
 )
 
 cpp_repositories()
-
-EMSCRIPTEN_VER = emscripten_repositories()
 
 load("//third_party_deps:container_deps.bzl", "container_deps")
 
 container_deps()
 
-load("//third_party_deps:emscripten_deps1.bzl", "emscripten_deps1")
+load("@io_bazel_rules_docker//go:image.bzl", go_image_repos = "repositories")
 
-emscripten_deps1()
-
-load("//third_party_deps:emscripten_deps2.bzl", "emscripten_deps2")
-
-emscripten_deps2(EMSCRIPTEN_VER)
+go_image_repos()
 
 # googleapis
 http_archive(
@@ -125,3 +118,10 @@ install_deps()
 load("//third_party_deps:rules_closure_repositories.bzl", "rules_closure_repositories")
 
 rules_closure_repositories()
+
+# Use nogo to run `go vet` with bazel
+load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
+
+go_rules_dependencies()
+
+go_register_toolchains(nogo = "@//:kv_nogo")

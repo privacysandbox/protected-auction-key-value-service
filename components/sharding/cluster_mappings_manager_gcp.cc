@@ -19,18 +19,18 @@
 
 namespace kv_server {
 namespace {
-constexpr char kShardNumberTag[] = "shard-num";
-constexpr char kProjectIdParameterName[] = "project-id";
+constexpr std::string_view kShardNumberTag = "shard-num";
+constexpr std::string_view kProjectIdParameterName = "project-id";
+constexpr std::string_view kInitializedTag = "initialized";
 }  // namespace
 
 class GcpClusterMappingsManager : public ClusterMappingsManager {
  public:
-  GcpClusterMappingsManager(
-      std::string environment, int32_t num_shards,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      InstanceClient& instance_client, std::string project_id)
+  GcpClusterMappingsManager(std::string environment, int32_t num_shards,
+                            InstanceClient& instance_client,
+                            std::string project_id)
       : ClusterMappingsManager(std::move(environment), num_shards,
-                               metrics_recorder, instance_client),
+                               instance_client),
         project_id_{project_id} {}
 
   std::vector<absl::flat_hash_set<std::string>> GetClusterMappings() override {
@@ -41,7 +41,8 @@ class GcpClusterMappingsManager : public ClusterMappingsManager {
           return instance_client.DescribeInstanceGroupInstances(
               describe_instance_group_input);
         },
-        "DescribeInstanceGroupInstances", &metrics_recorder_);
+        "DescribeInstanceGroupInstances",
+        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>());
 
     return GroupInstancesToClusterMappings(instance_group_instances);
   }
@@ -70,7 +71,9 @@ class GcpClusterMappingsManager : public ClusterMappingsManager {
       if (instance.service_status != InstanceServiceStatus::kInService) {
         continue;
       }
-
+      if (!instance.labels.contains(kInitializedTag)) {
+        continue;
+      }
       auto shard_num_status = GetShardNumberOffLabels(instance.labels);
       if (!shard_num_status.ok()) {
         continue;
@@ -89,13 +92,11 @@ class GcpClusterMappingsManager : public ClusterMappingsManager {
 
 std::unique_ptr<ClusterMappingsManager> ClusterMappingsManager::Create(
     std::string environment, int32_t num_shards,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     InstanceClient& instance_client, ParameterFetcher& parameter_fetcher) {
   std::string project_id =
       parameter_fetcher.GetParameter(kProjectIdParameterName);
   return std::make_unique<GcpClusterMappingsManager>(
-      environment, num_shards, metrics_recorder, instance_client,
-      std::move(project_id));
+      environment, num_shards, instance_client, std::move(project_id));
 }
 
 }  // namespace kv_server

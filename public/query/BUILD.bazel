@@ -25,6 +25,7 @@ proto_library(
     deps = [
         "@com_google_googleapis//google/api:annotations_proto",
         "@com_google_googleapis//google/api:httpbody_proto",
+        "@com_google_googleapis//google/rpc:status_proto",
         "@com_google_protobuf//:struct_proto",
     ],
 )
@@ -42,6 +43,7 @@ proto_descriptor_set(
     name = "query_api_descriptor_set",
     deps = [
         ":get_values_proto",
+        "//components/health_check:health",
         "//public/query/v2:get_values_v2_proto",
     ],
 )

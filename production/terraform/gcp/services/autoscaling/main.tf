@@ -49,16 +49,13 @@ resource "google_compute_instance_template" "kv_server" {
   network_interface {
     network    = var.vpc_id
     subnetwork = each.value.id
-
-    access_config {
-      network_tier = "PREMIUM"
-    }
   }
 
   metadata = {
     tee-image-reference              = "${var.gcp_image_repo}:${var.gcp_image_tag}"
     tee-container-log-redirect       = true,
     tee-impersonate-service-accounts = "${var.tee_impersonate_service_accounts}"
+    environment                      = var.environment
   }
 
   service_account {
@@ -106,6 +103,11 @@ resource "google_compute_region_instance_group_manager" "kv_server" {
     port = var.service_port
   }
 
+  named_port {
+    name = "envoy"
+    port = var.envoy_port
+  }
+
   base_instance_name = "${var.service}-${var.environment}"
 
   auto_healing_policies {
@@ -149,12 +151,10 @@ resource "google_compute_region_autoscaler" "kv_server" {
 
 resource "google_compute_health_check" "kv_server" {
   name = "${var.service}-${var.environment}-${var.shard_num}-auto-heal-hc"
-  # gpc_health_check does not support TLS
-  # Workaround: use tcp
-  # Details: https://cloud.google.com/load-balancing/docs/health-checks#optional-flags-hc-protocol-grpc
-  tcp_health_check {
-    port_name = "grpc"
-    port      = var.service_port
+  grpc_health_check {
+    port_name         = "grpc"
+    port              = var.service_port
+    grpc_service_name = "autoscaler-healthcheck"
   }
 
   timeout_sec         = 30

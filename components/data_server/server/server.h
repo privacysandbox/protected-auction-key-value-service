@@ -44,6 +44,7 @@
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
 #include "public/query/get_values.grpc.pb.h"
+#include "public/sharding/key_sharder.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 
@@ -81,10 +82,10 @@ class Server {
 
   std::unique_ptr<BlobStorageClient> CreateBlobClient(
       const ParameterFetcher& parameter_fetcher);
-  std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
-  CreateStreamRecordReaderFactory(const ParameterFetcher& parameter_fetcher);
-  std::unique_ptr<DataOrchestrator> CreateDataOrchestrator(
+  std::unique_ptr<StreamRecordReaderFactory> CreateStreamRecordReaderFactory(
       const ParameterFetcher& parameter_fetcher);
+  std::unique_ptr<DataOrchestrator> CreateDataOrchestrator(
+      const ParameterFetcher& parameter_fetcher, KeySharder key_sharder);
 
   void CreateGrpcServices(const ParameterFetcher& parameter_fetcher);
   absl::Status MaybeShutdownNotifiers();
@@ -129,8 +130,7 @@ class Server {
   std::unique_ptr<DeltaFileNotifier> notifier_;
   std::unique_ptr<BlobStorageChangeNotifier> change_notifier_;
   std::unique_ptr<RealtimeThreadPoolManager> realtime_thread_pool_manager_;
-  std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
-      delta_stream_reader_factory_;
+  std::unique_ptr<StreamRecordReaderFactory> delta_stream_reader_factory_;
 
   std::unique_ptr<DataOrchestrator> data_orchestrator_;
 

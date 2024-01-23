@@ -4,13 +4,13 @@ namespace kv_server;
 
 enum KeyValueMutationType:byte { Update = 0,  Delete = 1 }
 
-table String { value:string; }
+table StringValue { value:string; }
 // For set values:
 // (1) `Update` mutation creates the set if one doesn't exist,
 //     otherwise inserts the elements into the existing set.
 // (2) `Delete` mutation removes the elements from existing set.
 table StringSet { value:[string]; }
-union Value { String, StringSet }
+union Value { StringValue, StringSet }
 
 table KeyValueMutationRecord {
   // Required. For updates, the value will overwrite the previous value, if any.

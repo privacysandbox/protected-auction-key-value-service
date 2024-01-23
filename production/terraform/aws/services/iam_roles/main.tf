@@ -36,9 +36,7 @@ resource "aws_iam_role" "instance_role" {
   assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
 
   tags = {
-    Name        = format("%s-%s-InstanceRole", var.service, var.environment)
-    service     = var.service
-    environment = var.environment
+    Name = format("%s-%s-InstanceRole", var.service, var.environment)
   }
 }
 
@@ -47,9 +45,7 @@ resource "aws_iam_instance_profile" "instance_profile" {
   role = aws_iam_role.instance_role.name
 
   tags = {
-    Name        = format("%s-%s-InstanceProfile", var.service, var.environment)
-    service     = var.service
-    environment = var.environment
+    Name = format("%s-%s-InstanceProfile", var.service, var.environment)
   }
 }
 
@@ -61,9 +57,7 @@ resource "aws_iam_role" "ssh_instance_role" {
   assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
 
   tags = {
-    Name        = format("%s-%s-sshInstanceRole", var.service, var.environment)
-    service     = var.service
-    environment = var.environment
+    Name = format("%s-%s-sshInstanceRole", var.service, var.environment)
   }
 }
 
@@ -72,9 +66,7 @@ resource "aws_iam_instance_profile" "ssh_instance_profile" {
   role = aws_iam_role.ssh_instance_role.name
 
   tags = {
-    Name        = format("%s-%s-sshInstanceProfile", var.service, var.environment)
-    service     = var.service
-    environment = var.environment
+    Name = format("%s-%s-sshInstanceProfile", var.service, var.environment)
   }
 }
 
@@ -100,8 +92,6 @@ resource "aws_iam_role" "lambda_role" {
   assume_role_policy = data.aws_iam_policy_document.lambda_assume_role_policy.json
 
   tags = {
-    Name        = format("%s-%s-LambdaRole", var.service, var.environment)
-    service     = var.service
-    environment = var.environment
+    Name = format("%s-%s-LambdaRole", var.service, var.environment)
   }
 }

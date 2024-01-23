@@ -21,13 +21,11 @@
 #include "absl/flags/parse.h"
 #include "absl/strings/substitute.h"
 #include "components/data/common/msg_svc.h"
+#include "components/tools/concurrent_publishing_engine.h"
 #include "components/tools/publisher_service.h"
 #include "components/util/platform_initializer.h"
 #include "glog/logging.h"
 
-ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
-ABSL_FLAG(std::string, gcp_project_id, "", "GCP project id");
-ABSL_FLAG(std::string, gcp_topic_id, "", "GCP topic id");
 ABSL_FLAG(std::string, deltas_folder_path, "",
           "Path to the folder with delta files");
 ABSL_FLAG(int, insertion_num_threads, 1,
@@ -40,8 +38,8 @@ using RecursiveDirectoryIterator =
     std::filesystem::recursive_directory_iterator;
 using namespace std::chrono_literals;  // NOLINT
 
-absl::Mutex mutex_;
-std::queue<std::string> updates_queue;
+absl::Mutex mutex;
+std::queue<RealtimeMessage> updates_queue;
 
 void PopulateQueue(const std::string& deltas_folder_path) {
   for (const auto& delta_file_name :
@@ -49,84 +47,15 @@ void PopulateQueue(const std::string& deltas_folder_path) {
     std::ifstream delta_file_stream(delta_file_name.path().string());
     std::stringstream buffer;
     buffer << delta_file_stream.rdbuf();
-    std::string file_encoded = absl::Base64Escape(buffer.str());
-    updates_queue.push(file_encoded);
+    RealtimeMessage rm;
+    rm.message = absl::Base64Escape(buffer.str());
+    updates_queue.push(std::move(rm));
   }
-}
-
-std::optional<std::string> Pop() {
-  absl::MutexLock lock(&mutex_);
-  {
-    if (updates_queue.empty()) {
-      return std::nullopt;
-    }
-    auto file_encoded = updates_queue.front();
-    updates_queue.pop();
-    return file_encoded;
-  }
-}
-
-void ConsumeAndPublish(NotifierMetadata notifier_metadata, int thread_idx) {
-  auto start = absl::Now();
-  int delta_file_index = 1;
-  // can't insert more than that many messages per second.
-  int files_insertion_rate = 15;
-  auto batch_end = absl::Now() + absl::Seconds(1);
-  auto message = Pop();
-  auto maybe_msg_service = PublisherService::Create(notifier_metadata);
-  if (!maybe_msg_service.ok()) {
-    LOG(ERROR) << "Failed creating a publisher service";
-    return;
-  }
-  auto msg_service = std::move(*maybe_msg_service);
-  while (message.has_value()) {
-    LOG(INFO) << absl::Now() << ": Inserting to the SNS: " << delta_file_index
-              << " Thread idx " << thread_idx;
-    auto status = msg_service->Publish(*message);
-    if (!status.ok()) {
-      LOG(ERROR) << absl::Now() << status << std::endl;
-    }
-    delta_file_index++;
-    // rate limit to N files per second
-    if (delta_file_index % files_insertion_rate == 0) {
-      if (batch_end > absl::Now()) {
-        absl::SleepFor(batch_end - absl::Now());
-        LOG(INFO) << absl::Now() << ": sleeping " << delta_file_index;
-      }
-      batch_end += absl::Seconds(1);
-    }
-    message = Pop();
-  }
-
-  int64_t elapsed_seconds = absl::ToInt64Seconds(absl::Now() - start);
-  LOG(INFO) << absl::Now() << ": Total inserted: " << delta_file_index
-            << " Seconds elapsed " << elapsed_seconds << " Thread idx "
-            << thread_idx;
-  if (elapsed_seconds > 0) {
-    LOG(INFO) << absl::Now() << " Actual rate "
-              << (delta_file_index / elapsed_seconds);
-  }
-}
-
-absl::StatusOr<NotifierMetadata> GetNotifierMetadata() {
-  const std::string gcp_project_id = absl::GetFlag(FLAGS_gcp_project_id);
-  const std::string gcp_topic_id = absl::GetFlag(FLAGS_gcp_topic_id);
-  if (!gcp_project_id.empty() && !gcp_topic_id.empty()) {
-    return GcpNotifierMetadata{.project_id = gcp_project_id,
-                               .topic_id = gcp_topic_id};
-  }
-  const std::string sns_arn = absl::GetFlag(FLAGS_sns_arn);
-  if (!sns_arn.empty()) {
-    return AwsNotifierMetadata{.sns_arn = sns_arn};
-  }
-  return absl::InvalidArgumentError(
-      "Please specify a full set of parameters at least for one of the "
-      "following platforms: GCP or AWS.");
 }
 
 absl::Status Run() {
   PlatformInitializer initializer;
-  auto maybe_notifier_metadata = GetNotifierMetadata();
+  auto maybe_notifier_metadata = PublisherService::GetNotifierMetadata();
   if (!maybe_notifier_metadata.ok()) {
     return maybe_notifier_metadata.status();
   }
@@ -137,22 +66,16 @@ absl::Status Run() {
   }
   PopulateQueue(deltas_folder_path);
   const int insertion_num_threads = absl::GetFlag(FLAGS_insertion_num_threads);
-  std::vector<std::unique_ptr<std::thread>> publishers;
-  for (int i = 0; i < insertion_num_threads; i++) {
-    publishers.emplace_back(
-        std::make_unique<std::thread>([maybe_notifier_metadata, i] {
-          ConsumeAndPublish(*maybe_notifier_metadata, i);
-        }));
-  }
-
+  int files_insertion_rate = 15;
+  auto publishing_engine = ConcurrentPublishingEngine(
+      insertion_num_threads, std::move(*maybe_notifier_metadata),
+      files_insertion_rate, mutex, updates_queue);
+  publishing_engine.Start();
   while (!updates_queue.empty()) {
     LOG(INFO) << "Waiting on consumers";
     std::this_thread::sleep_for(1000ms);
   }
-  for (auto& publisher_thread : publishers) {
-    publisher_thread->join();
-  }
-
+  publishing_engine.Stop();
   return absl::OkStatus();
 }
 
@@ -163,10 +86,10 @@ absl::Status Run() {
 // the specified SNS. It will insert 15 delta files per second from 2 threads.
 // (The amount of threads can be updated through `insertion_num_threads`). 15 is
 // amount of insertion you can do from a single thread per second that was
-// empirically measured. Sample AWS command: bazel run
+// empirically measured. Sample AWS command: bazel run --config=aws_platform
 // //components/tools:realtime_updates_publisher
 // --deltas_folder_path='pathtoyourdeltas'
-// --sns_arn='yourrealtimeSNSARN' To generate test delta files you can run
+// --aws_sns_arn='yourrealtimeSNSARN' To generate test delta files you can run
 // `tools/serving_data_generator/generate_load_test_data`.
 int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);

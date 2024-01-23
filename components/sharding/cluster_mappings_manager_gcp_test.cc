@@ -28,11 +28,23 @@
 
 namespace kv_server {
 namespace {
-TEST(ClusterMappingsGcpTest, RetrieveMappingsSuccessfully) {
+
+class ClusterMappingsGcpTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
+};
+
+TEST_F(ClusterMappingsGcpTest, RetrieveMappingsSuccessfully) {
   std::string environment = "testenv";
   std::string project_id = "some-project-id";
   int32_t num_shards = 4;
-  privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
   auto instance_client = std::make_unique<MockInstanceClient>();
   EXPECT_CALL(*instance_client, DescribeInstanceGroupInstances(::testing::_))
       .WillOnce([&](DescribeInstanceGroupInput& input) {
@@ -42,17 +54,17 @@ TEST(ClusterMappingsGcpTest, RetrieveMappingsSuccessfully) {
         InstanceInfo ii1 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip1",
-            .labels = {{"shard-num", "0"}},
+            .labels = {{"shard-num", "0"}, {"initialized", "initialized"}},
         };
         InstanceInfo ii2 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip2",
-            .labels = {{"shard-num", "0"}},
+            .labels = {{"shard-num", "0"}, {"initialized", "initialized"}},
         };
         InstanceInfo ii3 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip3",
-            .labels = {{"shard-num", "1"}},
+            .labels = {{"shard-num", "1"}, {"initialized", "initialized"}},
         };
         InstanceInfo ii4 = {
             .service_status = InstanceServiceStatus::kPreService,
@@ -68,11 +80,11 @@ TEST(ClusterMappingsGcpTest, RetrieveMappingsSuccessfully) {
         return instances;
       });
   MockParameterFetcher parameter_fetcher;
-  EXPECT_CALL(parameter_fetcher, GetParameter("project-id"))
+  EXPECT_CALL(parameter_fetcher,
+              GetParameter("project-id", testing::Eq(std::nullopt)))
       .WillOnce(testing::Return(project_id));
   auto mgr = ClusterMappingsManager::Create(
-      environment, num_shards, mock_metrics_recorder, *instance_client,
-      parameter_fetcher);
+      environment, num_shards, *instance_client, parameter_fetcher);
   auto cluster_mappings = mgr->GetClusterMappings();
   EXPECT_EQ(cluster_mappings.size(), 4);
   absl::flat_hash_set<std::string> set0 = {"ip1", "ip2"};
@@ -84,11 +96,10 @@ TEST(ClusterMappingsGcpTest, RetrieveMappingsSuccessfully) {
   EXPECT_THAT(cluster_mappings[3], testing::UnorderedElementsAreArray(set2));
 }
 
-TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
+TEST_F(ClusterMappingsGcpTest, RetrieveMappingsWithRetrySuccessfully) {
   std::string environment = "testenv";
   std::string project_id = "some-project-id";
   int32_t num_shards = 2;
-  privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
   auto instance_client = std::make_unique<MockInstanceClient>();
   EXPECT_CALL(*instance_client, DescribeInstanceGroupInstances(::testing::_))
       .WillOnce(testing::Return(absl::InternalError("Oops.")))
@@ -99,17 +110,17 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
         InstanceInfo ii1 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip1",
-            .labels = {{"shard-num", "0"}},
+            .labels = {{"shard-num", "0"}, {"initialized", "initialized"}},
         };
         std::vector<InstanceInfo> instances{ii1};
         return instances;
       });
   MockParameterFetcher parameter_fetcher;
-  EXPECT_CALL(parameter_fetcher, GetParameter("project-id"))
+  EXPECT_CALL(parameter_fetcher,
+              GetParameter("project-id", testing::Eq(std::nullopt)))
       .WillOnce(testing::Return(project_id));
   auto mgr = ClusterMappingsManager::Create(
-      environment, num_shards, mock_metrics_recorder, *instance_client,
-      parameter_fetcher);
+      environment, num_shards, *instance_client, parameter_fetcher);
   auto cluster_mappings = mgr->GetClusterMappings();
   EXPECT_EQ(cluster_mappings.size(), 2);
   absl::flat_hash_set<std::string> set0 = {"ip1"};
@@ -118,7 +129,7 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
   EXPECT_THAT(cluster_mappings[1], testing::UnorderedElementsAreArray(set1));
 }
 
-TEST(ClusterMappingsAwsTest, UpdateMappings) {
+TEST_F(ClusterMappingsGcpTest, UpdateMappings) {
   std::string environment = "testenv";
   std::string project_id = "some-project-id";
   int32_t num_shards = 2;
@@ -144,7 +155,7 @@ TEST(ClusterMappingsAwsTest, UpdateMappings) {
         InstanceInfo ii1 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip10",
-            .labels = {{"shard-num", "0"}},
+            .labels = {{"shard-num", "0"}, {"initialized", "initialized"}},
         };
         std::vector<InstanceInfo> instances{ii1};
         return instances;
@@ -156,18 +167,18 @@ TEST(ClusterMappingsAwsTest, UpdateMappings) {
         InstanceInfo ii1 = {
             .service_status = InstanceServiceStatus::kInService,
             .private_ip_address = "ip20",
-            .labels = {{"shard-num", "0"}},
+            .labels = {{"shard-num", "0"}, {"initialized", "initialized"}},
         };
         std::vector<InstanceInfo> instances{ii1};
         finished.Notify();
         return instances;
       });
   MockParameterFetcher parameter_fetcher;
-  EXPECT_CALL(parameter_fetcher, GetParameter("project-id"))
+  EXPECT_CALL(parameter_fetcher,
+              GetParameter("project-id", testing::Eq(std::nullopt)))
       .WillOnce(testing::Return(project_id));
   auto mgr = ClusterMappingsManager::Create(
-      environment, num_shards, mock_metrics_recorder, *instance_client,
-      parameter_fetcher);
+      environment, num_shards, *instance_client, parameter_fetcher);
   mgr->Start(*shard_manager);
   finished.WaitForNotification();
   ASSERT_TRUE(mgr->Stop().ok());

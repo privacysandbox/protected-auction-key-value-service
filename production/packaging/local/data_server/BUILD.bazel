@@ -1,0 +1,114 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load(
+    "@io_bazel_rules_docker//container:container.bzl",
+    "container_image",
+)
+load("@io_bazel_rules_docker//docker/util:run.bzl", "container_run_and_commit_layer")
+
+container_run_and_commit_layer(
+    name = "profiling_tools_layer",
+    commands = [
+        # Install killall, wget, ps, binutils and linux perf.
+        "apt-get update",
+        "apt-get install wget psmisc procps binutils linux-tools-generic -y",
+        # Installing graphviz and gperftools requires these ENV variables.
+        "export DEBIAN_FRONTEND=noninteractive; export TZ=Etc/UTC",
+        # Install graphviz and libgperf tools.
+        "apt-get install graphviz libgoogle-perftools-dev -y",
+        # Install pprof.
+        "wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz",
+        "rm -rf /usr/local/go && tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz && rm go1.21.6.linux-amd64.tar.gz",
+        "/usr/local/go/bin/go install github.com/google/pprof@latest",
+    ],
+    image = select({
+        "@platforms//cpu:arm64": "@runtime-ubuntu-fulldist-debug-root-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-ubuntu-fulldist-debug-root-amd64//image",
+    }),
+)
+
+# This image target is meant for cpu and memory profiling of the server.
+container_image(
+    name = "server_profiling_docker_image",
+    architecture = select({
+        "@platforms//cpu:arm64": "arm64",
+        "@platforms//cpu:x86_64": "amd64",
+    }),
+    base = select({
+        "@platforms//cpu:arm64": "@runtime-ubuntu-fulldist-debug-root-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-ubuntu-fulldist-debug-root-amd64//image",
+    }),
+    entrypoint = [
+        "/server",
+        "--port=50051",
+        "--delta_directory=/data",
+        "--realtime_directory=/data/realtime",
+    ],
+    env = {"GLOG_logtostderr": "1"},
+    layers = [
+        ":profiling_tools_layer",
+        "//production/packaging/gcp/data_server:server_binary_layer",
+    ],
+    symlinks = {
+        "/usr/local/bin/linux-perf": "/usr/lib/linux-tools/5.4.0-169-generic/perf",
+        "/usr/local/bin/pprof": "/root/go/bin/pprof",
+    },
+)
+
+# This image target is meant for testing running the server in an enclave using.
+#
+# See project README.md on how to run the image.
+container_image(
+    name = "server_docker_image",
+    architecture = select({
+        "@platforms//cpu:arm64": "arm64",
+        "@platforms//cpu:x86_64": "amd64",
+    }),
+    base = select({
+        "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64//image",
+    }),
+    entrypoint = [
+        "/server",
+        "--port=50051",
+        "--delta_directory=/data",
+        "--realtime_directory=/data/realtime",
+    ],
+    env = {"GLOG_logtostderr": "1"},
+    layers = [
+        "//production/packaging/gcp/data_server:server_binary_layer",
+    ],
+)
+
+genrule(
+    name = "copy_to_dist",
+    srcs = [
+        ":server_docker_image.tar",
+        "//production/packaging/gcp/data_server:server_artifacts",
+        "//public/query:query_api_descriptor_set",
+    ],
+    outs = ["copy_to_dist.bin"],
+    cmd_bash = """cat << EOF > '$@'
+mkdir -p dist/debian
+cp $(execpath //production/packaging/gcp/data_server:server_artifacts) dist/debian
+cp $(execpath :server_docker_image.tar) $(execpath //public/query:query_api_descriptor_set) dist
+# retain previous server_docker_image.tar location as a symlink
+ln -rsf dist/server_docker_image.tar dist/debian/server_docker_image.tar
+builders/tools/normalize-dist
+EOF""",
+    executable = True,
+    local = True,
+    message = "copying server artifacts to dist directory",
+)

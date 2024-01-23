@@ -76,7 +76,6 @@ class RealtimeThreadPoolManagerAws : public RealtimeThreadPoolManager {
 
 absl::StatusOr<std::unique_ptr<RealtimeThreadPoolManager>>
 RealtimeThreadPoolManager::Create(
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     NotifierMetadata notifier_metadata, int32_t num_threads,
     std::vector<RealtimeNotifierMetadata> realtime_notifier_metadata) {
   std::vector<std::unique_ptr<RealtimeNotifier>> realtime_notifier;
@@ -85,9 +84,8 @@ RealtimeThreadPoolManager::Create(
         realtime_notifier_metadata.size() < num_threads
             ? RealtimeNotifierMetadata{}
             : std::move(realtime_notifier_metadata[i]);
-    auto maybe_realtime_notifier =
-        RealtimeNotifier::Create(metrics_recorder, notifier_metadata,
-                                 std::move(realtime_notifier_metadatum));
+    auto maybe_realtime_notifier = RealtimeNotifier::Create(
+        notifier_metadata, std::move(realtime_notifier_metadatum));
     if (!maybe_realtime_notifier.ok()) {
       return maybe_realtime_notifier.status();
     }

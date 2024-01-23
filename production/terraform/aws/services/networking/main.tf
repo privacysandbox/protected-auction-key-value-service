@@ -25,9 +25,7 @@ resource "aws_vpc" "vpc" {
   enable_dns_hostnames = true
 
   tags = {
-    Name        = "${var.service}-${var.environment}-vpc"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-vpc"
   }
 }
 
@@ -45,9 +43,7 @@ resource "aws_subnet" "public_subnet" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.service}-${var.environment}-public-subnet${count.index}"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-public-subnet${count.index}"
   }
 }
 
@@ -60,9 +56,7 @@ resource "aws_subnet" "private_subnet" {
   map_public_ip_on_launch = false
 
   tags = {
-    Name        = "${var.service}-${var.environment}-private-subnet${count.index}"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-private-subnet${count.index}"
   }
 }
 
@@ -71,9 +65,7 @@ resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
-    Name        = "${var.service}-${var.environment}-igw"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-igw"
   }
 }
 
@@ -81,9 +73,7 @@ resource "aws_route_table" "public_rt" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
-    Name        = "${var.service}-${var.environment}-public-rt"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-public-rt"
   }
 }
 
@@ -122,9 +112,7 @@ resource "aws_nat_gateway" "nat_gateway" {
   ]
 
   tags = {
-    Name        = "${var.service}-${var.environment}-nat-gw${count.index}"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-nat-gw${count.index}"
   }
 }
 
@@ -133,9 +121,7 @@ resource "aws_route_table" "private_rt" {
   vpc_id = aws_vpc.vpc.id
 
   tags = {
-    Name        = "${var.service}-${var.environment}-private-rt${count.index}"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-private-rt${count.index}"
   }
 }
 

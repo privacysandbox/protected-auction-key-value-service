@@ -14,10 +14,16 @@
 
 provider "google" {
   project = var.project_id
+  default_labels = {
+    environment = var.environment
+  }
 }
 
 provider "google-beta" {
   project = var.project_id
+  default_labels = {
+    environment = var.environment
+  }
 }
 
 locals {
@@ -34,6 +40,10 @@ module "kv_server" {
   gcp_image_tag                         = var.gcp_image_tag
   gcp_image_repo                        = var.gcp_image_repo
   kv_service_port                       = var.kv_service_port
+  envoy_port                            = var.envoy_port
+  server_url                            = var.server_url
+  server_dns_zone                       = var.server_dns_zone
+  server_domain_ssl_certificate_id      = var.server_domain_ssl_certificate_id
   min_replicas_per_service_region       = var.min_replicas_per_service_region
   max_replicas_per_service_region       = var.max_replicas_per_service_region
   use_confidential_space_debug_image    = var.use_confidential_space_debug_image
@@ -45,7 +55,7 @@ module "kv_server" {
   collector_machine_type                = var.collector_machine_type
   collector_service_port                = var.collector_service_port
   collector_domain_name                 = var.collector_domain_name
-  dns_zone                              = var.dns_zone
+  collector_dns_zone                    = var.collector_dns_zone
   data_bucket_id                        = var.data_bucket_id
   tee_impersonate_service_accounts      = var.tee_impersonate_service_accounts
   use_existing_vpc                      = var.use_existing_vpc
@@ -53,13 +63,10 @@ module "kv_server" {
   num_shards                            = var.num_shards
   use_existing_service_mesh             = var.use_existing_service_mesh
   existing_service_mesh                 = var.existing_service_mesh
-  # TODO(b/299623229): remove the following reminder once b/299623229 is done.
-  # Reminder: for any new parameters added here, please also add them to "components/cloud_config/parameter_client_local.cc".
+
   parameters = {
-    directory                                 = var.directory
     data-bucket-id                            = var.data_bucket_id
     launch-hook                               = "${local.kv_service}-${var.environment}-launch-hook"
-    realtime-directory                        = var.realtime_directory
     use-external-metrics-collector-endpoint   = var.use_external_metrics_collector_endpoint
     metrics-collector-endpoint                = "${var.environment}-${var.collector_service_name}.${var.collector_domain_name}:${var.collector_service_port}"
     metrics-export-interval-millis            = var.metrics_export_interval_millis
@@ -69,6 +76,7 @@ module "kv_server" {
     data-loading-num-threads                  = var.data_loading_num_threads
     num-shards                                = var.num_shards
     udf-num-workers                           = var.udf_num_workers
+    udf-timeout-millis                        = var.udf_timeout_millis
     route-v1-to-v2                            = var.route_v1_to_v2
     use-real-coordinators                     = var.use_real_coordinators
     environment                               = var.environment
@@ -79,5 +87,10 @@ module "kv_server" {
     secondary-workload-identity-pool-provider = var.secondary_workload_identity_pool_provider
     primary-coordinator-account-identity      = var.primary_coordinator_account_identity
     secondary-coordinator-account-identity    = var.secondary_coordinator_account_identity
+    logging-verbosity-level                   = var.logging_verbosity_level
+    use-sharding-key-regex                    = var.use_sharding_key_regex
+    sharding-key-regex                        = var.sharding_key_regex
+    tls-key                                   = var.tls_key
+    tls-cert                                  = var.tls_cert
   }
 }

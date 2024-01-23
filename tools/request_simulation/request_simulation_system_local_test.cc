@@ -126,6 +126,7 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
       &FLAGS_synthetic_requests_generator_rate_limiter_initial_permits, 0);
   absl::SetFlag(&FLAGS_client_worker_rate_limiter_initial_permits, 0);
   absl::SetFlag(&FLAGS_server_address, "test");
+  absl::SetFlag(&FLAGS_is_client_channel, false);
   absl::SetFlag(&FLAGS_delta_file_bucket, ::testing::TempDir());
   auto channel_creation_fn = [this](const std::string& server_address,
                                     const GrpcAuthenticationMode& auth_mode) {

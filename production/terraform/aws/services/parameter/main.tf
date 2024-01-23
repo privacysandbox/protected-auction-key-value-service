@@ -150,3 +150,39 @@ resource "aws_ssm_parameter" "secondary_coordinator_account_identity_parameter" 
   value     = var.secondary_coordinator_account_identity_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "data_loading_file_format_parameter" {
+  name      = "${var.service}-${var.environment}-data-loading-file-format"
+  type      = "String"
+  value     = var.data_loading_file_format_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "logging_verbosity_level_parameter" {
+  name      = "${var.service}-${var.environment}-logging-verbosity-level"
+  type      = "String"
+  value     = var.logging_verbosity_level_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "use_sharding_key_regex_parameter" {
+  name      = "${var.service}-${var.environment}-use-sharding-key-regex"
+  type      = "String"
+  value     = var.use_sharding_key_regex_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "sharding_key_regex_parameter" {
+  count     = (var.use_sharding_key_regex_parameter_value) ? 1 : 0
+  name      = "${var.service}-${var.environment}-sharding-key-regex"
+  type      = "String"
+  value     = var.sharding_key_regex_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "udf_timeout_millis_parameter" {
+  name      = "${var.service}-${var.environment}-udf-timeout-millis"
+  type      = "String"
+  value     = var.udf_timeout_millis_parameter_value
+  overwrite = true
+}

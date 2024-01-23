@@ -41,8 +41,8 @@ TEST(HttpUrlFetchClientTest, BuyerUrlsFetchTest) {
   const std::string json_response(R"(
   {
     "keys":{
-      "key1":["v1"],
-      "key2":["v2"],
+      "key1": { "value": ["v1"] },
+      "key2": { "value": ["v2"] },
     }
   })");
   std::vector<std::string> responses;
@@ -74,9 +74,9 @@ TEST(HttpUrlFetchClientTest, BuyerSkipEmptyValueTest) {
   const std::string json_response(R"(
   {
     "keys":{
-      "key1":[],
-      "key2":{},
-      "key3":["v3"]
+      "key1": { "value": [] },
+      "key2": { "value": {} },
+      "key3": { "value": ["v3"] }
     }
   })");
   std::vector<std::string> responses;
@@ -108,8 +108,8 @@ TEST(HttpUrlFetchClientTest, SellerUrlsFetchTest) {
   const std::string json_response(R"(
   {
     "renderUrls":{
-      "url1":["v1"],
-      "url2":["v2"],
+      "url1": { "value": ["v1"] },
+      "url2": { "value": ["v2"] },
     }
   })");
   std::vector<std::string> responses;
@@ -139,9 +139,9 @@ TEST(HttpUrlFetchClientTest, SellerSkipEmptyValueTest) {
   const std::string json_response(R"(
   {
     "renderUrls":{
-      "url1":[],
-      "url2":{},
-      "url3":["v3"]
+      "url1":{ "value": [] },
+      "url2":{ "value": {} },
+      "url3":{ "value": ["v3"] },
     }
   })");
   std::vector<std::string> responses;

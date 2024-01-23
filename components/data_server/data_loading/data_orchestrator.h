@@ -30,7 +30,8 @@
 #include "components/data_server/cache/cache.h"
 #include "components/udf/udf_client.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
+#include "public/data_loading/readers/stream_record_reader_factory.h"
+#include "public/sharding/key_sharder.h"
 
 namespace kv_server {
 
@@ -50,17 +51,17 @@ class DataOrchestrator {
     DeltaFileNotifier& delta_notifier;
     BlobStorageChangeNotifier& change_notifier;
     UdfClient& udf_client;
-    StreamRecordReaderFactory<std::string_view>& delta_stream_reader_factory;
+    StreamRecordReaderFactory& delta_stream_reader_factory;
     RealtimeThreadPoolManager& realtime_thread_pool_manager;
     const int32_t shard_num = 0;
     const int32_t num_shards = 1;
+    const KeySharder key_sharder;
   };
 
   // Creates initial state. Scans the bucket and initializes the cache with data
   // read from the files in the bucket.
   static absl::StatusOr<std::unique_ptr<DataOrchestrator>> TryCreate(
-      Options options,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
+      Options options);
 
   // Starts a separate thread to monitor and load new data until the returned
   // this object is destructed.

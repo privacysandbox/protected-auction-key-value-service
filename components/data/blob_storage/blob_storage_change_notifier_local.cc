@@ -20,12 +20,10 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
 class LocalBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   explicit LocalBlobStorageChangeNotifier(
-      std::unique_ptr<ChangeNotifier> notifier, MetricsRecorder& unused)
+      std::unique_ptr<ChangeNotifier> notifier)
       : notifier_(std::move(notifier)) {}
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
@@ -41,17 +39,15 @@ class LocalBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>>
-BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata,
-                                  MetricsRecorder& metrics_recorder) {
+BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(std::get<LocalNotifierMetadata>(notifier_metadata),
-                             metrics_recorder);
+      ChangeNotifier::Create(
+          std::get<LocalNotifierMetadata>(notifier_metadata));
   if (!notifier.ok()) {
     return notifier.status();
   }
 
-  return std::make_unique<LocalBlobStorageChangeNotifier>(std::move(*notifier),
-                                                          metrics_recorder);
+  return std::make_unique<LocalBlobStorageChangeNotifier>(std::move(*notifier));
 }
 
 }  // namespace kv_server

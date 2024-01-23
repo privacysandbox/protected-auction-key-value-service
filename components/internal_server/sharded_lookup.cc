@@ -94,17 +94,13 @@ class ShardedLookup : public Lookup {
       const Lookup& local_lookup, const int32_t num_shards,
       const int32_t current_shard_num, const ShardManager& shard_manager,
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      // We're currently going with a default empty string and not
-      // allowing AdTechs to modify it.
-      const std::string hashing_seed)
+      KeySharder key_sharder)
       : local_lookup_(local_lookup),
         num_shards_(num_shards),
         current_shard_num_(current_shard_num),
-        hashing_seed_(hashing_seed),
-        hash_function_(
-            distributed_point_functions::SHA256HashFunction(hashing_seed_)),
         shard_manager_(shard_manager),
-        metrics_recorder_(metrics_recorder) {
+        metrics_recorder_(metrics_recorder),
+        key_sharder_(std::move(key_sharder)) {
     CHECK_GT(num_shards, 1) << "num_shards for ShardedLookup must be > 1";
   }
 
@@ -226,10 +222,13 @@ class ShardedLookup : public Lookup {
       const absl::flat_hash_set<std::string_view>& keys) const {
     ShardLookupInput sli;
     std::vector<ShardLookupInput> lookup_inputs(num_shards_, sli);
-    for (const auto& key : keys) {
-      int32_t shard_num = hash_function_(key, num_shards_);
-      VLOG(9) << "key: " << key << ", shard number: " << shard_num;
-      lookup_inputs[shard_num].keys.emplace_back(key);
+    for (const auto key : keys) {
+      auto sharding_result = key_sharder_.GetShardNumForKey(key, num_shards_);
+      VLOG(9) << "key: " << key
+              << ", shard number: " << sharding_result.shard_num
+              << ", sharding_key (if regex is present): "
+              << sharding_result.sharding_key;
+      lookup_inputs[sharding_result.shard_num].keys.emplace_back(key);
     }
     return lookup_inputs;
   }
@@ -414,9 +413,9 @@ class ShardedLookup : public Lookup {
   const int32_t num_shards_;
   const int32_t current_shard_num_;
   const std::string hashing_seed_;
-  const distributed_point_functions::SHA256HashFunction hash_function_;
   const ShardManager& shard_manager_;
   MetricsRecorder& metrics_recorder_;
+  KeySharder key_sharder_;
 };
 
 }  // namespace
@@ -425,12 +424,10 @@ std::unique_ptr<Lookup> CreateShardedLookup(
     const Lookup& local_lookup, const int32_t num_shards,
     const int32_t current_shard_num, const ShardManager& shard_manager,
     privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-    // We're currently going with a default empty string and not
-    // allowing AdTechs to modify it.
-    const std::string hashing_seed) {
-  return std::make_unique<ShardedLookup>(local_lookup, num_shards,
-                                         current_shard_num, shard_manager,
-                                         metrics_recorder, hashing_seed);
+    KeySharder key_sharder) {
+  return std::make_unique<ShardedLookup>(
+      local_lookup, num_shards, current_shard_num, shard_manager,
+      metrics_recorder, std::move(key_sharder));
 }
 
 }  // namespace kv_server

@@ -50,7 +50,12 @@ variable "service_account_email" {
 }
 
 variable "service_port" {
-  description = "The grpc port that receives traffic destined for the frontend service."
+  description = "The grpc port that receives traffic destined for the key-value service."
+  type        = number
+}
+
+variable "envoy_port" {
+  description = "External load balancer will send traffic to this port. Envoy will forward traffic to kv_service_port. Must match envoy.yaml."
   type        = number
 }
 

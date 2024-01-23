@@ -4,6 +4,10 @@
 
     Backup poll frequency for delta file notifier in seconds.
 
+-   **collector_dns_zone**
+
+    Google Cloud DNS zone name for collector.
+
 -   **collector_domain_name**
 
     The domain name for metrics collector
@@ -32,17 +36,14 @@
 
     Number of parallel threads for reading and loading data files.
 
--   **directory**
-
-    Directory to watch for files.
-
--   **dns_zone**
-
-    The DNS zone name
-
 -   **environment**
 
     Assigned environment name to group related resources. Also servers as gcp image tag.
+
+-   **envoy_port**
+
+    External load balancer will send traffic to this port. Envoy will forward traffic to
+    kv_service_port. Must match envoy.yaml.
 
 -   **existing_service_mesh**
 
@@ -68,6 +69,10 @@
 -   **kv_service_port**
 
     The grpc port that receives traffic destined for the frontend service.
+
+-   **logging_verbosity_level**
+
+    Logging verbosity level
 
 -   **machine_type**
 
@@ -109,10 +114,6 @@
 
     GCP project id.
 
--   **realtime_directory**
-
-    Local directory to watch for realtime file changes.
-
 -   **realtime_updater_num_threads**
 
     Amount of realtime updates threads locally.
@@ -136,6 +137,18 @@
 -   **secondary_workload_identity_pool_provider**
 
     Secondary workload identity pool provider.
+
+-   **server_dns_zone**
+
+    Dns zone for Kv-serer.
+
+-   **server_domain_ssl_certificate_id**
+
+    Ssl certificate id of the Kv-server domain.
+
+-   **server_url**
+
+    Kv-serer URL. Example: kv-server-environment.example.com
 
 -   **service_account_email**
 

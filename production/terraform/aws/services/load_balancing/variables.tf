@@ -80,7 +80,7 @@ variable "http_healthcheck_path" {
 
 variable "grpc_healthcheck_path" {
   type    = string
-  default = "/AWS.ALB/healthcheck"
+  default = "/grpc.health.v1.Health/healthcheck"
 }
 
 variable "elb_security_group_id" {

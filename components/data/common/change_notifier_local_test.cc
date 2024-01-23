@@ -29,8 +29,6 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
-
 class ChangeNotifierLocalTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -56,23 +54,20 @@ class ChangeNotifierLocalTest : public ::testing::Test {
     file << "arbitrary file contents";
     return path;
   }
-  MockMetricsRecorder metrics_recorder_;
 };
 
 TEST_F(ChangeNotifierLocalTest, NotDirectory) {
   std::filesystem::path file = CreateFileInTmpDir("filename");
 
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
-      ChangeNotifier::Create(kv_server::LocalNotifierMetadata{file.string()},
-                             metrics_recorder_);
+      ChangeNotifier::Create(kv_server::LocalNotifierMetadata{file.string()});
   EXPECT_EQ(notifier.status().code(), absl::StatusCode::kInvalidArgument);
 }
 
 TEST_F(ChangeNotifierLocalTest, CallbackAbortsWatchImmediately) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
       ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
+          kv_server::LocalNotifierMetadata{::testing::TempDir()});
   ASSERT_TRUE(notifier.ok());
 
   // There is a new file here but the callback says to abort immediately so it's
@@ -89,8 +84,7 @@ TEST_F(ChangeNotifierLocalTest, CallbackAbortsWatchImmediately) {
 TEST_F(ChangeNotifierLocalTest, ZeroDurationAbortsWatchImmediately) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
       ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
+          kv_server::LocalNotifierMetadata{::testing::TempDir()});
   ASSERT_TRUE(notifier.ok());
 
   // There is a new file here but the max time to wait is zero seconds so the
@@ -106,8 +100,7 @@ TEST_F(ChangeNotifierLocalTest, ZeroDurationAbortsWatchImmediately) {
 TEST_F(ChangeNotifierLocalTest, NoChangesInEmptyDirectory) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
       ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
+          kv_server::LocalNotifierMetadata{::testing::TempDir()});
   ASSERT_TRUE(notifier.ok());
 
   auto should_stop_callback = []() { return false; };
@@ -124,8 +117,7 @@ TEST_F(ChangeNotifierLocalTest, NoChangesInNonEmptyDirectory) {
 
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
       ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
+          kv_server::LocalNotifierMetadata{::testing::TempDir()});
   ASSERT_TRUE(notifier.ok());
   auto should_stop_callback = []() { return false; };
 
@@ -137,8 +129,7 @@ TEST_F(ChangeNotifierLocalTest, NoChangesInNonEmptyDirectory) {
 TEST_F(ChangeNotifierLocalTest, DirectoryHasChanges) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
       ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
+          kv_server::LocalNotifierMetadata{::testing::TempDir()});
   ASSERT_TRUE(notifier.ok());
 
   // This call happens after the Notifier is created so it should be picked up.
@@ -156,8 +147,7 @@ TEST_F(ChangeNotifierLocalTest, DirectoryHasChanges) {
 TEST_F(ChangeNotifierLocalTest, MultipleGetNotificationsCalls) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
       ChangeNotifier::Create(
-          kv_server::LocalNotifierMetadata{::testing::TempDir()},
-          metrics_recorder_);
+          kv_server::LocalNotifierMetadata{::testing::TempDir()});
   ASSERT_TRUE(notifier.ok());
   auto should_stop_callback = []() { return false; };
 

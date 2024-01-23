@@ -35,6 +35,7 @@
 #include "components/internal_server/sharded_lookup.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/telemetry/kv_telemetry.h"
+#include "components/telemetry/server_definition.h"
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/hooks/run_query_hook.h"
 #include "components/udf/udf_config_builder.h"
@@ -43,7 +44,9 @@
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
 #include "grpcpp/health_check_service_interface.h"
 #include "public/constants.h"
-#include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/readers/avro_stream_record_reader_factory.h"
+#include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
+#include "public/data_loading/readers/stream_record_reader_factory.h"
 #include "public/udf/constants.h"
 #include "src/cpp/telemetry/init.h"
 #include "src/cpp/telemetry/telemetry.h"
@@ -57,10 +60,12 @@ namespace kv_server {
 namespace {
 
 using privacy_sandbox::server_common::ConfigureMetrics;
+using privacy_sandbox::server_common::ConfigurePrivateMetrics;
 using privacy_sandbox::server_common::ConfigureTracer;
 using privacy_sandbox::server_common::GetTracer;
 using privacy_sandbox::server_common::InitTelemetry;
 using privacy_sandbox::server_common::TelemetryProvider;
+using privacy_sandbox::server_common::telemetry::BuildDependentConfig;
 
 // TODO: Use config cpio client to get this from the environment
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
@@ -78,9 +83,22 @@ constexpr absl::string_view kRealtimeUpdaterThreadNumberParameterSuffix =
     "realtime-updater-num-threads";
 constexpr absl::string_view kDataLoadingNumThreadsParameterSuffix =
     "data-loading-num-threads";
+constexpr absl::string_view kDataLoadingFileFormatSuffix =
+    "data-loading-file-format";
 constexpr absl::string_view kNumShardsParameterSuffix = "num-shards";
 constexpr absl::string_view kUdfNumWorkersParameterSuffix = "udf-num-workers";
+constexpr absl::string_view kLoggingVerbosityLevelParameterSuffix =
+    "logging-verbosity-level";
+constexpr absl::string_view kUdfTimeoutMillisParameterSuffix =
+    "udf-timeout-millis";
+constexpr absl::string_view kUseShardingKeyRegexParameterSuffix =
+    "use-sharding-key-regex";
+constexpr absl::string_view kShardingKeyRegexParameterSuffix =
+    "sharding-key-regex";
 constexpr absl::string_view kRouteV1ToV2Suffix = "route-v1-to-v2";
+constexpr absl::string_view kAutoscalerHealthcheck = "autoscaler-healthcheck";
+constexpr absl::string_view kLoadbalancerHealthcheck =
+    "loadbalancer-healthcheck";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -88,7 +106,7 @@ GetMetricsOptions(const ParameterClient& parameter_client,
   opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
       metrics_options;
 
-  ParameterFetcher parameter_fetcher(environment, parameter_client, nullptr);
+  ParameterFetcher parameter_fetcher(environment, parameter_client);
 
   uint32_t export_interval_millis = parameter_fetcher.GetInt32Parameter(
       kMetricsExportIntervalMillisParameterSuffix);
@@ -124,7 +142,7 @@ absl::Status CheckMetricsCollectorEndPointConnection(
 absl::optional<std::string> GetMetricsCollectorEndPoint(
     const ParameterClient& parameter_client, const std::string& environment) {
   absl::optional<std::string> metrics_collection_endpoint;
-  ParameterFetcher parameter_fetcher(environment, parameter_client, nullptr);
+  ParameterFetcher parameter_fetcher(environment, parameter_client);
   auto should_connect_to_external_metrics_collector =
       parameter_fetcher.GetBoolParameter(
           kUseExternalMetricsCollectorEndpointSuffix);
@@ -136,6 +154,16 @@ absl::optional<std::string> GetMetricsCollectorEndPoint(
     metrics_collection_endpoint = std::move(metrics_collector_endpoint_value);
   }
   return std::move(metrics_collection_endpoint);
+}
+
+privacy_sandbox::server_common::telemetry::TelemetryConfig
+GetServerTelemetryConfig(const ParameterClient& parameter_client,
+                         const std::string& environment) {
+  // TODO(b/304306398): Read telemetry config from parameter
+  privacy_sandbox::server_common::telemetry::TelemetryConfig config;
+  config.set_mode(
+      privacy_sandbox::server_common::telemetry::TelemetryConfig::EXPERIMENT);
+  return config;
 }
 
 }  // namespace
@@ -165,7 +193,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
                                  InstanceClient& instance_client) {
   std::string instance_id = RetryUntilOk(
       [&instance_client]() { return instance_client.GetInstanceId(); },
-      "GetInstanceId", nullptr);
+      "GetInstanceId", LogMetricsNoOpCallback());
 
   InitTelemetry(std::string(kServiceName), std::string(BuildVersion()));
   auto metrics_options = GetMetricsOptions(parameter_client, environment_);
@@ -178,6 +206,18 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
       LOG(ERROR) << "Error in connecting metrics collector: " << status;
     }
   }
+  LOG(INFO) << "Done retrieving metrics collector endpoint";
+  BuildDependentConfig telemetry_config(
+      GetServerTelemetryConfig(parameter_client, environment_));
+  auto* context_map = KVServerContextMap(
+      telemetry_config,
+      ConfigurePrivateMetrics(
+          CreateKVAttributes(instance_id, std::to_string(shard_num_),
+                             environment_),
+          metrics_options, metrics_collector_endpoint));
+  AddSystemMetric(context_map);
+  // TODO(b/300137699): Deprecate ConfigureMetrics once all metrics are migrated
+  // to new telemetry API
   ConfigureMetrics(
       CreateKVAttributes(instance_id, std::to_string(shard_num_), environment_),
       metrics_options, metrics_collector_endpoint);
@@ -186,6 +226,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
                   metrics_collector_endpoint);
 
   metrics_recorder_ = TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  LOG(INFO) << "Done init telemetry";
 }
 
 absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
@@ -194,19 +235,25 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
     std::unique_ptr<UdfClient> udf_client) {
   parameter_client_ = parameter_client == nullptr ? ParameterClient::Create()
                                                   : std::move(parameter_client);
-  instance_client_ = instance_client == nullptr
-                         ? InstanceClient::Create(*metrics_recorder_)
-                         : std::move(instance_client);
+  instance_client_ = instance_client == nullptr ? InstanceClient::Create()
+                                                : std::move(instance_client);
   environment_ = TraceRetryUntilOk(
       [this]() { return instance_client_->GetEnvironmentTag(); },
-      "GetEnvironment", nullptr);
+      "GetEnvironment", LogMetricsNoOpCallback());
   LOG(INFO) << "Retrieved environment: " << environment_;
-  ParameterFetcher parameter_fetcher(environment_, *parameter_client_,
-                                     metrics_recorder_.get());
+  ParameterFetcher parameter_fetcher(environment_, *parameter_client_);
 
   int32_t number_of_workers =
       parameter_fetcher.GetInt32Parameter(kUdfNumWorkersParameterSuffix);
+  int32_t udf_timeout_ms =
+      parameter_fetcher.GetInt32Parameter(kUdfTimeoutMillisParameterSuffix);
 
+  // updating verbosity level flag as early as we can, as it affects all logging
+  // downstream.
+  // see
+  // https://github.com/google/glog/blob/931323df212c46e3a01b743d761c6ab8dc9f0d09/README.rst#setting-flags
+  FLAGS_v = parameter_fetcher.GetInt32Parameter(
+      kLoggingVerbosityLevelParameterSuffix);
   if (udf_client != nullptr) {
     udf_client_ = std::move(udf_client);
     return absl::OkStatus();
@@ -216,12 +263,14 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
   // can be removed and we can own the unique ptr to the hooks.
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
       UdfClient::Create(
-          config_builder.RegisterStringGetValuesHook(*string_get_values_hook_)
-              .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
-              .RegisterRunQueryHook(*run_query_hook_)
-              .RegisterLoggingHook()
-              .SetNumberOfWorkers(number_of_workers)
-              .Config());
+          std::move(config_builder
+                        .RegisterStringGetValuesHook(*string_get_values_hook_)
+                        .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
+                        .RegisterRunQueryHook(*run_query_hook_)
+                        .RegisterLoggingHook()
+                        .SetNumberOfWorkers(number_of_workers)
+                        .Config()),
+          absl::Milliseconds(udf_timeout_ms));
   if (udf_client_or_status.ok()) {
     udf_client_ = std::move(*udf_client_or_status);
   }
@@ -246,6 +295,29 @@ absl::Status Server::Init(
   return InitOnceInstancesAreCreated();
 }
 
+KeySharder GetKeySharder(const ParameterFetcher& parameter_fetcher) {
+  const bool use_sharding_key_regex =
+      parameter_fetcher.GetBoolParameter(kUseShardingKeyRegexParameterSuffix);
+  LOG(INFO) << "Retrieved " << kUseShardingKeyRegexParameterSuffix
+            << " parameter: " << use_sharding_key_regex;
+  ShardingFunction func(/*seed=*/"");
+  std::optional<std::regex> shard_key_regex;
+  if (use_sharding_key_regex) {
+    std::string sharding_key_regex_value =
+        parameter_fetcher.GetParameter(kShardingKeyRegexParameterSuffix);
+    LOG(INFO) << "Retrieved " << kShardingKeyRegexParameterSuffix
+              << " parameter: " << sharding_key_regex_value;
+    // https://en.cppreference.com/w/cpp/regex/syntax_option_type
+    // optimize -- "Instructs the regular expression engine to make matching
+    // faster, with the potential cost of making construction slower. For
+    // example, this might mean converting a non-deterministic FSA to a
+    // deterministic FSA." this matches our usecase.
+    shard_key_regex = std::regex(std::move(sharding_key_regex_value),
+                                 std::regex_constants::optimize);
+  }
+  return KeySharder(func, std::move(shard_key_regex));
+}
+
 absl::Status Server::InitOnceInstancesAreCreated() {
   const auto shard_num_status = instance_client_->GetShardNumTag();
   if (!shard_num_status.ok()) {
@@ -263,10 +335,12 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   InitializeKeyValueCache();
   auto span = GetTracer()->StartSpan("InitServer");
   auto scope = opentelemetry::trace::Scope(span);
+  LOG(INFO) << "Creating lifecycle heartbeat...";
   std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
-      LifecycleHeartbeat::Create(*instance_client_, *metrics_recorder_);
-  ParameterFetcher parameter_fetcher(environment_, *parameter_client_,
-                                     metrics_recorder_.get());
+      LifecycleHeartbeat::Create(*instance_client_);
+  ParameterFetcher parameter_fetcher(
+      environment_, *parameter_client_,
+      std::move(LogStatusSafeMetricsFn<kGetParameterStatus>()));
   if (absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
       status != absl::OkStatus()) {
     return status;
@@ -295,13 +369,15 @@ absl::Status Server::InitOnceInstancesAreCreated() {
 
   grpc_server_ = CreateAndStartGrpcServer();
   local_lookup_ = CreateLocalLookup(*cache_, *metrics_recorder_);
+  auto key_sharder = GetKeySharder(parameter_fetcher);
   auto server_initializer = GetServerInitializer(
       num_shards_, *metrics_recorder_, *key_fetcher_manager_, *local_lookup_,
-      environment_, shard_num_, *instance_client_, *cache_, parameter_fetcher);
+      environment_, shard_num_, *instance_client_, *cache_, parameter_fetcher,
+      key_sharder);
   remote_lookup_ = server_initializer->CreateAndStartRemoteLookupServer();
   {
-    auto status_or_notifier = BlobStorageChangeNotifier::Create(
-        std::move(metadata), *metrics_recorder_);
+    auto status_or_notifier =
+        BlobStorageChangeNotifier::Create(std::move(metadata));
     if (!status_or_notifier.ok()) {
       // The ChangeNotifier is required to read delta files, if it's not
       // available that's a critical error and so return immediately.
@@ -323,15 +399,16 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   LOG(INFO) << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
             << " parameter: " << realtime_thread_numbers;
   auto maybe_realtime_thread_pool_manager = RealtimeThreadPoolManager::Create(
-      *metrics_recorder_, realtime_notifier_metadata, realtime_thread_numbers);
+      realtime_notifier_metadata, realtime_thread_numbers);
   if (!maybe_realtime_thread_pool_manager.ok()) {
     return maybe_realtime_thread_pool_manager.status();
   }
   realtime_thread_pool_manager_ =
       std::move(*maybe_realtime_thread_pool_manager);
-  data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher);
+  data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher, key_sharder);
   TraceRetryUntilOk([this] { return data_orchestrator_->Start(); },
-                    "StartDataOrchestrator", metrics_recorder_.get());
+                    "StartDataOrchestrator",
+                    LogStatusSafeMetricsFn<kStartDataOrchestratorStatus>());
   if (num_shards_ > 1) {
     // At this point the server is healthy and the initialization is over.
     // The only missing piece is having a shard map, which is dependent on
@@ -345,6 +422,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     return maybe_shard_state.status();
   }
   shard_manager_state_ = *std::move(maybe_shard_state);
+
+  grpc_server_->GetHealthCheckService()->SetServingStatus(
+      std::string(kLoadbalancerHealthcheck), true);
   return absl::OkStatus();
 }
 
@@ -438,45 +518,55 @@ std::unique_ptr<BlobStorageClient> Server::CreateBlobClient(
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   return blob_storage_client_factory->CreateBlobStorageClient(
-      *metrics_recorder_, std::move(client_options));
+      std::move(client_options));
 }
 
-std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
+std::unique_ptr<StreamRecordReaderFactory>
 Server::CreateStreamRecordReaderFactory(
     const ParameterFetcher& parameter_fetcher) {
   const int32_t data_loading_num_threads = parameter_fetcher.GetInt32Parameter(
       kDataLoadingNumThreadsParameterSuffix);
-  LOG(INFO) << "Retrieved " << kDataLoadingNumThreadsParameterSuffix
-            << " parameter: " << data_loading_num_threads;
-  ConcurrentStreamRecordReader<std::string_view>::Options options;
-  options.num_worker_threads = data_loading_num_threads;
-  return StreamRecordReaderFactory<std::string_view>::Create(options);
+  const std::string file_format = parameter_fetcher.GetParameter(
+      kDataLoadingFileFormatSuffix,
+      std::string(kFileFormats[static_cast<int>(FileFormat::kRiegeli)]));
+
+  if (file_format == kFileFormats[static_cast<int>(FileFormat::kAvro)]) {
+    AvroConcurrentStreamRecordReader::Options options;
+    options.num_worker_threads = data_loading_num_threads;
+    return std::make_unique<AvroStreamRecordReaderFactory>(options);
+  } else if (file_format ==
+             kFileFormats[static_cast<int>(FileFormat::kRiegeli)]) {
+    ConcurrentStreamRecordReader<std::string_view>::Options options;
+    options.num_worker_threads = data_loading_num_threads;
+    return std::make_unique<RiegeliStreamRecordReaderFactory>(options);
+  }
 }
 
 std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
-    const ParameterFetcher& parameter_fetcher) {
+    const ParameterFetcher& parameter_fetcher, KeySharder key_sharder) {
   const std::string data_bucket =
       parameter_fetcher.GetParameter(kDataBucketParameterSuffix);
   LOG(INFO) << "Retrieved " << kDataBucketParameterSuffix
             << " parameter: " << data_bucket;
+  auto metrics_callback =
+      LogStatusSafeMetricsFn<kCreateDataOrchestratorStatus>();
   return TraceRetryUntilOk(
       [&] {
-        return DataOrchestrator::TryCreate(
-            {
-                .data_bucket = data_bucket,
-                .cache = *cache_,
-                .blob_client = *blob_client_,
-                .delta_notifier = *notifier_,
-                .change_notifier = *change_notifier_,
-                .delta_stream_reader_factory = *delta_stream_reader_factory_,
-                .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
-                .udf_client = *udf_client_,
-                .shard_num = shard_num_,
-                .num_shards = num_shards_,
-            },
-            *metrics_recorder_);
+        return DataOrchestrator::TryCreate({
+            .data_bucket = data_bucket,
+            .cache = *cache_,
+            .blob_client = *blob_client_,
+            .delta_notifier = *notifier_,
+            .change_notifier = *change_notifier_,
+            .delta_stream_reader_factory = *delta_stream_reader_factory_,
+            .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
+            .udf_client = *udf_client_,
+            .shard_num = shard_num_,
+            .num_shards = num_shards_,
+            .key_sharder = std::move(key_sharder),
+        });
       },
-      "CreateDataOrchestrator", metrics_recorder_.get());
+      "CreateDataOrchestrator", metrics_callback);
 }
 
 void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
@@ -510,7 +600,12 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
   }
   // Finally assemble the server.
   LOG(INFO) << "Server listening on " << server_address << std::endl;
-  return builder.BuildAndStart();
+  auto server = builder.BuildAndStart();
+  server->GetHealthCheckService()->SetServingStatus(
+      std::string(kAutoscalerHealthcheck), true);
+  server->GetHealthCheckService()->SetServingStatus(
+      std::string(kLoadbalancerHealthcheck), false);
+  return std::move(server);
 }
 
 void Server::SetDefaultUdfCodeObject() {

@@ -30,6 +30,7 @@ namespace kv_server {
 struct DataLoadingStats {
   int64_t total_updated_records = 0;
   int64_t total_deleted_records = 0;
+  int64_t total_dropped_records = 0;
 };
 
 class RealtimeNotifier {
@@ -55,7 +56,6 @@ class RealtimeNotifier {
 
   // Creates RealtimeNotifier.
   static absl::StatusOr<std::unique_ptr<RealtimeNotifier>> Create(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       NotifierMetadata notifier_metadata,
       // This parameter allows overrides that are used for tests
       RealtimeNotifierMetadata realtime_notifier_metadata = {});

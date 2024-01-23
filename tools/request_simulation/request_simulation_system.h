@@ -45,6 +45,7 @@
 
 ABSL_DECLARE_FLAG(std::string, server_address);
 ABSL_DECLARE_FLAG(std::string, server_method);
+ABSL_DECLARE_FLAG(bool, is_client_channel);
 ABSL_DECLARE_FLAG(int64_t, rps);
 ABSL_DECLARE_FLAG(int, concurrency);
 ABSL_DECLARE_FLAG(absl::Duration, request_timeout);
@@ -123,8 +124,7 @@ class RequestSimulationSystem {
  private:
   std::unique_ptr<BlobStorageClient> CreateBlobClient();
   std::unique_ptr<DeltaFileNotifier> CreateDeltaFileNotifier();
-  std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
-  CreateStreamRecordReaderFactory();
+  std::unique_ptr<StreamRecordReaderFactory> CreateStreamRecordReaderFactory();
   std::unique_ptr<RateLimiter> CreateRateLimiter(
       int64_t per_second_rate, int64_t initial_permits, absl::Duration timeout,
       std::unique_ptr<SleepFor> sleep_for);
@@ -148,8 +148,7 @@ class RequestSimulationSystem {
   std::unique_ptr<MessageService> message_service_blob_;
   std::unique_ptr<BlobStorageChangeNotifier> blob_change_notifier_;
   std::unique_ptr<DeltaFileNotifier> delta_file_notifier_;
-  std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
-      delta_stream_reader_factory_;
+  std::unique_ptr<StreamRecordReaderFactory> delta_stream_reader_factory_;
   std::unique_ptr<MessageQueue> message_queue_;
   std::unique_ptr<RateLimiter> synthetic_request_generator_rate_limiter_;
   std::unique_ptr<RateLimiter> grpc_request_rate_limiter_;

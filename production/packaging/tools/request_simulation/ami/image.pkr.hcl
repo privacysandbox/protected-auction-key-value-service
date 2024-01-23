@@ -62,7 +62,7 @@ locals { timestamp = regex_replace(timestamp(), "[- TZ:]", "") }
 # source.
 source "amazon-ebs" "request_simulation" {
   ami_name      = "request-simulation-${local.timestamp}"
-  instance_type = "m5.xlarge"
+  instance_type = "m5.2xlarge"
   region        = var.regions[0]
   ami_regions   = var.regions
   source_ami_filter {

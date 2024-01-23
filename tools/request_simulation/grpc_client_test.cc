@@ -42,7 +42,7 @@ class GrpcClientTest : public ::testing::Test {
     };
     grpc_client_ =
         std::make_unique<GrpcClient<RawRequest, google::api::HttpBody>>(
-            channel, absl::Seconds(1));
+            channel, absl::Seconds(1), false);
   }
 
   ~GrpcClientTest() override {

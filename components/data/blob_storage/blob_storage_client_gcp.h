@@ -22,14 +22,12 @@
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "google/cloud/storage/client.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
 class GcpBlobStorageClient : public BlobStorageClient {
  public:
   explicit GcpBlobStorageClient(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       std::unique_ptr<google::cloud::storage::Client> client);
 
   ~GcpBlobStorageClient() = default;
@@ -45,6 +43,5 @@ class GcpBlobStorageClient : public BlobStorageClient {
 
  private:
   std::unique_ptr<google::cloud::storage::Client> client_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 }  // namespace kv_server

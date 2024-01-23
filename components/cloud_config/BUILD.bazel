@@ -17,6 +17,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(default_visibility = [
     "//components:__subpackages__",
+    "//production/packaging:__subpackages__",
 ])
 
 cc_library(
@@ -28,6 +29,7 @@ cc_library(
         "parameter_client.h",
     ],
     deps = [
+        "//public:constants",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/flags:flag",
@@ -58,15 +60,6 @@ cc_library(
     ],
 )
 
-# TODO(b/299623229): use CPIO parameter client for both aws and gcp's local/cloud client.
-selects.config_setting_group(
-    name = "gcp_platform_local_instance",
-    match_all = [
-        "//:gcp_platform",
-        "//:local_instance",
-    ],
-)
-
 cc_test(
     name = "parameter_client_test",
     size = "small",
@@ -74,10 +67,10 @@ cc_test(
         "//:aws_platform": [
             "parameter_client_aws_test.cc",
         ],
-        "//:gcp_instance": [
+        "//:gcp_platform": [
             ":parameter_client_gcp_test.cc",
         ],
-        ("//:local_platform", ":gcp_platform_local_instance"): [
+        "//:local_platform": [
             ":parameter_client_local_test.cc",
         ],
     }),
@@ -87,12 +80,12 @@ cc_test(
             "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:ssm",
         ],
-        "//:gcp_instance": [
+        "//:gcp_platform": [
             "@com_google_googletest//:gtest",
             "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:cpio",
             "@google_privacysandbox_servers_common//scp/cc/public/cpio/mock/parameter_client:parameter_client_mock",
         ],
-        ("//:local_platform", ":gcp_platform_local_instance"): [
+        "//:local_platform": [
             "//components/data/common:mocks",
             "//components/util:sleepfor_mock",
             "@com_github_google_glog//:glog",
@@ -108,19 +101,19 @@ cc_library(
     name = "parameter_client",
     srcs = selects.with_or({
         "//:aws_platform": ["parameter_client_aws.cc"],
-        "//:gcp_instance": [":parameter_client_gcp"],
-        ("//:local_platform", ":gcp_platform_local_instance"): [":parameter_client_local"],
+        "//:gcp_platform": [":parameter_client_gcp"],
+        "//:local_platform": [":parameter_client_local"],
     }),
     hdrs = [
         "parameter_client.h",
     ],
-    deps = select({
+    deps = selects.with_or({
         "//:aws_platform": [
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:ssm",
         ],
-        "//:gcp_instance": [
+        "//:gcp_platform": [
             "@google_privacysandbox_servers_common//scp/cc/public/core/interface:errors",
             "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:cpio",
             "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface/parameter_client",
@@ -151,6 +144,7 @@ cc_library(
             "@aws_sdk_cpp//:ec2",
         ],
         "//:gcp_instance": [
+            "//components/errors:gcp_error_util",
             "@com_github_googleapis_google_cloud_cpp//:compute_instances",
             "@com_google_absl//absl/flags:flag",
             "@com_google_absl//absl/log:check",
@@ -167,6 +161,7 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
     ],
 )

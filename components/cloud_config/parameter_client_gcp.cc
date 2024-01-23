@@ -70,7 +70,9 @@ class GcpParameterClient : public ParameterClient {
   }
 
   absl::StatusOr<std::string> GetParameter(
-      std::string_view parameter_name) const override {
+      std::string_view parameter_name,
+      std::optional<std::string> default_value = std::nullopt) const override {
+    LOG(INFO) << "Getting parameter: " << parameter_name;
     GetParameterRequest get_parameter_request;
     get_parameter_request.set_parameter_name(parameter_name);
     std::string param_value;
@@ -92,8 +94,17 @@ class GcpParameterClient : public ParameterClient {
         });
     counter.Wait();
     if (!execution_result.Successful()) {
-      return absl::UnavailableError(
-          GetErrorMessage(execution_result.status_code));
+      auto status =
+          absl::UnavailableError(GetErrorMessage(execution_result.status_code));
+      if (default_value.has_value()) {
+        LOG(WARNING) << "Unable to get parameter: " << parameter_name
+                     << " with error: " << status
+                     << ", returning default value: " << *default_value;
+        return *default_value;
+      }
+      LOG(ERROR) << "Unable to get parameter: " << parameter_name
+                 << " with error: " << status;
+      return status;
     }
     return param_value;
   }

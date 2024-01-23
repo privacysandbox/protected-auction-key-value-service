@@ -26,11 +26,11 @@ namespace kv_server {
 
 // UDF hook for logging a string.
 // TODO(b/285331079): Disable for production builds.
-inline void LogMessage(google::scp::roma::proto::FunctionBindingIoProto& io) {
-  if (io.has_input_string()) {
-    LOG(INFO) << io.input_string();
+inline void LogMessage(google::scp::roma::FunctionBindingPayload<>& payload) {
+  if (payload.io_proto.has_input_string()) {
+    LOG(INFO) << payload.io_proto.input_string();
   }
-  io.set_output_string("");
+  payload.io_proto.set_output_string("");
 }
 
 }  // namespace kv_server

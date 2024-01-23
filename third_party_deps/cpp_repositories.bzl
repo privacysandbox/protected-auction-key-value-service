@@ -80,13 +80,13 @@ def cpp_repositories():
         ],
     )
 
-EMSCRIPTEN_VER = "3.1.44"
-
-def emscripten_repositories():
     http_archive(
-        name = "emsdk",
-        sha256 = "48c0dd06539011a62ec1069a6c69e283731dabdb20454c45fb344dede421b5ad",
-        strip_prefix = "emsdk-{ver}/bazel".format(ver = EMSCRIPTEN_VER),
-        url = "https://github.com/emscripten-core/emsdk/archive/refs/tags/{ver}.zip".format(ver = EMSCRIPTEN_VER),
+        name = "avro",
+        build_file = "//third_party_deps:avro.BUILD",
+        sha256 = "c849ef7f7af58ce66e7b999b8d9815507d69ae434e7e058a44f7818515455a03",
+        strip_prefix = "avro-release-1.10.2/lang/c++",
+        add_prefix = "third_party/avro",
+        urls = [
+            "https://github.com/apache/avro/archive/release-1.10.2.tar.gz",
+        ],
     )
-    return EMSCRIPTEN_VER

@@ -32,8 +32,6 @@ using testing::_;
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
-
 constexpr std::string_view kX64EncodedMessage =
     "g69w0Q2ISj8AAAAAAAAAAEAAAAAAAAAAkbrCPJKH4akAAAAAAAAAAOGfE8DpscNycwAAAAAA"
     "AAAA\nAAAAAAAAANqGdBsDqETKEQAAAAAAAAC5sOpcC5pTLm0AAAAAAAAABQAAAAAAAAAADg"
@@ -59,10 +57,15 @@ constexpr std::string_view kX64EncodedMessage =
 class DeltaFileRecordChangeNotifierAwsTest : public ::testing::Test {
  protected:
   void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    kv_server::KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
     mock_change_notifier_ = std::make_unique<kv_server::MockChangeNotifier>();
   }
   std::unique_ptr<MockChangeNotifier> mock_change_notifier_;
-  MockMetricsRecorder mock_metrics_recorder_;
 };
 
 TEST_F(DeltaFileRecordChangeNotifierAwsTest, FailureStatusPropagated) {
@@ -71,8 +74,7 @@ TEST_F(DeltaFileRecordChangeNotifierAwsTest, FailureStatusPropagated) {
   });
 
   auto delta_file_record_change_notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_),
-                                            mock_metrics_recorder_);
+      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_));
   auto status = delta_file_record_change_notifier->GetNotifications(
       absl::Seconds(1), []() { return false; });
   ASSERT_FALSE(status.ok());
@@ -91,8 +93,7 @@ TEST_F(DeltaFileRecordChangeNotifierAwsTest, MessageWithoutInsertionTime) {
   });
 
   auto delta_file_record_change_notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_),
-                                            mock_metrics_recorder_);
+      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_));
   auto notifications_context =
       delta_file_record_change_notifier->GetNotifications(
           absl::Seconds(1), []() { return false; });
@@ -118,8 +119,7 @@ TEST_F(DeltaFileRecordChangeNotifierAwsTest,
   });
 
   auto delta_file_record_change_notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_),
-                                            mock_metrics_recorder_);
+      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_));
   auto notifications_context =
       delta_file_record_change_notifier->GetNotifications(
           absl::Seconds(1), []() { return false; });
@@ -153,8 +153,7 @@ TEST_F(DeltaFileRecordChangeNotifierAwsTest,
   });
 
   auto delta_file_record_change_notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_),
-                                            mock_metrics_recorder_);
+      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier_));
   auto notifications_context =
       delta_file_record_change_notifier->GetNotifications(
           absl::Seconds(1), []() { return false; });

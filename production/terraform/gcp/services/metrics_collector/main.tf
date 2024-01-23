@@ -50,14 +50,13 @@ resource "google_compute_global_forwarding_rule" "collector" {
   ip_address            = var.collector_ip_address
 
   labels = {
-    environment = var.environment
-    service     = var.collector_service_name
+    service = var.collector_service_name
   }
 }
 
 resource "google_dns_record_set" "collector" {
   name         = "${var.environment}-${var.collector_service_name}.${var.collector_domain_name}."
-  managed_zone = var.dns_zone
+  managed_zone = var.collector_dns_zone
   type         = "A"
   ttl          = 10
   rrdatas = [

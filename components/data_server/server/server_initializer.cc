@@ -80,7 +80,8 @@ class ShardedServerInitializer : public ServerInitializer {
       MetricsRecorder& metrics_recorder,
       KeyFetcherManagerInterface& key_fetcher_manager, Lookup& local_lookup,
       std::string environment, int32_t num_shards, int32_t current_shard_num,
-      InstanceClient& instance_client, ParameterFetcher& parameter_fetcher)
+      InstanceClient& instance_client, ParameterFetcher& parameter_fetcher,
+      KeySharder key_sharder)
       : metrics_recorder_(metrics_recorder),
         key_fetcher_manager_(key_fetcher_manager),
         local_lookup_(local_lookup),
@@ -88,7 +89,8 @@ class ShardedServerInitializer : public ServerInitializer {
         num_shards_(num_shards),
         current_shard_num_(current_shard_num),
         instance_client_(instance_client),
-        parameter_fetcher_(parameter_fetcher) {}
+        parameter_fetcher_(parameter_fetcher),
+        key_sharder_(std::move(key_sharder)) {}
 
   RemoteLookup CreateAndStartRemoteLookupServer() override {
     RemoteLookup remote_lookup;
@@ -120,9 +122,10 @@ class ShardedServerInitializer : public ServerInitializer {
                             num_shards = num_shards_,
                             current_shard_num = current_shard_num_,
                             &shard_manager = *maybe_shard_state->shard_manager,
-                            &metrics_recorder = metrics_recorder_]() {
+                            &metrics_recorder = metrics_recorder_,
+                            &key_sharder = key_sharder_]() {
       return CreateShardedLookup(local_lookup, num_shards, current_shard_num,
-                                 shard_manager, metrics_recorder);
+                                 shard_manager, metrics_recorder, key_sharder);
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
@@ -136,8 +139,7 @@ class ShardedServerInitializer : public ServerInitializer {
     VLOG(10) << "Creating shard manager";
     shard_manager_state.cluster_mappings_manager =
         ClusterMappingsManager::Create(environment_, num_shards_,
-                                       metrics_recorder_, instance_client_,
-                                       parameter_fetcher_);
+                                       instance_client_, parameter_fetcher_);
     shard_manager_state.shard_manager = TraceRetryUntilOk(
         [&cluster_mappings_manager =
              *shard_manager_state.cluster_mappings_manager,
@@ -153,7 +155,7 @@ class ShardedServerInitializer : public ServerInitializer {
               num_shards, key_fetcher_manager,
               cluster_mappings_manager.GetClusterMappings(), metrics_recorder);
         },
-        "GetShardManager", &metrics_recorder_);
+        "GetShardManager", LogStatusSafeMetricsFn<kGetShardManagerStatus>());
     auto start_status = shard_manager_state.cluster_mappings_manager->Start(
         *shard_manager_state.shard_manager);
     if (!start_status.ok()) {
@@ -170,6 +172,7 @@ class ShardedServerInitializer : public ServerInitializer {
   int32_t current_shard_num_;
   InstanceClient& instance_client_;
   ParameterFetcher& parameter_fetcher_;
+  KeySharder key_sharder_;
 };
 
 }  // namespace
@@ -179,7 +182,7 @@ std::unique_ptr<ServerInitializer> GetServerInitializer(
     KeyFetcherManagerInterface& key_fetcher_manager, Lookup& local_lookup,
     std::string environment, int32_t current_shard_num,
     InstanceClient& instance_client, Cache& cache,
-    ParameterFetcher& parameter_fetcher) {
+    ParameterFetcher& parameter_fetcher, KeySharder key_sharder) {
   CHECK_GT(num_shards, 0) << "num_shards must be greater than 0";
   if (num_shards == 1) {
     return std::make_unique<NonshardedServerInitializer>(metrics_recorder,
@@ -188,6 +191,7 @@ std::unique_ptr<ServerInitializer> GetServerInitializer(
 
   return std::make_unique<ShardedServerInitializer>(
       metrics_recorder, key_fetcher_manager, local_lookup, environment,
-      num_shards, current_shard_num, instance_client, parameter_fetcher);
+      num_shards, current_shard_num, instance_client, parameter_fetcher,
+      std::move(key_sharder));
 }
 }  // namespace kv_server

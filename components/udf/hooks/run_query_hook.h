@@ -24,7 +24,7 @@
 
 #include "absl/functional/any_invocable.h"
 #include "components/internal_server/lookup.h"
-#include "roma/interface/function_binding_io.pb.h"
+#include "roma/config/src/function_binding_object_v2.h"
 
 namespace kv_server {
 
@@ -42,7 +42,7 @@ class RunQueryHook {
   // This is registered with v8 and is exposed to the UDF. Internally, it calls
   // the internal query client.
   virtual void operator()(
-      google::scp::roma::proto::FunctionBindingIoProto& io) = 0;
+      google::scp::roma::FunctionBindingPayload<>& payload) = 0;
 
   static std::unique_ptr<RunQueryHook> Create();
 };

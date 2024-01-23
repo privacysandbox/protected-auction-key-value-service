@@ -37,11 +37,13 @@ module "kv_server" {
   enclave_cpu_count         = var.enclave_cpu_count
   enclave_memory_mib        = var.enclave_memory_mib
   enclave_enable_debug_mode = var.enclave_enable_debug_mode
+  run_server_outside_tee    = var.run_server_outside_tee
 
   # Variables related to autoscaling and load balancing.
   autoscaling_desired_capacity = var.autoscaling_desired_capacity
   autoscaling_max_size         = var.autoscaling_max_size
   autoscaling_min_size         = var.autoscaling_min_size
+  http_api_paths               = var.http_api_paths
 
   # Variables related to data storage and cleanup.
   s3_delta_file_bucket_name    = var.s3_delta_file_bucket_name
@@ -73,17 +75,24 @@ module "kv_server" {
   data_loading_num_threads = var.data_loading_num_threads
   s3client_max_connections = var.s3client_max_connections
   s3client_max_range_bytes = var.s3client_max_range_bytes
+  data_loading_file_format = var.data_loading_file_format
 
   # Variables related to sharding.
-  num_shards = var.num_shards
+  num_shards             = var.num_shards
+  use_sharding_key_regex = var.use_sharding_key_regex
+  sharding_key_regex     = var.sharding_key_regex
 
   # Variables related to UDF exeuction.
-  udf_num_workers = var.udf_num_workers
+  udf_num_workers    = var.udf_num_workers
+  udf_timeout_millis = var.udf_timeout_millis
 
   # Variables related to coordinators
   use_real_coordinators                  = var.use_real_coordinators
   primary_coordinator_account_identity   = var.primary_coordinator_account_identity
   secondary_coordinator_account_identity = var.secondary_coordinator_account_identity
+
+  # Variables related to logging
+  logging_verbosity_level = var.logging_verbosity_level
 }
 
 output "kv_server_url" {

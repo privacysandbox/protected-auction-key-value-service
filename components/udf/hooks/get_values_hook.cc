@@ -36,6 +36,7 @@ namespace kv_server {
 namespace {
 
 using google::protobuf::json::MessageToJsonString;
+using google::scp::roma::FunctionBindingPayload;
 using google::scp::roma::proto::FunctionBindingIoProto;
 using privacy_sandbox::server_common::MetricsRecorder;
 
@@ -128,25 +129,26 @@ class GetValuesHookImpl : public GetValuesHook {
     }
   }
 
-  void operator()(FunctionBindingIoProto& io) {
+  void operator()(FunctionBindingPayload<>& payload) {
+    VLOG(9) << "Called getValues hook";
     if (lookup_ == nullptr) {
       SetStatus(absl::StatusCode::kInternal,
-                "getValues has not been initialized yet", io);
+                "getValues has not been initialized yet", payload.io_proto);
       LOG(ERROR)
           << "getValues hook is not initialized properly: lookup is nullptr";
       return;
     }
 
-    VLOG(9) << "getValues request: " << io.DebugString();
-    if (!io.has_input_list_of_string()) {
+    VLOG(9) << "getValues request: " << payload.io_proto.DebugString();
+    if (!payload.io_proto.has_input_list_of_string()) {
       SetStatus(absl::StatusCode::kInvalidArgument,
-                "getValues input must be list of strings", io);
-      VLOG(1) << "getValues result: " << io.DebugString();
+                "getValues input must be list of strings", payload.io_proto);
+      VLOG(1) << "getValues result: " << payload.io_proto.DebugString();
       return;
     }
 
     absl::flat_hash_set<std::string_view> keys;
-    for (const auto& key : io.input_list_of_string().data()) {
+    for (const auto& key : payload.io_proto.input_list_of_string().data()) {
       keys.insert(key);
     }
 
@@ -155,13 +157,13 @@ class GetValuesHookImpl : public GetValuesHook {
         lookup_->GetKeyValues(keys);
     if (!response_or_status.ok()) {
       SetStatus(response_or_status.status().code(),
-                response_or_status.status().message(), io);
-      VLOG(1) << "getValues result: " << io.DebugString();
+                response_or_status.status().message(), payload.io_proto);
+      VLOG(1) << "getValues result: " << payload.io_proto.DebugString();
       return;
     }
 
-    SetOutput(response_or_status.value(), io);
-    VLOG(9) << "getValues result: " << io.DebugString();
+    SetOutput(response_or_status.value(), payload.io_proto);
+    VLOG(9) << "getValues result: " << payload.io_proto.DebugString();
   }
 
  private:

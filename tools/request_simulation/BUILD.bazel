@@ -116,6 +116,7 @@ cc_library(
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:records_utils",
         "//public/data_loading/readers:riegeli_stream_io",
+        "//public/data_loading/readers:stream_record_reader_factory",
         "@com_github_google_flatbuffers//:flatbuffers",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status:statusor",
@@ -159,6 +160,7 @@ cc_library(
         "//components/util:platform_initializer",
         "//components/util:version_linkstamp",
         "//public/data_loading/readers:riegeli_stream_io",
+        "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "//public/query:get_values_cc_grpc",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_github_google_glog//:glog",
@@ -314,5 +316,49 @@ cc_test(
         "//public/test_util:mocks",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+    ],
+)
+
+cc_library(
+    name = "realtime_message_batcher",
+    srcs = ["realtime_message_batcher.cc"],
+    hdrs = ["realtime_message_batcher.h"],
+    deps = [
+        "//components/tools:concurrent_publishing_engine",
+        "//public/data_loading/writers:delta_record_limiting_file_writer",
+        "//public/sharding:key_sharder",
+        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
+    ],
+)
+
+cc_test(
+    name = "realtime_message_batcher_test",
+    size = "small",
+    srcs = ["realtime_message_batcher_test.cc"],
+    deps = [
+        ":realtime_message_batcher",
+        "//public/data_loading/readers:riegeli_stream_record_reader_factory",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "detla_based_realtime_updates_publisher",
+    srcs = ["detla_based_realtime_updates_publisher.cc"],
+    hdrs = ["detla_based_realtime_updates_publisher.h"],
+    deps = [
+        ":realtime_message_batcher",
+        ":request_generation_util",
+        "//components/data/blob_storage:blob_storage_change_notifier",
+        "//components/data/blob_storage:blob_storage_client",
+        "//components/data/blob_storage:delta_file_notifier",
+        "//components/data/common:change_notifier",
+        "//components/data/common:thread_manager",
+        "//components/data/realtime:realtime_notifier",
+        "//public/data_loading:records_utils",
+        "//public/data_loading/readers:riegeli_stream_record_reader_factory",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/status:statusor",
     ],
 )

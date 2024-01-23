@@ -217,3 +217,44 @@ variable "secondary_coordinator_account_identity" {
   description = "Account identity for the secondary coordinator."
   type        = string
 }
+
+variable "data_loading_file_format" {
+  description = "Data file format for blob storage and realtime updates. See /public/constants.h for possible values."
+  type        = string
+}
+
+variable "logging_verbosity_level" {
+  description = "Logging verbosity."
+  type        = number
+}
+
+variable "run_server_outside_tee" {
+  description = "Whether to run the server outside the TEE, in a docker container. Untrusted mode, for debugging."
+  type        = bool
+}
+
+variable "http_api_paths" {
+  description = "URL paths the load balancer will forward to the server."
+  type        = set(string)
+  default = [
+    "/v1/*",
+    "/v2/*",
+    "/healthcheck"
+  ]
+}
+
+variable "use_sharding_key_regex" {
+  description = "Use sharding key regex. This is useful if you want to use data locality feature for sharding."
+  type        = bool
+}
+
+variable "sharding_key_regex" {
+  description = "Sharding key regex."
+  type        = string
+}
+
+variable "udf_timeout_millis" {
+  description = "UDF execution timeout in milliseconds. Default is 5000."
+  default     = 5000
+  type        = number
+}

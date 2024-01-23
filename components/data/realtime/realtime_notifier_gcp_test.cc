@@ -41,14 +41,20 @@ using ::google::cloud::pubsub::SubscriberConnection;
 using ::google::cloud::pubsub_mocks::MockAckHandler;
 using ::google::cloud::pubsub_mocks::MockSubscriberConnection;
 using privacy_sandbox::server_common::GetTracer;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Field;
 using testing::Return;
 
 class RealtimeNotifierGcpTest : public ::testing::Test {
  protected:
-  MockMetricsRecorder mock_metrics_recorder_;
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    kv_server::KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
   std::unique_ptr<MockSleepFor> mock_sleep_for_ =
       std::make_unique<MockSleepFor>();
   std::shared_ptr<MockSubscriberConnection> mock_ =
@@ -61,8 +67,7 @@ TEST_F(RealtimeNotifierGcpTest, NotRunning) {
       .maybe_sleep_for = std::move(mock_sleep_for_),
       .gcp_subscriber_for_unit_testing = subscriber.release(),
   };
-  auto maybe_notifier =
-      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   ASSERT_TRUE(maybe_notifier.ok());
   ASSERT_FALSE((*maybe_notifier)->IsRunning());
 }
@@ -78,8 +83,7 @@ TEST_F(RealtimeNotifierGcpTest, ConsecutiveStartsWork) {
       .maybe_sleep_for = std::move(mock_sleep_for_),
       .gcp_subscriber_for_unit_testing = subscriber.release(),
   };
-  auto maybe_notifier =
-      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start([](const std::string&) {
     return absl::OkStatus();
   });
@@ -103,8 +107,7 @@ TEST_F(RealtimeNotifierGcpTest, StartsAndStops) {
       .gcp_subscriber_for_unit_testing = subscriber.release(),
   };
 
-  auto maybe_notifier =
-      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start([](const std::string&) {
     return absl::OkStatus();
   });
@@ -158,8 +161,7 @@ TEST_F(RealtimeNotifierGcpTest, NotifiesWithHighPriorityUpdates) {
       .gcp_subscriber_for_unit_testing = subscriber.release(),
       .maybe_sleep_for = std::move(mock_sleep_for_),
   };
-  auto maybe_notifier =
-      RealtimeNotifier::Create(mock_metrics_recorder_, {}, std::move(options));
+  auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   ASSERT_TRUE(maybe_notifier.ok());
   ASSERT_FALSE((*maybe_notifier)->IsRunning());
   absl::Status status = (*maybe_notifier)->Start(callback.AsStdFunction());

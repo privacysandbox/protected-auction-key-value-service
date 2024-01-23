@@ -15,6 +15,12 @@
 #ifndef COMPONENTS_UTIL_PLATFORM_INITIALIZER_H_
 #define COMPONENTS_UTIL_PLATFORM_INITIALIZER_H_
 
+// This flag is defined during build only when //:gcp_platform is specified.
+#if defined(CLOUD_PLATFORM_GCP)
+#include <string>
+ABSL_DECLARE_FLAG(std::string, gcp_project_id);
+#endif
+
 namespace kv_server {
 
 // This class performs any platform specific (e.g. AWS) setup that's necessary

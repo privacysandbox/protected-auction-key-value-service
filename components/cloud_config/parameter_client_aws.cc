@@ -22,6 +22,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_format.h"
 #include "aws/core/Aws.h"
 #include "aws/core/utils/Outcome.h"
@@ -38,14 +39,28 @@ namespace {
 class AwsParameterClient : public ParameterClient {
  public:
   absl::StatusOr<std::string> GetParameter(
-      std::string_view parameter_name) const override {
+      std::string_view parameter_name,
+      std::optional<std::string> default_value = std::nullopt) const override {
+    LOG(INFO) << "Getting parameter: " << parameter_name;
     Aws::SSM::Model::GetParameterRequest request;
     request.SetName(std::string(parameter_name));
     const auto outcome = ssm_client_->GetParameter(request);
     if (!outcome.IsSuccess()) {
+      if (default_value.has_value()) {
+        LOG(WARNING) << "Unable to get parameter: " << parameter_name
+                     << " with error: " << outcome.GetError()
+                     << ", returning default value: " << *default_value;
+        return *default_value;
+      } else {
+        LOG(ERROR) << "Unable to get parameter: " << parameter_name
+                   << " with error: " << outcome.GetError();
+      }
       return AwsErrorToStatus(outcome.GetError());
     }
-    return outcome.GetResult().GetParameter().GetValue();
+    std::string result = outcome.GetResult().GetParameter().GetValue();
+    LOG(INFO) << "Got parameter: " << parameter_name
+              << " with value: " << result;
+    return result;
   };
 
   absl::StatusOr<int32_t> GetInt32Parameter(

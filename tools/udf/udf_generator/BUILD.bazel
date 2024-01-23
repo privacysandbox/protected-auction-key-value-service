@@ -24,11 +24,19 @@ package(default_visibility = [
 cc_binary(
     name = "udf_delta_file_generator",
     srcs = ["udf_delta_file_generator.cc"],
+    copts = [
+        "-fexceptions",
+        "-Wno-error",
+        "-Wno-implicit-fallthrough",
+        "-Wno-non-virtual-dtor",
+    ],
     deps = [
+        "//public:constants",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:filename_utils",
         "//public/data_loading:records_utils",
         "//public/data_loading:riegeli_metadata_cc_proto",
+        "//public/data_loading/writers:avro_delta_record_stream_writer",
         "//public/data_loading/writers:delta_record_stream_writer",
         "//public/data_loading/writers:delta_record_writer",
         "//public/udf:constants",

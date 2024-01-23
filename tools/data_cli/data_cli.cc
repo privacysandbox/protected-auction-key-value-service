@@ -63,23 +63,30 @@ ABSL_FLAG(std::string, csv_encoding, "plaintext",
           "Encoding for KEY_VALUE_MUTATION_RECORD values for "
           "CSVs. options=(PLAINTEXT|BASE64)."
           "If the values are binary, BASE64 is recommended.");
+ABSL_FLAG(int64_t, shard_number, -1,
+          "The shard number for output DELTA or SNAPSHOT files.");
+ABSL_FLAG(
+    int64_t, number_of_shards, -1,
+    "Total number of shards. Must be > --shard_number if shard_number >= 0.");
 
 constexpr std::string_view kUsageMessage = R"(
 Usage: data_cli <command> <flags>
 
 Commands:
 - format_data          Converts input to output format.
-    [--input_file]     (Optional) Defaults to stdin. Input file to convert records from.
-    [--input_format]   (Optional) Defaults to "CSV". Possible options=(CSV|DELTA)
-    [--output_file]    (Optional) Defaults to stdout. Output file to write converted records to.
-    [--output_format]  (Optional) Defaults to "DELTA". Possible options=(CSV|DELTA).
-    [--record_type]    (Optional) Defaults to "KEY_VALUE_MUTATION_RECORD". Possible
+    [--input_file]       (Optional) Defaults to stdin. Input file to convert records from.
+    [--input_format]     (Optional) Defaults to "CSV". Possible options=(CSV|DELTA)
+    [--output_file]      (Optional) Defaults to stdout. Output file to write converted records to.
+    [--output_format]    (Optional) Defaults to "DELTA". Possible options=(CSV|DELTA).
+    [--record_type]      (Optional) Defaults to "KEY_VALUE_MUTATION_RECORD". Possible
                                   options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG|SHARD_MAPPING_RECORD).
                                   If reading/writing a UDF config, use "USER_DEFINED_FUNCTIONS_CONFIG".
                                   If reading/writing a shard mapping config, use "SHARD_MAPPING_RECORD".
-    [--csv_encoding]   (Optional) Defaults to "PLAINTEXT". Encoding for KEY_VALUE_MUTATION_RECORD values for CSVs.
+    [--csv_encoding]     (Optional) Defaults to "PLAINTEXT". Encoding for KEY_VALUE_MUTATION_RECORD values for CSVs.
                                   Possible options=(PLAINTEXT|BASE64).
                                   If the values are binary, BASE64 is recommended.
+    [--shard_number]     (Optional) Defaults to -1 (i.e., not specified).
+    [--number_of_shards] (Optional) Defaults to -1 (i.e., not specified). Must be > --shard_number if shard_number >= 0.
   Examples:
     (1) Generate a csv file to a delta file and write output records to std::cout.
     - data_cli format_data --input_file="$PWD/data.csv"
@@ -91,23 +98,21 @@ Commands:
     - cat "$PWD/data.csv" | data_cli format_data --input_format=CSV
 
     (4) Generate a delta file with UDF configs back to csv file and write output to a file.
-    - data_cli format_data --input_file="$PWD/delta" --input_format=DELTA --output_file="$PWD/delta.csv" --output_format=CSV --record_type=USER_DEFINED_FUNCTIONS_CONFIG
+    - data_cli format_data --input_file="$PWD/delta" --input_format=DELTA --output_file="$PWD/delta.csv" --output_format=CSV \
+         --record_type=USER_DEFINED_FUNCTIONS_CONFIG
 
 - generate_snapshot             Compacts a range of delta files into a single snapshot file.
     [--starting_file]           (Required) Oldest delta file or base snapshot to include in compaction.
     [--ending_delta_file]       (Required) Most recent delta file to include compaction.
     [--snapshot_file]           (Optional) Defaults to stdout. Output snapshot file.
-    [--data_dir]                (Required) Directory (or S3 bucket) with input delta files.
+    [--data_dir]                (Required) Directory with input delta files.
     [--working_dir]             (Optional) Defaults to "/tmp". Directory used to write temporary data.
     [--in_memory_compaction]    (Optional) Defaults to true. If false, file backed compaction is used.
+    [--shard_number]            (Optional) Defaults to -1 (i.e., not specified).
+    [--number_of_shards]        (Optional) Defaults to -1 (i.e., not specified). Must be > --shard_number if shard_number >= 0.
   Examples:
     (1) Generate snapshot using delta files from local disk.
     - data_cli generate_snapshot --data_dir="$DATA_DIR" --starting_file="DELTA_1670532228628680" \
-        --ending_delta_file="DELTA_1670532717393878" --snapshot_file="SNAPSHOT_0000000000000003"
-
-    (2) Generate snapshot using delta files from S3. (Requires --//:platform=aws build flag.)
-    - export DATA_DIR="<your-s3-bucket-name>";
-      data_cli generate_snapshot --data_dir="$DATA_DIR" --starting_file="DELTA_1670532228628680" \
         --ending_delta_file="DELTA_1670532717393878" --snapshot_file="SNAPSHOT_0000000000000003"
 
 Try --help to see detailed flag descriptions and associated default values.
@@ -172,6 +177,8 @@ int main(int argc, char** argv) {
             .csv_value_delimiter = absl::GetFlag(FLAGS_csv_value_delimiter)[0],
             .record_type = absl::GetFlag(FLAGS_record_type),
             .csv_encoding = absl::GetFlag(FLAGS_csv_encoding),
+            .shard_number = absl::GetFlag(FLAGS_shard_number),
+            .number_of_shards = absl::GetFlag(FLAGS_number_of_shards),
         },
         *i_stream, *o_stream);
     if (!format_data_command.ok()) {
@@ -193,6 +200,8 @@ int main(int argc, char** argv) {
             .ending_delta_file = absl::GetFlag(FLAGS_ending_delta_file),
             .snapshot_file = absl::GetFlag(FLAGS_snapshot_file),
             .in_memory_compaction = absl::GetFlag(FLAGS_in_memory_compaction),
+            .shard_number = absl::GetFlag(FLAGS_shard_number),
+            .number_of_shards = absl::GetFlag(FLAGS_number_of_shards),
         });
     if (!generate_snapshot_command.ok()) {
       LOG(ERROR) << "Failed to create command to generate snapshot. "

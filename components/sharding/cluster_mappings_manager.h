@@ -37,7 +37,7 @@ namespace kv_server {
 // `update_interval_millis`.
 // Example:
 //  auto cluster_mappings_manager_ = ClusterMappingsManager::Create(
-//       environment_, num_shards_, *metrics_recorder_, *instance_client_);
+//       environment_, num_shards_, *instance_client_);
 //  cluster_mappings_manager_->Start(*shard_manager_);
 class ClusterMappingsManager {
  public:
@@ -45,7 +45,6 @@ class ClusterMappingsManager {
 
   ClusterMappingsManager(
       std::string environment, int32_t num_shards,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       InstanceClient& instance_client,
       std::unique_ptr<SleepFor> sleep_for = std::make_unique<SleepFor>(),
       int32_t update_interval_millis = 1000);
@@ -61,7 +60,6 @@ class ClusterMappingsManager {
   bool IsRunning() const;
   static std::unique_ptr<ClusterMappingsManager> Create(
       std::string environment, int32_t num_shards,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       InstanceClient& instance_client, ParameterFetcher& parameter_fetcher);
 
  protected:
@@ -69,7 +67,6 @@ class ClusterMappingsManager {
 
   std::string environment_;
   int32_t num_shards_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   InstanceClient& instance_client_;
   std::unique_ptr<TheadManager> thread_manager_;
   std::unique_ptr<SleepFor> sleep_for_;

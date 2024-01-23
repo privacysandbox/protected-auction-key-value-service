@@ -16,6 +16,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 
 package(default_visibility = [
     "//components:__subpackages__",
+    "//production/packaging:__subpackages__",
 ])
 
 cc_library(
@@ -83,11 +84,11 @@ cc_library(
         "retry.h",
     ],
     deps = [
+        "//components/telemetry:server_definition",
         "//components/util:sleepfor",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/time",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:tracing",
     ],
 )

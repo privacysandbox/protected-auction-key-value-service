@@ -16,6 +16,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 package(default_visibility = [
     "//components:__subpackages__",
+    "//production/packaging:__subpackages__",
     "//public:__subpackages__",
 ])
 
@@ -36,11 +37,21 @@ cc_library(
 )
 
 cc_library(
+    name = "error_code",
+    hdrs = ["error_code.h"],
+    deps = [
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "server_definition",
     hdrs = [
         "server_definition.h",
     ],
     deps = [
+        ":error_code",
         "@google_privacysandbox_servers_common//src/cpp/metric:context_map",
+        "@google_privacysandbox_servers_common//src/cpp/util:read_system",
     ],
 )

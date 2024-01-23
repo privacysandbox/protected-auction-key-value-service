@@ -23,9 +23,7 @@ resource "aws_lambda_function" "sqs_cleanup_function" {
   memory_size   = 512
 
   tags = {
-    Name        = "${var.service}-${var.environment}-sqs-cleanup"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-sqs-cleanup"
   }
 }
 
@@ -39,9 +37,7 @@ resource "aws_cloudwatch_event_rule" "sqs_cleanup_schedule" {
   ]
 
   tags = {
-    Name        = "${var.service}-${var.environment}-sqs-cleanup-schedule"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-sqs-cleanup-schedule"
   }
 }
 

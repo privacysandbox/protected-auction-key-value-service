@@ -113,3 +113,28 @@ variable "use_external_metrics_collector_endpoint" {
   description = "Whether to connect external metrics collector endpoint"
   type        = bool
 }
+
+variable "data_loading_file_format_parameter_value" {
+  description = "Data file format for blob storage and realtime updates. See /public/constants.h for possible values."
+  type        = string
+}
+
+variable "logging_verbosity_level_parameter_value" {
+  description = "Logging verbosity."
+  type        = number
+}
+
+variable "use_sharding_key_regex_parameter_value" {
+  description = "Use sharding key regex. This is useful if you want to use data locality feature for sharding."
+  type        = bool
+}
+
+variable "sharding_key_regex_parameter_value" {
+  description = "Sharding key regex."
+  type        = string
+}
+
+variable "udf_timeout_millis_parameter_value" {
+  description = "UDF execution timeout in milliseconds."
+  type        = number
+}

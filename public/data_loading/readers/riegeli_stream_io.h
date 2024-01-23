@@ -30,41 +30,19 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
+#include "components/telemetry/server_definition.h"
 #include "glog/logging.h"
+#include "public/data_loading/readers/stream_record_reader.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "riegeli/bytes/istream_reader.h"
 #include "riegeli/records/record_reader.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {
 
-// Reader that can be used to load data from one data file.
-//
-// Subclasses should accept the data source through constructor and store the
-// data source as its state.
-//
-// Not intended to be used by multiple threads.
-template <typename RecordT>
-class StreamRecordReader {
- public:
-  virtual ~StreamRecordReader() = default;
-
-  // Returns the metadata associated with this file. Can only be called once
-  // before the first call to `ReadStreamRecords`.
-  virtual absl::StatusOr<KVFileMetadata> GetKVFileMetadata() = 0;
-
-  // Given a `data_input` stream representing a stream of RecordT
-  // records, parses the records and calls `callback` once per record.
-  // If the callback returns a non-OK status, the function continues
-  // reading and logs the error at the end.
-  virtual absl::Status ReadStreamRecords(
-      const std::function<absl::Status(const RecordT&)>& callback) = 0;
-};
-
 // Reader that can read streams in Riegeli format.
 template <typename RecordT>
-class RiegeliStreamReader : public StreamRecordReader<RecordT> {
+class RiegeliStreamReader : public StreamRecordReader {
  public:
   // `data_input` must be at the file beginning when passed in.
   explicit RiegeliStreamReader(
@@ -118,13 +96,6 @@ constexpr std::string_view kReadShardRecordsLatencyEvent =
 constexpr std::string_view kReadStreamRecordsLatencyEvent =
     "ConcurrentStreamRecordReader::ReadStreamRecords";
 
-// Holds a stream of data.
-class RecordStream {
- public:
-  virtual ~RecordStream() = default;
-  virtual std::istream& Stream() = 0;
-};
-
 // A `ConcurrentStreamRecordReader` reads a Riegeli data stream containing
 // `RecordT` records concurrently. The reader splits the data stream
 // into shards with an approximately equal number of records and reads the
@@ -154,7 +125,7 @@ class RecordStream {
 // underlying underlying Riegeli data stream, e.g., multiple `std::ifstream`
 // streams pointing to the same underlying file.
 template <typename RecordT>
-class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
+class ConcurrentStreamRecordReader : public StreamRecordReader {
  public:
   struct Options {
     int64_t num_worker_threads = kDefaultNumWorkerThreads;
@@ -166,7 +137,6 @@ class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
         };
   };
   ConcurrentStreamRecordReader(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       std::function<std::unique_ptr<RecordStream>()> stream_factory,
       Options options = Options());
   ~ConcurrentStreamRecordReader() = default;
@@ -196,20 +166,15 @@ class ConcurrentStreamRecordReader : public StreamRecordReader<RecordT> {
       const std::function<absl::Status(const RecordT&)>& record_callback);
   absl::StatusOr<std::vector<ShardRange>> BuildShards();
   absl::StatusOr<int64_t> RecordStreamSize();
-
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   std::function<std::unique_ptr<RecordStream>()> stream_factory_;
   Options options_;
 };
 
 template <typename RecordT>
 ConcurrentStreamRecordReader<RecordT>::ConcurrentStreamRecordReader(
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     std::function<std::unique_ptr<RecordStream>()> stream_factory,
     Options options)
-    : metrics_recorder_(metrics_recorder),
-      stream_factory_(std::move(stream_factory)),
-      options_(std::move(options)) {
+    : stream_factory_(std::move(stream_factory)), options_(std::move(options)) {
   CHECK(options.num_worker_threads >= 1)
       << "Number of work threads must be at least 1.";
 }
@@ -282,8 +247,7 @@ ConcurrentStreamRecordReader<RecordT>::BuildShards() {
 template <typename RecordT>
 absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     const std::function<absl::Status(const RecordT&)>& callback) {
-  privacy_sandbox::server_common::ScopeLatencyRecorder latency_recorder(
-      std::string(kReadStreamRecordsLatencyEvent), metrics_recorder_);
+  auto start_time = absl::Now();
   auto shards = BuildShards();
   if (!shards.ok() || shards->empty()) {
     return shards.status();
@@ -321,9 +285,14 @@ absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     total_records_read += curr_shard_result->num_records_read;
     prev_shard_result = curr_shard_result;
   }
+  auto duration = absl::Now() - start_time;
   VLOG(2) << "Done reading " << total_records_read << " records in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+          << absl::ToDoubleMilliseconds(duration) << " ms.";
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<kConcurrentStreamRecordReaderReadStreamRecordsLatency>(
+              absl::ToDoubleMicroseconds(duration)));
   return absl::OkStatus();
 }
 
@@ -334,8 +303,7 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
     const std::function<absl::Status(const RecordT&)>& record_callback) {
   VLOG(2) << "Reading shard: "
           << "[" << shard.start_pos << "," << shard.end_pos << "]";
-  privacy_sandbox::server_common::ScopeLatencyRecorder latency_recorder(
-      std::string(kReadShardRecordsLatencyEvent), metrics_recorder_);
+  auto start_time = absl::Now();
   auto record_stream = stream_factory_();
   riegeli::RecordReader<riegeli::IStreamReader<>> record_reader(
       riegeli::IStreamReader(&record_stream->Stream()),
@@ -366,54 +334,16 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
   }
   shard_result.next_shard_first_record_pos = next_record_pos;
   shard_result.num_records_read = num_records_read;
+  auto duration = absl::Now() - start_time;
   VLOG(2) << "Done reading " << num_records_read << " records in shard: ["
           << shard.start_pos << "," << shard.end_pos << "] in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+          << absl::ToDoubleMilliseconds(duration) << " ms.";
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<kConcurrentStreamRecordReaderReadShardRecordsLatency>(
+              absl::ToDoubleMicroseconds(duration)));
   return shard_result;
-}
-
-// Factory class to create readers. For each input that represents one file,
-// one reader should be created.
-template <typename RecordT>
-class StreamRecordReaderFactory {
- public:
-  StreamRecordReaderFactory(
-      typename ConcurrentStreamRecordReader<RecordT>::Options options =
-          typename ConcurrentStreamRecordReader<RecordT>::Options())
-      : options_(std::move(options)) {}
-  virtual ~StreamRecordReaderFactory() = default;
-
-  static std::unique_ptr<StreamRecordReaderFactory<RecordT>> Create(
-      typename ConcurrentStreamRecordReader<RecordT>::Options options =
-          typename ConcurrentStreamRecordReader<RecordT>::Options());
-
-  virtual std::unique_ptr<StreamRecordReader<RecordT>> CreateReader(
-      std::istream& data_input) const {
-    return std::make_unique<RiegeliStreamReader<RecordT>>(
-        data_input, [](const riegeli::SkippedRegion& skipped_region) {
-          LOG(WARNING) << "Skipping over corrupted region: " << skipped_region;
-          return true;
-        });
-  }
-
-  virtual std::unique_ptr<StreamRecordReader<RecordT>> CreateConcurrentReader(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      std::function<std::unique_ptr<RecordStream>()> stream_factory) const {
-    return std::make_unique<ConcurrentStreamRecordReader<RecordT>>(
-        metrics_recorder, stream_factory, options_);
-  }
-
- private:
-  typename ConcurrentStreamRecordReader<RecordT>::Options options_;
-};
-
-template <typename RecordT>
-std::unique_ptr<StreamRecordReaderFactory<RecordT>>
-StreamRecordReaderFactory<RecordT>::Create(
-    typename ConcurrentStreamRecordReader<RecordT>::Options options) {
-  return std::make_unique<StreamRecordReaderFactory<RecordT>>(
-      std::move(options));
 }
 
 }  // namespace kv_server

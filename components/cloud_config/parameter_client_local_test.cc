@@ -100,6 +100,12 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
   }
   {
     const auto statusor =
+        client->GetInt32Parameter("kv-server-local-udf-timeout-millis");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(5000, *statusor);
+  }
+  {
+    const auto statusor =
         client->GetBoolParameter("kv-server-local-route-v1-to-v2");
     ASSERT_TRUE(statusor.ok());
     EXPECT_EQ(false, *statusor);

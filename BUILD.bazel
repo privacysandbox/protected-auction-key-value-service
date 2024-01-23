@@ -13,6 +13,7 @@
 # limitations under the License.
 
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@io_bazel_rules_go//go:def.bzl", "nogo")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -101,6 +102,7 @@ config_setting(
     },
     visibility = [
         "//components:__subpackages__",
+        "//production/packaging:__subpackages__",
         "//tools:__subpackages__",
     ],
 )
@@ -164,3 +166,9 @@ EOF""",
 exports_files([
     "buf.yaml",
 ])
+
+nogo(
+    name = "kv_nogo",
+    vet = True,
+    visibility = ["//visibility:public"],
+)

@@ -21,20 +21,20 @@
  * @returns A dictionary of words to embedding.
  */
 function associateEmbeddings(words) {
-    const getValuesResult = JSON.parse(getValues(words));
-    // getValuesResult returns "kvPairs" when successful and "code" on failure.
-    // Ignore failures and only add successful lookups to output.
-    wordEmbeddings = {}
-    if (getValuesResult.hasOwnProperty("kvPairs")) {
-        const kvPairs = getValuesResult.kvPairs;
-        const keyValuesOutput = {};
-        for (const key in kvPairs) {
-            if (kvPairs[key].hasOwnProperty("value")) {
-                wordEmbeddings[key] = JSON.parse(kvPairs[key].value);
-            }
-        }
+  const getValuesResult = JSON.parse(getValues(words));
+  // getValuesResult returns "kvPairs" when successful and "code" on failure.
+  // Ignore failures and only add successful lookups to output.
+  wordEmbeddings = {};
+  if (getValuesResult.hasOwnProperty('kvPairs')) {
+    const kvPairs = getValuesResult.kvPairs;
+    const keyValuesOutput = {};
+    for (const key in kvPairs) {
+      if (kvPairs[key].hasOwnProperty('value')) {
+        wordEmbeddings[key] = JSON.parse(kvPairs[key].value);
+      }
     }
-    return wordEmbeddings;
+  }
+  return wordEmbeddings;
 }
 
 /**
@@ -43,11 +43,11 @@ function associateEmbeddings(words) {
  * @returns embedding array.
  */
 function getWordEmbedding(word) {
-    embeddings = associateEmbeddings([word])
-    if (Object.keys(embeddings).length < 1) {
-        return null
-    }
-    return Object.values(embeddings)[0];
+  embeddings = associateEmbeddings([word]);
+  if (Object.keys(embeddings).length < 1) {
+    return null;
+  }
+  return Object.values(embeddings)[0];
 }
 
 /**
@@ -58,9 +58,9 @@ function getWordEmbedding(word) {
  * @returns Scalar similarity between -1 and 1.  1 is most similar.
  */
 function cosineSimilarity(left, right) {
-    dot = (a, b) => a.map((x, i) => a[i] * b[i]).reduce((m, n) => m + n);
-    magnitude = (x) => Math.sqrt(x.reduce((sum, value) => sum + value * value, 0));
-    return dot(left, right) / (magnitude(left) * magnitude(right));
+  dot = (a, b) => a.map((x, i) => a[i] * b[i]).reduce((m, n) => m + n);
+  magnitude = (x) => Math.sqrt(x.reduce((sum, value) => sum + value * value, 0));
+  return dot(left, right) / (magnitude(left) * magnitude(right));
 }
 
 /**
@@ -71,11 +71,11 @@ function cosineSimilarity(left, right) {
  * @returns Dictionary from word to cosine similarity to the supplied embedding.
  */
 function associateCosineSimilarity(wordEmbeddings, embedding) {
-    wordSimilarity = {}
-    for (const word in wordEmbeddings) {
-        wordSimilarity[word] = cosineSimilarity(wordEmbeddings[word], embedding)
-    }
-    return wordSimilarity
+  wordSimilarity = {};
+  for (const word in wordEmbeddings) {
+    wordSimilarity[word] = cosineSimilarity(wordEmbeddings[word], embedding);
+  }
+  return wordSimilarity;
 }
 
 /**
@@ -87,23 +87,20 @@ function associateCosineSimilarity(wordEmbeddings, embedding) {
  * @returns A sorted list of top 10 words and their scores.
  */
 function HandleRequest(executionMetadata, metadataKeys, signal) {
-    results = []
-    if (metadataKeys.length) {
-        // Union all of the sets of the given metadata category
-        results = runQuery(metadataKeys.join("|"));
-    }
-    wordSimilarity= {}
-    embedding = getWordEmbedding(signal)
-    if (embedding != null) {
-        wordSimilarity = associateCosineSimilarity(
-            associateEmbeddings(results),
-            embedding
-        )
-    }
-    // Sort by relevance and return the top 5
-    sortedWords = Object.entries(wordSimilarity);
-    sortedWords.sort((a, b) => b[1] - a[1]);
-    sortedWords = sortedWords.slice(0, 5);
+  results = [];
+  if (metadataKeys.length) {
+    // Union all of the sets of the given metadata category
+    results = runQuery(metadataKeys.join('|'));
+  }
+  wordSimilarity = {};
+  embedding = getWordEmbedding(signal);
+  if (embedding != null) {
+    wordSimilarity = associateCosineSimilarity(associateEmbeddings(results), embedding);
+  }
+  // Sort by relevance and return the top 5
+  sortedWords = Object.entries(wordSimilarity);
+  sortedWords.sort((a, b) => b[1] - a[1]);
+  sortedWords = sortedWords.slice(0, 5);
 
-    return JSON.stringify(sortedWords);
+  return JSON.stringify(sortedWords);
 }

@@ -22,7 +22,6 @@
 #include "glog/logging.h"
 #include "google/cloud/pubsub/message.h"
 #include "google/cloud/pubsub/subscriber.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
@@ -33,44 +32,14 @@ using ::google::cloud::future;
 using ::google::cloud::GrpcBackgroundThreadPoolSizeOption;
 using ::google::cloud::Options;
 using ::google::cloud::pubsub::Subscriber;
-using ::privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::ScopeLatencyRecorder;
-
-constexpr char* kReceivedLowLatencyNotifications =
-    "ReceivedLowLatencyNotifications";
-constexpr char* kReceivedLowLatencyNotificationsE2E =
-    "ReceivedLowLatencyNotificationsE2E";
-constexpr char* kReceivedLowLatencyNotificationsE2EGcpProvided =
-    "ReceivedLowLatencyNotificationsE2EGcpProvided";
-constexpr char* kRealtimeDecodeRealtimeMessageFailure =
-    "RealtimeDecodeRealtimeMessageFailure";
-constexpr char* kRealtimeRealtimeMessageApplicationFailure =
-    "kRealtimeRealtimeMessageApplicationFailure";
-constexpr char* kRealtimeTotalRowsUpdated = "RealtimeTotalRowsUpdated";
-
-// The units below are microseconds.
-const std::vector<double> kE2eBucketBoundaries = {
-    160,     220,       280,       320,       640,       1'200,         2'500,
-    5'000,   10'000,    20'000,    40'000,    80'000,    160'000,       320'000,
-    640'000, 1'000'000, 1'300'000, 2'600'000, 5'000'000, 10'000'000'000};
 
 class RealtimeNotifierGcp : public RealtimeNotifier {
  public:
-  explicit RealtimeNotifierGcp(MetricsRecorder& metrics_recorder,
-                               std::unique_ptr<Subscriber> gcp_subscriber,
+  explicit RealtimeNotifierGcp(std::unique_ptr<Subscriber> gcp_subscriber,
                                std::unique_ptr<SleepFor> sleep_for)
       : thread_manager_(TheadManager::Create("Realtime notifier")),
-        metrics_recorder_(metrics_recorder),
         sleep_for_(std::move(sleep_for)),
-        gcp_subscriber_(std::move(gcp_subscriber)) {
-    metrics_recorder.RegisterHistogram(kReceivedLowLatencyNotificationsE2E,
-                                       "Low latency notifictionas E2E latency",
-                                       "microsecond", kE2eBucketBoundaries);
-    metrics_recorder.RegisterHistogram(
-        kReceivedLowLatencyNotificationsE2EGcpProvided,
-        "Low latency notifications E2E latency gcp supplied", "microsecond",
-        kE2eBucketBoundaries);
-  }
+        gcp_subscriber_(std::move(gcp_subscriber)) {}
 
   ~RealtimeNotifierGcp() {
     if (const auto s = Stop(); !s.ok()) {
@@ -112,10 +81,12 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
     // The time at which the message was published, populated by the server when
     // it receives the topics.publish call. It must not be populated by the
     // publisher in a topics.publish call.
-    metrics_recorder_.RecordHistogramEvent(
-        kReceivedLowLatencyNotificationsE2EGcpProvided,
-        absl::ToInt64Microseconds(absl::Now() -
-                                  absl::FromChrono(m.publish_time())));
+    LogIfError(
+        KVServerContextMap()
+            ->SafeMetric()
+            .LogHistogram<kReceivedLowLatencyNotificationsE2ECloudProvided>(
+                absl::ToDoubleMicroseconds(
+                    absl::Now() - absl::FromChrono(m.publish_time()))));
   }
 
   void RecordProducerSuppliedE2ELatency(pubsub::Message const& m) {
@@ -129,37 +100,45 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
       return;
     }
     auto e2eDuration = absl::Now() - absl::FromUnixNanos(value_int64);
-    metrics_recorder_.RecordHistogramEvent(
-        kReceivedLowLatencyNotificationsE2E,
-        absl::ToInt64Microseconds(e2eDuration));
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogHistogram<kReceivedLowLatencyNotificationsE2E>(
+                       absl::ToDoubleMicroseconds(e2eDuration)));
   }
 
   void OnMessageReceived(
       pubsub::Message const& m, pubsub::AckHandler h,
       std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>&
           callback) {
-    ScopeLatencyRecorder latency_recorder(
-        std::string(kReceivedLowLatencyNotifications), metrics_recorder_);
+    auto start = absl::Now();
     std::string string_decoded;
     if (!absl::Base64Unescape(m.data(), &string_decoded)) {
-      metrics_recorder_.IncrementEventCounter(
-          kRealtimeDecodeRealtimeMessageFailure);
+      LogIfError(
+          KVServerContextMap()->SafeMetric().LogUpDownCounter<kRealtimeErrors>(
+              {{std::string(kRealtimeDecodeMessageFailure), 1}}));
       LOG(ERROR) << "The body of the message is not a base64 encoded string.";
       std::move(h).ack();
       return;
     }
     auto count = callback(string_decoded);
     if (count.ok()) {
-      metrics_recorder_.IncrementEventStatus(
-          kRealtimeTotalRowsUpdated, count.status(),
-          (count->total_updated_records + count->total_deleted_records));
+      LogIfError(KVServerContextMap()
+                     ->SafeMetric()
+                     .LogUpDownCounter<kRealtimeTotalRowsUpdated>(
+                         static_cast<double>(count->total_updated_records +
+                                             count->total_deleted_records)));
     } else {
-      metrics_recorder_.IncrementEventCounter(
-          kRealtimeRealtimeMessageApplicationFailure);
+      LogIfError(
+          KVServerContextMap()->SafeMetric().LogUpDownCounter<kRealtimeErrors>(
+              {{std::string(kRealtimeMessageApplicationFailure), 1}}));
     }
     RecordGcpSuppliedE2ELatency(m);
     RecordProducerSuppliedE2ELatency(m);
     std::move(h).ack();
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogHistogram<kReceivedLowLatencyNotifications>(
+                       absl::ToDoubleMicroseconds(absl::Now() - start)));
   }
 
   void Watch(
@@ -178,7 +157,6 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
   }
 
   std::unique_ptr<TheadManager> thread_manager_;
-  MetricsRecorder& metrics_recorder_;
   mutable absl::Mutex mutex_;
   future<cloud::Status> session_ ABSL_GUARDED_BY(mutex_);
   std::unique_ptr<SleepFor> sleep_for_;
@@ -215,8 +193,7 @@ absl::StatusOr<std::unique_ptr<Subscriber>> CreateSubscriber(
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<RealtimeNotifier>> RealtimeNotifier::Create(
-    MetricsRecorder& metrics_recorder, NotifierMetadata metadata,
-    RealtimeNotifierMetadata realtime_metadata) {
+    NotifierMetadata metadata, RealtimeNotifierMetadata realtime_metadata) {
   auto realtime_notifier_metadata =
       std::get_if<GcpRealtimeNotifierMetadata>(&realtime_metadata);
   std::unique_ptr<SleepFor> sleep_for;
@@ -238,8 +215,8 @@ absl::StatusOr<std::unique_ptr<RealtimeNotifier>> RealtimeNotifier::Create(
     }
     gcp_subscriber = std::move(*maybe_gcp_subscriber);
   }
-  return std::make_unique<RealtimeNotifierGcp>(
-      metrics_recorder, std::move(gcp_subscriber), std::move(sleep_for));
+  return std::make_unique<RealtimeNotifierGcp>(std::move(gcp_subscriber),
+                                               std::move(sleep_for));
 }
 
 }  // namespace kv_server

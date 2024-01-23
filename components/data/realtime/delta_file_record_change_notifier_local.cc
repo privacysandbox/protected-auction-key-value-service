@@ -24,7 +24,6 @@ namespace kv_server {
 namespace {
 
 using privacy_sandbox::server_common::GetTracer;
-using privacy_sandbox::server_common::MetricsRecorder;
 
 constexpr char* kReceivedLowLatencyNotificationsLocally =
     "ReceivedLowLatencyNotificationsLocally";
@@ -67,8 +66,7 @@ class LocalDeltaFileRecordChangeNotifier
 
 std::unique_ptr<DeltaFileRecordChangeNotifier>
 DeltaFileRecordChangeNotifier::Create(
-    std::unique_ptr<ChangeNotifier> change_notifier,
-    MetricsRecorder& metrics_recorder) {
+    std::unique_ptr<ChangeNotifier> change_notifier) {
   return std::make_unique<LocalDeltaFileRecordChangeNotifier>(
       std::move(change_notifier));
 }

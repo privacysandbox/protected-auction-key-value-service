@@ -100,6 +100,7 @@ module "load_balancing" {
   healthcheck_healthy_threshold   = var.healthcheck_healthy_threshold
   healthcheck_interval_sec        = var.healthcheck_interval_sec
   healthcheck_unhealthy_threshold = var.healthcheck_unhealthy_threshold
+  http_api_paths                  = var.http_api_paths
 }
 
 module "autoscaling" {
@@ -127,6 +128,7 @@ module "autoscaling" {
   prometheus_service_region    = var.prometheus_service_region
   prometheus_workspace_id      = var.prometheus_workspace_id != "" ? var.prometheus_workspace_id : module.telemetry.prometheus_workspace_id
   shard_num                    = count.index
+  run_server_outside_tee       = var.run_server_outside_tee
 }
 
 module "ssh" {
@@ -156,10 +158,15 @@ module "parameter" {
   s3client_max_range_bytes_parameter_value               = var.s3client_max_range_bytes
   num_shards_parameter_value                             = var.num_shards
   udf_num_workers_parameter_value                        = var.udf_num_workers
+  udf_timeout_millis_parameter_value                     = var.udf_timeout_millis
   route_v1_requests_to_v2_parameter_value                = var.route_v1_requests_to_v2
   use_real_coordinators_parameter_value                  = var.use_real_coordinators
   primary_coordinator_account_identity_parameter_value   = var.primary_coordinator_account_identity
   secondary_coordinator_account_identity_parameter_value = var.secondary_coordinator_account_identity
+  data_loading_file_format_parameter_value               = var.data_loading_file_format
+  logging_verbosity_level_parameter_value                = var.logging_verbosity_level
+  use_sharding_key_regex_parameter_value                 = var.use_sharding_key_regex
+  sharding_key_regex_parameter_value                     = var.sharding_key_regex
 }
 
 module "security_group_rules" {
@@ -203,7 +210,11 @@ module "iam_role_policies" {
     module.parameter.num_shards_parameter_arn,
     module.parameter.udf_num_workers_parameter_arn,
     module.parameter.route_v1_requests_to_v2_parameter_arn,
-  module.parameter.use_real_coordinators_parameter_arn]
+    module.parameter.data_loading_file_format_parameter_arn,
+    module.parameter.logging_verbosity_level_parameter_arn,
+    module.parameter.use_real_coordinators_parameter_arn,
+    module.parameter.use_sharding_key_regex_parameter_arn,
+  module.parameter.udf_timeout_millis_parameter_arn]
   coordinator_parameter_arns = (
     var.use_real_coordinators ? [
       module.parameter.primary_coordinator_account_identity_parameter_arn,
@@ -213,6 +224,11 @@ module "iam_role_policies" {
   metrics_collector_endpoint_arns = (
     var.use_external_metrics_collector_endpoint ? [
       module.parameter.metrics_collector_endpoint_arn
+    ] : []
+  )
+  sharding_key_regex_arns = (
+    var.use_sharding_key_regex ? [
+      module.parameter.sharding_key_regex_parameter_arn
     ] : []
   )
 }

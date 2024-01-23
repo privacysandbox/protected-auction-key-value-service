@@ -11,6 +11,9 @@ build --config=noexcept
 # Disable some ROMA error checking
 build --per_file_copt=.*sandboxed_api.*@-Wno-return-type
 
+build:run_all_tests --cache_test_results=no
+test:run_all_tests --test_verbose_timeout_warnings
+
 # Broadly disable C++ Exceptions
 # https://google.github.io/styleguide/cppguide.html#Exceptions
 build:noexcept --copt=-fno-exceptions
@@ -35,11 +38,9 @@ build:clang --client_env=CC=clang
 build:clang --cxxopt=-std=c++17
 build:clang --host_cxxopt=-std=c++17
 build:clang --client_env=BAZEL_CXXOPTS=-std=c++17
+build:clang --per_file_copt=external/nitrokmscli_.*\.c@-Wno-int-conversion
 
-# Required to run wasm_cc_binary
-build:emscripten --incompatible_enable_cc_toolchain_resolution
-
-# Required to use protos in wasm_cc_binary
+# Required to use protos in wasm_cc_binary/inline_wasm_cc_binary
 build:emscripten --per_file_copt=.*zlib.*@-Wno-deprecated-non-prototype
 build:emscripten --per_file_copt=.*utf8_range.*@-Wno-unused-function
 
@@ -82,32 +83,32 @@ build:ubsan --copt=-fno-omit-frame-pointer
 build:ubsan --linkopt:-fsanitize=undefined
 build:ubsan --linkopt=-lubsan
 
-# --config local_instance: builds the service to run with the instance=local flag
+# --config local_instance: builds assuming the instance is local
 build:local_instance --//:instance=local
 build:local_instance --@google_privacysandbox_servers_common//:instance=local
 
-# --config local_instance: builds the service to run in AWS
+# --config aws_instance: builds assuming the instance is on AWS
 build:aws_instance --//:instance=aws
 build:aws_instance --@google_privacysandbox_servers_common//:instance=aws
 
-# --config local_instance: builds the service to run in GCP
+# --config gcp_instance: builds assuming the instance is on GCP
 build:gcp_instance --//:instance=gcp
 build:gcp_instance --@google_privacysandbox_servers_common//:instance=gcp
 
-# --config aws_platform: builds the service to run with AWS
+# --config local_platform: builds the service to run locally
 build:local_platform --//:platform=local
-build:local_platform --@google_privacysandbox_servers_common//:platform=local
 
 # --config aws_platform: builds the service to run with AWS
 build:aws_platform --//:platform=aws
 build:aws_platform --@google_privacysandbox_servers_common//:platform=aws
-build:aws_platform --@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:platform=aws
 
-# --config gcp_platform: builds the service to run with AWS
+# --config gcp_platform: builds the service to run with GCP
 build:gcp_platform --//:platform=gcp
 build:gcp_platform --@google_privacysandbox_servers_common//:platform=gcp
-build:gcp_platform --@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:platform=gcp
 
 try-import %workspace%/builders/.coverage.bazelrc
 coverage --test_tag_filters=-nocoverage
 coverage --test_size_filters=-enormous
+
+build:non_prod --@google_privacysandbox_servers_common//:build_flavor=non_prod
+build:prod --@google_privacysandbox_servers_common//:build_flavor=prod

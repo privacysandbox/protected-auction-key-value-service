@@ -25,7 +25,6 @@
 #include "absl/status/statusor.h"
 #include "components/data/common/notifier_metadata.h"
 #include "components/data/realtime/realtime_notifier.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
@@ -47,7 +46,6 @@ class RealtimeThreadPoolManager {
   // Create a realtime thread pool manager that will use the specified
   // numbers of threads to read from the queue.
   static absl::StatusOr<std::unique_ptr<RealtimeThreadPoolManager>> Create(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       NotifierMetadata notifier_metadata, int32_t num_threads,
       // This parameter allows overrides that are used for tests
       std::vector<RealtimeNotifierMetadata> realtime_notifier_metadata = {});

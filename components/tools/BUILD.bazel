@@ -71,6 +71,8 @@ cc_binary(
         "//public:base_types_cc_proto",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading/readers:riegeli_stream_io",
+        "//public/data_loading/readers:riegeli_stream_record_reader_factory",
+        "//public/sharding:key_sharder",
         "@com_github_google_flatbuffers//:flatbuffers",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
@@ -149,6 +151,7 @@ cc_binary(
         "//public/data_loading:filename_utils",
         "//public/data_loading:records_utils",
         "//public/data_loading/readers:riegeli_stream_io",
+        "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/flags:usage",
@@ -176,9 +179,15 @@ cc_binary(
 cc_binary(
     name = "realtime_updates_publisher",
     srcs = ["realtime_updates_publisher.cc"],
+    copts = select({
+        "//:aws_platform": ["-DCLOUD_PLATFORM_AWS=1"],
+        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
+        "//:local_platform": ["-DCLOUD_PLATFORM_LOCAL=1"],
+        "//conditions:default": [],
+    }),
     visibility = ["//production/packaging:__subpackages__"],
     deps = [
-        ":publisher_service",
+        ":concurrent_publishing_engine",
         "//components/util:platform_initializer",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
@@ -200,9 +209,15 @@ cc_library(
     hdrs = [
         "publisher_service.h",
     ],
+    copts = select({
+        "//:aws_platform": ["-DCLOUD_PLATFORM_AWS=1"],
+        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
+        "//conditions:default": [],
+    }),
     deps = select({
         "//:gcp_platform": [
             "//components/errors:gcp_error_util",
+            "//components/util:platform_initializer",
             "@com_github_googleapis_google_cloud_cpp//:pubsub",
         ],
         "//conditions:default": [
@@ -212,6 +227,8 @@ cc_library(
     }) + [
         "//components/data/common:message_service",
         "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -240,16 +257,39 @@ cc_binary(
 cc_binary(
     name = "realtime_notifier",
     srcs = ["realtime_notifier.cc"],
+    copts = select({
+        "//:aws_platform": ["-DCLOUD_PLATFORM_AWS=1"],
+        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
+        "//:local_platform": ["-DCLOUD_PLATFORM_LOCAL=1"],
+        "//conditions:default": [],
+    }),
     deps = [
+        ":publisher_service",
         "//components/data/realtime:realtime_notifier",
         "//components/util:platform_initializer",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:filename_utils",
         "//public/data_loading:records_utils",
         "//public/data_loading/readers:riegeli_stream_io",
+        "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/flags:usage",
         "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
+    name = "concurrent_publishing_engine",
+    srcs = ["concurrent_publishing_engine.cc"],
+    hdrs = [
+        "concurrent_publishing_engine.h",
+    ],
+    visibility = ["//tools:__subpackages__"],
+    deps = [
+        ":publisher_service",
+        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/cpp/util:duration",
     ],
 )

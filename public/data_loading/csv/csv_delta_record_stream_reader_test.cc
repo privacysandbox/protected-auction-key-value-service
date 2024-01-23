@@ -18,6 +18,7 @@
 
 #include <sstream>
 
+#include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/csv/csv_delta_record_stream_writer.h"
@@ -26,24 +27,50 @@
 namespace kv_server {
 namespace {
 
-KeyValueMutationRecordStruct GetKVMutationRecord(
-    KeyValueMutationRecordValueT value = "value") {
-  KeyValueMutationRecordStruct record;
-  record.key = "key";
-  record.value = value;
-  record.logical_commit_time = 1234567890;
-  record.mutation_type = KeyValueMutationType::Update;
-  return record;
+StringValueT GetSimpleStringValue(std::string value = "value") {
+  StringValueT string_value;
+  string_value.value = value;
+  return string_value;
 }
 
-UserDefinedFunctionsConfigStruct GetUserDefinedFunctionsConfig() {
-  UserDefinedFunctionsConfigStruct udf_config_record;
+StringSetT GetStringSetValue(const std::vector<std::string_view>& values) {
+  StringSetT string_set;
+  string_set.value = {values.begin(), values.end()};
+  return string_set;
+}
+
+template <typename ValueT>
+std::pair<KeyValueMutationRecordStruct, KeyValueMutationRecordT>
+GetKVMutationRecord(ValueT&& value,
+                    KeyValueMutationRecordValueT legacy_value = "value") {
+  KeyValueMutationRecordT record;
+  record.key = "key";
+  record.value.Set(std::move(value));
+  record.logical_commit_time = 1234567890;
+  record.mutation_type = KeyValueMutationType::Update;
+  KeyValueMutationRecordStruct legacy_record;
+  legacy_record.key = "key";
+  legacy_record.value = legacy_value;
+  legacy_record.logical_commit_time = 1234567890;
+  legacy_record.mutation_type = KeyValueMutationType::Update;
+  return {legacy_record, record};
+}
+
+std::pair<UserDefinedFunctionsConfigStruct, UserDefinedFunctionsConfigT>
+GetUserDefinedFunctionsConfig() {
+  UserDefinedFunctionsConfigT udf_config_record;
   udf_config_record.language = UserDefinedFunctionsLanguage::Javascript;
   udf_config_record.code_snippet = "function hello(){}";
   udf_config_record.handler_name = "hello";
   udf_config_record.logical_commit_time = 1234567890;
   udf_config_record.version = 1;
-  return udf_config_record;
+  UserDefinedFunctionsConfigStruct legacy_udf_config_record;
+  legacy_udf_config_record.language = UserDefinedFunctionsLanguage::Javascript;
+  legacy_udf_config_record.code_snippet = "function hello(){}";
+  legacy_udf_config_record.handler_name = "hello";
+  legacy_udf_config_record.logical_commit_time = 1234567890;
+  legacy_udf_config_record.version = 1;
+  return {legacy_udf_config_record, udf_config_record};
 }
 
 DataRecordStruct GetDataRecord(const RecordT& record) {
@@ -52,20 +79,32 @@ DataRecordStruct GetDataRecord(const RecordT& record) {
   return data_record;
 }
 
+template <typename T>
+DataRecordT GetNativeDataRecord(T&& record) {
+  DataRecordT data_record;
+  data_record.record.Set(std::move(record));
+  return data_record;
+}
+
 TEST(CsvDeltaRecordStreamReaderTest,
      ValidateReadingAndWriting_KVMutation_StringValues_Success) {
   std::stringstream string_stream;
   CsvDeltaRecordStreamWriter record_writer(string_stream);
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
-  EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
+  auto [legacy_mutation, mutation] =
+      GetKVMutationRecord(GetSimpleStringValue());
+  auto input = GetDataRecord(legacy_mutation);
+  auto expected = GetNativeDataRecord(mutation);
+  EXPECT_TRUE(record_writer.WriteRecord(input).ok());
   EXPECT_TRUE(record_writer.Flush().ok());
+  LOG(INFO) << string_stream.str();
   CsvDeltaRecordStreamReader record_reader(string_stream);
-  EXPECT_TRUE(record_reader
-                  .ReadRecords([&expected](DataRecordStruct record) {
-                    EXPECT_EQ(record, expected);
-                    return absl::OkStatus();
-                  })
-                  .ok());
+  auto status =
+      record_reader.ReadRecords([&expected](const DataRecord& record) {
+        std::unique_ptr<DataRecordT> native_type_record(record.UnPack());
+        EXPECT_EQ(*native_type_record, expected);
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST(CsvDeltaRecordStreamReaderTest,
@@ -75,15 +114,21 @@ TEST(CsvDeltaRecordStreamReaderTest,
   CsvDeltaRecordStreamWriter record_writer(
       string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
                          .csv_encoding = CsvEncoding::kBase64});
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
-  EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
+  auto [legacy_mutation, mutation] =
+      GetKVMutationRecord(GetSimpleStringValue());
+  auto input = GetDataRecord(legacy_mutation);
+  auto expected = GetNativeDataRecord(mutation);
+  EXPECT_TRUE(record_writer.WriteRecord(input).ok());
   EXPECT_TRUE(record_writer.Flush().ok());
+  LOG(INFO) << string_stream.str();
   CsvDeltaRecordStreamReader record_reader(
       string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
                          .csv_encoding = CsvEncoding::kBase64});
   EXPECT_TRUE(record_reader
-                  .ReadRecords([&expected](DataRecordStruct record) {
-                    EXPECT_EQ(record, expected);
+                  .ReadRecords([&expected](const DataRecord& record) {
+                    std::unique_ptr<DataRecordT> native_type_record(
+                        record.UnPack());
+                    EXPECT_EQ(*native_type_record, expected);
                     return absl::OkStatus();
                   })
                   .ok());
@@ -100,10 +145,9 @@ TEST(CsvDeltaRecordStreamReaderTest,
       csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
                       .csv_encoding = CsvEncoding::kBase64});
   auto status = record_reader.ReadRecords(
-      [](DataRecordStruct record) { return absl::OkStatus(); });
+      [](const DataRecord& record) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
-  EXPECT_STREQ(std::string(status.message()).c_str(),
-               "base64 decode failed for value: value")
+  EXPECT_EQ(status.message(), "base64 decode failed for value: value")
       << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -117,10 +161,10 @@ TEST(CsvDeltaRecordStreamReaderTest,
   csv_stream.str(invalid_data);
   CsvDeltaRecordStreamReader record_reader(csv_stream);
   absl::Status status = record_reader.ReadRecords(
-      [](const DataRecordStruct&) { return absl::OkStatus(); });
+      [](const DataRecord&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
-  EXPECT_STREQ(std::string(status.message()).c_str(),
-               "Cannot convert logical_commit_time:invalid_time to a number.")
+  EXPECT_EQ(status.message(),
+            "Cannot convert logical_commit_time:invalid_time to a number.")
       << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -134,10 +178,9 @@ TEST(CsvDeltaRecordStreamReaderTest,
   csv_stream.str(invalid_data);
   CsvDeltaRecordStreamReader record_reader(csv_stream);
   absl::Status status = record_reader.ReadRecords(
-      [](DataRecordStruct) { return absl::OkStatus(); });
+      [](const DataRecord&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
-  EXPECT_STREQ(std::string(status.message()).c_str(),
-               "Unknown mutation type:invalid_mutation")
+  EXPECT_EQ(status.message(), "Unknown mutation type:invalid_mutation")
       << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -149,21 +192,27 @@ TEST(CsvDeltaRecordStreamReaderTest,
       "elem2",
       "elem3",
   };
+
   std::stringstream string_stream;
   CsvDeltaRecordStreamWriter record_writer(string_stream);
 
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord(values));
-  auto status = record_writer.WriteRecord(expected);
-  EXPECT_TRUE(status.ok()) << status;
-  status = record_writer.Flush();
-  EXPECT_TRUE(status.ok()) << status;
+  auto [legacy_mutation, mutation] =
+      GetKVMutationRecord(GetStringSetValue(values), values);
+  auto input = GetDataRecord(legacy_mutation);
+  auto expected = GetNativeDataRecord(mutation);
+  EXPECT_TRUE(record_writer.WriteRecord(input).ok());
+  EXPECT_TRUE(record_writer.Flush().ok());
+  LOG(INFO) << string_stream.str();
   CsvDeltaRecordStreamReader record_reader(string_stream);
-  status = record_reader.ReadRecords([&expected](DataRecordStruct record) {
-    EXPECT_EQ(record, expected);
-    return absl::OkStatus();
-  });
+  auto status =
+      record_reader.ReadRecords([&expected](const DataRecord& record) {
+        std::unique_ptr<DataRecordT> native_type_record(record.UnPack());
+        EXPECT_EQ(*native_type_record, expected);
+        return absl::OkStatus();
+      });
   EXPECT_TRUE(status.ok()) << status;
 }
+
 TEST(CsvDeltaRecordStreamReaderTest,
      ValidateReadingAndWriting_KVMutation_SetValues_Base64_Success) {
   const std::vector<std::string_view> values{
@@ -176,18 +225,22 @@ TEST(CsvDeltaRecordStreamReaderTest,
       string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
                          .csv_encoding = CsvEncoding::kBase64});
 
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord(values));
-  auto status = record_writer.WriteRecord(expected);
-  EXPECT_TRUE(status.ok()) << status;
-  status = record_writer.Flush();
-  EXPECT_TRUE(status.ok()) << status;
+  auto [legacy_mutation, mutation] =
+      GetKVMutationRecord(GetStringSetValue(values), values);
+  auto input = GetDataRecord(legacy_mutation);
+  auto expected = GetNativeDataRecord(mutation);
+  EXPECT_TRUE(record_writer.WriteRecord(input).ok());
+  EXPECT_TRUE(record_writer.Flush().ok());
+  LOG(INFO) << string_stream.str();
   CsvDeltaRecordStreamReader record_reader(
       string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
                          .csv_encoding = CsvEncoding::kBase64});
-  status = record_reader.ReadRecords([&expected](DataRecordStruct record) {
-    EXPECT_EQ(record, expected);
-    return absl::OkStatus();
-  });
+  auto status =
+      record_reader.ReadRecords([&expected](const DataRecord& record) {
+        std::unique_ptr<DataRecordT> native_type_record(record.UnPack());
+        EXPECT_EQ(*native_type_record, expected);
+        return absl::OkStatus();
+      });
   EXPECT_TRUE(status.ok()) << status;
 }
 
@@ -202,7 +255,7 @@ TEST(CsvDeltaRecordStreamReaderTest,
       csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
                       .csv_encoding = CsvEncoding::kBase64});
   const auto status = record_reader.ReadRecords(
-      [](DataRecordStruct) { return absl::OkStatus(); });
+      [](const DataRecord&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -211,15 +264,16 @@ TEST(CsvDeltaRecordStreamReaderTest,
      ReadingCsvRecords_KvMutation_UdfConfigHeader_Failure) {
   std::stringstream string_stream;
   CsvDeltaRecordStreamWriter record_writer(string_stream);
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
-  EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
+  auto [legacy_mutation, mutation] =
+      GetKVMutationRecord(GetSimpleStringValue());
+  auto input = GetDataRecord(legacy_mutation);
+  EXPECT_TRUE(record_writer.WriteRecord(input).ok());
   EXPECT_TRUE(record_writer.Flush().ok());
   CsvDeltaRecordStreamReader record_reader(
-      string_stream,
-      CsvDeltaRecordStreamReader<std::stringstream>::Options{
-          .record_type = DataRecordType::kUserDefinedFunctionsConfig});
+      string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                         .record_type = Record::UserDefinedFunctionsConfig});
   const auto status = record_reader.ReadRecords(
-      [](DataRecordStruct) { return absl::OkStatus(); });
+      [](const DataRecord&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -231,16 +285,19 @@ TEST(CsvDeltaRecordStreamReaderTest,
       string_stream,
       CsvDeltaRecordStreamWriter<std::stringstream>::Options{
           .record_type = DataRecordType::kUserDefinedFunctionsConfig});
-  DataRecordStruct expected = GetDataRecord(GetUserDefinedFunctionsConfig());
-  EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
+  auto [legacy_udf_config, udf_config] = GetUserDefinedFunctionsConfig();
+  auto input = GetDataRecord(legacy_udf_config);
+  auto expected = GetNativeDataRecord(udf_config);
+  EXPECT_TRUE(record_writer.WriteRecord(input).ok());
   EXPECT_TRUE(record_writer.Flush().ok());
   CsvDeltaRecordStreamReader record_reader(
-      string_stream,
-      CsvDeltaRecordStreamReader<std::stringstream>::Options{
-          .record_type = DataRecordType::kUserDefinedFunctionsConfig});
+      string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                         .record_type = Record::UserDefinedFunctionsConfig});
   EXPECT_TRUE(record_reader
-                  .ReadRecords([&expected](DataRecordStruct record) {
-                    EXPECT_EQ(record, expected);
+                  .ReadRecords([&expected](const DataRecord& record) {
+                    std::unique_ptr<DataRecordT> native_type_record(
+                        record.UnPack());
+                    EXPECT_EQ(*native_type_record, expected);
                     return absl::OkStatus();
                   })
                   .ok());
@@ -253,15 +310,16 @@ TEST(CsvDeltaRecordStreamReaderTest,
       string_stream,
       CsvDeltaRecordStreamWriter<std::stringstream>::Options{
           .record_type = DataRecordType::kUserDefinedFunctionsConfig});
-  DataRecordStruct expected = GetDataRecord(GetUserDefinedFunctionsConfig());
-  EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
+  auto [legacy_udf_config, udf_config] = GetUserDefinedFunctionsConfig();
+  auto input = GetDataRecord(legacy_udf_config);
+  auto expected = GetNativeDataRecord(udf_config);
+  EXPECT_TRUE(record_writer.WriteRecord(input).ok());
   EXPECT_TRUE(record_writer.Flush().ok());
   CsvDeltaRecordStreamReader record_reader(
-      string_stream,
-      CsvDeltaRecordStreamReader<std::stringstream>::Options{
-          .record_type = DataRecordType::kKeyValueMutationRecord});
+      string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                         .record_type = Record::KeyValueMutationRecord});
   const auto status = record_reader.ReadRecords(
-      [](DataRecordStruct) { return absl::OkStatus(); });
+      [](const DataRecord&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -274,14 +332,13 @@ TEST(CsvDeltaRecordStreamReaderTest,
   std::stringstream csv_stream;
   csv_stream.str(invalid_data);
   CsvDeltaRecordStreamReader record_reader(
-      csv_stream,
-      CsvDeltaRecordStreamReader<std::stringstream>::Options{
-          .record_type = DataRecordType::kUserDefinedFunctionsConfig});
+      csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                      .record_type = Record::UserDefinedFunctionsConfig});
   absl::Status status = record_reader.ReadRecords(
-      [](const DataRecordStruct&) { return absl::OkStatus(); });
+      [](const DataRecord&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
-  EXPECT_STREQ(std::string(status.message()).c_str(),
-               "Cannot convert logical_commit_time:invalid_time to a number.")
+  EXPECT_EQ(status.message(),
+            "Cannot convert logical_commit_time:invalid_time to a number.")
       << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -294,14 +351,13 @@ TEST(CsvDeltaRecordStreamReaderTest,
   std::stringstream csv_stream;
   csv_stream.str(invalid_data);
   CsvDeltaRecordStreamReader record_reader(
-      csv_stream,
-      CsvDeltaRecordStreamReader<std::stringstream>::Options{
-          .record_type = DataRecordType::kUserDefinedFunctionsConfig});
+      csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                      .record_type = Record::UserDefinedFunctionsConfig});
   absl::Status status = record_reader.ReadRecords(
-      [](const DataRecordStruct&) { return absl::OkStatus(); });
+      [](const DataRecord&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
-  EXPECT_STREQ(std::string(status.message()).c_str(),
-               "Cannot convert version:invalid_version to a number.")
+  EXPECT_EQ(status.message(),
+            "Cannot convert version:invalid_version to a number.")
       << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -314,14 +370,12 @@ TEST(CsvDeltaRecordStreamReaderTest,
   std::stringstream csv_stream;
   csv_stream.str(invalid_data);
   CsvDeltaRecordStreamReader record_reader(
-      csv_stream,
-      CsvDeltaRecordStreamReader<std::stringstream>::Options{
-          .record_type = DataRecordType::kUserDefinedFunctionsConfig});
+      csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
+                      .record_type = Record::UserDefinedFunctionsConfig});
   absl::Status status = record_reader.ReadRecords(
-      [](const DataRecordStruct&) { return absl::OkStatus(); });
+      [](const DataRecord&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
-  EXPECT_STREQ(std::string(status.message()).c_str(),
-               "Language: invalid_language is not supported.")
+  EXPECT_EQ(status.message(), "Language: invalid_language is not supported.")
       << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }
@@ -332,17 +386,20 @@ TEST(CsvDeltaRecordStreamReaderTest,
   CsvDeltaRecordStreamWriter record_writer(
       string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
                          .record_type = DataRecordType::kShardMappingRecord});
-  DataRecordStruct expected = GetDataRecord(
+  ShardMappingRecordT shard_mapping_record;
+  DataRecordStruct input = GetDataRecord(
       ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
-  auto status = record_writer.WriteRecord(expected);
+  auto expected = GetNativeDataRecord(shard_mapping_record);
+  auto status = record_writer.WriteRecord(input);
   EXPECT_TRUE(status.ok()) << status;
   status = record_writer.Flush();
   EXPECT_TRUE(status.ok());
   CsvDeltaRecordStreamReader record_reader(
       string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
-                         .record_type = DataRecordType::kShardMappingRecord});
-  status = record_reader.ReadRecords([&expected](DataRecordStruct record) {
-    EXPECT_EQ(record, expected);
+                         .record_type = Record::ShardMappingRecord});
+  status = record_reader.ReadRecords([&expected](const DataRecord& record) {
+    std::unique_ptr<DataRecordT> native_type_record(record.UnPack());
+    EXPECT_EQ(*native_type_record, expected);
     return absl::OkStatus();
   });
   EXPECT_TRUE(status.ok()) << status;
@@ -357,12 +414,12 @@ TEST(CsvDeltaRecordStreamReaderTest,
   csv_stream.str(invalid_data);
   CsvDeltaRecordStreamReader record_reader(
       csv_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
-                      .record_type = DataRecordType::kShardMappingRecord});
+                      .record_type = Record::ShardMappingRecord});
   absl::Status status = record_reader.ReadRecords(
-      [](const DataRecordStruct&) { return absl::OkStatus(); });
+      [](const DataRecord&) { return absl::OkStatus(); });
   EXPECT_FALSE(status.ok()) << status;
-  EXPECT_STREQ(std::string(status.message()).c_str(),
-               "Cannot convert logical_shard:  not_a_number to a number.")
+  EXPECT_EQ(status.message(),
+            "Cannot convert logical_shard:  not_a_number to a number.")
       << status;
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument) << status;
 }

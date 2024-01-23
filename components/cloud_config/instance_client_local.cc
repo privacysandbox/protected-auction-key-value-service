@@ -28,8 +28,6 @@ ABSL_FLAG(std::string, shard_num, "0", "Shard number.");
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
 class LocalInstanceClient : public InstanceClient {
  public:
   absl::StatusOr<std::string> GetEnvironmentTag() override {
@@ -81,8 +79,7 @@ class LocalInstanceClient : public InstanceClient {
 
 }  // namespace
 
-std::unique_ptr<InstanceClient> InstanceClient::Create(
-    MetricsRecorder& metrics_recorder) {
+std::unique_ptr<InstanceClient> InstanceClient::Create() {
   return std::make_unique<LocalInstanceClient>();
 }
 

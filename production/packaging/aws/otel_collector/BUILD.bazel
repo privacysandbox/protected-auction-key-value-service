@@ -16,7 +16,7 @@ load("@rules_pkg//pkg:mappings.bzl", "pkg_files")
 
 package(default_visibility = ["//visibility:public"])
 
-otel_version = "0.23.0"
+otel_version = "0.36.0"
 
 otel_tag = "v" + otel_version
 

@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "absl/status/statusor.h"
+#include "components/data_server/server/mocks.h"
 #include "components/data_server/server/parameter_fetcher.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -24,26 +25,14 @@
 
 namespace kv_server {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
-
-class MockParameterClient : public ParameterClient {
- public:
-  MOCK_METHOD(absl::StatusOr<std::string>, GetParameter,
-              (std::string_view parameter_name), (const, override));
-  MOCK_METHOD(absl::StatusOr<int32_t>, GetInt32Parameter,
-              (std::string_view parameter_name), (const, override));
-  MOCK_METHOD(absl::StatusOr<bool>, GetBoolParameter,
-              (std::string_view parameter_name), (const, override));
-};
-
 TEST(ParameterFetcherTest, CreateChangeNotifierSmokeTest) {
   MockParameterClient client;
-  EXPECT_CALL(client, GetParameter("kv-server-local-directory"))
+  EXPECT_CALL(client, GetParameter("kv-server-local-directory",
+                                   testing::Eq(std::nullopt)))
       .Times(1)
       .WillOnce(::testing::Return(::testing::TempDir()));
-  MockMetricsRecorder metrics_recorder;
   ParameterFetcher fetcher(
-      /*environment=*/"local", client, &metrics_recorder);
+      /*environment=*/"local", client);
 
   const auto metadata = fetcher.GetBlobStorageNotifierMetadata();
   auto local_notifier_metadata = std::get<LocalNotifierMetadata>(metadata);
@@ -53,12 +42,13 @@ TEST(ParameterFetcherTest, CreateChangeNotifierSmokeTest) {
 
 TEST(ParameterFetcherTest, CreateDeltaFileRecordChangeNotifierSmokeTest) {
   MockParameterClient client;
-  EXPECT_CALL(client, GetParameter("kv-server-local-realtime-directory"))
+  EXPECT_CALL(client, GetParameter("kv-server-local-realtime-directory",
+                                   testing::Eq(std::nullopt)))
       .Times(1)
       .WillOnce(::testing::Return(::testing::TempDir()));
-  MockMetricsRecorder metrics_recorder;
+
   ParameterFetcher fetcher(
-      /*environment=*/"local", client, &metrics_recorder);
+      /*environment=*/"local", client);
 
   const int32_t num_shards = 1;
   const int32_t shard_num = 0;

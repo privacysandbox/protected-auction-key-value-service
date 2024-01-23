@@ -36,15 +36,12 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
 class GcpBlobInputStreamBuf : public SeekingInputStreambuf {
  public:
   GcpBlobInputStreamBuf(google::cloud::storage::Client& client,
                         BlobStorageClient::DataLocation location,
-                        MetricsRecorder& metrics_recorder,
                         SeekingInputStreambuf::Options options)
-      : SeekingInputStreambuf(metrics_recorder, std::move(options)),
+      : SeekingInputStreambuf(std::move(options)),
         client_(client),
         location_(std::move(location)) {}
 
@@ -83,10 +80,9 @@ class GcpBlobInputStreamBuf : public SeekingInputStreambuf {
 class GcpBlobReader : public BlobReader {
  public:
   GcpBlobReader(google::cloud::storage::Client& client,
-                BlobStorageClient::DataLocation location,
-                MetricsRecorder& metrics_recorder)
+                BlobStorageClient::DataLocation location)
       : BlobReader(),
-        streambuf_(client, location, metrics_recorder,
+        streambuf_(client, location,
                    GetOptions([this, location](absl::Status status) {
                      LOG(ERROR) << "Blob " << location.key
                                 << " failed stream with: " << status;
@@ -111,14 +107,12 @@ class GcpBlobReader : public BlobReader {
 }  // namespace
 
 GcpBlobStorageClient::GcpBlobStorageClient(
-    MetricsRecorder& metrics_recorder,
     std::unique_ptr<google::cloud::storage::Client> client)
-    : metrics_recorder_(metrics_recorder), client_(std::move(client)) {}
+    : client_(std::move(client)) {}
 
 std::unique_ptr<BlobReader> GcpBlobStorageClient::GetBlobReader(
     DataLocation location) {
-  return std::make_unique<GcpBlobReader>(*client_, std::move(location),
-                                         metrics_recorder_);
+  return std::make_unique<GcpBlobReader>(*client_, std::move(location));
 }
 
 absl::Status GcpBlobStorageClient::PutBlob(BlobReader& blob_reader,
@@ -172,10 +166,9 @@ class GcpBlobStorageClientFactory : public BlobStorageClientFactory {
  public:
   ~GcpBlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
-      MetricsRecorder& metrics_recorder,
       BlobStorageClient::ClientOptions /*client_options*/) override {
     return std::make_unique<GcpBlobStorageClient>(
-        metrics_recorder, std::make_unique<google::cloud::storage::Client>());
+        std::make_unique<google::cloud::storage::Client>());
   }
 };
 }  // namespace

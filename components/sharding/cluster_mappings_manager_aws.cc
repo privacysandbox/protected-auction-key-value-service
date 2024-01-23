@@ -22,12 +22,11 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
  public:
   AwsClusterMappingsManager(
       std::string environment, int32_t num_shards,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       InstanceClient& instance_client,
       std::unique_ptr<SleepFor> sleep_for = std::make_unique<SleepFor>(),
       int32_t update_interval_millis = 1000)
       : ClusterMappingsManager(std::move(environment), num_shards,
-                               metrics_recorder, instance_client),
+                               instance_client),
         asg_regex_{std::regex(absl::StrCat("kv-server-", environment_,
                                            R"(-(\d+)-instance-asg)"))} {}
 
@@ -46,7 +45,8 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
           return instance_client.DescribeInstanceGroupInstances(
               describe_instance_group_input);
         },
-        "DescribeInstanceGroupInstances", &metrics_recorder_);
+        "DescribeInstanceGroupInstances",
+        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>());
 
     return GroupInstancesToClusterMappings(instance_group_instances);
   }
@@ -66,7 +66,7 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
     return absl::InvalidArgumentError(absl::StrCat("Can't parse: ", asg_name));
   }
 
-  absl::flat_hash_map<std::string, std::string> GetInstaceIdToIpMapping(
+  absl::flat_hash_map<std::string, std::string> GetInstanceIdToIpMapping(
       const std::vector<InstanceInfo>& instance_group_instances) const {
     absl::flat_hash_set<std::string> instance_ids;
     for (const auto& instance : instance_group_instances) {
@@ -81,7 +81,8 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
         [&instance_client, &instance_ids] {
           return instance_client.DescribeInstances(instance_ids);
         },
-        "DescribeInstances", &metrics_recorder_);
+        "DescribeInstances",
+        LogStatusSafeMetricsFn<kDescribeInstancesStatus>());
 
     absl::flat_hash_map<std::string, std::string> mapping;
     for (const auto& instance : instances_detailed_info) {
@@ -92,7 +93,7 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
 
   std::vector<absl::flat_hash_set<std::string>> GroupInstancesToClusterMappings(
       std::vector<InstanceInfo>& instance_group_instances) const {
-    auto id_to_ip = GetInstaceIdToIpMapping(instance_group_instances);
+    auto id_to_ip = GetInstanceIdToIpMapping(instance_group_instances);
     std::vector<absl::flat_hash_set<std::string>> cluster_mappings(num_shards_);
     for (const auto& instance : instance_group_instances) {
       if (instance.service_status != InstanceServiceStatus::kInService) {
@@ -122,10 +123,9 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
 
 std::unique_ptr<ClusterMappingsManager> ClusterMappingsManager::Create(
     std::string environment, int32_t num_shards,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
     InstanceClient& instance_client, ParameterFetcher& parameter_fetcher) {
-  return std::make_unique<AwsClusterMappingsManager>(
-      environment, num_shards, metrics_recorder, instance_client);
+  return std::make_unique<AwsClusterMappingsManager>(environment, num_shards,
+                                                     instance_client);
 }
 
 }  // namespace kv_server

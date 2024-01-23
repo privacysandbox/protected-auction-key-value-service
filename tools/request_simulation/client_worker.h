@@ -59,7 +59,8 @@ class ClientWorker {
                std::string_view service_method, absl::Duration request_timeout,
                absl::AnyInvocable<RequestT(std::string)> request_converter,
                MessageQueue& message_queue, RateLimiter& rate_limiter,
-               MetricsCollector& metrics_collector)
+               MetricsCollector& metrics_collector,
+               bool is_client_channel = true)
       : service_method_(service_method),
         message_queue_(message_queue),
         rate_limiter_(rate_limiter),
@@ -68,7 +69,7 @@ class ClientWorker {
         thread_manager_(
             TheadManager::Create(absl::StrCat("Client worker ", id))) {
     grpc_client_ = std::make_unique<GrpcClient<RequestT, ResponseT>>(
-        channel, request_timeout);
+        channel, request_timeout, is_client_channel);
   }
   // Starts the thread of sending requests.
   absl::Status Start();

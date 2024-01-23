@@ -26,9 +26,7 @@ resource "aws_lb" "public_alb" {
   ]
 
   tags = {
-    Name        = "${var.service}-${var.environment}-public-alb"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-public-alb"
   }
 }
 
@@ -98,9 +96,7 @@ resource "aws_lb_target_group" "alb_http1_target_group" {
   }
 
   tags = {
-    Name        = "${var.service}-${var.environment}-alb-http1-tg"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-alb-http1-tg"
   }
 }
 
@@ -122,9 +118,7 @@ resource "aws_lb_target_group" "alb_http2_target_group" {
   }
 
   tags = {
-    Name        = "${var.service}-${var.environment}-alb-http2-tg"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-alb-http2-tg"
   }
 }
 
@@ -146,9 +140,7 @@ resource "aws_lb_target_group" "alb_grpc_target_group" {
   }
 
   tags = {
-    Name        = "${var.service}-${var.environment}-alb-grpc-tg"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-alb-grpc-tg"
   }
 }
 

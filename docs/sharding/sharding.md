@@ -69,7 +69,7 @@ described in more details below. In terms of resource footprint, as you can see 
 sharded case, N auto scaling groups are created, whereas in the non-sharded world only one is
 created.
 
-![Sharding high level](assets/sharding.png)
+![Sharding high level](../assets/sharding.png)
 
 ## Enabling sharding
 
@@ -103,13 +103,16 @@ should use this [sharding function](#sharding-function) to calculate the shard n
 key. To load data, each data server replica finds the file for the shard that it's responsible for
 and load it.
 
-![Realtime sequence](assets/grouping_records.png)
+![Realtime sequence](../assets/grouping_records.png)
 
 A snapshot/delta file indicates its shard number through this
 [field](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/public/data_loading/riegeli_metadata.proto#L40).
-If it is not set, the whole file will be read by all machines. However, only records that belong to
-that particular shard will be loaded in memory. If the shard number in the file does not match the
-server's shard number, the server can skip the file without reading the records.
+This
+[tool](https://github.com/privacysandbox/fledge-key-value-service/blob/252d361c7a3b291f50ffbf36d86fc4405af6a147/tools/serving_data_generator/test_serving_data_generator.cc#L36-L37)
+shows how that field can be set. If it is not set, the whole file will be read by all machines.
+However, only records that belong to that particular shard will be loaded in memory. If the shard
+number in the file does not match the server's shard number, the server can skip the file without
+reading the records.
 
 ### Relatime update path
 
@@ -172,3 +175,39 @@ implemented:
     live on which shards.
 -   for any given kv server read request, when data shards are queried, the payloads of
     corresponding requests are of the same size, for the same reason.
+
+## Machine sizes
+
+### AWS
+
+AWS has many different types of machines. However, an enclave can only run in a single NUMA cluster.
+If a machine has many clusters, an enclave can only run in one of them. So it is advisable to choose
+a machine with a single NUMA cluster to better utilize resources.
+
+Unfortunately, the docs don't say how many NUMA clusters a machine has. And there is no API for it.
+You can deploy a machine and using this
+[link](https://repost.aws/knowledge-center/ec2-review-numa-statistics) see how many NUMA clusters it
+has.
+
+Even though there are machines available with up to 20 TB RAM, those machines have many NUMA
+clusters in them. `r7i.24xlarge` or `r7a.24xlarge` has the biggest NUMA cluster of 768 GiB among EC2
+machines that we are aware of.
+
+That is effectively the upper bound, and actual amount of data you can store is smaller, since you
+need space for OS and other things.
+
+### GCP
+
+GCP supports the
+[following](https://cloud.google.com/confidential-computing/confidential-vm/docs/os-and-machine-type)
+machine types. The one with the biggest amount of RAM is `n2d-standard-224` -- 896GB.
+
+## Capability
+
+KV server was tested on GCP with 10 TB of data loaded spread across 20 shards. Each shard had 3
+replicas.
+
+## Work in progress
+
+[Logical Sharding Config](https://github.com/privacysandbox/fledge-key-value-service/blob/0e9b454825d641786255f11df4a2b62eee893a98/public/data_loading/riegeli_metadata.proto#L44)
+is a work in progress and you should not be using it at the moment.

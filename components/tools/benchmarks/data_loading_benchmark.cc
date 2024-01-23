@@ -37,7 +37,6 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/records_utils.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, data_directory, "",
@@ -138,14 +137,11 @@ int64_t GetBlobSize(BlobStorageClient& blob_client,
   return stream.tellg();
 }
 
-void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args,
-                          MetricsRecorder& metrics_recorder);
+void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args);
 
-void RegisterBenchmark(std::string_view benchmark_name, BenchmarkArgs args,
-                       MetricsRecorder& metrics_recorder) {
-  auto b =
-      benchmark::RegisterBenchmark(benchmark_name.data(), BM_LoadDataIntoCache,
-                                   args, std::ref(metrics_recorder));
+void RegisterBenchmark(std::string_view benchmark_name, BenchmarkArgs args) {
+  auto b = benchmark::RegisterBenchmark(benchmark_name.data(),
+                                        BM_LoadDataIntoCache, args);
   b->MeasureProcessCPUTime();
   b->UseRealTime();
   if (absl::GetFlag(FLAGS_args_benchmark_iterations) > 0) {
@@ -154,7 +150,7 @@ void RegisterBenchmark(std::string_view benchmark_name, BenchmarkArgs args,
 }
 
 // Registers benchmark
-void RegisterBenchmarks(MetricsRecorder& metrics_recorder) {
+void RegisterBenchmarks() {
   auto num_worker_threads =
       ParseInt64List(absl::GetFlag(FLAGS_args_reader_worker_threads));
   auto client_max_conns =
@@ -172,13 +168,15 @@ void RegisterBenchmarks(MetricsRecorder& metrics_recorder) {
         };
         RegisterBenchmark(absl::StrFormat(kNoOpCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),
-                          args, metrics_recorder);
-        args.create_cache_fn = [&metrics_recorder]() {
-          return KeyValueCache::Create(metrics_recorder);
+                          args);
+        auto noop_metrics_recorder =
+            TelemetryProvider::GetInstance().CreateMetricsRecorder();
+        args.create_cache_fn = [&noop_metrics_recorder]() {
+          return KeyValueCache::Create(*noop_metrics_recorder);
         };
         RegisterBenchmark(absl::StrFormat(kMutexCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),
-                          args, metrics_recorder);
+                          args);
       }
     }
   }
@@ -186,7 +184,7 @@ void RegisterBenchmarks(MetricsRecorder& metrics_recorder) {
 
 absl::Status ApplyUpdateMutation(const KeyValueMutationRecord& record,
                                  Cache& cache) {
-  if (record.value_type() == Value::String) {
+  if (record.value_type() == Value::StringValue) {
     cache.UpdateKeyValue(record.key()->string_view(),
                          GetRecordValue<std::string_view>(record),
                          record.logical_commit_time());
@@ -205,7 +203,7 @@ absl::Status ApplyUpdateMutation(const KeyValueMutationRecord& record,
 
 absl::Status ApplyDeleteMutation(const KeyValueMutationRecord& record,
                                  Cache& cache) {
-  if (record.value_type() == Value::String) {
+  if (record.value_type() == Value::StringValue) {
     cache.DeleteKey(record.key()->string_view(), record.logical_commit_time());
     return absl::OkStatus();
   }
@@ -220,8 +218,7 @@ absl::Status ApplyDeleteMutation(const KeyValueMutationRecord& record,
                    " has unsupported value type: ", record.value_type()));
 }
 
-void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args,
-                          MetricsRecorder& metrics_recorder) {
+void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
   BlobStorageClient::ClientOptions options;
   options.max_range_bytes = args.client_max_range_mb * 1024 * 1024;
   options.max_connections = args.client_max_connections;
@@ -229,10 +226,8 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args,
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> blob_client =
-      blob_storage_client_factory->CreateBlobStorageClient(metrics_recorder,
-                                                           options);
+      blob_storage_client_factory->CreateBlobStorageClient(options);
   ConcurrentStreamRecordReader<std::string_view> record_reader(
-      metrics_recorder,
       /*stream_factory=*/
       [blob_client = blob_client.get()]() {
         return std::make_unique<BlobRecordStream>(
@@ -314,14 +309,11 @@ int main(int argc, char** argv) {
     LOG(ERROR) << "Flag '--filename' must be not empty.";
     return -1;
   }
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-
+  kv_server::InitMetricsContextMap();
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> blob_client =
-      blob_storage_client_factory->CreateBlobStorageClient(
-          *noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient();
   if (absl::GetFlag(FLAGS_create_input_file)) {
     LOG(INFO) << "Creating input file: " << GetBlobLocation();
     std::stringstream data_stream;
@@ -340,7 +332,7 @@ int main(int argc, char** argv) {
     }
     LOG(INFO) << "Done creating input file: " << GetBlobLocation();
   }
-  RegisterBenchmarks(*noop_metrics_recorder);
+  RegisterBenchmarks();
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
   if (absl::GetFlag(FLAGS_create_input_file)) {

@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -27,7 +28,6 @@
 #include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
-using privacy_sandbox::server_common::MockMetricsRecorder;
 
 class MockInstanceClient : public InstanceClient {
  public:
@@ -48,7 +48,9 @@ class MockInstanceClient : public InstanceClient {
 class MockParameterClient : public ParameterClient {
  public:
   MOCK_METHOD(absl::StatusOr<std::string>, GetParameter,
-              (std::string_view parameter_name), (const, override));
+              (std::string_view parameter_name,
+               std::optional<std::string> default_value),
+              (const, override));
   MOCK_METHOD(absl::StatusOr<int32_t>, GetInt32Parameter,
               (std::string_view parameter_name), (const, override));
   MOCK_METHOD(absl::StatusOr<bool>, GetBoolParameter,
@@ -57,9 +59,10 @@ class MockParameterClient : public ParameterClient {
 
 class MockParameterFetcher : public ParameterFetcher {
  public:
-  MockParameterFetcher()
-      : ParameterFetcher("environment", client, &metrics_recorder) {}
-  MOCK_METHOD(std::string, GetParameter, (std::string_view parameter_suffix),
+  MockParameterFetcher() : ParameterFetcher("environment", client_) {}
+  MOCK_METHOD(std::string, GetParameter,
+              (std::string_view parameter_suffix,
+               std::optional<std::string> default_value),
               (const, override));
   MOCK_METHOD(int32_t, GetInt32Parameter, (std::string_view parameter_suffix),
               (const, override));
@@ -67,8 +70,7 @@ class MockParameterFetcher : public ParameterFetcher {
               (const, override));
 
  private:
-  MockParameterClient client;
-  MockMetricsRecorder metrics_recorder;
+  MockParameterClient client_;
 };
 
 }  // namespace kv_server

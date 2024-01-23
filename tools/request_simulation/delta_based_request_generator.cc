@@ -101,7 +101,7 @@ void DeltaBasedRequestGenerator::ProcessNewFiles() {
           return TraceCreateRequestsAndAddToMessageQueue(
               {.bucket = options_.data_bucket, .key = basename});
         },
-        "LoadNewFileAndCreateRequest", &metrics_recorder_);
+        "LoadNewFileAndCreateRequest", [](const absl::Status&, int) {});
   }
 }
 absl::StatusOr<DataLoadingStats>
@@ -111,7 +111,6 @@ DeltaBasedRequestGenerator::CreateRequestsAndAddToMessageQueue(
   auto& blob_client = options_.blob_client;
   auto record_reader =
       options_.delta_stream_reader_factory.CreateConcurrentReader(
-          metrics_recorder_,
           /*stream_factory=*/[&location, &blob_client]() {
             return std::make_unique<BlobRecordStream>(
                 blob_client.GetBlobReader(location));
@@ -125,7 +124,7 @@ DeltaBasedRequestGenerator::CreateRequestsAndAddToMessageQueue(
                                           const DataRecord& data_record) {
     if (data_record.record_type() == Record::KeyValueMutationRecord) {
       const auto* record = data_record.record_as_KeyValueMutationRecord();
-      if (record->value_type() == Value::String) {
+      if (record->value_type() == Value::StringValue) {
         options_.message_queue.Push(
             request_generation_fn_(record->key()->string_view()));
         if (record->mutation_type() == KeyValueMutationType::Update) {

@@ -62,8 +62,6 @@ resource "aws_instance" "ssh_instance" {
   EOF
 
   tags = {
-    Name        = "${var.service}-${var.environment}-ssh-instance"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-ssh-instance"
   }
 }

@@ -147,8 +147,6 @@ void Validate() {
 
   LOG(INFO) << "Validated " << batch_size * total_requests_made
             << " key-value pairs \n";
-  LOG(INFO) << "Total mismatches " << total_mismatches;
-  LOG(INFO) << "Total failures " << total_failures;
 }
 
 }  // namespace
@@ -172,5 +170,13 @@ int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
   google::InitGoogleLogging(argv[0]);
   kv_server::Validate();
+
+  if (kv_server::total_failures > 0 || kv_server::total_mismatches > 0) {
+    LOG(ERROR) << "Validation failed with total_failures: "
+               << kv_server::total_failures
+               << ", total_mismatches: " << kv_server::total_mismatches;
+    return 1;
+  }
+
   return 0;
 }

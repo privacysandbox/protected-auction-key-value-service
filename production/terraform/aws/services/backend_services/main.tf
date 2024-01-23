@@ -45,9 +45,7 @@ resource "aws_vpc_endpoint" "vpc_gateway_endpoint" {
   policy            = data.aws_iam_policy_document.vpce_policy_doc.json
 
   tags = {
-    Name        = "${var.service}-${var.environment}-${each.key}-endpoint"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-${each.key}-endpoint"
   }
 }
 
@@ -74,8 +72,6 @@ resource "aws_vpc_endpoint" "vpc_interface_endpoint" {
   ]
 
   tags = {
-    Name        = "${var.service}-${var.environment}-${each.key}-endpoint"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-${each.key}-endpoint"
   }
 }

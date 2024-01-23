@@ -16,13 +16,14 @@
 
 #include "public/data_loading/csv/csv_delta_record_stream_reader.h"
 
+#include <utility>
+
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_split.h"
 #include "glog/logging.h"
-#include "public/data_loading/records_utils.h"
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "public/data_loading/record_utils.h"
 
 namespace kv_server {
 namespace {
@@ -36,40 +37,99 @@ absl::StatusOr<int64_t> GetInt64Column(const riegeli::CsvRecord& csv_record,
                                                  " to a number."));
 }
 
+absl::StatusOr<std::string> GetValue(const riegeli::CsvRecord& csv_record,
+                                     char value_separator,
+                                     const CsvEncoding& csv_encoding) {
+  if (csv_encoding == CsvEncoding::kBase64) {
+    std::string result;
+    if (absl::Base64Unescape(csv_record[kValueColumn], &result)) {
+      return result;
+    }
+    return absl::InvalidArgumentError(absl::StrCat(
+        "base64 decode failed for value: ", csv_record[kValueColumn]));
+  }
+  return csv_record[kValueColumn];
+}
+
+absl::StatusOr<std::vector<std::string>> GetSetValue(
+    const riegeli::CsvRecord& csv_record, char value_separator,
+    const CsvEncoding& csv_encoding) {
+  if (csv_encoding == CsvEncoding::kBase64) {
+    std::vector<std::string> result;
+    for (auto&& set_value :
+         absl::StrSplit(csv_record[kValueColumn], value_separator)) {
+      if (std::string dest; absl::Base64Unescape(set_value, &dest)) {
+        result.push_back(std::move(dest));
+      } else {
+        return absl::InvalidArgumentError(absl::StrCat(
+            "base64 decode failed for value: ", csv_record[kValueColumn]));
+      }
+    }
+    return result;
+  }
+  return absl::StrSplit(csv_record[kValueColumn], value_separator);
+}
+
 absl::StatusOr<KeyValueMutationType> GetDeltaMutationType(
     absl::string_view mutation_type) {
-  std::string mt_lower = absl::AsciiStrToLower(mutation_type);
-  if (mt_lower == kUpdateMutationType) {
+  if (absl::EqualsIgnoreCase(
+          mutation_type,
+          EnumNameKeyValueMutationType(KeyValueMutationType::Update))) {
     return KeyValueMutationType::Update;
   }
-  if (mt_lower == kDeleteMutationType) {
+  if (absl::EqualsIgnoreCase(
+          mutation_type,
+          EnumNameKeyValueMutationType(KeyValueMutationType::Delete))) {
     return KeyValueMutationType::Delete;
   }
   return absl::InvalidArgumentError(
       absl::StrCat("Unknown mutation type:", mutation_type));
 }
 
-absl::StatusOr<KeyValueMutationRecordValueT> GetRecordValue(
-    const riegeli::CsvRecord& csv_record, std::string_view value,
-    const std::vector<std::string>& set_value) {
-  auto type = absl::AsciiStrToLower(csv_record[kValueTypeColumn]);
-  if (kValueTypeString == type) {
-    return value;
+absl::Status SetRecordValue(char value_separator,
+                            const CsvEncoding& csv_encoding,
+                            const riegeli::CsvRecord& csv_record,
+                            KeyValueMutationRecordT& mutation_record) {
+  auto type = csv_record[kValueTypeColumn];
+  VLOG(10) << "Setting record value of type: " << type;
+  if (absl::EqualsIgnoreCase(type, kValueTypeString)) {
+    if (auto maybe_value = GetValue(csv_record, value_separator, csv_encoding);
+        !maybe_value.ok()) {
+      return maybe_value.status();
+    } else {
+      StringValueT string_native;
+      string_native.value = *maybe_value;
+      VLOG(9) << "value in CSV record is:" << string_native.value;
+      mutation_record.value.Set(std::move(string_native));
+      VLOG(9) << "Built C++ record value: " << mutation_record.value;
+    }
+    return absl::OkStatus();
   }
-  if (kValueTypeStringSet == type) {
-    return std::vector<std::string_view>(set_value.begin(), set_value.end());
+  if (absl::EqualsIgnoreCase(type, kValueTypeStringSet)) {
+    auto maybe_value = GetSetValue(csv_record, value_separator, csv_encoding);
+    if (!maybe_value.ok()) {
+      return maybe_value.status();
+    }
+    StringSetT set_value;
+    set_value.value = std::move(*maybe_value);
+    mutation_record.value.Set(std::move(set_value));
+    return absl::OkStatus();
   }
   return absl::InvalidArgumentError(
       absl::StrCat("Value type: ", type, " is not supported"));
 }
 
-absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithKVMutation(
-    const riegeli::CsvRecord& csv_record, std::string_view value,
-    const std::vector<std::string>& set_value) {
-  KeyValueMutationRecordStruct record;
+absl::StatusOr<DataRecordT> MakeDeltaFileRecordStructWithKVMutation(
+    char value_separator, const CsvEncoding& csv_encoding,
+    const riegeli::CsvRecord& csv_record) {
+  KeyValueMutationRecordT record;
   record.key = csv_record[kKeyColumn];
-  PS_ASSIGN_OR_RETURN(record.value,
-                      GetRecordValue(csv_record, value, set_value));
+  if (auto status =
+          SetRecordValue(value_separator, csv_encoding, csv_record, record);
+      !status.ok()) {
+    return status;
+  }
+  VLOG(10) << "Built C++ KeyValueMutationRecordT record: " << record;
   absl::StatusOr<int64_t> commit_time =
       GetInt64Column(csv_record, kLogicalCommitTimeColumn);
   if (!commit_time.ok()) {
@@ -83,8 +143,9 @@ absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithKVMutation(
   }
   record.mutation_type = *mutation_type;
 
-  DataRecordStruct data_record;
-  data_record.record = record;
+  DataRecordT data_record;
+  data_record.record.Set(std::move(record));
+  VLOG(9) << "Built C++ data record: " << data_record;
   return data_record;
 }
 
@@ -98,9 +159,9 @@ absl::StatusOr<UserDefinedFunctionsLanguage> GetUdfLanguage(
       absl::StrCat("Language: ", language, " is not supported."));
 }
 
-absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithUdfConfig(
+absl::StatusOr<DataRecordT> MakeDeltaFileRecordStructWithUdfConfig(
     const riegeli::CsvRecord& csv_record) {
-  UserDefinedFunctionsConfigStruct udf_config;
+  UserDefinedFunctionsConfigT udf_config;
   udf_config.code_snippet = csv_record[kCodeSnippetColumn];
   udf_config.handler_name = csv_record[kHandlerNameColumn];
 
@@ -123,14 +184,14 @@ absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithUdfConfig(
   }
   udf_config.language = *language;
 
-  DataRecordStruct data_record;
-  data_record.record = udf_config;
+  DataRecordT data_record;
+  data_record.record.Set(std::move(udf_config));
   return data_record;
 }
 
-absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithShardMapping(
+absl::StatusOr<DataRecordT> MakeDeltaFileRecordStructWithShardMapping(
     const riegeli::CsvRecord& csv_record) {
-  ShardMappingRecordStruct shard_mapping_struct;
+  ShardMappingRecordT shard_mapping_struct;
   absl::StatusOr<int64_t> logical_shard =
       GetInt64Column(csv_record, kLogicalShardColumn);
   if (!logical_shard.ok()) {
@@ -143,68 +204,28 @@ absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStructWithShardMapping(
     return physical_shard.status();
   }
   shard_mapping_struct.physical_shard = *physical_shard;
-  DataRecordStruct data_record;
-  data_record.record = shard_mapping_struct;
+  DataRecordT data_record;
+  data_record.record.Set(std::move(shard_mapping_struct));
   return data_record;
 }
 }  // namespace
 
 namespace internal {
-absl::StatusOr<std::string> MaybeGetValue(const riegeli::CsvRecord& csv_record,
-                                          const CsvEncoding& csv_encoding) {
-  auto type = absl::AsciiStrToLower(csv_record[kValueTypeColumn]);
-  if (kValueTypeString != type) {
-    return "";
-  }
-  if (csv_encoding == CsvEncoding::kBase64) {
-    std::string result;
-    if (absl::Base64Unescape(csv_record[kValueColumn], &result)) {
-      return result;
-    }
-    return absl::InvalidArgumentError(absl::StrCat(
-        "base64 decode failed for value: ", csv_record[kValueColumn]));
-  }
-  return csv_record[kValueColumn];
-}
-
-absl::StatusOr<std::vector<std::string>> MaybeGetSetValue(
-    const riegeli::CsvRecord& csv_record, char value_separator,
-    const CsvEncoding& csv_encoding) {
-  auto type = absl::AsciiStrToLower(csv_record[kValueTypeColumn]);
-  if (kValueTypeStringSet != type) {
-    return std::vector<std::string>();
-  }
-  if (csv_encoding == CsvEncoding::kBase64) {
-    std::vector<std::string> result;
-    for (auto&& set_value :
-         absl::StrSplit(csv_record[kValueColumn], value_separator)) {
-      if (std::string dest; absl::Base64Unescape(set_value, &dest)) {
-        result.push_back(std::move(dest));
-      } else {
-        return absl::InvalidArgumentError(absl::StrCat(
-            "base64 decode failed for value: ", csv_record[kValueColumn]));
-      }
-    }
-    return result;
-  }
-  return absl::StrSplit(csv_record[kValueColumn], value_separator);
-}
-
-absl::StatusOr<DataRecordStruct> MakeDeltaFileRecordStruct(
-    const riegeli::CsvRecord& csv_record, const DataRecordType& record_type,
-    std::string_view value, const std::vector<std::string>& set_value) {
-  switch (record_type) {
-    case DataRecordType::kKeyValueMutationRecord:
-      return MakeDeltaFileRecordStructWithKVMutation(csv_record, value,
-                                                     set_value);
-    case DataRecordType::kUserDefinedFunctionsConfig:
+absl::StatusOr<DataRecordT> MakeDeltaFileRecordStruct(
+    const riegeli::CsvRecord& csv_record,
+    const CsvDeltaRecordStreamReaderOptions& options) {
+  switch (options.record_type) {
+    case Record::KeyValueMutationRecord:
+      return MakeDeltaFileRecordStructWithKVMutation(
+          options.value_separator, options.csv_encoding, csv_record);
+    case Record::UserDefinedFunctionsConfig:
       return MakeDeltaFileRecordStructWithUdfConfig(csv_record);
-    case DataRecordType::kShardMappingRecord:
+    case Record::ShardMappingRecord:
       return MakeDeltaFileRecordStructWithShardMapping(csv_record);
     default:
       return absl::InvalidArgumentError("Invalid record type.");
   }
 }
-}  // namespace internal
 
+}  // namespace internal
 }  // namespace kv_server

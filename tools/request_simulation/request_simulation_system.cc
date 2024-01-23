@@ -23,6 +23,7 @@
 #include "grpcpp/grpcpp.h"
 #include "opentelemetry/sdk/resource/resource.h"
 #include "opentelemetry/sdk/resource/semantic_conventions.h"
+#include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "tools/request_simulation/request/raw_request.pb.h"
 #include "tools/request_simulation/request_generation_util.h"
@@ -67,6 +68,8 @@ ABSL_FLAG(int64_t, message_queue_max_capacity, 10000000,
 ABSL_FLAG(kv_server::GrpcAuthenticationMode, server_auth_mode,
           kv_server::GrpcAuthenticationMode::kSsl,
           "The server authentication mode");
+ABSL_FLAG(bool, is_client_channel, true,
+          "Whether the grpc client is connecting to non in-process server");
 ABSL_FLAG(int32_t, s3client_max_connections, 1,
           "S3Client max connections for reading data files.");
 ABSL_FLAG(int32_t, s3client_max_range_bytes, 8388608,
@@ -82,6 +85,7 @@ ABSL_FLAG(std::string, delta_file_bucket, "", "The name of delta file bucket");
 namespace kv_server {
 
 constexpr char* kServiceName = "request-simulation";
+constexpr char* kTestingServer = "testing.server";
 constexpr int kMetricsExportIntervalInMs = 5000;
 constexpr int kMetricsExportTimeoutInMs = 500;
 
@@ -161,6 +165,15 @@ absl::Status RequestSimulationSystem::Init(
           ? std::make_unique<MetricsCollector>(metrics_recorder_,
                                                std::make_unique<SleepFor>())
           : std::move(metrics_collector);
+  // Initialize no-op telemetry for the new Telemetry API
+  // TODO(b/304306398): deprecate metric recorder and use new telemetry API to
+  // log metrics
+  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+  config_proto.set_mode(
+      privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+  kv_server::KVServerContextMap(
+      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+          config_proto));
 
   if (auto status = InitializeGrpcClientWorkers(); !status.ok()) {
     return status;
@@ -178,8 +191,8 @@ absl::Status RequestSimulationSystem::Init(
   message_service_blob_ = std::move(*message_service_status);
   SetQueueManager(blob_notifier_meta_data, message_service_blob_.get());
   {
-    auto status_or_notifier = BlobStorageChangeNotifier::Create(
-        std::move(blob_notifier_meta_data), metrics_recorder_);
+    auto status_or_notifier =
+        BlobStorageChangeNotifier::Create(std::move(blob_notifier_meta_data));
     if (!status_or_notifier.ok()) {
       // The ChangeNotifier is required to read delta files, if it's not
       // available that's a critical error and so return immediately.
@@ -218,6 +231,8 @@ absl::Status RequestSimulationSystem::InitializeGrpcClientWorkers() {
 
   auto channel = channel_creation_fn_(server_address_,
                                       absl::GetFlag(FLAGS_server_auth_mode));
+  bool is_client_channel = absl::GetFlag(FLAGS_is_client_channel);
+
   for (int i = 0; i < num_of_workers; ++i) {
     auto request_converter = [](const std::string& request_body) {
       RawRequest request;
@@ -227,7 +242,8 @@ absl::Status RequestSimulationSystem::InitializeGrpcClientWorkers() {
     auto worker =
         std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
             i, channel, server_method_, absl::Seconds(1), request_converter,
-            *message_queue_, *grpc_request_rate_limiter_, *metrics_collector_);
+            *message_queue_, *grpc_request_rate_limiter_, *metrics_collector_,
+            is_client_channel);
     grpc_client_workers_.push_back(std::move(worker));
   }
   return absl::OkStatus();
@@ -292,8 +308,7 @@ std::unique_ptr<BlobStorageClient> RequestSimulationSystem::CreateBlobClient() {
 
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
-  return blob_storage_client_factory->CreateBlobStorageClient(metrics_recorder_,
-                                                              options);
+  return blob_storage_client_factory->CreateBlobStorageClient(options);
 }
 std::unique_ptr<DeltaFileNotifier>
 RequestSimulationSystem::CreateDeltaFileNotifier() {
@@ -301,11 +316,11 @@ RequestSimulationSystem::CreateDeltaFileNotifier() {
       *blob_storage_client_,
       absl::Seconds(absl::GetFlag(FLAGS_backup_poll_frequency_secs)));
 }
-std::unique_ptr<StreamRecordReaderFactory<std::string_view>>
+std::unique_ptr<StreamRecordReaderFactory>
 RequestSimulationSystem::CreateStreamRecordReaderFactory() {
   ConcurrentStreamRecordReader<std::string_view>::Options options;
   options.num_worker_threads = absl::GetFlag(FLAGS_data_loading_num_threads);
-  return StreamRecordReaderFactory<std::string_view>::Create(options);
+  return std::make_unique<RiegeliStreamRecordReaderFactory>(options);
 }
 absl::AnyInvocable<std::string(std::string_view)>
 RequestSimulationSystem::CreateRequestFromKeyFn() {
@@ -321,12 +336,15 @@ void RequestSimulationSystem::InitializeTelemetry() {
       std::chrono::milliseconds(kMetricsExportIntervalInMs);
   metrics_options.export_timeout_millis =
       std::chrono::milliseconds(kMetricsExportTimeoutInMs);
+  auto server_address = absl::GetFlag(FLAGS_server_address);
   const auto attributes = ResourceAttributes{
       {semantic_conventions::kServiceName, kServiceName},
       {semantic_conventions::kServiceVersion, std::string(BuildVersion())},
-      {semantic_conventions::kHostArch, std::string(BuildPlatform())}};
+      {semantic_conventions::kHostArch, std::string(BuildPlatform())},
+      {kTestingServer, server_address}};
   auto resource = Resource::Create(attributes);
   ConfigureMetrics(resource, metrics_options);
+  kv_server::InitMetricsContextMap();
 }
 
 }  // namespace kv_server

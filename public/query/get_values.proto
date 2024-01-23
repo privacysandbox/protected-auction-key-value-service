@@ -18,13 +18,17 @@ package kv_server.v1;
 
 import "google/api/annotations.proto";
 import "google/protobuf/struct.proto";
+import "google/rpc/status.proto";
 
 // Key Value Service API.
 service KeyValueService {
   // V1 Query API as described in
   // https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md
   rpc GetValues(GetValuesRequest) returns (GetValuesResponse) {
-    option (google.api.http) = {get: "/v1/getvalues"};
+    option (google.api.http) = {
+      get: "/v1/getvalues"
+      additional_bindings {get: "/**/v1/getvalues"}
+    };
   }
 }
 
@@ -53,17 +57,26 @@ message GetValuesRequest {
   repeated string kv_internal = 6;
 }
 
+// Lookup result for a single key that is either a Value
+// or a status.
+message V1SingleLookupResult {
+  oneof single_lookup_result {
+    google.protobuf.Value value = 1;
+    google.rpc.Status status = 2;
+  }
+}
+
 // Response for getting value.
 message GetValuesResponse {
   // Map of key value pairs for namespace keys.
-  google.protobuf.Struct keys = 1;
+  map<string, V1SingleLookupResult> keys = 1;
 
   // Map of key value pairs for namespace renderUrls.
-  google.protobuf.Struct render_urls = 2;
+  map<string, V1SingleLookupResult> render_urls = 2;
 
   // Map of key value pairs for namespace adComponentRenderUrls.
-  google.protobuf.Struct ad_component_render_urls = 3;
+  map<string, V1SingleLookupResult> ad_component_render_urls = 3;
 
   // Map of key value pairs for namespace kvInternal.
-  google.protobuf.Struct kv_internal = 4;
+  map<string, V1SingleLookupResult> kv_internal = 4;
 }

@@ -127,6 +127,6 @@ CloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
 }
 
 CloudPlatform CloudKeyFetcherFactory::GetCloudPlatform() const {
-  return CloudPlatform::AWS;
+  return CloudPlatform::kAws;
 }
 }  // namespace kv_server

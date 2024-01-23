@@ -36,6 +36,7 @@ service KeyValueService {
     option (google.api.http) = {
       put: "/v2/getvalues"
       body: "raw_body"
+      additional_bindings {put: "/**/v2/getvalues"}
     };
   }
 

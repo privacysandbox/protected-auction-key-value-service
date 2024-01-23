@@ -29,26 +29,35 @@ load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
 pkg_files(
     name = "server_executables",
     srcs = [
-        "bin/init_server_basic",
-        "bin/init_server_enclave",
         "//components/data_server/server",
         "//components/tools:get_region",
+        "//production/packaging/aws/data_server/bin:init_server_basic",
     ],
     attributes = pkg_attributes(mode = "0555"),
     prefix = "/",
 )
 
 pkg_files(
-    name = "kmstool_enclave_executable",
+    name = "kmstool_enclave_executables",
     srcs = [
-        "@kmstool_enclave_cli//file",
+        "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:kms_cli",
     ],
     attributes = pkg_attributes(mode = "0555"),
-    prefix = "/",
+    prefix = "/cpio/bin",
+)
+
+pkg_files(
+    name = "kmstool_enclave_libs",
+    srcs = [
+        "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:libnsm_so",
+    ],
+    attributes = pkg_attributes(mode = "0444"),
+    prefix = "/cpio/lib",
 )
 
 server_binaries = [
-    ":kmstool_enclave_executable",
+    ":kmstool_enclave_executables",
+    ":kmstool_enclave_libs",
     ":server_executables",
 ]
 
@@ -66,10 +75,10 @@ pkg_tar(
 pkg_tar(
     name = "libnsm-tar",
     srcs = [
-        "@libnsm//file",
+        "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:libnsm_so",
     ],
-    mode = "0644",
-    package_dir = "/lib/x86_64-linux-gnu/",
+    mode = "0444",
+    package_dir = "/cpio/lib",
     visibility = ["//visibility:public"],
 )
 
@@ -107,10 +116,22 @@ container_image(
         "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64//image",
         "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64//image",
     }),
-    cmd = [
-        "/init_server_enclave",
+    entrypoint = [
+        "/init_server_basic",
+        "--with_proxify",
+        # Remaining flags are forwarded to `/server`.
+        "--",
+        # Note: these ports must correspond with those specified in envoy.yaml.
+        "--port=50051",
+        # These affect PCR0, so changing these would result in the loss of
+        # access to private keys for decryption.
+        "--public_key_endpoint='https://d3gf5400xe31j1.cloudfront.net/v1alpha/publicKeys'",
+        "--primary_coordinator_private_key_endpoint='https://uun5qzrqvj.execute-api.us-east-1.amazonaws.com/stage/v1alpha/encryptionKeys'",
+        "--secondary_coordinator_private_key_endpoint='https://ddqkl8ay59.execute-api.us-east-1.amazonaws.com/stage/v1alpha/encryptionKeys'",
+        "--primary_coordinator_region='us-east-1'",
+        "--secondary_coordinator_region='us-east-1'",
     ],
-    entrypoint = ["/bin/bash"],
+    env = {"GLOG_logtostderr": "1"},
     layers = [
         "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify_layer",
         "//production/packaging/aws/resolv:resolv_config_layer",

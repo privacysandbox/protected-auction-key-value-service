@@ -24,9 +24,7 @@ resource "aws_security_group" "elb_security_group" {
   vpc_id = var.vpc_id
 
   tags = {
-    Name        = "${var.service}-${var.environment}-elb-sg"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-elb-sg"
   }
 }
 
@@ -36,9 +34,7 @@ resource "aws_security_group" "ssh_security_group" {
   vpc_id = var.vpc_id
 
   tags = {
-    Name        = "${var.service}-${var.environment}-ssh-sg"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-ssh-sg"
   }
 }
 
@@ -48,9 +44,7 @@ resource "aws_security_group" "instance_security_group" {
   vpc_id = var.vpc_id
 
   tags = {
-    Name        = "${var.service}-${var.environment}-instance-sg"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-instance-sg"
   }
 }
 
@@ -60,8 +54,6 @@ resource "aws_security_group" "vpce_security_group" {
   vpc_id = var.vpc_id
 
   tags = {
-    Name        = "${var.service}-${var.environment}-vpce-sg"
-    service     = var.service
-    environment = var.environment
+    Name = "${var.service}-${var.environment}-vpce-sg"
   }
 }

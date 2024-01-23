@@ -24,6 +24,11 @@
     If you want to import an existing public certificate into ACM, follow these steps to
     [import the certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html).
 
+-   **data_loading_file_format**
+
+    Data file format for blob storage and realtime updates. See /public/constants.h for possible
+    values.
+
 -   **data_loading_num_threads**
 
     the number of concurrent threads used to read and load a single delta or snapshot file from blob
@@ -62,6 +67,11 @@
 
     Consecutive health check failures required to be considered unhealthy.
 
+-   **http_api_paths**
+
+    URL paths the load balancer will forward to the server. By default the load balancer will
+    forward requests with `/v1/*`, `/v2/*`, and `/healthcheck`.
+
 -   **instance_ami_id**
 
     Set the value to the AMI ID that was generated when the image was built.
@@ -71,6 +81,10 @@
     Set the instance type. Use instances with at least four vCPUs. Learn more about which types are
     supported from the
     [AWS article](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
+
+-   **logging_verbosity_level**
+
+    Logging verbosity level
 
 -   **metrics_collector_endpoint**
 
@@ -132,6 +146,11 @@
 -   **route_v1_requests_to_v2**
 
     Whether to route V1 requests through V2
+
+-   **run_server_outside_tee**
+
+    Whether to run the server outside the TEE. Not suitable for production. This runs the server in
+    a Docker container and can be useful for debugging.
 
 -   **s3_delta_file_bucket_name**
 

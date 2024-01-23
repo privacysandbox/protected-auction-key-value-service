@@ -46,14 +46,11 @@ int main(int argc, char** argv) {
     std::cerr << "Must specify sns_arn" << std::endl;
     return -1;
   }
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-
+  kv_server::InitMetricsContextMap();
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
-      blob_storage_client_factory->CreateBlobStorageClient(
-          *noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient();
   std::unique_ptr<DeltaFileNotifier> notifier =
       DeltaFileNotifier::Create(*client);
 
@@ -66,10 +63,9 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  auto status_or_change_notifier = BlobStorageChangeNotifier::Create(
-      kv_server::AwsNotifierMetadata{
-          .sns_arn = sns_arn, .queue_manager = maybe_message_service->get()},
-      *noop_metrics_recorder);
+  auto status_or_change_notifier =
+      BlobStorageChangeNotifier::Create(kv_server::AwsNotifierMetadata{
+          .sns_arn = sns_arn, .queue_manager = maybe_message_service->get()});
 
   if (!status_or_change_notifier.ok()) {
     std::cerr << "Unable to create BlobStorageChangeNotifier: "

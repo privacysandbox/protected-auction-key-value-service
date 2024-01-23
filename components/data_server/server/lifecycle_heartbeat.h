@@ -23,7 +23,6 @@
 #include "components/cloud_config/instance_client.h"
 #include "components/data_server/server/parameter_fetcher.h"
 #include "components/util/periodic_closure.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -35,14 +34,12 @@ class LifecycleHeartbeat {
   virtual void Finish() = 0;
 
   static std::unique_ptr<LifecycleHeartbeat> Create(
-      InstanceClient& instance_client,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
+      InstanceClient& instance_client);
 
   // For testing
   static std::unique_ptr<LifecycleHeartbeat> Create(
       std::unique_ptr<PeriodicClosure> heartbeat,
-      InstanceClient& instance_client,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
+      InstanceClient& instance_client);
 };
 
 }  // namespace kv_server

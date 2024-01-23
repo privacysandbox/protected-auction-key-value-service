@@ -24,23 +24,23 @@
 
 namespace kv_server {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
-ParameterFetcher::ParameterFetcher(std::string environment,
-                                   const ParameterClient& parameter_client,
-                                   MetricsRecorder* metrics_recorder)
+ParameterFetcher::ParameterFetcher(
+    std::string environment, const ParameterClient& parameter_client,
+    absl::AnyInvocable<void(const absl::Status& status, int count) const>
+        metrics_callback)
     : environment_(std::move(environment)),
       parameter_client_(parameter_client),
-      metrics_recorder_(metrics_recorder) {}
+      metrics_callback_(std::move(metrics_callback)) {}
 
 std::string ParameterFetcher::GetParameter(
-    std::string_view parameter_suffix) const {
+    std::string_view parameter_suffix,
+    std::optional<std::string> default_value) const {
   const std::string param_name = GetParamName(parameter_suffix);
   return TraceRetryUntilOk(
-      [this, &param_name] {
-        return parameter_client_.GetParameter(param_name);
+      [this, &param_name, &default_value] {
+        return parameter_client_.GetParameter(param_name, default_value);
       },
-      "GetParameter", metrics_recorder_, {{"param", param_name}});
+      "GetParameter", metrics_callback_, {{"param", param_name}});
 }
 
 int32_t ParameterFetcher::GetInt32Parameter(
@@ -50,7 +50,7 @@ int32_t ParameterFetcher::GetInt32Parameter(
       [this, &param_name] {
         return parameter_client_.GetInt32Parameter(param_name);
       },
-      "GetParameter", metrics_recorder_, {{"param", param_name}});
+      "GetParameter", metrics_callback_, {{"param", param_name}});
 }
 
 bool ParameterFetcher::GetBoolParameter(
@@ -60,7 +60,7 @@ bool ParameterFetcher::GetBoolParameter(
       [this, &param_name] {
         return parameter_client_.GetBoolParameter(param_name);
       },
-      "GetParameter", metrics_recorder_, {{"param", param_name}});
+      "GetParameter", metrics_callback_, {{"param", param_name}});
 }
 
 std::string ParameterFetcher::GetParamName(

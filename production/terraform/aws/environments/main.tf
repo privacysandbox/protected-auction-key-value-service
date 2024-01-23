@@ -26,4 +26,10 @@ terraform {
 }
 provider "aws" {
   region = var.region
+  default_tags {
+    tags = {
+      service     = "kv-server"
+      environment = var.environment
+    }
+  }
 }

@@ -19,6 +19,7 @@ exclude: (?x)^(
              .bazel_output/.*|
              builders/.*|
              .*/BUILD|
+             public/data_loading/data_loading_generated.h|
              testing/functionaltest-system/.*|
              version.txt
          )$
@@ -94,7 +95,7 @@ repos:
     description: Run terraform via docker to format Terraform files
     language: script
     pass_filenames: false
-    entry: tools/terraform fmt -write=true -recursive production/terraform
+    entry: builders/tools/terraform fmt -write=true -recursive production/terraform
     types_or:
     - terraform
 
@@ -103,8 +104,9 @@ repos:
   hooks:
   - id: prettier
     types_or:
-    - markdown
+    - javascript
     - json
+    - markdown
     exclude: (?x)^(
                  testing/functionaltest/.*/test_cases/.*|
                  production/packaging/aws/data_server/nitro-pcr0/.*

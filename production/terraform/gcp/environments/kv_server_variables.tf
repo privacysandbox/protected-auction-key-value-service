@@ -45,8 +45,38 @@ variable "gcp_image_repo" {
 }
 
 variable "kv_service_port" {
-  description = "The grpc port that receives traffic destined for the frontend service."
+  description = "The grpc port that receives traffic destined for the key-value service."
   type        = number
+}
+
+variable "envoy_port" {
+  description = "External load balancer will send traffic to this port. Envoy will forward traffic to kv_service_port. Must match envoy.yaml."
+  type        = number
+}
+
+variable "server_url" {
+  description = "Kv-serer URL. Example: kv-server-environment.example.com"
+  type        = string
+}
+
+variable "server_dns_zone" {
+  description = "Google Cloud Dns zone for Kv-serer."
+  type        = string
+}
+
+variable "server_domain_ssl_certificate_id" {
+  description = "Ssl certificate id of the Kv-server URL."
+  type        = string
+}
+
+variable "tls_key" {
+  description = "TLS key. Please specify this variable in a tfvars file (e.g., secrets.auto.tfvars) under the `environments` directory."
+  type        = string
+}
+
+variable "tls_cert" {
+  description = "TLS cert. Please specify this variable in a tfvars file (e.g., secrets.auto.tfvars) under the `environments` directory."
+  type        = string
 }
 
 variable "min_replicas_per_service_region" {
@@ -86,19 +116,9 @@ variable "cpu_utilization_percent" {
   type        = number
 }
 
-variable "directory" {
-  type        = string
-  description = "Directory to watch for files."
-}
-
 variable "data_bucket_id" {
   type        = string
   description = "Directory to watch for files."
-}
-
-variable "realtime_directory" {
-  type        = string
-  description = "Local directory to watch for realtime file changes."
 }
 
 variable "metrics_export_interval_millis" {
@@ -136,6 +156,12 @@ variable "udf_num_workers" {
   description = "Number of workers for UDF execution."
 }
 
+variable "udf_timeout_millis" {
+  type        = number
+  default     = 5000
+  description = "UDF execution timeout in milliseconds."
+}
+
 variable "route_v1_to_v2" {
   type        = bool
   description = "Whether to route V1 requests through V2."
@@ -171,8 +197,8 @@ variable "collector_machine_type" {
   type        = string
 }
 
-variable "dns_zone" {
-  description = "Google Cloud DNS zone name"
+variable "collector_dns_zone" {
+  description = "Google Cloud DNS zone name for collector."
   type        = string
 }
 
@@ -228,5 +254,23 @@ variable "use_existing_service_mesh" {
 
 variable "existing_service_mesh" {
   description = "Existing service mesh. This would only be used if use_existing_service_mesh is true."
+  type        = string
+}
+
+variable "logging_verbosity_level" {
+  description = "Logging verbosity level."
+  default     = "0"
+  type        = string
+}
+
+variable "use_sharding_key_regex" {
+  description = "Use sharding key regex. This is useful if you want to use data locality feature for sharding."
+  default     = false
+  type        = bool
+}
+
+variable "sharding_key_regex" {
+  description = "Sharding key regex."
+  default     = "EMPTY_STRING"
   type        = string
 }

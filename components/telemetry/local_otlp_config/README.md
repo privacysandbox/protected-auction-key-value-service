@@ -17,7 +17,6 @@ The Otel Collector in turn, can export to locally running Zipkin, Jaeger, and Pr
 These tools can be viewed from the browser.
 
 -   Traces
-    -   Jaeger: <http://localhost:16686>
     -   Zipkin: <http://localhost:9411>
 -   Metrics
     -   Prometheus: <http://localhost:9090>

@@ -18,6 +18,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/time/clock.h"
 #include "components/data/common/change_notifier.h"
 #include "components/util/sleepfor.h"
@@ -25,8 +26,6 @@
 
 namespace kv_server {
 namespace {
-
-using privacy_sandbox::server_common::MetricsRecorder;
 
 // TODO(b/237669491): This is arbitrary, consider changing it.
 constexpr absl::Duration kPollInterval = absl::Seconds(5);
@@ -118,7 +117,7 @@ class LocalChangeNotifier : public ChangeNotifier {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
-    NotifierMetadata notifier_metadata, MetricsRecorder& unused) {
+    NotifierMetadata notifier_metadata) {
   std::error_code error_code;
   auto local_notifier_metadata =
       std::get<LocalNotifierMetadata>(notifier_metadata);

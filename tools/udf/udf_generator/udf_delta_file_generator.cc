@@ -23,15 +23,14 @@
 #include "absl/strings/substitute.h"
 #include "glog/logging.h"
 #include "google/protobuf/text_format.h"
+#include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
-#include "public/data_loading/riegeli_metadata.pb.h"
+#include "public/data_loading/writers/avro_delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 #include "public/udf/constants.h"
-#include "riegeli/bytes/ostream_writer.h"
-#include "riegeli/records/record_writer.h"
 
 ABSL_FLAG(std::string, udf_file_path, "", "UDF file path");
 ABSL_FLAG(std::string, udf_handler_name, "HandleRequest", "UDF handler_name");
@@ -44,6 +43,10 @@ ABSL_FLAG(std::string, output_path, "",
 ABSL_FLAG(int64_t, logical_commit_time, 123123123,
           "Record logical_commit_time. Default is 123123123.");
 ABSL_FLAG(int64_t, code_snippet_version, 2, "UDF version. Default is 2.");
+ABSL_FLAG(std::string, data_loading_file_format,
+          std::string(kv_server::kFileFormats[static_cast<int>(
+              kv_server::FileFormat::kRiegeli)]),
+          "File format of the input data files.");
 
 using kv_server::DataRecordStruct;
 using kv_server::DeltaRecordStreamWriter;
@@ -82,8 +85,18 @@ absl::Status WriteUdfConfig(std::ostream* output_stream) {
   }
 
   KVFileMetadata metadata;
-  auto delta_record_writer = DeltaRecordStreamWriter<std::ostream>::Create(
-      *output_stream, DeltaRecordWriter::Options{.metadata = metadata});
+  absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> delta_record_writer;
+  if (absl::GetFlag(FLAGS_data_loading_file_format) ==
+      kv_server::kFileFormats[static_cast<int>(
+          kv_server::FileFormat::kRiegeli)]) {
+    delta_record_writer = DeltaRecordStreamWriter<std::ostream>::Create(
+        *output_stream, DeltaRecordWriter::Options{.metadata = metadata});
+  } else if (absl::GetFlag(FLAGS_data_loading_file_format) ==
+             kv_server::kFileFormats[static_cast<int>(
+                 kv_server::FileFormat::kAvro)]) {
+    delta_record_writer = kv_server::AvroDeltaRecordStreamWriter::Create(
+        *output_stream, DeltaRecordWriter::Options{.metadata = metadata});
+  }
   if (!delta_record_writer.ok()) {
     return delta_record_writer.status();
   }

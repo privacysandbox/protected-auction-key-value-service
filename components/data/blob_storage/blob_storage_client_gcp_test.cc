@@ -30,6 +30,7 @@
 #include "absl/flags/flag.h"
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_client.h"
+#include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
 #include "gmock/gmock.h"
 #include "google/cloud/storage/client.h"
@@ -44,12 +45,18 @@ namespace kv_server {
 namespace {
 
 using ::google::cloud::storage::testing::canonical_errors::TransientError;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 
 class GcpBlobStorageClientTest : public ::testing::Test {
  protected:
   PlatformInitializer initializer_;
-  privacy_sandbox::server_common::MockMetricsRecorder metrics_recorder_;
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    kv_server::KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
 };
 
 TEST_F(GcpBlobStorageClientTest, DeleteBlobSucceeds) {
@@ -65,8 +72,7 @@ TEST_F(GcpBlobStorageClientTest, DeleteBlobSucceeds) {
           google::cloud::make_status_or(gcs::internal::EmptyResponse{})));
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<GcpBlobStorageClient>(metrics_recorder_,
-                                             std::move(mock_client));
+      std::make_unique<GcpBlobStorageClient>(std::move(mock_client));
   BlobStorageClient::DataLocation location;
   location.bucket = "test_bucket";
   location.key = "test_object";
@@ -86,8 +92,7 @@ TEST_F(GcpBlobStorageClientTest, DeleteBlobFails) {
           google::cloud::StatusCode::kPermissionDenied, "uh-oh")));
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<GcpBlobStorageClient>(metrics_recorder_,
-                                             std::move(mock_client));
+      std::make_unique<GcpBlobStorageClient>(std::move(mock_client));
   BlobStorageClient::DataLocation location;
   location.bucket = "test_bucket";
   location.key = "test_object";
@@ -112,8 +117,7 @@ TEST_F(GcpBlobStorageClientTest, ListBlobSucceeds) {
       .WillOnce(testing::Return(response));
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<GcpBlobStorageClient>(metrics_recorder_,
-                                             std::move(mock_client));
+      std::make_unique<GcpBlobStorageClient>(std::move(mock_client));
   BlobStorageClient::DataLocation location;
   location.bucket = "test_bucket";
   location.key = "test_object";
@@ -146,8 +150,7 @@ TEST_F(GcpBlobStorageClientTest, ListBlobWithNonInclusiveStartAfter) {
       .WillOnce(testing::Return(response));
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<GcpBlobStorageClient>(metrics_recorder_,
-                                             std::move(mock_client));
+      std::make_unique<GcpBlobStorageClient>(std::move(mock_client));
   BlobStorageClient::DataLocation location;
   location.bucket = "test_bucket";
   location.key = "test_object";
@@ -176,8 +179,7 @@ TEST_F(GcpBlobStorageClientTest, ListBlobWithNoNewObject) {
       .WillOnce(testing::Return(response));
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<GcpBlobStorageClient>(metrics_recorder_,
-                                             std::move(mock_client));
+      std::make_unique<GcpBlobStorageClient>(std::move(mock_client));
   BlobStorageClient::DataLocation location;
   location.bucket = "test_bucket";
   location.key = "test_object";

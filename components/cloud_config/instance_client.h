@@ -21,7 +21,6 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 // TODO: Replace config cpio client once ready
 namespace kv_server {
@@ -56,8 +55,7 @@ using DescribeInstanceGroupInput =
 // Client to perform instance-specific operations.
 class InstanceClient {
  public:
-  static std::unique_ptr<InstanceClient> Create(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
+  static std::unique_ptr<InstanceClient> Create();
   virtual ~InstanceClient() = default;
 
   // Retrieves all tags for the current instance and returns the tag with the

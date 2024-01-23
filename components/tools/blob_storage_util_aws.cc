@@ -60,13 +60,10 @@ absl::StatusOr<std::unique_ptr<BlobReader>> GetSourceStream(
 // Source and Destination files can be cloud files, local files, and stdin.
 // Cloud files are prefixed with `cloud://`, stdin is `-`
 bool CpObjects(std::string bucket, std::string source, std::string dest) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
-      blob_storage_client_factory->CreateBlobStorageClient(
-          *noop_metrics_recorder);
+      blob_storage_client_factory->CreateBlobStorageClient();
   absl::StatusOr<std::unique_ptr<BlobReader>> reader =
       GetSourceStream(client.get(), bucket, std::move(source));
   if (!reader.ok()) {

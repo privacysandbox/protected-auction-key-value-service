@@ -29,8 +29,6 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-
 // TODO fix this or delete
 
 class GcpChangeNotifier : public ChangeNotifier {
@@ -52,7 +50,7 @@ class GcpChangeNotifier : public ChangeNotifier {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
-    NotifierMetadata notifier_metadata, MetricsRecorder& unused) {
+    NotifierMetadata notifier_metadata) {
   return std::make_unique<GcpChangeNotifier>();
 }
 

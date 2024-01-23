@@ -43,7 +43,7 @@ variable "collector_domain_name" {
   type        = string
 }
 
-variable "dns_zone" {
-  description = "Google Cloud DNS zone name for the Key Value domain"
+variable "collector_dns_zone" {
+  description = "Google Cloud DNS zone name for collector."
   type        = string
 }

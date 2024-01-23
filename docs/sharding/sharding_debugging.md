@@ -32,5 +32,6 @@ InternalRunQuery
 
 ## Dashboard
 
-Feel free to import this [dashboard](../production/terraform/gcp/dashboards/sharding_dashboard.json)
-and modify it to suit your needs.
+Feel free to import this
+[dashboard](../../production/terraform/gcp/dashboards/sharding_dashboard.json) and modify it to suit
+your needs.

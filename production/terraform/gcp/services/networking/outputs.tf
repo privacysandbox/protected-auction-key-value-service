@@ -26,3 +26,7 @@ output "subnets" {
 output "collector_ip_address" {
   value = google_compute_global_address.collector.address
 }
+
+output "server_ip_address" {
+  value = google_compute_global_address.kv_server.address
+}

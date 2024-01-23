@@ -34,14 +34,20 @@ using ::google::cloud::pubsub::Subscriber;
 using ::google::cloud::pubsub::SubscriberConnection;
 using ::google::cloud::pubsub_mocks::MockSubscriberConnection;
 using privacy_sandbox::server_common::GetTracer;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Field;
 using testing::Return;
 
 class RealtimeThreadPoolNotifierGcpTest : public ::testing::Test {
  protected:
-  MockMetricsRecorder mock_metrics_recorder_;
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    kv_server::KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
   int32_t thread_number_ = 4;
   std::unique_ptr<MockSleepFor> mock_sleep_for_ =
       std::make_unique<MockSleepFor>();
@@ -49,7 +55,7 @@ class RealtimeThreadPoolNotifierGcpTest : public ::testing::Test {
       std::make_shared<MockSubscriberConnection>();
 };
 
-TEST_F(RealtimeThreadPoolNotifierGcpTest, SuccesfullyCreated) {
+TEST_F(RealtimeThreadPoolNotifierGcpTest, SuccessfullyCreated) {
   auto subscriber = std::make_unique<Subscriber>(Subscriber(mock_));
   GcpRealtimeNotifierMetadata option = GcpRealtimeNotifierMetadata{
       .maybe_sleep_for = std::move(mock_sleep_for_),
@@ -59,12 +65,12 @@ TEST_F(RealtimeThreadPoolNotifierGcpTest, SuccesfullyCreated) {
   options.push_back(std::move(option));
   NotifierMetadata metadata = GcpNotifierMetadata{};
   auto maybe_pool_manager = RealtimeThreadPoolManager::Create(
-      mock_metrics_recorder_, metadata, thread_number_, std::move(options));
+      metadata, thread_number_, std::move(options));
 
   ASSERT_TRUE(maybe_pool_manager.ok());
 }
 
-TEST_F(RealtimeThreadPoolNotifierGcpTest, SuccesfullyStartsAndStops) {
+TEST_F(RealtimeThreadPoolNotifierGcpTest, SuccessfullyStartsAndStops) {
   EXPECT_CALL(*mock_, options);
   EXPECT_CALL(*mock_, Subscribe)
       .WillOnce([&](SubscriberConnection::SubscribeParams const& p) {
@@ -79,7 +85,7 @@ TEST_F(RealtimeThreadPoolNotifierGcpTest, SuccesfullyStartsAndStops) {
   options.push_back(std::move(option));
   NotifierMetadata metadata = GcpNotifierMetadata{};
   auto maybe_pool_manager = RealtimeThreadPoolManager::Create(
-      mock_metrics_recorder_, metadata, thread_number_, std::move(options));
+      metadata, thread_number_, std::move(options));
   absl::Status status = (*maybe_pool_manager)->Start([](const std::string&) {
     return absl::OkStatus();
   });

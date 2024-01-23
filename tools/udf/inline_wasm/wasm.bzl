@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
-load("@emsdk//emscripten_toolchain:wasm_rules.bzl", "wasm_cc_binary")
+load("@google_privacysandbox_servers_common//build_defs/cc:wasm.bzl", "inline_wasm_cc_binary", "inline_wasm_udf_js")
 
 def inline_wasm_udf_delta(
         name,
@@ -22,6 +22,7 @@ def inline_wasm_udf_delta(
         custom_udf_js,
         custom_udf_js_handler = "HandleRequest",
         output_file_name = "DELTA_0000000000000005",
+        logical_commit_time = "123123123",
         udf_tool = "//tools/udf/udf_generator:udf_delta_file_generator",
         tags = ["manual"]):
     """Generate a JS + inline WASM UDF delta file and put it under dist/ directory
@@ -38,7 +39,8 @@ def inline_wasm_udf_delta(
             glue_js = "hello.js",
             custom_udf_js = "my_udf.js",
             custom_udf_js_handler="HandleRequest",
-            output_file_name="DELTA_0000000000000005"
+            output_file_name="DELTA_0000000000000005",
+            logical_commit_time="123123123"
         )
 
     Args:
@@ -50,40 +52,28 @@ def inline_wasm_udf_delta(
         output_file_name: Name of UDF delta file output.
             Recommended to follow DELTA file naming convention.
             Defaults to `DELTA_0000000000000005`
+        logical_commit_time: Logical commit timestamp for UDF config.
+            Defaults to `123123123`.
         udf_tool: build target for the udf_delta_file_generator.
             Defaults to `//tools/udf/udf_generator:udf_delta_file_generator`
         tags: tags to propagate to rules
     """
-    getModule_js = """async function getModule(){
-            var Module = {
-            instantiateWasm: function (imports, successCallback) {
-                var module = new WebAssembly.Module(wasm_array);
-                var instance = new WebAssembly.Instance(module, imports);
-                Module.testWasmInstantiationSucceeded = 1;
-                successCallback(instance);
-                return instance.exports;
-            }
-            };
-            return await wasmModule(Module);
-        }"""
+    inline_wasm_udf_js(
+        name = "{}_inline_wasm_js".format(name),
+        wasm_binary = wasm_binary,
+        glue_js = glue_js,
+    )
+
+    inline_wasm_js_file = "{}_inline_wasm_js_generated.js".format(name)
 
     native.genrule(
         name = "{}_generated".format(name),
-        srcs = [wasm_binary, glue_js, custom_udf_js],
+        srcs = [custom_udf_js, inline_wasm_js_file],
         outs = ["{}_generated.js".format(name)],
-        cmd_bash = """WASM_HEX=$$(
-hexdump -v -e '1/1 "0x%02x,"' $(location {wasm_binary})
-)
-cat << EOF > $@
-let wasm_array = new Uint8Array([$$WASM_HEX]);
-$$(cat $(location {glue_js}))
-{module_js}
-$$(cat $(location {udf_js}))
-EOF""".format(
-            wasm_binary = wasm_binary,
-            glue_js = glue_js,
-            module_js = getModule_js,
-            udf_js = custom_udf_js,
+        cmd_bash = """cat "$(location {inline_wasm_js_file})" "$(location {custom_udf_js})" >"$@"
+""".format(
+            inline_wasm_js_file = inline_wasm_js_file,
+            custom_udf_js = custom_udf_js,
         ),
         visibility = ["//visibility:private"],
         tags = tags,
@@ -102,6 +92,8 @@ EOF""".format(
             "$(location {}_generated)".format(name),
             "--output_path",
             "$(location {})".format(output_file_name),
+            "--logical_commit_time",
+            logical_commit_time,
             "--udf_handler_name",
             custom_udf_js_handler,
         ],
@@ -114,13 +106,15 @@ EOF""".format(
         name = name,
         srcs = [
             "{}_udf_delta".format(name),
+            "{}_generated".format(name),
         ],
         outs = ["{}_copy_to_dist.bin".format(name)],
         cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/debian
 cp $(location {}_udf_delta) dist
+cp $(location {}_generated) dist
 builders/tools/normalize-dist
-EOF""".format(name),
+EOF""".format(name, name),
         executable = True,
         local = True,
         message = "Copying {} dist directory".format(output_file_name),
@@ -129,51 +123,71 @@ EOF""".format(name),
 
 def cc_inline_wasm_udf_delta(
         name,
-        cc_target,
+        srcs,
         custom_udf_js,
         custom_udf_js_handler = "HandleRequest",
         output_file_name = "DELTA_0000000000000005",
+        logical_commit_time = "123123123",
         udf_tool = "//tools/udf/udf_generator:udf_delta_file_generator",
-        tags = ["manual"]):
+        deps = [],
+        tags = ["manual"],
+        linkopts = []):
     """Generate a JS + inline WASM UDF delta file and put it under dist/ directory
 
     Performs the following steps:
-    1. Takes a cc_target and uses emscripten to compile it to inline WASM + JS.
+    1. Takes a C++ source file and uses emscripten to compile it to inline WASM + JS.
     2. The generated JS file is then prepended to the custom udf JS.
     3. The final JS file is used to generate a UDF delta file.
 
     Example usage:
         cc_inline_wasm_udf_delta(
             name = "foo_delta",
-            cc_target = ":foo",
+            srcs = ["foo.cc"],
+            deps = [
+              "//bar:foo_deps",
+            ],
             custom_udf_js = "my_udf.js",
-            custom_udf_js_handler="HandleRequest",
-            output_file_name="DELTA_0000000000000005"
+            custom_udf_js_handler = "HandleRequest",
+            output_file_name = "DELTA_0000000000000005",
+            logical_commit_time="123123123",
+            linkopts = [
+              # Allow memory growth
+              "-s ALLOW_MEMORY_GROWTH=1",
+              # Max memory limit of 1000MB
+              "-s MAXIMUM_MEMORY=1000MB"
+            ],
         )
 
     Args:
         name: BUILD target name
-        cc_target: Name of the cc_target that will be compiled to WASM
+        srcs: List of C and C++ files that are processed to create the target
         custom_udf_js: Custom UDF js to be included in the final JS
         custom_udf_js_handler: Handler name of custom UDF.
         output_file_name: Name of UDF delta file output.
             Recommended to follow DELTA file naming convention.
             Defaults to `DELTA_0000000000000005`
+        logical_commit_time: Logical commit timestamp for UDF config.
+            Defaults to `123123123`.
         udf_tool: build target for the udf_delta_file_generator.
             Defaults to `//tools/udf/udf_generator:udf_delta_file_generator`
         tags: tags to propagate to rules
+        deps: List of other libraries to be linked in to the cc_binary target
+        linkopts: Add these flags to the C++ linker command in addition to default
+            linkopts at
+            https://github.com/privacysandbox/data-plane-shared-libraries/blob/dad1d78eaffc0e74eb70090cb3a5560166d5f4c6/build_defs/cc/wasm.bzl#L18
     """
 
     # Generate WASM + JS using emscripten
-    wasm_cc_binary(
-        name = "{}_wasm_js_emscripten".format(name),
-        cc_target = cc_target,
+    inline_wasm_cc_binary(
+        name = "{}_inline".format(name),
+        srcs = srcs,
         outputs = [
             "{}_wasm_bin.wasm".format(name),
             "{}_glue.js".format(name),
         ],
-        visibility = ["//visibility:private"],
+        deps = deps,
         tags = tags,
+        linkopts = linkopts,
     )
 
     inline_wasm_udf_delta(
@@ -183,6 +197,7 @@ def cc_inline_wasm_udf_delta(
         custom_udf_js = custom_udf_js,
         custom_udf_js_handler = custom_udf_js_handler,
         output_file_name = output_file_name,
+        logical_commit_time = logical_commit_time,
         udf_tool = udf_tool,
         tags = tags,
     )

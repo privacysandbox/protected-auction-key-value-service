@@ -19,6 +19,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -27,21 +28,24 @@
 #include "components/cloud_config/parameter_client.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/blob_storage/blob_storage_client.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
+#include "components/telemetry/server_definition.h"
 
 namespace kv_server {
 
 class ParameterFetcher {
  public:
-  // `metrics_recorder` is optional
+  // `Metric callback` is optional
   ParameterFetcher(
       std::string environment, const ParameterClient& parameter_client,
-      privacy_sandbox::server_common::MetricsRecorder* metrics_recorder);
+      absl::AnyInvocable<void(const absl::Status& status, int count) const>
+          metric_callback = LogMetricsNoOpCallback());
 
   virtual ~ParameterFetcher() = default;
 
   // This function will retry any necessary requests until it succeeds.
-  virtual std::string GetParameter(std::string_view parameter_suffix) const;
+  virtual std::string GetParameter(
+      std::string_view parameter_suffix,
+      std::optional<std::string> default_value = std::nullopt) const;
 
   // This function will retry any necessary requests until it succeeds.
   virtual int32_t GetInt32Parameter(std::string_view parameter_suffix) const;
@@ -61,7 +65,8 @@ class ParameterFetcher {
 
   const std::string environment_;
   const ParameterClient& parameter_client_;
-  privacy_sandbox::server_common::MetricsRecorder* const metrics_recorder_;
+  absl::AnyInvocable<void(const absl::Status& status, int count) const>
+      metrics_callback_;
 };
 
 }  // namespace kv_server

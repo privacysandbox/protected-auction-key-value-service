@@ -21,7 +21,9 @@
 #include <string>
 #include <utility>
 
+#include "components/telemetry/error_code.h"
 #include "src/cpp/metric/context_map.h"
+#include "src/cpp/util/read_system.h"
 
 namespace kv_server {
 
@@ -43,28 +45,32 @@ inline constexpr double kLatencyInMicroSecondsBoundaries[] = {
     5'000,   10'000,    20'000,    40'000,    80'000,    160'000,       320'000,
     640'000, 1'000'000, 1'300'000, 2'600'000, 5'000'000, 10'000'000'000};
 
-// String literals for absl status, the string list and literals match those
-// implemented in the absl::StatusCodeToString method
+// String literals for absl status partition, the string list and literals match
+// those implemented in the absl::StatusCodeToString method
 // https://github.com/abseil/abseil-cpp/blob/1a03fb9dd1c533e42b6d7d1ebea85b448a07e793/absl/status/status.cc#L47
+// Strings in the partition are required to be sorted
 inline constexpr absl::string_view kAbslStatusStrings[] = {
-    "OK",
-    "CANCELLED",
-    "UNKNOWN",
-    "INVALID_ARGUMENT",
-    "DEADLINE_EXCEEDED",
-    "NOT_FOUND",
-    "ALREADY_EXISTS",
-    "PERMISSION_DENIED",
-    "UNAUTHENTICATED",
-    "RESOURCE_EXHAUSTED",
-    "FAILED_PRECONDITION",
+    "",
     "ABORTED",
-    "OUT_OF_RANGE",
-    "UNIMPLEMENTED",
-    "INTERNAL",
-    "UNAVAILABLE",
+    "ALREADY_EXISTS",
+    "CANCELLED",
     "DATA_LOSS",
-    ""};
+    "DEADLINE_EXCEEDED",
+    "FAILED_PRECONDITION",
+    "INTERNAL",
+    "INVALID_ARGUMENT",
+    "NOT_FOUND",
+    "OK",
+    "OUT_OF_RANGE",
+    "PERMISSION_DENIED",
+    "RESOURCE_EXHAUSTED",
+    "UNAUTHENTICATED",
+    "UNAVAILABLE",
+    "UNIMPLEMENTED",
+    "UNKNOWN"};
+
+inline constexpr privacy_sandbox::server_common::metrics::PrivacyBudget
+    privacy_total_budget{/*epsilon*/ 5};
 
 // Metric definitions for request level metrics that are privacy impacting
 // and should be logged unsafe with DP(differential privacy) noises.
@@ -248,27 +254,66 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 // Metric definitions for safe metrics that are not privacy impacting
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRealtimeGetNotificationsFailure(
-        "RealtimeGetNotificationsFailure",
-        "Number of failures in getting realtime notifications");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRealtimeSleepFailure(
-        "RealtimeSleepFailure",
-        "Number of sleep failures in getting realtime notifications");
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kGetParameterStatus("GetParameterStatus", "Get parameter status", "status",
+                        kAbslStatusStrings);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
-    kRealtimeTotalRowsUpdated("RealtimeTotalRowsUpdated",
-                              "Realtime total rows updated status count",
-                              "status", kAbslStatusStrings);
+    kCompleteLifecycleStatus("CompleteLifecycleStatus",
+                             "Server complete life cycle status", "status",
+                             kAbslStatusStrings);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kCreateDataOrchestratorStatus("CreateDataOrchestratorStatus",
+                                  "Data orchestrator creation status", "status",
+                                  kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kStartDataOrchestratorStatus("StartDataOrchestratorStatus",
+                                 "Data orchestrator start status count",
+                                 "status", kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kLoadNewFilesStatus("LoadNewFilesStatus", "Load new file status", "status",
+                        kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kGetShardManagerStatus("GetShardManagerStatus", "Get shard manager status",
+                           "status", kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kDescribeInstanceGroupInstancesStatus(
+        "DescribeInstanceGroupInstancesStatus",
+        "Describe instance group instances status", "status",
+        kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kDescribeInstancesStatus("DescribeInstancesStatus",
+                             "Describe instances status", "status",
+                             kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kRealtimeTotalRowsUpdated("RealtimeTotalRowsUpdated",
+                              "Realtime total rows updated count");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kReceivedLowLatencyNotificationsE2ECloudProvided(
         "ReceivedLowLatencyNotificationsE2ECloudProvided",
@@ -277,7 +322,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kReceivedLowLatencyNotificationsE2E(
         "ReceivedLowLatencyNotificationsE2E",
@@ -286,7 +331,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kReceivedLowLatencyNotifications(
         "ReceivedLowLatencyNotifications",
@@ -295,28 +340,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRealtimeDecodeMessageFailure(
-        "RealtimeDecodeMessageFailure",
-        "Number of failures in decoding realtime message");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRealtimeMessageApplicationFailure(
-        "RealtimeMessageApplicationFailure",
-        "Number of realtime message application failures");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsChangeNotifierQueueSetupFailure(
-        "AwsChangeNotifierQueueSetupFailure",
-        "Number of failures in setting up AWS change notifier queue");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kAwsSqsReceiveMessageLatency("AwsSqsReceiveMessageLatency",
                                  "AWS SQS receive message latency",
@@ -324,45 +348,81 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsChangeNotifierTagFailure("AwsChangeNotifierTagFailure",
-                                 "Number of failures in tagging AWS SQS queue");
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kChangeNotifierErrors("ChangeNotifierErrors",
+                          "Errors in the change notifier", "error_code",
+                          kChangeNotifierErrorCode);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsChangeNotifierMessagesReceivingFailure(
-        "AwsChangeNotifierMessagesReceivingFailure",
-        "Number of failures in receiving message from AWS SQS");
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kRealtimeErrors("RealtimeErrors", "Errors in realtime data loading",
+                    "error_code", kRealtimeErrorCode);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsChangeNotifierMessagesDataLossFailure(
-        "AwsChangeNotifierMessagesDataLossFailure",
-        "Number of failures in extracting data from AWS SQS messages");
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kSeekingInputStreambufSizeLatency("SeekingInputStreambufSizeLatency",
+                                      "Latency in seeking input streambuf size",
+                                      kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsChangeNotifierMessagesDeletionFailure(
-        "AwsChangeNotifierMessagesDeletionFailure",
-        "Number of failures in deleting messages from AWS SQS");
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kSeekingInputStreambufUnderflowLatency(
+        "SeekingInputStreambufUnderflowLatency",
+        "Latency in seeking input streambuf underflow",
+        kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kAwsJsonParseError(
-        "AwsJsonParseError",
-        "Number of errors in parsing Json from AWS S3 notification");
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kSeekingInputStreambufSeekoffLatency(
+        "SeekingInputStreambufSeekoffLatency",
+        "Latency in seeking input streambuf seekoff",
+        kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kDeltaFileRecordChangeNotifierParsingFailure(
-        "DeltaFileRecordChangeNotifierParsingFailure",
-        "Number of errors in parsing Json from delta file record change "
-        "notification");
+    kTotalRowsDroppedInDataLoading("TotalRowsDroppedInDataLoading",
+                                   "Total rows dropped during data loading");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kTotalRowsUpdatedInDataLoading("TotalRowsUpdatedInDataLoading",
+                                   "Total rows updated during data loading");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kTotalRowsDeletedInDataLoading("TotalRowsDeletedInDataLoading",
+                                   "Total rows deleted during data loading");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kConcurrentStreamRecordReaderReadShardRecordsLatency(
+        "ConcurrentStreamRecordReaderReadShardRecordsLatency",
+        "Latency in ConcurrentStreamRecordReader reading shard records",
+        kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kConcurrentStreamRecordReaderReadStreamRecordsLatency(
+        "ConcurrentStreamRecordReaderReadStreamRecordsLatency",
+        "Latency in ConcurrentStreamRecordReader reading stream records",
+        kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kConcurrentStreamRecordReaderReadByteRangeLatency(
+        "ConcurrentStreamRecordReaderReadByteRangeLatency",
+        "Latency in ConcurrentStreamRecordReader reading byte range",
+        kLatencyInMicroSecondsBoundaries);
 
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
@@ -383,17 +443,83 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kGetKeyValueSetLatencyInMicros,
         // Safe metrics
         &privacy_sandbox::server_common::metrics::kServerTotalTimeMs,
-        &kRealtimeGetNotificationsFailure, &kRealtimeSleepFailure,
+        &kGetParameterStatus, &kCompleteLifecycleStatus,
+        &kCreateDataOrchestratorStatus, &kStartDataOrchestratorStatus,
+        &kLoadNewFilesStatus, &kGetShardManagerStatus,
+        &kDescribeInstanceGroupInstancesStatus, &kDescribeInstancesStatus,
         &kRealtimeTotalRowsUpdated,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
-        &kRealtimeDecodeMessageFailure, &kRealtimeMessageApplicationFailure,
-        &kAwsChangeNotifierQueueSetupFailure, &kAwsSqsReceiveMessageLatency,
-        &kAwsChangeNotifierTagFailure,
-        &kAwsChangeNotifierMessagesReceivingFailure,
-        &kAwsChangeNotifierMessagesDataLossFailure,
-        &kAwsChangeNotifierMessagesDeletionFailure, &kAwsJsonParseError,
-        &kDeltaFileRecordChangeNotifierParsingFailure};
+        &kChangeNotifierErrors, &kRealtimeErrors, &kAwsSqsReceiveMessageLatency,
+        &kSeekingInputStreambufSeekoffLatency,
+        &kSeekingInputStreambufSizeLatency,
+        &kSeekingInputStreambufUnderflowLatency,
+        &kTotalRowsDroppedInDataLoading, &kTotalRowsUpdatedInDataLoading,
+        &kTotalRowsDeletedInDataLoading,
+        &kConcurrentStreamRecordReaderReadShardRecordsLatency,
+        &kConcurrentStreamRecordReaderReadStreamRecordsLatency,
+        &kConcurrentStreamRecordReaderReadByteRangeLatency};
+
+inline constexpr absl::Span<
+    const privacy_sandbox::server_common::metrics::DefinitionName* const>
+    kKVServerMetricSpan = kKVServerMetricList;
+
+inline auto* KVServerContextMap(
+    std::optional<
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig>
+        config = std::nullopt,
+    std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
+    absl::string_view service = "", absl::string_view version = "") {
+  return privacy_sandbox::server_common::metrics::GetContextMap<
+      const std::string, kKVServerMetricSpan>(std::move(config),
+                                              std::move(provider), service,
+                                              version, privacy_total_budget);
+}
+
+template <typename T>
+inline void AddSystemMetric(T* context_map) {
+  context_map->AddObserverable(
+      privacy_sandbox::server_common::metrics::kCpuPercent,
+      privacy_sandbox::server_common::GetCpu);
+  context_map->AddObserverable(
+      privacy_sandbox::server_common::metrics::kMemoryKB,
+      privacy_sandbox::server_common::GetMemory);
+}
+
+inline void LogIfError(const absl::Status& s,
+                       absl::string_view message = "when logging metric",
+                       privacy_sandbox::server_common::SourceLocation location
+                           PS_LOC_CURRENT_DEFAULT_ARG) {
+  if (s.ok()) return;
+  ABSL_LOG_EVERY_N_SEC(WARNING, 60)
+          .AtLocation(location.file_name(), location.line())
+      << message << ": " << s;
+}
+
+template <const auto& definition>
+inline absl::AnyInvocable<void(const absl::Status&, int) const>
+LogStatusSafeMetricsFn() {
+  return [](const absl::Status& status, int count) {
+    LogIfError(KVServerContextMap()->SafeMetric().LogUpDownCounter<definition>(
+        {{absl::StatusCodeToString(status.code()), count}}));
+  };
+}
+
+inline absl::AnyInvocable<void(const absl::Status&, int) const>
+LogMetricsNoOpCallback() {
+  return [](const absl::Status& status, int count) {};
+}
+
+// Initialize metrics context map
+// This is the minimum requirement to initialize the noop telemetry
+inline void InitMetricsContextMap() {
+  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+  config_proto.set_mode(
+      privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+  kv_server::KVServerContextMap(
+      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+          config_proto));
+}
 
 }  // namespace kv_server
 

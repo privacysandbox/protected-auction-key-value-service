@@ -15,27 +15,27 @@
  */
 
 function HandleRequest(executionMetadata, ...input) {
-    let keyGroupOutputs = [];
-    for (const keyGroup of input) {
-        let keyGroupOutput = {};
-        if (!keyGroup.tags.includes("custom") || !keyGroup.tags.includes("queries")) {
-            continue;
-        }
-        keyGroupOutput.tags = keyGroup.tags;
-        if (!Array.isArray(keyGroup.data) || !keyGroup.data.length) {
-            continue;
-        }
-
-        // Get the first key in the data.
-        const runQueryArray = runQuery(keyGroup.data[0]);
-        // runQuery returns an array of strings when successful and "code" on failure.
-        // Ignore failures and only add successful runQuery results to output.
-        if (Array.isArray(runQueryArray) && runQueryArray.length) {
-            const keyValuesOutput = {};
-            keyValuesOutput["result"] = { "value": runQueryArray };
-            keyGroupOutput.keyValues = keyValuesOutput;
-            keyGroupOutputs.push(keyGroupOutput);
-        }
+  let keyGroupOutputs = [];
+  for (const keyGroup of input) {
+    let keyGroupOutput = {};
+    if (!keyGroup.tags.includes('custom') || !keyGroup.tags.includes('queries')) {
+      continue;
     }
-    return { keyGroupOutputs, udfOutputApiVersion: 1 };
+    keyGroupOutput.tags = keyGroup.tags;
+    if (!Array.isArray(keyGroup.data) || !keyGroup.data.length) {
+      continue;
+    }
+
+    // Get the first key in the data.
+    const runQueryArray = runQuery(keyGroup.data[0]);
+    // runQuery returns an array of strings when successful and "code" on failure.
+    // Ignore failures and only add successful runQuery results to output.
+    if (Array.isArray(runQueryArray) && runQueryArray.length) {
+      const keyValuesOutput = {};
+      keyValuesOutput['result'] = { value: runQueryArray };
+      keyGroupOutput.keyValues = keyValuesOutput;
+      keyGroupOutputs.push(keyGroupOutput);
+    }
+  }
+  return { keyGroupOutputs, udfOutputApiVersion: 1 };
 }

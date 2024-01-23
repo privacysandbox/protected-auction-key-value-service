@@ -108,7 +108,7 @@ TEST_F(ClientWorkerTest, SingleClientWorkerTest) {
       std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
           0, server_->InProcessChannel(grpc::ChannelArguments()), method,
           absl::Seconds(1), request_converter, message_queue, rate_limiter,
-          *metrics_collector);
+          *metrics_collector, false);
   sim_clock_.AdvanceTime(absl::Seconds(1));
   EXPECT_TRUE(worker->Start().ok());
   EXPECT_TRUE(worker->IsRunning());
@@ -158,7 +158,7 @@ TEST_F(ClientWorkerTest, MultipleClientWorkersTest) {
         std::make_unique<ClientWorker<RawRequest, google::api::HttpBody>>(
             i, server_->InProcessChannel(grpc::ChannelArguments()), method,
             absl::Seconds(1), request_converter, message_queue, rate_limiter,
-            *metrics_collector);
+            *metrics_collector, false);
     EXPECT_TRUE(worker->Start().ok());
     EXPECT_TRUE(worker->IsRunning());
     workers.push_back(std::move(worker));

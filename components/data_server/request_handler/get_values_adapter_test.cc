@@ -145,19 +145,26 @@ data {
   auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
-  TextFormat::ParseFromString(R"pb(
-                                keys {
-                                  fields {
-                                    key: "key1"
-                                    value { string_value: "value1" }
-                                  }
-                                  fields {
-                                    key: "key2"
-                                    value { string_value: "value2" }
-                                  }
-
-                                })pb",
-                              &v1_expected);
+  TextFormat::ParseFromString(
+      R"pb(
+        keys {
+        key: "key1"
+        value {
+          value {
+            string_value: "value1"
+          }
+        }
+      }
+      keys {
+        key: "key2"
+        value {
+          value {
+            string_value: "value2"
+          }
+        }
+      }
+      })pb",
+      &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
 }
 
@@ -243,16 +250,12 @@ data {
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb(
                                 render_urls {
-                                  fields {
-                                    key: "key1"
-                                    value { string_value: "value1" }
-                                  }
+                                  key: "key1"
+                                  value { value { string_value: "value1" } }
                                 }
                                 ad_component_render_urls {
-                                  fields {
-                                    key: "key2"
-                                    value { string_value: "value2" }
-                                  }
+                                  key: "key2"
+                                  value { value { string_value: "value2" } }
                                 })pb",
                               &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -292,7 +295,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithEmptyKVsReturnsOk) {
   auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
-  TextFormat::ParseFromString(R"pb(keys {})pb", &v1_expected);
+  TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
 }
 
@@ -383,14 +386,12 @@ TEST_F(GetValuesAdapterTest,
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb(
                                 keys {
-                                  fields {
-                                    key: "key1"
-                                    value { string_value: "value1" }
-                                  }
-                                  fields {
-                                    key: "key2"
-                                    value { string_value: "value2" }
-                                  }
+                                  key: "key1"
+                                  value { value { string_value: "value1" } }
+                                }
+                                keys {
+                                  key: "key2"
+                                  value { value { string_value: "value2" } }
                                 })pb",
                               &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -418,54 +419,57 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputHasDifferentValueTypesReturnsOk) {
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
-      R"pb(keys {
-             fields {
-               key: "key1"
-               value {
-                 list_value {
-                   values {
-                     list_value {
-                       values {
-                         list_value {
-                           values { number_value: 1 }
-                           values { number_value: 2 }
-                           values { number_value: 3 }
-                           values { number_value: 4 }
-                         }
-                       }
-                     }
-                   }
-                   values { null_value: NULL_VALUE }
-                   values {
-                     list_value {
-                       values { string_value: "123456789" }
-                       values { string_value: "123456789" }
-                     }
-                   }
-                   values { list_value { values { string_value: "v1" } } }
-                 }
-               }
-             }
-             fields {
-               key: "key2"
-               value {
-                 struct_value {
-                   fields {
-                     key: "k1"
-                     value { number_value: 123 }
-                   }
-                   fields {
-                     key: "k2"
-                     value { string_value: "v" }
-                   }
-                 }
-               }
-             }
-             fields {
-               key: "key3"
-               value { string_value: "3" }
-             }
-           })pb",
+      R"pb(
+        keys {
+          key: "key1"
+          value {
+            value {
+              list_value {
+                values {
+                  list_value {
+                    values {
+                      list_value {
+                        values { number_value: 1 }
+                        values { number_value: 2 }
+                        values { number_value: 3 }
+                        values { number_value: 4 }
+                      }
+                    }
+                  }
+                }
+                values { null_value: NULL_VALUE }
+                values {
+                  list_value {
+                    values { string_value: "123456789" }
+                    values { string_value: "123456789" }
+                  }
+                }
+                values { list_value { values { string_value: "v1" } } }
+              }
+            }
+          }
+        }
+        keys {
+          key: "key2"
+          value {
+            value {
+              struct_value {
+                fields {
+                  key: "k1"
+                  value { number_value: 123 }
+                }
+                fields {
+                  key: "k2"
+                  value { string_value: "v" }
+                }
+              }
+            }
+          }
+        }
+        keys {
+          key: "key3"
+          value { value { number_value: 3 } }
+        })pb",
       &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
 }
@@ -495,30 +499,31 @@ TEST_F(GetValuesAdapterTest, ValueWithStatusSuccess) {
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
-      R"pb(keys {
-             fields {
-               key: "key1"
-               value {
-                 struct_value {
-                   fields {
-                     key: "status"
-                     value {
-                       struct_value {
-                         fields {
-                           key: "code"
-                           value { number_value: 1 }
-                         }
-                         fields {
-                           key: "message"
-                           value { string_value: "some error message" }
-                         }
-                       }
-                     }
-                   }
-                 }
-               }
-             }
-           })pb",
+      R"pb(
+        keys {
+          key: "key1"
+          value {
+            value {
+              struct_value {
+                fields {
+                  key: "status"
+                  value {
+                    struct_value {
+                      fields {
+                        key: "code"
+                        value { number_value: 1 }
+                      }
+                      fields {
+                        key: "message"
+                        value { string_value: "some error message" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })pb",
       &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
 }

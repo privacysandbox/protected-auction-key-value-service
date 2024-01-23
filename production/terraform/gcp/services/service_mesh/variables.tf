@@ -25,7 +25,7 @@ variable "environment" {
 }
 
 variable "service_port" {
-  description = "The grpc port that receives traffic destined for the frontend service."
+  description = "The grpc port that receives traffic destined for the key-value service."
   type        = number
 }
 

@@ -19,11 +19,12 @@
 #include "absl/flags/usage.h"
 #include "absl/strings/str_join.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
+#include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/records_utils.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
@@ -39,7 +40,7 @@ void Print(std::string string_decoded) {
   std::istringstream is(string_decoded);
 
   auto delta_stream_reader_factory =
-      kv_server::StreamRecordReaderFactory<std::string_view>::Create();
+      std::make_unique<kv_server::RiegeliStreamRecordReaderFactory>();
 
   auto record_reader = delta_stream_reader_factory->CreateReader(is);
 
@@ -66,7 +67,7 @@ void Print(std::string string_decoded) {
 
     auto format_value_func =
         [](const KeyValueMutationRecord& record) -> std::string {
-      if (record.value_type() == Value::String) {
+      if (record.value_type() == Value::StringValue) {
         return std::string(GetRecordValue<std::string_view>(record));
       }
       if (record.value_type() == Value::StringSet) {
@@ -103,14 +104,12 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto status_or_notifier = kv_server::ChangeNotifier::Create(
-      kv_server::AwsNotifierMetadata{
+  kv_server::InitMetricsContextMap();
+  auto status_or_notifier =
+      kv_server::ChangeNotifier::Create(kv_server::AwsNotifierMetadata{
           .queue_prefix = "QueueNotifier_",
           .sns_arn = std::move(sns_arn),
-          .queue_manager = message_service_status->get()},
-      *noop_metrics_recorder);
+          .queue_manager = message_service_status->get()});
 
   if (!status_or_notifier.ok()) {
     std::cerr << "Unable to create ChangeNotifier: "
@@ -119,8 +118,7 @@ int main(int argc, char** argv) {
   }
 
   std::unique_ptr<DeltaFileRecordChangeNotifier> notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(*status_or_notifier),
-                                            *noop_metrics_recorder);
+      DeltaFileRecordChangeNotifier::Create(std::move(*status_or_notifier));
 
   while (true) {
     auto keys = notifier->GetNotifications(absl::InfiniteDuration(),

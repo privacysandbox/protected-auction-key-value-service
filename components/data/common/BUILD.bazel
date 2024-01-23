@@ -86,11 +86,12 @@ cc_library(
         ],
     }) + [
         ":message_service",
+        "//components/telemetry:server_definition",
         "//components/util:sleepfor",
         "@com_github_google_glog//:glog",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@com_google_absl//absl/strings",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
     ],
 )

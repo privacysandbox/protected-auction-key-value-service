@@ -19,9 +19,7 @@ resource "aws_s3_bucket" "bucket" {
   bucket = var.s3_delta_file_bucket_name
 
   tags = {
-    Name        = var.s3_delta_file_bucket_name
-    service     = var.service
-    environment = var.environment
+    Name = var.s3_delta_file_bucket_name
   }
 }
 
@@ -64,9 +62,7 @@ resource "aws_sns_topic" "sns_topic" {
   name = "${aws_s3_bucket.bucket.bucket}-sns-topic"
 
   tags = {
-    Name        = "${aws_s3_bucket.bucket.bucket}-sns-topic"
-    service     = var.service
-    environment = var.environment
+    Name = "${aws_s3_bucket.bucket.bucket}-sns-topic"
   }
 }
 
@@ -108,8 +104,6 @@ resource "aws_sns_topic" "realtime_sns_topic" {
   name = "${aws_s3_bucket.bucket.bucket}-realtime-sns-topic"
 
   tags = {
-    Name        = "${aws_s3_bucket.bucket.bucket}-realtime-sns-topic"
-    service     = var.service
-    environment = var.environment
+    Name = "${aws_s3_bucket.bucket.bucket}-realtime-sns-topic"
   }
 }

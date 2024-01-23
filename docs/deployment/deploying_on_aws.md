@@ -408,7 +408,7 @@ nitro-cli run-enclave --cpu-count 2 --memory 3072 --eif-path /home/ec2-user/serv
 Terminate the Key/Value server by executing the following command:
 
 ```sh
-ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID"); [ "$ENCLAVE_ID" != "null" ] && nitro-cli terminate-enclave --enclave-id ${ENCLAVE_ID}
+ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID"); [ "$ENCLAVE_ID" != "null" ] && sudo nitro-cli terminate-enclave --enclave-id ${ENCLAVE_ID}
 ```
 
 ## Updating the server
@@ -430,12 +430,63 @@ instances with the old AMI IDs manually, if you so choose.
 For development on non-production instances, a faster approach is available in the
 [developer guide](/docs/developing_the_server.md).
 
+## Running the server outside the TEE
+
+For debugging purposes, it is possible to run the server outside of the TEE in a docker container.
+The docker image is included in the AMI and located under `/home/ec2-user/server_docker_image.tar`.
+
+There are several options to do so:
+
+### 1. Using terraform
+
+This will create a new instance and start running the server in a Docker container. If you have
+running instances in the autoscaling group, they will be terminated and replaced with servers
+running outside the TEE.
+
+1. Update your `[[REGION]].tfvars.json` by setting `"run_server_outside_tee": true`
+1. Follow the [deployment](#deployment) steps if setting up for the first time or just
+   [apply terraform](#apply-terraform) to update existing terraform configurations.
+
+To inspect container logs:
+
+1. Get the id for the docker container:
+
+    ```sh
+    docker container ls --filter ancestor=bazel/production/packaging/aws/data_server:server_docker_image
+    ```
+
+1. Use the `docker logs` [command](https://docs.docker.com/engine/reference/commandline/logs/).
+
+### 2. SSH into instance & run Docker
+
+Alternatively, you can SSH into an existing server instance and start the Docker container manually.
+
+1. Load the docker image
+
+    ```sh
+    docker load -i /home/ec2-user/server_docker_image.tar
+    ```
+
+1. Make sure to stop any existing servers, inside or outside the TEE.
+1. Stop the proxy
+
+    ```sh
+    sudo systemctl stop vsockproxy.service
+    ```
+
+1. Run the docker container
+
+    ```sh
+    docker run -d --init --rm --env GLOG_v=5 --network host --security-opt=seccomp=unconfined  \
+    --entrypoint=/init_server_basic bazel/production/packaging/aws/data_server:server_docker_image -- --port 50051
+    ```
+
 ## Viewing Telemetry
 
 ### Metrics
 
 Metrics are exported to both Cloudwatch and Prometheus, both are hosted services by Amazon
-([otel_collector_config.yaml](../production/packaging/aws/otel_collector/otel_collector_config.yaml)).
+([otel_collector_config.yaml](../../production/packaging/aws/otel_collector/otel_collector_config.yaml)).
 
 #### Cloudwatch
 
@@ -483,3 +534,7 @@ You may run into a case where the server fails to start due to resource allocati
 
 The resources are allocated by specifying the per-TEE values in the terraform variable file,
 `enclave_cpu_count` and `enclave_memory_mib`.
+
+## How is private communication configured?
+
+See this [doc](private_communication_aws.md) for more details.

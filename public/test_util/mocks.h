@@ -21,13 +21,15 @@
 
 #include "gmock/gmock.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/readers/stream_record_reader.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
+#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 
 // We have to specialize the template due to the problem that MOCK_METHOD can't
 // work well with template.
-class MockStreamRecordReader : public StreamRecordReader<std::string_view> {
+class MockStreamRecordReader : public StreamRecordReader {
  public:
   MOCK_METHOD(absl::StatusOr<KVFileMetadata>, GetKVFileMetadata, (),
               (override));
@@ -38,15 +40,13 @@ class MockStreamRecordReader : public StreamRecordReader<std::string_view> {
       (override));
 };
 
-class MockStreamRecordReaderFactory
-    : public StreamRecordReaderFactory<std::string_view> {
+class MockStreamRecordReaderFactory : public StreamRecordReaderFactory {
  public:
-  MOCK_METHOD(std::unique_ptr<StreamRecordReader<std::string_view>>,
-              CreateReader, (std::istream & data_input), (const, override));
-  MOCK_METHOD(std::unique_ptr<StreamRecordReader<std::string_view>>,
-              CreateConcurrentReader,
-              (privacy_sandbox::server_common::MetricsRecorder&,
-               std::function<std::unique_ptr<RecordStream>()>),
+  MockStreamRecordReaderFactory() : StreamRecordReaderFactory() {}
+  MOCK_METHOD(std::unique_ptr<StreamRecordReader>, CreateReader,
+              (std::istream & data_input), (const, override));
+  MOCK_METHOD(std::unique_ptr<StreamRecordReader>, CreateConcurrentReader,
+              (std::function<std::unique_ptr<RecordStream>()>),
               (const, override));
 };
 

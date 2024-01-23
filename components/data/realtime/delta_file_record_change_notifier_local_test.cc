@@ -28,17 +28,12 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
-
 // We don't need to test the watching of files as that's covered in tests
 // for the ChangeNotifier that this class delegates to.
 TEST(DeltaFileRecordChangeNotifierTest, SmokeTest) {
   auto mock_change_notifier = std::make_unique<kv_server::MockChangeNotifier>();
-
-  MockMetricsRecorder mock_metrics_recorder;
   std::unique_ptr<DeltaFileRecordChangeNotifier> notifier =
-      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier),
-                                            mock_metrics_recorder);
+      DeltaFileRecordChangeNotifier::Create(std::move(mock_change_notifier));
   EXPECT_TRUE(notifier != nullptr);
 }
 

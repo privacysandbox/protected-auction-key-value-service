@@ -54,6 +54,8 @@ class DeltaRecordStreamReader : public DeltaRecordReader {
 
   absl::Status ReadRecords(const std::function<absl::Status(DataRecordStruct)>&
                                record_callback) override;
+  absl::Status ReadRecords(const std::function<absl::Status(const DataRecord&)>&
+                               record_callback) override;
   bool IsOpen() const override { return stream_reader_.IsOpen(); };
   absl::Status Status() const override { return stream_reader_.Status(); }
   absl::StatusOr<KVFileMetadata> ReadMetadata() {
@@ -70,6 +72,15 @@ absl::Status DeltaRecordStreamReader<SrcStreamT>::ReadRecords(
   return stream_reader_.ReadStreamRecords(
       [&record_callback](std::string_view record_string) {
         return DeserializeDataRecord(record_string, record_callback);
+      });
+}
+
+template <typename SrcStreamT>
+absl::Status DeltaRecordStreamReader<SrcStreamT>::ReadRecords(
+    const std::function<absl::Status(const DataRecord&)>& record_callback) {
+  return stream_reader_.ReadStreamRecords(
+      [&record_callback](std::string_view record_string) {
+        return DeserializeRecord(record_string, record_callback);
       });
 }
 

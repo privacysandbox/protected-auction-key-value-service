@@ -97,7 +97,8 @@ void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
 
   if (logical_commit_time <= max_cleanup_logical_commit_time_) {
     VLOG(1) << "Skipping the update as its logical_commit_time: "
-            << logical_commit_time << " is older than the current cutoff time:"
+            << logical_commit_time
+            << " is not newer than the current cutoff time:"
             << max_cleanup_logical_commit_time_;
 
     return;
@@ -108,7 +109,8 @@ void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
   if (key_iter != map_.end() &&
       key_iter->second.last_logical_commit_time >= logical_commit_time) {
     VLOG(1) << "Skipping the update as its logical_commit_time: "
-            << logical_commit_time << " is older than the current value's time:"
+            << logical_commit_time
+            << " is not newer than the current value's time:"
             << key_iter->second.last_logical_commit_time;
     return;
   }

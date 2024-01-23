@@ -239,7 +239,9 @@ absl::Status SnapshotStreamWriter<DestStreamT>::InsertOrUpdateRecords(
     return metadata.status();
   }
   return record_reader.ReadRecords(
-      [this](auto data_record) { return InsertOrUpdateRecord(data_record); });
+      [this](DataRecordStruct data_record) -> absl::Status {
+        return InsertOrUpdateRecord(data_record);
+      });
 }
 
 template <typename DestStreamT>

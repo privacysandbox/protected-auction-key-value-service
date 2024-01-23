@@ -29,10 +29,21 @@
 namespace kv_server {
 namespace {
 
-TEST(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
+class ClusterMappingsAwsTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    config_proto.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+    KVServerContextMap(
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+            config_proto));
+  }
+};
+
+TEST_F(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
   std::string environment = "testenv";
   int32_t num_shards = 4;
-  privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
   auto instance_client = std::make_unique<MockInstanceClient>();
   EXPECT_CALL(*instance_client, DescribeInstanceGroupInstances(::testing::_))
       .WillOnce([&](DescribeInstanceGroupInput& input) {
@@ -95,8 +106,7 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
 
   MockParameterFetcher parameter_fetcher;
   auto mgr = ClusterMappingsManager::Create(
-      environment, num_shards, mock_metrics_recorder, *instance_client,
-      parameter_fetcher);
+      environment, num_shards, *instance_client, parameter_fetcher);
   auto cluster_mappings = mgr->GetClusterMappings();
   EXPECT_EQ(cluster_mappings.size(), 4);
   absl::flat_hash_set<std::string> set0 = {"ip1", "ip2"};
@@ -108,10 +118,9 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
   EXPECT_THAT(cluster_mappings[3], testing::UnorderedElementsAreArray(set2));
 }
 
-TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
+TEST_F(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
   std::string environment = "testenv";
   int32_t num_shards = 2;
-  privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
   auto instance_client = std::make_unique<MockInstanceClient>();
   EXPECT_CALL(*instance_client, DescribeInstanceGroupInstances(::testing::_))
       .WillOnce(testing::Return(absl::InternalError("Oops.")))
@@ -150,8 +159,7 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
           });
   MockParameterFetcher parameter_fetcher;
   auto mgr = ClusterMappingsManager::Create(
-      environment, num_shards, mock_metrics_recorder, *instance_client,
-      parameter_fetcher);
+      environment, num_shards, *instance_client, parameter_fetcher);
   auto cluster_mappings = mgr->GetClusterMappings();
   EXPECT_EQ(cluster_mappings.size(), 2);
   absl::flat_hash_set<std::string> set0 = {"ip1"};
@@ -160,7 +168,7 @@ TEST(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
   EXPECT_THAT(cluster_mappings[1], testing::UnorderedElementsAreArray(set1));
 }
 
-TEST(ClusterMappingsAwsTest, UpdateMappings) {
+TEST_F(ClusterMappingsAwsTest, UpdateMappings) {
   std::string environment = "testenv";
   int32_t num_shards = 2;
   privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
@@ -247,8 +255,7 @@ TEST(ClusterMappingsAwsTest, UpdateMappings) {
           });
   MockParameterFetcher parameter_fetcher;
   auto mgr = ClusterMappingsManager::Create(
-      environment, num_shards, mock_metrics_recorder, *instance_client,
-      parameter_fetcher);
+      environment, num_shards, *instance_client, parameter_fetcher);
   mgr->Start(*shard_manager);
   finished.WaitForNotification();
   ASSERT_TRUE(mgr->Stop().ok());

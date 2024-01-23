@@ -116,6 +116,11 @@ variable "wait_for_capacity_timeout" {
   type        = string
 }
 
+variable "run_server_outside_tee" {
+  description = "Whether to run the server outside the TEE, in a docker container. Untrusted mode, for debugging."
+  type        = bool
+}
+
 locals {
   validate_prometheus_workspace_id = (
   var.prometheus_service_region == var.region || var.prometheus_workspace_id != null) ? true : tobool("If Prometheus service runs in a different region, please create the workspace first and specify the workspace id in var file.")

@@ -23,14 +23,13 @@
 #include <utility>
 
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/seeking_input_streambuf.h"
 #include "glog/logging.h"
 
 namespace kv_server {
 namespace {
-
-using privacy_sandbox::server_common::MetricsRecorder;
 
 class FileBlobReader : public BlobReader {
  public:
@@ -129,7 +128,6 @@ class LocalBlobStorageClientFactory : public BlobStorageClientFactory {
  public:
   ~LocalBlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
-      MetricsRecorder& /*metrics_recorder*/,
       BlobStorageClient::ClientOptions /*client_options*/) override {
     return std::make_unique<FileBlobStorageClient>();
   }

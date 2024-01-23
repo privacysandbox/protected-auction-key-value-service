@@ -21,22 +21,18 @@
 #include "absl/flags/usage.h"
 #include "absl/strings/str_join.h"
 #include "components/data/common/msg_svc.h"
+#include "components/tools/publisher_service.h"
 #include "components/util/platform_initializer.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/readers/riegeli_stream_io.h"
+#include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/records_utils.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
-ABSL_FLAG(std::string, gcp_project_id, "", "GCP project id");
-ABSL_FLAG(std::string, gcp_topic_id, "", "GCP topic id");
-ABSL_FLAG(std::string, aws_sns_arn, "", "AWS sns arn");
 ABSL_FLAG(std::string, local_directory, "", "Local directory");
 
 namespace kv_server {
 namespace {
-const char kQueuePrefix[] = "QueueNotifier_";
-
 using kv_server::DataRecord;
 using kv_server::DeserializeDataRecord;
 using kv_server::GetRecordValue;
@@ -50,7 +46,7 @@ std::unique_ptr<kv_server::MessageService> queue_manager_;
 void Print(std::string string_decoded) {
   std::istringstream is(string_decoded);
   auto delta_stream_reader_factory =
-      StreamRecordReaderFactory<std::string_view>::Create();
+      std::make_unique<kv_server::RiegeliStreamRecordReaderFactory>();
   auto record_reader = delta_stream_reader_factory->CreateReader(is);
   auto result = record_reader->ReadStreamRecords([](std::string_view raw) {
     return DeserializeDataRecord(raw, [](const DataRecord& data_record) {
@@ -65,7 +61,7 @@ void Print(std::string string_decoded) {
         }
         auto format_value_func =
             [](const KeyValueMutationRecord& record) -> std::string {
-          if (record.value_type() == Value::String) {
+          if (record.value_type() == Value::StringValue) {
             return std::string(GetRecordValue<std::string_view>(record));
           }
           if (record.value_type() == Value::StringSet) {
@@ -85,46 +81,28 @@ void Print(std::string string_decoded) {
   });
 }
 
-absl::StatusOr<NotifierMetadata> GetNotifierMetadata() {
-  const std::string gcp_project_id = absl::GetFlag(FLAGS_gcp_project_id);
-  const std::string gcp_topic_id = absl::GetFlag(FLAGS_gcp_topic_id);
-  if (!gcp_project_id.empty() && !gcp_topic_id.empty()) {
-    return GcpNotifierMetadata{.project_id = gcp_project_id,
-                               .topic_id = gcp_topic_id,
-                               .queue_prefix = kQueuePrefix};
-  }
-  const std::string sns_arn = absl::GetFlag(FLAGS_aws_sns_arn);
-  if (!sns_arn.empty()) {
-    auto metadata =
-        AwsNotifierMetadata{.sns_arn = sns_arn, .queue_prefix = kQueuePrefix};
-
-    auto maybe_queue_manager = MessageService::Create(metadata);
-    if (!maybe_queue_manager.ok()) {
-      return maybe_queue_manager.status();
-    }
-    queue_manager_ = std::move(*maybe_queue_manager);
-    metadata.queue_manager = queue_manager_.get();
-    return metadata;
-  }
-  const std::string local_directory = absl::GetFlag(FLAGS_local_directory);
-  if (!local_directory.empty()) {
-    return LocalNotifierMetadata{.local_directory = local_directory};
-  }
-  return absl::InvalidArgumentError(
-      "Please specify a full set of parameters at least for one of the "
-      "following platforms: local, GCP or AWS.");
-}
-
 absl::Status Run() {
   PlatformInitializer initializer;
-  auto maybe_notifier_metadata = GetNotifierMetadata();
+  NotifierMetadata metadata;
+  kv_server::InitMetricsContextMap();
+// TODO(b/299623229): Remove CLOUD_PLATFORM_LOCAL macro and extract to
+// publisher_service.
+#if defined(CLOUD_PLATFORM_LOCAL)
+  const std::string local_directory = absl::GetFlag(FLAGS_local_directory);
+  if (!local_directory.empty()) {
+    metadata = LocalNotifierMetadata{.local_directory = local_directory};
+  }
+  return absl::InvalidArgumentError(
+      "Please specify a full set of parameters for the local platform.");
+#else
+  auto maybe_notifier_metadata = PublisherService::GetNotifierMetadata();
   if (!maybe_notifier_metadata.ok()) {
     return maybe_notifier_metadata.status();
   }
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto realtime_notifier_maybe = RealtimeNotifier::Create(
-      *noop_metrics_recorder, std::move(*maybe_notifier_metadata));
+  metadata = std::move(*maybe_notifier_metadata);
+#endif
+
+  auto realtime_notifier_maybe = RealtimeNotifier::Create(metadata);
   if (!realtime_notifier_maybe.ok()) {
     return realtime_notifier_maybe.status();
   }

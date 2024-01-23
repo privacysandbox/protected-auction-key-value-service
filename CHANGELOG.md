@@ -2,6 +2,88 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.15.0 (2024-01-23)
+
+
+### Features
+
+* Add an ability to add default tags
+* Add AWS cpu utilization and memory utilization dashboards
+* Add bazel configs prod and non_prod
+* Add change notifier error count to the AWS metrics dashboard
+* Add delta based realtime updates publisher
+* Add delta record limited file writer
+* Add GCP system metrics dashboard for kv server
+* Add gcp_project_id flag when --platform=gcp is specified
+* add go script for pushing gcp docker image
+* Add optional logical_commit_time param to wasm macros.
+* Add sharded realtime message batcher
+* Add sharding data locality terraform parameters
+* Add sharding support for publishing engine
+* Add system metrics to log cpu and memory utilization
+* Add UDF timeout parameter value to terraform
+* Allow prefix path segments for gRPC http paths.
+* Allow setting logging verbosity level through a parameter
+* Data locality support
+* Enable prettier pre-commit hook for JavaScript
+* Expose http_api_paths tf variable to allow prefix matching
+* Log error metrics for the change notifier
+* Log metrics in the retries with new Telemetry API
+* Migrate realtime metrics to new Telemetry API
+* Remove envoy health checks
+* Remove metrics recorder from blob storage client
+* Remove metrics recorder from data orchestrator
+* Remove metrics recorder from data reader
+* Set UDF timeout from parameters
+* Support passing in shard metadata via data_cli flags
+* Update default tretyakov aws env settings
+* Update v1 to return status per key
+
+
+### Bug Fixes
+
+* Add all record values to switch cases
+* add data-bucket-id back as a flag suffix.
+* Add run_all_tests bazel config
+* bazel config for emscripten no longer needs tool chain resolution
+* Check grpc channel connection before sending requests
+* **deps:** Upgrade data-plane-shared-libraries to 44d1d64 2024-01-08
+* envoy.yaml permission and pre-commit fix
+* Integrate RomaService changes from common repo
+* Make some cache logging more precise.
+* Missing absl deps
+* Prevent Config from being copied into RomaService
+* rectify kv_service_port in terraform.
+* Remove jaeger as it has been deprecated
+* Remove local platform for common repo and fix CloudPlatform import
+* Update 'X-allow-fledge' header to 'Ad-Auction-Allowed' according to the spec.
+* update GCP tentb environment
+* Update UDFs to fix breakages due to FunctionBindingObjectV2
+* Upgrade otel collector to the latest version
+
+
+### Dependencies
+
+* **deps:** Upgrade data-plane-shared to commit f0d0b89 2023-11-14
+
+
+### GCP: Features
+
+* **GCP:** Add external load balancer and envoy.
+* **GCP:** store Terraform state remotely in GCS bucket
+
+
+### Documentation
+
+* [Sharding] Add info about NUMA clusters
+* Add docs for server cpu and memory profiling
+* Add info on default wasm macro linkopts and memory limits.
+* Add state transition sequence diagrams for aws/gcp sharded/nonsharded configurations
+* Data locality
+* Doc for aws private communication setup
+* Sharding -- add a link to a tool that sets shard id in the delta metadata
+* Specify --init flag for docker run commands
+
 ## 0.14.0 (2023-11-07)
 
 

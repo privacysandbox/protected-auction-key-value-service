@@ -19,3 +19,8 @@ def python_repositories():
         name = "word2vec",
         requirements_lock = "//third_party_deps:word2vec_requirements.txt",
     )
+
+    pip_parse(
+        name = "latency_benchmark",
+        requirements_lock = "//third_party_deps:latency_benchmark_requirements.txt",
+    )

@@ -1,0 +1,47 @@
+load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
+load("@rules_python//python:defs.bzl", "py_binary")
+
+snapshot_in = "SNAPSHOT_0000000000000001"
+
+csv_out = "snapshot.csv"
+
+run_binary(
+    name = "generate_snapshot_csv",
+    srcs = [
+        snapshot_in,
+    ],
+    outs = [
+        csv_out,
+    ],
+    args = [
+        "format_data",
+        "--input_file",
+        "$(location {})".format(snapshot_in),
+        "--input_format",
+        "DELTA",
+        "--output_file",
+        "$(location {})".format(csv_out),
+        "--output_format",
+        "CSV",
+    ],
+    tags = ["manual"],
+    tool = "//tools/data_cli",
+)
+
+py_binary(
+    name = "generate_requests",
+    srcs = ["generate_requests.py"],
+    args = [
+        "--snapshot-csv-file",
+        "$(location {})".format(csv_out),
+    ],
+    data = [csv_out],
+)
+
+py_binary(
+    name = "create_csv_summary",
+    srcs = ["create_csv_summary.py"],
+    deps = [
+        "@latency_benchmark_pandas//:pkg",
+    ],
+)

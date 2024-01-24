@@ -110,10 +110,13 @@ load("//third_party_deps:python_deps.bzl", "python_repositories")
 python_repositories()
 
 # Load the starlark macro, which will define your dependencies.
-load("@word2vec//:requirements.bzl", "install_deps")
+load("@latency_benchmark//:requirements.bzl", latency_benchmark_install_deps = "install_deps")
+load("@word2vec//:requirements.bzl", word2vec_install_deps = "install_deps")
 
 # Call it to define repos for your requirements.
-install_deps()
+latency_benchmark_install_deps()
+
+word2vec_install_deps()
 
 load("//third_party_deps:rules_closure_repositories.bzl", "rules_closure_repositories")
 

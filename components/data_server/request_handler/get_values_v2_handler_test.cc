@@ -61,6 +61,7 @@ class GetValuesHandlerTest
     : public ::testing::Test,
       public ::testing::WithParamInterface<ProtocolType> {
  protected:
+  void SetUp() override { InitMetricsContextMap(); }
   template <ProtocolType protocol_type>
   bool IsUsing() {
     return GetParam() == protocol_type;
@@ -326,7 +327,7 @@ data {
   )");
   EXPECT_CALL(
       mock_udf_client_,
-      ExecuteCode(EqualsProto(udf_metadata),
+      ExecuteCode(_, EqualsProto(udf_metadata),
                   testing::ElementsAre(EqualsProto(arg1), EqualsProto(arg2))))
       .WillOnce(Return(output.dump()));
 
@@ -407,7 +408,7 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
 }
 
 TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, testing::IsEmpty()))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, testing::IsEmpty()))
       .WillOnce(Return(absl::InternalError("UDF execution error")));
 
   const std::string core_request_body = R"(
@@ -453,8 +454,9 @@ TEST_F(GetValuesHandlerTest, PureGRPCTest) {
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
                              fake_key_fetcher_manager_);
   EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(testing::_, testing::ElementsAre(EqualsProto(
-                                          req.partitions(0).arguments(0)))))
+              ExecuteCode(_, _,
+                          testing::ElementsAre(
+                              EqualsProto(req.partitions(0).arguments(0)))))
       .WillOnce(Return("ECHO"));
   v2::GetValuesResponse resp;
   const auto result = handler.GetValues(req, &resp);
@@ -478,8 +480,9 @@ TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
                              fake_key_fetcher_manager_);
   EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(testing::_, testing::ElementsAre(EqualsProto(
-                                          req.partitions(0).arguments(0)))))
+              ExecuteCode(_, _,
+                          testing::ElementsAre(
+                              EqualsProto(req.partitions(0).arguments(0)))))
       .WillOnce(Return(absl::InternalError("UDF execution error")));
   v2::GetValuesResponse resp;
   const auto result = handler.GetValues(req, &resp);

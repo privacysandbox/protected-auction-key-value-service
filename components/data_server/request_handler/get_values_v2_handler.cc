@@ -25,6 +25,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
+#include "components/telemetry/server_definition.h"
 #include "google/protobuf/util/json_util.h"
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
@@ -159,6 +160,7 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
 }
 
 void GetValuesV2Handler::ProcessOnePartition(
+    RequestContext request_context,
     const google::protobuf::Struct& req_metadata,
     const v2::RequestPartition& req_partition,
     v2::ResponsePartition& resp_partition) const {
@@ -166,7 +168,8 @@ void GetValuesV2Handler::ProcessOnePartition(
   UDFExecutionMetadata udf_metadata;
   *udf_metadata.mutable_request_metadata() = req_metadata;
   const auto maybe_output_string = udf_client_.ExecuteCode(
-      std::move(udf_metadata), req_partition.arguments());
+      std::move(request_context), std::move(udf_metadata),
+      req_partition.arguments());
   if (!maybe_output_string.ok()) {
     resp_partition.mutable_status()->set_code(
         static_cast<int>(maybe_output_string.status().code()));
@@ -181,8 +184,11 @@ void GetValuesV2Handler::ProcessOnePartition(
 grpc::Status GetValuesV2Handler::GetValues(
     const v2::GetValuesRequest& request,
     v2::GetValuesResponse* response) const {
+  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
+  RequestContext request_context(scope_metrics_context->GetMetricsContext());
   if (request.partitions().size() == 1) {
-    ProcessOnePartition(request.metadata(), request.partitions(0),
+    ProcessOnePartition(std::move(request_context), request.metadata(),
+                        request.partitions(0),
                         *response->mutable_single_partition());
     return grpc::Status::OK;
   }

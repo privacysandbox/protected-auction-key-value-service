@@ -54,13 +54,14 @@ constexpr int kUdfInterfaceVersion = 1;
 
 class UdfClientImpl : public UdfClient {
  public:
-  explicit UdfClientImpl(Config<>&& config = Config(),
-                         absl::Duration udf_timeout = absl::Seconds(5))
+  explicit UdfClientImpl(
+      Config<RequestContext>&& config = Config<RequestContext>(),
+      absl::Duration udf_timeout = absl::Seconds(5))
       : udf_timeout_(udf_timeout), roma_service_(std::move(config)) {}
 
   // Converts the arguments into plain JSON strings to pass to Roma.
   absl::StatusOr<std::string> ExecuteCode(
-      UDFExecutionMetadata&& execution_metadata,
+      RequestContext request_context, UDFExecutionMetadata&& execution_metadata,
       const google::protobuf::RepeatedPtrField<UDFArgument>& arguments) const {
     execution_metadata.set_udf_interface_version(kUdfInterfaceVersion);
     std::vector<std::string> string_args;
@@ -88,20 +89,22 @@ class UdfClientImpl : public UdfClient {
       }
       string_args.push_back(json_arg);
     }
-    return ExecuteCode(std::move(string_args));
+    return ExecuteCode(std::move(request_context), std::move(string_args));
   }
 
-  absl::StatusOr<std::string> ExecuteCode(std::vector<std::string> keys) const {
+  absl::StatusOr<std::string> ExecuteCode(RequestContext request_context,
+                                          std::vector<std::string> keys) const {
     std::shared_ptr<absl::Status> response_status =
         std::make_shared<absl::Status>();
     std::shared_ptr<std::string> result = std::make_shared<std::string>();
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();
-    InvocationStrRequest<> invocation_request =
-        BuildInvocationRequest(std::move(keys));
+    auto invocation_request =
+        BuildInvocationRequest(std::move(request_context), std::move(keys));
     VLOG(9) << "Executing UDF";
     const auto status = roma_service_.Execute(
-        std::make_unique<InvocationStrRequest<>>(invocation_request),
+        std::make_unique<InvocationStrRequest<RequestContext>>(
+            std::move(invocation_request)),
         [notification, response_status,
          result](std::unique_ptr<absl::StatusOr<ResponseObject>> response) {
           if (response->ok()) {
@@ -184,13 +187,14 @@ class UdfClientImpl : public UdfClient {
   }
 
  private:
-  InvocationStrRequest<> BuildInvocationRequest(
-      std::vector<std::string> keys) const {
+  InvocationStrRequest<RequestContext> BuildInvocationRequest(
+      RequestContext request_context, std::vector<std::string> keys) const {
     return {.id = kInvocationRequestId,
             .version_string = absl::StrCat("v", version_),
             .handler_name = handler_name_,
             .tags = {{kTimeoutDurationTag, FormatDuration(udf_timeout_)}},
-            .input = std::move(keys)};
+            .input = std::move(keys),
+            .metadata = std::move(request_context)};
   }
 
   CodeObject BuildCodeObject(std::string js, std::string wasm,
@@ -212,13 +216,13 @@ class UdfClientImpl : public UdfClient {
   // concerns about mutable or go/totw/174, RomaService is thread-safe, so
   // losing the thread-safety of usage within a const function is a lesser
   // concern.
-  mutable RomaService<> roma_service_;
+  mutable RomaService<RequestContext> roma_service_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<UdfClient>> UdfClient::Create(
-    Config<>&& config, absl::Duration udf_timeout) {
+    Config<RequestContext>&& config, absl::Duration udf_timeout) {
   auto udf_client =
       std::make_unique<UdfClientImpl>(std::move(config), udf_timeout);
   const auto init_status = udf_client->Init();

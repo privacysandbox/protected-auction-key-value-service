@@ -51,6 +51,7 @@ cc_library(
     ],
     deps = [
         ":error_code",
+        "@google_privacysandbox_servers_common//scp/cc/core/common/uuid/src:uuid_lib",
         "@google_privacysandbox_servers_common//src/cpp/metric:context_map",
         "@google_privacysandbox_servers_common//src/cpp/util:read_system",
     ],

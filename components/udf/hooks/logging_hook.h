@@ -21,12 +21,14 @@
 #include <tuple>
 
 #include "absl/log/log.h"
+#include "components/util/request_context.h"
 
 namespace kv_server {
 
 // UDF hook for logging a string.
 // TODO(b/285331079): Disable for production builds.
-inline void LogMessage(google::scp::roma::FunctionBindingPayload<>& payload) {
+inline void LogMessage(
+    google::scp::roma::FunctionBindingPayload<RequestContext>& payload) {
   if (payload.io_proto.has_input_string()) {
     LOG(INFO) << payload.io_proto.input_string();
   }

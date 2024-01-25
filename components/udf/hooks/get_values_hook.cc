@@ -27,6 +27,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup.pb.h"
+#include "components/telemetry/server_definition.h"
 #include "google/protobuf/util/json_util.h"
 #include "nlohmann/json.hpp"
 #include "public/udf/binary_get_values.pb.h"
@@ -129,7 +130,7 @@ class GetValuesHookImpl : public GetValuesHook {
     }
   }
 
-  void operator()(FunctionBindingPayload<>& payload) {
+  void operator()(FunctionBindingPayload<RequestContext>& payload) {
     VLOG(9) << "Called getValues hook";
     if (lookup_ == nullptr) {
       SetStatus(absl::StatusCode::kInternal,

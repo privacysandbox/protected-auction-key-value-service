@@ -20,24 +20,8 @@
 
 namespace kv_server {
 
-RequestContext::RequestContext(std::string request_id)
-    : request_id_(std::move(request_id)) {
-  // Create a metrics context in the context map and
-  // associated it with request id
-  KVServerContextMap()->Get(&request_id_);
-  CHECK_OK([this]() {
-    // Remove the the metrics context for request_id to transfer the ownership
-    // of metrics context to the RequestContext. This is to ensure that metrics
-    // context has the same lifetime with RequestContext and be destroyed when
-    // RequestContext go out of scope.
-    PS_ASSIGN_OR_RETURN(metrics_context_,
-                        KVServerContextMap()->Remove(&request_id_));
-    return absl::OkStatus();
-  }()) << "Metrics context is not initialized";
-}
-
-KVMetricsContext* RequestContext::GetMetricsContext() const {
-  return metrics_context_.get();
+KVMetricsContext& RequestContext::GetMetricsContext() const {
+  return metrics_context_;
 }
 
 }  // namespace kv_server

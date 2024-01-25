@@ -22,26 +22,22 @@
 #include <utility>
 
 #include "components/telemetry/server_definition.h"
-#include "scp/cc/core/common/uuid/src/uuid.h"
 
 namespace kv_server {
 
-// RequestContext holds information that ties to a single request
-// The request_id can be either passed from upper stream or assigned from uuid
-// generated when RequestContext is constructed.
+// RequestContext holds the reference of metrics context that ties to a single
+// request The request_id can be either passed from upper stream or assigned
+// from uuid generated when RequestContext is constructed.
 
 class RequestContext {
  public:
-  explicit RequestContext(
-      std::string request_id = google::scp::core::common::ToString(
-          google::scp::core::common::Uuid::GenerateUuid()));
-  KVMetricsContext* GetMetricsContext() const;
+  explicit RequestContext(KVMetricsContext& metrics_context)
+      : metrics_context_(metrics_context) {}
+  KVMetricsContext& GetMetricsContext() const;
   ~RequestContext() = default;
 
  private:
-  const std::string request_id_;
-  // Metrics context has the same lifetime of server request context
-  std::unique_ptr<KVMetricsContext> metrics_context_;
+  KVMetricsContext& metrics_context_;
 };
 
 }  // namespace kv_server

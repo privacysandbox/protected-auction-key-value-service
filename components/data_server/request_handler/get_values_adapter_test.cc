@@ -56,6 +56,7 @@ class GetValuesAdapterTest : public ::testing::Test {
     v2_handler_ = std::make_unique<GetValuesV2Handler>(
         mock_udf_client_, mock_metrics_recorder_, fake_key_fetcher_manager_);
     get_values_adapter_ = GetValuesAdapter::Create(std::move(v2_handler_));
+    InitMetricsContextMap();
   }
 
   privacy_sandbox::server_common::FakeKeyFetcherManager
@@ -71,8 +72,9 @@ TEST_F(GetValuesAdapterTest, EmptyRequestReturnsEmptyResponse) {
   TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
   nlohmann::json output = nlohmann::json::parse(R"({"keyGroupOutputs": {}})");
 
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(EqualsProto(udf_metadata), testing::IsEmpty()))
+  EXPECT_CALL(
+      mock_udf_client_,
+      ExecuteCode(testing::_, EqualsProto(udf_metadata), testing::IsEmpty()))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
@@ -133,7 +135,7 @@ data {
 )",
                               &key_group_outputs);
   EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(EqualsProto(udf_metadata),
+              ExecuteCode(testing::_, EqualsProto(udf_metadata),
                           testing::ElementsAre(EqualsProto(arg))))
       .WillOnce(Return(
           application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
@@ -236,7 +238,7 @@ data {
                               &key_group_outputs);
   EXPECT_CALL(
       mock_udf_client_,
-      ExecuteCode(EqualsProto(udf_metadata),
+      ExecuteCode(testing::_, EqualsProto(udf_metadata),
                   testing::ElementsAre(EqualsProto(arg1), EqualsProto(arg2))))
       .WillOnce(Return(
           application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
@@ -265,7 +267,7 @@ TEST_F(GetValuesAdapterTest, V2ResponseIsNullReturnsError) {
   nlohmann::json output = R"({
     "keyGroupOutpus": []
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
@@ -286,7 +288,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithEmptyKVsReturnsOk) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
@@ -307,7 +309,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithInvalidNamespaceTagIsIgnored) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
@@ -328,7 +330,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoCustomTagIsIgnored) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
@@ -349,7 +351,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoNamespaceTagIsIgnored) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
@@ -375,7 +377,7 @@ TEST_F(GetValuesAdapterTest,
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
@@ -409,7 +411,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputHasDifferentValueTypesReturnsOk) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
@@ -489,7 +491,7 @@ TEST_F(GetValuesAdapterTest, ValueWithStatusSuccess) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;

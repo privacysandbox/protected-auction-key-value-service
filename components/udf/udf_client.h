@@ -23,7 +23,9 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "components/telemetry/server_definition.h"
 #include "components/udf/code_config.h"
+#include "components/util/request_context.h"
 #include "google/protobuf/message.h"
 #include "public/api_schema.pb.h"
 #include "roma/config/src/config.h"
@@ -41,12 +43,12 @@ class UdfClient {
   // UDF signature.
   ABSL_DEPRECATED("Use ExecuteCode(metadata, arguments) instead")
   virtual absl::StatusOr<std::string> ExecuteCode(
-      std::vector<std::string> keys) const = 0;
+      RequestContext request_context, std::vector<std::string> keys) const = 0;
 
   // Executes the UDF. Code object must be set before making
   // this call.
   virtual absl::StatusOr<std::string> ExecuteCode(
-      UDFExecutionMetadata&& execution_metadata,
+      RequestContext request_context, UDFExecutionMetadata&& execution_metadata,
       const google::protobuf::RepeatedPtrField<UDFArgument>& arguments)
       const = 0;
 
@@ -60,7 +62,8 @@ class UdfClient {
 
   // Creates a UDF executor. This calls Roma::Init, which forks.
   static absl::StatusOr<std::unique_ptr<UdfClient>> Create(
-      google::scp::roma::Config<>&& config = google::scp::roma::Config(),
+      google::scp::roma::Config<RequestContext>&& config =
+          google::scp::roma::Config<RequestContext>(),
       absl::Duration udf_timeout = absl::Seconds(5));
 };
 

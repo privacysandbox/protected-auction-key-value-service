@@ -138,6 +138,7 @@ void ShutdownUdf(UdfClient& udf_client) {
 absl::Status TestUdf(const std::string& kv_delta_file_path,
                      const std::string& udf_delta_file_path,
                      const std::string& input_arguments) {
+  InitMetricsContextMap();
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
   auto noop_metrics_recorder = MetricsRecorder::CreateNoop();
   std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
@@ -188,8 +189,10 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   JsonStringToMessage(req_partition_json, &req_partition);
 
   LOG(INFO) << "Calling UDF for partition: " << req_partition.DebugString();
-  auto udf_result =
-      udf_client.value()->ExecuteCode({}, req_partition.arguments());
+  auto metrics_context = std::make_unique<ScopeMetricsContext>();
+  auto udf_result = udf_client.value()->ExecuteCode(
+      RequestContext(metrics_context->GetMetricsContext()), {},
+      req_partition.arguments());
   if (!udf_result.ok()) {
     LOG(ERROR) << "UDF execution failed: " << udf_result.status();
     ShutdownUdf(*udf_client.value());

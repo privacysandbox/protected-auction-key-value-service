@@ -26,7 +26,9 @@
 #include "absl/strings/escaping.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/compression.h"
+#include "components/telemetry/server_definition.h"
 #include "components/udf/udf_client.h"
+#include "components/util/request_context.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 #include "quiche/binary_http/binary_http_message.h"
@@ -99,7 +101,8 @@ class GetValuesV2Handler {
                                    std::string& response) const;
 
   // Invokes UDF to process one partition.
-  void ProcessOnePartition(const google::protobuf::Struct& req_metadata,
+  void ProcessOnePartition(RequestContext request_context,
+                           const google::protobuf::Struct& req_metadata,
                            const v2::RequestPartition& req_partition,
                            v2::ResponsePartition& resp_partition) const;
 

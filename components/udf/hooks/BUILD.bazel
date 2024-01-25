@@ -31,6 +31,7 @@ cc_library(
         "//components/internal_server:internal_lookup_cc_proto",
         "//components/internal_server:local_lookup",
         "//components/internal_server:lookup",
+        "//components/util:request_context",
         "//public/udf:binary_get_values_cc_proto",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/log",
@@ -55,6 +56,7 @@ cc_library(
     deps = [
         "//components/internal_server:internal_lookup_cc_proto",
         "//components/internal_server:lookup",
+        "//components/util:request_context",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
@@ -71,6 +73,7 @@ cc_library(
         "logging_hook.h",
     ],
     deps = [
+        "//components/util:request_context",
         "@com_google_absl//absl/log",
     ],
 )

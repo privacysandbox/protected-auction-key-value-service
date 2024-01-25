@@ -40,13 +40,16 @@ constexpr char kBinaryGetValuesHookJsName[] = "getValuesBinary";
 constexpr char kRunQueryHookJsName[] = "runQuery";
 constexpr char kLoggingHookJsName[] = "logMessage";
 
-std::unique_ptr<FunctionBindingObjectV2<>> GetValuesFunctionObject(
-    GetValuesHook& get_values_hook, std::string handler_name) {
+std::unique_ptr<FunctionBindingObjectV2<RequestContext>>
+GetValuesFunctionObject(GetValuesHook& get_values_hook,
+                        std::string handler_name) {
   auto get_values_function_object =
-      std::make_unique<FunctionBindingObjectV2<>>();
+      std::make_unique<FunctionBindingObjectV2<RequestContext>>();
   get_values_function_object->function_name = std::move(handler_name);
   get_values_function_object->function =
-      [&get_values_hook](FunctionBindingPayload<>& in) { get_values_hook(in); };
+      [&get_values_hook](FunctionBindingPayload<RequestContext>& in) {
+        get_values_hook(in);
+      };
   return get_values_function_object;
 }
 
@@ -69,16 +72,19 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterBinaryGetValuesHook(
 UdfConfigBuilder& UdfConfigBuilder::RegisterRunQueryHook(
     RunQueryHook& run_query_hook) {
   auto run_query_function_object =
-      std::make_unique<FunctionBindingObjectV2<>>();
+      std::make_unique<FunctionBindingObjectV2<RequestContext>>();
   run_query_function_object->function_name = kRunQueryHookJsName;
   run_query_function_object->function =
-      [&run_query_hook](FunctionBindingPayload<>& in) { run_query_hook(in); };
+      [&run_query_hook](FunctionBindingPayload<RequestContext>& in) {
+        run_query_hook(in);
+      };
   config_.RegisterFunctionBinding(std::move(run_query_function_object));
   return *this;
 }
 
 UdfConfigBuilder& UdfConfigBuilder::RegisterLoggingHook() {
-  auto logging_function_object = std::make_unique<FunctionBindingObjectV2<>>();
+  auto logging_function_object =
+      std::make_unique<FunctionBindingObjectV2<RequestContext>>();
   logging_function_object->function_name = kLoggingHookJsName;
   logging_function_object->function = LogMessage;
   config_.RegisterFunctionBinding(std::move(logging_function_object));
@@ -91,6 +97,8 @@ UdfConfigBuilder& UdfConfigBuilder::SetNumberOfWorkers(
   return *this;
 }
 
-google::scp::roma::Config<>& UdfConfigBuilder::Config() { return config_; }
+google::scp::roma::Config<RequestContext>& UdfConfigBuilder::Config() {
+  return config_;
+}
 
 }  // namespace kv_server

@@ -32,6 +32,7 @@ cc_library(
     deps = [
         ":get_values_adapter",
         "//components/data_server/cache",
+        "//components/util:request_context",
         "//public:base_types_cc_proto",
         "//public:constants",
         "//public/query:get_values_cc_grpc",
@@ -77,7 +78,9 @@ cc_library(
         ":compression",
         ":ohttp_server_encryptor",
         "//components/data_server/cache",
+        "//components/telemetry:server_definition",
         "//components/udf:udf_client",
+        "//components/util:request_context",
         "//public:api_schema_cc_proto",
         "//public:base_types_cc_proto",
         "//public/query/v2:get_values_v2_cc_grpc",

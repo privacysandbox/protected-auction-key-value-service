@@ -90,6 +90,8 @@ resource "google_compute_instance_template" "kv_server" {
 }
 
 resource "google_compute_region_instance_group_manager" "kv_server" {
+  provider = google-beta
+
   for_each = google_compute_instance_template.kv_server
   name     = "${var.service}-${var.environment}-${each.value.region}-${var.shard_num}-mig"
   region   = each.value.region

@@ -109,21 +109,34 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
                       static_cast<double>(count->total_updated_records +
                                           count->total_deleted_records)));
         }
+        auto e2e_cloud_provided_latency = absl::ToDoubleMicroseconds(
+            absl::Now() - realtime_message.notifications_sns_inserted);
+        // we're getting this value based on two different clocks. Opentelemetry
+        // does not allow negative values for histograms. However, not logging
+        // this will affect the pvalues, so the next best thing is set it to 0.
+        if (e2e_cloud_provided_latency < 0) {
+          e2e_cloud_provided_latency = 0;
+        }
         LogIfError(
             KVServerContextMap()
                 ->SafeMetric()
                 .LogHistogram<kReceivedLowLatencyNotificationsE2ECloudProvided>(
-                    absl::ToDoubleMicroseconds(
-                        absl::Now() -
-                        (realtime_message.notifications_sns_inserted))));
+                    e2e_cloud_provided_latency));
 
         if (realtime_message.notifications_inserted) {
-          auto e2eDuration =
-              absl::Now() - (realtime_message.notifications_inserted).value();
+          // we're getting this value based on two different clocks.
+          // Opentelemetry does not allow negative values for histograms.
+          // However, not logging this will affect the pvalues, so the next best
+          // thing is set it to 0.
+          auto e2e_latency = absl::ToDoubleMicroseconds(
+              absl::Now() - realtime_message.notifications_inserted.value());
+          if (e2e_latency < 0) {
+            e2e_latency = 0;
+          }
           LogIfError(KVServerContextMap()
                          ->SafeMetric()
                          .LogHistogram<kReceivedLowLatencyNotificationsE2E>(
-                             absl::ToDoubleMicroseconds(e2eDuration)));
+                             e2e_latency));
         }
       }
       LogIfError(KVServerContextMap()

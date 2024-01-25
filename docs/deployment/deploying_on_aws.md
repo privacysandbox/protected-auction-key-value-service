@@ -297,7 +297,7 @@ grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'
 
 ## SSH into EC2
 
-![how a single SSH instance is used to log into multiple server instances](assets/ssh_instance.png)
+![how a single SSH instance is used to log into multiple server instances](../assets/ssh_instance.png)
 
 ### Step 1: SSH into the SSH EC2 instance
 
@@ -309,7 +309,7 @@ proceeding. We will need either the instance id (if connecting using EC2 instanc
 the public IP dns (if connecting using own key and SSH client) of the SSH instance and both can be
 retrieved from the EC2 dashboard.
 
-![where to find the instance id or public dns for the EC2 instance](assets/ec2_instance_id_and_public_dns.png)
+![where to find the instance id or public dns for the EC2 instance](../assets/ec2_instance_id_and_public_dns.png)
 
 Confirm that you can SSH into your SSH EC2 instance by following the instructions on
 [Connect using EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html).

@@ -21,6 +21,7 @@
 #include "components/data_server/server/server.h"
 #include "components/util/build_info.h"
 #include "glog/logging.h"
+#include "src/cpp/util/rlimit_core_config.h"
 
 ABSL_FLAG(bool, buildinfo, false, "Print build info.");
 
@@ -35,6 +36,9 @@ int main(int argc, char** argv) {
   // 3. Production versions of the K/V Server run inside Trusted Execution
   //    Environments, which restrict where STDOUT and STDERR are visible to.
   absl::InitializeSymbolizer(argv[0]);
+  privacysandbox::server_common::SetRLimits({
+      .enable_core_dumps = true,
+  });
   {
     absl::FailureSignalHandlerOptions options;
     absl::InstallFailureSignalHandler(options);

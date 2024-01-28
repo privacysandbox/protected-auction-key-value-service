@@ -19,6 +19,7 @@
 #include <fstream>
 #include <utility>
 
+#include "absl/log/check.h"
 #include "absl/strings/substitute.h"
 #include "src/cpp/util/status_macro/status_macros.h"
 

@@ -19,6 +19,7 @@
 #include <thread>
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "aws/core/Aws.h"
 #include "aws/core/utils/threading/Executor.h"
@@ -35,7 +36,6 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/seeking_input_streambuf.h"
 #include "components/errors/error_util_aws.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {

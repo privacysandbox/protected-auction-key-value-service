@@ -23,6 +23,9 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
@@ -33,7 +36,6 @@
 #include "components/data_server/cache/noop_key_value_cache.h"
 #include "components/tools/benchmarks/benchmark_util.h"
 #include "components/util/platform_initializer.h"
-#include "glog/logging.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/records_utils.h"
@@ -283,7 +285,7 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
 
 // Sample usage:
 //
-// GLOG_logtostderr=1 bazel run \
+// bazel run \
 //  components/tools/benchmarks:data_loading_benchmark \
 //    --//:instance=local --//:platform=local -- \
 //    --benchmark_time_unit=ms \
@@ -295,10 +297,10 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
 //    --record_size=1000 \
 //    --args_client_max_range_mb=8 \
 //    --args_client_max_connections=64 \
-//    --args_reader_worker_threads=16,32,64
+//    --args_reader_worker_threads=16,32,64 --stderrthreshold=0
 int main(int argc, char** argv) {
   ::kv_server::PlatformInitializer platform_initializer;
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   ::benchmark::Initialize(&argc, argv);
   absl::ParseCommandLine(argc, argv);
   if (absl::GetFlag(FLAGS_data_directory).empty()) {

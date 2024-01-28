@@ -16,6 +16,7 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/log.h"
 #include "absl/strings/substitute.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
@@ -23,7 +24,6 @@
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/udf/udf_config_builder.h"
-#include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"

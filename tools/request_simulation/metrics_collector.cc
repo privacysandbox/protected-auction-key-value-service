@@ -16,7 +16,7 @@
 
 #include <utility>
 
-#include "glog/logging.h"
+#include "absl/log/log.h"
 
 ABSL_FLAG(absl::Duration, metrics_report_interval, absl::Minutes(1),
           "The interval for reporting metrics");

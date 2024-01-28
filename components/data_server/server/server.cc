@@ -20,6 +20,7 @@
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
 #include "absl/functional/bind_front.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "components/data_server/request_handler/get_values_adapter.h"
@@ -40,7 +41,6 @@
 #include "components/udf/hooks/run_query_hook.h"
 #include "components/udf/udf_config_builder.h"
 #include "components/util/build_info.h"
-#include "glog/logging.h"
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
 #include "grpcpp/health_check_service_interface.h"
 #include "public/constants.h"
@@ -250,10 +250,8 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
 
   // updating verbosity level flag as early as we can, as it affects all logging
   // downstream.
-  // see
-  // https://github.com/google/glog/blob/931323df212c46e3a01b743d761c6ab8dc9f0d09/README.rst#setting-flags
-  FLAGS_v = parameter_fetcher.GetInt32Parameter(
-      kLoggingVerbosityLevelParameterSuffix);
+  absl::SetGlobalVLogLevel(parameter_fetcher.GetInt32Parameter(
+      kLoggingVerbosityLevelParameterSuffix));
   if (udf_client != nullptr) {
     udf_client_ = std::move(udf_client);
     return absl::OkStatus();

@@ -18,8 +18,10 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "absl/strings/substitute.h"
-#include "glog/logging.h"
 #include "google/protobuf/text_format.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
@@ -123,7 +125,7 @@ KVFileMetadata GetKVFileMetadata() {
 
 int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   const std::string output_dir = absl::GetFlag(FLAGS_output_dir);
 
   auto write_records = [](std::ostream* os) {

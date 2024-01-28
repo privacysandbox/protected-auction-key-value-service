@@ -19,6 +19,7 @@
 
 #include "absl/flags/flag.h"
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
@@ -26,7 +27,6 @@
 #include "absl/synchronization/notification.h"
 #include "components/cloud_config/instance_client.h"
 #include "components/errors/error_util_gcp.h"
-#include "glog/logging.h"
 #include "google/cloud/compute/instances/v1/instances_client.h"
 #include "scp/cc/public/core/interface/execution_result.h"
 #include "scp/cc/public/cpio/interface/instance_client/instance_client_interface.h"

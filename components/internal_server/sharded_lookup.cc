@@ -22,13 +22,13 @@
 #include <vector>
 
 #include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/lookup.pb.h"
 #include "components/internal_server/remote_lookup_client.h"
 #include "components/query/driver.h"
 #include "components/query/scanner.h"
 #include "components/sharding/shard_manager.h"
-#include "glog/logging.h"
 #include "pir/hashing/sha256_hash_family.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 

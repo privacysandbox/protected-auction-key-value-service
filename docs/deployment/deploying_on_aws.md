@@ -477,8 +477,8 @@ Alternatively, you can SSH into an existing server instance and start the Docker
 1. Run the docker container
 
     ```sh
-    docker run -d --init --rm --env GLOG_v=5 --network host --security-opt=seccomp=unconfined  \
-    --entrypoint=/init_server_basic bazel/production/packaging/aws/data_server:server_docker_image -- --port 50051
+    docker run -d --init --rm --network host --security-opt=seccomp=unconfined  \
+    --entrypoint=/init_server_basic bazel/production/packaging/aws/data_server:server_docker_image -- --port 50051 --v=5
     ```
 
 ## Viewing Telemetry

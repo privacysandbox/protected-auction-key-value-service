@@ -14,12 +14,12 @@
 
 #include <mutex>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/escaping.h"
 #include "components/data/common/msg_svc.h"
 #include "components/data/common/thread_manager.h"
 #include "components/data/realtime/realtime_notifier.h"
-#include "glog/logging.h"
 #include "google/cloud/pubsub/message.h"
 #include "google/cloud/pubsub/subscriber.h"
 #include "src/cpp/telemetry/telemetry.h"

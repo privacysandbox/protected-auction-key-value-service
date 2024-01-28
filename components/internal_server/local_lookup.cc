@@ -20,12 +20,12 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "components/data_server/cache/cache.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/lookup.pb.h"
 #include "components/query/driver.h"
 #include "components/query/scanner.h"
-#include "glog/logging.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {

@@ -21,8 +21,8 @@
 #include <thread>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "components/tools/publisher_service.h"
-#include "glog/logging.h"
 #include "src/cpp/util/duration.h"
 
 namespace kv_server {

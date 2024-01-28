@@ -19,6 +19,8 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
 #include "absl/strings/str_join.h"
 #include "components/data/common/msg_svc.h"
 #include "components/tools/publisher_service.h"
@@ -122,7 +124,7 @@ absl::Status Run() {
 
 int main(int argc, char* argv[]) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   const absl::Status status = kv_server::Run();
   if (!status.ok()) {
     LOG(FATAL) << "Failed to run: " << status;

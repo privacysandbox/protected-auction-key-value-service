@@ -30,10 +30,10 @@ cc_library(
     ],
     deps = [
         "//public:constants",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:marshalling",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -49,9 +49,9 @@ cc_library(
         "parameter_client.h",
     ],
     deps = [
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -88,7 +88,7 @@ cc_test(
         "//:local_platform": [
             "//components/data/common:mocks",
             "//components/util:sleepfor_mock",
-            "@com_github_google_glog//:glog",
+            "@com_google_absl//absl/log",
             "@com_github_grpc_grpc//:grpc++",
         ],
     }) + [
@@ -120,7 +120,7 @@ cc_library(
         ],
         "//conditions:default": [],
     }) + [
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -147,7 +147,6 @@ cc_library(
             "//components/errors:gcp_error_util",
             "@com_github_googleapis_google_cloud_cpp//:compute_instances",
             "@com_google_absl//absl/flags:flag",
-            "@com_google_absl//absl/log:check",
             "@com_google_absl//absl/synchronization",
             "@google_privacysandbox_servers_common//scp/cc/public/core/interface:execution_result",
             "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface/instance_client",
@@ -157,8 +156,9 @@ cc_library(
         ],
         "//conditions:default": [],
     }) + [
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

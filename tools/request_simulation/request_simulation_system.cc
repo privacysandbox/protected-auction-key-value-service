@@ -20,8 +20,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "components/tools/concurrent_publishing_engine.h"
-#include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 #include "opentelemetry/sdk/resource/resource.h"
 #include "opentelemetry/sdk/resource/semantic_conventions.h"

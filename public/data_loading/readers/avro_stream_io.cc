@@ -14,6 +14,7 @@
 
 #include "public/data_loading/readers/avro_stream_io.h"
 
+#include "absl/log/check.h"
 #include "third_party/avro/api/DataFile.hh"
 #include "third_party/avro/api/Schema.hh"
 #include "third_party/avro/api/Stream.hh"

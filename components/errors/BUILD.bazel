@@ -86,7 +86,7 @@ cc_library(
     deps = [
         "//components/telemetry:server_definition",
         "//components/util:sleepfor",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/time",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:tracing",

@@ -19,10 +19,10 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
 #include "components/udf/mocks.h"
-#include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/grpcpp.h"

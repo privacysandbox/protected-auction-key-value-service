@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "absl/log/log.h"
 #include "components/data_server/server/key_fetcher_factory.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {

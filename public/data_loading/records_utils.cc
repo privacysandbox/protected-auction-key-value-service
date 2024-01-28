@@ -16,8 +16,8 @@
 
 #include <numeric>
 
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {

@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/synchronization/notification.h"
 #include "components/data/common/mocks.h"
 #include "components/data/realtime/realtime_notifier.h"
@@ -25,7 +26,6 @@
 #include "components/data_server/cache/mocks.h"
 #include "components/udf/code_config.h"
 #include "components/udf/mocks.h"
-#include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"

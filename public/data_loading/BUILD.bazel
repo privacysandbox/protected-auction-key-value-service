@@ -56,7 +56,7 @@ cc_library(
     deps = [
         ":data_loading_fbs",
         ":record_utils",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -68,7 +68,7 @@ cc_library(
     hdrs = ["record_utils.h"],
     deps = [
         ":data_loading_fbs",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -114,7 +114,7 @@ cc_library(
     deps = [
         "//public:base_types_cc_proto",
         "//public:constants",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

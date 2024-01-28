@@ -14,6 +14,7 @@
 #include <memory>
 #include <string>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
@@ -22,7 +23,6 @@
 #include "components/internal_server/lookup.grpc.pb.h"
 #include "components/internal_server/remote_lookup_client.h"
 #include "components/internal_server/string_padder.h"
-#include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 
 namespace kv_server {

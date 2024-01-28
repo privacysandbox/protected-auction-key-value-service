@@ -27,11 +27,11 @@
 
 #include "absl/base/optimization.h"
 #include "absl/cleanup/cleanup.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "components/telemetry/server_definition.h"
-#include "glog/logging.h"
 #include "public/data_loading/readers/stream_record_reader.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "src/cpp/telemetry/telemetry_provider.h"

@@ -21,10 +21,10 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
-#include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"

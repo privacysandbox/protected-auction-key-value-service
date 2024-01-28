@@ -14,7 +14,7 @@
 
 #include "public/data_loading/writers/delta_record_limiting_file_writer.h"
 
-#include "glog/logging.h"
+#include "absl/log/log.h"
 
 namespace kv_server {
 

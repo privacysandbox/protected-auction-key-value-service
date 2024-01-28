@@ -24,13 +24,13 @@
 #include <thread>
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/seeking_input_streambuf.h"
 #include "components/errors/error_util_gcp.h"
-#include "glog/logging.h"
 #include "google/cloud/storage/client.h"
 
 namespace kv_server {

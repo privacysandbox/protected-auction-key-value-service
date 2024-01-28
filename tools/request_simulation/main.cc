@@ -17,8 +17,10 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
-#include "glog/logging.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 #include "tools/request_simulation/grpc_client.h"
@@ -34,7 +36,7 @@ int main(int argc, char** argv) {
     absl::FailureSignalHandlerOptions options;
     absl::InstallFailureSignalHandler(options);
   }
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   absl::SetProgramUsageMessage(absl::StrCat(
       "Key Value Server Request Simulation System.  Sample usage:\n", argv[0]));
   kv_server::RequestSimulationSystem::InitializeTelemetry();

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "absl/log/log.h"
 #include "aws/core/Aws.h"
 #include "components/util/platform_initializer.h"
-#include "glog/logging.h"
 #include "public/cpio/interface/cpio.h"
 
 namespace kv_server {

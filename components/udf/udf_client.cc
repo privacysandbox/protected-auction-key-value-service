@@ -22,11 +22,11 @@
 #include <vector>
 
 #include "absl/flags/flag.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
-#include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
 #include "roma/config/src/config.h"
 #include "roma/interface/roma.h"

@@ -22,8 +22,8 @@
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/log/log.h"
 #include "components/data/common/thread_manager.h"
-#include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 #include "tools/request_simulation/grpc_client.h"
 #include "tools/request_simulation/message_queue.h"

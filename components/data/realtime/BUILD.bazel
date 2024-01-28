@@ -64,8 +64,8 @@ cc_test(
         ":delta_file_record_change_notifier",
         "//components/data/common:change_notifier",
         "//components/data/common:mocks",
-        "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/log",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
@@ -99,7 +99,7 @@ cc_library(
         ],
     }) + [
         "//components/data/common:thread_manager",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],

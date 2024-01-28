@@ -33,7 +33,7 @@ cc_library(
     deps = [
         ":delta_record_writer",
         "//public/data_loading:records_utils",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_riegeli//riegeli/bytes:ostream_writer",
@@ -48,7 +48,7 @@ cc_library(
         ":delta_record_writer",
         "//public/data_loading:records_utils",
         "@avro//:avrocpp",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -102,7 +102,7 @@ cc_library(
     deps = [
         "//public/data_loading:records_utils",
         "//public/sharding:sharding_function",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -127,7 +127,7 @@ cc_library(
     hdrs = ["delta_record_limiting_file_writer.h"],
     deps = [
         ":delta_record_writer",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_riegeli//riegeli/bytes:fd_writer",

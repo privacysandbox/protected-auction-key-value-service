@@ -21,9 +21,9 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "components/internal_server/lookup.h"
-#include "glog/logging.h"
 #include "nlohmann/json.hpp"
 
 namespace kv_server {

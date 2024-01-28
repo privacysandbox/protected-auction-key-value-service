@@ -20,6 +20,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"

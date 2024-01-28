@@ -21,12 +21,12 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_join.h"
 #include "components/data_server/cache/cache.h"
 #include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup.pb.h"
-#include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
 #include "nlohmann/json.hpp"
 #include "public/udf/binary_get_values.pb.h"

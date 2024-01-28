@@ -14,7 +14,7 @@
 
 #include "components/util/sleepfor.h"
 
-#include "glog/logging.h"
+#include "absl/log/log.h"
 
 namespace kv_server {
 

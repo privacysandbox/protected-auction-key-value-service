@@ -18,12 +18,12 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "components/data/common/thread_manager.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/data/realtime/realtime_notifier.h"
 #include "components/errors/retry.h"
-#include "glog/logging.h"
 #include "public/constants.h"
 #include "src/cpp/telemetry/telemetry.h"
 #include "src/cpp/util/duration.h"

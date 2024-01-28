@@ -17,8 +17,8 @@
 #include <string>
 #include <utility>
 
+#include "absl/log/log.h"
 #include "components/errors/retry.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 

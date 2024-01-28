@@ -19,12 +19,14 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "absl/strings/substitute.h"
 #include "components/data/common/msg_svc.h"
 #include "components/tools/concurrent_publishing_engine.h"
 #include "components/tools/publisher_service.h"
 #include "components/util/platform_initializer.h"
-#include "glog/logging.h"
 
 ABSL_FLAG(std::string, deltas_folder_path, "",
           "Path to the folder with delta files");
@@ -93,7 +95,7 @@ absl::Status Run() {
 // `tools/serving_data_generator/generate_load_test_data`.
 int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   const absl::Status status = kv_server::Run();
   if (!status.ok()) {
     LOG(FATAL) << "Failed to run: " << status;

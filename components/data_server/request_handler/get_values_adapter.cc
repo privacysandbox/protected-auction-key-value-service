@@ -21,8 +21,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "components/data_server/request_handler/v2_response_data.pb.h"
-#include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
 #include "public/api_schema.pb.h"
 #include "public/applications/pa/api_overlay.pb.h"

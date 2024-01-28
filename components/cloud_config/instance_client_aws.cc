@@ -16,6 +16,8 @@
 #include <string_view>
 #include <thread>
 
+#include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -38,7 +40,6 @@
 #include "aws/ec2/model/Filter.h"
 #include "components/cloud_config/instance_client.h"
 #include "components/errors/error_util_aws.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {

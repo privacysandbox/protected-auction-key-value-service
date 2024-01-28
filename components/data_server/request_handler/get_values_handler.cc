@@ -19,10 +19,10 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
 #include "components/data_server/request_handler/get_values_adapter.h"
-#include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 #include "public/constants.h"
 #include "public/query/get_values.grpc.pb.h"

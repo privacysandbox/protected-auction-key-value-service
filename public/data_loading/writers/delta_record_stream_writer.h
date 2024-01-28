@@ -21,9 +21,9 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "glog/logging.h"
 #include "public/data_loading/records_utils.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 #include "riegeli/bytes/ostream_writer.h"

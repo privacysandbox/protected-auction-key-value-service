@@ -23,6 +23,9 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -32,7 +35,6 @@
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/cache/noop_key_value_cache.h"
 #include "components/tools/benchmarks/benchmark_util.h"
-#include "glog/logging.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
@@ -357,13 +359,13 @@ void RegisterWriteBenchmarks(MetricsRecorder& metrics_recorder) {
 
 // Microbenchmarks for Cache impelementations. Sample run:
 //
-//  GLOG_logtostderr=1 bazel run -c opt \
+//  bazel run -c opt \
 //    //components/tools/benchmarks:cache_benchmark \
 //    --//:instance=local \
 //    --//:platform=local -- \
-//    --benchmark_counters_tabular=true
+//    --benchmark_counters_tabular=true --stderrthreshold=0
 int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   ::benchmark::Initialize(&argc, argv);
   absl::ParseCommandLine(argc, argv);
   auto noop_metrics_recorder =

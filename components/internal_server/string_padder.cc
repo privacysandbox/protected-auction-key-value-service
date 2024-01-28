@@ -15,7 +15,7 @@
 
 #include <string>
 
-#include "glog/logging.h"
+#include "absl/log/log.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
 

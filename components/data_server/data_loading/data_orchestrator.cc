@@ -20,10 +20,10 @@
 #include <vector>
 
 #include "absl/functional/bind_front.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "components/data/file_group/file_group_search_utils.h"
 #include "components/errors/retry.h"
-#include "glog/logging.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"

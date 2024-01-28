@@ -20,8 +20,8 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/log.h"
 #include "absl/strings/substitute.h"
-#include "glog/logging.h"
 #include "google/protobuf/text_format.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"

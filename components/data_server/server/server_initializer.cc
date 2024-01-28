@@ -18,12 +18,12 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "components/internal_server/constants.h"
 #include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup_server_impl.h"
 #include "components/internal_server/remote_lookup_client.h"
 #include "components/internal_server/sharded_lookup.h"
-#include "glog/logging.h"
 #include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
 
 namespace kv_server {

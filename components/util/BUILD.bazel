@@ -102,8 +102,8 @@ cc_library(
     local_defines = local_defines,
     visibility = ["//visibility:private"],
     deps = [
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
     ],
 )
 
@@ -144,7 +144,7 @@ cc_library(
         ],
         "//conditions:default": [],
     }) + [
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -171,7 +171,7 @@ cc_library(
         "sleepfor.h",
     ],
     deps = [
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/time",
     ],

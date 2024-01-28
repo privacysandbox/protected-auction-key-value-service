@@ -16,8 +16,8 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/strings/escaping.h"
-#include "glog/logging.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace kv_server {

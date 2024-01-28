@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
@@ -42,7 +43,6 @@
 #include "components/data/common/msg_svc.h"
 #include "components/errors/error_util_aws.h"
 #include "components/telemetry/server_definition.h"
-#include "glog/logging.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {

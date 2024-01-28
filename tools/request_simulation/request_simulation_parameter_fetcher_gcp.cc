@@ -18,7 +18,7 @@
 #include <string>
 
 #include "absl/flags/flag.h"
-#include "glog/logging.h"
+#include "absl/log/log.h"
 #include "tools/request_simulation/request_simulation_parameter_fetcher.h"
 
 ABSL_FLAG(std::string, delta_dir, "", "The local directory for delta files");

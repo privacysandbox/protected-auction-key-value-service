@@ -19,11 +19,11 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "components/telemetry/server_definition.h"
 #include "components/util/sleepfor.h"
-#include "glog/logging.h"
 #include "src/cpp/telemetry/tracing.h"
 
 namespace kv_server {

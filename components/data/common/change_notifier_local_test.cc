@@ -20,9 +20,9 @@
 #include <string>
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "components/data/common/change_notifier.h"
-#include "glog/logging.h"
 #include "gtest/gtest.h"
 #include "src/cpp/telemetry/mocks.h"
 

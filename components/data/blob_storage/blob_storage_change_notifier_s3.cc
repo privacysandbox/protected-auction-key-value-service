@@ -13,13 +13,13 @@
 // limitations under the License.
 
 #include "absl/functional/bind_front.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "aws/core/utils/json/JsonSerializer.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/common/change_notifier.h"
 #include "components/telemetry/server_definition.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {

@@ -178,10 +178,8 @@ And to generate a snapshot from a set of delta files, run the following command 
 values with your own values):
 
 ```sh
--$ export GLOG_logtostderr=1;
-export DATA_DIR=<data_dir>;
+-$ export DATA_DIR=<data_dir>;
 docker run -it --rm \
-    --env GLOG_logtostderr \
     --volume=/tmp:/tmp \
     --volume=$DATA_DIR:$DATA_DIR \
     --user $(id -u ${USER}):$(id -g ${USER}) \
@@ -193,6 +191,7 @@ docker run -it --rm \
     --starting_file=DELTA_0000000000000001 \
     --ending_delta_file=DELTA_0000000000000010 \
     --snapshot_file=SNAPSHOT_0000000000000001
+    --stderrthreshold=0
 ```
 
 The output snapshot file will be written to `$DATA_DIR`.

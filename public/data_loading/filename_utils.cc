@@ -17,9 +17,9 @@
 #include <cctype>
 #include <regex>  // NOLINT
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_format.h"
-#include "glog/logging.h"
 #include "public/constants.h"
 
 namespace kv_server {

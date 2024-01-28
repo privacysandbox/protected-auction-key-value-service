@@ -14,6 +14,7 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
@@ -21,7 +22,6 @@
 #include "components/data/common/change_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/telemetry/server_definition.h"
-#include "glog/logging.h"
 #include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {

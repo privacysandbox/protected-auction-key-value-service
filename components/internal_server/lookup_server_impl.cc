@@ -21,12 +21,12 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
 #include "components/internal_server/lookup.grpc.pb.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/string_padder.h"
-#include "glog/logging.h"
 #include "google/protobuf/message.h"
 #include "grpcpp/grpcpp.h"
 #include "src/cpp/telemetry/telemetry.h"

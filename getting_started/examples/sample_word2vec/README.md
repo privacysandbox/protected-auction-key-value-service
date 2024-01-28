@@ -75,10 +75,9 @@ Build the local server:
 Run the local server:
 
 ```sh
-GLOG_alsologtostderr=1 \
   ./bazel-bin/components/data_server/server/server \
   --delta_directory=/tmp/deltas \
-  --realtime_directory=/tmp/realtime
+  --realtime_directory=/tmp/realtime --stderrthreshold=0
 ```
 
 ## Send a query

@@ -55,8 +55,8 @@ container_image(
         "--port=50051",
         "--delta_directory=/data",
         "--realtime_directory=/data/realtime",
+        "--stderrthreshold=0",
     ],
-    env = {"GLOG_logtostderr": "1"},
     layers = [
         ":profiling_tools_layer",
         "//production/packaging/gcp/data_server:server_binary_layer",
@@ -85,8 +85,8 @@ container_image(
         "--port=50051",
         "--delta_directory=/data",
         "--realtime_directory=/data/realtime",
+        "--stderrthreshold=0",
     ],
-    env = {"GLOG_logtostderr": "1"},
     layers = [
         "//production/packaging/gcp/data_server:server_binary_layer",
     ],

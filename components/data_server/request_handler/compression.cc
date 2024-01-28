@@ -13,9 +13,9 @@
 // limitations under the License.
 #include "components/data_server/request_handler/compression.h"
 
+#include "absl/log/log.h"
 #include "components/data_server/request_handler/compression_brotli.h"
 #include "components/data_server/request_handler/uncompressed.h"
-#include "glog/logging.h"
 #include "quiche/common/quiche_data_writer.h"
 
 namespace kv_server {

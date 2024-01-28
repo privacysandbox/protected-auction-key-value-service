@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "absl/flags/flag.h"
-#include "glog/logging.h"
+#include "absl/log/log.h"
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/get_values.grpc.pb.h"

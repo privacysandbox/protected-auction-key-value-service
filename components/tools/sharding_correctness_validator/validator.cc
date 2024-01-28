@@ -16,10 +16,12 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-#include "glog/logging.h"
 #include "public/applications/pa/response_utils.h"
 #include "public/query/cpp/grpc_client.h"
 
@@ -176,7 +178,7 @@ void Validate() {
 
 int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   kv_server::Validate();
 
   if (kv_server::total_failures > 0 || kv_server::total_mismatches > 0) {

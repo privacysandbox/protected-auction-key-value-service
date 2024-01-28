@@ -135,10 +135,9 @@ container_image(
         "--secondary_coordinator_private_key_endpoint='https://privatekeyservice-test2.bas-kms.xyz/v1alpha/encryptionKeys'",
         "--primary_coordinator_region='us-central1'",
         "--secondary_coordinator_region='us-central1'",
+        "--stderrthreshold=0",
     ],
     env = {
-        "GLOG_logtostderr": "1",
-        "GLOG_stderrthreshold": "0",
         "GRPC_DNS_RESOLVER": "native",
     },
     labels = {"tee.launch_policy.log_redirect": "always"},

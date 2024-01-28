@@ -19,6 +19,7 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
@@ -27,7 +28,6 @@
 #include "components/data_server/data_loading/data_orchestrator.h"
 #include "components/udf/noop_udf_client.h"
 #include "components/util/platform_initializer.h"
-#include "glog/logging.h"
 #include "public/base_types.pb.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"

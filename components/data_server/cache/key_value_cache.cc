@@ -19,11 +19,11 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/synchronization/mutex.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/get_key_value_set_result.h"
-#include "glog/logging.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {

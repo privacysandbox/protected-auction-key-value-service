@@ -17,8 +17,8 @@
 #include <string>
 #include <string_view>
 
+#include "absl/log/log.h"
 #include "components/data_server/request_handler/uncompressed.h"
-#include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

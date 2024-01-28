@@ -80,8 +80,8 @@ cc_library(
     deps = [
         "//components/data/common:thread_manager",
         "//components/util:sleepfor",
-        "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//test/core/util:grpc_test_util_base",
+        "@com_google_absl//absl/log",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
@@ -95,9 +95,9 @@ cc_library(
         ":metrics_collector",
         ":rate_limiter",
         "//components/data/common:thread_manager",
-        "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
     ],
 )
@@ -118,7 +118,7 @@ cc_library(
         "//public/data_loading/readers:riegeli_stream_io",
         "//public/data_loading/readers:stream_record_reader_factory",
         "@com_github_google_flatbuffers//:flatbuffers",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:tracing",
@@ -135,8 +135,8 @@ cc_library(
     hdrs = ["request_simulation_parameter_fetcher.h"],
     deps = [
         "//components/data/common:message_service",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/log",
     ],
 )
 
@@ -165,9 +165,9 @@ cc_library(
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "//public/query:get_values_cc_grpc",
         "//tools/request_simulation/request:raw_request_cc_proto",
-        "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
     ],
 )
@@ -191,11 +191,13 @@ cc_binary(
     ],
     deps = [
         ":request_simulation_system",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/debugging:failure_signal_handler",
         "@com_google_absl//absl/debugging:symbolize",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:flags",
+        "@com_google_absl//absl/log:initialize",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -329,6 +331,7 @@ cc_library(
         "//components/tools:concurrent_publishing_engine",
         "//public/data_loading/writers:delta_record_limiting_file_writer",
         "//public/sharding:key_sharder",
+        "@com_google_absl//absl/log:check",
         "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
     ],
 )
@@ -359,8 +362,8 @@ cc_library(
         "//components/data/realtime:realtime_notifier",
         "//public/data_loading:records_utils",
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
     ],
 )

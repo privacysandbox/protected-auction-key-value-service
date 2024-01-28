@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "aws/sqs/SQSClient.h"
 #include "aws/sqs/model/ReceiveMessageRequest.h"
@@ -21,7 +22,6 @@
 #include "components/data/common/msg_svc.h"
 #include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
-#include "glog/logging.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

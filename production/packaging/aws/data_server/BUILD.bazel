@@ -130,8 +130,8 @@ container_image(
         "--secondary_coordinator_private_key_endpoint='https://ddqkl8ay59.execute-api.us-east-1.amazonaws.com/stage/v1alpha/encryptionKeys'",
         "--primary_coordinator_region='us-east-1'",
         "--secondary_coordinator_region='us-east-1'",
+        "--stderrthreshold=0",
     ],
-    env = {"GLOG_logtostderr": "1"},
     layers = [
         "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify_layer",
         "//production/packaging/aws/resolv:resolv_config_layer",

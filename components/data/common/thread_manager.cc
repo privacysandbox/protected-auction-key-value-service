@@ -21,9 +21,9 @@
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "components/errors/retry.h"
-#include "glog/logging.h"
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
 #include "src/cpp/util/duration.h"

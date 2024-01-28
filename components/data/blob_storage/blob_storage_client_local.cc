@@ -22,11 +22,11 @@
 #include <thread>
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/seeking_input_streambuf.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {

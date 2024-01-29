@@ -45,3 +45,11 @@ py_binary(
         "@latency_benchmark_pandas//:pkg",
     ],
 )
+
+py_binary(
+    name = "merge_csvs",
+    srcs = ["merge_csvs.py"],
+    deps = [
+        "@latency_benchmark_pandas//:pkg",
+    ],
+)

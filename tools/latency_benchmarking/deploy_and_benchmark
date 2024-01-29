@@ -1,0 +1,208 @@
+#!/bin/bash
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -o pipefail
+set -o errexit
+
+# shellcheck disable=SC1090
+source ./builders/tools/builder.sh
+
+WORKSPACE="$(git rev-parse --show-toplevel)"
+
+SERVER_WAIT_TIMEOUT="5m"
+NUMBER_OF_LOOKUP_KEYS_LIST="1 10 50 100"
+GHZ_TAGS="{}"
+
+declare SERVER_ADDRESS
+declare SERVER_ENDPOINT
+declare -a BENCHMARK_CSVS
+
+CSV_OUTPUT="${WORKSPACE}/dist/tools/latency_benchmarking/output/output.csv"
+DOCKER_OUTPUT_CSV="/tmp/latency_benchmarking/output/output.csv"
+readonly DOCKER_OUTPUT_CSV
+
+# run_benchmarks writes output to this directory
+CSV_SUMMARY_INPUT_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/output"
+DOCKER_INPUT_DIR="/tmp/latency_benchmarking/output"
+readonly DOCKER_INPUT_DIR
+
+DESTROY_INSTANCES=0
+
+trap _destroy EXIT
+function _destroy() {
+  if [[ ${DESTROY_INSTANCES} == 1 ]]; then
+    printf "Running terraform destroy\n"
+    builders/tools/terraform -chdir="${WORKSPACE}"/production/terraform/aws/environments \
+      destroy --var-file="${TF_VAR_FILE}" --auto-approve >/dev/null
+  fi
+}
+
+trap _trap ERR
+function _trap() {
+  local -r -i STATUS=$?
+  FAILED_COMMAND="${BASH_COMMAND}"
+  printf "Failed command: %s\n" "${FAILED_COMMAND}"
+  exit ${STATUS}
+}
+
+function usage() {
+  local -r -i exitval=${1-1}
+  cat &>/dev/stderr <<USAGE
+usage:
+  ${BASH_SOURCE[0]}
+  TODO: Add usage description
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+function run_benchmarks() {
+  local -a RUN_BENCHMARK_ARGS=(
+      --number-of-lookup-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}"
+      --server-address "${SERVER_ADDRESS}"
+      )
+  if [[ -n "${EXTRA_GHZ_TAGS}" ]]; then
+      RUN_BENCHMARK_ARGS+=(--ghz-tags "${EXTRA_GHZ_TAGS}")
+  fi
+
+  local BENCHMARK_OUTPUT
+  BENCHMARK_OUTPUT=$(./tools/latency_benchmarking/run_benchmarks "${RUN_BENCHMARK_ARGS[@]}")
+  BENCHMARK_CSVS+=(
+    "$(echo "${BENCHMARK_OUTPUT}" | tail -n 1 2>&1 | tee /dev/tty)"
+  )
+}
+
+
+function set_server_address() {
+  # Build HTTP server endpoint from tf output
+  local SERVER_URL
+  local SERVER_HOSTNAME
+  SERVER_URL=$([[ "$1" =~ \"(.*)\" ]] && echo "${BASH_REMATCH[1]}")
+  SERVER_ENDPOINT="${SERVER_URL}/v1/getvalues?keys=hi"
+  # Build gRPC server address from tf output
+  SERVER_HOSTNAME=$([[ "${SERVER_URL}" =~ https://(.*) ]] && echo "${BASH_REMATCH[1]}")
+  SERVER_ADDRESS="${SERVER_HOSTNAME}:8443"
+}
+
+# TODO: GCP
+function deploy_and_benchmark() {
+  printf "Running terraform init\n"
+  builders/tools/terraform \
+    -chdir=production/terraform/aws/environments \
+    init --backend-config="${TF_BACKEND_CONFIG}" \
+    --var-file="${TF_VAR_FILE}" --reconfigure -input=false  \
+    >/dev/null
+
+  printf "Running terraform apply with var file: %s\n" "${TF_VAR_FILE}"
+  printf "and var overrides: %s\n" "${VAR_OVERRIDES[*]}"
+  local TF_APPLY_LAST_LINE
+  TF_APPLY_LAST_LINE=$(builders/tools/terraform \
+    -chdir=production/terraform/aws/environments \
+    apply --var-file="${TF_VAR_FILE}" "${VAR_OVERRIDES[@]}" \
+    -auto-approve | tail -n 1)
+  printf "Done applying terraform, waiting for server to be ready\n"
+
+  set_server_address "${TF_APPLY_LAST_LINE}"
+
+  # Wait for potential instance teardown before periodically checking if server is ready
+  sleep 60
+
+  # Wait for server to be up
+  timeout --foreground "${SERVER_WAIT_TIMEOUT}" bash -c \
+    "until curl --output /dev/null --silent --fail ${SERVER_ENDPOINT};do sleep 15; done"
+  printf "Server ready, running benchmarks\n"
+
+  # TODO: cp SNAPSHOT file to dir
+  run_benchmarks
+  # TODO: Upload UDFs
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tf-var-file)
+      TF_VAR_FILE="$2"
+      shift 2 || usage
+      ;;
+    --tf-backend-config)
+      TF_BACKEND_CONFIG="$2"
+      shift 2 || usage
+      ;;
+    --tf-overrides)
+      TF_OVERRIDES="$2"
+      shift 2
+      ;;
+    --csv-output)
+      CSV_OUTPUT="$2"
+      shift 2
+      ;;
+    --server-wait-timeout)
+      SERVER_WAIT_TIMEOUT="$2"
+      shift 2
+      ;;
+    --number-of-lookup-keys-list)
+      NUMBER_OF_LOOKUP_KEYS_LIST="$2"
+      shift 2
+      ;;
+    --ghz-tags)
+      GHZ_TAGS="$2"
+      shift 2
+      ;;
+    --cleanup-deployment)
+      DESTROY_INSTANCES=1
+      shift
+      ;;
+    -h | --help) usage 0 ;;
+    *) usage ;;
+  esac
+done
+
+# No terraform variable overrides, run benchmarks directly
+if [[ -z "${TF_OVERRIDES}" ]]; then
+  deploy_and_benchmark
+  exit 0
+fi
+
+# Terraform override file found:
+# Each row defines a set of overrides for terraform variables.
+# Pass the overrides to deploy_and_benchmark function and set
+# them as tags in the ghz call.
+while IFS=',' read -ra VARS; do
+  declare -a VAR_OVERRIDES=()
+  EXTRA_GHZ_TAGS="${GHZ_TAGS}"
+  for VAR in "${VARS[@]}"; do
+      VAR_OVERRIDES+=(-var "${VAR}")
+      GHZ_TAG=$(echo "${VAR}" | jq -s -R 'split("\n") | .[0] | split("=") | {(.[0]): .[1]}')
+      EXTRA_GHZ_TAGS=$(jq -s -c 'add' <(echo "${EXTRA_GHZ_TAGS}") <(echo "${GHZ_TAG}"))
+  done
+  deploy_and_benchmark
+done < "${TF_OVERRIDES}"
+
+# Benchmarks done, merge CSVs
+
+# Map csv summary files from run_benchmarks to docker volume paths
+# so that we can access them from within builders/tools/bazel-debian
+declare -a DOCKER_BENCHMARK_CSVS
+for BENCHMARK_CSV in "${BENCHMARK_CSVS[@]}"; do
+  DOCKER_BENCHMARK_CSVS+=(
+    "${DOCKER_INPUT_DIR}${BENCHMARK_CSV#"${CSV_SUMMARY_INPUT_DIR}"}"
+  )
+done
+touch "${CSV_OUTPUT}"
+# Run merge_csvs python script
+EXTRA_DOCKER_RUN_ARGS+=" --volume ${CSV_SUMMARY_INPUT_DIR}:${DOCKER_INPUT_DIR} --volume ${CSV_OUTPUT}:${DOCKER_OUTPUT_CSV} " \
+  builders/tools/bazel-debian run //tools/latency_benchmarking:merge_csvs \
+  -- \
+  --csv-inputs "${DOCKER_BENCHMARK_CSVS[@]}" \
+  --csv-output "${DOCKER_OUTPUT_CSV}"

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "absl/strings/match.h"
+#include "public/data_loading/filename_utils.h"
 #include "src/cpp/util/status_macro/status_macros.h"
 
 namespace kv_server {
@@ -37,7 +38,7 @@ BlobStorageClient::ListOptions CreateBlobListOptions(
 
 // Assumes that filenames are lexicographically ordered.
 absl::StatusOr<std::vector<FileGroup>> CreateFileGroupsFromBlobNames(
-    const std::vector<std::string>& filenames) {
+    const std::vector<std::string_view>& filenames) {
   std::vector<FileGroup> file_groups;
   if (filenames.empty()) {
     return file_groups;
@@ -75,8 +76,15 @@ absl::StatusOr<std::vector<FileGroup>> FindFileGroups(
   PS_ASSIGN_OR_RETURN(
       auto blob_names,
       blob_client.ListBlobs(location, CreateBlobListOptions(filter)));
+  std::vector<std::string_view> supported_blob_names;
+  std::copy_if(
+      blob_names.begin(), blob_names.end(),
+      std::back_inserter(supported_blob_names), [](std::string_view blob_name) {
+        return IsDeltaFilename(blob_name) || IsSnapshotFilename(blob_name) ||
+               IsFileGroupFileName(blob_name);
+      });
   PS_ASSIGN_OR_RETURN(auto file_groups,
-                      CreateFileGroupsFromBlobNames(blob_names));
+                      CreateFileGroupsFromBlobNames(supported_blob_names));
   if (!filter.status.has_value()) {
     return file_groups;
   }

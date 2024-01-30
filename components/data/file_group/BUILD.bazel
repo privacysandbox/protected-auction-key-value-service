@@ -52,6 +52,7 @@ cc_library(
         "//components/data/blob_storage:blob_storage_client",
         "//public:base_types_cc_proto",
         "//public:constants",
+        "//public/data_loading:filename_utils",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
         "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",

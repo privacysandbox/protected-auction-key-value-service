@@ -21,6 +21,7 @@
 
 #include "absl/functional/bind_front.h"
 #include "absl/strings/str_cat.h"
+#include "components/data/file_group/file_group_search_utils.h"
 #include "components/errors/retry.h"
 #include "glog/logging.h"
 #include "public/constants.h"
@@ -29,6 +30,7 @@
 #include "public/data_loading/records_utils.h"
 #include "public/sharding/sharding_function.h"
 #include "src/cpp/telemetry/tracing.h"
+#include "src/cpp/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {
@@ -380,50 +382,42 @@ class DataOrchestratorImpl : public DataOrchestrator {
   // Loads snapshot files if there are any.
   // Returns the latest delta file to be included in a snapshot.
   static absl::StatusOr<std::string> LoadSnapshotFiles(const Options& options) {
-    absl::StatusOr<std::vector<std::string>> snapshots =
-        options.blob_client.ListBlobs(
-            {.bucket = options.data_bucket},
-            {.prefix = FilePrefix<FileType::SNAPSHOT>().data()});
-    if (!snapshots.ok()) {
-      return snapshots.status();
-    }
     LOG(INFO) << "Initializing cache with snapshot file(s) from: "
               << options.data_bucket;
     std::string ending_delta_file;
-    for (int64_t s = snapshots->size() - 1; s >= 0; s--) {
-      std::string_view snapshot = snapshots->at(s);
-      if (!IsSnapshotFilename(snapshot)) {
-        LOG(WARNING) << "Saw a file " << snapshot
-                     << " not in snapshot file format. Skipping it.";
-        continue;
-      }
+    PS_ASSIGN_OR_RETURN(
+        auto snapshot_group,
+        FindMostRecentFileGroup(
+            BlobStorageClient::DataLocation{.bucket = options.data_bucket},
+            FileGroupFilter{.file_type = FileType::SNAPSHOT,
+                            .status = FileGroup::FileStatus::kComplete},
+            options.blob_client));
+    if (!snapshot_group.has_value()) {
+      return ending_delta_file;
+    }
+    for (const auto& snapshot : snapshot_group->Filenames()) {
       BlobStorageClient::DataLocation location{.bucket = options.data_bucket,
-                                               .key = snapshot.data()};
+                                               .key = snapshot};
       auto record_reader =
           options.delta_stream_reader_factory.CreateConcurrentReader(
               /*stream_factory=*/[&location, &options]() {
                 return std::make_unique<BlobRecordStream>(
                     options.blob_client.GetBlobReader(location));
               });
-      auto metadata = record_reader->GetKVFileMetadata();
-      if (!metadata.ok()) {
-        return metadata.status();
-      }
-      if (metadata->has_sharding_metadata() &&
-          metadata->sharding_metadata().shard_num() != options.shard_num) {
+      PS_ASSIGN_OR_RETURN(auto metadata, record_reader->GetKVFileMetadata());
+      if (metadata.has_sharding_metadata() &&
+          metadata.sharding_metadata().shard_num() != options.shard_num) {
         LOG(INFO) << "Snapshot " << location << " belongs to shard num "
-                  << metadata->sharding_metadata().shard_num()
+                  << metadata.sharding_metadata().shard_num()
                   << " but server shard num is " << options.shard_num
                   << ". Skipping it.";
         continue;
       }
       LOG(INFO) << "Loading snapshot file: " << location;
-      if (auto status = TraceLoadCacheWithDataFromFile(location, options);
-          !status.ok()) {
-        return status.status();
-      }
-      if (metadata->snapshot().ending_delta_file() > ending_delta_file) {
-        ending_delta_file = std::move(metadata->snapshot().ending_delta_file());
+      PS_ASSIGN_OR_RETURN(auto stats,
+                          TraceLoadCacheWithDataFromFile(location, options));
+      if (metadata.snapshot().ending_delta_file() > ending_delta_file) {
+        ending_delta_file = metadata.snapshot().ending_delta_file();
       }
       LOG(INFO) << "Done loading snapshot file: " << location;
       break;

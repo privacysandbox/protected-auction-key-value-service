@@ -30,6 +30,7 @@ cc_library(
         "//components/data/blob_storage:blob_storage_change_notifier",
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",
+        "//components/data/file_group:file_group_search_utils",
         "//components/data/realtime:realtime_notifier",
         "//components/data/realtime:realtime_thread_pool_manager",
         "//components/data_server/cache",
@@ -49,6 +50,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/synchronization",
         "@google_privacysandbox_servers_common//src/cpp/telemetry:tracing",
+        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
     ],
 )
 

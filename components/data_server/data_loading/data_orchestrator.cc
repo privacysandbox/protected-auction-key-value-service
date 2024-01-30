@@ -420,7 +420,6 @@ class DataOrchestratorImpl : public DataOrchestrator {
         ending_delta_file = metadata.snapshot().ending_delta_file();
       }
       LOG(INFO) << "Done loading snapshot file: " << location;
-      break;
     }
     return ending_delta_file;
   }

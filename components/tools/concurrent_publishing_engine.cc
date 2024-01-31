@@ -85,8 +85,8 @@ void ConcurrentPublishingEngine::ConsumeAndPublish(int thread_idx) {
     if (!message.has_value()) {
       return;
     }
-    LOG(INFO) << ": Inserting to the SNS: " << delta_file_index
-              << " Thread idx " << thread_idx;
+    VLOG(9) << ": Inserting to the SNS: " << delta_file_index << " Thread idx "
+            << thread_idx;
     auto status = msg_service->Publish(message->message, message->shard_num);
     if (!status.ok()) {
       LOG(ERROR) << status;

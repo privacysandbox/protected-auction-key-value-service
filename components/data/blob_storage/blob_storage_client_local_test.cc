@@ -33,6 +33,11 @@
 namespace kv_server {
 namespace {
 
+void CreateSubDir(std::string_view subdir_name) {
+  std::filesystem::create_directory(
+      std::filesystem::path(::testing::TempDir()) / subdir_name);
+}
+
 void CreateFileInTmpDir(const std::string& filename) {
   const std::filesystem::path path =
       std::filesystem::path(::testing::TempDir()) / filename;
@@ -119,6 +124,42 @@ TEST(LocalBlobStorageClientTest, PutBlob) {
 
   EXPECT_EQ(absl::StatusCode::kOk,
             client->PutBlob(*from_blob_reader, to).code());
+}
+
+TEST(LocalBlobStorageClientTest, DeleteBlobWithPrefix) {
+  std::unique_ptr<BlobStorageClient> client =
+      std::make_unique<FileBlobStorageClient>();
+  CreateSubDir("prefix");
+  BlobStorageClient::DataLocation location{
+      .bucket = ::testing::TempDir(),
+      .prefix = "prefix",
+      .key = "object",
+  };
+  CreateFileInTmpDir("prefix/object");
+  auto status = client->DeleteBlob(location);
+  EXPECT_TRUE(status.ok()) << status;
+  location.key = "non-existent-object";
+  status = client->DeleteBlob(location);
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.code(), absl::StatusCode::kInternal) << status;
+}
+
+TEST(LocalBlobStorageClientTest, ListSubDirectoryWithFiles) {
+  std::unique_ptr<BlobStorageClient> client =
+      std::make_unique<FileBlobStorageClient>();
+  CreateSubDir("prefix");
+  CreateFileInTmpDir("prefix/object1");
+  CreateFileInTmpDir("prefix/object2");
+  CreateFileInTmpDir("prefix/object3");
+  BlobStorageClient::DataLocation location{
+      .bucket = ::testing::TempDir(),
+      .prefix = "prefix",
+  };
+  kv_server::BlobStorageClient::ListOptions options;
+  auto status_or = client->ListBlobs(location, options);
+  ASSERT_TRUE(status_or.ok()) << status_or.status();
+  EXPECT_EQ(*status_or,
+            std::vector<std::string>({"object1", "object2", "object3"}));
 }
 
 // TODO(237669491): Add tests here

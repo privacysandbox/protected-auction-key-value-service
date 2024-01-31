@@ -28,13 +28,15 @@ namespace kv_server {
 namespace blob_storage_commands {
 
 // Print the contents of blobs to stdout; returns success.
-bool CatObjects(std::string bucket_or_directory, absl::Span<char*> keys);
+bool CatObjects(std::string bucket_or_directory, std::string prefix,
+                absl::Span<char*> keys);
 
 // Delete the blobs; returns success.
-bool DeleteObjects(std::string bucket_or_directory, absl::Span<char*> keys);
+bool DeleteObjects(std::string bucket_or_directory, std::string prefix,
+                   absl::Span<char*> keys);
 
 // Print to stdout a list of blobs that are in this location; returns success.
-bool ListObjects(std::string bucket_or_directory);
+bool ListObjects(std::string bucket_or_directory, std::string prefix);
 
 // Create a new BlobReader that will read from either a file or stdin if the
 // source is "-".

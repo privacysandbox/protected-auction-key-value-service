@@ -87,9 +87,13 @@ absl::Status FileBlobStorageClient::DeleteBlob(DataLocation location) {
 }
 absl::StatusOr<std::vector<std::string>> FileBlobStorageClient::ListBlobs(
     DataLocation location, ListOptions options) {
+  auto directory_name =
+      location.prefix.empty()
+          ? location.bucket
+          : absl::StrCat(location.bucket, "/", location.prefix);
   {
     std::error_code error_code;
-    std::filesystem::directory_entry directory{location.bucket, error_code};
+    std::filesystem::directory_entry directory{directory_name, error_code};
     if (error_code) {
       return absl::InternalError(absl::StrCat("Error getting directory entry: ",
                                               error_code.message()));
@@ -98,7 +102,7 @@ absl::StatusOr<std::vector<std::string>> FileBlobStorageClient::ListBlobs(
   std::error_code error_code;
   std::vector<std::string> blob_names;
   for (const auto& dir_entry :
-       std::filesystem::directory_iterator(location.bucket, error_code)) {
+       std::filesystem::directory_iterator(directory_name, error_code)) {
     if (dir_entry.is_directory()) {
       continue;
     }
@@ -120,7 +124,10 @@ absl::StatusOr<std::vector<std::string>> FileBlobStorageClient::ListBlobs(
 
 std::filesystem::path FileBlobStorageClient::GetFullPath(
     const DataLocation& location) {
-  return std::filesystem::path(location.bucket) / location.key;
+  return location.prefix.empty()
+             ? std::filesystem::path(location.bucket) / location.key
+             : std::filesystem::path(location.bucket) / location.prefix /
+                   location.key;
 }
 
 namespace {

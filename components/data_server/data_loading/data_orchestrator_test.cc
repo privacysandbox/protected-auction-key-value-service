@@ -79,9 +79,7 @@ namespace {
 BlobStorageClient::DataLocation GetTestLocation(
     const std::string& basename = "") {
   static constexpr absl::string_view kBucket = "testbucket";
-  static constexpr absl::string_view kPrefix = "prefix";
   return BlobStorageClient::DataLocation{.bucket = std::string(kBucket),
-                                         .prefix = std::string(kPrefix),
                                          .key = basename};
 }
 

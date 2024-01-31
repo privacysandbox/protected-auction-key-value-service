@@ -45,6 +45,8 @@ namespace kv_server {
 namespace {
 
 using ::google::cloud::storage::testing::canonical_errors::TransientError;
+using testing::AllOf;
+using testing::Property;
 
 class GcpBlobStorageClientTest : public ::testing::Test {
  protected:
@@ -189,6 +191,31 @@ TEST_F(GcpBlobStorageClientTest, ListBlobWithNoNewObject) {
   auto my_blobs = client->ListBlobs(location, list_options);
   EXPECT_TRUE(my_blobs.ok());
   EXPECT_TRUE(my_blobs->begin() == my_blobs->end());
+}
+
+TEST_F(GcpBlobStorageClientTest, DeleteBlobWithPrefixSucceeds) {
+  namespace gcs = google::cloud::storage;
+  std::shared_ptr<gcs::testing::MockClient> mock =
+      std::make_shared<gcs::testing::MockClient>();
+  std::unique_ptr<gcs::Client> mock_client = std::make_unique<gcs::Client>(
+      gcs::internal::ClientImplDetails::CreateWithoutDecorations(mock));
+  EXPECT_CALL(*mock,
+              DeleteObject(AllOf(
+                  Property(&gcs::internal::DeleteObjectRequest::bucket_name,
+                           "test_bucket"),
+                  Property(&gcs::internal::DeleteObjectRequest::object_name,
+                           "test_prefix/test_object"))))
+      .WillOnce(testing::Return(
+          google::cloud::make_status_or(gcs::internal::EmptyResponse{})));
+
+  std::unique_ptr<BlobStorageClient> client =
+      std::make_unique<GcpBlobStorageClient>(std::move(mock_client));
+  BlobStorageClient::DataLocation location{
+      .bucket = "test_bucket",
+      .prefix = "test_prefix",
+      .key = "test_object",
+  };
+  EXPECT_TRUE(client->DeleteBlob(location).ok());
 }
 
 }  // namespace

@@ -43,6 +43,7 @@ class BlobStorageClient {
  public:
   struct DataLocation {
     std::string bucket;
+    std::string prefix;
     std::string key;
 
     bool operator==(const DataLocation& other) const {

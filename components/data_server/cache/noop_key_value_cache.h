@@ -34,15 +34,20 @@ class NoOpKeyValueCache : public Cache {
     return std::make_unique<NoOpGetKeyValueSetResult>();
   }
   void UpdateKeyValue(std::string_view key, std::string_view value,
-                      int64_t logical_commit_time) override {}
+                      int64_t logical_commit_time,
+                      std::string_view prefix) override {}
   void UpdateKeyValueSet(std::string_view key,
                          absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time) override {}
-  void DeleteKey(std::string_view key, int64_t logical_commit_time) override {}
+                         int64_t logical_commit_time,
+                         std::string_view prefix) override {}
+  void DeleteKey(std::string_view key, int64_t logical_commit_time,
+                 std::string_view prefix) override {}
   void DeleteValuesInSet(std::string_view key,
                          absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time) override {}
-  void RemoveDeletedKeys(int64_t logical_commit_time) override {}
+                         int64_t logical_commit_time,
+                         std::string_view prefix) override {}
+  void RemoveDeletedKeys(int64_t logical_commit_time,
+                         std::string_view prefix) override {}
   static std::unique_ptr<Cache> Create() {
     return std::make_unique<NoOpKeyValueCache>();
   }

@@ -51,31 +51,36 @@ class KeyValueCache : public Cache {
   std::unique_ptr<GetKeyValueSetResult> GetKeyValueSet(
       const absl::flat_hash_set<std::string_view>& key_set) const override;
 
-  // Inserts or updates the key with the new value.
+  // Inserts or updates the key with the new value for a given prefix
   void UpdateKeyValue(std::string_view key, std::string_view value,
-                      int64_t logical_commit_time) override;
+                      int64_t logical_commit_time,
+                      std::string_view prefix = "") override;
 
-  // Inserts or updates values in the set for a given key, if a value exists,
-  // updates its timestamp to the latest logical commit time.
+  // Inserts or updates values in the set for a given key and prefix, if a value
+  // exists, updates its timestamp to the latest logical commit time.
   void UpdateKeyValueSet(std::string_view key,
                          absl::Span<std::string_view> input_value_set,
-                         int64_t logical_commit_time) override;
+                         int64_t logical_commit_time,
+                         std::string_view prefix = "") override;
 
-  // Deletes a particular (key, value) pair.
-  void DeleteKey(std::string_view key, int64_t logical_commit_time) override;
+  // Deletes a particular (key, value) pair for a given prefix.
+  void DeleteKey(std::string_view key, int64_t logical_commit_time,
+                 std::string_view prefix = "") override;
 
-  // Deletes values in the set for a given key. The deletion, this object
-  // still exist and is marked "deleted", in case there are
-  // late-arriving updates to this value.
+  // Deletes values in the set for a given key and prefix. The deletion, this
+  // object still exist and is marked "deleted", in case there are late-arriving
+  // updates to this value.
   void DeleteValuesInSet(std::string_view key,
                          absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time) override;
+                         int64_t logical_commit_time,
+                         std::string_view prefix = "") override;
 
   // Removes the values that were deleted before the specified
-  // logical_commit_time.
+  // logical_commit_time for a given prefix.
   // TODO: b/267182790 -- Cache cleanup should be done periodically from a
   // background thread
-  void RemoveDeletedKeys(int64_t logical_commit_time) override;
+  void RemoveDeletedKeys(int64_t logical_commit_time,
+                         std::string_view prefix = "") override;
 
   static std::unique_ptr<Cache> Create(
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
@@ -144,11 +149,12 @@ class KeyValueCache : public Cache {
                                std::string, absl::flat_hash_set<std::string>>>
       deleted_set_nodes_ ABSL_GUARDED_BY(set_map_mutex_);
 
-  // Removes deleted keys from key-value map
-  void CleanUpKeyValueMap(int64_t logical_commit_time);
+  // Removes deleted keys from key-value map for a given prefix
+  void CleanUpKeyValueMap(int64_t logical_commit_time, std::string_view prefix);
 
-  // Removes deleted key-values from key-value_set map
-  void CleanUpKeyValueSetMap(int64_t logical_commit_time);
+  // Removes deleted key-values from key-value_set map for a given prefix
+  void CleanUpKeyValueSetMap(int64_t logical_commit_time,
+                             std::string_view prefix);
 
   friend class KeyValueCacheTestPeer;
 

@@ -82,7 +82,7 @@ class KeyValueCacheTestPeer {
   }
 
   static void CallCacheCleanup(KeyValueCache& c, int64_t logical_commit_time) {
-    c.CleanUpKeyValueMap(logical_commit_time);
+    c.RemoveDeletedKeys(logical_commit_time);
   }
 };
 
@@ -1010,13 +1010,13 @@ TEST(ConcurrentSetMemoryAccessTest, ConcurrentUpdateAndCleanUp) {
   auto update_fn = [&cache, &keys, &values_for_key1, &start]() {
     start.WaitForNotification();
     cache->UpdateKeyValueSet("key1",
-                             absl::Span<std::string_view>(values_for_key1), 1);
+                             absl::Span<std::string_view>(values_for_key1), 2);
     EXPECT_THAT(cache->GetKeyValueSet(keys)->GetValueSet("key1"),
                 UnorderedElementsAre("v1"));
   };
   auto cleanup_fn = [&cache, &start]() {
     start.WaitForNotification();
-    KeyValueCacheTestPeer::CallCacheCleanup(*cache, 2);
+    KeyValueCacheTestPeer::CallCacheCleanup(*cache, 1);
   };
 
   std::vector<std::thread> threads;
@@ -1049,7 +1049,7 @@ TEST(ConcurrentSetMemoryAccessTest, ConcurrentDeleteAndCleanUp) {
   };
   auto cleanup_fn = [&cache, &start]() {
     start.WaitForNotification();
-    KeyValueCacheTestPeer::CallCacheCleanup(*cache, 2);
+    KeyValueCacheTestPeer::CallCacheCleanup(*cache, 1);
   };
   std::vector<std::thread> threads;
   for (int i = 0; i < std::min(20, (int)std::thread::hardware_concurrency());
@@ -1090,7 +1090,7 @@ TEST(ConcurrentSetMemoryAccessTest, ConcurrentGetUpdateDeleteCleanUp) {
   };
   auto cleanup = [&cache, &start]() {
     start.WaitForNotification();
-    KeyValueCacheTestPeer::CallCacheCleanup(*cache, 2);
+    KeyValueCacheTestPeer::CallCacheCleanup(*cache, 1);
   };
 
   auto lookup_for_key1 = [&cache, &keys, &start]() {

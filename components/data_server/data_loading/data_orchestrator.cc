@@ -34,6 +34,10 @@
 
 namespace kv_server {
 namespace {
+// TODO(b/321716836): use the default prefix to apply cache updates for realtime
+//  for now. This needs to be removed after we are done with directory support
+//  for file updates.
+constexpr std::string_view kDefaultPrefixForRealTimeUpdates = "";
 
 using privacy_sandbox::server_common::TraceWithStatusOr;
 
@@ -66,18 +70,19 @@ void LogDataLoadingMetrics(const DataLoadingStats& data_loading_stats) {
               static_cast<double>(data_loading_stats.total_dropped_records)));
 }
 
-absl::Status ApplyUpdateMutation(const KeyValueMutationRecord& record,
+absl::Status ApplyUpdateMutation(std::string_view prefix,
+                                 const KeyValueMutationRecord& record,
                                  Cache& cache) {
   if (record.value_type() == Value::StringValue) {
     cache.UpdateKeyValue(record.key()->string_view(),
                          GetRecordValue<std::string_view>(record),
-                         record.logical_commit_time());
+                         record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
     auto values = GetRecordValue<std::vector<std::string_view>>(record);
     cache.UpdateKeyValueSet(record.key()->string_view(), absl::MakeSpan(values),
-                            record.logical_commit_time());
+                            record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   return absl::InvalidArgumentError(
@@ -85,16 +90,18 @@ absl::Status ApplyUpdateMutation(const KeyValueMutationRecord& record,
                    " has unsupported value type: ", record.value_type()));
 }
 
-absl::Status ApplyDeleteMutation(const KeyValueMutationRecord& record,
+absl::Status ApplyDeleteMutation(std::string_view prefix,
+                                 const KeyValueMutationRecord& record,
                                  Cache& cache) {
   if (record.value_type() == Value::StringValue) {
-    cache.DeleteKey(record.key()->string_view(), record.logical_commit_time());
+    cache.DeleteKey(record.key()->string_view(), record.logical_commit_time(),
+                    prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
     auto values = GetRecordValue<std::vector<std::string_view>>(record);
     cache.DeleteValuesInSet(record.key()->string_view(), absl::MakeSpan(values),
-                            record.logical_commit_time());
+                            record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   return absl::InvalidArgumentError(
@@ -125,11 +132,12 @@ bool ShouldProcessRecord(const KeyValueMutationRecord& record,
 }
 
 absl::Status ApplyKeyValueMutationToCache(
-    const KeyValueMutationRecord& record, Cache& cache, int64_t& max_timestamp,
-    DataLoadingStats& data_loading_stats) {
+    std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
+    int64_t& max_timestamp, DataLoadingStats& data_loading_stats) {
   switch (record.mutation_type()) {
     case KeyValueMutationType::Update: {
-      if (auto status = ApplyUpdateMutation(record, cache); !status.ok()) {
+      if (auto status = ApplyUpdateMutation(prefix, record, cache);
+          !status.ok()) {
         return status;
       }
       max_timestamp = std::max(max_timestamp, record.logical_commit_time());
@@ -137,7 +145,8 @@ absl::Status ApplyKeyValueMutationToCache(
       break;
     }
     case KeyValueMutationType::Delete: {
-      if (auto status = ApplyDeleteMutation(record, cache); !status.ok()) {
+      if (auto status = ApplyDeleteMutation(prefix, record, cache);
+          !status.ok()) {
         return status;
       }
       max_timestamp = std::max(max_timestamp, record.logical_commit_time());
@@ -153,12 +162,13 @@ absl::Status ApplyKeyValueMutationToCache(
 }
 
 absl::StatusOr<DataLoadingStats> LoadCacheWithData(
-    StreamRecordReader& record_reader, Cache& cache, int64_t& max_timestamp,
-    const int32_t server_shard_num, const int32_t num_shards,
-    UdfClient& udf_client, const KeySharder& key_sharder) {
+    std::string_view prefix, StreamRecordReader& record_reader, Cache& cache,
+    int64_t& max_timestamp, const int32_t server_shard_num,
+    const int32_t num_shards, UdfClient& udf_client,
+    const KeySharder& key_sharder) {
   DataLoadingStats data_loading_stats;
   const auto process_data_record_fn =
-      [&cache, &max_timestamp, &data_loading_stats, server_shard_num,
+      [prefix, &cache, &max_timestamp, &data_loading_stats, server_shard_num,
        num_shards, &udf_client, &key_sharder](const DataRecord& data_record) {
         if (data_record.record_type() == Record::KeyValueMutationRecord) {
           const auto* record = data_record.record_as_KeyValueMutationRecord();
@@ -168,8 +178,8 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
             // this will get us in a loop
             return absl::OkStatus();
           }
-          return ApplyKeyValueMutationToCache(*record, cache, max_timestamp,
-                                              data_loading_stats);
+          return ApplyKeyValueMutationToCache(
+              prefix, *record, cache, max_timestamp, data_loading_stats);
         } else if (data_record.record_type() ==
                    Record::UserDefinedFunctionsConfig) {
           const auto* udf_config =
@@ -226,11 +236,11 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
         .total_dropped_records = 0,
     };
   }
-  auto status = LoadCacheWithData(*record_reader, cache, max_timestamp,
-                                  options.shard_num, options.num_shards,
-                                  options.udf_client, options.key_sharder);
+  auto status = LoadCacheWithData(
+      location.prefix, *record_reader, cache, max_timestamp, options.shard_num,
+      options.num_shards, options.udf_client, options.key_sharder);
   if (status.ok()) {
-    cache.RemoveDeletedKeys(max_timestamp);
+    cache.RemoveDeletedKeys(max_timestamp, location.prefix);
   }
   return status;
 }
@@ -326,8 +336,9 @@ class DataOrchestratorImpl : public DataOrchestrator {
         [this, &cache = options_.cache,
          &delta_stream_reader_factory = options_.delta_stream_reader_factory](
             const std::string& message_body) {
-          return LoadCacheWithHighPriorityUpdates(delta_stream_reader_factory,
-                                                  message_body, cache);
+          return LoadCacheWithHighPriorityUpdates(
+              kDefaultPrefixForRealTimeUpdates, delta_stream_reader_factory,
+              message_body, cache);
         });
   }
 
@@ -425,12 +436,13 @@ class DataOrchestratorImpl : public DataOrchestrator {
   }
 
   absl::StatusOr<DataLoadingStats> LoadCacheWithHighPriorityUpdates(
+      std::string_view prefix,
       StreamRecordReaderFactory& delta_stream_reader_factory,
       const std::string& record_string, Cache& cache) {
     std::istringstream is(record_string);
     int64_t max_timestamp = 0;
     auto record_reader = delta_stream_reader_factory.CreateReader(is);
-    return LoadCacheWithData(*record_reader, cache, max_timestamp,
+    return LoadCacheWithData(prefix, *record_reader, cache, max_timestamp,
                              options_.shard_num, options_.num_shards,
                              options_.udf_client, options_.key_sharder);
   }

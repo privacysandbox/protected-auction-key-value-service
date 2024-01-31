@@ -77,8 +77,8 @@ absl::StatusOr<std::string> OhttpClientEncryptor::EncryptRequest(
   return serialized_encrypted_req;
 }
 
-absl::StatusOr<quiche::ObliviousHttpResponse>
-OhttpClientEncryptor::DecryptResponse(std::string encrypted_payload) {
+absl::StatusOr<std::string> OhttpClientEncryptor::DecryptResponse(
+    std::string encrypted_payload) {
   if (!http_client_.has_value() || !http_request_context_.has_value()) {
     return absl::InternalError(
         "Emtpy `http_client_` or `http_request_context_`. You should call "
@@ -89,6 +89,6 @@ OhttpClientEncryptor::DecryptResponse(std::string encrypted_payload) {
   if (!decrypted_response.ok()) {
     return decrypted_response.status();
   }
-  return *decrypted_response;
+  return std::move(*decrypted_response).ConsumePlaintextData();
 }
 }  // namespace kv_server

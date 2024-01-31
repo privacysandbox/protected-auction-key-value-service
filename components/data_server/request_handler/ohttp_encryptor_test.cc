@@ -43,7 +43,7 @@ TEST(OhttpEncryptorTest, FullCircleSuccess) {
   auto response_decrypted_status =
       client_encryptor.DecryptResponse(*response_encrypted_status);
   ASSERT_TRUE(response_decrypted_status.ok());
-  EXPECT_EQ(kTestResponse, response_decrypted_status->GetPlaintextData());
+  EXPECT_EQ(kTestResponse, *response_decrypted_status);
 }
 
 TEST(OhttpEncryptorTest, ServerDecryptRequestFails) {

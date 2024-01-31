@@ -98,9 +98,7 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
       metrics_recorder_.IncrementEventCounter(kDecryptionFailure);
       return decrypted_response_maybe.status();
     }
-
-    if (!response.ParseFromString(
-            decrypted_response_maybe->GetPlaintextData())) {
+    if (!response.ParseFromString(*decrypted_response_maybe)) {
       return absl::InvalidArgumentError("Failed parsing the response.");
     }
     return response;

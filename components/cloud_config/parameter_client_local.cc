@@ -56,6 +56,7 @@ ABSL_FLAG(std::int32_t, logging_verbosity_level, 0,
           "Loggging verbosity level.");
 ABSL_FLAG(absl::Duration, udf_timeout, absl::Seconds(5),
           "Timeout for one UDF invocation");
+ABSL_FLAG(bool, enable_otel_logger, false, "Whether to enable otel logger.");
 
 namespace kv_server {
 namespace {
@@ -118,6 +119,8 @@ class LocalParameterClient : public ParameterClient {
     bool_flag_values_.insert(
         {"kv-server-local-use-external-metrics-collector-endpoint", false});
     bool_flag_values_.insert({"kv-server-local-use-sharding-key-regex", false});
+    bool_flag_values_.insert({"kv-server-local-enable-otel-logger",
+                              absl::GetFlag(FLAGS_enable_otel_logger)});
     // Insert more bool flag values here.
   }
 

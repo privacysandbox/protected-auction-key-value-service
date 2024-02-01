@@ -258,3 +258,9 @@ variable "udf_timeout_millis" {
   default     = 5000
   type        = number
 }
+
+variable "enable_otel_logger" {
+  description = "Whether to enable otel logger."
+  type        = bool
+  default     = true
+}

@@ -37,6 +37,7 @@
 #include "components/internal_server/lookup.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/sharding/shard_manager.h"
+#include "components/telemetry/open_telemetry_sink.h"
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/hooks/run_query_hook.h"
 #include "components/udf/udf_client.h"
@@ -103,6 +104,9 @@ class Server {
   void InitializeTelemetry(const ParameterClient& parameter_client,
                            InstanceClient& instance_client);
   absl::Status CreateShardManager();
+  void InitOtelLogger(::opentelemetry::sdk::resource::Resource server_info,
+                      absl::optional<std::string> collector_endpoint,
+                      const ParameterFetcher& parameter_fetcher);
 
   // This must be first, otherwise the AWS SDK will crash when it's called:
   PlatformInitializer platform_initializer_;
@@ -153,6 +157,8 @@ class Server {
 
   std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
       key_fetcher_manager_;
+  std::unique_ptr<opentelemetry::logs::LoggerProvider> log_provider_;
+  std::unique_ptr<OpenTelemetrySink> open_telemetry_sink_;
 };
 
 }  // namespace kv_server

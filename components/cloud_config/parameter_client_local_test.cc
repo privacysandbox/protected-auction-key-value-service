@@ -122,6 +122,12 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
     ASSERT_TRUE(statusor.ok());
     EXPECT_EQ(false, *statusor);
   }
+  {
+    const auto statusor =
+        client->GetBoolParameter("kv-server-local-enable-otel-logger");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(false, *statusor);
+  }
 }
 
 }  // namespace

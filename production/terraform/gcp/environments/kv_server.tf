@@ -93,5 +93,6 @@ module "kv_server" {
     sharding-key-regex                        = var.sharding_key_regex
     tls-key                                   = var.tls_key
     tls-cert                                  = var.tls_cert
+    enable-otel-logger                        = var.enable_otel_logger
   }
 }

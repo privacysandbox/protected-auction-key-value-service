@@ -202,7 +202,6 @@ variable "route_v1_requests_to_v2" {
   type        = bool
 }
 
-
 variable "use_real_coordinators" {
   description = "Use real coordinators."
   type        = bool
@@ -261,4 +260,10 @@ variable "udf_timeout_millis" {
   description = "UDF execution timeout in milliseconds. Default is 5000."
   default     = 5000
   type        = number
+}
+
+variable "enable_otel_logger" {
+  description = "Whether to enable otel logger."
+  type        = bool
+  default     = true
 }

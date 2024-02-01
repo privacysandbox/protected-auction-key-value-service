@@ -280,3 +280,9 @@ variable "service_mesh_address" {
   default     = "xds:///kv-service-host"
   type        = string
 }
+
+variable "enable_otel_logger" {
+  description = "Whether to use otel logger."
+  default     = true
+  type        = bool
+}

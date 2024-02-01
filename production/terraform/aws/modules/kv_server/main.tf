@@ -167,6 +167,7 @@ module "parameter" {
   logging_verbosity_level_parameter_value                = var.logging_verbosity_level
   use_sharding_key_regex_parameter_value                 = var.use_sharding_key_regex
   sharding_key_regex_parameter_value                     = var.sharding_key_regex
+  enable_otel_logger_parameter_value                     = var.enable_otel_logger
 }
 
 module "security_group_rules" {
@@ -214,7 +215,8 @@ module "iam_role_policies" {
     module.parameter.logging_verbosity_level_parameter_arn,
     module.parameter.use_real_coordinators_parameter_arn,
     module.parameter.use_sharding_key_regex_parameter_arn,
-  module.parameter.udf_timeout_millis_parameter_arn]
+    module.parameter.udf_timeout_millis_parameter_arn,
+  module.parameter.enable_otel_logger_parameter_arn]
   coordinator_parameter_arns = (
     var.use_real_coordinators ? [
       module.parameter.primary_coordinator_account_identity_parameter_arn,

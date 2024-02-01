@@ -153,6 +153,7 @@ cc_library(
         "//components/internal_server:sharded_lookup",
         "//components/sharding:cluster_mappings_manager",
         "//components/telemetry:kv_telemetry",
+        "//components/telemetry:open_telemetry_sink",
         "//components/telemetry:server_definition",
         "//components/udf:udf_client",
         "//components/udf:udf_config_builder",

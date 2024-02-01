@@ -53,6 +53,9 @@ void RegisterRequiredTelemetryExpectations(MockParameterClient& client) {
   EXPECT_CALL(client, GetInt32Parameter(
                           "kv-server-environment-backup-poll-frequency-secs"))
       .WillOnce(::testing::Return(123));
+  EXPECT_CALL(client,
+              GetBoolParameter("kv-server-environment-enable-otel-logger"))
+      .WillOnce(::testing::Return(false));
 }
 
 void InitializeMetrics() {
@@ -301,7 +304,6 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
-
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
 

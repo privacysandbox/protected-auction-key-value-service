@@ -56,3 +56,17 @@ cc_library(
         "@google_privacysandbox_servers_common//src/cpp/util:read_system",
     ],
 )
+
+cc_library(
+    name = "open_telemetry_sink",
+    srcs = [
+        "open_telemetry_sink.cc",
+    ],
+    hdrs = [
+        "open_telemetry_sink.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/log",
+        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+    ],
+)

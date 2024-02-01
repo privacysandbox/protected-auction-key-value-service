@@ -21,6 +21,7 @@
 #include "absl/flags/usage.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/log.h"
+#include "absl/log/log_sink_registry.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "components/data_server/request_handler/get_values_adapter.h"
@@ -99,6 +100,8 @@ constexpr absl::string_view kRouteV1ToV2Suffix = "route-v1-to-v2";
 constexpr absl::string_view kAutoscalerHealthcheck = "autoscaler-healthcheck";
 constexpr absl::string_view kLoadbalancerHealthcheck =
     "loadbalancer-healthcheck";
+constexpr absl::string_view kEnableOtelLoggerParameterSuffix =
+    "enable-otel-logger";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -189,6 +192,24 @@ void Server::InitializeKeyValueCache() {
       /*logical_commit_time = */ 1);
 }
 
+void Server::InitOtelLogger(
+    ::opentelemetry::sdk::resource::Resource server_info,
+    absl::optional<std::string> collector_endpoint,
+    const ParameterFetcher& parameter_fetcher) {
+  const bool enable_otel_logger =
+      parameter_fetcher.GetBoolParameter(kEnableOtelLoggerParameterSuffix);
+  LOG(INFO) << "Retrieved " << kEnableOtelLoggerParameterSuffix
+            << " parameter: " << enable_otel_logger;
+  if (!enable_otel_logger) {
+    return;
+  }
+  log_provider_ = privacy_sandbox::server_common::ConfigurePrivateLogger(
+      server_info, collector_endpoint);
+  open_telemetry_sink_ = std::make_unique<OpenTelemetrySink>(
+      log_provider_->GetLogger(kServiceName.data()));
+  absl::AddLogSink(open_telemetry_sink_.get());
+}
+
 void Server::InitializeTelemetry(const ParameterClient& parameter_client,
                                  InstanceClient& instance_client) {
   std::string instance_id = RetryUntilOk(
@@ -221,11 +242,15 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
   ConfigureMetrics(
       CreateKVAttributes(instance_id, std::to_string(shard_num_), environment_),
       metrics_options, metrics_collector_endpoint);
-  ConfigureTracer(CreateKVAttributes(std::move(instance_id),
-                                     std::to_string(shard_num_), environment_),
-                  metrics_collector_endpoint);
+  ConfigureTracer(
+      CreateKVAttributes(instance_id, std::to_string(shard_num_), environment_),
+      metrics_collector_endpoint);
 
   metrics_recorder_ = TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  ParameterFetcher parameter_fetcher(environment_, parameter_client);
+  InitOtelLogger(CreateKVAttributes(std::move(instance_id),
+                                    std::to_string(shard_num_), environment_),
+                 metrics_collector_endpoint, parameter_fetcher);
   LOG(INFO) << "Done init telemetry";
 }
 

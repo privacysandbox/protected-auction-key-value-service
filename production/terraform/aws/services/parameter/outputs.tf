@@ -113,3 +113,7 @@ output "sharding_key_regex_parameter_arn" {
 output "udf_timeout_millis_parameter_arn" {
   value = aws_ssm_parameter.udf_timeout_millis_parameter.arn
 }
+
+output "enable_otel_logger_parameter_arn" {
+  value = aws_ssm_parameter.enable_otel_logger_parameter.arn
+}

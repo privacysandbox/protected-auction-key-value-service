@@ -138,3 +138,8 @@ variable "udf_timeout_millis_parameter_value" {
   description = "UDF execution timeout in milliseconds."
   type        = number
 }
+
+variable "enable_otel_logger_parameter_value" {
+  description = "Whether to enable otel logger."
+  type        = bool
+}

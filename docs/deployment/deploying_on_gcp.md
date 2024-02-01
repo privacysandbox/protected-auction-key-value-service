@@ -149,8 +149,8 @@ deploy to, and update the `[[REGION]].tfvars.json` with Terraform variables for 
 The description of each variable is described in
 [GCP Terraform Vars doc](/docs/GCP_Terraform_vars.md).
 
-Note that variable `tls-key` and `tls-cert` are not in `[[REGION]].tfvars.json`. Please supply these
-with a `secrets.auto.tfvar` file under `production/terraform/gcp/environments/`.
+Note that variable `tls_key` and `tls_cert` are not in `[[REGION]].tfvars.json`. Please supply these
+with a `secrets.auto.tfvars` file under `production/terraform/gcp/environments/`.
 
 Update the `[[REGION]].backend.conf`:
 
@@ -183,7 +183,7 @@ builders/tools/terraform -chdir=production/terraform/gcp/environments apply --va
 At the end, to destroy all the GCP resources:
 
 ```sh
-builders/tools/terraform -chdir=production/terraform/gcp/environments destroy --var-file=--var-file=${ENVIRONMENT}/${REGION}.tfvars.json
+builders/tools/terraform -chdir=production/terraform/gcp/environments destroy --var-file=${ENVIRONMENT}/${REGION}.tfvars.json
 ```
 
 # Loading data into the server

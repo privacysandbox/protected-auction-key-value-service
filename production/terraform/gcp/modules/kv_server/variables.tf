@@ -175,3 +175,9 @@ variable "server_domain_ssl_certificate_id" {
   description = "Ssl certificate id of the Kv-server domain."
   type        = string
 }
+
+variable "service_mesh_address" {
+  description = "Service mesh address of the KV server."
+  default     = "xds:///kv-service-host"
+  type        = string
+}

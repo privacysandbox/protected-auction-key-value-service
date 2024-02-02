@@ -154,6 +154,10 @@
 
     Email of the service account that be used by all instances.
 
+-   **service_mesh_addres**
+
+    Service mesh address of the KV server.
+
 -   **tee_impersonate_service_accounts**
 
     Tee can impersonate these service accounts. Necessary for coordinators.

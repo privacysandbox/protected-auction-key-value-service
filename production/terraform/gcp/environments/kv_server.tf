@@ -63,6 +63,7 @@ module "kv_server" {
   num_shards                            = var.num_shards
   use_existing_service_mesh             = var.use_existing_service_mesh
   existing_service_mesh                 = var.existing_service_mesh
+  service_mesh_address                  = var.service_mesh_address
 
   parameters = {
     data-bucket-id                            = var.data_bucket_id

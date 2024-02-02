@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-locals {
-  kv_server_address = "xds:///kv-service-host"
-}
-
 module "networking" {
   source                 = "../../services/networking"
   service                = var.service
@@ -91,7 +87,7 @@ module "service_mesh" {
   service                   = var.service
   environment               = var.environment
   service_port              = var.kv_service_port
-  kv_server_address         = local.kv_server_address
+  kv_server_address         = var.service_mesh_address
   project_id                = var.project_id
   instance_groups           = flatten(module.autoscaling[*].kv_server_instance_groups)
   collector_forwarding_rule = module.metrics_collector.collector_forwarding_rule

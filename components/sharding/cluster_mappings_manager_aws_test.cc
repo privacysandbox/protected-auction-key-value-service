@@ -205,7 +205,7 @@ TEST_F(ClusterMappingsAwsTest, UpdateMappings) {
         std::vector<InstanceInfo> instances{ii1};
         return instances;
       })
-      .WillOnce([&](DescribeInstanceGroupInput& input) {
+      .WillRepeatedly([&](DescribeInstanceGroupInput& input) {
         auto aws_describe_instance_group_input =
             std::get_if<AwsDescribeInstanceGroupInput>(&input);
         absl::flat_hash_set<std::string> instance_group_names_expected = {
@@ -240,7 +240,7 @@ TEST_F(ClusterMappingsAwsTest, UpdateMappings) {
             std::vector<InstanceInfo> instances{ii1};
             return instances;
           })
-      .WillOnce(
+      .WillRepeatedly(
           [&](const absl::flat_hash_set<std::string>& instance_group_names) {
             absl::flat_hash_set<std::string> instance_group_names_expected = {
                 "id20"};

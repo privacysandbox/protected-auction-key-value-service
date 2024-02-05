@@ -118,18 +118,25 @@ class KeyValueCache : public Cache {
 
   // Sorted mapping from the logical timestamp to a key, for nodes that were
   // deleted We keep this to do proper and efficient clean up in map_.
-  std::multimap<int64_t, std::string> deleted_nodes_ ABSL_GUARDED_BY(mutex_);
+  // The key in the inner map is the prefix and the value is the keys of key
+  // value pairs deleted from that prefix
 
-  // The maximum value that was passed to RemoveDeletedKeys.
-  int64_t max_cleanup_logical_commit_time_ ABSL_GUARDED_BY(mutex_) = 0;
+  absl::flat_hash_map<std::string, std::multimap<int64_t, std::string>>
+      deleted_nodes_map_ ABSL_GUARDED_BY(mutex_);
 
-  // The maximum value of logical commit time that is used to do update/delete
-  // for key-value set map.
+  // The key is the prefix and the value is the
+  // maximum timestamp that was passed to RemoveDeletedKeys.
+  absl::flat_hash_map<std::string, int64_t> max_cleanup_logical_commit_time_map_
+      ABSL_GUARDED_BY(mutex_);
+
+  // The key is the prefix and the value is the maximum
+  // logical commit time that is used to do update/delete for key-value set map.
   // TODO(b/284474892) Need to evaluate if we really need to make this variable
   //  guarded b mutex, if not, we may want to remove it and use one
   // max_cleanup_logical_commit_time in update/deletion for both maps
-  int64_t max_cleanup_logical_commit_time_for_set_cache_
-      ABSL_GUARDED_BY(set_map_mutex_) = 0;
+  absl::flat_hash_map<std::string, int64_t>
+      max_cleanup_logical_commit_time_map_for_set_cache_
+          ABSL_GUARDED_BY(set_map_mutex_);
 
   // Mapping from a key to its value map. The key in the inner map is the
   // value string, and value is the ValueMeta. The inner map allows value
@@ -141,13 +148,17 @@ class KeyValueCache : public Cache {
       std::unique_ptr<std::pair<
           absl::Mutex, absl::flat_hash_map<std::string, SetValueMeta>>>>
       key_to_value_set_map_ ABSL_GUARDED_BY(set_map_mutex_);
-  // Sorted mapping from logical timestamp to key-value_set map to keep track of
+  // The key of outer map is the prefix, and value is the sorted mapping
+  // from logical timestamp to key-value_set map to keep track of
   // deleted key-values to handle out of order update case. In the inner map,
   // the key string is the key for the values, and the string
   // in the flat_hash_set is the value
-  absl::btree_map<int64_t, absl::flat_hash_map<
-                               std::string, absl::flat_hash_set<std::string>>>
-      deleted_set_nodes_ ABSL_GUARDED_BY(set_map_mutex_);
+  absl::flat_hash_map<
+      std::string,
+      absl::btree_map<
+          int64_t,
+          absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>>>
+      deleted_set_nodes_map_ ABSL_GUARDED_BY(set_map_mutex_);
 
   // Removes deleted keys from key-value map for a given prefix
   void CleanUpKeyValueMap(int64_t logical_commit_time, std::string_view prefix);

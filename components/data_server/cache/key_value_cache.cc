@@ -96,11 +96,14 @@ void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
           << ". value will be set to: " << value;
   absl::MutexLock lock(&mutex_);
 
-  if (logical_commit_time <= max_cleanup_logical_commit_time_) {
+  auto max_cleanup_logical_commit_time =
+      max_cleanup_logical_commit_time_map_[prefix];
+
+  if (logical_commit_time <= max_cleanup_logical_commit_time) {
     VLOG(1) << "Skipping the update as its logical_commit_time: "
             << logical_commit_time
             << " is not newer than the current cutoff time:"
-            << max_cleanup_logical_commit_time_;
+            << max_cleanup_logical_commit_time;
 
     return;
   }
@@ -120,10 +123,15 @@ void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
       key_iter->second.last_logical_commit_time < logical_commit_time &&
       key_iter->second.value == nullptr) {
     // should always have this, but checking just in case
-    auto dl_key_iter =
-        deleted_nodes_.find(key_iter->second.last_logical_commit_time);
-    if (dl_key_iter != deleted_nodes_.end() && dl_key_iter->second == key) {
-      deleted_nodes_.erase(dl_key_iter);
+
+    if (auto prefix_deleted_nodes_iter = deleted_nodes_map_.find(prefix);
+        prefix_deleted_nodes_iter != deleted_nodes_map_.end()) {
+      auto dl_key_iter = prefix_deleted_nodes_iter->second.find(
+          key_iter->second.last_logical_commit_time);
+      if (dl_key_iter != prefix_deleted_nodes_iter->second.end() &&
+          dl_key_iter->second == key) {
+        prefix_deleted_nodes_iter->second.erase(dl_key_iter);
+      }
     }
   }
 
@@ -143,11 +151,14 @@ void KeyValueCache::UpdateKeyValueSet(
   {
     absl::MutexLock lock_map(&set_map_mutex_);
 
-    if (logical_commit_time <= max_cleanup_logical_commit_time_for_set_cache_) {
+    auto max_cleanup_logical_commit_time =
+        max_cleanup_logical_commit_time_map_for_set_cache_[prefix];
+
+    if (logical_commit_time <= max_cleanup_logical_commit_time) {
       VLOG(1) << "Skipping the update as its logical_commit_time: "
               << logical_commit_time
               << " is older than the current cutoff time:"
-              << max_cleanup_logical_commit_time_for_set_cache_;
+              << max_cleanup_logical_commit_time;
       return;
     } else if (input_value_set.empty()) {
       VLOG(1) << "Skipping the update as it has no value in the set.";
@@ -196,7 +207,9 @@ void KeyValueCache::DeleteKey(std::string_view key, int64_t logical_commit_time,
                               std::string_view prefix) {
   ScopeLatencyRecorder latency_recorder(kDeleteKeyEvent, metrics_recorder_);
   absl::MutexLock lock(&mutex_);
-  if (logical_commit_time <= max_cleanup_logical_commit_time_) {
+  auto max_cleanup_logical_commit_time =
+      max_cleanup_logical_commit_time_map_[prefix];
+  if (logical_commit_time <= max_cleanup_logical_commit_time) {
     return;
   }
   const auto key_iter = map_.find(key);
@@ -209,8 +222,7 @@ void KeyValueCache::DeleteKey(std::string_view key, int64_t logical_commit_time,
     map_.insert_or_assign(
         key,
         {.value = nullptr, .last_logical_commit_time = logical_commit_time});
-
-    auto result = deleted_nodes_.emplace(logical_commit_time, key);
+    auto result = deleted_nodes_map_[prefix].emplace(logical_commit_time, key);
   }
 }
 
@@ -225,8 +237,9 @@ void KeyValueCache::DeleteValuesInSet(std::string_view key,
   // The max cleanup time needs to be locked before doing this comparison
   {
     absl::MutexLock lock_map(&set_map_mutex_);
-
-    if (logical_commit_time <= max_cleanup_logical_commit_time_for_set_cache_ ||
+    auto max_cleanup_logical_commit_time =
+        max_cleanup_logical_commit_time_map_for_set_cache_[prefix];
+    if (logical_commit_time <= max_cleanup_logical_commit_time ||
         value_set.empty()) {
       return;
     }
@@ -245,7 +258,7 @@ void KeyValueCache::DeleteValuesInSet(std::string_view key,
       key_to_value_set_map_.emplace(key, std::move(mutex_value_map_pair));
       // Add to deleted set nodes
       for (const std::string_view value : value_set) {
-        deleted_set_nodes_[logical_commit_time][key].emplace(value);
+        deleted_set_nodes_map_[prefix][logical_commit_time][key].emplace(value);
       }
       return;
     }
@@ -275,7 +288,7 @@ void KeyValueCache::DeleteValuesInSet(std::string_view key,
     key_lock.reset();
     absl::MutexLock lock_map(&set_map_mutex_);
     for (const std::string_view value : values_to_delete) {
-      deleted_set_nodes_[logical_commit_time][key].emplace(value);
+      deleted_set_nodes_map_[prefix][logical_commit_time][key].emplace(value);
     }
   }
 }
@@ -293,9 +306,16 @@ void KeyValueCache::CleanUpKeyValueMap(int64_t logical_commit_time,
   ScopeLatencyRecorder latency_recorder(kCleanUpKeyValueMapEvent,
                                         metrics_recorder_);
   absl::MutexLock lock(&mutex_);
-  auto it = deleted_nodes_.begin();
+  if (max_cleanup_logical_commit_time_map_[prefix] < logical_commit_time) {
+    max_cleanup_logical_commit_time_map_[prefix] = logical_commit_time;
+  }
+  auto deleted_nodes_per_prefix = deleted_nodes_map_.find(prefix);
+  if (deleted_nodes_per_prefix == deleted_nodes_map_.end()) {
+    return;
+  }
+  auto it = deleted_nodes_per_prefix->second.begin();
 
-  while (it != deleted_nodes_.end()) {
+  while (it != deleted_nodes_per_prefix->second.end()) {
     if (it->first > logical_commit_time) {
       break;
     }
@@ -309,9 +329,11 @@ void KeyValueCache::CleanUpKeyValueMap(int64_t logical_commit_time,
 
     ++it;
   }
-  deleted_nodes_.erase(deleted_nodes_.begin(), it);
-  max_cleanup_logical_commit_time_ =
-      std::max(max_cleanup_logical_commit_time_, logical_commit_time);
+  deleted_nodes_per_prefix->second.erase(
+      deleted_nodes_per_prefix->second.begin(), it);
+  if (deleted_nodes_per_prefix->second.empty()) {
+    deleted_nodes_map_.erase(prefix);
+  }
 }
 
 void KeyValueCache::CleanUpKeyValueSetMap(int64_t logical_commit_time,
@@ -319,8 +341,17 @@ void KeyValueCache::CleanUpKeyValueSetMap(int64_t logical_commit_time,
   ScopeLatencyRecorder latency_recorder(kCleanUpKeyValueSetMapEvent,
                                         metrics_recorder_);
   absl::MutexLock lock_set_map(&set_map_mutex_);
-  auto delete_itr = deleted_set_nodes_.begin();
-  while (delete_itr != deleted_set_nodes_.end()) {
+  if (max_cleanup_logical_commit_time_map_for_set_cache_[prefix] <
+      logical_commit_time) {
+    max_cleanup_logical_commit_time_map_for_set_cache_[prefix] =
+        logical_commit_time;
+  }
+  auto deleted_nodes_per_prefix = deleted_set_nodes_map_.find(prefix);
+  if (deleted_nodes_per_prefix == deleted_set_nodes_map_.end()) {
+    return;
+  }
+  auto delete_itr = deleted_nodes_per_prefix->second.begin();
+  while (delete_itr != deleted_nodes_per_prefix->second.end()) {
     if (delete_itr->first > logical_commit_time) {
       break;
     }
@@ -346,9 +377,11 @@ void KeyValueCache::CleanUpKeyValueSetMap(int64_t logical_commit_time,
     }
     ++delete_itr;
   }
-  deleted_set_nodes_.erase(deleted_set_nodes_.begin(), delete_itr);
-  max_cleanup_logical_commit_time_for_set_cache_ = std::max(
-      max_cleanup_logical_commit_time_for_set_cache_, logical_commit_time);
+  deleted_nodes_per_prefix->second.erase(
+      deleted_nodes_per_prefix->second.begin(), delete_itr);
+  if (deleted_nodes_per_prefix->second.empty()) {
+    deleted_set_nodes_map_.erase(prefix);
+  }
 }
 
 std::unique_ptr<Cache> KeyValueCache::Create(

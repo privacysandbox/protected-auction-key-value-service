@@ -39,9 +39,12 @@ class KeyValueCacheTestPeer {
  public:
   KeyValueCacheTestPeer() = delete;
   static std::multimap<int64_t, std::string> ReadDeletedNodes(
-      const KeyValueCache& c) {
+      const KeyValueCache& c, std::string_view prefix = "") {
     absl::MutexLock lock(&c.mutex_);
-    return c.deleted_nodes_;
+    auto map_itr = c.deleted_nodes_map_.find(prefix);
+    return map_itr == c.deleted_nodes_map_.end()
+               ? std::multimap<int64_t, std::string>()
+               : c.deleted_nodes_map_.find(prefix)->second;
   }
   static absl::flat_hash_map<std::string, kv_server::KeyValueCache::CacheValue>&
   ReadNodes(KeyValueCache& c) {
@@ -49,18 +52,24 @@ class KeyValueCacheTestPeer {
     return c.map_;
   }
 
-  static int GetDeletedSetNodesMapSize(const KeyValueCache& c) {
+  static int GetDeletedSetNodesMapSize(const KeyValueCache& c,
+                                       std::string prefix = "") {
     absl::MutexLock lock(&c.set_map_mutex_);
-    return c.deleted_set_nodes_.size();
+    auto map_itr = c.deleted_set_nodes_map_.find(prefix);
+    return map_itr == c.deleted_set_nodes_map_.end() ? 0
+                                                     : map_itr->second.size();
   }
 
   static absl::flat_hash_set<std::string> ReadDeletedSetNodesForTimestamp(
-      const KeyValueCache& c, int64_t logical_commit_time,
-      std::string_view key) {
+      const KeyValueCache& c, int64_t logical_commit_time, std::string_view key,
+      std::string_view prefix = "") {
     absl::MutexLock lock(&c.set_map_mutex_);
-    return c.deleted_set_nodes_.find(logical_commit_time)
-        ->second.find(key)
-        ->second;
+    auto map_itr = c.deleted_set_nodes_map_.find(prefix);
+    return map_itr == c.deleted_set_nodes_map_.end()
+               ? absl::flat_hash_set<std::string>()
+               : map_itr->second.find(logical_commit_time)
+                     ->second.find(key)
+                     ->second;
   }
 
   static int GetCacheKeyValueSetMapSize(KeyValueCache& c) {
@@ -1114,6 +1123,239 @@ TEST(ConcurrentSetMemoryAccessTest, ConcurrentGetUpdateDeleteCleanUp) {
   auto look_up_result_for_key2 =
       cache->GetKeyValueSet(keys)->GetValueSet("key2");
   EXPECT_THAT(look_up_result_for_key2, UnorderedElementsAre("v2"));
+}
+
+TEST(MultiplePrefixCacheModificationTest, KeyValueUpdates) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  // Call remove deleted keys for prefix1 to update the max delete cutoff
+  // timestamp
+  cache->RemoveDeletedKeys(1, "prefix1");
+  cache->UpdateKeyValue("prefix1-key", "value1", 2, "prefix1");
+  cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
+      cache->GetKeyValuePairs({"prefix1-key", "prefix2-key"});
+  EXPECT_EQ(kv_pairs.size(), 2);
+  EXPECT_EQ(kv_pairs["prefix1-key"], "value1");
+  EXPECT_EQ(kv_pairs["prefix2-key"], "value2");
+}
+
+TEST(MultiplePrefixCacheModificationTest, KeyValueNoUpdateForAnother) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  // Call remove deleted keys for prefix1 to update the max delete cutoff
+  // timestamp
+  cache->RemoveDeletedKeys(2, "prefix1");
+  // Expect no update for prefix1
+  cache->UpdateKeyValue("prefix1-key", "value1", 1, "prefix1");
+  cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
+      cache->GetKeyValuePairs({"prefix1-key", "prefix2-key"});
+  EXPECT_EQ(kv_pairs.size(), 1);
+  EXPECT_EQ(kv_pairs["prefix2-key"], "value2");
+}
+
+TEST(MultiplePrefixCacheModificationTest, KeyValueNoDeleteForAnother) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  // Call remove deleted keys for prefix1 to update the max delete cutoff
+  // timestamp
+  cache->RemoveDeletedKeys(2, "prefix1");
+  cache->UpdateKeyValue("prefix1-key", "value1", 3, "prefix1");
+  // Expect no deletion
+  cache->DeleteKey("prefix1-key", 1, "prefix1");
+  cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
+      cache->GetKeyValuePairs({"prefix1-key", "prefix2-key"});
+  EXPECT_EQ(kv_pairs.size(), 2);
+  EXPECT_EQ(kv_pairs["prefix1-key"], "value1");
+  EXPECT_EQ(kv_pairs["prefix2-key"], "value2");
+}
+
+TEST(MultiplePrefixCacheModificationTest, KeyValueDeletesAndUpdates) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<KeyValueCache> cache =
+      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  cache->DeleteKey("prefix1-key", 2, "prefix1");
+  cache->UpdateKeyValue("prefix1-key", "value1", 1, "prefix1");
+  cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
+      cache->GetKeyValuePairs({"prefix1-key", "prefix2-key"});
+  EXPECT_EQ(kv_pairs.size(), 1);
+  EXPECT_EQ(kv_pairs["prefix2-key"], "value2");
+  auto deleted_nodes =
+      KeyValueCacheTestPeer::ReadDeletedNodes(*cache, "prefix1");
+  EXPECT_EQ(deleted_nodes.size(), 1);
+  deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache, "prefix2");
+  EXPECT_EQ(deleted_nodes.size(), 0);
+}
+
+TEST(MultiplePrefixCacheModificationTest, KeyValueUpdatesAndDeletes) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<KeyValueCache> cache =
+      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  cache->UpdateKeyValue("prefix1-key", "value1", 2, "prefix1");
+  // Expects no deletes
+  cache->DeleteKey("prefix1-key", 1, "prefix1");
+  cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
+  absl::flat_hash_map<std::string, std::string> kv_pairs =
+      cache->GetKeyValuePairs({"prefix1-key", "prefix2-key"});
+  EXPECT_EQ(kv_pairs.size(), 2);
+  EXPECT_EQ(kv_pairs["prefix1-key"], "value1");
+  EXPECT_EQ(kv_pairs["prefix2-key"], "value2");
+  auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
+  EXPECT_EQ(deleted_nodes.size(), 0);
+}
+
+TEST(MultiplePrefixCacheModificationTest, KeyValueSetUpdates) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<KeyValueCache> cache =
+      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::vector<std::string_view> values1 = {"v1", "v2"};
+  std::vector<std::string_view> values2 = {"v3", "v4"};
+  // Call remove deleted keys for prefix1 to update the max delete cutoff
+  // timestamp
+  cache->RemoveDeletedKeys(1, "prefix1");
+  cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values1),
+                           2, "prefix1");
+  cache->UpdateKeyValueSet("prefix2-key", absl::Span<std::string_view>(values2),
+                           1, "prefix2");
+
+  auto get_value_set_result =
+      cache->GetKeyValueSet({"prefix1-key", "prefix2-key"});
+  EXPECT_THAT(get_value_set_result->GetValueSet("prefix1-key"),
+              UnorderedElementsAre("v1", "v2"));
+  EXPECT_THAT(get_value_set_result->GetValueSet("prefix2-key"),
+              UnorderedElementsAre("v3", "v4"));
+}
+
+TEST(MultiplePrefixCacheModificationTest, KeyValueSetNoUpdateForAnother) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<KeyValueCache> cache =
+      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::vector<std::string_view> values1 = {"v1", "v2"};
+  std::vector<std::string_view> values2 = {"v3", "v4"};
+  // Call remove deleted keys for prefix1 to update the max delete cutoff
+  // timestamp
+  cache->RemoveDeletedKeys(2, "prefix1");
+  cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values1),
+                           1, "prefix1");
+  cache->UpdateKeyValueSet("prefix2-key", absl::Span<std::string_view>(values2),
+                           1, "prefix2");
+  auto get_value_set_result =
+      cache->GetKeyValueSet({"prefix1-key", "prefix2-key"});
+  EXPECT_EQ(get_value_set_result->GetValueSet("prefix1-key").size(), 0);
+  EXPECT_THAT(get_value_set_result->GetValueSet("prefix2-key"),
+              UnorderedElementsAre("v3", "v4"));
+}
+
+TEST(MultiplePrefixCacheModificationTest, KeyValueSetDeletesAndUpdates) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<KeyValueCache> cache =
+      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::vector<std::string_view> values1 = {"v1", "v2"};
+  std::vector<std::string_view> values_to_delete = {"v1"};
+  std::vector<std::string_view> values2 = {"v3", "v4"};
+  cache->DeleteValuesInSet("prefix1-key",
+                           absl::Span<std::string_view>(values_to_delete), 2,
+                           "prefix1");
+  cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values1),
+                           1, "prefix1");
+  cache->UpdateKeyValueSet("prefix2-key", absl::Span<std::string_view>(values2),
+                           1, "prefix2");
+  auto get_value_set_result =
+      cache->GetKeyValueSet({"prefix1-key", "prefix2-key"});
+  EXPECT_THAT(get_value_set_result->GetValueSet("prefix1-key"),
+              UnorderedElementsAre("v2"));
+  EXPECT_THAT(get_value_set_result->GetValueSet("prefix2-key"),
+              UnorderedElementsAre("v3", "v4"));
+  EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache, "prefix1"),
+            1);
+  EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache, "prefix2"),
+            0);
+}
+
+TEST(MultiplePrefixCacheModificationTest, KeyValueSetUpdatesAndDeletes) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<KeyValueCache> cache =
+      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::vector<std::string_view> values1 = {"v1", "v2"};
+  std::vector<std::string_view> values_to_delete = {"v1"};
+  std::vector<std::string_view> values2 = {"v3", "v4"};
+
+  cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values1),
+                           2, "prefix1");
+  cache->UpdateKeyValueSet("prefix2-key", absl::Span<std::string_view>(values2),
+                           1, "prefix2");
+  // Expect no deletes
+  cache->DeleteValuesInSet("prefix1-key",
+                           absl::Span<std::string_view>(values_to_delete), 1,
+                           "prefix1");
+  auto get_value_set_result =
+      cache->GetKeyValueSet({"prefix1-key", "prefix2-key"});
+  EXPECT_THAT(get_value_set_result->GetValueSet("prefix1-key"),
+              UnorderedElementsAre("v1", "v2"));
+  EXPECT_THAT(get_value_set_result->GetValueSet("prefix2-key"),
+              UnorderedElementsAre("v3", "v4"));
+  EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache, "prefix1"),
+            0);
+  EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache, "prefix2"),
+            0);
+}
+
+TEST(MultiplePrefixCacheModificationTest, TimestampKeyValueCleanUps) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<KeyValueCache> cache =
+      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  cache->UpdateKeyValue("prefix1-key", "value", 2, "prefix1");
+  cache->DeleteKey("prefix1-key", 3, "prefix1");
+  cache->UpdateKeyValue("prefix2-key", "value", 2, "prefix2");
+  cache->DeleteKey("prefix2-key", 5, "prefix2");
+  auto deleted_nodes_for_prefix1 =
+      KeyValueCacheTestPeer::ReadDeletedNodes(*cache, "prefix1");
+  EXPECT_EQ(deleted_nodes_for_prefix1.size(), 1);
+  cache->RemoveDeletedKeys(4, "prefix1");
+  cache->RemoveDeletedKeys(4, "prefix2");
+  deleted_nodes_for_prefix1 =
+      KeyValueCacheTestPeer::ReadDeletedNodes(*cache, "prefix1");
+  EXPECT_EQ(deleted_nodes_for_prefix1.size(), 0);
+  auto deleted_nodes_for_prefix2 =
+      KeyValueCacheTestPeer::ReadDeletedNodes(*cache, "prefix2");
+  EXPECT_EQ(deleted_nodes_for_prefix2.size(), 1);
+}
+TEST(MultiplePrefixCacheModificationTest, TimestampKeyValueSetCleanUps) {
+  auto noop_metrics_recorder =
+      TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  std::unique_ptr<KeyValueCache> cache =
+      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::vector<std::string_view> values = {"v1", "v2"};
+  std::vector<std::string_view> values_to_delete = {"v1"};
+  cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values),
+                           2, "prefix1");
+  cache->UpdateKeyValueSet("prefix2-key", absl::Span<std::string_view>(values),
+                           2, "prefix2");
+  cache->DeleteValuesInSet("prefix1-key",
+                           absl::Span<std::string_view>(values_to_delete), 3,
+                           "prefix1");
+  cache->DeleteValuesInSet("prefix2-key",
+                           absl::Span<std::string_view>(values_to_delete), 5,
+                           "prefix2");
+  cache->RemoveDeletedKeys(4, "prefix1");
+  cache->RemoveDeletedKeys(4, "prefix2");
+  EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache, "prefix1"),
+            0);
+  EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache, "prefix2"),
+            1);
 }
 }  // namespace
 }  // namespace kv_server

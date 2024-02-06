@@ -44,7 +44,7 @@ message HealthCheckResponse {
 service Health {
   // If the requested service is unknown, the call will fail with status
   // NOT_FOUND.
-  rpc CHECK(HealthCheckRequest) returns (HealthCheckResponse) {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse) {
     option (google.api.http) = {get: "/healthcheck"};
   }
 

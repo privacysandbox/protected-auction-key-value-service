@@ -37,7 +37,6 @@ using google::protobuf::TextFormat;
 using google::scp::roma::Config;
 using google::scp::roma::FunctionBindingObjectV2;
 using google::scp::roma::FunctionBindingPayload;
-using google::scp::roma::WasmDataType;
 using testing::_;
 using testing::Return;
 

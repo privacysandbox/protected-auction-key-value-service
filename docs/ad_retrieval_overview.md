@@ -191,7 +191,8 @@ string handleAdsFetchRequest(
   JSONobject requestMetadata,
   byte[] protectedSignals,
   JSONobject deviceMetadata,
-  byte[] contextualSignals
+  byte[] contextualSignals,
+  string[] contextualAdIds,
 )
 ```
 
@@ -222,6 +223,7 @@ string handleAdsFetchRequest(
     is expected to be able to decode the string and use it. Contextual Signals may contain any
     information such as ML model version information for the protected embedding passed in via
     Protected App Signals.
+-   contextualAdIds: JSON object containing an optional list of ad ids.
 -   Output: string. This will be sent back to the bidding service and passed into the `generateBid`
     function for bid generation.
 

@@ -27,6 +27,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "components/data_server/cache/get_key_value_set_result.h"
+#include "components/util/request_context.h"
 
 namespace kv_server {
 
@@ -38,10 +39,12 @@ class Cache {
 
   // Looks up and returns key-value pairs for the given keys.
   virtual absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_list) const = 0;
 
   // Looks up and returns key-value set result for the given key set.
   virtual std::unique_ptr<GetKeyValueSetResult> GetKeyValueSet(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const = 0;
 
   // Inserts or updates the key with the new value for a given prefix

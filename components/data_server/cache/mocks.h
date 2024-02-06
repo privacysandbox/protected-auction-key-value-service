@@ -33,10 +33,12 @@ MATCHER_P2(KVPairEq, key, value, "") {
 class MockCache : public Cache {
  public:
   MOCK_METHOD((absl::flat_hash_map<std::string, std::string>), GetKeyValuePairs,
-              (const absl::flat_hash_set<std::string_view>&),
+              (const RequestContext& request_context,
+               const absl::flat_hash_set<std::string_view>&),
               (const, override));
   MOCK_METHOD((std::unique_ptr<GetKeyValueSetResult>), GetKeyValueSet,
-              (const absl::flat_hash_set<std::string_view>&),
+              (const RequestContext& request_context,
+               const absl::flat_hash_set<std::string_view>&),
               (const, override));
   MOCK_METHOD(void, UpdateKeyValue,
               (std::string_view key, std::string_view value, int64_t ts,

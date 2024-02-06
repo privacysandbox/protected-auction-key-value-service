@@ -175,8 +175,11 @@ void BM_GetKeyValuePairs(::benchmark::State& state, BenchmarkArgs args) {
   }
   auto keys = GetKeys(args.query_size);
   auto keys_view = ToContainerView<absl::flat_hash_set<std::string_view>>(keys);
+  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
+  RequestContext request_context(*scope_metrics_context);
   for (auto _ : state) {
-    ::benchmark::DoNotOptimize(args.cache->GetKeyValuePairs(keys_view));
+    ::benchmark::DoNotOptimize(
+        args.cache->GetKeyValuePairs(request_context, keys_view));
   }
   state.counters[std::string(kReadsPerSec)] =
       ::benchmark::Counter(state.iterations(), ::benchmark::Counter::kIsRate);
@@ -201,8 +204,11 @@ void BM_GetKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
   }
   auto keys = GetKeys(args.query_size);
   auto keys_view = ToContainerView<absl::flat_hash_set<std::string_view>>(keys);
+  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
+  RequestContext request_context(*scope_metrics_context);
   for (auto _ : state) {
-    ::benchmark::DoNotOptimize(args.cache->GetKeyValueSet(keys_view));
+    ::benchmark::DoNotOptimize(
+        args.cache->GetKeyValueSet(request_context, keys_view));
   }
   state.counters[std::string(kReadsPerSec)] =
       ::benchmark::Counter(state.iterations(), ::benchmark::Counter::kIsRate);
@@ -211,14 +217,16 @@ void BM_GetKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
 void BM_UpdateKeyValue(::benchmark::State& state, BenchmarkArgs args) {
   uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> reader_tasks;
+  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
+  RequestContext request_context(*scope_metrics_context);
   if (state.thread_index() == 0 && args.concurrent_tasks) {
     auto num_readers = args.concurrent_tasks;
     reader_tasks.reserve(num_readers);
     while (num_readers-- > 0) {
-      reader_tasks.emplace_back([args, &seed]() {
+      reader_tasks.emplace_back([args, &seed, &request_context]() {
         auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
         args.cache->GetKeyValuePairs(
-            absl::flat_hash_set<std::string_view>({key}));
+            request_context, absl::flat_hash_set<std::string_view>({key}));
       });
     }
   }
@@ -234,13 +242,15 @@ void BM_UpdateKeyValue(::benchmark::State& state, BenchmarkArgs args) {
 void BM_UpdateKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
   uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> reader_tasks;
+  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
+  RequestContext request_context(*scope_metrics_context);
   if (state.thread_index() == 0 && args.concurrent_tasks) {
     auto num_readers = args.concurrent_tasks;
     reader_tasks.reserve(num_readers);
     while (num_readers-- > 0) {
-      reader_tasks.emplace_back([args, &seed]() {
+      reader_tasks.emplace_back([args, &seed, &request_context]() {
         auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
-        args.cache->GetKeyValueSet({key});
+        args.cache->GetKeyValueSet(request_context, {key});
       });
     }
   }
@@ -370,6 +380,7 @@ int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
   auto noop_metrics_recorder =
       ::kv_server::TelemetryProvider::GetInstance().CreateMetricsRecorder();
+  kv_server::InitMetricsContextMap();
   ::kv_server::RegisterReadBenchmarks(*noop_metrics_recorder);
   ::kv_server::RegisterWriteBenchmarks(*noop_metrics_recorder);
   ::benchmark::RunSpecifiedBenchmarks();

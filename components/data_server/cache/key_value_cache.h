@@ -45,10 +45,12 @@ class KeyValueCache : public Cache {
 
   // Looks up and returns key-value pairs for the given keys.
   absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override;
 
   // Looks up and returns key-value set result for the given key set.
   std::unique_ptr<GetKeyValueSetResult> GetKeyValueSet(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override;
 
   // Inserts or updates the key with the new value for a given prefix

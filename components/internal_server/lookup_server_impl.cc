@@ -51,20 +51,22 @@ grpc::Status LookupServiceImpl::ToInternalGrpcStatus(
                       absl::StrCat(status.code(), " : ", status.message()));
 }
 
-void LookupServiceImpl::ProcessKeys(const RepeatedPtrField<std::string>& keys,
+void LookupServiceImpl::ProcessKeys(const RequestContext& request_context,
+                                    const RepeatedPtrField<std::string>& keys,
                                     InternalLookupResponse& response) const {
   if (keys.empty()) return;
   absl::flat_hash_set<std::string_view> key_set;
   for (const auto& key : keys) {
     key_set.insert(key);
   }
-  auto lookup_result = lookup_.GetKeyValues(key_set);
+  auto lookup_result = lookup_.GetKeyValues(request_context, key_set);
   if (lookup_result.ok()) {
     response = *std::move(lookup_result);
   }
 }
 
 void LookupServiceImpl::ProcessKeysetKeys(
+    const RequestContext& request_context,
     const RepeatedPtrField<std::string>& keys,
     InternalLookupResponse& response) const {
   if (keys.empty()) return;
@@ -72,7 +74,7 @@ void LookupServiceImpl::ProcessKeysetKeys(
   for (const auto& key : keys) {
     key_list.insert(key);
   }
-  auto key_value_set_result = lookup_.GetKeyValueSet(key_list);
+  auto key_value_set_result = lookup_.GetKeyValueSet(request_context, key_list);
   if (key_value_set_result.ok()) {
     response = *std::move(key_value_set_result);
   }
@@ -81,11 +83,13 @@ void LookupServiceImpl::ProcessKeysetKeys(
 grpc::Status LookupServiceImpl::InternalLookup(
     grpc::ServerContext* context, const InternalLookupRequest* request,
     InternalLookupResponse* response) {
+  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
+  RequestContext request_context(*scope_metrics_context);
   if (context->IsCancelled()) {
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
   }
-  ProcessKeys(request->keys(), *response);
+  ProcessKeys(request_context, request->keys(), *response);
   return grpc::Status::OK;
 }
 
@@ -95,6 +99,8 @@ grpc::Status LookupServiceImpl::SecureLookup(
     SecureLookupResponse* secure_response) {
   ScopeLatencyRecorder latency_recorder(std::string(kSecureLookup),
                                         metrics_recorder_);
+  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
+  RequestContext request_context(*scope_metrics_context);
   if (context->IsCancelled()) {
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
@@ -125,7 +131,8 @@ grpc::Status LookupServiceImpl::SecureLookup(
                         "Failed parsing incoming request");
   }
 
-  auto payload_to_encrypt = GetPayload(request.lookup_sets(), request.keys());
+  auto payload_to_encrypt =
+      GetPayload(request_context, request.lookup_sets(), request.keys());
   if (payload_to_encrypt.empty()) {
     // we cannot encrypt an empty payload. Note, that soon we will add logic
     // to pad responses, so this branch will never be hit.
@@ -142,12 +149,13 @@ grpc::Status LookupServiceImpl::SecureLookup(
 }
 
 std::string LookupServiceImpl::GetPayload(
-    const bool lookup_sets, const RepeatedPtrField<std::string>& keys) const {
+    const RequestContext& request_context, const bool lookup_sets,
+    const RepeatedPtrField<std::string>& keys) const {
   InternalLookupResponse response;
   if (lookup_sets) {
-    ProcessKeysetKeys(keys, response);
+    ProcessKeysetKeys(request_context, keys, response);
   } else {
-    ProcessKeys(keys, response);
+    ProcessKeys(request_context, keys, response);
   }
   return response.SerializeAsString();
 }
@@ -155,11 +163,14 @@ std::string LookupServiceImpl::GetPayload(
 grpc::Status LookupServiceImpl::InternalRunQuery(
     grpc::ServerContext* context, const InternalRunQueryRequest* request,
     InternalRunQueryResponse* response) {
+  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
+  RequestContext request_context(*scope_metrics_context);
   if (context->IsCancelled()) {
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
   }
-  const auto process_result = lookup_.RunQuery(request->query());
+  const auto process_result =
+      lookup_.RunQuery(request_context, request->query());
   if (!process_result.ok()) {
     return ToInternalGrpcStatus(process_result.status(), kRunQueryError);
   }

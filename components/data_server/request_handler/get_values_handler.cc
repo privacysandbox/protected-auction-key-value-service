@@ -58,13 +58,14 @@ absl::flat_hash_set<std::string_view> GetKeys(
   return key_list;
 }
 
-void ProcessKeys(const RepeatedPtrField<std::string>& keys, const Cache& cache,
+void ProcessKeys(const RequestContext& request_context,
+                 const RepeatedPtrField<std::string>& keys, const Cache& cache,
                  MetricsRecorder& metrics_recorder,
                  google::protobuf::Map<std::string, v1::V1SingleLookupResult>&
                      result_struct) {
   if (keys.empty()) return;
   auto actual_keys = GetKeys(keys);
-  auto kv_pairs = cache.GetKeyValuePairs(actual_keys);
+  auto kv_pairs = cache.GetKeyValuePairs(request_context, actual_keys);
 
   if (kv_pairs.empty())
     metrics_recorder.IncrementEventCounter(kCacheKeyMiss);
@@ -99,30 +100,32 @@ void ProcessKeys(const RepeatedPtrField<std::string>& keys, const Cache& cache,
 
 grpc::Status GetValuesHandler::GetValues(const GetValuesRequest& request,
                                          GetValuesResponse* response) const {
+  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
+  RequestContext request_context(*scope_metrics_context);
   if (use_v2_) {
     VLOG(5) << "Using V2 adapter for " << request.DebugString();
     return adapter_.CallV2Handler(request, *response);
   }
-
   if (!request.kv_internal().empty()) {
     VLOG(5) << "Processing kv_internal for " << request.DebugString();
-    ProcessKeys(request.kv_internal(), cache_, metrics_recorder_,
-                *response->mutable_kv_internal());
+    ProcessKeys(request_context, request.kv_internal(), cache_,
+                metrics_recorder_, *response->mutable_kv_internal());
   }
   if (!request.keys().empty()) {
     VLOG(5) << "Processing keys for " << request.DebugString();
-    ProcessKeys(request.keys(), cache_, metrics_recorder_,
+    ProcessKeys(request_context, request.keys(), cache_, metrics_recorder_,
                 *response->mutable_keys());
   }
   if (!request.render_urls().empty()) {
     VLOG(5) << "Processing render_urls for " << request.DebugString();
-    ProcessKeys(request.render_urls(), cache_, metrics_recorder_,
-                *response->mutable_render_urls());
+    ProcessKeys(request_context, request.render_urls(), cache_,
+                metrics_recorder_, *response->mutable_render_urls());
   }
   if (!request.ad_component_render_urls().empty()) {
     VLOG(5) << "Processing ad_component_render_urls for "
             << request.DebugString();
-    ProcessKeys(request.ad_component_render_urls(), cache_, metrics_recorder_,
+    ProcessKeys(request_context, request.ad_component_render_urls(), cache_,
+                metrics_recorder_,
                 *response->mutable_ad_component_render_urls());
   }
   return grpc::Status::OK;

@@ -40,6 +40,7 @@ cc_library(
     ],
     deps = [
         ":get_key_value_set_result_impl",
+        "//components/util:request_context",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
     ],

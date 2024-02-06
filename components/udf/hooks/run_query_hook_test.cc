@@ -47,7 +47,7 @@ TEST_F(RunQueryHookTest, SuccessfullyProcessesValue) {
   TextFormat::ParseFromString(R"pb(elements: "a" elements: "b")pb",
                               &run_query_response);
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, RunQuery(query))
+  EXPECT_CALL(*mock_lookup, RunQuery(_, query))
       .WillOnce(Return(run_query_response));
 
   FunctionBindingIoProto io;
@@ -65,7 +65,7 @@ TEST_F(RunQueryHookTest, SuccessfullyProcessesValue) {
 TEST_F(RunQueryHookTest, RunQueryClientReturnsError) {
   std::string query = "Q";
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, RunQuery(query))
+  EXPECT_CALL(*mock_lookup, RunQuery(_, query))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   FunctionBindingIoProto io;

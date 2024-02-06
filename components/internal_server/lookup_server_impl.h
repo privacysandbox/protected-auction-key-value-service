@@ -21,6 +21,7 @@
 
 #include "components/internal_server/lookup.grpc.pb.h"
 #include "components/internal_server/lookup.h"
+#include "components/util/request_context.h"
 #include "grpcpp/grpcpp.h"
 #include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
@@ -58,11 +59,13 @@ class LookupServiceImpl final
 
  private:
   std::string GetPayload(
-      const bool lookup_sets,
+      const RequestContext& request_context, const bool lookup_sets,
       const google::protobuf::RepeatedPtrField<std::string>& keys) const;
-  void ProcessKeys(const google::protobuf::RepeatedPtrField<std::string>& keys,
+  void ProcessKeys(const RequestContext& request_context,
+                   const google::protobuf::RepeatedPtrField<std::string>& keys,
                    InternalLookupResponse& response) const;
   void ProcessKeysetKeys(
+      const RequestContext& request_context,
       const google::protobuf::RepeatedPtrField<std::string>& keys,
       InternalLookupResponse& response) const;
   grpc::Status ToInternalGrpcStatus(const absl::Status& status,

@@ -56,7 +56,7 @@ TEST_F(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
                                    })pb",
                               &lookup_response);
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
+  EXPECT_CALL(*mock_lookup, GetKeyValues(_, keys))
       .WillOnce(Return(lookup_response));
 
   FunctionBindingIoProto io;
@@ -95,7 +95,7 @@ TEST_F(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
       &lookup_response);
 
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
+  EXPECT_CALL(*mock_lookup, GetKeyValues(_, keys))
       .WillOnce(Return(lookup_response));
 
   FunctionBindingIoProto io;
@@ -117,7 +117,7 @@ TEST_F(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
 TEST_F(GetValuesHookTest, StringOutput_LookupReturnsError) {
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
+  EXPECT_CALL(*mock_lookup, GetKeyValues(_, keys))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   FunctionBindingIoProto io;
@@ -168,7 +168,7 @@ TEST_F(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
            })pb",
       &lookup_response);
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
+  EXPECT_CALL(*mock_lookup, GetKeyValues(_, keys))
       .WillOnce(Return(lookup_response));
 
   FunctionBindingIoProto io;
@@ -205,7 +205,7 @@ TEST_F(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
 TEST_F(GetValuesHookTest, BinaryOutput_LookupReturnsError) {
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
+  EXPECT_CALL(*mock_lookup, GetKeyValues(_, keys))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   FunctionBindingIoProto io;

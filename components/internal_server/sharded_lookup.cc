@@ -29,6 +29,7 @@
 #include "components/query/driver.h"
 #include "components/query/scanner.h"
 #include "components/sharding/shard_manager.h"
+#include "components/util/request_context.h"
 #include "pir/hashing/sha256_hash_family.h"
 #include "src/cpp/telemetry/metrics_recorder.h"
 
@@ -113,18 +114,21 @@ class ShardedLookup : public Lookup {
   // return an empty response and `Internal` error as the status for the gRPC
   // status code.
   absl::StatusOr<InternalLookupResponse> GetKeyValues(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const override {
-    return ProcessShardedKeys(keys);
+    return ProcessShardedKeys(request_context, keys);
   }
 
   absl::StatusOr<InternalLookupResponse> GetKeyValueSet(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const override {
     InternalLookupResponse response;
     if (keys.empty()) {
       return response;
     }
     absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> key_sets;
-    auto get_key_value_set_result_maybe = GetShardedKeyValueSet(keys);
+    auto get_key_value_set_result_maybe =
+        GetShardedKeyValueSet(request_context, keys);
     if (!get_key_value_set_result_maybe.ok()) {
       metrics_recorder_.IncrementEventCounter(
           kInternalRunQueryKeysetRetrievalFailure);
@@ -150,7 +154,7 @@ class ShardedLookup : public Lookup {
   }
 
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
-      std::string query) const override {
+      const RequestContext& request_context, std::string query) const override {
     ScopeLatencyRecorder latency_recorder(std::string(kInternalRunQuery),
                                           metrics_recorder_);
     InternalRunQueryResponse response;
@@ -184,7 +188,7 @@ class ShardedLookup : public Lookup {
       return absl::InvalidArgumentError("Parsing failure.");
     }
     auto get_key_value_set_result_maybe =
-        GetShardedKeyValueSet(driver.GetRootNode()->Keys());
+        GetShardedKeyValueSet(request_context, driver.GetRootNode()->Keys());
     if (!get_key_value_set_result_maybe.ok()) {
       metrics_recorder_.IncrementEventCounter(
           kInternalRunQueryKeysetRetrievalFailure);
@@ -267,7 +271,8 @@ class ShardedLookup : public Lookup {
 
   absl::StatusOr<
       std::vector<std::future<absl::StatusOr<InternalLookupResponse>>>>
-  GetLookupFutures(const std::vector<ShardLookupInput>& shard_lookup_inputs,
+  GetLookupFutures(const RequestContext& request_context,
+                   const std::vector<ShardLookupInput>& shard_lookup_inputs,
                    std::function<absl::StatusOr<InternalLookupResponse>(
                        const std::vector<std::string_view>& key_list)>
                        get_local_future) const {
@@ -296,14 +301,16 @@ class ShardedLookup : public Lookup {
   }
 
   absl::StatusOr<InternalLookupResponse> GetLocalValues(
+      const RequestContext& request_context,
       const std::vector<std::string_view>& key_list) const {
     InternalLookupResponse response;
     absl::flat_hash_set<std::string_view> keys(key_list.begin(),
                                                key_list.end());
-    return local_lookup_.GetKeyValues(keys);
+    return local_lookup_.GetKeyValues(request_context, keys);
   }
 
   absl::StatusOr<InternalLookupResponse> GetLocalKeyValuesSet(
+      const RequestContext& request_context,
       const std::vector<std::string_view>& key_list) const {
     if (key_list.empty()) {
       InternalLookupResponse response;
@@ -317,10 +324,11 @@ class ShardedLookup : public Lookup {
     // a sepration between UDF and Data servers.
     absl::flat_hash_set<std::string_view> key_list_set(key_list.begin(),
                                                        key_list.end());
-    return local_lookup_.GetKeyValueSet(key_list_set);
+    return local_lookup_.GetKeyValueSet(request_context, key_list_set);
   }
 
   absl::StatusOr<InternalLookupResponse> ProcessShardedKeys(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const {
     InternalLookupResponse response;
     if (keys.empty()) {
@@ -328,9 +336,10 @@ class ShardedLookup : public Lookup {
     }
     const auto shard_lookup_inputs = ShardKeys(keys, false);
     auto responses =
-        GetLookupFutures(shard_lookup_inputs,
-                         [this](const std::vector<std::string_view>& key_list) {
-                           return GetLocalValues(key_list);
+        GetLookupFutures(request_context, shard_lookup_inputs,
+                         [this, &request_context](
+                             const std::vector<std::string_view>& key_list) {
+                           return GetLocalValues(request_context, key_list);
                          });
     if (!responses.ok()) {
       return responses.status();
@@ -353,6 +362,7 @@ class ShardedLookup : public Lookup {
   }
 
   void CollectKeySets(
+      const RequestContext& request_context,
       absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>&
           key_sets,
       InternalLookupResponse& keysets_lookup_response) const {
@@ -384,13 +394,15 @@ class ShardedLookup : public Lookup {
   absl::StatusOr<
       absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>>
   GetShardedKeyValueSet(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const {
     const auto shard_lookup_inputs = ShardKeys(key_set, true);
-    auto responses =
-        GetLookupFutures(shard_lookup_inputs,
-                         [this](const std::vector<std::string_view>& key_list) {
-                           return GetLocalKeyValuesSet(key_list);
-                         });
+    auto responses = GetLookupFutures(
+        request_context, shard_lookup_inputs,
+        [this,
+         &request_context](const std::vector<std::string_view>& key_list) {
+          return GetLocalKeyValuesSet(request_context, key_list);
+        });
     if (!responses.ok()) {
       metrics_recorder_.IncrementEventCounter(kLookupFuturesCreationFailure);
       return responses.status();
@@ -404,7 +416,7 @@ class ShardedLookup : public Lookup {
         metrics_recorder_.IncrementEventCounter(kShardedLookupFailure);
         return result.status();
       }
-      CollectKeySets(key_sets, *result);
+      CollectKeySets(request_context, key_sets, *result);
     }
     return key_sets;
   }

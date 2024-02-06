@@ -43,28 +43,31 @@ class LocalLookup : public Lookup {
       : cache_(cache), metrics_recorder_(metrics_recorder) {}
 
   absl::StatusOr<InternalLookupResponse> GetKeyValues(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const override {
-    return ProcessKeys(keys);
+    return ProcessKeys(request_context, keys);
   }
 
   absl::StatusOr<InternalLookupResponse> GetKeyValueSet(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override {
-    return ProcessKeysetKeys(key_set);
+    return ProcessKeysetKeys(request_context, key_set);
   }
 
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
-      std::string query) const override {
-    return ProcessQuery(query);
+      const RequestContext& request_context, std::string query) const override {
+    return ProcessQuery(request_context, query);
   }
 
  private:
   InternalLookupResponse ProcessKeys(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const {
     InternalLookupResponse response;
     if (keys.empty()) {
       return response;
     }
-    auto kv_pairs = cache_.GetKeyValuePairs(keys);
+    auto kv_pairs = cache_.GetKeyValuePairs(request_context, keys);
 
     for (const auto& key : keys) {
       SingleLookupResult result;
@@ -82,12 +85,13 @@ class LocalLookup : public Lookup {
   }
 
   absl::StatusOr<InternalLookupResponse> ProcessKeysetKeys(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const {
     InternalLookupResponse response;
     if (key_set.empty()) {
       return response;
     }
-    auto key_value_set_result = cache_.GetKeyValueSet(key_set);
+    auto key_value_set_result = cache_.GetKeyValueSet(request_context, key_set);
     for (const auto& key : key_set) {
       SingleLookupResult result;
       const auto value_set = key_value_set_result->GetValueSet(key);
@@ -107,7 +111,7 @@ class LocalLookup : public Lookup {
   }
 
   absl::StatusOr<InternalRunQueryResponse> ProcessQuery(
-      std::string query) const {
+      const RequestContext& request_context, std::string query) const {
     ScopeLatencyRecorder latency_recorder(std::string(kLocalRunQuery),
                                           metrics_recorder_);
     if (query.empty()) return absl::OkStatus();
@@ -124,7 +128,7 @@ class LocalLookup : public Lookup {
       return absl::InvalidArgumentError("Parsing failure.");
     }
     get_key_value_set_result =
-        cache_.GetKeyValueSet(driver.GetRootNode()->Keys());
+        cache_.GetKeyValueSet(request_context, driver.GetRootNode()->Keys());
 
     auto result = driver.GetResult();
     if (!result.ok()) {

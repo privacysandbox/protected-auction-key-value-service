@@ -155,7 +155,7 @@ class GetValuesHookImpl : public GetValuesHook {
 
     VLOG(9) << "Calling internal lookup client";
     absl::StatusOr<InternalLookupResponse> response_or_status =
-        lookup_->GetKeyValues(keys);
+        lookup_->GetKeyValues(payload.metadata, keys);
     if (!response_or_status.ok()) {
       SetStatus(response_or_status.status().code(),
                 response_or_status.status().message(), payload.io_proto);

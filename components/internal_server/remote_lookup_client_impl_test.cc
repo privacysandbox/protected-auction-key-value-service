@@ -44,6 +44,7 @@ class RemoteLookupClientImplTest : public ::testing::Test {
         InternalLookupService::NewStub(
             server_->InProcessChannel(grpc::ChannelArguments())),
         fake_key_fetcher_manager_, mock_metrics_recorder_);
+    InitMetricsContextMap();
   }
 
   ~RemoteLookupClientImplTest() {
@@ -77,7 +78,7 @@ TEST_F(RemoteLookupClientImplTest, EncryptedPaddedSuccessfulCall) {
                                    }
                               )pb",
                               &local_lookup_response);
-  EXPECT_CALL(mock_lookup_, GetKeyValues(_))
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_, _))
       .WillOnce(Return(local_lookup_response));
   auto response_status =
       remote_lookup_client_->GetValues(serialized_message, padding_length);
@@ -129,7 +130,7 @@ TEST_F(RemoteLookupClientImplTest, EncryptedPaddedSuccessfulKeysettLookup) {
            }
       )pb",
       &local_lookup_response);
-  EXPECT_CALL(mock_lookup_, GetKeyValueSet(_))
+  EXPECT_CALL(mock_lookup_, GetKeyValueSet(_, _))
       .WillOnce(Return(local_lookup_response));
 
   auto response_status =

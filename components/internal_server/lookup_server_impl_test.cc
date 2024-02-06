@@ -52,8 +52,8 @@ class LookupServiceImplTest : public ::testing::Test {
 
     stub_ = InternalLookupService::NewStub(
         server_->InProcessChannel(grpc::ChannelArguments()));
+    InitMetricsContextMap();
   }
-
   ~LookupServiceImplTest() {
     server_->Shutdown();
     server_->Wait();
@@ -82,7 +82,7 @@ TEST_F(LookupServiceImplTest, InternalLookup_Success) {
                                    }
                               )pb",
                               &expected);
-  EXPECT_CALL(mock_lookup_, GetKeyValues(_)).WillOnce(Return(expected));
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_, _)).WillOnce(Return(expected));
 
   InternalLookupResponse response;
   grpc::ClientContext context;
@@ -96,7 +96,7 @@ TEST_F(LookupServiceImplTest,
   InternalLookupRequest request;
   request.add_keys("key1");
   request.add_keys("key2");
-  EXPECT_CALL(mock_lookup_, GetKeyValues(_))
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_, _))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   InternalLookupResponse response;
@@ -114,7 +114,7 @@ TEST_F(LookupServiceImplTest, InternalRunQuery_Success) {
   InternalRunQueryResponse expected;
   expected.add_elements("value1");
   expected.add_elements("value2");
-  EXPECT_CALL(mock_lookup_, RunQuery(_)).WillOnce(Return(expected));
+  EXPECT_CALL(mock_lookup_, RunQuery(_, _)).WillOnce(Return(expected));
   InternalRunQueryResponse response;
   grpc::ClientContext context;
   grpc::Status status = stub_->InternalRunQuery(&context, request, &response);
@@ -126,7 +126,7 @@ TEST_F(LookupServiceImplTest, InternalRunQuery_Success) {
 TEST_F(LookupServiceImplTest, InternalRunQuery_LookupError_Failure) {
   InternalRunQueryRequest request;
   request.set_query("fail|||||now");
-  EXPECT_CALL(mock_lookup_, RunQuery(_))
+  EXPECT_CALL(mock_lookup_, RunQuery(_, _))
       .WillOnce(Return(absl::UnknownError("Some error")));
   InternalRunQueryResponse response;
   grpc::ClientContext context;

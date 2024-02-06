@@ -62,7 +62,7 @@ class RunQueryHookImpl : public RunQueryHook {
 
     VLOG(9) << "Calling internal run query client";
     absl::StatusOr<InternalRunQueryResponse> response_or_status =
-        lookup_->RunQuery(payload.io_proto.input_string());
+        lookup_->RunQuery(payload.metadata, payload.io_proto.input_string());
 
     if (!response_or_status.ok()) {
       LOG(ERROR) << "Internal run query returned error: "

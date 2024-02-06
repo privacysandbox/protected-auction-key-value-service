@@ -42,6 +42,7 @@ constexpr char kCleanUpKeyValueMapEvent[] = "CleanUpKeyValueMap";
 constexpr char kCleanUpKeyValueSetMapEvent[] = "CleanUpKeyValueSetMap";
 
 absl::flat_hash_map<std::string, std::string> KeyValueCache::GetKeyValuePairs(
+    const RequestContext& request_context,
     const absl::flat_hash_set<std::string_view>& key_set) const {
   ScopeLatencyRecorder latency_recorder(kGetKeyValuePairsEvent,
                                         metrics_recorder_);
@@ -61,6 +62,7 @@ absl::flat_hash_map<std::string, std::string> KeyValueCache::GetKeyValuePairs(
 }
 
 std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
+    const RequestContext& request_context,
     const absl::flat_hash_set<std::string_view>& key_set) const {
   ScopeLatencyRecorder latency_recorder(kGetKeyValueSetEvent,
                                         metrics_recorder_);

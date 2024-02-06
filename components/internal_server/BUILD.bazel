@@ -126,6 +126,7 @@ cc_library(
     hdrs = ["lookup.h"],
     deps = [
         ":internal_lookup_cc_proto",
+        "//components/util:request_context",
         "@com_google_absl//absl/status:statusor",
     ],
 )

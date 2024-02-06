@@ -297,7 +297,7 @@ TEST_F(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
                                      value { value: "value1" }
                                    })pb",
                               &response);
-  ON_CALL(*mock_lookup, GetKeyValues(_)).WillByDefault(Return(response));
+  ON_CALL(*mock_lookup, GetKeyValues(_, _)).WillByDefault(Return(response));
 
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
@@ -346,7 +346,7 @@ TEST_F(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
                                      value { value: "value1" }
                                    })pb",
                               &response);
-  ON_CALL(*mock_lookup, GetKeyValues(_)).WillByDefault(Return(response));
+  ON_CALL(*mock_lookup, GetKeyValues(_, _)).WillByDefault(Return(response));
 
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
@@ -393,7 +393,7 @@ TEST_F(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
 
   InternalRunQueryResponse response;
   TextFormat::ParseFromString(R"pb(elements: "a")pb", &response);
-  ON_CALL(*mock_lookup, RunQuery(_)).WillByDefault(Return(response));
+  ON_CALL(*mock_lookup, RunQuery(_, _)).WillByDefault(Return(response));
 
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));

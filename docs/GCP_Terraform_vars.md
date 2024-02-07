@@ -154,7 +154,7 @@
 
     Email of the service account that be used by all instances.
 
--   **service_mesh_addres**
+-   **service_mesh_address**
 
     Service mesh address of the KV server.
 

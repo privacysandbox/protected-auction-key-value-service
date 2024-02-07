@@ -30,6 +30,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
+#include "components/data/blob_storage/blob_prefix_allowlist.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/seeking_input_streambuf.h"
 #include "components/errors/error_util_gcp.h"
@@ -161,20 +162,16 @@ absl::StatusOr<std::vector<std::string>> GcpBlobStorageClient::ListBlobs(
       continue;
     }
     // Manually exclude the starting name as the StartOffset option is
-    // inclusive and also exclude objects that do not match `location.prefix`.
+    // inclusive.
     auto& full_key_name = object_metadata->name();
-    if (full_key_name == options.start_after ||
-        (!location.prefix.empty() &&
-         !absl::StartsWith(full_key_name, location.prefix))) {
+    if (full_key_name == options.start_after) {
       continue;
     }
-    std::vector<std::string> name_parts = absl::StrSplit(full_key_name, "/");
-    // Skip objects that have a non-empty prefix when we are only interested in
-    // reading listing objects at the bucket level.
-    if (location.prefix.empty() && name_parts.size() > 1) {
+    auto blob = ParseBlobName(full_key_name);
+    if (blob.prefix != location.prefix) {
       continue;
     }
-    keys.push_back(name_parts.back());
+    keys.push_back(std::move(blob.key));
   }
   std::sort(keys.begin(), keys.end());
   return keys;

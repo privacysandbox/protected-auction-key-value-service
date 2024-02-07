@@ -35,6 +35,7 @@
 #include "aws/s3/model/PutObjectRequest.h"
 #include "aws/transfer/TransferHandle.h"
 #include "aws/transfer/TransferManager.h"
+#include "components/data/blob_storage/blob_prefix_allowlist.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/seeking_input_streambuf.h"
 #include "components/errors/error_util_aws.h"
@@ -204,19 +205,11 @@ absl::StatusOr<std::vector<std::string>> S3BlobStorageClient::ListBlobs(
     const Aws::Vector<Aws::S3::Model::Object> objects =
         outcome.GetResult().GetContents();
     for (const Aws::S3::Model::Object& object : objects) {
-      auto& full_key_name = object.GetKey();
-      // Exclude objects that do not match `location.prefix`.
-      if (!location.prefix.empty() &&
-          !absl::StartsWith(full_key_name, location.prefix)) {
+      auto blob = ParseBlobName(object.GetKey());
+      if (blob.prefix != location.prefix) {
         continue;
       }
-      std::vector<std::string> name_parts = absl::StrSplit(full_key_name, "/");
-      // Skip objects that have a non-empty prefix when we are only interested
-      // in reading listing objects at the bucket level.
-      if (location.prefix.empty() && name_parts.size() > 1) {
-        continue;
-      }
-      keys.push_back(name_parts.back());
+      keys.emplace_back(std::move(blob.key));
     }
     done = !outcome.GetResult().GetIsTruncated();
     if (!done) {

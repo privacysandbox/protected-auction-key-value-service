@@ -14,8 +14,8 @@
 
 #include "components/data/file_group/file_group.h"
 
-#include "include/gmock/gmock.h"
-#include "include/gtest/gtest.h"
+#include "gmock/gmock.h"
+#include "gtest/gtest.h"
 
 namespace kv_server {
 namespace {

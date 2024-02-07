@@ -160,7 +160,7 @@ TEST_F(ClusterMappingsGcpTest, UpdateMappings) {
         std::vector<InstanceInfo> instances{ii1};
         return instances;
       })
-      .WillOnce([&](DescribeInstanceGroupInput& input) {
+      .WillRepeatedly([&](DescribeInstanceGroupInput& input) {
         auto gcp_describe_instance_group_input =
             std::get_if<GcpDescribeInstanceGroupInput>(&input);
         EXPECT_EQ(gcp_describe_instance_group_input->project_id, project_id);

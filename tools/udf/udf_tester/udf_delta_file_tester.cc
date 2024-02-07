@@ -191,8 +191,7 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   LOG(INFO) << "Calling UDF for partition: " << req_partition.DebugString();
   auto metrics_context = std::make_unique<ScopeMetricsContext>();
   auto udf_result = udf_client.value()->ExecuteCode(
-      RequestContext(metrics_context->GetMetricsContext()), {},
-      req_partition.arguments());
+      RequestContext(*metrics_context), {}, req_partition.arguments());
   if (!udf_result.ok()) {
     LOG(ERROR) << "UDF execution failed: " << udf_result.status();
     ShutdownUdf(*udf_client.value());

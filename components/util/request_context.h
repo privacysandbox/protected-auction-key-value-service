@@ -25,19 +25,26 @@
 
 namespace kv_server {
 
-// RequestContext holds the reference of metrics context that ties to a single
-// request The request_id can be either passed from upper stream or assigned
+// RequestContext holds the reference of udf request metrics context and
+// internal lookup request context that ties to a single
+// request. The request_id can be either passed from upper stream or assigned
 // from uuid generated when RequestContext is constructed.
 
 class RequestContext {
  public:
-  explicit RequestContext(KVMetricsContext& metrics_context)
-      : metrics_context_(metrics_context) {}
-  KVMetricsContext& GetMetricsContext() const;
+  explicit RequestContext(const ScopeMetricsContext& metrics_context)
+      : udf_request_metrics_context_(
+            metrics_context.GetUdfRequestMetricsContext()),
+        internal_lookup_metrics_context_(
+            metrics_context.GetInternalLookupMetricsContext()) {}
+  UdfRequestMetricsContext& GetUdfRequestMetricsContext() const;
+  InternalLookupMetricsContext& GetInternalLookupMetricsContext() const;
+
   ~RequestContext() = default;
 
  private:
-  KVMetricsContext& metrics_context_;
+  UdfRequestMetricsContext& udf_request_metrics_context_;
+  InternalLookupMetricsContext& internal_lookup_metrics_context_;
 };
 
 }  // namespace kv_server

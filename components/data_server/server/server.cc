@@ -237,6 +237,14 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
                              environment_),
           metrics_options, metrics_collector_endpoint));
   AddSystemMetric(context_map);
+
+  auto* internal_lookup_context_map = InternalLookupServerContextMap(
+      telemetry_config,
+      ConfigurePrivateMetrics(
+          CreateKVAttributes(instance_id, std::to_string(shard_num_),
+                             environment_),
+          metrics_options, metrics_collector_endpoint));
+
   // TODO(b/300137699): Deprecate ConfigureMetrics once all metrics are migrated
   // to new telemetry API
   ConfigureMetrics(

@@ -28,6 +28,9 @@
 
 namespace kv_server {
 
+constexpr std::string_view kKVServerServiceName = "KVServer";
+constexpr std::string_view kInternalLookupServiceName = "InternalLookupServer";
+
 // When server is running in debug mode, all unsafe metrics will be logged
 // safely without DP noise applied. Therefore for now it is okay to set DP
 // upper and lower bounds for all unsafe metrics to a default value. But
@@ -425,23 +428,18 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         "Latency in ConcurrentStreamRecordReader reading byte range",
         kLatencyInMicroSecondsBoundaries);
 
+// KV server metrics list contains contains non request related safe metrics
+// and request metrics collected before stage of internal lookups
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
         // Unsafe metrics
-        &kInternalRunQueryKeySetRetrievalFailure,
         &kKeysNotFoundInKeySetsInShardedLookup,
-        &kKeysNotFoundInKeySetsInLocalLookup, &kInternalRunQueryEmtpyQuery,
-        &kInternalRunQueryMissingKeySet, &kInternalRunQueryParsingFailure,
-        &kLookupClientMissing, &kShardedLookupServerRequestFailed,
-        &kShardedLookupServerKeyCollisionOnCollection,
+        &kShardedLookupServerRequestFailed,
+        &kShardedLookupServerKeyCollisionOnCollection, &kLookupClientMissing,
         &kLookupFuturesCreationFailure, &kShardedLookupFailure,
         &kRemoteClientEncryptionFailure, &kRemoteClientSecureLookupFailure,
-        &kRemoteClientDecryptionFailure, &kInternalClientDecryptionFailure,
-        &kInternalClientUnpaddingRequestError,
-        &kShardedLookupRunQueryLatencyInMicros,
+        &kRemoteClientDecryptionFailure, &kShardedLookupRunQueryLatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros,
-        &kInternalSecureLookupLatencyInMicros, &kGetValuePairsLatencyInMicros,
-        &kGetKeyValueSetLatencyInMicros,
         // Safe metrics
         &privacy_sandbox::server_common::metrics::kServerTotalTimeMs,
         &kGetParameterStatus, &kCompleteLifecycleStatus,
@@ -461,20 +459,58 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kConcurrentStreamRecordReaderReadStreamRecordsLatency,
         &kConcurrentStreamRecordReaderReadByteRangeLatency};
 
+// Internal lookup service metrics list contains metrics collected in the
+// internal lookup server. This separation from KV metrics list allows all
+// lookup requests (local and request from remote KV server) to contribute to
+// the same set of metrics, so that the noise of unsafe metric won't be skewed
+// for particular batch of requests, e.g server request that requires only
+// remote lookups
+inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
+    kInternalLookupServiceMetricsList[] = {
+        // Unsafe metrics
+        &kInternalRunQueryKeySetRetrievalFailure,
+        &kKeysNotFoundInKeySetsInLocalLookup,
+        &kInternalRunQueryEmtpyQuery,
+        &kInternalRunQueryMissingKeySet,
+        &kInternalRunQueryParsingFailure,
+        &kInternalClientDecryptionFailure,
+        &kInternalClientUnpaddingRequestError,
+        &kInternalSecureLookupLatencyInMicros,
+        &kGetValuePairsLatencyInMicros,
+        &kGetKeyValueSetLatencyInMicros};
+
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>
     kKVServerMetricSpan = kKVServerMetricList;
+
+inline constexpr absl::Span<
+    const privacy_sandbox::server_common::metrics::DefinitionName* const>
+    kInternalLookupServiceMetricsSpan = kInternalLookupServiceMetricsList;
 
 inline auto* KVServerContextMap(
     std::optional<
         privacy_sandbox::server_common::telemetry::BuildDependentConfig>
         config = std::nullopt,
     std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
-    absl::string_view service = "", absl::string_view version = "") {
+    absl::string_view service = kKVServerServiceName,
+    absl::string_view version = "") {
   return privacy_sandbox::server_common::metrics::GetContextMap<
       const std::string, kKVServerMetricSpan>(std::move(config),
                                               std::move(provider), service,
                                               version, privacy_total_budget);
+}
+
+inline auto* InternalLookupServerContextMap(
+    std::optional<
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig>
+        config = std::nullopt,
+    std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
+    absl::string_view service = kInternalLookupServiceName,
+    absl::string_view version = "") {
+  return privacy_sandbox::server_common::metrics::GetContextMap<
+      const std::string, kInternalLookupServiceMetricsSpan>(
+      std::move(config), std::move(provider), service, version,
+      privacy_total_budget);
 }
 
 template <typename T>
@@ -520,10 +556,16 @@ inline void InitMetricsContextMap() {
   kv_server::KVServerContextMap(
       privacy_sandbox::server_common::telemetry::BuildDependentConfig(
           config_proto));
+  kv_server::InternalLookupServerContextMap(
+      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+          config_proto));
 }
 
-using KVMetricsContext =
+using UdfRequestMetricsContext =
     privacy_sandbox::server_common::metrics::ServerContext<kKVServerMetricSpan>;
+using InternalLookupMetricsContext =
+    privacy_sandbox::server_common::metrics::ServerContext<
+        kInternalLookupServiceMetricsSpan>;
 
 // ScopeMetricsContext provides metrics context ties to the request and
 // should have the same lifetime of the request.
@@ -544,17 +586,35 @@ class ScopeMetricsContext {
       // of metrics context to the ScopeMetricsContext. This is to ensure that
       // metrics context has the same lifetime with RequestContext and be
       // destroyed when ScopeMetricsContext goes out of scope.
-      PS_ASSIGN_OR_RETURN(metrics_context_,
+      PS_ASSIGN_OR_RETURN(udf_request_metrics_context_,
                           KVServerContextMap()->Remove(&request_id_));
       return absl::OkStatus();
-    }()) << "Metrics context is not initialized";
+    }()) << "Udf request metrics context is not initialized";
+    InternalLookupServerContextMap()->Get(&request_id_);
+    CHECK_OK([this]() {
+      // Remove the metrics context for request_id to transfer the ownership
+      // of metrics context to the ScopeMetricsContext. This is to ensure that
+      // metrics context has the same lifetime with RequestContext and be
+      // destroyed when ScopeMetricsContext goes out of scope.
+      PS_ASSIGN_OR_RETURN(
+          internal_lookup_metrics_context_,
+          InternalLookupServerContextMap()->Remove(&request_id_));
+      return absl::OkStatus();
+    }()) << "Internal lookup metrics context is not initialized";
   }
-  KVMetricsContext& GetMetricsContext() const { return *metrics_context_; }
+  UdfRequestMetricsContext& GetUdfRequestMetricsContext() const {
+    return *udf_request_metrics_context_;
+  }
+  InternalLookupMetricsContext& GetInternalLookupMetricsContext() const {
+    return *internal_lookup_metrics_context_;
+  }
 
  private:
   const std::string request_id_;
   // Metrics context has the same lifetime of server request context
-  std::unique_ptr<KVMetricsContext> metrics_context_;
+  std::unique_ptr<UdfRequestMetricsContext> udf_request_metrics_context_;
+  std::unique_ptr<InternalLookupMetricsContext>
+      internal_lookup_metrics_context_;
 };
 
 }  // namespace kv_server

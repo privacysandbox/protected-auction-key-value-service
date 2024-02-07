@@ -20,8 +20,12 @@
 
 namespace kv_server {
 
-KVMetricsContext& RequestContext::GetMetricsContext() const {
-  return metrics_context_;
+UdfRequestMetricsContext& RequestContext::GetUdfRequestMetricsContext() const {
+  return udf_request_metrics_context_;
+}
+InternalLookupMetricsContext& RequestContext::GetInternalLookupMetricsContext()
+    const {
+  return internal_lookup_metrics_context_;
 }
 
 }  // namespace kv_server

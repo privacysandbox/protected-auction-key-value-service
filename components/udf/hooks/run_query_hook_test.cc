@@ -55,7 +55,7 @@ TEST_F(RunQueryHookTest, SuccessfullyProcessesValue) {
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
   ScopeMetricsContext metrics_context;
-  RequestContext request_context(metrics_context.GetMetricsContext());
+  RequestContext request_context(metrics_context);
   FunctionBindingPayload<RequestContext> payload{io, request_context};
   (*run_query_hook)(payload);
   EXPECT_THAT(io.output_list_of_string().data(),
@@ -73,7 +73,7 @@ TEST_F(RunQueryHookTest, RunQueryClientReturnsError) {
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
   ScopeMetricsContext metrics_context;
-  RequestContext request_context(metrics_context.GetMetricsContext());
+  RequestContext request_context(metrics_context);
   FunctionBindingPayload<RequestContext> payload{io, request_context};
   (*run_query_hook)(payload);
   EXPECT_TRUE(io.output_list_of_string().data().empty());
@@ -88,7 +88,7 @@ TEST_F(RunQueryHookTest, InputIsNotString) {
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
   ScopeMetricsContext metrics_context;
-  RequestContext request_context(metrics_context.GetMetricsContext());
+  RequestContext request_context(metrics_context);
   FunctionBindingPayload<RequestContext> payload{io, request_context};
   (*run_query_hook)(payload);
 

@@ -67,7 +67,7 @@ TEST_F(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
   get_values_hook->FinishInit(std::move(mock_lookup));
   ScopeMetricsContext metrics_context;
   FunctionBindingPayload<RequestContext> payload{
-      io, RequestContext(metrics_context.GetMetricsContext())};
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   nlohmann::json result_json =
@@ -106,7 +106,7 @@ TEST_F(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
   get_values_hook->FinishInit(std::move(mock_lookup));
   ScopeMetricsContext metrics_context;
   FunctionBindingPayload<RequestContext> payload{
-      io, RequestContext(metrics_context.GetMetricsContext())};
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   nlohmann::json expected =
@@ -128,7 +128,7 @@ TEST_F(GetValuesHookTest, StringOutput_LookupReturnsError) {
   get_values_hook->FinishInit(std::move(mock_lookup));
   ScopeMetricsContext metrics_context;
   FunctionBindingPayload<RequestContext> payload{
-      io, RequestContext(metrics_context.GetMetricsContext())};
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   nlohmann::json expected = R"({"code":2,"message":"Some error"})"_json;
@@ -146,7 +146,7 @@ TEST_F(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
   get_values_hook->FinishInit(std::move(mock_lookup));
   ScopeMetricsContext metrics_context;
   FunctionBindingPayload<RequestContext> payload{
-      io, RequestContext(metrics_context.GetMetricsContext())};
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   nlohmann::json expected =
@@ -179,7 +179,7 @@ TEST_F(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
   get_values_hook->FinishInit(std::move(mock_lookup));
   ScopeMetricsContext metrics_context;
   FunctionBindingPayload<RequestContext> payload{
-      io, RequestContext(metrics_context.GetMetricsContext())};
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   EXPECT_TRUE(io.has_output_bytes());
@@ -216,7 +216,7 @@ TEST_F(GetValuesHookTest, BinaryOutput_LookupReturnsError) {
   get_values_hook->FinishInit(std::move(mock_lookup));
   ScopeMetricsContext metrics_context;
   FunctionBindingPayload<RequestContext> payload{
-      io, RequestContext(metrics_context.GetMetricsContext())};
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   EXPECT_TRUE(io.has_output_bytes());

@@ -102,8 +102,8 @@ constexpr std::string_view kTestPublicKey =
 const uint16_t kKEMParameter = 0x0020;
 // KDF: HKDF-SHA256 0x0001
 const uint16_t kKDFParameter = 0x0001;
-// AEAD: AES-128-GCM 0X0001
-const uint16_t kAEADParameter = 0x0001;
+// AEAD: AES-256-GCM 0X0001
+const uint16_t kAEADParameter = 0x0002;
 
 constexpr std::string_view kServiceName = "kv-server";
 

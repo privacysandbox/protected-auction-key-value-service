@@ -177,7 +177,7 @@ class GetValuesHandlerTest
       // ../encryption/key_fetcher/src/fake_key_fetcher_manager.h
       uint8_t key_id = 64;
       auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
-          key_id, 0x0020, 0x0001, 0x0001);
+          key_id, kKEMParameter, kKDFParameter, kAEADParameter);
       EXPECT_TRUE(maybe_config.ok());
 
       auto client =

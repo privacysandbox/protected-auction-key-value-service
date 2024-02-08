@@ -205,11 +205,10 @@ absl::StatusOr<std::vector<std::string>> S3BlobStorageClient::ListBlobs(
     const Aws::Vector<Aws::S3::Model::Object> objects =
         outcome.GetResult().GetContents();
     for (const Aws::S3::Model::Object& object : objects) {
-      auto blob = ParseBlobName(object.GetKey());
-      if (blob.prefix != location.prefix) {
-        continue;
+      if (auto blob = ParseBlobName(object.GetKey());
+          blob.prefix == location.prefix) {
+        keys.emplace_back(std::move(blob.key));
       }
-      keys.emplace_back(std::move(blob.key));
     }
     done = !outcome.GetResult().GetIsTruncated();
     if (!done) {

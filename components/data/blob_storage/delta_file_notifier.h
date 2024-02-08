@@ -20,6 +20,7 @@
 #include <memory>
 #include <string>
 
+#include "components/data/blob_storage/blob_prefix_allowlist.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/common/thread_manager.h"
@@ -58,13 +59,15 @@ class DeltaFileNotifier {
 
   static std::unique_ptr<DeltaFileNotifier> Create(
       BlobStorageClient& client,
-      const absl::Duration poll_frequency = absl::Minutes(5));
+      const absl::Duration poll_frequency = absl::Minutes(5),
+      BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""));
 
   // Used for test
   static std::unique_ptr<DeltaFileNotifier> Create(
       BlobStorageClient& client, const absl::Duration poll_frequency,
       std::unique_ptr<SleepFor> sleep_for,
-      privacy_sandbox::server_common::SteadyClock& clock);
+      privacy_sandbox::server_common::SteadyClock& clock,
+      BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""));
 };
 
 }  // namespace kv_server

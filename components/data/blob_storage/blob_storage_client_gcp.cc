@@ -167,11 +167,10 @@ absl::StatusOr<std::vector<std::string>> GcpBlobStorageClient::ListBlobs(
     if (full_key_name == options.start_after) {
       continue;
     }
-    auto blob = ParseBlobName(full_key_name);
-    if (blob.prefix != location.prefix) {
-      continue;
+    if (auto blob = ParseBlobName(full_key_name);
+        blob.prefix == location.prefix) {
+      keys.push_back(std::move(blob.key));
     }
-    keys.push_back(std::move(blob.key));
   }
   std::sort(keys.begin(), keys.end());
   return keys;

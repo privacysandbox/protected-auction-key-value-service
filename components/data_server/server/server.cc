@@ -24,6 +24,7 @@
 #include "absl/log/log_sink_registry.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "components/data/blob_storage/blob_prefix_allowlist.h"
 #include "components/data_server/request_handler/get_values_adapter.h"
 #include "components/data_server/request_handler/get_values_handler.h"
 #include "components/data_server/request_handler/get_values_v2_handler.h"
@@ -102,6 +103,8 @@ constexpr absl::string_view kLoadbalancerHealthcheck =
     "loadbalancer-healthcheck";
 constexpr absl::string_view kEnableOtelLoggerParameterSuffix =
     "enable-otel-logger";
+constexpr std::string_view kDataLoadingBlobPrefixAllowlistSuffix =
+    "data-loading-blob-prefix-allowlist";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -167,6 +170,12 @@ GetServerTelemetryConfig(const ParameterClient& parameter_client,
   config.set_mode(
       privacy_sandbox::server_common::telemetry::TelemetryConfig::EXPERIMENT);
   return config;
+}
+
+BlobPrefixAllowlist GetBlobPrefixAllowlist(
+    const ParameterFetcher& parameter_fetcher) {
+  // TODO: actually use parameter fetcher
+  return BlobPrefixAllowlist("");
 }
 
 }  // namespace
@@ -583,19 +592,18 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
       LogStatusSafeMetricsFn<kCreateDataOrchestratorStatus>();
   return TraceRetryUntilOk(
       [&] {
-        return DataOrchestrator::TryCreate({
-            .data_bucket = data_bucket,
-            .cache = *cache_,
-            .blob_client = *blob_client_,
-            .delta_notifier = *notifier_,
-            .change_notifier = *change_notifier_,
-            .delta_stream_reader_factory = *delta_stream_reader_factory_,
-            .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
-            .udf_client = *udf_client_,
-            .shard_num = shard_num_,
-            .num_shards = num_shards_,
-            .key_sharder = std::move(key_sharder),
-        });
+        return DataOrchestrator::TryCreate(
+            {.data_bucket = data_bucket,
+             .cache = *cache_,
+             .blob_client = *blob_client_,
+             .delta_notifier = *notifier_,
+             .change_notifier = *change_notifier_,
+             .delta_stream_reader_factory = *delta_stream_reader_factory_,
+             .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
+             .udf_client = *udf_client_,
+             .shard_num = shard_num_,
+             .num_shards = num_shards_,
+             .key_sharder = std::move(key_sharder)});
       },
       "CreateDataOrchestrator", metrics_callback);
 }
@@ -658,7 +666,8 @@ std::unique_ptr<DeltaFileNotifier> Server::CreateDeltaFileNotifier(
             << " parameter: " << backup_poll_frequency_secs;
 
   return DeltaFileNotifier::Create(*blob_client_,
-                                   absl::Seconds(backup_poll_frequency_secs));
+                                   absl::Seconds(backup_poll_frequency_secs),
+                                   GetBlobPrefixAllowlist(parameter_fetcher));
 }
 
 }  // namespace kv_server

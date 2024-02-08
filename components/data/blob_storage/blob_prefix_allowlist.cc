@@ -28,16 +28,16 @@ constexpr std::string_view kPrefixListDelimiter = ",";
 }  // namespace
 
 BlobPrefixAllowlist::BlobName ParseBlobName(std::string_view blob_name) {
+  if (blob_name.empty()) {
+    return BlobPrefixAllowlist::BlobName{};
+  }
   std::string blob_name_copy(blob_name);
   std::reverse(blob_name_copy.begin(), blob_name_copy.end());
   std::vector<std::string> name_parts = absl::StrSplit(
       blob_name_copy,
       absl::MaxSplits(/*delimiter=*/kBlobNameDelimiter, /*limit=*/1));
-  if (name_parts.size() == 0) {
-    return BlobPrefixAllowlist::BlobName{};
-  }
-  for (int64_t part = 0; part < name_parts.size(); part++) {
-    std::reverse(name_parts[part].begin(), name_parts[part].end());
+  for (auto& name_part : name_parts) {
+    std::reverse(name_part.begin(), name_part.end());
   }
   auto prefix = name_parts.size() == 1 ? "" : std::move(name_parts.back());
   return BlobPrefixAllowlist::BlobName{.prefix = std::move(prefix),
@@ -52,11 +52,11 @@ BlobPrefixAllowlist::BlobPrefixAllowlist(std::string_view allowed_prefixes) {
   allowed_prefixes_.insert(prefixes.begin(), prefixes.end());
 }
 
-bool BlobPrefixAllowlist::Contains(std::string_view prefix) {
+bool BlobPrefixAllowlist::Contains(std::string_view prefix) const {
   return allowed_prefixes_.contains(prefix);
 }
 
-bool BlobPrefixAllowlist::ContainsBlobPrefix(std::string_view blob_name) {
+bool BlobPrefixAllowlist::ContainsBlobPrefix(std::string_view blob_name) const {
   return Contains(ParseBlobName(blob_name).prefix);
 }
 

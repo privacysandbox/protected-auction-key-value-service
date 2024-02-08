@@ -127,7 +127,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "height": 9,
             "properties": {
                 "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total cores', 'Average', 60)", "id": "e1", "period": 60 } ]
+                    [ { "expression": "SEARCH('{KV-Server,Noise,OTelLib,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total cores', 'Average', 60)", "id": "e1", "period": 60 } ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,
@@ -151,9 +151,9 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "height": 9,
             "properties": {
                 "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} main process utilization', 'Average', 60)", "id": "e1", "period": 60 } ],
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total utilization', 'Average', 60)", "id": "e2", "period": 60 } ],
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total load', 'Average', 60)", "id": "e3", "period": 60 } ]
+                    [ { "expression": "SEARCH('{KV-Server,Noise,OTelLib,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} main process utilization', 'Average', 60)", "id": "e1", "period": 60 } ],
+                    [ { "expression": "SEARCH('{KV-Server,Noise,OTelLib,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total utilization', 'Average', 60)", "id": "e2", "period": 60 } ],
+                    [ { "expression": "SEARCH('{KV-Server,Noise,OTelLib,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total load', 'Average', 60)", "id": "e3", "period": 60 } ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,
@@ -177,7 +177,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "height": 9,
             "properties": {
                 "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} system.memory.usage main process', 'Average', 60)", "id": "e1", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ]
+                    [ { "expression": "SEARCH('{KV-Server,Noise,OTelLib,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} system.memory.usage main process', 'Average', 60)", "id": "e1", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,
@@ -201,7 +201,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "height": 9,
             "properties": {
                 "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} system.memory.usage MemAvailable', 'Average', 60)", "id": "e1", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ]
+                    [ { "expression": "SEARCH('{KV-Server,Noise,OTelLib,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} system.memory.usage MemAvailable', 'Average', 60)", "id": "e1", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ]
                 ],
                 "view": "timeSeries",
                 "stacked": false,
@@ -225,7 +225,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "height": 9,
             "properties": {
                 "metrics": [
-                     [ { "expression": "SELECT COUNT(ChangeNotifierErrors) FROM SCHEMA(\"KV-Server\", Noise,\"deployment.environment\",error_code,\"host.arch\",\"service.instance.id\",\"service.name\",\"service.version\",shard_number,\"telemetry.sdk.language\",\"telemetry.sdk.name\",\"telemetry.sdk.version\") WHERE \"deployment.environment\" = '${var.environment}' GROUP BY error_code, \"service.instance.id\"", "label": "error rate", "id": "m1", "stat": "Average", "visible": false } ],
+                     [ { "expression": "SELECT COUNT(ChangeNotifierErrors) FROM SCHEMA(\"KV-Server\",Noise,OTelLib,\"deployment.environment\",error_code,\"host.arch\",\"service.instance.id\",\"service.name\",\"service.version\",shard_number,\"telemetry.sdk.language\",\"telemetry.sdk.name\",\"telemetry.sdk.version\") WHERE \"deployment.environment\" = '${var.environment}' GROUP BY error_code, \"service.instance.id\"", "label": "error rate", "id": "m1", "stat": "Average", "visible": false } ],
                      [ { "expression": "DIFF(m1)", "label": "error count", "id": "e1" } ]
                 ],
                 "view": "timeSeries",

@@ -26,15 +26,19 @@ AvroStreamReader::AvroStreamReader(std::istream& data_input)
 
 absl::Status AvroStreamReader::ReadStreamRecords(
     const std::function<absl::Status(const std::string_view&)>& callback) {
-  avro::InputStreamPtr input_stream = avro::istreamInputStream(data_input_);
-  avro::DataFileReader<std::string> reader(std::move(input_stream));
+  try {
+    avro::InputStreamPtr input_stream = avro::istreamInputStream(data_input_);
+    avro::DataFileReader<std::string> reader(std::move(input_stream));
 
-  std::string record;
-  absl::Status overall_status;
-  while (reader.read(record)) {
-    overall_status.Update(callback(record));
+    std::string record;
+    absl::Status overall_status;
+    while (reader.read(record)) {
+      overall_status.Update(callback(record));
+    }
+    return overall_status;
+  } catch (const std::exception& e) {
+    return absl::InternalError(e.what());
   }
-  return overall_status;
 }
 
 AvroConcurrentStreamRecordReader::AvroConcurrentStreamRecordReader(

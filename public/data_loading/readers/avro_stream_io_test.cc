@@ -30,6 +30,11 @@ namespace {
 constexpr std::string_view kTestRecord = "testrecord";
 constexpr int64_t kIterations = 1024 * 1024 * 9;
 
+void WriteInvalidFile(const std::vector<std::string_view>& records,
+                      std::ostream& dest_stream) {
+  dest_stream << "invalid";
+}
+
 void WriteAvroToFile(const std::vector<std::string_view>& records,
                      std::ostream& dest_stream) {
   avro::OutputStreamPtr avro_output_stream =
@@ -121,6 +126,44 @@ TEST(AvroStreamIO, SequentialReading) {
   auto status =
       record_reader.ReadStreamRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
+}
+TEST(AvroStreamIO, ConcurrentReadingInvalidFile) {
+  kv_server::InitMetricsContextMap();
+  constexpr std::string_view kFileName = "ConcurrentReading.invalid";
+  const std::filesystem::path path =
+      std::filesystem::path(::testing::TempDir()) / kFileName;
+  std::ofstream output_stream(path);
+  WriteInvalidFile({kTestRecord}, output_stream);
+  output_stream.close();
+
+  AvroConcurrentStreamRecordReader::Options options;
+  AvroConcurrentStreamRecordReader record_reader(
+      [&path] { return std::make_unique<iStreamRecordStream>(path); }, options);
+
+  testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status =
+      record_reader.ReadStreamRecords(record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok());
+}
+
+TEST(AvroStreamIO, SequentialReadingInvalidFile) {
+  kv_server::InitMetricsContextMap();
+  constexpr std::string_view kFileName = "SequentialReading.invalid";
+  const std::filesystem::path path =
+      std::filesystem::path(::testing::TempDir()) / kFileName;
+  std::ofstream output_stream(path);
+  WriteInvalidFile({kTestRecord}, output_stream);
+  output_stream.close();
+
+  std::ifstream is(path);
+  AvroStreamReader record_reader(is);
+
+  testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status =
+      record_reader.ReadStreamRecords(record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok());
 }
 
 }  // namespace

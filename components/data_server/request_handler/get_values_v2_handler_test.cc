@@ -57,14 +57,25 @@ enum class ProtocolType {
   kObliviousHttp,
 };
 
+struct TestingParameters {
+  ProtocolType protocol_type;
+  const std::string_view content_type;
+};
+
 class GetValuesHandlerTest
     : public ::testing::Test,
-      public ::testing::WithParamInterface<ProtocolType> {
+      public ::testing::WithParamInterface<TestingParameters> {
  protected:
   void SetUp() override { InitMetricsContextMap(); }
   template <ProtocolType protocol_type>
   bool IsUsing() {
-    return GetParam() == protocol_type;
+    auto param = GetParam();
+    return param.protocol_type == protocol_type;
+  }
+
+  bool IsProtobufContent() {
+    auto param = GetParam();
+    return param.content_type == kContentEncodingProtoHeaderValue;
   }
 
   class PlainRequest {
@@ -86,8 +97,15 @@ class GetValuesHandlerTest
 
   class BHTTPRequest {
    public:
-    explicit BHTTPRequest(PlainRequest plain_request) {
+    explicit BHTTPRequest(PlainRequest plain_request,
+                          bool is_protobuf_content) {
       quiche::BinaryHttpRequest req_bhttp_layer({});
+      if (is_protobuf_content) {
+        req_bhttp_layer.AddHeaderField({
+            .name = std::string(kContentTypeHeader),
+            .value = std::string(kContentEncodingProtoHeaderValue),
+        });
+      }
       req_bhttp_layer.set_body(plain_request.RequestBody());
       auto maybe_serialized = req_bhttp_layer.Serialize();
       EXPECT_TRUE(maybe_serialized.ok());
@@ -213,7 +231,7 @@ class GetValuesHandlerTest
       return handler->GetValuesHttp(plain_request.Build(), response);
     }
 
-    BHTTPRequest bhttp_request(std::move(plain_request));
+    BHTTPRequest bhttp_request(std::move(plain_request), IsProtobufContent());
     BHTTPResponse bresponse;
 
     if (IsUsing<ProtocolType::kBinaryHttp>()) {
@@ -248,10 +266,29 @@ class GetValuesHandlerTest
       fake_key_fetcher_manager_;
 };
 
-INSTANTIATE_TEST_SUITE_P(GetValuesHandlerTest, GetValuesHandlerTest,
-                         testing::Values(ProtocolType::kPlain,
-                                         ProtocolType::kBinaryHttp,
-                                         ProtocolType::kObliviousHttp));
+INSTANTIATE_TEST_SUITE_P(
+    GetValuesHandlerTest, GetValuesHandlerTest,
+    testing::Values(
+        TestingParameters{
+            .protocol_type = ProtocolType::kPlain,
+            .content_type = kContentEncodingJsonHeaderValue,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kBinaryHttp,
+            .content_type = kContentEncodingJsonHeaderValue,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingJsonHeaderValue,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kBinaryHttp,
+            .content_type = kContentEncodingProtoHeaderValue,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingProtoHeaderValue,
+        }));
 
 TEST_P(GetValuesHandlerTest, Success) {
   UDFExecutionMetadata udf_metadata;
@@ -331,7 +368,7 @@ data {
                   testing::ElementsAre(EqualsProto(arg1), EqualsProto(arg2))))
       .WillOnce(Return(output.dump()));
 
-  const std::string core_request_body = R"(
+  std::string core_request_body = R"(
 {
     "metadata": {
         "hostname": "example.com"
@@ -369,6 +406,14 @@ data {
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
                              fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
+  if (IsProtobufContent()) {
+    v2::GetValuesRequest request_proto;
+    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(core_request_body,
+                                                            &request_proto)
+                    .ok());
+    ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
+  }
+
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
   ASSERT_EQ(bhttp_response_code, 200);
@@ -386,7 +431,7 @@ data {
 }
 
 TEST_P(GetValuesHandlerTest, NoPartition) {
-  const std::string core_request_body = R"(
+  std::string core_request_body = R"(
 {
     "metadata": {
         "hostname": "example.com"
@@ -396,6 +441,14 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
                              fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
+
+  if (IsProtobufContent()) {
+    v2::GetValuesRequest request_proto;
+    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(core_request_body,
+                                                            &request_proto)
+                    .ok());
+    ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
+  }
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
   if (IsUsing<ProtocolType::kPlain>()) {
@@ -411,7 +464,7 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
   EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, testing::IsEmpty()))
       .WillOnce(Return(absl::InternalError("UDF execution error")));
 
-  const std::string core_request_body = R"(
+  std::string core_request_body = R"(
 {
     "partitions": [
         {
@@ -425,6 +478,15 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
   GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
                              fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
+
+  if (IsProtobufContent()) {
+    v2::GetValuesRequest request_proto;
+    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(core_request_body,
+                                                            &request_proto)
+                    .ok());
+    ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
+  }
+
   const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
                                                &bhttp_response_code, &handler);
   ASSERT_EQ(bhttp_response_code, 200);

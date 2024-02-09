@@ -37,6 +37,16 @@
 
 namespace kv_server {
 
+// Content Type Header Name. Can be set for bhttp request to proto or json
+// values below.
+inline constexpr std::string_view kContentTypeHeader = "content-type";
+// Protobuf Content Type Header Value.
+inline constexpr std::string_view kContentEncodingProtoHeaderValue =
+    "application/protobuf";
+// Json Content Type Header Value.
+inline constexpr std::string_view kContentEncodingJsonHeaderValue =
+    "application/json";
+
 // Handles the request family of *GetValues.
 // See the Service proto definition for details.
 class GetValuesV2Handler {
@@ -83,8 +93,16 @@ class GetValuesV2Handler {
                                   google::api::HttpBody* response) const;
 
  private:
-  absl::Status GetValuesHttp(std::string_view request,
-                             std::string& json_response) const;
+  enum class ContentType {
+    kJson = 0,
+    kProto,
+  };
+  ContentType GetContentType(
+      const quiche::BinaryHttpRequest& deserialized_req) const;
+
+  absl::Status GetValuesHttp(
+      std::string_view request, std::string& json_response,
+      ContentType content_type = ContentType::kJson) const;
 
   // On success, returns a BinaryHttpResponse with a successful response. The
   // reason that this is a separate function is so that the error status

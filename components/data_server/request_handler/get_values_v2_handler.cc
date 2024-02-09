@@ -76,11 +76,21 @@ grpc::Status GetValuesV2Handler::GetValuesHttp(
       GetValuesHttp(request.raw_body().data(), *response->mutable_data()));
 }
 
-absl::Status GetValuesV2Handler::GetValuesHttp(
-    std::string_view request, std::string& json_response) const {
+absl::Status GetValuesV2Handler::GetValuesHttp(std::string_view request,
+                                               std::string& json_response,
+                                               ContentType content_type) const {
   v2::GetValuesRequest request_proto;
-  PS_RETURN_IF_ERROR(
-      google::protobuf::util::JsonStringToMessage(request, &request_proto));
+  if (content_type == ContentType::kJson) {
+    PS_RETURN_IF_ERROR(
+        google::protobuf::util::JsonStringToMessage(request, &request_proto));
+  } else {  // proto
+    if (!request_proto.ParseFromString(request)) {
+      auto error_message =
+          "Cannot parse request as a valid serilized proto object.";
+      VLOG(4) << error_message;
+      return absl::InvalidArgumentError(error_message);
+    }
+  }
   VLOG(9) << "Converted the http request to proto: "
           << request_proto.DebugString();
   v2::GetValuesResponse response_proto;
@@ -95,19 +105,29 @@ grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
                                             *response->mutable_data()));
 }
 
+GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
+    const quiche::BinaryHttpRequest& deserialized_req) const {
+  for (const auto& header : deserialized_req.GetHeaderFields()) {
+    if (absl::AsciiStrToLower(header.name) == kContentTypeHeader &&
+        absl::AsciiStrToLower(header.value) ==
+            kContentEncodingProtoHeaderValue) {
+      return ContentType::kProto;
+    }
+  }
+  return ContentType::kJson;
+}
+
 absl::StatusOr<quiche::BinaryHttpResponse>
 GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
     std::string_view bhttp_request_body) const {
   VLOG(9) << "Handling the binary http layer";
-  PS_ASSIGN_OR_RETURN(quiche::BinaryHttpRequest maybe_deserialized_req,
+  PS_ASSIGN_OR_RETURN(quiche::BinaryHttpRequest deserialized_req,
                       quiche::BinaryHttpRequest::Create(bhttp_request_body),
                       _ << "Failed to deserialize binary http request");
-  VLOG(3) << "BinaryHttpGetValues request: "
-          << maybe_deserialized_req.DebugString();
-
+  VLOG(3) << "BinaryHttpGetValues request: " << deserialized_req.DebugString();
   std::string json_response;
-  PS_RETURN_IF_ERROR(
-      GetValuesHttp(maybe_deserialized_req.body(), json_response));
+  PS_RETURN_IF_ERROR(GetValuesHttp(deserialized_req.body(), json_response,
+                                   GetContentType(deserialized_req)));
 
   quiche::BinaryHttpResponse bhttp_response(200);
   bhttp_response.set_body(std::move(json_response));

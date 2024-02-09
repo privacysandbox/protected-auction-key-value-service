@@ -39,25 +39,19 @@ Start from the workspace root.
 
     ```sh
     ./tools/serving_data_generator/generate_test_riegeli_data
-    GENERATED_DELTA=/path/to/GENERATED_DELTA_FILE
+    GENERATED_DELTA=/path/to/delta/dir/GENERATED_DELTA_FILE
     aws s3 cp $GENERATED_DELTA s3://bucket_name
     ```
 
-1. (optional) Write UDFs & upload
+1. Provide a directory of SNAPSHOT (or DELTA) files with keys that should be sent in the request to
+   the server. This SNAPSHOT (or DELTA) file should only have `UPDATE` mutations. The tool will
+   iterate through each SNAPSHOT file, select keys from that file, and run benchmarks with those
+   keys.
+
+    For this example, we'll use the generated DELTA files from step 1
 
     ```sh
-    UDF_DELTA=/path/to/UDF_DELTA_FILE
-    aws s3 cp $UDF_DELTA s3://bucket_name
-    ```
-
-1. Provide a SNAPSHOT/DELTA file with keys that should be sent in request. This SNAPSHOT file or
-   DELTA file should only have `UPDATE` mutations. Copy it to `tools/latency_benchmarking` and name
-   it `SNAPSHOT_0000000000000001`.
-
-    For this example, we'll use the generated DELTA file from step 1
-
-    ```sh
-    cp $GENERATED_DELTA tools/latency_benchmarking/SNAPSHOT_0000000000000001
+    SNAPSHOT_DIR=/path/to/delta/dir/
     ```
 
 1. Set up your terraform config files and save them
@@ -86,10 +80,24 @@ Start from the workspace root.
         TF_OVERRIDES=/path/to/tf_variable_overrides.txt
         ```
 
+1. (optional) Write UDFs If given a directory of UDF delta files, the tool iterates through each
+   one, uploads it to the given data bucket, runs benchmarks, then removes the UDF delta from the
+   data bucket.
+
+    ```sh
+    UDF_DELTA_DIR=/path/to/udf_deltas/
+    DATA_BUCKET=s3://bucket_name
+    ```
+
 1. Run the script and wait for the result
 
     ```sh
-    ./tools/latency_benchmarking/deploy_and_benchmark --tf-var-file ${TF_VAR_FILE} --tf-backend-config ${TF_BACKEND_CONFIG} --tf-overrides ${TF_OVERRIDES} --csv-output my_summary.csv
+    ./tools/latency_benchmarking/deploy_and_benchmark \
+    --snapshot-dir ${SNAPSHOT_DIR} \
+    --tf-var-file ${TF_VAR_FILE} \
+    --tf-backend-config ${TF_BACKEND_CONFIG} \
+    --tf-overrides ${TF_OVERRIDES} \
+    --csv-output ${PWD}/my_summary.csv
     ```
 
 The result will be in `my_summary.csv`
@@ -106,10 +114,13 @@ Note: Please make sure enclave memory is large enough for your data set.
 Start from the workspace root.
 
 ```sh
-cp <MY_SNAPSHOT_FILE> tools/latency_benchmarking/SNAPSHOT_0000000000000001
+SNAPSHOT_DIR=/path/to/snapshot/dir
 NUMBER_OF_LOOKUP_KEYS_LIST="1 10 100"
 SERVER_ADDRESS="myexample.kv-server.com:8443"
-./tools/latency_benchmarking/run_benchmarks --number-of-lookup-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST}" --server-address ${SERVER_ADDRESS}
+./tools/latency_benchmarking/run_benchmarks \
+--server-address ${SERVER_ADDRESS} \
+--snapshot-dir ${SNAPSHOT_DIR} \
+--number-of-lookup-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST}"
 ```
 
 Outputs a summary to `dist/tools/latency_benchmarking/output/<timestamp>/summary.csv`.

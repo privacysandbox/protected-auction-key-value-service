@@ -21,16 +21,27 @@ source ./builders/tools/builder.sh
 
 WORKSPACE="$(git rev-parse --show-toplevel)"
 
-SERVER_WAIT_TIMEOUT="5m"
+# Script input params
+EXTRA_SERVER_WAIT_TIMEOUT="5m"
+MINIMUM_SERVER_WAIT_SECS=60
 NUMBER_OF_LOOKUP_KEYS_LIST="1 10 50 100"
 GHZ_TAGS="{}"
 
+# Additional GHZ tags per deployment/udf
+DEPLOYMENT_GHZ_TAGS="{}"
+UDF_GHZ_TAGS="{}"
+
+# Input to run_benchmark script
+declare RUN_BENCHMARK_ARGS
+
+# Deployment vars
 declare SERVER_ADDRESS
 declare SERVER_ENDPOINT
-declare -a BENCHMARK_CSVS
 
+# CSV I/O
+declare -a BENCHMARK_CSVS
 CSV_OUTPUT="${WORKSPACE}/dist/tools/latency_benchmarking/output/output.csv"
-DOCKER_OUTPUT_CSV="/tmp/latency_benchmarking/output/output.csv"
+DOCKER_OUTPUT_CSV="/tmp/latency_benchmarking/output/deploy_and_benchmark/output.csv"
 readonly DOCKER_OUTPUT_CSV
 
 # run_benchmarks writes output to this directory
@@ -68,14 +79,23 @@ USAGE
   exit ${exitval}
 }
 
-function run_benchmarks() {
-  local -a RUN_BENCHMARK_ARGS=(
+function set_benchmark_args() {
+  SERVER_ADDRESS="lusa.kv-server.privacysandboxdemo.app:8443"
+  local -a RUN_BENCHMARK_GHZ_TAGS
+  RUN_BENCHMARK_GHZ_TAGS=$(jq -s -c 'add' <(echo "${GHZ_TAGS}") \
+    <(echo "${DEPLOYMENT_GHZ_TAGS}") \
+    <(echo "${UDF_GHZ_TAGS}"))
+  RUN_BENCHMARK_ARGS=(
       --number-of-lookup-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}"
       --server-address "${SERVER_ADDRESS}"
+      --ghz-tags "${RUN_BENCHMARK_GHZ_TAGS}"
+      --snapshot-dir "${SNAPSHOT_DIR}"
       )
-  if [[ -n "${EXTRA_GHZ_TAGS}" ]]; then
-      RUN_BENCHMARK_ARGS+=(--ghz-tags "${EXTRA_GHZ_TAGS}")
-  fi
+  }
+
+function run_benchmarks() {
+  set_benchmark_args
+  printf "BENCHMARK ARGS: %s\n" "${RUN_BENCHMARK_ARGS[*]}"
 
   local BENCHMARK_OUTPUT
   BENCHMARK_OUTPUT=$(./tools/latency_benchmarking/run_benchmarks "${RUN_BENCHMARK_ARGS[@]}")
@@ -83,7 +103,6 @@ function run_benchmarks() {
     "$(echo "${BENCHMARK_OUTPUT}" | tail -n 1 2>&1 | tee /dev/tty)"
   )
 }
-
 
 function set_server_address() {
   # Build HTTP server endpoint from tf output
@@ -117,16 +136,29 @@ function deploy_and_benchmark() {
   set_server_address "${TF_APPLY_LAST_LINE}"
 
   # Wait for potential instance teardown before periodically checking if server is ready
-  sleep 60
+  sleep "${MINIMUM_SERVER_WAIT_SECS}"
 
   # Wait for server to be up
-  timeout --foreground "${SERVER_WAIT_TIMEOUT}" bash -c \
+  timeout --foreground "${EXTRA_SERVER_WAIT_TIMEOUT}" bash -c \
     "until curl --output /dev/null --silent --fail ${SERVER_ENDPOINT};do sleep 15; done"
   printf "Server ready, running benchmarks\n"
 
-  # TODO: cp SNAPSHOT file to dir
-  run_benchmarks
-  # TODO: Upload UDFs
+  # Iterate through each given UDF
+  # Upload delta file, run benchmarks, then remove it
+  if [[ -d "${UDF_DELTA_DIR}" ]]; then
+    for FILE in "${UDF_DELTA_DIR}"/*; do
+      local FILENAME
+      FILENAME=$(basename "${FILE}")
+      aws s3 cp "${FILE}" "${DATA_BUCKET}/${FILENAME}"
+      # Allow some time for server to pick up new UDF
+      sleep 60
+      UDF_GHZ_TAGS="{ \"udf_delta_file\": \"${FILENAME}\" }"
+      run_benchmarks
+      aws s3 rm "${DATA_BUCKET}/${FILENAME}"
+    done
+  else
+    run_benchmarks
+  fi
 }
 
 while [[ $# -gt 0 ]]; do
@@ -147,8 +179,20 @@ while [[ $# -gt 0 ]]; do
       CSV_OUTPUT="$2"
       shift 2
       ;;
-    --server-wait-timeout)
-      SERVER_WAIT_TIMEOUT="$2"
+    --snapshot-dir)
+      SNAPSHOT_DIR="$2"
+      shift 2
+      ;;
+    --udf-delta-dir)
+      UDF_DELTA_DIR="$2"
+      shift 2
+      ;;
+    --data-bucket)
+      DATA_BUCKET="$2"
+      shift 2
+      ;;
+    --extra-server-wait-timeout)
+      EXTRA_SERVER_WAIT_TIMEOUT="$2"
       shift 2
       ;;
     --number-of-lookup-keys-list)
@@ -163,31 +207,40 @@ while [[ $# -gt 0 ]]; do
       DESTROY_INSTANCES=1
       shift
       ;;
+    --minimum-server-wait-secs)
+      MINIMUM_SERVER_WAIT_SECS=1
+      shift
+      ;;
     -h | --help) usage 0 ;;
     *) usage ;;
   esac
 done
 
-# No terraform variable overrides, run benchmarks directly
-if [[ -z "${TF_OVERRIDES}" ]]; then
-  deploy_and_benchmark
-  exit 0
+# Check for SNAPSHOT_DIR. If not available, exit.
+if [[ -z "${SNAPSHOT_DIR}" || ! -d "${SNAPSHOT_DIR}" ]]; then
+  printf "snapshot-dir not found:%s\n" "${SNAPSHOT_DIR}"
+  exit 1;
 fi
 
-# Terraform override file found:
-# Each row defines a set of overrides for terraform variables.
-# Pass the overrides to deploy_and_benchmark function and set
-# them as tags in the ghz call.
-while IFS=',' read -ra VARS; do
-  declare -a VAR_OVERRIDES=()
-  EXTRA_GHZ_TAGS="${GHZ_TAGS}"
-  for VAR in "${VARS[@]}"; do
-      VAR_OVERRIDES+=(-var "${VAR}")
-      GHZ_TAG=$(echo "${VAR}" | jq -s -R 'split("\n") | .[0] | split("=") | {(.[0]): .[1]}')
-      EXTRA_GHZ_TAGS=$(jq -s -c 'add' <(echo "${EXTRA_GHZ_TAGS}") <(echo "${GHZ_TAG}"))
-  done
-  deploy_and_benchmark
-done < "${TF_OVERRIDES}"
+# No terraform variable overrides, deploy and benchmark without overrides
+if [[ -z "${TF_OVERRIDES}" ]]; then
+  deploy_and_benchmark "${GHZ_TAGS}"
+else
+  # Terraform override file found:
+  # Each row defines a set of overrides for terraform variables.
+  # Pass the overrides to deploy_and_benchmark function and set
+  # them as tags in the ghz call.
+  while IFS=',' read -ra VARS; do
+    declare -a VAR_OVERRIDES=()
+    DEPLOYMENT_GHZ_TAGS="{}"
+    for VAR in "${VARS[@]}"; do
+        VAR_OVERRIDES+=(-var "${VAR}")
+        OVERRIDE_VAR_GHZ_TAG=$(echo "${VAR}" | jq -s -R 'split("\n") | .[0] | split("=") | {(.[0]): .[1]}')
+        DEPLOYMENT_GHZ_TAGS=$(jq -s -c 'add' <(echo "${DEPLOYMENT_GHZ_TAGS}") <(echo "${OVERRIDE_VAR_GHZ_TAG}"))
+    done
+    deploy_and_benchmark
+  done < "${TF_OVERRIDES}"
+fi
 
 # Benchmarks done, merge CSVs
 
@@ -206,3 +259,5 @@ EXTRA_DOCKER_RUN_ARGS+=" --volume ${CSV_SUMMARY_INPUT_DIR}:${DOCKER_INPUT_DIR} -
   -- \
   --csv-inputs "${DOCKER_BENCHMARK_CSVS[@]}" \
   --csv-output "${DOCKER_OUTPUT_CSV}"
+
+printf "Results in: %s\n" "${CSV_OUTPUT}"

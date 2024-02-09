@@ -36,6 +36,7 @@ py_binary(
         "$(location {})".format(csv_out),
     ],
     data = [csv_out],
+    tags = ["manual"],
 )
 
 py_binary(

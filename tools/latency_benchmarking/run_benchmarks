@@ -21,10 +21,9 @@ readonly START
 
 WORKSPACE="$(git rev-parse --show-toplevel)"
 
-BASE_OUTPUT_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/output"
-OUTPUT_DIR="${BASE_OUTPUT_DIR}/${START}"
+BASE_OUTPUT_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/output/${START}"
 
-NUMBER_OF_LOOKUP_KEYS_LIST="1 5 10"
+NUMBER_OF_LOOKUP_KEYS="1 5 10"
 
 DOCKER_OUTPUT_DIR="/tmp/latency_benchmarking/output"
 readonly DOCKER_OUTPUT_DIR
@@ -40,6 +39,52 @@ USAGE
   exit ${exitval}
 }
 
+function generate_requests() {
+  # Create output dirs before calling bazel-debian
+  # If the dir is created in the docker container, we lose write permission
+  for N in "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}"; do
+    mkdir -p "${OUTPUT_DIR}/n=${N}"
+  done
+
+  local -a GENERATE_REQUESTS_ARGS
+  GENERATE_REQUESTS_ARGS+=( --output-dir "${DOCKER_OUTPUT_DIR}" )
+  GENERATE_REQUESTS_ARGS+=( --number-of-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}" )
+  # Mount the output dir to docker and write requests to output dir for each item in
+  # `NUMBER_OF_LOOKUP_KEYS_LIST`.
+  # This will write a json request for each NUMBER_OF_LOOKUP_KEY=N to
+  # dist/tools/latency_benchmarking/output/${START}/${SNAPSHOT_FILENAME}/n=${N}/request.json
+  EXTRA_DOCKER_RUN_ARGS+=" --volume ${OUTPUT_DIR}:${DOCKER_OUTPUT_DIR} " \
+    builders/tools/bazel-debian run //tools/latency_benchmarking:generate_requests \
+    -- "${GENERATE_REQUESTS_ARGS[@]}"
+}
+
+function run_ghz_for_requests() {
+  # Iterate through the generated request.json files and call `ghz` to benchmark server at ${SERVER_ADDRESS}
+  for N in "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}" ; do
+    DIR=${OUTPUT_DIR}/n=${N}
+    REQUEST_JSON="${DIR}"/request.json
+    if [[ ! -f "${REQUEST_JSON}" ]]; then
+      continue
+    fi
+
+    printf "Running ghz for number of keys %s\n" "${N}"
+    BASE_GHZ_TAGS='{"number_of_lookup_keys": "'"${N}"'", "keys_from_file": "'"${SNAPSHOT_FILENAME}"'"}'
+    TAGS=$(jq -s -c 'add' <(echo "${GHZ_TAGS}") <(echo "${BASE_GHZ_TAGS}"))
+    GHZ_OUTPUT_JSON_FILE="${DIR}/ghz_output.json"
+    ghz --protoset "${WORKSPACE}/dist/query_api_descriptor_set.pb" \
+      -D "${REQUEST_JSON}" \
+      --duration=5s \
+      --skipFirst=100 \
+      --concurrency=100 \
+      --format=pretty \
+      --tags "${TAGS}" \
+      --output "${GHZ_OUTPUT_JSON_FILE}" \
+      --call kv_server.v2.KeyValueService/GetValuesHttp \
+      "${SERVER_ADDRESS}"
+  done
+}
+
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --server-address)
@@ -47,11 +92,15 @@ while [[ $# -gt 0 ]]; do
       shift 2 || usage
       ;;
     --number-of-lookup-keys-list)
-      NUMBER_OF_LOOKUP_KEYS_LIST="$2"
+      NUMBER_OF_LOOKUP_KEYS="$2"
       shift 2
       ;;
     --ghz-tags)
       GHZ_TAGS="$2"
+      shift 2
+      ;;
+    --snapshot-dir)
+      SNAPSHOT_DIR="$2"
       shift 2
       ;;
     -h | --help) usage 0 ;;
@@ -59,53 +108,34 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Create output dirs before calling bazel-debian
-# If the dir is created in the docker container, we lose write permission
-mkdir -p "${OUTPUT_DIR}"
-IFS=' ' read -ra NUMBER_OF_LOOKUP_KEYS <<< "${NUMBER_OF_LOOKUP_KEYS_LIST}"
-for N in "${NUMBER_OF_LOOKUP_KEYS[@]}"; do
-  mkdir -p "${OUTPUT_DIR}/n=${N}"
+# Check for SNAPSHOT_DIR. If not available, exit.
+if [[ -z "${SNAPSHOT_DIR}" || ! -d "${SNAPSHOT_DIR}" ]]; then
+  printf "snapshot-dir not found:%s\n" "${SNAPSHOT_DIR}"
+  exit 1;
+fi
+
+# Iterate through each snapshot file and
+#   1. create requests under dist/tools/latency_benchmarking/output/${START}/${SNAPSHOT_FILENAME}
+#   2. for each request, run benchmarks with ghz
+IFS=' ' read -ra NUMBER_OF_LOOKUP_KEYS_LIST <<< "${NUMBER_OF_LOOKUP_KEYS}"
+for SNAPSHOT_FILE in "${SNAPSHOT_DIR}"/*; do
+  SNAPSHOT_FILENAME=$(basename "${SNAPSHOT_FILE}")
+  OUTPUT_DIR="${BASE_OUTPUT_DIR}/${SNAPSHOT_FILENAME}"
+  # Copy snapshot file over to SNAPSHOT_0000000000000001 so that bazel can create a CSV
+  # to pass to generate_requests.py
+  cp "${SNAPSHOT_FILE}" "${WORKSPACE}/tools/latency_benchmarking/SNAPSHOT_0000000000000001"
+  generate_requests
+  run_ghz_for_requests
+  # Remove SNAPSHOT_0000000000000001
+  rm "${WORKSPACE}/tools/latency_benchmarking/SNAPSHOT_0000000000000001"
 done
 
-# Mount the output dir to docker and write requests to output dir for each item in
-# `NUMBER_OF_LOOKUP_KEYS_LIST`.
-# This will write a json request for each NUMBER_OF_LOOKUP_KEY=N to
-# dist/tools/latency_benchmarking/output/${START}/n=${N}/request.json
-# shellcheck disable=SC2086
-EXTRA_DOCKER_RUN_ARGS+=" --volume ${OUTPUT_DIR}:${DOCKER_OUTPUT_DIR} " \
-  builders/tools/bazel-debian run //tools/latency_benchmarking:generate_requests \
-  -- \
-  --output-dir ${DOCKER_OUTPUT_DIR} \
-  --number-of-keys-list ${NUMBER_OF_LOOKUP_KEYS_LIST}
-
-# Iterate through the generated request.json files and call `ghz` to benchmark server at ${SERVER_ADDRESS}
-for N in "${NUMBER_OF_LOOKUP_KEYS[@]}" ; do
-  DIR=${OUTPUT_DIR}/n=${N}
-  REQUEST_JSON="${DIR}"/request.json
-  if [[ ! -f "${REQUEST_JSON}" ]]; then
-    continue
-  fi
-
-  printf "Running ghz for number of keys %s\n" "${N}"
-  BASE_GHZ_TAGS='{"number_of_lookup_keys": "'"${N}"'"}'
-  TAGS=$(jq -s -c 'add' <(echo "${GHZ_TAGS}") <(echo "${BASE_GHZ_TAGS}"))
-  GHZ_OUTPUT_JSON_FILE="${DIR}/ghz_output.json"
-  ghz --protoset "${WORKSPACE}/dist/query_api_descriptor_set.pb" \
-    -D "${REQUEST_JSON}" \
-    --duration=5s \
-    --skipFirst=100 \
-    --concurrency=100 \
-    --format=pretty \
-    --tags "${TAGS}" \
-    --output "${GHZ_OUTPUT_JSON_FILE}" \
-    --call kv_server.v2.KeyValueService/GetValuesHttp \
-    "${SERVER_ADDRESS}"
-done
-
-EXTRA_DOCKER_RUN_ARGS+=" --volume ${OUTPUT_DIR}:${DOCKER_OUTPUT_DIR} " \
+# Go through all the ghz results in dist/tools/latency_benchmarking/output/${START}
+# and collect the summary in a csv
+EXTRA_DOCKER_RUN_ARGS+=" --volume ${BASE_OUTPUT_DIR}:${DOCKER_OUTPUT_DIR} " \
   builders/tools/bazel-debian run //tools/latency_benchmarking:create_csv_summary \
   -- \
   --ghz-result-dir ${DOCKER_OUTPUT_DIR}
 
 echo "Result in:"
-echo "${OUTPUT_DIR}/summary.csv"
+echo "${BASE_OUTPUT_DIR}/summary.csv"

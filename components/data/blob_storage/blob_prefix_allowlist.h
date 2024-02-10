@@ -24,6 +24,9 @@
 
 namespace kv_server {
 
+// Default prefix for blobs at the bucket level.
+constexpr std::string_view kDefaultBlobPrefix = "";
+
 // List of blob prefixes that are allowlisted for data loading. Blobs with
 // prefix not included in this are ignored.
 class BlobPrefixAllowlist {

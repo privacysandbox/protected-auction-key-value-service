@@ -74,7 +74,8 @@ int main(int argc, char** argv) {
   }
 
   const absl::Status status = notifier->Start(
-      **status_or_change_notifier, {.bucket = std::move(bucket)}, "",
+      **status_or_change_notifier, {.bucket = std::move(bucket)},
+      /*prefix_start_after_map=*/{std::make_pair("", "")},
       [](const std::string& key) { std::cout << key << std::endl; });
   if (!status.ok()) {
     std::cerr << "Failed to start notifier: " << status << std::endl;

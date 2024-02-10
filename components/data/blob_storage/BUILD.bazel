@@ -209,6 +209,7 @@ cc_library(
         "//components/util:sleepfor",
         "//public:constants",
         "//public/data_loading:filename_utils",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/log",

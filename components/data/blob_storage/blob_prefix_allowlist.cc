@@ -48,7 +48,7 @@ BlobPrefixAllowlist::BlobPrefixAllowlist(std::string_view allowed_prefixes) {
   std::vector<std::string> prefixes =
       absl::StrSplit(allowed_prefixes, kPrefixListDelimiter);
   // We always allow reading blobs at the bucket level.
-  allowed_prefixes_.insert("");
+  allowed_prefixes_.insert(std::string(kDefaultBlobPrefix));
   allowed_prefixes_.insert(prefixes.begin(), prefixes.end());
 }
 

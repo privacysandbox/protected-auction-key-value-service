@@ -323,7 +323,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
     LOG(INFO) << "Transitioning to state ContinuouslyLoadNewData";
     absl::Status status = options_.delta_notifier.Start(
         options_.change_notifier, {.bucket = options_.data_bucket},
-        last_basename_of_init_,
+        {std::make_pair("", last_basename_of_init_)},
         absl::bind_front(&DataOrchestratorImpl::EnqueueNewFilesToProcess,
                          this));
     if (!status.ok()) {

@@ -59,20 +59,21 @@ TEST_F(DeltaFileNotifierTest, NotRunning) {
 
 TEST_F(DeltaFileNotifierTest, StartFailure) {
   BlobStorageClient::DataLocation location = {.bucket = "testbucket"};
-  absl::Status status =
-      notifier_->Start(change_notifier_, {.bucket = "testbucket"}, initial_key_,
-                       [](const std::string&) {});
+  absl::Status status = notifier_->Start(
+      change_notifier_, {.bucket = "testbucket"},
+      {std::make_pair("", initial_key_)}, [](const std::string&) {});
   ASSERT_TRUE(status.ok());
   status = notifier_->Start(change_notifier_, {.bucket = "testbucket"},
-                            initial_key_, [](const std::string&) {});
+                            {std::make_pair("", initial_key_)},
+                            [](const std::string&) {});
   ASSERT_FALSE(status.ok());
 }
 
 TEST_F(DeltaFileNotifierTest, StartsAndStops) {
   BlobStorageClient::DataLocation location = {.bucket = "testbucket"};
-  absl::Status status =
-      notifier_->Start(change_notifier_, {.bucket = "testbucket"}, initial_key_,
-                       [](const std::string&) {});
+  absl::Status status = notifier_->Start(
+      change_notifier_, {.bucket = "testbucket"},
+      {std::make_pair("", initial_key_)}, [](const std::string&) {});
   ASSERT_TRUE(status.ok());
   EXPECT_TRUE(notifier_->IsRunning());
   status = notifier_->Stop();
@@ -112,9 +113,9 @@ TEST_F(DeltaFileNotifierTest, NotifiesWithNewFiles) {
         finished.Notify();
       });
 
-  absl::Status status =
-      notifier_->Start(change_notifier_, {.bucket = "testbucket"}, initial_key_,
-                       callback.AsStdFunction());
+  absl::Status status = notifier_->Start(
+      change_notifier_, {.bucket = "testbucket"},
+      {std::make_pair("", initial_key_)}, callback.AsStdFunction());
   ASSERT_TRUE(status.ok());
   EXPECT_TRUE(notifier_->IsRunning());
   finished.WaitForNotification();
@@ -169,9 +170,9 @@ TEST_F(DeltaFileNotifierTest, NotifiesWithInvalidFilesIngored) {
         finished.Notify();
       });
 
-  absl::Status status =
-      notifier_->Start(change_notifier_, {.bucket = "testbucket"}, initial_key_,
-                       callback.AsStdFunction());
+  absl::Status status = notifier_->Start(
+      change_notifier_, {.bucket = "testbucket"},
+      {std::make_pair("", initial_key_)}, callback.AsStdFunction());
   ASSERT_TRUE(status.ok());
   EXPECT_TRUE(notifier_->IsRunning());
   finished.WaitForNotification();
@@ -208,9 +209,9 @@ TEST_F(DeltaFileNotifierTest, GetChangesFailure) {
       .Times(1)
       .WillOnce(Return(true));
 
-  absl::Status status =
-      notifier_->Start(change_notifier_, {.bucket = "testbucket"}, initial_key_,
-                       callback.AsStdFunction());
+  absl::Status status = notifier_->Start(
+      change_notifier_, {.bucket = "testbucket"},
+      {std::make_pair("", initial_key_)}, callback.AsStdFunction());
   ASSERT_TRUE(status.ok());
   EXPECT_TRUE(notifier_->IsRunning());
   finished.WaitForNotification();
@@ -261,9 +262,9 @@ TEST_F(DeltaFileNotifierTest, BackupPoll) {
         finished.Notify();
       });
 
-  absl::Status status =
-      notifier_->Start(change_notifier_, {.bucket = "testbucket"}, initial_key_,
-                       callback.AsStdFunction());
+  absl::Status status = notifier_->Start(
+      change_notifier_, {.bucket = "testbucket"},
+      {std::make_pair("", initial_key_)}, callback.AsStdFunction());
   ASSERT_TRUE(status.ok());
   EXPECT_TRUE(notifier_->IsRunning());
   finished.WaitForNotification();

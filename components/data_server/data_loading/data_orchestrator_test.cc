@@ -70,8 +70,10 @@ using testing::_;
 using testing::AllOf;
 using testing::ByMove;
 using testing::Field;
+using testing::Pair;
 using testing::Return;
 using testing::ReturnRef;
+using testing::UnorderedElementsAre;
 
 namespace {
 // using google::protobuf::TextFormat;
@@ -290,7 +292,9 @@ TEST_F(DataOrchestratorTest, InitCache_SkipsInvalidKVMutation) {
   ASSERT_TRUE(maybe_orchestrator.ok());
 
   const std::string last_basename = ToDeltaFileName(1).value();
-  EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
+  EXPECT_CALL(notifier_,
+              Start(_, GetTestLocation(),
+                    UnorderedElementsAre(Pair("", last_basename)), _))
       .WillOnce(Return(absl::UnknownError("")));
   EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
 }
@@ -360,7 +364,9 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
   ASSERT_TRUE(maybe_orchestrator.ok());
 
   const std::string last_basename = ToDeltaFileName(2).value();
-  EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
+  EXPECT_CALL(notifier_,
+              Start(_, GetTestLocation(),
+                    UnorderedElementsAre(Pair("", last_basename)), _))
       .WillOnce(Return(absl::UnknownError("")));
   EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
 }
@@ -410,7 +416,9 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeSuccess) {
   ASSERT_TRUE(maybe_orchestrator.ok());
 
   const std::string last_basename = ToDeltaFileName(1).value();
-  EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
+  EXPECT_CALL(notifier_,
+              Start(_, GetTestLocation(),
+                    UnorderedElementsAre(Pair("", last_basename)), _))
       .WillOnce(Return(absl::UnknownError("")));
   EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
 }
@@ -460,7 +468,9 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeFails_OrchestratorContinues) {
   ASSERT_TRUE(maybe_orchestrator.ok());
 
   const std::string last_basename = ToDeltaFileName(1).value();
-  EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
+  EXPECT_CALL(notifier_,
+              Start(_, GetTestLocation(),
+                    UnorderedElementsAre(Pair("", last_basename)), _))
       .WillOnce(Return(absl::UnknownError("")));
   EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
 }
@@ -473,10 +483,11 @@ TEST_F(DataOrchestratorTest, StartLoading) {
   auto orchestrator = std::move(maybe_orchestrator.value());
 
   const std::string last_basename = "";
-  EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
-      .WillOnce([](BlobStorageChangeNotifier& change_notifier,
-                   BlobStorageClient::DataLocation location,
-                   std::string start_after,
+  EXPECT_CALL(notifier_,
+              Start(_, GetTestLocation(),
+                    UnorderedElementsAre(Pair("", last_basename)), _))
+      .WillOnce([](BlobStorageChangeNotifier&, BlobStorageClient::DataLocation,
+                   absl::flat_hash_map<std::string, std::string>,
                    std::function<void(const std::string& key)> callback) {
         callback(ToDeltaFileName(6).value());
         callback(ToDeltaFileName(7).value());

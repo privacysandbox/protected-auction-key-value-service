@@ -42,7 +42,8 @@ class BlobRecordStream : public RecordStream {
 absl::Status DeltaBasedRequestGenerator::Start() {
   LOG(INFO) << "Start monitor and load delta files";
   absl::Status status = options_.delta_notifier.Start(
-      options_.change_notifier, {.bucket = options_.data_bucket}, "",
+      options_.change_notifier, {.bucket = options_.data_bucket},
+      {std::make_pair("", "")},
       absl::bind_front(&DeltaBasedRequestGenerator::EnqueueNewFilesToProcess,
                        this));
   if (!status.ok()) {

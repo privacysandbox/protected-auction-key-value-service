@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
@@ -50,15 +51,16 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
 
   absl::Status Start(
       BlobStorageChangeNotifier& change_notifier,
-      BlobStorageClient::DataLocation location, std::string start_after,
-      std::function<void(const std::string& key)> callback) override {
-    return thread_manager_->Start([this, location = std::move(location),
-                                   start_after = std::move(start_after),
-                                   callback = std::move(callback),
-                                   &change_notifier]() mutable {
-      Watch(change_notifier, std::move(location), std::move(start_after),
-            std::move(callback));
-    });
+      BlobStorageClient::DataLocation location,
+      absl::flat_hash_map<std::string, std::string>&& prefix_start_after_map,
+      std::function<void(const std::string&)> callback) override {
+    return thread_manager_->Start(
+        [this, location = std::move(location),
+         prefix_start_after_map = std::move(prefix_start_after_map),
+         callback = std::move(callback), &change_notifier]() mutable {
+          Watch(change_notifier, std::move(location),
+                std::move(prefix_start_after_map), std::move(callback));
+        });
   }
 
   absl::Status Stop() override {
@@ -79,9 +81,11 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
   absl::StatusOr<bool> ShouldListBlobs(
       BlobStorageChangeNotifier& change_notifier, ExpiringFlag& expiring_flag,
       std::string_view last_key);
-  void Watch(BlobStorageChangeNotifier& change_notifier,
-             BlobStorageClient::DataLocation location, std::string start_after,
-             std::function<void(const std::string& key)> callback);
+  void Watch(
+      BlobStorageChangeNotifier& change_notifier,
+      BlobStorageClient::DataLocation location,
+      absl::flat_hash_map<std::string, std::string>&& prefix_start_after_map,
+      std::function<void(const std::string& key)> callback);
 
   std::unique_ptr<TheadManager> thread_manager_;
   BlobStorageClient& client_;
@@ -139,10 +143,16 @@ absl::StatusOr<bool> DeltaFileNotifierImpl::ShouldListBlobs(
 
 void DeltaFileNotifierImpl::Watch(
     BlobStorageChangeNotifier& change_notifier,
-    BlobStorageClient::DataLocation location, std::string start_after,
+    BlobStorageClient::DataLocation location,
+    absl::flat_hash_map<std::string, std::string>&& prefix_start_after_map,
     std::function<void(const std::string& key)> callback) {
   LOG(INFO) << "Started to watch " << location;
-  std::string last_key = std::move(start_after);
+  std::string last_key;
+  // TODO: Actually use `start_after` for other prefixes.
+  if (auto iter = prefix_start_after_map.find(kDefaultBlobPrefix);
+      iter != prefix_start_after_map.end()) {
+    last_key = iter->second;
+  }
   // Flag starts expired, and forces an initial poll.
   ExpiringFlag expiring_flag(clock_);
   uint32_t sequential_failures = 0;

@@ -38,7 +38,8 @@ class BlobRecordStream : public RecordStream {
 absl::Status DeltaBasedRealtimeUpdatesPublisher::Start() {
   LOG(INFO) << "Start monitor delta files and publish them as realtime updates";
   PS_RETURN_IF_ERROR(options_.delta_notifier.Start(
-      options_.change_notifier, {.bucket = options_.data_bucket}, "",
+      options_.change_notifier, {.bucket = options_.data_bucket},
+      {std::make_pair("", "")},
       absl::bind_front(
           &DeltaBasedRealtimeUpdatesPublisher::EnqueueNewFilesToProcess,
           this)));

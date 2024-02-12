@@ -26,6 +26,7 @@
 #include "public/data_loading/filename_utils.h"
 
 using testing::_;
+using testing::AllOf;
 using testing::Field;
 using testing::Return;
 
@@ -34,14 +35,17 @@ namespace {
 
 using privacy_sandbox::server_common::SimulatedSteadyClock;
 
+constexpr std::string_view kBlobPrefix1 = "prefix1";
+
 class DeltaFileNotifierTest : public ::testing::Test {
  protected:
   void SetUp() override {
     std::unique_ptr<MockSleepFor> mock_sleep_for =
         std::make_unique<MockSleepFor>();
     sleep_for_ = mock_sleep_for.get();
-    notifier_ = DeltaFileNotifier::Create(
-        client_, poll_frequency_, std::move(mock_sleep_for), sim_clock_);
+    notifier_ = DeltaFileNotifier::Create(client_, poll_frequency_,
+                                          std::move(mock_sleep_for), sim_clock_,
+                                          BlobPrefixAllowlist(kBlobPrefix1));
   }
 
   MockBlobStorageClient client_;
@@ -100,6 +104,13 @@ TEST_F(DeltaFileNotifierTest, NotifiesWithNewFiles) {
                 Field(&BlobStorageClient::ListOptions::start_after,
                       ToDeltaFileName(3).value())))
       .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(4).value()})));
+  EXPECT_CALL(
+      client_,
+      ListBlobs(
+          AllOf(Field(&BlobStorageClient::DataLocation::bucket, "testbucket"),
+                Field(&BlobStorageClient::DataLocation::prefix, kBlobPrefix1)),
+          Field(&BlobStorageClient::ListOptions::start_after, "")))
+      .WillRepeatedly(Return(std::vector<std::string>()));
 
   absl::Notification finished;
   testing::MockFunction<void(const std::string& record)> callback;
@@ -150,6 +161,13 @@ TEST_F(DeltaFileNotifierTest, NotifiesWithInvalidFilesIngored) {
       .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(4).value()})));
   EXPECT_CALL(
       client_,
+      ListBlobs(
+          AllOf(Field(&BlobStorageClient::DataLocation::bucket, "testbucket"),
+                Field(&BlobStorageClient::DataLocation::prefix, kBlobPrefix1)),
+          Field(&BlobStorageClient::ListOptions::start_after, "")))
+      .WillRepeatedly(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      client_,
       ListBlobs(Field(&BlobStorageClient::DataLocation::bucket, "testbucket"),
                 Field(&BlobStorageClient::ListOptions::start_after,
                       ToDeltaFileName(4).value())))
@@ -195,7 +213,13 @@ TEST_F(DeltaFileNotifierTest, GetChangesFailure) {
                       ToDeltaFileName(1).value())))
       .WillOnce(Return(std::vector<std::string>({})))
       .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(1).value()})));
-
+  EXPECT_CALL(
+      client_,
+      ListBlobs(
+          AllOf(Field(&BlobStorageClient::DataLocation::bucket, "testbucket"),
+                Field(&BlobStorageClient::DataLocation::prefix, kBlobPrefix1)),
+          Field(&BlobStorageClient::ListOptions::start_after, "")))
+      .WillRepeatedly(Return(std::vector<std::string>()));
   absl::Notification finished;
   testing::MockFunction<void(const std::string& record)> callback;
   EXPECT_CALL(callback, Call).Times(1).WillOnce([&](const std::string& key) {
@@ -242,7 +266,13 @@ TEST_F(DeltaFileNotifierTest, BackupPoll) {
                 Field(&BlobStorageClient::ListOptions::start_after,
                       ToDeltaFileName(3).value())))
       .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(4).value()})));
-
+  EXPECT_CALL(
+      client_,
+      ListBlobs(
+          AllOf(Field(&BlobStorageClient::DataLocation::bucket, "testbucket"),
+                Field(&BlobStorageClient::DataLocation::prefix, kBlobPrefix1)),
+          Field(&BlobStorageClient::ListOptions::start_after, "")))
+      .WillRepeatedly(Return(std::vector<std::string>()));
   absl::Notification finished;
   testing::MockFunction<void(const std::string& record)> callback;
   EXPECT_CALL(callback, Call)
@@ -265,6 +295,68 @@ TEST_F(DeltaFileNotifierTest, BackupPoll) {
   absl::Status status = notifier_->Start(
       change_notifier_, {.bucket = "testbucket"},
       {std::make_pair("", initial_key_)}, callback.AsStdFunction());
+  ASSERT_TRUE(status.ok());
+  EXPECT_TRUE(notifier_->IsRunning());
+  finished.WaitForNotification();
+  status = notifier_->Stop();
+  ASSERT_TRUE(status.ok());
+  EXPECT_FALSE(notifier_->IsRunning());
+}
+
+TEST_F(DeltaFileNotifierTest, NotifiesWithNewPrefixedFiles) {
+  BlobStorageClient::DataLocation location = {.bucket = "testbucket"};
+  EXPECT_CALL(change_notifier_, GetNotifications(_, _))
+      .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(3).value()})))
+      .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(4).value()})))
+      .WillRepeatedly(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      client_,
+      ListBlobs(Field(&BlobStorageClient::DataLocation::bucket, "testbucket"),
+                Field(&BlobStorageClient::ListOptions::start_after,
+                      ToDeltaFileName(1).value())))
+      .WillOnce(Return(std::vector<std::string>({})))
+      .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(3).value()})));
+  EXPECT_CALL(
+      client_,
+      ListBlobs(Field(&BlobStorageClient::DataLocation::bucket, "testbucket"),
+                Field(&BlobStorageClient::ListOptions::start_after,
+                      ToDeltaFileName(3).value())))
+      .WillOnce(Return(std::vector<std::string>({ToDeltaFileName(4).value()})));
+  EXPECT_CALL(
+      client_,
+      ListBlobs(
+          AllOf(Field(&BlobStorageClient::DataLocation::bucket, "testbucket"),
+                Field(&BlobStorageClient::DataLocation::prefix, kBlobPrefix1)),
+          Field(&BlobStorageClient::ListOptions::start_after,
+                ToDeltaFileName(10).value())))
+      .WillOnce(
+          Return(std::vector<std::string>({ToDeltaFileName(11).value()})));
+  EXPECT_CALL(
+      client_,
+      ListBlobs(
+          AllOf(Field(&BlobStorageClient::DataLocation::bucket, "testbucket"),
+                Field(&BlobStorageClient::DataLocation::prefix, kBlobPrefix1)),
+          Field(&BlobStorageClient::ListOptions::start_after,
+                ToDeltaFileName(11).value())))
+      .WillRepeatedly(Return(std::vector<std::string>()));
+
+  absl::Notification finished;
+  testing::MockFunction<void(const std::string& record)> callback;
+  EXPECT_CALL(callback, Call(ToDeltaFileName(3).value()));
+  EXPECT_CALL(callback, Call(absl::StrCat(kBlobPrefix1, "/",
+                                          ToDeltaFileName(11).value())));
+  EXPECT_CALL(callback, Call(ToDeltaFileName(4).value())).WillOnce([&]() {
+    finished.Notify();
+  });
+
+  absl::Status status =
+      notifier_->Start(change_notifier_, {.bucket = "testbucket"},
+                       {
+                           std::make_pair("", initial_key_),
+                           std::make_pair(std::string(kBlobPrefix1),
+                                          ToDeltaFileName(10).value()),
+                       },
+                       callback.AsStdFunction());
   ASSERT_TRUE(status.ok());
   EXPECT_TRUE(notifier_->IsRunning());
   finished.WaitForNotification();

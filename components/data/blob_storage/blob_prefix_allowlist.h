@@ -44,6 +44,8 @@ class BlobPrefixAllowlist {
   // Returns true if `blob_name`'s is allowlisted, meaning that  the blob is
   // eligible for data loading.
   [[nodiscard]] bool ContainsBlobPrefix(std::string_view blob_name) const;
+  // Returns the set of prefixes contained in this list.
+  [[nodiscard]] const absl::flat_hash_set<std::string>& Prefixes() const;
 
  private:
   absl::flat_hash_set<std::string> allowed_prefixes_;

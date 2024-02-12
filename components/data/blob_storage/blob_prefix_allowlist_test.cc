@@ -16,10 +16,13 @@
 
 #include "components/data/blob_storage/blob_prefix_allowlist.h"
 
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 namespace kv_server {
 namespace {
+
+using testing::UnorderedElementsAre;
 
 TEST(BlobPrefixAllowlistTest, ValidateParsingBlobName) {
   auto result = ParseBlobName("DELTA_1705430864435450");
@@ -47,6 +50,12 @@ TEST(BlobPrefixAllowlistTest, ValidateContainsPrefix) {
   EXPECT_FALSE(allowlist.Contains("non-existant"));
   EXPECT_FALSE(
       allowlist.ContainsBlobPrefix("non-existant/DELTA_1705430864435450"));
+}
+
+TEST(BlobPrefixAllowlistTest, ValidateGettingAllPrefixes) {
+  auto allowlist = BlobPrefixAllowlist("prefix1,prefix1/prefix2");
+  EXPECT_THAT(allowlist.Prefixes(),
+              UnorderedElementsAre("", "prefix1", "prefix1/prefix2"));
 }
 
 }  // namespace

@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 
 namespace kv_server {
@@ -58,6 +59,10 @@ bool BlobPrefixAllowlist::Contains(std::string_view prefix) const {
 
 bool BlobPrefixAllowlist::ContainsBlobPrefix(std::string_view blob_name) const {
   return Contains(ParseBlobName(blob_name).prefix);
+}
+
+const absl::flat_hash_set<std::string>& BlobPrefixAllowlist::Prefixes() const {
+  return allowed_prefixes_;
 }
 
 }  // namespace kv_server

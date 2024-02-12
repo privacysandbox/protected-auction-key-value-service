@@ -38,7 +38,6 @@ using google::scp::roma::FunctionBindingPayload;
 constexpr char kStringGetValuesHookJsName[] = "getValues";
 constexpr char kBinaryGetValuesHookJsName[] = "getValuesBinary";
 constexpr char kRunQueryHookJsName[] = "runQuery";
-constexpr char kLoggingHookJsName[] = "logMessage";
 
 std::unique_ptr<FunctionBindingObjectV2<RequestContext>>
 GetValuesFunctionObject(GetValuesHook& get_values_hook,
@@ -82,12 +81,8 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterRunQueryHook(
   return *this;
 }
 
-UdfConfigBuilder& UdfConfigBuilder::RegisterLoggingHook() {
-  auto logging_function_object =
-      std::make_unique<FunctionBindingObjectV2<RequestContext>>();
-  logging_function_object->function_name = kLoggingHookJsName;
-  logging_function_object->function = LogMessage;
-  config_.RegisterFunctionBinding(std::move(logging_function_object));
+UdfConfigBuilder& UdfConfigBuilder::RegisterLoggingFunction() {
+  config_.SetLoggingFunction(LoggingFunction);
   return *this;
 }
 

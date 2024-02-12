@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/scoped_mock_log.h"
 #include "absl/status/statusor.h"
 #include "components/internal_server/mocks.h"
 #include "components/udf/code_config.h"
@@ -426,19 +427,21 @@ TEST_F(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
   EXPECT_TRUE(stop.ok());
 }
 
-TEST_F(UdfClientTest, JsCallsLogMessageTwiceSucceeds) {
+TEST_F(UdfClientTest, JsCallsLoggingFunctionSucceeds) {
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
-      UdfClient::Create(std::move(
-          config_builder.RegisterLoggingHook().SetNumberOfWorkers(1).Config()));
+      UdfClient::Create(std::move(config_builder.RegisterLoggingFunction()
+                                      .SetNumberOfWorkers(1)
+                                      .Config()));
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
         function hello(input) {
-          const a = logMessage("first message");
-          const b = logMessage("second message");
-          return a + b;
+          const a = console.error("Error message");
+          const b = console.warn("Warning message");
+          const c = console.log("Info message");
+          return "";
         }
       )",
       .udf_handler_name = "hello",
@@ -446,11 +449,21 @@ TEST_F(UdfClientTest, JsCallsLogMessageTwiceSucceeds) {
       .version = 1,
   });
   EXPECT_TRUE(code_obj_status.ok());
+
+  absl::ScopedMockLog log;
+  EXPECT_CALL(log, Log(absl::LogSeverity::kError, testing::_, "Error message"));
+  EXPECT_CALL(log,
+              Log(absl::LogSeverity::kWarning, testing::_, "Warning message"));
+  EXPECT_CALL(log, Log(absl::LogSeverity::kInfo, testing::_, "Info message"));
+  log.StartCapturingLogs();
+
   ScopeMetricsContext metrics_context;
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       RequestContext(metrics_context), {R"({"keys":["key1"]})"});
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
+
+  log.StopCapturingLogs();
 
   absl::Status stop = udf_client.value()->Stop();
   EXPECT_TRUE(stop.ok());

@@ -307,7 +307,7 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
                         .RegisterStringGetValuesHook(*string_get_values_hook_)
                         .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
                         .RegisterRunQueryHook(*run_query_hook_)
-                        .RegisterLoggingHook()
+                        .RegisterLoggingFunction()
                         .SetNumberOfWorkers(number_of_workers)
                         .Config()),
           absl::Milliseconds(udf_timeout_ms));

@@ -168,7 +168,7 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
           config_builder.RegisterStringGetValuesHook(*string_get_values_hook)
               .RegisterBinaryGetValuesHook(*binary_get_values_hook)
               .RegisterRunQueryHook(*run_query_hook)
-              .RegisterLoggingHook()
+              .RegisterLoggingFunction()
               .SetNumberOfWorkers(1)
               .Config()));
   PS_RETURN_IF_ERROR(udf_client.status())

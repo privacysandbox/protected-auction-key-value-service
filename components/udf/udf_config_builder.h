@@ -29,7 +29,7 @@ class UdfConfigBuilder {
 
   UdfConfigBuilder& RegisterRunQueryHook(RunQueryHook& run_query_hook);
 
-  UdfConfigBuilder& RegisterLoggingHook();
+  UdfConfigBuilder& RegisterLoggingFunction();
 
   UdfConfigBuilder& SetNumberOfWorkers(int number_of_workers);
 

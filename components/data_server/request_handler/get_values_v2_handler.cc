@@ -77,7 +77,7 @@ grpc::Status GetValuesV2Handler::GetValuesHttp(
 }
 
 absl::Status GetValuesV2Handler::GetValuesHttp(std::string_view request,
-                                               std::string& json_response,
+                                               std::string& response,
                                                ContentType content_type) const {
   v2::GetValuesRequest request_proto;
   if (content_type == ContentType::kJson) {
@@ -95,7 +95,16 @@ absl::Status GetValuesV2Handler::GetValuesHttp(std::string_view request,
           << request_proto.DebugString();
   v2::GetValuesResponse response_proto;
   PS_RETURN_IF_ERROR(GetValues(request_proto, &response_proto));
-  return MessageToJsonString(response_proto, &json_response);
+  if (content_type == ContentType::kJson) {
+    return MessageToJsonString(response_proto, &response);
+  }
+  // content_type == proto
+  if (!response_proto.SerializeToString(&response)) {
+    auto error_message = "Cannot serialize the response as a proto.";
+    VLOG(4) << error_message;
+    return absl::InvalidArgumentError(error_message);
+  }
+  return absl::OkStatus();
 }
 
 grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
@@ -125,12 +134,18 @@ GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
                       quiche::BinaryHttpRequest::Create(bhttp_request_body),
                       _ << "Failed to deserialize binary http request");
   VLOG(3) << "BinaryHttpGetValues request: " << deserialized_req.DebugString();
-  std::string json_response;
-  PS_RETURN_IF_ERROR(GetValuesHttp(deserialized_req.body(), json_response,
-                                   GetContentType(deserialized_req)));
-
+  std::string response;
+  auto content_type = GetContentType(deserialized_req);
+  PS_RETURN_IF_ERROR(
+      GetValuesHttp(deserialized_req.body(), response, content_type));
   quiche::BinaryHttpResponse bhttp_response(200);
-  bhttp_response.set_body(std::move(json_response));
+  if (content_type == ContentType::kProto) {
+    bhttp_response.AddHeaderField({
+        .name = std::string(kContentTypeHeader),
+        .value = std::string(kContentEncodingProtoHeaderValue),
+    });
+  }
+  bhttp_response.set_body(std::move(response));
   return bhttp_response;
 }
 

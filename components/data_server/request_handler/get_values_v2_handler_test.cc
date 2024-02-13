@@ -138,16 +138,32 @@ class GetValuesHandlerTest
       return maybe_res_bhttp_layer->status_code();
     }
 
-    std::string Unwrap() const {
+    std::string Unwrap(bool is_protobuf_content) const {
       const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
           quiche::BinaryHttpResponse::Create(response_.data());
       EXPECT_TRUE(maybe_res_bhttp_layer.ok())
           << "quiche::BinaryHttpResponse::Create failed: "
           << maybe_res_bhttp_layer.status();
+      if (maybe_res_bhttp_layer->status_code() == 200 & is_protobuf_content) {
+        EXPECT_TRUE(HasHeader(*maybe_res_bhttp_layer, kContentTypeHeader,
+                              kContentEncodingProtoHeaderValue));
+      }
       return std::string(maybe_res_bhttp_layer->body());
     }
 
    private:
+    bool HasHeader(const quiche::BinaryHttpResponse& response,
+                   const std::string_view header_key,
+                   const std::string_view header_value) const {
+      for (const auto& header : response.GetHeaderFields()) {
+        if (absl::AsciiStrToLower(header.name) == header_key &&
+            absl::AsciiStrToLower(header.value) == header_value) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     google::api::HttpBody response_;
   };
 
@@ -256,7 +272,7 @@ class GetValuesHandlerTest
       *bhttp_response_code = bresponse.ResponseCode();
     }
 
-    response->set_data(bresponse.Unwrap());
+    response->set_data(bresponse.Unwrap(IsProtobufContent()));
     return grpc::Status::OK;
   }
 
@@ -423,10 +439,13 @@ data {
   v2::GetValuesResponse actual_response, expected_response;
   expected_response.mutable_single_partition()->set_string_output(
       output.dump());
-
-  ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
-                                                          &actual_response)
-                  .ok());
+  if (IsProtobufContent()) {
+    ASSERT_TRUE(actual_response.ParseFromString(response.data()));
+  } else {
+    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
+                                                            &actual_response)
+                    .ok());
+  }
   EXPECT_THAT(actual_response, EqualsProto(expected_response));
 }
 
@@ -499,9 +518,13 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
   resp_status->set_code(13);
   resp_status->set_message("UDF execution error");
 
-  ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
-                                                          &actual_response)
-                  .ok());
+  if (IsProtobufContent()) {
+    ASSERT_TRUE(actual_response.ParseFromString(response.data()));
+  } else {
+    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
+                                                            &actual_response)
+                    .ok());
+  }
   EXPECT_THAT(actual_response, EqualsProto(expected_response));
 }
 

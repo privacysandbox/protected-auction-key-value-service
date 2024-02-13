@@ -40,8 +40,8 @@ ABSL_FLAG(std::string, output_path, "",
           "Output path. If specified, output_dir is ignored. If '-', output is "
           "written to "
           "console.");
-ABSL_FLAG(int64_t, logical_commit_time, 123123123,
-          "Record logical_commit_time. Default is 123123123.");
+ABSL_FLAG(int64_t, logical_commit_time, absl::ToUnixMicros(absl::Now()),
+          "Record logical_commit_time. Default is current timestamp.");
 ABSL_FLAG(int64_t, code_snippet_version, 2, "UDF version. Default is 2.");
 ABSL_FLAG(std::string, data_loading_file_format,
           std::string(kv_server::kFileFormats[static_cast<int>(

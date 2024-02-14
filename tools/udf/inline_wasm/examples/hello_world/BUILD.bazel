@@ -36,7 +36,7 @@ inline_wasm_udf_delta(
     wasm_binary = ":hello.wasm",
 )
 
-# builders/tools/bazel-debian run \
+# builders/tools/bazel-debian run --config=emscripten \
 # //tools/udf/inline_wasm/examples/hello_world:hello_delta_cc
 cc_inline_wasm_udf_delta(
     name = "hello_delta_cc",

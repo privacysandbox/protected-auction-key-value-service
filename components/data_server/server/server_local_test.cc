@@ -113,6 +113,9 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-min-log-level"))
+      .WillOnce(::testing::Return(0));
+  EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(
@@ -170,6 +173,9 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-min-log-level"))
+      .WillOnce(::testing::Return(0));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
@@ -235,6 +241,9 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-min-log-level"))
+      .WillOnce(::testing::Return(0));
+  EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(*parameter_client,
@@ -294,6 +303,9 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-min-log-level"))
+      .WillOnce(::testing::Return(0));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));

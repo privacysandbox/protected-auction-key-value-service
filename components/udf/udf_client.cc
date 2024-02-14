@@ -56,8 +56,10 @@ class UdfClientImpl : public UdfClient {
  public:
   explicit UdfClientImpl(
       Config<RequestContext>&& config = Config<RequestContext>(),
-      absl::Duration udf_timeout = absl::Seconds(5))
-      : udf_timeout_(udf_timeout), roma_service_(std::move(config)) {}
+      absl::Duration udf_timeout = absl::Seconds(5), int udf_min_log_level = 0)
+      : udf_timeout_(udf_timeout),
+        roma_service_(std::move(config)),
+        udf_min_log_level_(udf_min_log_level) {}
 
   // Converts the arguments into plain JSON strings to pass to Roma.
   absl::StatusOr<std::string> ExecuteCode(
@@ -192,7 +194,8 @@ class UdfClientImpl : public UdfClient {
             .handler_name = handler_name_,
             .tags = {{kTimeoutDurationTag, FormatDuration(udf_timeout_)}},
             .input = std::move(keys),
-            .metadata = std::move(request_context)};
+            .metadata = std::move(request_context),
+            .min_log_level = absl::LogSeverity(udf_min_log_level_)};
   }
 
   CodeObject BuildCodeObject(std::string js, std::string wasm,
@@ -207,6 +210,7 @@ class UdfClientImpl : public UdfClient {
   int64_t logical_commit_time_ = -1;
   int64_t version_ = 1;
   const absl::Duration udf_timeout_;
+  int udf_min_log_level_;
   // Per b/299667930, RomaService has been extended to support metadata storage
   // as a side effect of RomaService::Execute(), making it no longer const.
   // However, UDFClient::ExecuteCode() remains logically const, so RomaService
@@ -220,9 +224,10 @@ class UdfClientImpl : public UdfClient {
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<UdfClient>> UdfClient::Create(
-    Config<RequestContext>&& config, absl::Duration udf_timeout) {
-  auto udf_client =
-      std::make_unique<UdfClientImpl>(std::move(config), udf_timeout);
+    Config<RequestContext>&& config, absl::Duration udf_timeout,
+    int udf_min_log_level) {
+  auto udf_client = std::make_unique<UdfClientImpl>(
+      std::move(config), udf_timeout, udf_min_log_level);
   const auto init_status = udf_client->Init();
   if (!init_status.ok()) {
     return init_status;

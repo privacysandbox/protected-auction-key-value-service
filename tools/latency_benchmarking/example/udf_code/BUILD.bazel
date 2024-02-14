@@ -1,0 +1,27 @@
+load("@io_bazel_rules_closure//closure:defs.bzl", "closure_js_library")
+load("//tools/udf/closure_js:closure_to_delta.bzl", "closure_to_delta")
+
+closure_js_library(
+    name = "benchmark_udf_js_lib",
+    srcs = [
+        "benchmark_udf.js",  # User-defined functions with handler/entrypoint
+        "externs.js",  # Register APIs called from UDF as functions without definitions for closure.
+    ],
+    convention = "NONE",
+    suppress = [
+        "missingSourcesWarnings",
+    ],
+    deps = [
+        "//public/udf:binary_get_values_js_proto",
+    ],
+)
+
+# Generates a UDF delta file using the given closure_js_lib target
+# builders/tools/bazel-debian run \
+# //tools/latency_benchmarking/example/udf_code:benchmark_udf_js_delta
+closure_to_delta(
+    name = "benchmark_udf_js_delta",
+    closure_js_library_target = ":benchmark_udf_js_lib",
+    logical_commit_time = "200000001",
+    output_file_name = "DELTA_2000000000000001",
+)

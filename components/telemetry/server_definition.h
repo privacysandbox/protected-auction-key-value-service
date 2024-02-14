@@ -21,9 +21,11 @@
 #include <string>
 #include <utility>
 
+#include "absl/time/time.h"
 #include "components/telemetry/error_code.h"
 #include "scp/cc/core/common/uuid/src/uuid.h"
 #include "src/cpp/metric/context_map.h"
+#include "src/cpp/util/duration.h"
 #include "src/cpp/util/read_system.h"
 
 namespace kv_server {
@@ -566,6 +568,9 @@ using UdfRequestMetricsContext =
 using InternalLookupMetricsContext =
     privacy_sandbox::server_common::metrics::ServerContext<
         kInternalLookupServiceMetricsSpan>;
+using ServerSafeMetricsContext =
+    privacy_sandbox::server_common::metrics::ServerSafeContext<
+        kKVServerMetricSpan>;
 
 // ScopeMetricsContext provides metrics context ties to the request and
 // should have the same lifetime of the request.
@@ -615,6 +620,31 @@ class ScopeMetricsContext {
   std::unique_ptr<UdfRequestMetricsContext> udf_request_metrics_context_;
   std::unique_ptr<InternalLookupMetricsContext>
       internal_lookup_metrics_context_;
+};
+
+// Measures the latency of a block of code. The latency is recorded in
+// microseconds as histogram metrics when the object of this class goes
+// out of scope. The metric can be either safe or unsafe metric.
+template <typename ContextT, const auto& definition>
+class ScopeLatencyMetricsRecorder {
+ public:
+  explicit ScopeLatencyMetricsRecorder<ContextT, definition>(
+      ContextT& metrics_context,
+      std::unique_ptr<privacy_sandbox::server_common::Stopwatch> stopwatch =
+          std::make_unique<privacy_sandbox::server_common::Stopwatch>())
+      : metrics_context_(metrics_context) {
+    stopwatch_ = std::move(stopwatch);
+  }
+  ~ScopeLatencyMetricsRecorder<ContextT, definition>() {
+    LogIfError(metrics_context_.template LogHistogram<definition>(
+        absl::ToDoubleMicroseconds(stopwatch_->GetElapsedTime())));
+  }
+  // Returns the latency so far
+  absl::Duration GetLatency() { return stopwatch_->GetElapsedTime(); }
+
+ private:
+  ContextT& metrics_context_;
+  std::unique_ptr<privacy_sandbox::server_common::Stopwatch> stopwatch_;
 };
 
 }  // namespace kv_server

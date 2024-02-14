@@ -248,7 +248,10 @@ ConcurrentStreamRecordReader<RecordT>::BuildShards() {
 template <typename RecordT>
 absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     const std::function<absl::Status(const RecordT&)>& callback) {
-  auto start_time = absl::Now();
+  ScopeLatencyMetricsRecorder<
+      ServerSafeMetricsContext,
+      kConcurrentStreamRecordReaderReadStreamRecordsLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
   auto shards = BuildShards();
   if (!shards.ok() || shards->empty()) {
     return shards.status();
@@ -286,14 +289,9 @@ absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     total_records_read += curr_shard_result->num_records_read;
     prev_shard_result = curr_shard_result;
   }
-  auto duration = absl::Now() - start_time;
   VLOG(2) << "Done reading " << total_records_read << " records in "
-          << absl::ToDoubleMilliseconds(duration) << " ms.";
-  LogIfError(
-      KVServerContextMap()
-          ->SafeMetric()
-          .LogHistogram<kConcurrentStreamRecordReaderReadStreamRecordsLatency>(
-              absl::ToDoubleMicroseconds(duration)));
+          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
+          << " ms.";
   return absl::OkStatus();
 }
 
@@ -304,7 +302,10 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
     const std::function<absl::Status(const RecordT&)>& record_callback) {
   VLOG(2) << "Reading shard: "
           << "[" << shard.start_pos << "," << shard.end_pos << "]";
-  auto start_time = absl::Now();
+  ScopeLatencyMetricsRecorder<
+      ServerSafeMetricsContext,
+      kConcurrentStreamRecordReaderReadShardRecordsLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
   auto record_stream = stream_factory_();
   riegeli::RecordReader<riegeli::IStreamReader<>> record_reader(
       riegeli::IStreamReader(&record_stream->Stream()),
@@ -335,15 +336,10 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
   }
   shard_result.next_shard_first_record_pos = next_record_pos;
   shard_result.num_records_read = num_records_read;
-  auto duration = absl::Now() - start_time;
   VLOG(2) << "Done reading " << num_records_read << " records in shard: ["
           << shard.start_pos << "," << shard.end_pos << "] in "
-          << absl::ToDoubleMilliseconds(duration) << " ms.";
-  LogIfError(
-      KVServerContextMap()
-          ->SafeMetric()
-          .LogHistogram<kConcurrentStreamRecordReaderReadShardRecordsLatency>(
-              absl::ToDoubleMicroseconds(duration)));
+          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
+          << " ms.";
   return shard_result;
 }
 

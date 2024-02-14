@@ -269,6 +269,7 @@ class NonSeekingStringBlobStream : public RecordStream {
 };
 
 TEST(ConcurrentStreamRecordReaderTest, FailsToReadNonSeekingStream) {
+  kv_server::InitMetricsContextMap();
   std::string content;
   auto writer = riegeli::RecordWriter(riegeli::StringWriter(&content),
                                       riegeli::RecordWriterBase::Options());

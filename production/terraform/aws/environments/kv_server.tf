@@ -85,6 +85,7 @@ module "kv_server" {
   # Variables related to UDF exeuction.
   udf_num_workers    = var.udf_num_workers
   udf_timeout_millis = var.udf_timeout_millis
+  udf_min_log_level  = var.udf_min_log_level
 
   # Variables related to coordinators
   use_real_coordinators                  = var.use_real_coordinators

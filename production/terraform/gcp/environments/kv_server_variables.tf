@@ -162,6 +162,12 @@ variable "udf_timeout_millis" {
   description = "UDF execution timeout in milliseconds."
 }
 
+variable "udf_min_log_level" {
+  type        = number
+  default     = 0
+  description = "Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for min_log_level and above. Default is 0(info)."
+}
+
 variable "route_v1_to_v2" {
   type        = bool
   description = "Whether to route V1 requests through V2."

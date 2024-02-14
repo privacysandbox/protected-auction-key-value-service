@@ -187,6 +187,13 @@ resource "aws_ssm_parameter" "udf_timeout_millis_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "udf_min_log_level_parameter" {
+  name      = "${var.service}-${var.environment}-udf-timeout-millis"
+  type      = "String"
+  value     = var.udf_min_log_level_parameter_value
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "enable_otel_logger_parameter" {
   name      = "${var.service}-${var.environment}-enable-otel-logger"
   type      = "String"

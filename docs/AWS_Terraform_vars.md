@@ -191,6 +191,11 @@
 
     Source ips allowed to send ssh traffic to the ssh instance.
 
+-   **udf_min_log_level**
+
+    Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for
+    min_log_level and above. Default is 0 (info).
+
 -   **udf_num_workers**
 
     Total number of workers for UDF execution

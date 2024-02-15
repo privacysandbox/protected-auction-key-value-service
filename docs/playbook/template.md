@@ -5,7 +5,6 @@
 _Address the following:_
 
 -   _What does this alert mean?_
--   _Does this default to paging, emailing, filing a ticket or something else?_
 -   _What factors contributed to the alert?_
 -   _What parts of the service are affected?_
 -   _What other alerts accompany this alert?_
@@ -13,8 +12,8 @@ _Address the following:_
 
 ## Alert Severity
 
-_Indicate the reason for the severity (email or paging) of the alert and the impact of the alerted
-condition on the site._
+_Indicate the reason for the severity of the alert and the impact of the alerted condition on the
+site._
 
 _For example, is the serice as a whole down? Is it running in a degraded manner? How long do you
 likely have until the service goes out of SLA?_
@@ -47,12 +46,6 @@ _List and describe possible solutions for addressing this alert. Address the fol
 
 _List and describe paths of escalation. Identify whom to notify (person or team) and when. If there
 is no need to escalate, indicate that._
-
-_TODO(b/266432861): This should link to the page in this directory about generic cloud-provider
-escalation paths once that is added._
-
-_TODO(b/266432861): This should link to the page in this directory about generic
-server-author/support escalation paths once that is added._
 
 ## Related Links
 

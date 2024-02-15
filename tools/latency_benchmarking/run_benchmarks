@@ -24,6 +24,7 @@ WORKSPACE="$(git rev-parse --show-toplevel)"
 BASE_OUTPUT_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/output/${START}"
 
 NUMBER_OF_LOOKUP_KEYS="1 5 10"
+REQUEST_METADATA="{}"
 
 DOCKER_OUTPUT_DIR="/tmp/latency_benchmarking/output"
 readonly DOCKER_OUTPUT_DIR
@@ -49,10 +50,12 @@ function generate_requests() {
   local -a GENERATE_REQUESTS_ARGS
   GENERATE_REQUESTS_ARGS+=( --output-dir "${DOCKER_OUTPUT_DIR}" )
   GENERATE_REQUESTS_ARGS+=( --number-of-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}" )
+  GENERATE_REQUESTS_ARGS+=( --metadata "${REQUEST_METADATA}" )
+
   # Mount the output dir to docker and write requests to output dir for each item in
   # `NUMBER_OF_LOOKUP_KEYS_LIST`.
   # This will write a json request for each NUMBER_OF_LOOKUP_KEY=N to
-  # dist/tools/latency_benchmarking/output/${START}/${SNAPSHOT_FILENAME}/n=${N}/request.json
+  # dist/tools/latency_benchmarking/output/${START}/${SNAPSHOT_FILENAME}/b=${B}/n=${N}/request.json
   EXTRA_DOCKER_RUN_ARGS+=" --volume ${OUTPUT_DIR}:${DOCKER_OUTPUT_DIR} " \
     builders/tools/bazel-debian run //tools/latency_benchmarking:generate_requests \
     -- "${GENERATE_REQUESTS_ARGS[@]}"
@@ -61,7 +64,7 @@ function generate_requests() {
 function run_ghz_for_requests() {
   # Iterate through the generated request.json files and call `ghz` to benchmark server at ${SERVER_ADDRESS}
   for N in "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}" ; do
-    DIR=${OUTPUT_DIR}/n=${N}
+    DIR="${OUTPUT_DIR}/n=${N}"
     REQUEST_JSON="${DIR}"/request.json
     if [[ ! -f "${REQUEST_JSON}" ]]; then
       continue
@@ -69,7 +72,8 @@ function run_ghz_for_requests() {
 
     printf "Running ghz for number of keys %s\n" "${N}"
     BASE_GHZ_TAGS='{"number_of_lookup_keys": "'"${N}"'", "keys_from_file": "'"${SNAPSHOT_FILENAME}"'"}'
-    TAGS=$(jq -s -c 'add' <(echo "${GHZ_TAGS}") <(echo "${BASE_GHZ_TAGS}"))
+    REQUEST_METADATA_TAGS=$(echo "${REQUEST_METADATA}" | jq 'with_entries(.key |= "request_metadata."+.) | with_entries( .value |= @json)')
+    TAGS=$(echo "${GHZ_TAGS} ${BASE_GHZ_TAGS} ${REQUEST_METADATA_TAGS}" | jq -s -c 'add')
     GHZ_OUTPUT_JSON_FILE="${DIR}/ghz_output.json"
     ghz --protoset "${WORKSPACE}/dist/query_api_descriptor_set.pb" \
       -D "${REQUEST_JSON}" \
@@ -83,7 +87,6 @@ function run_ghz_for_requests() {
       "${SERVER_ADDRESS}"
   done
 }
-
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -103,6 +106,10 @@ while [[ $# -gt 0 ]]; do
       SNAPSHOT_DIR="$2"
       shift 2
       ;;
+    --request-metadata-json)
+      REQUEST_METADATA="$2"
+      shift 2
+      ;;
     -h | --help) usage 0 ;;
     *) usage ;;
   esac
@@ -120,12 +127,15 @@ fi
 IFS=' ' read -ra NUMBER_OF_LOOKUP_KEYS_LIST <<< "${NUMBER_OF_LOOKUP_KEYS}"
 for SNAPSHOT_FILE in "${SNAPSHOT_DIR}"/*; do
   SNAPSHOT_FILENAME=$(basename "${SNAPSHOT_FILE}")
-  OUTPUT_DIR="${BASE_OUTPUT_DIR}/${SNAPSHOT_FILENAME}"
+  BASE_OUTPUT_DIR_FOR_SNAPSHOT="${BASE_OUTPUT_DIR}/${SNAPSHOT_FILENAME}"
   # Copy snapshot file over to SNAPSHOT_0000000000000001 so that bazel can create a CSV
   # to pass to generate_requests.py
   cp "${SNAPSHOT_FILE}" "${WORKSPACE}/tools/latency_benchmarking/SNAPSHOT_0000000000000001"
+
+  OUTPUT_DIR="${BASE_OUTPUT_DIR_FOR_SNAPSHOT}"
   generate_requests
   run_ghz_for_requests
+
   # Remove SNAPSHOT_0000000000000001
   rm "${WORKSPACE}/tools/latency_benchmarking/SNAPSHOT_0000000000000001"
 done

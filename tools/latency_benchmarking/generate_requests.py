@@ -32,14 +32,14 @@ For each N in a number-of-keys-list, it will
 """
 
 
-def _BuildRequest(data: list[str]) -> dict[str, Any]:
+def _BuildRequest(data: list[str], metadata: dict[str, str]) -> dict[str, Any]:
     """Build the HTTP body that contains the base64 encoded request body as data."""
     arguments = []
     argument = {"tags": ["custom", "keys"], "data": data}
     arguments.append(argument)
 
     body = {
-        "metadata": {"hostname": "example.com"},
+        "metadata": metadata,
         "partitions": [{"id": 0, "compressionGroupId": 0, "arguments": arguments}],
     }
     body_base64_string = base64.b64encode(json.dumps(body).encode()).decode()
@@ -51,6 +51,7 @@ def WriteRequests(
     keys: list[str],
     number_of_keys_list: list[int],
     output_dir: str,
+    metadata: dict[str, str],
 ) -> None:
     """Writes the requests to JSON files.
 
@@ -58,6 +59,7 @@ def WriteRequests(
       keys: List of all keys.
       number_of_keys_list: List of number of keys to use in request. One request will generated per item.
       output_dir: Base output dir to write to.
+      metadata: Metadata to include in the request body, as per V2 API.
     """
     for n in number_of_keys_list:
         if n > len(keys):
@@ -66,7 +68,7 @@ def WriteRequests(
             )
             continue
 
-        request = _BuildRequest(keys[:n])
+        request = _BuildRequest(keys[:n], metadata)
 
         # Write to an output file at <output_dir>/n=<n>/request.json
         output_dir_n = os.path.join(output_dir, f"{n=}")
@@ -125,9 +127,19 @@ def Main():
         default="snapshot.csv",
         help="Snapshot CSV file with KVMutation update entries.",
     )
+    parser.add_argument(
+        "--metadata",
+        dest="metadata",
+        type=str,
+        default="{}",
+        help="Request metadata as a JSON object.",
+    )
     args = parser.parse_args()
+    metadata = json.loads(args.metadata)
+    if not isinstance(metadata, dict):
+        raise ValueError("metadata is not a JSON object")
     keys = ReadKeys(args.snapshot_csv_file, max(args.number_of_keys_list))
-    WriteRequests(keys, args.number_of_keys_list, args.output_dir)
+    WriteRequests(keys, args.number_of_keys_list, args.output_dir, metadata)
 
 
 if __name__ == "__main__":

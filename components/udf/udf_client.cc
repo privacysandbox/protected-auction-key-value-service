@@ -169,12 +169,14 @@ class UdfClientImpl : public UdfClient {
       return absl::InternalError("Timed out setting UDF code object.");
     }
     if (!response_status->ok()) {
-      LOG(ERROR) << "Error setting UDF Code object: " << *response_status;
+      LOG(ERROR) << "Error compiling UDF code object. " << *response_status;
       return *response_status;
     }
     handler_name_ = std::move(code_config.udf_handler_name);
     logical_commit_time_ = code_config.logical_commit_time;
     version_ = code_config.version;
+    VLOG(5) << "Successfully set UDF code object with handler_name "
+            << handler_name_;
     return absl::OkStatus();
   }
 

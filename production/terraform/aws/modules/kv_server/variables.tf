@@ -261,10 +261,8 @@ variable "udf_timeout_millis" {
 
 variable "udf_min_log_level" {
   description = "Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for min_log_level and above. Default is 0(info)."
-  default     = 0
   type        = number
 }
-
 
 variable "enable_otel_logger" {
   description = "Whether to enable otel logger."

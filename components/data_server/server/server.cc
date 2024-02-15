@@ -390,7 +390,11 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     return status;
   }
 
-  SetDefaultUdfCodeObject();
+  if (absl::Status status = SetDefaultUdfCodeObject(); !status.ok()) {
+    return absl::InternalError(
+        "Error setting default UDF. Please contact Google to fix the default "
+        "UDF or retry starting the server.");
+  }
 
   num_shards_ = parameter_fetcher.GetInt32Parameter(kNumShardsParameterSuffix);
   LOG(INFO) << "Retrieved " << kNumShardsParameterSuffix
@@ -650,15 +654,13 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
   return std::move(server);
 }
 
-void Server::SetDefaultUdfCodeObject() {
+absl::Status Server::SetDefaultUdfCodeObject() {
   const absl::Status status = udf_client_->SetCodeObject(
       CodeConfig{.js = kDefaultUdfCodeSnippet,
                  .udf_handler_name = kDefaultUdfHandlerName,
                  .logical_commit_time = kDefaultLogicalCommitTime,
                  .version = kDefaultVersion});
-  if (!status.ok()) {
-    LOG(ERROR) << "Error setting code object: " << status;
-  }
+  return status;
 }
 
 std::unique_ptr<DeltaFileNotifier> Server::CreateDeltaFileNotifier(

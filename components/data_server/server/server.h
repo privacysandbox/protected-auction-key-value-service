@@ -99,7 +99,7 @@ class Server {
   absl::Status InitializeUdfHooks();
   std::unique_ptr<grpc::Server> CreateAndStartRemoteLookupServer();
 
-  void SetDefaultUdfCodeObject();
+  absl::Status SetDefaultUdfCodeObject();
 
   void InitializeTelemetry(const ParameterClient& parameter_client,
                            InstanceClient& instance_client);

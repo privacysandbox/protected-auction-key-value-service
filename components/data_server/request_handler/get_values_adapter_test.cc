@@ -27,7 +27,6 @@
 #include "public/applications/pa/response_utils.h"
 #include "public/test_util/proto_matcher.h"
 #include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
@@ -54,7 +53,7 @@ class GetValuesAdapterTest : public ::testing::Test {
  protected:
   void SetUp() override {
     v2_handler_ = std::make_unique<GetValuesV2Handler>(
-        mock_udf_client_, mock_metrics_recorder_, fake_key_fetcher_manager_);
+        mock_udf_client_, fake_key_fetcher_manager_);
     get_values_adapter_ = GetValuesAdapter::Create(std::move(v2_handler_));
     InitMetricsContextMap();
   }
@@ -64,7 +63,6 @@ class GetValuesAdapterTest : public ::testing::Test {
   std::unique_ptr<GetValuesAdapter> get_values_adapter_;
   std::unique_ptr<GetValuesV2Handler> v2_handler_;
   MockUdfClient mock_udf_client_;
-  MockMetricsRecorder mock_metrics_recorder_;
 };
 
 TEST_F(GetValuesAdapterTest, EmptyRequestReturnsEmptyResponse) {

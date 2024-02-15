@@ -34,7 +34,6 @@
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
 #include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
@@ -277,7 +276,6 @@ class GetValuesHandlerTest
   }
 
   MockUdfClient mock_udf_client_;
-  MockMetricsRecorder mock_metrics_recorder_;
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager_;
 };
@@ -419,8 +417,7 @@ data {
   )";
 
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
-                             fake_key_fetcher_manager_);
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
   if (IsProtobufContent()) {
     v2::GetValuesRequest request_proto;
@@ -457,8 +454,7 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
     }
 })";
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
-                             fake_key_fetcher_manager_);
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
 
   if (IsProtobufContent()) {
@@ -494,8 +490,7 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
   )";
 
   google::api::HttpBody response;
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
-                             fake_key_fetcher_manager_);
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
 
   if (IsProtobufContent()) {
@@ -536,8 +531,7 @@ TEST_F(GetValuesHandlerTest, PureGRPCTest) {
              arguments { data { string_value: "ECHO" } }
            })pb",
       &req);
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
-                             fake_key_fetcher_manager_);
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
   EXPECT_CALL(mock_udf_client_,
               ExecuteCode(_, _,
                           testing::ElementsAre(
@@ -562,8 +556,7 @@ TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
              arguments { data { string_value: "ECHO" } }
            })pb",
       &req);
-  GetValuesV2Handler handler(mock_udf_client_, mock_metrics_recorder_,
-                             fake_key_fetcher_manager_);
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
   EXPECT_CALL(mock_udf_client_,
               ExecuteCode(_, _,
                           testing::ElementsAre(

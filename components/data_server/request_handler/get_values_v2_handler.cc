@@ -37,9 +37,6 @@
 #include "src/cpp/telemetry/telemetry.h"
 #include "src/cpp/util/status_macro/status_macros.h"
 
-constexpr char* kCacheKeyV2Hit = "CacheKeyHit";
-constexpr char* kCacheKeyV2Miss = "CacheKeyMiss";
-
 namespace kv_server {
 namespace {
 using google::protobuf::util::JsonStringToMessage;

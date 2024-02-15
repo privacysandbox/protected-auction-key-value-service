@@ -617,13 +617,12 @@ void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
   LOG(INFO) << "Retrieved " << kRouteV1ToV2Suffix << " parameter: " << use_v2;
   get_values_adapter_ =
       GetValuesAdapter::Create(std::make_unique<GetValuesV2Handler>(
-          *udf_client_, *metrics_recorder_, *key_fetcher_manager_));
+          *udf_client_, *key_fetcher_manager_));
   GetValuesHandler handler(*cache_, *get_values_adapter_, *metrics_recorder_,
                            use_v2);
   grpc_services_.push_back(std::make_unique<KeyValueServiceImpl>(
       std::move(handler), *metrics_recorder_));
-  GetValuesV2Handler v2handler(*udf_client_, *metrics_recorder_,
-                               *key_fetcher_manager_);
+  GetValuesV2Handler v2handler(*udf_client_, *key_fetcher_manager_);
   grpc_services_.push_back(std::make_unique<KeyValueServiceV2Impl>(
       std::move(v2handler), *metrics_recorder_));
 }

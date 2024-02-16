@@ -91,7 +91,7 @@ class ShardedServerInitializer : public ServerInitializer {
   RemoteLookup CreateAndStartRemoteLookupServer() override {
     RemoteLookup remote_lookup;
     remote_lookup.remote_lookup_service = std::make_unique<LookupServiceImpl>(
-        local_lookup_, key_fetcher_manager_, metrics_recorder_);
+        local_lookup_, key_fetcher_manager_);
     grpc::ServerBuilder remote_lookup_server_builder;
     auto remoteLookupServerAddress =
         absl::StrCat(kLocalIp, ":", kRemoteLookupServerPort);

@@ -33,20 +33,14 @@
 
 namespace kv_server {
 using google::protobuf::RepeatedPtrField;
-using privacy_sandbox::server_common::ScopeLatencyRecorder;
 
 using grpc::StatusCode;
-constexpr char kKeySetNotFound[] = "KeysetNotFound";
-constexpr char kDecryptionError[] = "DecryptionError";
-constexpr char kUnpaddingError[] = "UnpaddingError";
-constexpr char kEncryptionError[] = "EncryptionError";
-constexpr char kDeserializationError[] = "DeserializationError";
-constexpr char kRunQueryError[] = "RunQueryError";
-constexpr char kSecureLookup[] = "SecureLookup";
 
 grpc::Status LookupServiceImpl::ToInternalGrpcStatus(
-    const absl::Status& status, const char* eventName) const {
-  metrics_recorder_.IncrementEventCounter(eventName);
+    const RequestContext& request_context, const absl::Status& status,
+    std::string_view error_code) const {
+  LogIfError(request_context.GetInternalLookupMetricsContext()
+                 .AccumulateMetric<kInternalLookupRequestError>(1, error_code));
   return grpc::Status(StatusCode::INTERNAL,
                       absl::StrCat(status.code(), " : ", status.message()));
 }
@@ -97,10 +91,11 @@ grpc::Status LookupServiceImpl::SecureLookup(
     grpc::ServerContext* context,
     const SecureLookupRequest* secure_lookup_request,
     SecureLookupResponse* secure_response) {
-  ScopeLatencyRecorder latency_recorder(std::string(kSecureLookup),
-                                        metrics_recorder_);
   auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
   RequestContext request_context(*scope_metrics_context);
+  ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
+                              kInternalSecureLookupLatencyInMicros>
+      latency_recorder(request_context.GetInternalLookupMetricsContext());
   if (context->IsCancelled()) {
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
@@ -111,17 +106,18 @@ grpc::Status LookupServiceImpl::SecureLookup(
   auto padded_serialized_request_maybe =
       encryptor.DecryptRequest(secure_lookup_request->ohttp_request());
   if (!padded_serialized_request_maybe.ok()) {
-    return ToInternalGrpcStatus(padded_serialized_request_maybe.status(),
-                                kDecryptionError);
+    return ToInternalGrpcStatus(request_context,
+                                padded_serialized_request_maybe.status(),
+                                kRequestDecryptionFailure);
   }
 
   VLOG(9) << "SecureLookup decrypted";
   auto serialized_request_maybe =
       kv_server::Unpad(*padded_serialized_request_maybe);
   if (!serialized_request_maybe.ok()) {
-    metrics_recorder_.IncrementEventCounter(kDeserializationError);
-    return ToInternalGrpcStatus(serialized_request_maybe.status(),
-                                kUnpaddingError);
+    return ToInternalGrpcStatus(request_context,
+                                serialized_request_maybe.status(),
+                                kRequestUnpaddingError);
   }
 
   VLOG(9) << "SecureLookup unpadded";
@@ -141,8 +137,9 @@ grpc::Status LookupServiceImpl::SecureLookup(
   auto encrypted_response_payload =
       encryptor.EncryptResponse(payload_to_encrypt);
   if (!encrypted_response_payload.ok()) {
-    return ToInternalGrpcStatus(encrypted_response_payload.status(),
-                                kEncryptionError);
+    return ToInternalGrpcStatus(request_context,
+                                encrypted_response_payload.status(),
+                                kResponseEncryptionFailure);
   }
   secure_response->set_ohttp_response(*encrypted_response_payload);
   return grpc::Status::OK;
@@ -172,7 +169,8 @@ grpc::Status LookupServiceImpl::InternalRunQuery(
   const auto process_result =
       lookup_.RunQuery(request_context, request->query());
   if (!process_result.ok()) {
-    return ToInternalGrpcStatus(process_result.status(), kRunQueryError);
+    return ToInternalGrpcStatus(request_context, process_result.status(),
+                                kRunQueryFailure);
   }
   *response = *std::move(process_result);
   return grpc::Status::OK;

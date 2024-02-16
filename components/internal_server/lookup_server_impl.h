@@ -24,7 +24,6 @@
 #include "components/util/request_context.h"
 #include "grpcpp/grpcpp.h"
 #include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
@@ -32,14 +31,10 @@ namespace kv_server {
 class LookupServiceImpl final
     : public kv_server::InternalLookupService::Service {
  public:
-  LookupServiceImpl(
-      const Lookup& lookup,
-      privacy_sandbox::server_common::KeyFetcherManagerInterface&
-          key_fetcher_manager,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
-      : lookup_(lookup),
-        key_fetcher_manager_(key_fetcher_manager),
-        metrics_recorder_(metrics_recorder) {}
+  LookupServiceImpl(const Lookup& lookup,
+                    privacy_sandbox::server_common::KeyFetcherManagerInterface&
+                        key_fetcher_manager)
+      : lookup_(lookup), key_fetcher_manager_(key_fetcher_manager) {}
 
   ~LookupServiceImpl() override = default;
 
@@ -68,12 +63,12 @@ class LookupServiceImpl final
       const RequestContext& request_context,
       const google::protobuf::RepeatedPtrField<std::string>& keys,
       InternalLookupResponse& response) const;
-  grpc::Status ToInternalGrpcStatus(const absl::Status& status,
-                                    const char* eventName) const;
+  grpc::Status ToInternalGrpcStatus(const RequestContext& request_context,
+                                    const absl::Status& status,
+                                    std::string_view error_code) const;
   const Lookup& lookup_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&
       key_fetcher_manager_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

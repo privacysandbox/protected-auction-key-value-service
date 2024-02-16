@@ -43,6 +43,11 @@ constexpr std::string_view kInternalLookupServiceName = "InternalLookupServer";
 constexpr int kCounterDPLowerBound = 1;
 constexpr int kCounterDPUpperBound = 10;
 
+constexpr int kErrorCounterDPLowerBound = 0;
+constexpr int kErrorCounterDPUpperBound = 1;
+constexpr int kMaxPartitionsContributed = 1;
+constexpr double kErrorMinNoiseToOutput = 0.99;
+
 constexpr int kMicroSecondsLowerBound = 1;
 constexpr int kMicroSecondsUpperBound = 2'000'000'000;
 
@@ -116,24 +121,6 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kInternalRunQueryMissingKeySet(
-        "InternalRunQueryMissingKeySet",
-        "Number of missing keys not found in the key set "
-        "during internal run query processing",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kInternalRunQueryParsingFailure(
-        "InternalRunQueryParsingFailure",
-        "Number of failures in parsing query during "
-        "internal run query processing",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
     kLookupClientMissing(
         "LookupClientMissing",
         "Number of missing internal lookup clients encountered during "
@@ -197,23 +184,6 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kInternalClientDecryptionFailure(
-        "InternalClientEncryptionFailure",
-        "Number of request decryption failures in the internal lookup client",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kInternalClientUnpaddingRequestError(
-        "InternalClientUnpaddingRequestError",
-        "Number of unpadding errors in the request deserialization in the "
-        "internal lookup client",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kShardedLookupRunQueryLatencyInMicros(
         "ShardedLookupRunQueryLatencyInMicros",
@@ -259,6 +229,17 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kInternalLookupRequestError("InternalLookupRequestError",
+                                "Errors in processing internal lookup request",
+                                "error_code", kMaxPartitionsContributed,
+                                kInternalLookupRequestErrorCode,
+                                kErrorCounterDPUpperBound,
+                                kErrorCounterDPLowerBound,
+                                kErrorMinNoiseToOutput);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kInternalSecureLookupLatencyInMicros("InternalSecureLookupLatencyInMicros",
                                          "Latency in internal secure lookup",
@@ -549,13 +530,10 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kInternalLookupServiceMetricsList[] = {
         // Unsafe metrics
+        &kInternalLookupRequestError,
         &kInternalRunQueryKeySetRetrievalFailure,
         &kKeysNotFoundInKeySetsInLocalLookup,
         &kInternalRunQueryEmtpyQuery,
-        &kInternalRunQueryMissingKeySet,
-        &kInternalRunQueryParsingFailure,
-        &kInternalClientDecryptionFailure,
-        &kInternalClientUnpaddingRequestError,
         &kInternalRunQueryLatencyInMicros,
         &kInternalGetKeyValuesLatencyInMicros,
         &kInternalGetKeyValueSetLatencyInMicros,

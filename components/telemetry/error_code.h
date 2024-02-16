@@ -56,6 +56,18 @@ inline constexpr absl::string_view kRealtimeSleepFailure =
 inline constexpr absl::string_view kRealtimeDecodeMessageFailure =
     "RealtimeDecodeMessageFailure";
 
+// Failure in decrypting request in the internal secure lookup
+inline constexpr absl::string_view kRequestDecryptionFailure =
+    "RequestDecryptionFailure";
+// Error in unpadding request in the internal secure lookup
+inline constexpr absl::string_view kRequestUnpaddingError =
+    "RequestUnpaddingError";
+// Failure in encrypting response in internal secure lookup
+inline constexpr absl::string_view kResponseEncryptionFailure =
+    "ResponseEncryptionFailure";
+// Parsing internal run query failure
+inline constexpr absl::string_view kRunQueryFailure = "RunQueryFailure";
+
 // TODO(b/304311724): Revisit the error codes and provide utililities to make
 //  it easier to log error metrics
 
@@ -76,6 +88,14 @@ inline constexpr absl::string_view kRealtimeErrorCode[] = {
     kRealtimeGetNotificationsFailure,
     kRealtimeMessageApplicationFailure,
     kRealtimeSleepFailure,
+};
+
+// Strings must be sorted, this is required by the API of partitioned metrics
+inline constexpr absl::string_view kInternalLookupRequestErrorCode[] = {
+    kRequestDecryptionFailure,
+    kRequestUnpaddingError,
+    kResponseEncryptionFailure,
+    kRunQueryFailure,
 };
 
 }  // namespace kv_server

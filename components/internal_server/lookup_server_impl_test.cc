@@ -45,7 +45,7 @@ class LookupServiceImplTest : public ::testing::Test {
  protected:
   LookupServiceImplTest() {
     lookup_service_ = std::make_unique<LookupServiceImpl>(
-        mock_lookup_, fake_key_fetcher_manager_, mock_metrics_recorder_);
+        mock_lookup_, fake_key_fetcher_manager_);
     grpc::ServerBuilder builder;
     builder.RegisterService(lookup_service_.get());
     server_ = (builder.BuildAndStart());
@@ -64,7 +64,6 @@ class LookupServiceImplTest : public ::testing::Test {
   std::unique_ptr<LookupServiceImpl> lookup_service_;
   std::unique_ptr<grpc::Server> server_;
   std::unique_ptr<InternalLookupService::Stub> stub_;
-  MockMetricsRecorder mock_metrics_recorder_;
 };
 
 TEST_F(LookupServiceImplTest, InternalLookup_Success) {

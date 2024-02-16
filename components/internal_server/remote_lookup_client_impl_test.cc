@@ -36,7 +36,7 @@ class RemoteLookupClientImplTest : public ::testing::Test {
  protected:
   RemoteLookupClientImplTest() {
     lookup_service_ = std::make_unique<LookupServiceImpl>(
-        mock_lookup_, fake_key_fetcher_manager_, mock_metrics_recorder_);
+        mock_lookup_, fake_key_fetcher_manager_);
     grpc::ServerBuilder builder;
     builder.RegisterService(lookup_service_.get());
     server_ = (builder.BuildAndStart());

@@ -33,7 +33,6 @@
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/sharding/key_sharder.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::vector<std::string>, operations,
           std::vector<std::string>({"PASS_THROUGH", "READ_ONLY", "CACHE"}),
@@ -43,10 +42,6 @@ ABSL_FLAG(std::string, bucket, "performance-test-data-bucket",
 
 namespace kv_server {
 namespace {
-
-using privacy_sandbox::server_common::GetTracer;
-using privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::TelemetryProvider;
 
 class NoopBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
@@ -146,9 +141,7 @@ std::vector<Operation> OperationsFromFlag() {
 absl::Status InitOnce(Operation operation) {
   std::unique_ptr<UdfClient> noop_udf_client = NewNoopUdfClient();
   InitMetricsContextMap();
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
 
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();

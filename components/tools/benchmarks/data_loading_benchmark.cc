@@ -39,7 +39,6 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/records_utils.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, data_directory, "",
           "Data directory or bucket to store benchmark input data files in.");
@@ -171,11 +170,7 @@ void RegisterBenchmarks() {
         RegisterBenchmark(absl::StrFormat(kNoOpCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),
                           args);
-        auto noop_metrics_recorder =
-            TelemetryProvider::GetInstance().CreateMetricsRecorder();
-        args.create_cache_fn = [&noop_metrics_recorder]() {
-          return KeyValueCache::Create(*noop_metrics_recorder);
-        };
+        args.create_cache_fn = []() { return KeyValueCache::Create(); };
         RegisterBenchmark(absl::StrFormat(kMutexCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),
                           args);

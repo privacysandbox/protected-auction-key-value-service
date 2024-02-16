@@ -141,7 +141,7 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   InitMetricsContextMap();
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
   auto noop_metrics_recorder = MetricsRecorder::CreateNoop();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   PS_RETURN_IF_ERROR(LoadCacheFromFile(kv_delta_file_path, *cache))
       << "Error loading cache from file";
 

@@ -35,8 +35,6 @@
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/cache/noop_key_value_cache.h"
 #include "components/tools/benchmarks/benchmark_util.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::vector<std::string>, record_size,
           std::vector<std::string>({"1"}),
@@ -71,8 +69,6 @@ namespace {
 using kv_server::benchmark::AsyncTask;
 using kv_server::benchmark::GenerateRandomString;
 using kv_server::benchmark::ParseInt64List;
-using privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::TelemetryProvider;
 
 // Format variables used to generate benchmark names.
 //
@@ -106,8 +102,8 @@ Cache* GetNoOpCache() {
   return cache;
 }
 
-Cache* GetLockBasedCache(MetricsRecorder& metrics_recorder) {
-  static auto* const cache = KeyValueCache::Create(metrics_recorder).release();
+Cache* GetLockBasedCache() {
+  static auto* const cache = KeyValueCache::Create().release();
   return cache;
 }
 
@@ -279,7 +275,7 @@ void RegisterBenchmark(
   }
 }
 
-void RegisterReadBenchmarks(MetricsRecorder& metrics_recorder) {
+void RegisterReadBenchmarks() {
   auto query_sizes = ParseInt64List(absl::GetFlag(FLAGS_query_size));
   auto set_query_sizes = ParseInt64List(absl::GetFlag(FLAGS_set_query_size));
   auto record_sizes = ParseInt64List(absl::GetFlag(FLAGS_record_size));
@@ -298,7 +294,7 @@ void RegisterReadBenchmarks(MetricsRecorder& metrics_recorder) {
             absl::StrFormat(kNoOpCacheGetKeyValuePairsFmt, query_size,
                             record_size, num_writers),
             args, BM_GetKeyValuePairs);
-        args.cache = GetLockBasedCache(metrics_recorder);
+        args.cache = GetLockBasedCache();
         ::kv_server::RegisterBenchmark(
             absl::StrFormat(kLockBasedCacheGetKeyValuePairsFmt, query_size,
                             record_size, num_writers),
@@ -310,7 +306,7 @@ void RegisterReadBenchmarks(MetricsRecorder& metrics_recorder) {
               absl::StrFormat(kNoOpCacheGetKeyValueSetFmt, query_size,
                               set_query_size, record_size, num_writers),
               args, BM_GetKeyValueSet);
-          args.cache = GetLockBasedCache(metrics_recorder);
+          args.cache = GetLockBasedCache();
           ::kv_server::RegisterBenchmark(
               absl::StrFormat(kLockBasedCacheGetKeyValueSetFmt, query_size,
                               set_query_size, record_size, num_writers),
@@ -321,7 +317,7 @@ void RegisterReadBenchmarks(MetricsRecorder& metrics_recorder) {
   }
 }
 
-void RegisterWriteBenchmarks(MetricsRecorder& metrics_recorder) {
+void RegisterWriteBenchmarks() {
   auto keyspace_sizes = ParseInt64List(absl::GetFlag(FLAGS_keyspace_size));
   auto record_sizes = ParseInt64List(absl::GetFlag(FLAGS_record_size));
   auto set_query_sizes = ParseInt64List(absl::GetFlag(FLAGS_set_query_size));
@@ -340,7 +336,7 @@ void RegisterWriteBenchmarks(MetricsRecorder& metrics_recorder) {
             absl::StrFormat(kNoOpCacheUpdateKeyValueFmt, keyspace_size,
                             record_size, num_readers),
             args, BM_UpdateKeyValue);
-        args.cache = GetLockBasedCache(metrics_recorder);
+        args.cache = GetLockBasedCache();
         ::kv_server::RegisterBenchmark(
             absl::StrFormat(kLockBasedCacheUpdateKeyValueFmt, keyspace_size,
                             record_size, num_readers),
@@ -352,7 +348,7 @@ void RegisterWriteBenchmarks(MetricsRecorder& metrics_recorder) {
               absl::StrFormat(kNoOpCacheUpdateKeyValueSetFmt, keyspace_size,
                               set_query_size, record_size, num_readers),
               args, BM_UpdateKeyValueSet);
-          args.cache = GetLockBasedCache(metrics_recorder);
+          args.cache = GetLockBasedCache();
           ::kv_server::RegisterBenchmark(
               absl::StrFormat(kLockBasedCacheUpdateKeyValueSetFmt,
                               keyspace_size, set_query_size, record_size,
@@ -378,11 +374,9 @@ int main(int argc, char** argv) {
   absl::InitializeLog();
   ::benchmark::Initialize(&argc, argv);
   absl::ParseCommandLine(argc, argv);
-  auto noop_metrics_recorder =
-      ::kv_server::TelemetryProvider::GetInstance().CreateMetricsRecorder();
   kv_server::InitMetricsContextMap();
-  ::kv_server::RegisterReadBenchmarks(*noop_metrics_recorder);
-  ::kv_server::RegisterWriteBenchmarks(*noop_metrics_recorder);
+  ::kv_server::RegisterReadBenchmarks();
+  ::kv_server::RegisterWriteBenchmarks();
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
   return 0;

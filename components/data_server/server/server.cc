@@ -195,7 +195,7 @@ Server::Server()
 // called right after telemetry has been initialized but before anything that
 // requires the cache has been initialized.
 void Server::InitializeKeyValueCache() {
-  cache_ = KeyValueCache::Create(*metrics_recorder_);
+  cache_ = KeyValueCache::Create();
   cache_->UpdateKeyValue(
       "hi",
       "Hello, world! If you are seeing this, it means you can "

@@ -30,7 +30,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/base_types.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 
 namespace kv_server {
@@ -114,9 +113,7 @@ class CacheTest : public ::testing::Test {
 };
 
 TEST_F(CacheTest, RetrievesMatchingEntry) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->UpdateKeyValue("my_key", "my_value", 1);
   absl::flat_hash_set<std::string_view> keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
@@ -128,9 +125,7 @@ TEST_F(CacheTest, RetrievesMatchingEntry) {
 }
 
 TEST_F(CacheTest, GetWithMultipleKeysReturnsMatchingValues) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->UpdateKeyValue("key1", "value1", 1);
   cache->UpdateKeyValue("key2", "value2", 2);
   cache->UpdateKeyValue("key3", "value3", 3);
@@ -145,9 +140,7 @@ TEST_F(CacheTest, GetWithMultipleKeysReturnsMatchingValues) {
 }
 
 TEST_F(CacheTest, GetAfterUpdateReturnsNewValue) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->UpdateKeyValue("my_key", "my_value", 1);
 
   absl::flat_hash_set<std::string_view> keys = {"my_key"};
@@ -165,9 +158,7 @@ TEST_F(CacheTest, GetAfterUpdateReturnsNewValue) {
 }
 
 TEST_F(CacheTest, GetAfterUpdateDifferentKeyReturnsSameValue) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->UpdateKeyValue("new_key", "new_value", 2);
 
@@ -179,9 +170,7 @@ TEST_F(CacheTest, GetAfterUpdateDifferentKeyReturnsSameValue) {
 }
 
 TEST_F(CacheTest, GetForEmptyCacheReturnsEmptyList) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   absl::flat_hash_set<std::string_view> keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(), keys);
@@ -189,9 +178,7 @@ TEST_F(CacheTest, GetForEmptyCacheReturnsEmptyList) {
 }
 
 TEST_F(CacheTest, GetForCacheReturnsValueSet) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   std::vector<std::string_view> values = {"v1", "v2"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
   absl::flat_hash_set<std::string_view> value_set =
@@ -201,9 +188,7 @@ TEST_F(CacheTest, GetForCacheReturnsValueSet) {
 }
 
 TEST_F(CacheTest, GetForCacheMissingKeyReturnsEmptySet) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   std::vector<std::string_view> values = {"v1", "v2"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
   auto get_key_value_set_result =
@@ -214,9 +199,7 @@ TEST_F(CacheTest, GetForCacheMissingKeyReturnsEmptySet) {
 }
 
 TEST_F(CacheTest, DeleteKeyTestRemovesKeyEntry) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->DeleteKey("my_key", 2);
   absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
@@ -226,9 +209,7 @@ TEST_F(CacheTest, DeleteKeyTestRemovesKeyEntry) {
 }
 
 TEST_F(CacheTest, DeleteKeyValueSetWrongkeyDoesNotRemoveEntry) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->DeleteKey("wrong_key", 1);
   absl::flat_hash_set<std::string_view> keys = {"my_key"};
@@ -238,10 +219,7 @@ TEST_F(CacheTest, DeleteKeyValueSetWrongkeyDoesNotRemoveEntry) {
 }
 
 TEST_F(CacheTest, DeleteKeyValueSetRemovesValueEntry) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1", "v2", "v3"};
   std::vector<std::string_view> values_to_delete = {"v1", "v2"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
@@ -268,10 +246,7 @@ TEST_F(CacheTest, DeleteKeyValueSetRemovesValueEntry) {
 }
 
 TEST_F(CacheTest, DeleteKeyValueSetWrongKeyDoesNotRemoveKeyValueEntry) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1", "v2", "v3"};
   std::vector<std::string_view> values_to_delete = {"v1"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
@@ -301,10 +276,7 @@ TEST_F(CacheTest, DeleteKeyValueSetWrongKeyDoesNotRemoveKeyValueEntry) {
 }
 
 TEST_F(CacheTest, DeleteKeyValueSetWrongValueDoesNotRemoveEntry) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1", "v2", "v3"};
   std::vector<std::string_view> values_to_delete = {"v4"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
@@ -330,9 +302,7 @@ TEST_F(CacheTest, DeleteKeyValueSetWrongValueDoesNotRemoveEntry) {
 }
 
 TEST_F(CacheTest, OutOfOrderUpdateAfterUpdateWorks) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->UpdateKeyValue("my_key", "my_value", 2);
 
   absl::flat_hash_set<std::string_view> keys = {"my_key"};
@@ -349,9 +319,7 @@ TEST_F(CacheTest, OutOfOrderUpdateAfterUpdateWorks) {
 }
 
 TEST_F(CacheTest, DeleteKeyOutOfOrderDeleteAfterUpdateWorks) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->DeleteKey("my_key", 2);
   cache->UpdateKeyValue("my_key", "my_value", 1);
   absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
@@ -361,9 +329,7 @@ TEST_F(CacheTest, DeleteKeyOutOfOrderDeleteAfterUpdateWorks) {
 }
 
 TEST_F(CacheTest, DeleteKeyOutOfOrderUpdateAfterDeleteWorks) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->UpdateKeyValue("my_key", "my_value", 2);
   cache->DeleteKey("my_key", 1);
   absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
@@ -374,9 +340,7 @@ TEST_F(CacheTest, DeleteKeyOutOfOrderUpdateAfterDeleteWorks) {
 }
 
 TEST_F(CacheTest, DeleteKeyInOrderUpdateAfterDeleteWorks) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->DeleteKey("my_key", 1);
   cache->UpdateKeyValue("my_key", "my_value", 2);
   absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
@@ -387,9 +351,7 @@ TEST_F(CacheTest, DeleteKeyInOrderUpdateAfterDeleteWorks) {
 }
 
 TEST_F(CacheTest, DeleteKeyInOrderDeleteAfterUpdateWorks) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->DeleteKey("my_key", 2);
   absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
@@ -399,10 +361,7 @@ TEST_F(CacheTest, DeleteKeyInOrderDeleteAfterUpdateWorks) {
 }
 
 TEST_F(CacheTest, UpdateSetTestUpdateAfterUpdateWithSameValue) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 2);
@@ -417,10 +376,7 @@ TEST_F(CacheTest, UpdateSetTestUpdateAfterUpdateWithSameValue) {
 }
 
 TEST_F(CacheTest, UpdateSetTestUpdateAfterUpdateWithDifferentValue) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> first_value = {"v1"};
   std::vector<std::string_view> second_value = {"v2"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(first_value),
@@ -442,10 +398,7 @@ TEST_F(CacheTest, UpdateSetTestUpdateAfterUpdateWithDifferentValue) {
 }
 
 TEST_F(CacheTest, InOrderUpdateSetInsertAfterDeleteExpectInsert) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 1);
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 2);
@@ -460,10 +413,7 @@ TEST_F(CacheTest, InOrderUpdateSetInsertAfterDeleteExpectInsert) {
 }
 
 TEST_F(CacheTest, InOrderUpdateSetDeleteAfterInsert) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
@@ -478,10 +428,7 @@ TEST_F(CacheTest, InOrderUpdateSetDeleteAfterInsert) {
 }
 
 TEST_F(CacheTest, OutOfOrderUpdateSetInsertAfterDeleteExpectNoInsert) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
@@ -496,10 +443,7 @@ TEST_F(CacheTest, OutOfOrderUpdateSetInsertAfterDeleteExpectNoInsert) {
 }
 
 TEST_F(CacheTest, OutOfOrderUpdateSetDeleteAfterInsertExpectNoDelete) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 2);
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 1);
@@ -514,10 +458,7 @@ TEST_F(CacheTest, OutOfOrderUpdateSetDeleteAfterInsertExpectNoDelete) {
 }
 
 TEST_F(CacheTest, CleanupTimestampsInsertAKeyDoesntUpdateDeletedNodes) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   cache->UpdateKeyValue("my_key", "my_value", 1);
 
   auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
@@ -525,10 +466,7 @@ TEST_F(CacheTest, CleanupTimestampsInsertAKeyDoesntUpdateDeletedNodes) {
 }
 
 TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeysRemovesOldRecords) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   cache->UpdateKeyValue("my_key", "my_value", 1);
   cache->DeleteKey("my_key", 2);
 
@@ -542,10 +480,7 @@ TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeysRemovesOldRecords) {
 }
 
 TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeysDoesntAffectNewRecords) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   cache->UpdateKeyValue("my_key", "my_value", 5);
   cache->DeleteKey("my_key", 6);
 
@@ -560,10 +495,7 @@ TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeysDoesntAffectNewRecords) {
 
 TEST_F(CacheTest,
        CleanupRemoveDeletedKeysRemovesOldRecordsDoesntAffectNewRecords) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   cache->UpdateKeyValue("my_key1", "my_value", 1);
   cache->UpdateKeyValue("my_key2", "my_value", 2);
   cache->UpdateKeyValue("my_key3", "my_value", 3);
@@ -597,10 +529,7 @@ TEST_F(CacheTest,
 }
 
 TEST_F(CacheTest, CleanupTimestampsCantInsertOldRecordsAfterCleanup) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   cache->UpdateKeyValue("my_key1", "my_value", 10);
   cache->DeleteKey("my_key1", 12);
   cache->RemoveDeletedKeys(13);
@@ -618,10 +547,7 @@ TEST_F(CacheTest, CleanupTimestampsCantInsertOldRecordsAfterCleanup) {
 }
 
 TEST_F(CacheTest, CleanupTimestampsInsertKeyValueSetDoesntUpdateDeletedNodes) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
   int deleted_nodes_map_size =
@@ -630,10 +556,7 @@ TEST_F(CacheTest, CleanupTimestampsInsertKeyValueSetDoesntUpdateDeletedNodes) {
 }
 
 TEST_F(CacheTest, CleanupTimestampsDeleteKeyValueSetExpectUpdateDeletedNodes) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 1);
   cache->DeleteValuesInSet("another_key", absl::Span<std::string_view>(values),
@@ -652,10 +575,7 @@ TEST_F(CacheTest, CleanupTimestampsDeleteKeyValueSetExpectUpdateDeletedNodes) {
 }
 
 TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeyValuesRemovesOldRecords) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
@@ -672,10 +592,7 @@ TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeyValuesRemovesOldRecords) {
 
 TEST_F(CacheTest,
        CleanupTimestampsRemoveDeletedKeyValuesDoesntAffectNewRecords) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 5);
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 6);
@@ -694,10 +611,7 @@ TEST_F(CacheTest,
 TEST_F(
     CacheTest,
     CleanupSetCacheRemoveDeletedKeysRemovesOldRecordsDoesntAffectNewRecords) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1", "v2"};
   std::vector<std::string_view> values_to_delete = {"v1"};
   cache->UpdateKeyValueSet("my_key1", absl::Span<std::string_view>(values), 1);
@@ -732,10 +646,7 @@ TEST_F(
 }
 
 TEST_F(CacheTest, CleanupTimestampsSetCacheCantInsertOldRecordsAfterCleanup) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
@@ -755,10 +666,7 @@ TEST_F(CacheTest, CleanupTimestampsSetCacheCantInsertOldRecordsAfterCleanup) {
 }
 
 TEST_F(CacheTest, CleanupTimestampsCantAddOldDeletedRecordsAfterCleanup) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
   cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
   cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
@@ -794,9 +702,7 @@ TEST_F(CacheTest, CleanupTimestampsCantAddOldDeletedRecordsAfterCleanup) {
 }
 
 TEST_F(CacheTest, ConcurrentGetAndGet) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto cache = std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys_lookup_request = {"key1", "key2"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   std::vector<std::string_view> values_for_key2 = {"v2"};
@@ -824,9 +730,7 @@ TEST_F(CacheTest, ConcurrentGetAndGet) {
 }
 
 TEST_F(CacheTest, ConcurrentGetAndUpdateExpectNoUpdate) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto cache = std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   std::vector<std::string_view> existing_values = {"v1"};
   cache->UpdateKeyValueSet("key1",
@@ -858,9 +762,7 @@ TEST_F(CacheTest, ConcurrentGetAndUpdateExpectNoUpdate) {
 }
 
 TEST_F(CacheTest, ConcurrentGetAndUpdateExpectUpdate) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto cache = std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> existing_values = {"v1"};
   cache->UpdateKeyValueSet("key1",
@@ -893,9 +795,7 @@ TEST_F(CacheTest, ConcurrentGetAndUpdateExpectUpdate) {
 }
 
 TEST_F(CacheTest, ConcurrentGetAndDeleteExpectNoDelete) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto cache = std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   std::vector<std::string_view> existing_values = {"v1"};
   cache->UpdateKeyValueSet("key1",
@@ -928,9 +828,7 @@ TEST_F(CacheTest, ConcurrentGetAndDeleteExpectNoDelete) {
 }
 
 TEST_F(CacheTest, ConcurrentGetAndCleanUp) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto cache = std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> existing_values = {"v1"};
   cache->UpdateKeyValueSet("key1",
@@ -969,9 +867,7 @@ TEST_F(CacheTest, ConcurrentGetAndCleanUp) {
 }
 
 TEST_F(CacheTest, ConcurrentUpdateAndUpdateExpectUpdateBoth) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto cache = std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   absl::Notification start;
@@ -1010,9 +906,7 @@ TEST_F(CacheTest, ConcurrentUpdateAndUpdateExpectUpdateBoth) {
 }
 
 TEST_F(CacheTest, ConcurrentUpdateAndDelete) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto cache = std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   absl::Notification start;
@@ -1057,9 +951,7 @@ TEST_F(CacheTest, ConcurrentUpdateAndDelete) {
 }
 
 TEST_F(CacheTest, ConcurrentUpdateAndCleanUp) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto cache = std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   absl::Notification start;
@@ -1091,9 +983,7 @@ TEST_F(CacheTest, ConcurrentUpdateAndCleanUp) {
 }
 
 TEST_F(CacheTest, ConcurrentDeleteAndCleanUp) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto cache = std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   cache->UpdateKeyValueSet("key1",
@@ -1128,9 +1018,7 @@ TEST_F(CacheTest, ConcurrentDeleteAndCleanUp) {
 }
 
 TEST_F(CacheTest, ConcurrentGetUpdateDeleteCleanUp) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  auto cache = std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> existing_values_for_key1 = {"v1"};
   std::vector<std::string_view> existing_values_for_key2 = {"v1"};
@@ -1182,9 +1070,7 @@ TEST_F(CacheTest, ConcurrentGetUpdateDeleteCleanUp) {
 }
 
 TEST_F(CacheTest, MultiplePrefixKeyValueUpdates) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   // Call remove deleted keys for prefix1 to update the max delete cutoff
   // timestamp
   cache->RemoveDeletedKeys(1, "prefix1");
@@ -1199,9 +1085,7 @@ TEST_F(CacheTest, MultiplePrefixKeyValueUpdates) {
 }
 
 TEST_F(CacheTest, MultiplePrefixKeyValueNoUpdateForAnother) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   // Call remove deleted keys for prefix1 to update the max delete cutoff
   // timestamp
   cache->RemoveDeletedKeys(2, "prefix1");
@@ -1216,9 +1100,7 @@ TEST_F(CacheTest, MultiplePrefixKeyValueNoUpdateForAnother) {
 }
 
 TEST_F(CacheTest, MultiplePrefixKeyValueNoDeleteForAnother) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   // Call remove deleted keys for prefix1 to update the max delete cutoff
   // timestamp
   cache->RemoveDeletedKeys(2, "prefix1");
@@ -1235,10 +1117,7 @@ TEST_F(CacheTest, MultiplePrefixKeyValueNoDeleteForAnother) {
 }
 
 TEST_F(CacheTest, MultiplePrefixKeyValueDeletesAndUpdates) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   cache->DeleteKey("prefix1-key", 2, "prefix1");
   cache->UpdateKeyValue("prefix1-key", "value1", 1, "prefix1");
   cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
@@ -1255,10 +1134,7 @@ TEST_F(CacheTest, MultiplePrefixKeyValueDeletesAndUpdates) {
 }
 
 TEST_F(CacheTest, MultiplePrefixKeyValueUpdatesAndDeletes) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   cache->UpdateKeyValue("prefix1-key", "value1", 2, "prefix1");
   // Expects no deletes
   cache->DeleteKey("prefix1-key", 1, "prefix1");
@@ -1274,10 +1150,7 @@ TEST_F(CacheTest, MultiplePrefixKeyValueUpdatesAndDeletes) {
 }
 
 TEST_F(CacheTest, MultiplePrefixKeyValueSetUpdates) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values1 = {"v1", "v2"};
   std::vector<std::string_view> values2 = {"v3", "v4"};
   // Call remove deleted keys for prefix1 to update the max delete cutoff
@@ -1297,10 +1170,7 @@ TEST_F(CacheTest, MultiplePrefixKeyValueSetUpdates) {
 }
 
 TEST_F(CacheTest, MultipleKeyValueSetNoUpdateForAnother) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values1 = {"v1", "v2"};
   std::vector<std::string_view> values2 = {"v3", "v4"};
   // Call remove deleted keys for prefix1 to update the max delete cutoff
@@ -1318,10 +1188,7 @@ TEST_F(CacheTest, MultipleKeyValueSetNoUpdateForAnother) {
 }
 
 TEST_F(CacheTest, MultiplePrefixKeyValueSetDeletesAndUpdates) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values1 = {"v1", "v2"};
   std::vector<std::string_view> values_to_delete = {"v1"};
   std::vector<std::string_view> values2 = {"v3", "v4"};
@@ -1345,10 +1212,7 @@ TEST_F(CacheTest, MultiplePrefixKeyValueSetDeletesAndUpdates) {
 }
 
 TEST_F(CacheTest, MultiplePrefixKeyValueSetUpdatesAndDeletes) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values1 = {"v1", "v2"};
   std::vector<std::string_view> values_to_delete = {"v1"};
   std::vector<std::string_view> values2 = {"v3", "v4"};
@@ -1374,10 +1238,7 @@ TEST_F(CacheTest, MultiplePrefixKeyValueSetUpdatesAndDeletes) {
 }
 
 TEST_F(CacheTest, MultiplePrefixTimestampKeyValueCleanUps) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   cache->UpdateKeyValue("prefix1-key", "value", 2, "prefix1");
   cache->DeleteKey("prefix1-key", 3, "prefix1");
   cache->UpdateKeyValue("prefix2-key", "value", 2, "prefix2");
@@ -1395,10 +1256,7 @@ TEST_F(CacheTest, MultiplePrefixTimestampKeyValueCleanUps) {
   EXPECT_EQ(deleted_nodes_for_prefix2.size(), 1);
 }
 TEST_F(CacheTest, MultiplePrefixTimestampKeyValueSetCleanUps) {
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<KeyValueCache> cache =
-      std::make_unique<KeyValueCache>(*noop_metrics_recorder);
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1", "v2"};
   std::vector<std::string_view> values_to_delete = {"v1"};
   cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values),

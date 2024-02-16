@@ -32,17 +32,12 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/get_key_value_set_result.h"
 #include "public/base_types.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 // In-memory datastore.
 // One cache object is only for keys in one namespace.
 class KeyValueCache : public Cache {
  public:
-  KeyValueCache(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
-      : metrics_recorder_(metrics_recorder) {}
-
   // Looks up and returns key-value pairs for the given keys.
   absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
       const RequestContext& request_context,
@@ -84,8 +79,7 @@ class KeyValueCache : public Cache {
   void RemoveDeletedKeys(int64_t logical_commit_time,
                          std::string_view prefix = "") override;
 
-  static std::unique_ptr<Cache> Create(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
+  static std::unique_ptr<Cache> Create();
 
  private:
   struct CacheValue {
@@ -170,8 +164,6 @@ class KeyValueCache : public Cache {
                              std::string_view prefix);
 
   friend class KeyValueCacheTestPeer;
-
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 }  // namespace kv_server
 

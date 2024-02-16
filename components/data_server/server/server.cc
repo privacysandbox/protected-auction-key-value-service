@@ -412,7 +412,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   SetQueueManager(metadata, message_service_blob_.get());
 
   grpc_server_ = CreateAndStartGrpcServer();
-  local_lookup_ = CreateLocalLookup(*cache_, *metrics_recorder_);
+  local_lookup_ = CreateLocalLookup(*cache_);
   auto key_sharder = GetKeySharder(parameter_fetcher);
   auto server_initializer = GetServerInitializer(
       num_shards_, *metrics_recorder_, *key_fetcher_manager_, *local_lookup_,

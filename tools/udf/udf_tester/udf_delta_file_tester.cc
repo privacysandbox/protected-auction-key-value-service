@@ -155,14 +155,12 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   UdfConfigBuilder config_builder;
   auto string_get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
-  string_get_values_hook->FinishInit(
-      CreateLocalLookup(*cache, *noop_metrics_recorder));
+  string_get_values_hook->FinishInit(CreateLocalLookup(*cache));
   auto binary_get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
-  binary_get_values_hook->FinishInit(
-      CreateLocalLookup(*cache, *noop_metrics_recorder));
+  binary_get_values_hook->FinishInit(CreateLocalLookup(*cache));
   auto run_query_hook = RunQueryHook::Create();
-  run_query_hook->FinishInit(CreateLocalLookup(*cache, *noop_metrics_recorder));
+  run_query_hook->FinishInit(CreateLocalLookup(*cache));
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
       UdfClient::Create(std::move(
           config_builder.RegisterStringGetValuesHook(*string_get_values_hook)

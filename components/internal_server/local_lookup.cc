@@ -26,21 +26,13 @@
 #include "components/internal_server/lookup.pb.h"
 #include "components/query/driver.h"
 #include "components/query/scanner.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::ScopeLatencyRecorder;
-
-constexpr char kKeySetNotFound[] = "KeysetNotFound";
-constexpr char kLocalRunQuery[] = "LocalRunQuery";
-
 class LocalLookup : public Lookup {
  public:
-  explicit LocalLookup(const Cache& cache, MetricsRecorder& metrics_recorder)
-      : cache_(cache), metrics_recorder_(metrics_recorder) {}
+  explicit LocalLookup(const Cache& cache) : cache_(cache) {}
 
   absl::StatusOr<InternalLookupResponse> GetKeyValues(
       const RequestContext& request_context,
@@ -63,6 +55,9 @@ class LocalLookup : public Lookup {
   InternalLookupResponse ProcessKeys(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const {
+    ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
+                                kInternalGetKeyValuesLatencyInMicros>
+        latency_recorder(request_context.GetInternalLookupMetricsContext());
     InternalLookupResponse response;
     if (keys.empty()) {
       return response;
@@ -87,6 +82,9 @@ class LocalLookup : public Lookup {
   absl::StatusOr<InternalLookupResponse> ProcessKeysetKeys(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const {
+    ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
+                                kInternalGetKeyValueSetLatencyInMicros>
+        latency_recorder(request_context.GetInternalLookupMetricsContext());
     InternalLookupResponse response;
     if (key_set.empty()) {
       return response;
@@ -99,7 +97,9 @@ class LocalLookup : public Lookup {
         auto status = result.mutable_status();
         status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
         status->set_message("Key not found");
-        metrics_recorder_.IncrementEventCounter(kKeySetNotFound);
+        LogIfError(
+            request_context.GetInternalLookupMetricsContext()
+                .AccumulateMetric<kKeysNotFoundInKeySetsInLocalLookup>(1));
       } else {
         auto keyset_values = result.mutable_keyset_values();
         keyset_values->mutable_values()->Add(value_set.begin(),
@@ -112,8 +112,9 @@ class LocalLookup : public Lookup {
 
   absl::StatusOr<InternalRunQueryResponse> ProcessQuery(
       const RequestContext& request_context, std::string query) const {
-    ScopeLatencyRecorder latency_recorder(std::string(kLocalRunQuery),
-                                          metrics_recorder_);
+    ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
+                                kInternalRunQueryLatencyInMicros>
+        latency_recorder(request_context.GetInternalLookupMetricsContext());
     if (query.empty()) return absl::OkStatus();
     std::unique_ptr<GetKeyValueSetResult> get_key_value_set_result;
     kv_server::Driver driver([&get_key_value_set_result](std::string_view key) {
@@ -140,15 +141,12 @@ class LocalLookup : public Lookup {
   }
 
   const Cache& cache_;
-  MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace
 
-std::unique_ptr<Lookup> CreateLocalLookup(
-    const Cache& cache,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder) {
-  return std::make_unique<LocalLookup>(cache, metrics_recorder);
+std::unique_ptr<Lookup> CreateLocalLookup(const Cache& cache) {
+  return std::make_unique<LocalLookup>(cache);
 }
 
 }  // namespace kv_server

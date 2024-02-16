@@ -47,7 +47,6 @@ class LocalLookupTest : public ::testing::Test {
   std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
   std::unique_ptr<RequestContext> request_context_;
   MockCache mock_cache_;
-  MockMetricsRecorder mock_metrics_recorder_;
 };
 
 TEST_F(LocalLookupTest, GetKeyValues_KeysFound_Success) {
@@ -55,7 +54,7 @@ TEST_F(LocalLookupTest, GetKeyValues_KeysFound_Success) {
       .WillOnce(Return(absl::flat_hash_map<std::string, std::string>{
           {"key1", "value1"}, {"key2", "value2"}}));
 
-  auto local_lookup = CreateLocalLookup(mock_cache_, mock_metrics_recorder_);
+  auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response =
       local_lookup->GetKeyValues(GetRequestContext(), {"key1", "key2"});
   EXPECT_TRUE(response.ok());
@@ -79,7 +78,7 @@ TEST_F(LocalLookupTest, GetKeyValues_DuplicateKeys_Success) {
       .WillOnce(Return(absl::flat_hash_map<std::string, std::string>{
           {"key1", "value1"}, {"key2", "value2"}}));
 
-  auto local_lookup = CreateLocalLookup(mock_cache_, mock_metrics_recorder_);
+  auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response =
       local_lookup->GetKeyValues(GetRequestContext(), {"key1", "key1"});
   EXPECT_TRUE(response.ok());
@@ -99,7 +98,7 @@ TEST_F(LocalLookupTest, GetKeyValues_KeyMissing_ReturnsStatusForKey) {
       .WillOnce(Return(
           absl::flat_hash_map<std::string, std::string>{{"key1", "value1"}}));
 
-  auto local_lookup = CreateLocalLookup(mock_cache_, mock_metrics_recorder_);
+  auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response =
       local_lookup->GetKeyValues(GetRequestContext(), {"key1", "key2"});
   EXPECT_TRUE(response.ok());
@@ -120,7 +119,7 @@ TEST_F(LocalLookupTest, GetKeyValues_KeyMissing_ReturnsStatusForKey) {
 }
 
 TEST_F(LocalLookupTest, GetKeyValues_EmptyRequest_ReturnsEmptyResponse) {
-  auto local_lookup = CreateLocalLookup(mock_cache_, mock_metrics_recorder_);
+  auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response = local_lookup->GetKeyValues(GetRequestContext(), {});
   EXPECT_TRUE(response.ok());
 
@@ -137,7 +136,7 @@ TEST_F(LocalLookupTest, GetKeyValueSets_KeysFound_Success) {
   EXPECT_CALL(mock_cache_, GetKeyValueSet(_, _))
       .WillOnce(Return(std::move(mock_get_key_value_set_result)));
 
-  auto local_lookup = CreateLocalLookup(mock_cache_, mock_metrics_recorder_);
+  auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response = local_lookup->GetKeyValueSet(GetRequestContext(), {"key1"});
   EXPECT_TRUE(response.ok());
 
@@ -154,7 +153,7 @@ TEST_F(LocalLookupTest, GetKeyValueSets_SetEmpty_Success) {
   EXPECT_CALL(mock_cache_, GetKeyValueSet(_, _))
       .WillOnce(Return(std::move(mock_get_key_value_set_result)));
 
-  auto local_lookup = CreateLocalLookup(mock_cache_, mock_metrics_recorder_);
+  auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response = local_lookup->GetKeyValueSet(GetRequestContext(), {"key1"});
   EXPECT_TRUE(response.ok());
 
@@ -170,7 +169,7 @@ TEST_F(LocalLookupTest, GetKeyValueSets_SetEmpty_Success) {
 }
 
 TEST_F(LocalLookupTest, GetKeyValueSet_EmptyRequest_ReturnsEmptyResponse) {
-  auto local_lookup = CreateLocalLookup(mock_cache_, mock_metrics_recorder_);
+  auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response = local_lookup->GetKeyValueSet(GetRequestContext(), {});
   EXPECT_TRUE(response.ok());
 
@@ -191,7 +190,7 @@ TEST_F(LocalLookupTest, RunQuery_Success) {
       GetKeyValueSet(_, absl::flat_hash_set<std::string_view>{"someset"}))
       .WillOnce(Return(std::move(mock_get_key_value_set_result)));
 
-  auto local_lookup = CreateLocalLookup(mock_cache_, mock_metrics_recorder_);
+  auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response = local_lookup->RunQuery(GetRequestContext(), query);
   EXPECT_TRUE(response.ok());
 
@@ -203,7 +202,7 @@ TEST_F(LocalLookupTest, RunQuery_Success) {
 TEST_F(LocalLookupTest, RunQuery_ParsingError_Error) {
   std::string query = "someset|(";
 
-  auto local_lookup = CreateLocalLookup(mock_cache_, mock_metrics_recorder_);
+  auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response = local_lookup->RunQuery(GetRequestContext(), query);
   EXPECT_FALSE(response.ok());
   EXPECT_EQ(response.status().code(), absl::StatusCode::kInvalidArgument);

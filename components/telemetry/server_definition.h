@@ -231,6 +231,33 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kMicroSecondsLowerBound);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kInternalRunQueryLatencyInMicros("InternalRunQueryLatencyInMicros",
+                                     "Latency in internal run query call",
+                                     kLatencyInMicroSecondsBoundaries,
+                                     kMicroSecondsUpperBound,
+                                     kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kInternalGetKeyValuesLatencyInMicros(
+        "InternalGetKeyValuesLatencyInMicros",
+        "Latency in internal get key values call",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kInternalGetKeyValueSetLatencyInMicros(
+        "InternalGetKeyValueSetLatencyInMicros",
+        "Latency in internal get key value set call",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kInternalSecureLookupLatencyInMicros("InternalSecureLookupLatencyInMicros",
@@ -529,6 +556,9 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kInternalRunQueryParsingFailure,
         &kInternalClientDecryptionFailure,
         &kInternalClientUnpaddingRequestError,
+        &kInternalRunQueryLatencyInMicros,
+        &kInternalGetKeyValuesLatencyInMicros,
+        &kInternalGetKeyValueSetLatencyInMicros,
         &kInternalSecureLookupLatencyInMicros,
         &kGetValuePairsLatencyInMicros,
         &kGetKeyValueSetLatencyInMicros};

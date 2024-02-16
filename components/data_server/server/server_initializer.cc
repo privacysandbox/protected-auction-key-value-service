@@ -45,9 +45,7 @@ absl::Status InitializeUdfHooksInternal(
 
 class NonshardedServerInitializer : public ServerInitializer {
  public:
-  explicit NonshardedServerInitializer(MetricsRecorder& metrics_recorder,
-                                       Cache& cache)
-      : metrics_recorder_(metrics_recorder), cache_(cache) {}
+  explicit NonshardedServerInitializer(Cache& cache) : cache_(cache) {}
 
   RemoteLookup CreateAndStartRemoteLookupServer() override {
     RemoteLookup remote_lookup;
@@ -59,9 +57,8 @@ class NonshardedServerInitializer : public ServerInitializer {
       GetValuesHook& binary_get_values_hook,
       RunQueryHook& run_query_hook) override {
     ShardManagerState shard_manager_state;
-    auto lookup_supplier = [&cache = cache_,
-                            &metrics_recorder = metrics_recorder_]() {
-      return CreateLocalLookup(cache, metrics_recorder);
+    auto lookup_supplier = [&cache = cache_]() {
+      return CreateLocalLookup(cache);
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
@@ -70,7 +67,6 @@ class NonshardedServerInitializer : public ServerInitializer {
   }
 
  private:
-  MetricsRecorder& metrics_recorder_;
   Cache& cache_;
 };
 
@@ -185,8 +181,7 @@ std::unique_ptr<ServerInitializer> GetServerInitializer(
     ParameterFetcher& parameter_fetcher, KeySharder key_sharder) {
   CHECK_GT(num_shards, 0) << "num_shards must be greater than 0";
   if (num_shards == 1) {
-    return std::make_unique<NonshardedServerInitializer>(metrics_recorder,
-                                                         cache);
+    return std::make_unique<NonshardedServerInitializer>(cache);
   }
 
   return std::make_unique<ShardedServerInitializer>(

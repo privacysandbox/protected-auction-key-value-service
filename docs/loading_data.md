@@ -203,7 +203,7 @@ The output snapshot file will be written to `$DATA_DIR`.
 
 Data files are written using the [Riegeli](https://github.com/google/riegeli) format and data
 records are stored as [Flatbuffers](https://google.github.io/flatbuffers/). The record schema is
-here: [Flatbuffer record schema](public/data_loading/data_loading.fbs).
+here: [Flatbuffer record schema](/public/data_loading/data_loading.fbs).
 
 The C++ reference library implementation can be found under:
 [C++ data file readers](../public/data_loading/readers) and
@@ -315,7 +315,7 @@ allows to speed up the update latency.
 ![Realtime sequence](assets/realtime_sequence.png)
 
 As per the diagram below, first you should
-[write](<(#using-the-c-reference-library-to-read-and-write-data-files)>) the updates to a delta file
+[write](#using-the-c-reference-library-to-read-and-write-data-files) the updates to a delta file
 that will be uploaded via a standard path later. The purpose of this step is to guarantee that this
 record won't be missed later.
 

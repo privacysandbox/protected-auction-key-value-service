@@ -43,6 +43,12 @@ repos:
   - id: check-executables-have-shebangs
   - id: detect-private-key
 
+- repo: https://github.com/tcort/markdown-link-check
+  rev: v3.11.2
+  hooks:
+    - id: markdown-link-check
+      args: [-c .precommit_configs/markdown-link-check.json]
+
 - repo: https://github.com/jumanjihouse/pre-commit-hooks
   rev: 3.0.0
   hooks:

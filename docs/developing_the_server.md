@@ -76,7 +76,7 @@ The data server provides the read API for the KV service.
 1.  Run the container. Port 50051 can be used to query the server directly through gRPC.
     --environment must be specified. The server will still read data from S3 and the server uses
     environment to find the S3 bucket. The environment is configured as part of the
-    [AWS deployment process](/docs/deploying_on_aws.md).
+    [AWS deployment process](/docs/deployment/deploying_on_aws.md).
 
     Set region. The region should be where your environment is deployed:
 
@@ -193,9 +193,9 @@ curl -L https://github.com/fullstorydev/grpcurl/releases/download/v1.8.1/grpcurl
 ## Develop and run the server inside AWS enclave
 
 The KV service instance should be set up by following the deployment guide
-([AWS](/docs/deploying_on_aws.md)). For faster iteration, enclave image of the server is also
-produced under `dist/`. Once the system has been started, iterating on changes to the server itself
-only requires restarting the enclave image:
+([AWS](/docs/deployment/deploying_on_aws.md)). For faster iteration, enclave image of the server is
+also produced under `dist/`. Once the system has been started, iterating on changes to the server
+itself only requires restarting the enclave image:
 
 1. Copy the new enclave EIF to an AWS EC2 instance that supports nitro enclave. Note: The system has
    a SSH instance that a developer can access. From there the user can access actual server EC2

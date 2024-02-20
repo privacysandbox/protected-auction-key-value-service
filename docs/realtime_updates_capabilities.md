@@ -219,5 +219,6 @@ histogram_quantile(0.5,rate(Latency_bucket{event="ReceivedLowLatencyNotification
 You can query the prometheus the same way it's done for AWS. Note that KV server doesn't expose
 `AwsSqsReceiveMessageLatency`, and `AWS` in the metric name should be substituted with `GCP`.
 
-You can also use the UI [dashboard](../production/terraform/gcp/realtime_pubsub_dashboard.json).
-Make sure to replace PROJECT_ID and ENVIRONMENT with your values.
+You can also use the UI
+[dashboard](/production/terraform/gcp/dashboards/realtime_pubsub_dashboard.json). Make sure to
+replace PROJECT_ID and ENVIRONMENT with your values.

@@ -39,7 +39,10 @@ resource "google_compute_router" "kv_server" {
 }
 
 resource "google_compute_router_nat" "kv_server" {
-  for_each = google_compute_router.kv_server
+  for_each = {
+    for key, value in google_compute_router.kv_server : key => value
+    if !contains(var.regions_use_existing_nat, value.region)
+  }
 
   name                               = "${var.service}-${var.environment}-${each.value.region}-nat"
   router                             = each.value.name

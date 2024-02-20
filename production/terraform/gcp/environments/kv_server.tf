@@ -37,6 +37,7 @@ module "kv_server" {
   service                               = local.kv_service
   service_account_email                 = var.service_account_email
   regions                               = var.regions
+  regions_use_existing_nat              = var.regions_use_existing_nat
   gcp_image_tag                         = var.gcp_image_tag
   gcp_image_repo                        = var.gcp_image_repo
   kv_service_port                       = var.kv_service_port

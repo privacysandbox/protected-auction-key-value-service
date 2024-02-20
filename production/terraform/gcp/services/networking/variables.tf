@@ -29,6 +29,11 @@ variable "regions" {
   type        = set(string)
 }
 
+variable "regions_use_existing_nat" {
+  description = "Regions that use existing nat. No new nats will be created for regions specified here."
+  type        = set(string)
+}
+
 variable "collector_service_name" {
   description = "Assigned name of metrics collection service"
   type        = string

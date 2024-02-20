@@ -44,6 +44,11 @@ variable "regions" {
   type        = set(string)
 }
 
+variable "regions_use_existing_nat" {
+  description = "Regions that use existing nat. No new nats will be created for regions specified here."
+  type        = set(string)
+}
+
 variable "gcp_image_repo" {
   description = "A URL to a docker image repo containing the key-value service"
   type        = string

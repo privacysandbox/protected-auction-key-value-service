@@ -34,6 +34,11 @@ variable "regions" {
   type        = set(string)
 }
 
+variable "regions_use_existing_nat" {
+  description = "Regions that use existing nat. No new nats will be created for regions specified here."
+  type        = set(string)
+}
+
 variable "gcp_image_tag" {
   description = "Tag of the gcp docker image uploaded to the artifact registry."
   type        = string

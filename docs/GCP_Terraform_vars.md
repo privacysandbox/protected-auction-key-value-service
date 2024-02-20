@@ -122,6 +122,10 @@
 
     Regions to deploy to.
 
+-   **regions_use_existing_nat**
+
+    Regions that use existing nat. No new nats will be created for regions specified here.
+
 -   **route_v1_to_v2**
 
     Whether to route V1 requests through V2.

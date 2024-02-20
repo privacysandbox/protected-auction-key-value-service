@@ -109,7 +109,7 @@ cc_library(
 cc_binary(
     name = "blob_storage_util",
     srcs = [
-        "blob_storage_util_aws.cc",
+        "blob_storage_util.cc",
     ],
     deps = [
         ":blob_storage_commands",

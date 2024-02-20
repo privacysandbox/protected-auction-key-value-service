@@ -40,7 +40,6 @@ cc_library(
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_protobuf//:protobuf",
         "@google_privacysandbox_servers_common//src/cpp/telemetry",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -144,7 +143,6 @@ cc_library(
         "//components/query:scanner",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -167,7 +165,6 @@ cc_library(
         "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status:statusor",
         "@com_google_protobuf//:protobuf",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry",
     ],
 )
 
@@ -203,13 +200,12 @@ cc_library(
         ":internal_lookup_cc_grpc",
         ":string_padder",
         "//components/data_server/request_handler:ohttp_client_encryptor",
+        "//components/util:request_context",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 

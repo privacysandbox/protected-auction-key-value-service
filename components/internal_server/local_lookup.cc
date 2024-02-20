@@ -71,6 +71,9 @@ class LocalLookup : public Lookup {
         auto status = result.mutable_status();
         status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
         status->set_message("Key not found");
+        LogInternalLookupRequestErrorMetric(
+            request_context.GetInternalLookupMetricsContext(),
+            kLocalGetKeyValueSetKeySetNotFound);
       } else {
         result.set_value(std::move(key_iter->second));
       }
@@ -97,9 +100,9 @@ class LocalLookup : public Lookup {
         auto status = result.mutable_status();
         status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
         status->set_message("Key not found");
-        LogIfError(
-            request_context.GetInternalLookupMetricsContext()
-                .AccumulateMetric<kKeysNotFoundInKeySetsInLocalLookup>(1));
+        LogInternalLookupRequestErrorMetric(
+            request_context.GetInternalLookupMetricsContext(),
+            kLocalGetKeyValueSetKeySetNotFound);
       } else {
         auto keyset_values = result.mutable_keyset_values();
         keyset_values->mutable_values()->Add(value_set.begin(),
@@ -126,6 +129,9 @@ class LocalLookup : public Lookup {
     kv_server::Parser parse(driver, scanner);
     int parse_result = parse();
     if (parse_result) {
+      LogInternalLookupRequestErrorMetric(
+          request_context.GetInternalLookupMetricsContext(),
+          kLocalRunQueryParsingFailure);
       return absl::InvalidArgumentError("Parsing failure.");
     }
     get_key_value_set_result =
@@ -133,13 +139,15 @@ class LocalLookup : public Lookup {
 
     auto result = driver.GetResult();
     if (!result.ok()) {
+      LogInternalLookupRequestErrorMetric(
+          request_context.GetInternalLookupMetricsContext(),
+          kLocalRunQueryFailure);
       return result.status();
     }
     InternalRunQueryResponse response;
     response.mutable_elements()->Assign(result->begin(), result->end());
     return response;
   }
-
   const Cache& cache_;
 };
 

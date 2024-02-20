@@ -27,11 +27,11 @@
 
 namespace kv_server {
 
-std::unique_ptr<Lookup> CreateShardedLookup(
-    const Lookup& local_lookup, const int32_t num_shards,
-    const int32_t current_shard_num, const ShardManager& shard_manager,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-    KeySharder key_sharder);
+std::unique_ptr<Lookup> CreateShardedLookup(const Lookup& local_lookup,
+                                            const int32_t num_shards,
+                                            const int32_t current_shard_num,
+                                            const ShardManager& shard_manager,
+                                            KeySharder key_sharder);
 
 }  // namespace kv_server
 

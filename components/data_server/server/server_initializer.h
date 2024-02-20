@@ -30,7 +30,6 @@
 #include "grpcpp/grpcpp.h"
 #include "public/sharding/key_sharder.h"
 #include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -59,7 +58,7 @@ class ServerInitializer {
 };
 
 std::unique_ptr<ServerInitializer> GetServerInitializer(
-    int64_t num_shards, MetricsRecorder& metrics_recorder,
+    int64_t num_shards,
     privacy_sandbox::server_common::KeyFetcherManagerInterface&
         key_fetcher_manager,
     Lookup& local_lookup, std::string environment, int32_t current_shard_num,

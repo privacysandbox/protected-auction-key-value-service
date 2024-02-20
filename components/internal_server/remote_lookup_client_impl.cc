@@ -28,13 +28,6 @@
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::ScopeLatencyRecorder;
-
-constexpr char kEncryptionFailure[] = "EncryptionFailure";
-constexpr char kSecureLookupFailure[] = "SecureLookupFailure";
-constexpr char kDecryptionFailure[] = "DecryptionFailure";
-constexpr char kRemoteLookupGetValues[] = "RemoteLookupGetValues";
-
 class RemoteLookupClientImpl : public RemoteLookupClient {
  public:
   RemoteLookupClientImpl(const RemoteLookupClientImpl&) = delete;
@@ -43,34 +36,32 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
   explicit RemoteLookupClientImpl(
       std::string ip_address,
       privacy_sandbox::server_common::KeyFetcherManagerInterface&
-          key_fetcher_manager,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
+          key_fetcher_manager)
       : ip_address_(
             absl::StrFormat("%s:%s", ip_address, kRemoteLookupServerPort)),
         stub_(InternalLookupService::NewStub(grpc::CreateChannel(
             ip_address_, grpc::InsecureChannelCredentials()))),
-        key_fetcher_manager_(key_fetcher_manager),
-        metrics_recorder_(metrics_recorder) {}
+        key_fetcher_manager_(key_fetcher_manager) {}
 
   explicit RemoteLookupClientImpl(
       std::unique_ptr<InternalLookupService::Stub> stub,
       privacy_sandbox::server_common::KeyFetcherManagerInterface&
-          key_fetcher_manager,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
-      : stub_(std::move(stub)),
-        key_fetcher_manager_(key_fetcher_manager),
-        metrics_recorder_(metrics_recorder) {}
+          key_fetcher_manager)
+      : stub_(std::move(stub)), key_fetcher_manager_(key_fetcher_manager) {}
 
   absl::StatusOr<InternalLookupResponse> GetValues(
+      const RequestContext& request_context,
       std::string_view serialized_message,
       int32_t padding_length) const override {
-    ScopeLatencyRecorder latency_recorder(std::string(kRemoteLookupGetValues),
-                                          metrics_recorder_);
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kRemoteLookupGetValuesLatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
     OhttpClientEncryptor encryptor(key_fetcher_manager_);
     auto encrypted_padded_serialized_request_maybe =
         encryptor.EncryptRequest(Pad(serialized_message, padding_length));
     if (!encrypted_padded_serialized_request_maybe.ok()) {
-      metrics_recorder_.IncrementEventCounter(kEncryptionFailure);
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kRemoteRequestEncryptionFailure);
       return encrypted_padded_serialized_request_maybe.status();
     }
     SecureLookupRequest secure_lookup_request;
@@ -81,7 +72,8 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
     grpc::Status status =
         stub_->SecureLookup(&context, secure_lookup_request, &secure_response);
     if (!status.ok()) {
-      metrics_recorder_.IncrementEventCounter(kSecureLookupFailure);
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kRemoteSecureLookupFailure);
       LOG(ERROR) << status.error_code() << ": " << status.error_message();
       return absl::Status((absl::StatusCode)status.error_code(),
                           status.error_message());
@@ -95,7 +87,8 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
     auto decrypted_response_maybe =
         encryptor.DecryptResponse(std::move(secure_response.ohttp_response()));
     if (!decrypted_response_maybe.ok()) {
-      metrics_recorder_.IncrementEventCounter(kDecryptionFailure);
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kResponseEncryptionFailure);
       return decrypted_response_maybe.status();
     }
     if (!response.ParseFromString(*decrypted_response_maybe)) {
@@ -111,7 +104,6 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
   std::unique_ptr<InternalLookupService::Stub> stub_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&
       key_fetcher_manager_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace
@@ -119,18 +111,16 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
 std::unique_ptr<RemoteLookupClient> RemoteLookupClient::Create(
     std::string ip_address,
     privacy_sandbox::server_common::KeyFetcherManagerInterface&
-        key_fetcher_manager,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder) {
-  return std::make_unique<RemoteLookupClientImpl>(
-      std::move(ip_address), key_fetcher_manager, metrics_recorder);
+        key_fetcher_manager) {
+  return std::make_unique<RemoteLookupClientImpl>(std::move(ip_address),
+                                                  key_fetcher_manager);
 }
 std::unique_ptr<RemoteLookupClient> RemoteLookupClient::Create(
     std::unique_ptr<InternalLookupService::Stub> stub,
     privacy_sandbox::server_common::KeyFetcherManagerInterface&
-        key_fetcher_manager,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder) {
-  return std::make_unique<RemoteLookupClientImpl>(
-      std::move(stub), key_fetcher_manager, metrics_recorder);
+        key_fetcher_manager) {
+  return std::make_unique<RemoteLookupClientImpl>(std::move(stub),
+                                                  key_fetcher_manager);
 }
 
 }  // namespace kv_server

@@ -133,7 +133,6 @@ TEST_F(ClusterMappingsGcpTest, UpdateMappings) {
   std::string environment = "testenv";
   std::string project_id = "some-project-id";
   int32_t num_shards = 2;
-  privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager;
   auto instance_client = std::make_unique<MockInstanceClient>();
@@ -141,9 +140,8 @@ TEST_F(ClusterMappingsGcpTest, UpdateMappings) {
   for (int i = 0; i < num_shards; i++) {
     cluster_mappings.push_back({"some_ip"});
   }
-  auto shard_manager_status =
-      ShardManager::Create(num_shards, fake_key_fetcher_manager,
-                           cluster_mappings, mock_metrics_recorder);
+  auto shard_manager_status = ShardManager::Create(
+      num_shards, fake_key_fetcher_manager, cluster_mappings);
   ASSERT_TRUE(shard_manager_status.ok());
   auto shard_manager = std::move(*shard_manager_status);
   absl::Notification finished;

@@ -29,7 +29,6 @@
 #include "components/internal_server/string_padder.h"
 #include "google/protobuf/message.h"
 #include "grpcpp/grpcpp.h"
-#include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
 using google::protobuf::RepeatedPtrField;
@@ -39,8 +38,8 @@ using grpc::StatusCode;
 grpc::Status LookupServiceImpl::ToInternalGrpcStatus(
     const RequestContext& request_context, const absl::Status& status,
     std::string_view error_code) const {
-  LogIfError(request_context.GetInternalLookupMetricsContext()
-                 .AccumulateMetric<kInternalLookupRequestError>(1, error_code));
+  LogInternalLookupRequestErrorMetric(
+      request_context.GetInternalLookupMetricsContext(), error_code);
   return grpc::Status(StatusCode::INTERNAL,
                       absl::StrCat(status.code(), " : ", status.message()));
 }
@@ -170,7 +169,7 @@ grpc::Status LookupServiceImpl::InternalRunQuery(
       lookup_.RunQuery(request_context, request->query());
   if (!process_result.ok()) {
     return ToInternalGrpcStatus(request_context, process_result.status(),
-                                kRunQueryFailure);
+                                kInternalRunQueryRequestFailure);
   }
   *response = *std::move(process_result);
   return grpc::Status::OK;

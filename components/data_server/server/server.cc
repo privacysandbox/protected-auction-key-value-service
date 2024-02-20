@@ -419,9 +419,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   local_lookup_ = CreateLocalLookup(*cache_);
   auto key_sharder = GetKeySharder(parameter_fetcher);
   auto server_initializer = GetServerInitializer(
-      num_shards_, *metrics_recorder_, *key_fetcher_manager_, *local_lookup_,
-      environment_, shard_num_, *instance_client_, *cache_, parameter_fetcher,
-      key_sharder);
+      num_shards_, *key_fetcher_manager_, *local_lookup_, environment_,
+      shard_num_, *instance_client_, *cache_, parameter_fetcher, key_sharder);
   remote_lookup_ = server_initializer->CreateAndStartRemoteLookupServer();
   {
     auto status_or_notifier =

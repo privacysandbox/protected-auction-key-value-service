@@ -37,27 +37,6 @@ namespace kv_server {
 namespace {
 
 using google::protobuf::RepeatedPtrField;
-using privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::ScopeLatencyRecorder;
-
-constexpr char kShardedLookupGrpcFailure[] = "ShardedLookupGrpcFailure";
-constexpr char kInternalRunQuery[] = "InternalRunQuery";
-constexpr char kInternalRunQueryQueryFailure[] = "InternalRunQueryQueryFailure";
-constexpr char kInternalRunQueryKeysetRetrievalFailure[] =
-    "InternalRunQueryKeysetRetrievalFailure";
-constexpr char kInternalRunQueryParsingFailure[] =
-    "InternalRunQueryParsingFailure";
-constexpr char kInternalRunQueryMissingKeyset[] =
-    "InternalRunQueryMissingKeyset";
-constexpr char kInternalRunQueryEmtpyQuery[] = "InternalRunQueryEmtpyQuery";
-constexpr char kKeySetNotFound[] = "KeysetNotFound";
-constexpr char kShardedLookupServerKeyCollisionOnCollection[] =
-    "ShardedLookupServerKeyCollisionOnCollection";
-constexpr char kLookupClientMissing[] = "LookupClientMissing";
-constexpr char kShardedLookupServerRequestFailed[] =
-    "ShardedLookupServerRequestFailed";
-constexpr char kLookupFuturesCreationFailure[] = "LookupFuturesCreationFailure";
-constexpr char kShardedLookupFailure[] = "ShardedLookupFailure";
 
 void UpdateResponse(
     const std::vector<std::string_view>& key_list,
@@ -91,16 +70,14 @@ void SetRequestFailed(const std::vector<std::string_view>& key_list,
 
 class ShardedLookup : public Lookup {
  public:
-  explicit ShardedLookup(
-      const Lookup& local_lookup, const int32_t num_shards,
-      const int32_t current_shard_num, const ShardManager& shard_manager,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      KeySharder key_sharder)
+  explicit ShardedLookup(const Lookup& local_lookup, const int32_t num_shards,
+                         const int32_t current_shard_num,
+                         const ShardManager& shard_manager,
+                         KeySharder key_sharder)
       : local_lookup_(local_lookup),
         num_shards_(num_shards),
         current_shard_num_(current_shard_num),
         shard_manager_(shard_manager),
-        metrics_recorder_(metrics_recorder),
         key_sharder_(std::move(key_sharder)) {
     CHECK_GT(num_shards, 1) << "num_shards for ShardedLookup must be > 1";
   }
@@ -130,8 +107,8 @@ class ShardedLookup : public Lookup {
     auto get_key_value_set_result_maybe =
         GetShardedKeyValueSet(request_context, keys);
     if (!get_key_value_set_result_maybe.ok()) {
-      metrics_recorder_.IncrementEventCounter(
-          kInternalRunQueryKeysetRetrievalFailure);
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedGetKeyValueSetKeySetRetrievalFailure);
       return get_key_value_set_result_maybe.status();
     }
     key_sets = *std::move(get_key_value_set_result_maybe);
@@ -142,7 +119,8 @@ class ShardedLookup : public Lookup {
       if (key_iter == key_sets.end()) {
         auto status = result.mutable_status();
         status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
-        metrics_recorder_.IncrementEventCounter(kKeySetNotFound);
+        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                                 kShardedGetKeyValueSetKeySetNotFound);
       } else {
         auto keyset_values = result.mutable_keyset_values();
         keyset_values->mutable_values()->Add(key_iter->second.begin(),
@@ -155,22 +133,24 @@ class ShardedLookup : public Lookup {
 
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
       const RequestContext& request_context, std::string query) const override {
-    ScopeLatencyRecorder latency_recorder(std::string(kInternalRunQuery),
-                                          metrics_recorder_);
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupRunQueryLatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
     InternalRunQueryResponse response;
     if (query.empty()) {
-      metrics_recorder_.IncrementEventCounter(kInternalRunQueryEmtpyQuery);
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunQueryEmptyQuery);
       return response;
     }
 
     absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> keysets;
-    auto& metrics_recorder = metrics_recorder_;
-    kv_server::Driver driver([&keysets,
-                              &metrics_recorder](std::string_view key) {
+    kv_server::Driver driver([&keysets, this,
+                              &request_context](std::string_view key) {
       const auto key_iter = keysets.find(key);
       if (key_iter == keysets.end()) {
         VLOG(8) << "Driver can't find " << key << "key_set. Returning empty.";
-        metrics_recorder.IncrementEventCounter(kInternalRunQueryMissingKeyset);
+        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                                 kShardedRunQueryMissingKeySet);
         absl::flat_hash_set<std::string_view> set;
         return set;
       } else {
@@ -184,20 +164,22 @@ class ShardedLookup : public Lookup {
     kv_server::Parser parse(driver, scanner);
     int parse_result = parse();
     if (parse_result) {
-      metrics_recorder_.IncrementEventCounter(kInternalRunQueryParsingFailure);
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunQueryParsingFailure);
       return absl::InvalidArgumentError("Parsing failure.");
     }
     auto get_key_value_set_result_maybe =
         GetShardedKeyValueSet(request_context, driver.GetRootNode()->Keys());
     if (!get_key_value_set_result_maybe.ok()) {
-      metrics_recorder_.IncrementEventCounter(
-          kInternalRunQueryKeysetRetrievalFailure);
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunQueryKeySetRetrievalFailure);
       return get_key_value_set_result_maybe.status();
     }
     keysets = std::move(*get_key_value_set_result_maybe);
     auto result = driver.GetResult();
     if (!result.ok()) {
-      metrics_recorder_.IncrementEventCounter(kInternalRunQueryQueryFailure);
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunQueryFailure);
       return result.status();
     }
     VLOG(8) << "Driver results for query " << query;
@@ -286,13 +268,17 @@ class ShardedLookup : public Lookup {
       } else {
         const auto client = shard_manager_.Get(shard_num);
         if (client == nullptr) {
-          metrics_recorder_.IncrementEventCounter(kLookupClientMissing);
+          LogUdfRequestErrorMetric(
+              request_context.GetUdfRequestMetricsContext(),
+              kLookupClientMissing);
           return absl::InternalError("Internal lookup client is unavailable.");
         }
         responses.push_back(std::async(
             std::launch::async,
-            [client](std::string_view serialized_request, int32_t padding) {
-              return client->GetValues(serialized_request, padding);
+            [client, &request_context](std::string_view serialized_request,
+                                       int32_t padding) {
+              return client->GetValues(request_context, serialized_request,
+                                       padding);
             },
             shard_lookup_input.serialized_request, shard_lookup_input.padding));
       }
@@ -350,8 +336,8 @@ class ShardedLookup : public Lookup {
       auto result = (*responses)[shard_num].get();
       if (!result.ok()) {
         // mark all keys as internal failure
-        metrics_recorder_.IncrementEventCounter(
-            kShardedLookupServerRequestFailed);
+        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                                 kShardedKeyValueRequestFailure);
         SetRequestFailed(shard_lookup_input.keys, response);
         continue;
       }
@@ -381,8 +367,9 @@ class ShardedLookup : public Lookup {
           auto [_, inserted] =
               key_sets.insert_or_assign(key, std::move(value_set));
           if (!inserted) {
-            metrics_recorder_.IncrementEventCounter(
-                kShardedLookupServerKeyCollisionOnCollection);
+            LogUdfRequestErrorMetric(
+                request_context.GetUdfRequestMetricsContext(),
+                kShardedKeyCollisionOnKeySetCollection);
             LOG(ERROR) << "Key collision, when collecting results from shards: "
                        << key;
           }
@@ -404,7 +391,8 @@ class ShardedLookup : public Lookup {
           return GetLocalKeyValuesSet(request_context, key_list);
         });
     if (!responses.ok()) {
-      metrics_recorder_.IncrementEventCounter(kLookupFuturesCreationFailure);
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kLookupClientMissing);
       return responses.status();
     }
     // process responses
@@ -413,7 +401,8 @@ class ShardedLookup : public Lookup {
       auto& shard_lookup_input = shard_lookup_inputs[shard_num];
       auto result = (*responses)[shard_num].get();
       if (!result.ok()) {
-        metrics_recorder_.IncrementEventCounter(kShardedLookupFailure);
+        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                                 kShardedKeyValueSetRequestFailure);
         return result.status();
       }
       CollectKeySets(request_context, key_sets, *result);
@@ -426,20 +415,19 @@ class ShardedLookup : public Lookup {
   const int32_t current_shard_num_;
   const std::string hashing_seed_;
   const ShardManager& shard_manager_;
-  MetricsRecorder& metrics_recorder_;
   KeySharder key_sharder_;
 };
 
 }  // namespace
 
-std::unique_ptr<Lookup> CreateShardedLookup(
-    const Lookup& local_lookup, const int32_t num_shards,
-    const int32_t current_shard_num, const ShardManager& shard_manager,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-    KeySharder key_sharder) {
-  return std::make_unique<ShardedLookup>(
-      local_lookup, num_shards, current_shard_num, shard_manager,
-      metrics_recorder, std::move(key_sharder));
+std::unique_ptr<Lookup> CreateShardedLookup(const Lookup& local_lookup,
+                                            const int32_t num_shards,
+                                            const int32_t current_shard_num,
+                                            const ShardManager& shard_manager,
+                                            KeySharder key_sharder) {
+  return std::make_unique<ShardedLookup>(local_lookup, num_shards,
+                                         current_shard_num, shard_manager,
+                                         std::move(key_sharder));
 }
 
 }  // namespace kv_server

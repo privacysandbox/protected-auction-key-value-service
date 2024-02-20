@@ -28,7 +28,6 @@ namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Return;
 
@@ -43,21 +42,26 @@ class RemoteLookupClientImplTest : public ::testing::Test {
     remote_lookup_client_ = RemoteLookupClient::Create(
         InternalLookupService::NewStub(
             server_->InProcessChannel(grpc::ChannelArguments())),
-        fake_key_fetcher_manager_, mock_metrics_recorder_);
+        fake_key_fetcher_manager_);
     InitMetricsContextMap();
+    scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
+    request_context_ =
+        std::make_unique<RequestContext>(*scope_metrics_context_);
   }
 
   ~RemoteLookupClientImplTest() {
     server_->Shutdown();
     server_->Wait();
   }
+  RequestContext& GetRequestContext() { return *request_context_; }
   MockLookup mock_lookup_;
-  MockMetricsRecorder mock_metrics_recorder_;
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager_;
   std::unique_ptr<LookupServiceImpl> lookup_service_;
   std::unique_ptr<grpc::Server> server_;
   std::unique_ptr<RemoteLookupClient> remote_lookup_client_;
+  std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
+  std::unique_ptr<RequestContext> request_context_;
 };
 
 TEST_F(RemoteLookupClientImplTest, EncryptedPaddedSuccessfulCall) {
@@ -80,8 +84,8 @@ TEST_F(RemoteLookupClientImplTest, EncryptedPaddedSuccessfulCall) {
                               &local_lookup_response);
   EXPECT_CALL(mock_lookup_, GetKeyValues(_, _))
       .WillOnce(Return(local_lookup_response));
-  auto response_status =
-      remote_lookup_client_->GetValues(serialized_message, padding_length);
+  auto response_status = remote_lookup_client_->GetValues(
+      GetRequestContext(), serialized_message, padding_length);
   EXPECT_TRUE(response_status.ok());
   InternalLookupResponse response = *response_status;
   InternalLookupResponse expected;
@@ -105,8 +109,8 @@ TEST_F(RemoteLookupClientImplTest, EncryptedPaddedEmptySuccessfulCall) {
   request.set_lookup_sets(false);
   std::string serialized_message = request.SerializeAsString();
   int32_t padding_length = 10;
-  auto response_status =
-      remote_lookup_client_->GetValues(serialized_message, padding_length);
+  auto response_status = remote_lookup_client_->GetValues(
+      GetRequestContext(), serialized_message, padding_length);
   EXPECT_TRUE(response_status.ok());
   InternalLookupResponse response = *response_status;
   InternalLookupResponse expected;
@@ -133,8 +137,8 @@ TEST_F(RemoteLookupClientImplTest, EncryptedPaddedSuccessfulKeysettLookup) {
   EXPECT_CALL(mock_lookup_, GetKeyValueSet(_, _))
       .WillOnce(Return(local_lookup_response));
 
-  auto response_status =
-      remote_lookup_client_->GetValues(serialized_message, padding_length);
+  auto response_status = remote_lookup_client_->GetValues(
+      GetRequestContext(), serialized_message, padding_length);
   EXPECT_TRUE(response_status.ok());
 
   InternalLookupResponse response = *response_status;
@@ -160,8 +164,8 @@ TEST_F(RemoteLookupClientImplTest,
   request.set_lookup_sets(true);
   std::string serialized_message = request.SerializeAsString();
   int32_t padding_length = 10;
-  auto response_status =
-      remote_lookup_client_->GetValues(serialized_message, padding_length);
+  auto response_status = remote_lookup_client_->GetValues(
+      GetRequestContext(), serialized_message, padding_length);
   EXPECT_TRUE(response_status.ok());
 
   InternalLookupResponse response = *response_status;

@@ -33,7 +33,8 @@ class MockRemoteLookupClient : public RemoteLookupClient {
  public:
   MockRemoteLookupClient() : RemoteLookupClient() {}
   MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetValues,
-              (std::string_view serialized_message, int32_t padding_length),
+              (const RequestContext& request_context,
+               std::string_view serialized_message, int32_t padding_length),
               (const, override));
   MOCK_METHOD(std::string_view, GetIpAddress, (), (const, override));
 };

@@ -15,7 +15,7 @@
 #include "absl/log/log.h"
 #include "aws/core/Aws.h"
 #include "components/util/platform_initializer.h"
-#include "public/cpio/interface/cpio.h"
+#include "scp/cc/public/cpio/interface/cpio.h"
 
 namespace kv_server {
 using google::scp::cpio::Cpio;

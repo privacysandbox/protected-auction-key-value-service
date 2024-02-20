@@ -25,7 +25,7 @@
 #include "absl/functional/any_invocable.h"
 #include "components/internal_server/lookup.h"
 #include "components/util/request_context.h"
-#include "roma/config/src/function_binding_object_v2.h"
+#include "scp/cc/roma/config/src/function_binding_object_v2.h"
 
 namespace kv_server {
 

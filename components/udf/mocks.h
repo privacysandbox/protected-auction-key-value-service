@@ -25,7 +25,7 @@
 #include "components/udf/code_config.h"
 #include "components/udf/udf_client.h"
 #include "gmock/gmock.h"
-#include "roma/interface/roma.h"
+#include "scp/cc/roma/interface/roma.h"
 
 namespace kv_server {
 

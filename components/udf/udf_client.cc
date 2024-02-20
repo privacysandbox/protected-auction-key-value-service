@@ -28,9 +28,9 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
 #include "google/protobuf/util/json_util.h"
-#include "roma/config/src/config.h"
-#include "roma/interface/roma.h"
-#include "roma/roma_service/roma_service.h"
+#include "scp/cc/roma/config/src/config.h"
+#include "scp/cc/roma/interface/roma.h"
+#include "scp/cc/roma/roma_service/roma_service.h"
 
 namespace kv_server {
 

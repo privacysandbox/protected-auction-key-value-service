@@ -62,6 +62,9 @@ lexicographically greater than older snapshot files. SNpashot files have the fol
 -   Contains the entire set of key/value records since the beginning of time.
 -   There are no enforced size limits for snapshot files.
 
+See [File groups](file_groups.md#file-groups) on how to improve snapshot generation scalability and
+throughput.
+
 # Experimenting with sample data
 
 ## Generate sample data

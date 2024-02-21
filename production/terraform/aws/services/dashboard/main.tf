@@ -225,7 +225,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "height": 9,
             "properties": {
                 "metrics": [
-                     [ { "expression": "SELECT COUNT(ChangeNotifierErrors) FROM SCHEMA(\"KV-Server\",Noise,OTelLib,\"deployment.environment\",error_code,\"host.arch\",\"service.instance.id\",\"service.name\",\"service.version\",shard_number,\"telemetry.sdk.language\",\"telemetry.sdk.name\",\"telemetry.sdk.version\") WHERE \"deployment.environment\" = '${var.environment}' GROUP BY error_code, \"service.instance.id\"", "label": "error rate", "id": "m1", "stat": "Average", "visible": false } ],
+                     [ { "expression": "SELECT COUNT(KVServerError) FROM SCHEMA(\"KV-Server\",Noise,OTelLib,\"deployment.environment\",error_code,\"generation_id\",\"host.arch\",\"service.instance.id\",\"service.name\",\"service.version\",shard_number,\"telemetry.sdk.language\",\"telemetry.sdk.name\",\"telemetry.sdk.version\") WHERE \"deployment.environment\" = '${var.environment}' GROUP BY error_code, \"service.instance.id\"", "label": "error rate", "id": "m1", "stat": "Average", "visible": false } ],
                      [ { "expression": "DIFF(m1)", "label": "error count", "id": "e1" } ]
                 ],
                 "view": "timeSeries",

@@ -47,10 +47,7 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
       if (!parsedMessage.ok()) {
         LOG(ERROR) << "Failed to parse JSON. Error: " << parsedMessage.status()
                    << " Message:" << message;
-        LogIfError(KVServerContextMap()
-                       ->SafeMetric()
-                       .LogUpDownCounter<kChangeNotifierErrors>(
-                           {{std::string(kAwsJsonParseError), 1}}));
+        LogServerErrorMetric(kAwsJsonParseError);
         continue;
       }
       parsed_notifications.push_back(std::move(*parsedMessage));

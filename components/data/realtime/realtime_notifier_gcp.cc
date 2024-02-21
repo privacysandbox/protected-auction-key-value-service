@@ -113,9 +113,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
     auto start = absl::Now();
     std::string string_decoded;
     if (!absl::Base64Unescape(m.data(), &string_decoded)) {
-      LogIfError(
-          KVServerContextMap()->SafeMetric().LogUpDownCounter<kRealtimeErrors>(
-              {{std::string(kRealtimeDecodeMessageFailure), 1}}));
+      LogServerErrorMetric(kRealtimeDecodeMessageFailure);
       LOG(ERROR) << "The body of the message is not a base64 encoded string.";
       std::move(h).ack();
       return;
@@ -129,9 +127,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
                                              count->total_deleted_records)));
     } else {
       LOG(ERROR) << "Data loading callback failed: " << count.status();
-      LogIfError(
-          KVServerContextMap()->SafeMetric().LogUpDownCounter<kRealtimeErrors>(
-              {{std::string(kRealtimeMessageApplicationFailure), 1}}));
+      LogServerErrorMetric(kRealtimeMessageApplicationFailure);
     }
     RecordGcpSuppliedE2ELatency(m);
     RecordProducerSuppliedE2ELatency(m);

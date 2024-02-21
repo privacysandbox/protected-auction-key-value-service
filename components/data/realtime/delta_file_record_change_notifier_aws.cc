@@ -65,12 +65,7 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
       if (!parsedMessage.ok()) {
         LOG(ERROR) << "Failed to parse JSON: " << message
                    << ", error: " << parsedMessage.status();
-        LogIfError(
-            KVServerContextMap()
-                ->SafeMetric()
-                .LogUpDownCounter<kChangeNotifierErrors>(
-                    {{std::string(kDeltaFileRecordChangeNotifierParsingFailure),
-                      1}}));
+        LogServerErrorMetric(kDeltaFileRecordChangeNotifierParsingFailure);
         continue;
       }
       nc.realtime_messages.push_back(RealtimeMessage{

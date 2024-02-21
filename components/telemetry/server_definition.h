@@ -275,15 +275,8 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
-    kChangeNotifierErrors("ChangeNotifierErrors",
-                          "Errors in the change notifier", "error_code",
-                          kChangeNotifierErrorCode);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
-    kRealtimeErrors("RealtimeErrors", "Errors in realtime data loading",
-                    "error_code", kRealtimeErrorCode);
+    kKVServerError("KVServerError", "Non request related server errors",
+                   "error_code", kKVServerErrorCode);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
@@ -407,6 +400,7 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kKVUdfRequestError, &kShardedLookupRunQueryLatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros,
         // Safe metrics
+        &kKVServerError,
         &privacy_sandbox::server_common::metrics::kServerTotalTimeMs,
         &kGetParameterStatus, &kCompleteLifecycleStatus,
         &kCreateDataOrchestratorStatus, &kStartDataOrchestratorStatus,
@@ -415,8 +409,7 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kRealtimeTotalRowsUpdated,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
-        &kChangeNotifierErrors, &kRealtimeErrors, &kAwsSqsReceiveMessageLatency,
-        &kSeekingInputStreambufSeekoffLatency,
+        &kAwsSqsReceiveMessageLatency, &kSeekingInputStreambufSeekoffLatency,
         &kSeekingInputStreambufSizeLatency,
         &kSeekingInputStreambufUnderflowLatency,
         &kTotalRowsDroppedInDataLoading, &kTotalRowsUpdatedInDataLoading,
@@ -547,6 +540,13 @@ inline void LogInternalLookupRequestErrorMetric(
     std::string_view error_code) {
   LogIfError(metrics_context.AccumulateMetric<kInternalLookupRequestError>(
       1, error_code));
+}
+
+// Logs non-request related error metrics
+inline void LogServerErrorMetric(std::string_view error_code) {
+  LogIfError(
+      KVServerContextMap()->SafeMetric().LogUpDownCounter<kKVServerError>(
+          {{std::string(error_code), 1}}));
 }
 
 // ScopeMetricsContext provides metrics context ties to the request and

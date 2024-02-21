@@ -82,18 +82,11 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
             ExponentialBackoffForRetry(sequential_failures);
         LOG(ERROR) << "Failed to get realtime notifications: "
                    << updates.status() << ".  Waiting for " << backoff_time;
-        LogIfError(
-            KVServerContextMap()
-                ->SafeMetric()
-                .LogUpDownCounter<kRealtimeErrors>(
-                    {{std::string(kRealtimeGetNotificationsFailure), 1}}));
+        LogServerErrorMetric(kRealtimeGetNotificationsFailure);
         if (!sleep_for_->Duration(backoff_time)) {
           LOG(ERROR) << "Failed to sleep for " << backoff_time
                      << ".  SleepFor invalid.";
-          LogIfError(KVServerContextMap()
-                         ->SafeMetric()
-                         .LogUpDownCounter<kRealtimeErrors>(
-                             {{std::string(kRealtimeSleepFailure), 1}}));
+          LogServerErrorMetric(kRealtimeSleepFailure);
         }
         continue;
       }

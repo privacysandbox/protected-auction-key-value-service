@@ -78,11 +78,7 @@ class AwsChangeNotifier : public ChangeNotifier {
         absl::Status status = queue_manager_->SetupQueue();
         if (!status.ok()) {
           LOG(ERROR) << "Could not set up queue for topic " << sns_arn_;
-          LogIfError(
-              KVServerContextMap()
-                  ->SafeMetric()
-                  .LogUpDownCounter<kChangeNotifierErrors>(
-                      {{std::string(kAwsChangeNotifierQueueSetupFailure), 1}}));
+          LogServerErrorMetric(kAwsChangeNotifierQueueSetupFailure);
           return status;
         }
       }
@@ -130,10 +126,7 @@ class AwsChangeNotifier : public ChangeNotifier {
       } else {
         LOG(ERROR) << "Failed to TagQueue with " << kLastUpdatedTag << ": "
                    << tag << " " << status;
-        LogIfError(KVServerContextMap()
-                       ->SafeMetric()
-                       .LogUpDownCounter<kChangeNotifierErrors>(
-                           {{std::string(kAwsChangeNotifierTagFailure), 1}}));
+        LogServerErrorMetric(kAwsChangeNotifierTagFailure);
       }
     }
   }
@@ -155,13 +148,7 @@ class AwsChangeNotifier : public ChangeNotifier {
     if (!outcome.IsSuccess()) {
       LOG(ERROR) << "Failed to receive message from SQS: "
                  << outcome.GetError().GetMessage();
-
-      LogIfError(
-          KVServerContextMap()
-              ->SafeMetric()
-              .LogUpDownCounter<kChangeNotifierErrors>(
-                  {{std::string(kAwsChangeNotifierMessagesReceivingFailure),
-                    1}}));
+      LogServerErrorMetric(kAwsChangeNotifierMessagesReceivingFailure);
       if (!outcome.GetError().ShouldRetry()) {
         // Handle case where recreating Queue will resolve the issue.
         // Example: Queue accidentally deleted.
@@ -186,11 +173,7 @@ class AwsChangeNotifier : public ChangeNotifier {
     }
     DeleteMessages(GetSqsUrl(), messages);
     if (keys.empty()) {
-      LogIfError(
-          KVServerContextMap()
-              ->SafeMetric()
-              .LogUpDownCounter<kChangeNotifierErrors>(
-                  {{std::string(kAwsChangeNotifierMessagesDataLoss), 1}}));
+      LogServerErrorMetric(kAwsChangeNotifierMessagesDataLoss);
       return absl::DataLossError("All messages invalid.");
     }
     return keys;
@@ -216,12 +199,7 @@ class AwsChangeNotifier : public ChangeNotifier {
     if (!outcome.IsSuccess()) {
       LOG(ERROR) << "Failed to delete message from SQS: "
                  << outcome.GetError().GetMessage();
-      LogIfError(
-          KVServerContextMap()
-              ->SafeMetric()
-              .LogUpDownCounter<kChangeNotifierErrors>(
-                  {{std::string(kAwsChangeNotifierMessagesDeletionFailure),
-                    1}}));
+      LogServerErrorMetric(kAwsChangeNotifierMessagesDeletionFailure);
     }
   }
 

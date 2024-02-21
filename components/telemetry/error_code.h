@@ -123,8 +123,6 @@ inline constexpr std::string_view kShardedRunQueryMissingKeySet =
 inline constexpr std::string_view kShardedRunQueryParsingFailure =
     "ShardedRunQueryParsingFailure";
 
-// TODO(b/304311724): Revisit the error codes and provide utililities to make
-//  it easier to log error metrics
 // Strings must be sorted, this is required by the API of partitioned metrics
 inline constexpr absl::string_view kKVUdfRequestErrorCode[] = {
     kLookupClientMissing,
@@ -144,8 +142,9 @@ inline constexpr absl::string_view kKVUdfRequestErrorCode[] = {
     kShardedRunQueryParsingFailure,
 };
 
+// Non request related server error
 // Strings must be sorted, this is required by the API of partitioned metrics
-inline constexpr absl::string_view kChangeNotifierErrorCode[] = {
+inline constexpr std::string_view kKVServerErrorCode[] = {
     kAwsChangeNotifierMessagesDataLoss,
     kAwsChangeNotifierMessagesDeletionFailure,
     kAwsChangeNotifierMessagesReceivingFailure,
@@ -153,10 +152,6 @@ inline constexpr absl::string_view kChangeNotifierErrorCode[] = {
     kAwsChangeNotifierTagFailure,
     kAwsJsonParseError,
     kDeltaFileRecordChangeNotifierParsingFailure,
-};
-
-// Strings must be sorted, this is required by the API of partitioned metrics
-inline constexpr absl::string_view kRealtimeErrorCode[] = {
     kRealtimeDecodeMessageFailure,
     kRealtimeGetNotificationsFailure,
     kRealtimeMessageApplicationFailure,

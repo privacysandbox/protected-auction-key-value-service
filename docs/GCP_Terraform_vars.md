@@ -36,6 +36,11 @@
 
     Number of parallel threads for reading and loading data files.
 
+-   **enable_external_traffic**
+
+    Whether to serve external traffic. If disabled, only internal traffic via service mesh will be
+    served.
+
 -   **environment**
 
     Assigned environment name to group related resources. Also servers as gcp image tag.
@@ -43,7 +48,7 @@
 -   **envoy_port**
 
     External load balancer will send traffic to this port. Envoy will forward traffic to
-    kv_service_port. Must match envoy.yaml.
+    kv_service_port. Must match envoy.yaml. Ignored if `enable_external_traffic` is false.
 
 -   **existing_service_mesh**
 
@@ -144,15 +149,16 @@
 
 -   **server_dns_zone**
 
-    Dns zone for Kv-serer.
+    Dns zone for Kv-serer. Ignored if `enable_external_traffic` is false.
 
 -   **server_domain_ssl_certificate_id**
 
-    Ssl certificate id of the Kv-server domain.
+    Ssl certificate id of the Kv-server domain. Ignored if `enable_external_traffic` is false.
 
 -   **server_url**
 
-    Kv-serer URL. Example: kv-server-environment.example.com
+    Kv-serer URL. Example: kv-server-environment.example.com. Ignored if `enable_external_traffic`
+    is false.
 
 -   **service_account_email**
 

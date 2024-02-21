@@ -28,5 +28,5 @@ output "collector_ip_address" {
 }
 
 output "server_ip_address" {
-  value = google_compute_global_address.kv_server.address
+  value = one(google_compute_global_address.kv_server[*].address)
 }

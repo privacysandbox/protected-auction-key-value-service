@@ -105,9 +105,12 @@ resource "google_compute_region_instance_group_manager" "kv_server" {
     port = var.service_port
   }
 
-  named_port {
-    name = "envoy"
-    port = var.envoy_port
+  dynamic "named_port" {
+    for_each = var.enable_external_traffic ? toset([1]) : toset([])
+    content {
+      name = "envoy"
+      port = var.envoy_port
+    }
   }
 
   base_instance_name = "${var.service}-${var.environment}"

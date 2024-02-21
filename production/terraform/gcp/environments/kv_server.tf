@@ -65,6 +65,7 @@ module "kv_server" {
   use_existing_service_mesh             = var.use_existing_service_mesh
   existing_service_mesh                 = var.existing_service_mesh
   service_mesh_address                  = var.service_mesh_address
+  enable_external_traffic               = var.enable_external_traffic
 
   parameters = {
     data-bucket-id                            = var.data_bucket_id
@@ -96,5 +97,6 @@ module "kv_server" {
     tls-key                                   = var.tls_key
     tls-cert                                  = var.tls_cert
     enable-otel-logger                        = var.enable_otel_logger
+    enable-external-traffic                   = var.enable_external_traffic
   }
 }

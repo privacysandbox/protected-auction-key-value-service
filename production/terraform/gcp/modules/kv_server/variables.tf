@@ -186,3 +186,9 @@ variable "service_mesh_address" {
   default     = "xds:///kv-service-host"
   type        = string
 }
+
+variable "enable_external_traffic" {
+  description = "Whether to serve external traffic. If disabled, only internal traffic via service mesh will be served."
+  default     = true
+  type        = bool
+}

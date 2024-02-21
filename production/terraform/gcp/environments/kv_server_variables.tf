@@ -55,32 +55,34 @@ variable "kv_service_port" {
 }
 
 variable "envoy_port" {
-  description = "External load balancer will send traffic to this port. Envoy will forward traffic to kv_service_port. Must match envoy.yaml."
+  description = "External load balancer will send traffic to this port. Envoy will forward traffic to kv_service_port. Must match envoy.yaml. Ignored if `enable_external_traffic` is false."
   type        = number
 }
 
 variable "server_url" {
-  description = "Kv-serer URL. Example: kv-server-environment.example.com"
+  description = "Kv-serer URL. Example: kv-server-environment.example.com. Ignored if `enable_external_traffic` is false."
   type        = string
 }
 
 variable "server_dns_zone" {
-  description = "Google Cloud Dns zone for Kv-serer."
+  description = "Google Cloud Dns zone for Kv-serer. Ignored if `enable_external_traffic` is false."
   type        = string
 }
 
 variable "server_domain_ssl_certificate_id" {
-  description = "Ssl certificate id of the Kv-server URL."
+  description = "Ssl certificate id of the Kv-server URL. Ignored if `enable_external_traffic` is false."
   type        = string
 }
 
 variable "tls_key" {
-  description = "TLS key. Please specify this variable in a tfvars file (e.g., secrets.auto.tfvars) under the `environments` directory."
+  description = "TLS key. Please specify this variable in a tfvars file (e.g., secrets.auto.tfvars) under the `environments` directory. Ignored if `enable_external_traffic` is false."
+  default     = "NOT_PROVIDED"
   type        = string
 }
 
 variable "tls_cert" {
-  description = "TLS cert. Please specify this variable in a tfvars file (e.g., secrets.auto.tfvars) under the `environments` directory."
+  description = "TLS cert. Please specify this variable in a tfvars file (e.g., secrets.auto.tfvars) under the `environments` directory. Ignored if `enable_external_traffic` is false."
+  default     = "NOT_PROVIDED"
   type        = string
 }
 
@@ -294,6 +296,12 @@ variable "service_mesh_address" {
 
 variable "enable_otel_logger" {
   description = "Whether to use otel logger."
+  default     = true
+  type        = bool
+}
+
+variable "enable_external_traffic" {
+  description = "Whether to serve external traffic. If disabled, only internal traffic via service mesh will be served."
   default     = true
   type        = bool
 }

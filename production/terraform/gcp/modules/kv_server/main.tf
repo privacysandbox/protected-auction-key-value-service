@@ -23,6 +23,7 @@ module "networking" {
   collector_service_name   = var.collector_service_name
   use_existing_vpc         = var.use_existing_vpc
   existing_vpc_id          = var.existing_vpc_id
+  enable_external_traffic  = var.enable_external_traffic
 }
 
 module "security" {
@@ -56,6 +57,7 @@ module "autoscaling" {
   parameters                            = var.parameters
   tee_impersonate_service_accounts      = var.tee_impersonate_service_accounts
   shard_num                             = count.index
+  enable_external_traffic               = var.enable_external_traffic
 }
 
 module "metrics_collector_autoscaling" {
@@ -95,9 +97,12 @@ module "service_mesh" {
   collector_tcp_proxy       = module.metrics_collector.collector_tcp_proxy
   use_existing_service_mesh = var.use_existing_service_mesh
   existing_service_mesh     = var.existing_service_mesh
+  enable_external_traffic   = var.enable_external_traffic
 }
 
 module "external_load_balancing" {
+  count = var.enable_external_traffic ? 1 : 0
+
   source                           = "../../services/external_load_balancing"
   service                          = var.service
   environment                      = var.environment

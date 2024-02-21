@@ -62,6 +62,7 @@ resource "google_compute_global_address" "collector" {
 }
 
 resource "google_compute_global_address" "kv_server" {
+  count      = var.enable_external_traffic ? 1 : 0
   name       = "${var.service}-${var.environment}-xlb-ip"
   ip_version = "IPV4"
 }

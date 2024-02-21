@@ -48,3 +48,9 @@ variable "existing_vpc_id" {
   description = "Existing vpc id. This would only be used if use_existing_vpc is true."
   type        = string
 }
+
+variable "enable_external_traffic" {
+  description = "Whether to serve external traffic. If disabled, only internal traffic via service mesh will be served."
+  default     = true
+  type        = bool
+}

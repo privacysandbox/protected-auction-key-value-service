@@ -28,7 +28,6 @@ cc_library(
         "//components/data_server/request_handler:get_values_handler",
         "//public/query:get_values_cc_grpc",
         "@com_github_grpc_grpc//:grpc++",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 

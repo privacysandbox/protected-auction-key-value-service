@@ -26,13 +26,9 @@
 #include "grpcpp/grpcpp.h"
 #include "public/constants.h"
 #include "public/query/get_values.grpc.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 #include "src/google/protobuf/message.h"
 #include "src/google/protobuf/struct.pb.h"
-
-constexpr char* kCacheKeyHit = "CacheKeyHit";
-constexpr char* kCacheKeyMiss = "CacheKeyMiss";
 
 namespace kv_server {
 namespace {
@@ -40,8 +36,6 @@ using google::protobuf::RepeatedPtrField;
 using google::protobuf::Struct;
 using google::protobuf::Value;
 using grpc::StatusCode;
-using privacy_sandbox::server_common::GetTracer;
-using privacy_sandbox::server_common::MetricsRecorder;
 using v1::GetValuesRequest;
 using v1::GetValuesResponse;
 using v1::KeyValueService;
@@ -60,17 +54,12 @@ absl::flat_hash_set<std::string_view> GetKeys(
 
 void ProcessKeys(const RequestContext& request_context,
                  const RepeatedPtrField<std::string>& keys, const Cache& cache,
-                 MetricsRecorder& metrics_recorder,
                  google::protobuf::Map<std::string, v1::V1SingleLookupResult>&
                      result_struct) {
   if (keys.empty()) return;
   auto actual_keys = GetKeys(keys);
   auto kv_pairs = cache.GetKeyValuePairs(request_context, actual_keys);
-
-  if (kv_pairs.empty())
-    metrics_recorder.IncrementEventCounter(kCacheKeyMiss);
-  else
-    metrics_recorder.IncrementEventCounter(kCacheKeyHit);
+  // TODO(b/326118416): Record cache hit and miss metrics
   for (const auto& key : actual_keys) {
     v1::V1SingleLookupResult result;
     const auto key_iter = kv_pairs.find(key);
@@ -98,10 +87,9 @@ void ProcessKeys(const RequestContext& request_context,
 
 }  // namespace
 
-grpc::Status GetValuesHandler::GetValues(const GetValuesRequest& request,
+grpc::Status GetValuesHandler::GetValues(const RequestContext& request_context,
+                                         const GetValuesRequest& request,
                                          GetValuesResponse* response) const {
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
   if (use_v2_) {
     VLOG(5) << "Using V2 adapter for " << request.DebugString();
     return adapter_.CallV2Handler(request, *response);
@@ -109,23 +97,22 @@ grpc::Status GetValuesHandler::GetValues(const GetValuesRequest& request,
   if (!request.kv_internal().empty()) {
     VLOG(5) << "Processing kv_internal for " << request.DebugString();
     ProcessKeys(request_context, request.kv_internal(), cache_,
-                metrics_recorder_, *response->mutable_kv_internal());
+                *response->mutable_kv_internal());
   }
   if (!request.keys().empty()) {
     VLOG(5) << "Processing keys for " << request.DebugString();
-    ProcessKeys(request_context, request.keys(), cache_, metrics_recorder_,
+    ProcessKeys(request_context, request.keys(), cache_,
                 *response->mutable_keys());
   }
   if (!request.render_urls().empty()) {
     VLOG(5) << "Processing render_urls for " << request.DebugString();
     ProcessKeys(request_context, request.render_urls(), cache_,
-                metrics_recorder_, *response->mutable_render_urls());
+                *response->mutable_render_urls());
   }
   if (!request.ad_component_render_urls().empty()) {
     VLOG(5) << "Processing ad_component_render_urls for "
             << request.DebugString();
     ProcessKeys(request_context, request.ad_component_render_urls(), cache_,
-                metrics_recorder_,
                 *response->mutable_ad_component_render_urls());
   }
   return grpc::Status::OK;

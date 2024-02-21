@@ -24,7 +24,6 @@
 #include "components/data_server/request_handler/get_values_adapter.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/get_values.grpc.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/google/protobuf/struct.pb.h"
 
 namespace kv_server {
@@ -33,24 +32,20 @@ namespace kv_server {
 // See the Service proto definition for details.
 class GetValuesHandler {
  public:
-  explicit GetValuesHandler(
-      const Cache& cache, const GetValuesAdapter& adapter,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      bool use_v2)
+  explicit GetValuesHandler(const Cache& cache, const GetValuesAdapter& adapter,
+                            bool use_v2)
       : cache_(std::move(cache)),
         adapter_(std::move(adapter)),
-        metrics_recorder_(metrics_recorder),
         use_v2_(use_v2) {}
 
   // TODO: Implement hostname, ad/render url lookups.
-  grpc::Status GetValues(const v1::GetValuesRequest& request,
+  grpc::Status GetValues(const RequestContext& request_context,
+                         const v1::GetValuesRequest& request,
                          v1::GetValuesResponse* response) const;
 
  private:
   const Cache& cache_;
   const GetValuesAdapter& adapter_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
-
   // If true, routes requests through V2 (UDF). Otherwise, calls cache.
   const bool use_v2_;
 };

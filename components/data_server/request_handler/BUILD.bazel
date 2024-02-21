@@ -40,8 +40,6 @@ cc_library(
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 

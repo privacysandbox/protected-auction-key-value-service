@@ -28,7 +28,6 @@
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
@@ -48,10 +47,17 @@ using v1::GetValuesResponse;
 
 class GetValuesHandlerTest : public ::testing::Test {
  protected:
-  void SetUp() override { InitMetricsContextMap(); }
+  GetValuesHandlerTest() {
+    InitMetricsContextMap();
+    scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
+    request_context_ =
+        std::make_unique<RequestContext>(*scope_metrics_context_);
+  }
   MockCache mock_cache_;
-  MockMetricsRecorder mock_metrics_recorder_;
   MockGetValuesAdapter mock_get_values_adapter_;
+  RequestContext& GetRequestContext() { return *request_context_; }
+  std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
+  std::unique_ptr<RequestContext> request_context_;
 };
 
 TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
@@ -63,9 +69,9 @@ TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
   request.add_keys("my_key");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/false);
-  const auto result = handler.GetValues(request, &response);
+  const auto result =
+      handler.GetValues(GetRequestContext(), request, &response);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -78,7 +84,7 @@ TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
       &expected);
   EXPECT_THAT(response, EqualsProto(expected));
 
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
   EXPECT_THAT(response, EqualsProto(expected));
 }
 
@@ -92,9 +98,8 @@ TEST_F(GetValuesHandlerTest, RepeatedKeys) {
   request.add_keys("key1,key2,key3");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/false);
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
 
   GetValuesResponse expected;
   TextFormat::ParseFromString(
@@ -127,9 +132,8 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   request.add_keys("key2");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/false);
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
 
   GetValuesResponse expected;
   TextFormat::ParseFromString(R"pb(
@@ -159,9 +163,8 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
   request.add_ad_component_render_urls("key2");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/false);
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
 
   GetValuesResponse expected;
   TextFormat::ParseFromString(R"pb(render_urls {
@@ -264,9 +267,8 @@ TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
   request.add_keys("key3");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/false);
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
   GetValuesResponse expected_from_pb;
   TextFormat::ParseFromString(response_pb_string, &expected_from_pb);
   EXPECT_THAT(response, EqualsProto(expected_from_pb));
@@ -293,9 +295,8 @@ TEST_F(GetValuesHandlerTest, CallsV2Adapter) {
   request.add_keys("key1");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/true);
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
   EXPECT_THAT(response, EqualsProto(adapter_response));
 }
 

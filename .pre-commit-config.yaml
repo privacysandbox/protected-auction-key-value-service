@@ -152,3 +152,9 @@ repos:
   hooks:
   - id: black
     name: black python formatter
+
+- repo: https://github.com/tekwizely/pre-commit-golang
+  rev: v1.0.0-rc.1
+  hooks:
+  - id: go-fmt
+    name: go format

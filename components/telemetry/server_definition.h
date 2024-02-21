@@ -45,7 +45,7 @@ constexpr int kCounterDPUpperBound = 10;
 
 constexpr int kErrorCounterDPLowerBound = 0;
 constexpr int kErrorCounterDPUpperBound = 1;
-constexpr int kMaxPartitionsContributed = 1;
+constexpr int kErrorMaxPartitionsContributed = 1;
 constexpr double kErrorMinNoiseToOutput = 0.99;
 
 constexpr int kMicroSecondsLowerBound = 1;
@@ -80,6 +80,15 @@ inline constexpr absl::string_view kAbslStatusStrings[] = {
     "UNIMPLEMENTED",
     "UNKNOWN"};
 
+inline constexpr std::string_view kKeyValueCacheHit = "KeyValueCacheHit";
+inline constexpr std::string_view kKeyValueCacheMiss = "KeyValueCacheMiss";
+inline constexpr std::string_view kKeyValueSetCacheHit = "KeyValueSetCacheHit";
+inline constexpr std::string_view kKeyValueSetCacheMiss =
+    "KeyValueSetCacheMiss";
+inline constexpr std::string_view kCacheAccessEvents[] = {
+    kKeyValueCacheHit, kKeyValueCacheMiss, kKeyValueSetCacheHit,
+    kKeyValueSetCacheMiss};
+
 inline constexpr privacy_sandbox::server_common::metrics::PrivacyBudget
     privacy_total_budget{/*epsilon*/ 5};
 
@@ -90,7 +99,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
     kKVUdfRequestError("KVUdfRequestError",
                        "Errors in processing KV server V2 request",
-                       "error_code", kMaxPartitionsContributed,
+                       "error_code", kErrorMaxPartitionsContributed,
                        kKVUdfRequestErrorCode, kErrorCounterDPUpperBound,
                        kErrorCounterDPLowerBound, kErrorMinNoiseToOutput);
 
@@ -144,7 +153,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
     kInternalLookupRequestError("InternalLookupRequestError",
                                 "Errors in processing internal lookup request",
-                                "error_code", kMaxPartitionsContributed,
+                                "error_code", kErrorMaxPartitionsContributed,
                                 kInternalLookupRequestErrorCode,
                                 kErrorCounterDPUpperBound,
                                 kErrorCounterDPLowerBound,
@@ -176,6 +185,15 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         "Latency in executing GetKeyValueSet in cache",
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kCacheAccessEventCount("CacheAccessEventCount",
+                           "Count of cache hit or miss events by request",
+                           "cache_access", 4 /*max_partitions_contributed*/,
+                           kCacheAccessEvents, kCounterDPUpperBound,
+                           kCounterDPLowerBound);
 
 // Metric definitions for safe metrics that are not privacy impacting
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
@@ -436,7 +454,8 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kInternalGetKeyValueSetLatencyInMicros,
         &kInternalSecureLookupLatencyInMicros,
         &kGetValuePairsLatencyInMicros,
-        &kGetKeyValueSetLatencyInMicros};
+        &kGetKeyValueSetLatencyInMicros,
+        &kCacheAccessEventCount};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>

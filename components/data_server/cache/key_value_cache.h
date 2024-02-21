@@ -162,6 +162,10 @@ class KeyValueCache : public Cache {
   // Removes deleted key-values from key-value_set map for a given prefix
   void CleanUpKeyValueSetMap(int64_t logical_commit_time,
                              std::string_view prefix);
+  // Logs cache access metrics for cache hit or miss counts. The cache access
+  // event name is defined in server_definition.h file
+  void LogCacheAccessMetrics(const RequestContext& request_context,
+                             std::string_view cache_access_event) const;
 
   friend class KeyValueCacheTestPeer;
 };

@@ -45,6 +45,11 @@ absl::flat_hash_map<std::string, std::string> KeyValueCache::GetKeyValuePairs(
       kv_pairs.insert_or_assign(key, *(key_iter->second.value));
     }
   }
+  if (kv_pairs.empty()) {
+    LogCacheAccessMetrics(request_context, kKeyValueCacheMiss);
+  } else {
+    LogCacheAccessMetrics(request_context, kKeyValueCacheHit);
+  }
   return kv_pairs;
 }
 
@@ -57,6 +62,7 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
   // lock the cache map
   absl::ReaderMutexLock lock(&set_map_mutex_);
   auto result = GetKeyValueSetResult::Create();
+  bool cache_hit = false;
   for (const auto& key : key_set) {
     VLOG(8) << "Getting key: " << key;
     const auto key_itr = key_to_value_set_map_.find(key);
@@ -71,7 +77,13 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
       }
       // Add key value set to the result
       result->AddKeyValueSet(key, std::move(value_set), std::move(set_lock));
+      cache_hit = true;
     }
+  }
+  if (cache_hit) {
+    LogCacheAccessMetrics(request_context, kKeyValueSetCacheHit);
+  } else {
+    LogCacheAccessMetrics(request_context, kKeyValueSetCacheMiss);
   }
   return result;
 }
@@ -378,6 +390,14 @@ void KeyValueCache::CleanUpKeyValueSetMap(int64_t logical_commit_time,
   if (deleted_nodes_per_prefix->second.empty()) {
     deleted_set_nodes_map_.erase(prefix);
   }
+}
+
+void KeyValueCache::LogCacheAccessMetrics(
+    const RequestContext& request_context,
+    std::string_view cache_access_event) const {
+  LogIfError(
+      request_context.GetInternalLookupMetricsContext()
+          .AccumulateMetric<kCacheAccessEventCount>(1, cache_access_event));
 }
 
 std::unique_ptr<Cache> KeyValueCache::Create() {

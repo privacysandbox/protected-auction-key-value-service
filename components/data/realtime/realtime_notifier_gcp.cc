@@ -128,6 +128,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
                          static_cast<double>(count->total_updated_records +
                                              count->total_deleted_records)));
     } else {
+      LOG(ERROR) << "Data loading callback failed: " << count.status();
       LogIfError(
           KVServerContextMap()->SafeMetric().LogUpDownCounter<kRealtimeErrors>(
               {{std::string(kRealtimeMessageApplicationFailure), 1}}));

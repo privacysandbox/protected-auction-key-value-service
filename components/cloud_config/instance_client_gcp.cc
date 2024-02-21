@@ -275,7 +275,7 @@ class GcpInstanceClient : public InstanceClient {
           if (result.Successful()) {
             resource_name = std::string{response.instance_resource_name()};
           } else {
-            LOG(ERROR) << "Faild to get instance resource name: "
+            LOG(ERROR) << "Failed to get instance resource name: "
                        << GetErrorMessage(result.status_code);
           }
 

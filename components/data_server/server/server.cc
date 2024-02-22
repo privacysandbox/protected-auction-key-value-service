@@ -132,19 +132,18 @@ GetMetricsOptions(const ParameterClient& parameter_client,
   return metrics_options;
 }
 
-absl::Status CheckMetricsCollectorEndPointConnection(
+void CheckMetricsCollectorEndPointConnection(
     std::string_view collector_endpoint) {
   auto channel = grpc::CreateChannel(std::string(collector_endpoint),
                                      grpc::InsecureChannelCredentials());
-  // TODO(b/300137699): make the connection timeout a parameter
-  if (!channel->WaitForConnected(
-          gpr_time_add(gpr_now(GPR_CLOCK_REALTIME),
-                       gpr_time_from_seconds(120, GPR_TIMESPAN)))) {
-    return absl::DeadlineExceededError(
-        "Timeout waiting for metrics collector connection");
-  }
-  LOG(INFO) << "Metrics collector is connected";
-  return absl::OkStatus();
+  RetryUntilOk(
+      [channel]() {
+        if (channel->GetState(true) != GRPC_CHANNEL_READY) {
+          return absl::UnavailableError("metrics collector is not connected");
+        }
+        return absl::OkStatus();
+      },
+      "Checking connection to metrics collector", LogMetricsNoOpCallback());
 }
 
 absl::optional<std::string> GetMetricsCollectorEndPoint(
@@ -232,11 +231,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
   auto metrics_collector_endpoint =
       GetMetricsCollectorEndPoint(parameter_client, environment_);
   if (metrics_collector_endpoint.has_value()) {
-    if (const absl::Status status = CheckMetricsCollectorEndPointConnection(
-            metrics_collector_endpoint.value());
-        !status.ok()) {
-      LOG(ERROR) << "Error in connecting metrics collector: " << status;
-    }
+    CheckMetricsCollectorEndPointConnection(metrics_collector_endpoint.value());
   }
   LOG(INFO) << "Done retrieving metrics collector endpoint";
   BuildDependentConfig telemetry_config(

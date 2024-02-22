@@ -199,6 +199,14 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kRequestFailedCountByStatus(
+        "request.failed_count_by_status",
+        "Total number of requests that resulted in failure partitioned by "
+        "Error Code",
+        "error_code", kAbslStatusStrings);
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
     kGetParameterStatus("GetParameterStatus", "Get parameter status", "status",
                         kAbslStatusStrings);
 
@@ -419,12 +427,15 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kRemoteLookupGetValuesLatencyInMicros,
         // Safe metrics
         &kKVServerError,
+        &privacy_sandbox::server_common::metrics::kTotalRequestCount,
         &privacy_sandbox::server_common::metrics::kServerTotalTimeMs,
-        &kGetParameterStatus, &kCompleteLifecycleStatus,
-        &kCreateDataOrchestratorStatus, &kStartDataOrchestratorStatus,
-        &kLoadNewFilesStatus, &kGetShardManagerStatus,
-        &kDescribeInstanceGroupInstancesStatus, &kDescribeInstancesStatus,
-        &kRealtimeTotalRowsUpdated,
+        &privacy_sandbox::server_common::metrics::kRequestByte,
+        &privacy_sandbox::server_common::metrics::kResponseByte,
+        &kRequestFailedCountByStatus, &kGetParameterStatus,
+        &kCompleteLifecycleStatus, &kCreateDataOrchestratorStatus,
+        &kStartDataOrchestratorStatus, &kLoadNewFilesStatus,
+        &kGetShardManagerStatus, &kDescribeInstanceGroupInstancesStatus,
+        &kDescribeInstancesStatus, &kRealtimeTotalRowsUpdated,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
         &kAwsSqsReceiveMessageLatency, &kSeekingInputStreambufSeekoffLatency,
@@ -566,6 +577,45 @@ inline void LogServerErrorMetric(std::string_view error_code) {
   LogIfError(
       KVServerContextMap()->SafeMetric().LogUpDownCounter<kKVServerError>(
           {{std::string(error_code), 1}}));
+}
+
+// Logs common safe request metrics
+template <typename RequestT, typename ResponseT>
+inline void LogRequestCommonSafeMetrics(
+    const RequestT* request, const ResponseT* response,
+    const grpc::Status& grpc_request_status,
+    const absl::Time& request_received_time) {
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogUpDownCounter<
+              privacy_sandbox::server_common::metrics::kTotalRequestCount>(1));
+  if (auto request_status =
+          privacy_sandbox::server_common::ToAbslStatus(grpc_request_status);
+      !request_status.ok()) {
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogUpDownCounter<kRequestFailedCountByStatus>(
+                       {{absl::StatusCodeToString(request_status.code()), 1}}));
+  }
+  LogIfError(KVServerContextMap()
+                 ->SafeMetric()
+                 .template LogHistogram<
+                     privacy_sandbox::server_common::metrics::kRequestByte>(
+                     (int)request->ByteSizeLong()));
+  LogIfError(KVServerContextMap()
+                 ->SafeMetric()
+                 .template LogHistogram<
+                     privacy_sandbox::server_common::metrics::kResponseByte>(
+                     (int)response->ByteSizeLong()));
+  int duration_ms =
+      (absl::Now() - request_received_time) / absl::Milliseconds(1);
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<
+              privacy_sandbox::server_common::metrics::kServerTotalTimeMs>(
+              duration_ms));
 }
 
 // ScopeMetricsContext provides metrics context ties to the request and

@@ -37,10 +37,11 @@ grpc::ServerUnaryReactor* HandleRequest(
     CallbackServerContext* context, const RequestT* request,
     ResponseT* response, const GetValuesV2Handler& handler,
     HandlerFunctionT<RequestT, ResponseT> handler_function) {
+  auto request_received_time = absl::Now();
   grpc::Status status = (handler.*handler_function)(*request, response);
-
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
+  LogRequestCommonSafeMetrics(request, response, status, request_received_time);
   return reactor;
 }
 

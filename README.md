@@ -72,10 +72,10 @@ changes.
 -   [FLEDGE K/V server API explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md)
 -   [FLEDGE K/V server trust model](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_trust_model.md)
 -   [Local server quickstart guide](/docs/developing_the_server.md)
--   [AWS server user deployment documentation](/docs/deploying_on_aws.md)
--   [GCP server user deployment documentation](/docs/deploying_on_gcp.md)
+-   [AWS server user deployment documentation](/docs/deployment/deploying_on_aws.md)
+-   [GCP server user deployment documentation](/docs/deployment/deploying_on_gcp.md)
 -   [Integrating the K/V server with FLEDGE](/docs/integrating_with_fledge.md)
--   [FLEDGE K/V server sharding explainer](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_sharding.md)
+-   [FLEDGE K/V server sharding explainer](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/key_value_service_sharding.md)
 -   Operating documentation
     -   [Data loading API and operations](/docs/loading_data.md)
     -   [Generating and loading UDF files](/docs/generating_udf_files.md)
@@ -83,7 +83,7 @@ changes.
 -   Developer guide
     -   [Codebase structure](/docs/repo_layout.md)
     -   [Working with Terraform](/production/terraform/README.md)
-    -   [Contributing to the codebase](/docs/CONTRIBUTING.md)
+    -   [Contributing to the codebase](/docs/contributing.md)
 -   [Code of conduct](/docs/CODE_OF_CONDUCT.md)
 -   [Change log](/CHANGELOG.md)
 

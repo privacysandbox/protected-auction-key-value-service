@@ -11,7 +11,7 @@ The data server provides the read API for the KV service.
 <!-- markdownlint-disable line-length -->
 > Attention: The server can run locally (in or outside of Docker) while specifying `aws` as platform, in which case it will
 > contact AWS based on the local AWS credentials. However, this requires the AWS environment to be
-> set up first following the [AWS deployment guide](/docs/deploying_on_aws.md). You might need to
+> set up first following the [AWS deployment guide](/docs/deployment/deploying_on_aws.md). You might need to
 > set up the following parameters in the AWS System Manager:
 >
 > | Parameter Name                                           | Value                                                             |

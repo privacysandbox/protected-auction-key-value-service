@@ -118,7 +118,7 @@ Take a note of the AMI ID from the output as it will be used for Terraform later
 
 We provide a default UDF implementation that is loaded into the server at startup.
 
-To use your own UDF, refer to the [UDF Delta file documentation](./generating_udf_files.md) to
+To use your own UDF, refer to the [UDF Delta file documentation](/docs/generating_udf_files.md) to
 generate a UDF delta file.
 
 Upload this UDF delta file to the S3 bucket that will be used for delta files before attempting to
@@ -245,8 +245,8 @@ scope for this documentation.
 
 # Loading data into the server
 
-Refer to the [FLEDGE Key/Value data loading guide documentation](./loading_data.md) for loading data
-to be queried into the server.
+Refer to the [FLEDGE Key/Value data loading guide documentation](/docs/loading_data.md) for loading
+data to be queried into the server.
 
 # Common operations
 
@@ -537,4 +537,4 @@ The resources are allocated by specifying the per-TEE values in the terraform va
 
 ## How is private communication configured?
 
-See this [doc](private_communication_aws.md) for more details.
+See this [doc](/docs/private_communication_aws.md) for more details.

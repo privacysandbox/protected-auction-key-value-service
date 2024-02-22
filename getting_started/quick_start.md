@@ -137,8 +137,8 @@ The delta file type is [Riegeli](https://github.com/google/riegeli) and the reco
 [Flatbuffers](https://flatbuffers.dev/).
 
 Now let's add some data. There is some example data in
-[tools/udf/udf_tester/example_data.csv](/tools/udf/udf_tester/example_data.csv). The
-[build definition](/getting_started/examples/canonical_examples/BUILD.bazel) has predefined the
+[/getting_started/examples/canonical_examples/example_data.csv](/getting_started/examples/canonical_examples/example_data.csv).
+The [build definition](/getting_started/examples/canonical_examples/BUILD.bazel) has predefined the
 command to use `data_cli` to generate the data.
 
 ```sh
@@ -205,7 +205,7 @@ cp bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000002 
 
 (Similar to the data file, the UDF file can also be generated with building the tool specified in
 the build target and running it with your own command line flags. See
-[details](docs/generating_udf_files.md).)
+[details](/docs/generating_udf_files.md).)
 
 And query:
 
@@ -315,8 +315,8 @@ At this point we have looked at all the basic components. See the following spec
 advanced topics and features:
 
 -   [Writing WebAssembly User defined functions:](/docs/inline_wasm_udfs.md)
--   [Deploying on AWS](/docs/deploying_on_aws.md)
--   [Deploying on GCP](/docs/deploying_on_gcp.md)
--   [Sharding](/docs/sharding.md)
+-   [Deploying on AWS](/docs/deployment/deploying_on_aws.md)
+-   [Deploying on GCP](/docs/deployment/deploying_on_gcp.md)
+-   [Sharding](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/key_value_service_sharding.md)
 -   [Working with Terraform](/docs/working_with_terraform.md)
 -   [UDF binary data API](/docs/udf_read_apis_with_binary_data.md)

@@ -14,11 +14,49 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# environment variables (all optional):
+# environment variables:
 #     WORKSPACE                    Set the path to the workspace (repo root)
 
 set -o pipefail
 set -o errexit
+
+declare LCOV_REPORT="${WORKSPACE}/bazel-out/_coverage/_coverage_report.dat"
+declare COVERAGE_FILENAME=coverage.zip
+
+function usage() {
+  local exitval=${1-1}
+  cat &>/dev/stderr << USAGE
+usage:
+  $0 <options>
+    --lcov_report                 path to lcov report relative to the WORKSPACE
+    --coverage_output_filename    name of ZIP file that will contain artifacts from coverage collection
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --lcov_report)
+      LCOV_REPORT="${WORKSPACE}/$2"
+      shift 2 || usage
+      ;;
+    --coverage_output_filename)
+      COVERAGE_FILENAME="$2"
+      shift 2 || usage
+      if [[ ${COVERAGE_FILENAME##*.} != zip ]]; then
+        printf "error: --coverage_output_filename must be a ZIP file\n" &>/dev/stderr
+        exit 1
+      fi
+      ;;
+    -h | --help)
+      usage 0
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
 
 trap _cleanup EXIT
 function _cleanup() {
@@ -33,10 +71,9 @@ function _cleanup() {
 function generate_coverage_report() {
   local -r cov_dir="$(mktemp --tmpdir="${WORKSPACE}" --directory coverage-XXXX)"
   trap 'rm -rf "${cov_dir}"' RETURN EXIT
-  local -r cov_dat="${WORKSPACE}/bazel-out/_coverage/_coverage_report.dat"
-  cp "${cov_dat}" "${cov_dir}"
+  cp "${LCOV_REPORT}" "${cov_dir}"/_coverage_report.dat
   local -r dist_dir="${WORKSPACE}"/dist
-  cp "${cov_dat}" "${dist_dir}"
+  cp "${LCOV_REPORT}" "${dist_dir}"/_coverage_report.dat
   chmod -x {"${cov_dir}","${dist_dir}"}/_coverage_report.dat
 
   "${TOOLS_DIR}"/lcov --list dist/_coverage_report.dat >"${dist_dir}"/coverage_report.txt
@@ -63,11 +100,6 @@ function generate_coverage_report() {
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
 TOOLS_DIR="$(builder::get_tools_dir)"
 readonly TOOLS_DIR
-
-declare COVERAGE_FILENAME="$1"
-if [[ ${COVERAGE_FILENAME##*.} != zip ]]; then
-  COVERAGE_FILENAME=coverage.zip
-fi
 
 generate_coverage_report
 "${TOOLS_DIR}"/normalize-dist

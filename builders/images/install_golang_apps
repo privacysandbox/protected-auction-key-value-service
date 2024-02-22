@@ -31,7 +31,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 function install_bazelisk() {
-  go install github.com/bazelbuild/bazelisk@v1.13.2
+  go install github.com/bazelbuild/bazelisk@v1.19.0
   BAZELISK="$(go env GOPATH)"/bin/bazelisk
   if [[ -n ${BAZEL_PATH} ]] && [[ -d ${BAZEL_PATH} ]]; then
     ln -s "${BAZELISK}" "${BAZEL_PATH}"/bazel

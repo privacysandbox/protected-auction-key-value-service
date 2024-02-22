@@ -37,10 +37,7 @@ while [[ $# -gt 0 ]]; do
       set -o xtrace
       shift
       ;;
-    -h | --help)
-      usage 0
-      break
-      ;;
+    -h | --help) usage 0 ;;
     *) usage 0 ;;
   esac
 done
@@ -102,11 +99,13 @@ function install_precommit() {
   rm -rf "${GIT_REPO}"
 }
 
-function clean_debian() {
+function cleanup() {
   apt-get --quiet autoremove -y
   apt-get autoclean
   apt-get clean
   rm -rf /var/lib/apt/lists
+  cd /
+  go clean -cache
 }
 
 if [[ ${VERBOSE} -eq 1 ]]; then
@@ -126,4 +125,4 @@ install_packages
 install_golang "${ARCH}"
 install_docker
 install_precommit
-clean_debian
+cleanup

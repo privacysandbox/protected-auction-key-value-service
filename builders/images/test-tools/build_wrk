@@ -1,0 +1,27 @@
+#!/bin/busybox sh
+
+set -o errexit
+set -o xtrace
+
+install_no_wrk() {
+  cat <<EOF >/build/wrk
+#!/bin/busybox sh
+PROGRAM_NAME="\$(basename \$0)"
+printf "Error: %s not supported on Aarch64\n" "\${PROGRAM_NAME}"
+printf "build_arch: %s\n" "${BUILD_ARCH}" >/dev/stderr
+exit 1
+EOF
+  chmod 755 /build/wrk
+}
+
+install_wrk() {
+  apk add --no-cache build-base git openssl-dev zlib-dev
+  tar xz --strip-components 1 -f src.tar.gz
+  make -j6
+}
+
+if [[ ${BUILD_ARCH} == arm64 ]]; then
+  install_no_wrk
+else
+  install_wrk
+fi

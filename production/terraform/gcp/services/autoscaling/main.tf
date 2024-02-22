@@ -24,7 +24,7 @@ resource "google_compute_instance_template" "kv_server" {
   for_each = var.subnets
 
   region       = each.value.region
-  name         = "${var.service}-${var.environment}-${var.shard_num}-instance-lt"
+  name_prefix  = "${var.service}-${var.environment}-${var.shard_num}-instance-lt-"
   machine_type = var.machine_type
   tags         = ["allow-hc", "allow-ssh", "allow-backend-ingress", "allow-all-egress"]
 
@@ -81,7 +81,6 @@ resource "google_compute_instance_template" "kv_server" {
 
   lifecycle {
     create_before_destroy = true
-    ignore_changes        = [name]
     replace_triggered_by  = [null_resource.kv_parameters]
   }
 

@@ -5,7 +5,7 @@
 
 This article is for adtech engineers who want to test the Key/Value server locally. Deploying
 production servers in this way is not recommended, please see the
-[AWS deployment guide](deploying_on_aws.md) instead.
+[AWS deployment guide](deploying_on_aws.md) or [GCP deployment guide](deploying_on_gcp.md) instead.
 
 To learn more about FLEDGE and the Key/Value server, take a look at the following documents:
 

@@ -31,7 +31,6 @@
 #include "components/sharding/shard_manager.h"
 #include "components/util/request_context.h"
 #include "pir/hashing/sha256_hash_family.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 namespace {

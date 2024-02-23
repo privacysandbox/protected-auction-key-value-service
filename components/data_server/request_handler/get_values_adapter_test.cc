@@ -27,14 +27,12 @@
 #include "public/applications/pa/response_utils.h"
 #include "public/test_util/proto_matcher.h"
 #include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Return;
 

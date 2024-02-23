@@ -31,7 +31,6 @@
 #include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/bytes/string_writer.h"
 #include "riegeli/records/record_writer.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

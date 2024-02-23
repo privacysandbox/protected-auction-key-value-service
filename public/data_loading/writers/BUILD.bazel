@@ -64,7 +64,6 @@ cc_test(
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 

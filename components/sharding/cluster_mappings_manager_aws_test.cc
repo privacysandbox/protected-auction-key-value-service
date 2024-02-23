@@ -24,7 +24,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
@@ -171,7 +170,6 @@ TEST_F(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
 TEST_F(ClusterMappingsAwsTest, UpdateMappings) {
   std::string environment = "testenv";
   int32_t num_shards = 2;
-  privacy_sandbox::server_common::MockMetricsRecorder mock_metrics_recorder;
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager;
   auto instance_client = std::make_unique<MockInstanceClient>();

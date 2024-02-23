@@ -27,11 +27,8 @@
 #include "components/internal_server/lookup.h"
 #include "components/util/request_context.h"
 #include "scp/cc/roma/config/src/function_binding_object_v2.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
-
-using privacy_sandbox::server_common::MetricsRecorder;
 
 // Functor that acts as a wrapper for the internal lookup client call.
 class GetValuesHook {

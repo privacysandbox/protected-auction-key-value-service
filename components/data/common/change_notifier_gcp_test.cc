@@ -24,7 +24,6 @@
 #include "absl/status/statusor.h"
 #include "components/data/common/change_notifier.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

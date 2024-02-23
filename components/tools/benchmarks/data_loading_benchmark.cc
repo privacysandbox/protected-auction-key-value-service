@@ -84,8 +84,6 @@ using kv_server::RecordStream;
 using kv_server::Value;
 using kv_server::benchmark::ParseInt64List;
 using kv_server::benchmark::WriteRecords;
-using privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::TelemetryProvider;
 
 constexpr std::string_view kNoOpCacheNameFormat =
     "BM_DataLoading_NoOpCache/tds:%d/conns:%d/buf:%d";

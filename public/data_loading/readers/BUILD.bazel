@@ -126,7 +126,6 @@ cc_test(
         "@com_google_riegeli//riegeli/bytes:ostream_writer",
         "@com_google_riegeli//riegeli/bytes:string_writer",
         "@com_google_riegeli//riegeli/records:record_writer",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -147,7 +146,6 @@ cc_test(
         "//public/test_util:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 

@@ -124,7 +124,6 @@ cc_test(
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "//public/data_loading/writers:delta_record_stream_writer",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 

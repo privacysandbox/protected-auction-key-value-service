@@ -46,7 +46,6 @@
 #include "public/base_types.pb.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "public/sharding/key_sharder.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry.h"
 
 namespace kv_server {
@@ -114,8 +113,6 @@ class Server {
   std::unique_ptr<const ParameterClient> parameter_client_;
   std::unique_ptr<InstanceClient> instance_client_;
   std::string environment_;
-  std::unique_ptr<privacy_sandbox::server_common::MetricsRecorder>
-      metrics_recorder_;
   std::vector<std::unique_ptr<grpc::Service>> grpc_services_;
   std::unique_ptr<grpc::Server> grpc_server_;
   std::unique_ptr<Cache> cache_;

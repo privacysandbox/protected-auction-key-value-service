@@ -103,6 +103,5 @@ cc_test(
         ":retry",
         "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

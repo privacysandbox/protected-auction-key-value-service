@@ -22,7 +22,6 @@
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
 #include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

@@ -24,7 +24,6 @@
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/records_utils.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

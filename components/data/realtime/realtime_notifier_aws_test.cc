@@ -24,7 +24,6 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/filename_utils.h"
-#include "src/cpp/telemetry/mocks.h"
 
 using testing::_;
 using testing::Field;

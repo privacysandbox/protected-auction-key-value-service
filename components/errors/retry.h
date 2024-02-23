@@ -91,7 +91,7 @@ class RetryableWithMax {
 
 // Retries functors that return an absl::StatusOr<T> until they are `ok`.
 // The value of type T is returned by this function.
-// `metrics_recorder` is optional.
+// `metrics_callback` is optional.
 template <typename Func>
 typename std::invoke_result_t<RetryableWithMax<Func>>::value_type RetryUntilOk(
     Func&& f, std::string task_name,
@@ -105,7 +105,7 @@ typename std::invoke_result_t<RetryableWithMax<Func>>::value_type RetryUntilOk(
 }
 // Same as above `RetryUntilOk`, wrapped in an `opentelemetry::trace::Span`.
 // Each individual retry of `func` is also traced.
-// `metrics_recorder` is optional.
+// `metrics_callback` is optional.
 template <typename Func>
 typename std::invoke_result_t<RetryableWithMax<Func>>::value_type
 TraceRetryUntilOk(
@@ -126,7 +126,7 @@ TraceRetryUntilOk(
 }
 
 // Retries functors that return an absl::Status until they are `ok`.
-// `metrics_recorder` is optional.
+// `metrics_callback` is optional.
 inline void RetryUntilOk(
     std::function<absl::Status()> func, std::string task_name,
     const absl::AnyInvocable<void(const absl::Status&, int) const>&
@@ -140,7 +140,7 @@ inline void RetryUntilOk(
 
 // Starts and `opentelemetry::trace::Span` and Calls `RetryUntilOk`.
 // Each individual retry of `func` is also traced.
-// `metrics_recorder` is optional.
+// `metrics_callback` is optional.
 void TraceRetryUntilOk(std::function<absl::Status()> func,
                        std::string task_name,
                        const absl::AnyInvocable<void(const absl::Status&, int)
@@ -148,7 +148,7 @@ void TraceRetryUntilOk(std::function<absl::Status()> func,
 
 // Retries functors that return an absl::StatusOr<T> until they are `ok` or
 // max_attempts is reached. Retry starts at 1.
-// `metrics_recorder` is optional.
+// `metrics_callback` is optional.
 template <typename Func>
 typename std::invoke_result_t<RetryableWithMax<Func>> RetryWithMax(
     Func&& f, std::string task_name, int max_attempts,

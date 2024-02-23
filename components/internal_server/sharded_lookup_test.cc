@@ -26,7 +26,6 @@
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

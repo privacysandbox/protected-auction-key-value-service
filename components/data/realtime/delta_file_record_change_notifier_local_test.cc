@@ -23,7 +23,6 @@
 #include "components/data/common/mocks.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

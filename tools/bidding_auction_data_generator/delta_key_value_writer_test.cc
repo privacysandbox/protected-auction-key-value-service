@@ -21,7 +21,6 @@
 #include "gtest/gtest.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

@@ -31,7 +31,6 @@
 #include "google/protobuf/util/json_util.h"
 #include "nlohmann/json.hpp"
 #include "public/udf/binary_get_values.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 namespace {
@@ -39,7 +38,6 @@ namespace {
 using google::protobuf::json::MessageToJsonString;
 using google::scp::roma::FunctionBindingPayload;
 using google::scp::roma::proto::FunctionBindingIoProto;
-using privacy_sandbox::server_common::MetricsRecorder;
 
 constexpr char kOkStatusMessage[] = "ok";
 

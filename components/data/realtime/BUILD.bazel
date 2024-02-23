@@ -67,7 +67,6 @@ cc_test(
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -130,7 +129,6 @@ cc_test(
             "//public/data_loading:filename_utils",
             "@com_github_grpc_grpc//:grpc++",
             "@com_google_googletest//:gtest_main",
-            "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
         ],
 )
 
@@ -151,8 +149,6 @@ cc_library(
         ":realtime_notifier",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
     ],
 )
 
@@ -180,6 +176,5 @@ cc_test(
         "//components/util:sleepfor_mock",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )

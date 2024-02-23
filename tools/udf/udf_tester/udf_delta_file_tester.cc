@@ -29,7 +29,6 @@
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/query/v2/get_values_v2.pb.h"
 #include "public/udf/constants.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 #include "src/cpp/telemetry/telemetry_provider.h"
 #include "src/cpp/util/status_macro/status_macros.h"
 
@@ -140,7 +139,6 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
                      const std::string& input_arguments) {
   InitMetricsContextMap();
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
-  auto noop_metrics_recorder = MetricsRecorder::CreateNoop();
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   PS_RETURN_IF_ERROR(LoadCacheFromFile(kv_delta_file_path, *cache))
       << "Error loading cache from file";

@@ -23,7 +23,6 @@
 #include "components/internal_server/lookup.h"
 #include "components/sharding/shard_manager.h"
 #include "public/sharding/key_sharder.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 

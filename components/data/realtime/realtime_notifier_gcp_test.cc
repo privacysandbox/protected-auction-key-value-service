@@ -29,7 +29,6 @@
 #include "google/cloud/pubsub/subscriber.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/filename_utils.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

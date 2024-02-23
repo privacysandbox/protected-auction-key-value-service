@@ -182,15 +182,13 @@ BlobPrefixAllowlist GetBlobPrefixAllowlist(
 }  // namespace
 
 Server::Server()
-    : metrics_recorder_(
-          TelemetryProvider::GetInstance().CreateMetricsRecorder()),
-      string_get_values_hook_(
+    : string_get_values_hook_(
           GetValuesHook::Create(GetValuesHook::OutputType::kString)),
       binary_get_values_hook_(
           GetValuesHook::Create(GetValuesHook::OutputType::kBinary)),
       run_query_hook_(RunQueryHook::Create()) {}
 
-// Because the cache relies on metrics_recorder_, this function needs to be
+// Because the cache relies on telemetry, this function needs to be
 // called right after telemetry has been initialized but before anything that
 // requires the cache has been initialized.
 void Server::InitializeKeyValueCache() {
@@ -259,8 +257,6 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
   ConfigureTracer(
       CreateKVAttributes(instance_id, std::to_string(shard_num_), environment_),
       metrics_collector_endpoint);
-
-  metrics_recorder_ = TelemetryProvider::GetInstance().CreateMetricsRecorder();
   ParameterFetcher parameter_fetcher(environment_, parameter_client);
   InitOtelLogger(CreateKVAttributes(std::move(instance_id),
                                     std::to_string(shard_num_), environment_),
@@ -620,8 +616,8 @@ void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
   grpc_services_.push_back(
       std::make_unique<KeyValueServiceImpl>(std::move(handler)));
   GetValuesV2Handler v2handler(*udf_client_, *key_fetcher_manager_);
-  grpc_services_.push_back(std::make_unique<KeyValueServiceV2Impl>(
-      std::move(v2handler), *metrics_recorder_));
+  grpc_services_.push_back(
+      std::make_unique<KeyValueServiceV2Impl>(std::move(v2handler)));
 }
 
 std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {

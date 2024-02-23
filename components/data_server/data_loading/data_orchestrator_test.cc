@@ -36,7 +36,6 @@
 #include "public/sharding/sharding_function.h"
 #include "public/test_util/mocks.h"
 #include "public/test_util/proto_matcher.h"
-#include "src/cpp/telemetry/mocks.h"
 
 using kv_server::BlobStorageChangeNotifier;
 using kv_server::BlobStorageClient;

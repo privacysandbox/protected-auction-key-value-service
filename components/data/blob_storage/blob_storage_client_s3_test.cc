@@ -31,8 +31,8 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

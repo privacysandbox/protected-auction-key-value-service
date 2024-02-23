@@ -24,13 +24,11 @@
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Return;
 using testing::ReturnRef;

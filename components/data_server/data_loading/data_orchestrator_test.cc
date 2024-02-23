@@ -37,6 +37,7 @@
 #include "public/test_util/mocks.h"
 #include "public/test_util/proto_matcher.h"
 
+using kv_server::BlobPrefixAllowlist;
 using kv_server::BlobStorageChangeNotifier;
 using kv_server::BlobStorageClient;
 using kv_server::CodeConfig;
@@ -104,8 +105,9 @@ class DataOrchestratorTest : public ::testing::Test {
             .udf_client = udf_client_,
             .delta_stream_reader_factory = delta_stream_reader_factory_,
             .realtime_thread_pool_manager = realtime_thread_pool_manager_,
-            .key_sharder = kv_server::KeySharder(
-                kv_server::ShardingFunction{/*seed=*/""})}) {}
+            .key_sharder =
+                kv_server::KeySharder(kv_server::ShardingFunction{/*seed=*/""}),
+            .blob_prefix_allowlist = kv_server::BlobPrefixAllowlist("")}) {}
 
   MockBlobStorageClient blob_client_;
   MockDeltaFileNotifier notifier_;
@@ -484,7 +486,7 @@ TEST_F(DataOrchestratorTest, StartLoading) {
   const std::string last_basename = "";
   EXPECT_CALL(notifier_,
               Start(_, GetTestLocation(),
-                    UnorderedElementsAre(Pair("", last_basename)), _))
+                    absl::flat_hash_map<std::string, std::string>(), _))
       .WillOnce([](BlobStorageChangeNotifier&, BlobStorageClient::DataLocation,
                    absl::flat_hash_map<std::string, std::string>,
                    std::function<void(const std::string& key)> callback) {
@@ -631,7 +633,8 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .shard_num = 1,
       .num_shards = 2,
       .key_sharder =
-          kv_server::KeySharder(kv_server::ShardingFunction{/*seed=*/""})};
+          kv_server::KeySharder(kv_server::ShardingFunction{/*seed=*/""}),
+      .blob_prefix_allowlist = BlobPrefixAllowlist("")};
 
   auto maybe_orchestrator = DataOrchestrator::TryCreate(sharded_options);
   ASSERT_TRUE(maybe_orchestrator.ok());
@@ -667,6 +670,26 @@ TEST_F(DataOrchestratorTest, InitCacheSkipsSnapshotFilesForOtherShards) {
                             FilePrefix<FileType::DELTA>()))))
       .WillOnce(Return(std::vector<std::string>()));
   EXPECT_TRUE(DataOrchestrator::TryCreate(options_).ok());
+}
+
+TEST_F(DataOrchestratorTest, VerifyLoadingDataFromPrefixes) {
+  for (auto file_type :
+       {FilePrefix<FileType::DELTA>(), FilePrefix<FileType::SNAPSHOT>()}) {
+    for (auto prefix : {"", "prefix1", "prefix2"}) {
+      EXPECT_CALL(
+          blob_client_,
+          ListBlobs(
+              BlobStorageClient::DataLocation{.bucket = "testbucket",
+                                              .prefix = prefix},
+              AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                    Field(&BlobStorageClient::ListOptions::prefix, file_type))))
+          .WillOnce(Return(std::vector<std::string>({})));
+    }
+  }
+  auto options = options_;
+  options.blob_prefix_allowlist = BlobPrefixAllowlist("prefix1,prefix2");
+  auto maybe_orchestrator = DataOrchestrator::TryCreate(options);
+  ASSERT_TRUE(maybe_orchestrator.ok());
 }
 
 }  // namespace

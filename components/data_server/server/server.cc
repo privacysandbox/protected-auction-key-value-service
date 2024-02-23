@@ -597,18 +597,20 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
       LogStatusSafeMetricsFn<kCreateDataOrchestratorStatus>();
   return TraceRetryUntilOk(
       [&] {
-        return DataOrchestrator::TryCreate(
-            {.data_bucket = data_bucket,
-             .cache = *cache_,
-             .blob_client = *blob_client_,
-             .delta_notifier = *notifier_,
-             .change_notifier = *change_notifier_,
-             .delta_stream_reader_factory = *delta_stream_reader_factory_,
-             .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
-             .udf_client = *udf_client_,
-             .shard_num = shard_num_,
-             .num_shards = num_shards_,
-             .key_sharder = std::move(key_sharder)});
+        return DataOrchestrator::TryCreate({
+            .data_bucket = data_bucket,
+            .cache = *cache_,
+            .blob_client = *blob_client_,
+            .delta_notifier = *notifier_,
+            .change_notifier = *change_notifier_,
+            .delta_stream_reader_factory = *delta_stream_reader_factory_,
+            .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
+            .udf_client = *udf_client_,
+            .shard_num = shard_num_,
+            .num_shards = num_shards_,
+            .key_sharder = std::move(key_sharder),
+            .blob_prefix_allowlist = GetBlobPrefixAllowlist(parameter_fetcher),
+        });
       },
       "CreateDataOrchestrator", metrics_callback);
 }

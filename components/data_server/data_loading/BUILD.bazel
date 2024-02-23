@@ -27,6 +27,7 @@ cc_library(
         "data_orchestrator.h",
     ],
     deps = [
+        "//components/data/blob_storage:blob_prefix_allowlist",
         "//components/data/blob_storage:blob_storage_change_notifier",
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",

@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/functional/bind_front.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
@@ -267,9 +268,11 @@ class DataOrchestratorImpl : public DataOrchestrator {
  public:
   // `last_basename` is the last file seen during init. The cache is up to
   // date until this file.
-  DataOrchestratorImpl(Options options, std::string last_basename)
+  DataOrchestratorImpl(
+      Options options,
+      absl::flat_hash_map<std::string, std::string> prefix_last_basenames)
       : options_(std::move(options)),
-        last_basename_of_init_(std::move(last_basename)) {}
+        prefix_last_basenames_(std::move(prefix_last_basenames)) {}
 
   ~DataOrchestratorImpl() override {
     if (!data_loader_thread_) return;
@@ -289,38 +292,43 @@ class DataOrchestratorImpl : public DataOrchestrator {
     LOG(INFO) << "Stopped loading new data";
   }
 
-  static absl::StatusOr<std::string> Init(Options& options) {
-    auto ending_delta_file = LoadSnapshotFiles(options);
-    if (!ending_delta_file.ok()) {
-      return ending_delta_file.status();
+  static absl::StatusOr<absl::flat_hash_map<std::string, std::string>> Init(
+      Options& options) {
+    auto ending_delta_files = LoadSnapshotFiles(options);
+    if (!ending_delta_files.ok()) {
+      return ending_delta_files.status();
     }
-    auto maybe_filenames = options.blob_client.ListBlobs(
-        {.bucket = options.data_bucket},
-        {.prefix = std::string(FilePrefix<FileType::DELTA>()),
-         .start_after = *ending_delta_file});
-    if (!maybe_filenames.ok()) {
-      return maybe_filenames.status();
-    }
-    LOG(INFO) << "Initializing cache with " << maybe_filenames->size()
-              << " delta files from " << options.data_bucket;
-
-    std::string last_basename = std::move(*ending_delta_file);
-    for (auto&& basename : std::move(*maybe_filenames)) {
-      if (!IsDeltaFilename(basename)) {
-        LOG(WARNING) << "Saw a file " << basename
-                     << " not in delta file format. Skipping it.";
-        continue;
+    for (const auto& prefix : options.blob_prefix_allowlist.Prefixes()) {
+      auto location = BlobStorageClient::DataLocation{
+          .bucket = options.data_bucket, .prefix = prefix};
+      auto iter = ending_delta_files->find(prefix);
+      auto maybe_filenames = options.blob_client.ListBlobs(
+          location,
+          {.prefix = std::string(FilePrefix<FileType::DELTA>()),
+           .start_after =
+               iter != ending_delta_files->end() ? iter->second : ""});
+      if (!maybe_filenames.ok()) {
+        return maybe_filenames.status();
       }
-      last_basename = basename;
-      if (const auto s = TraceLoadCacheWithDataFromFile(
-              {.bucket = options.data_bucket, .key = std::move(basename)},
-              options);
-          !s.ok()) {
-        return s.status();
+      LOG(INFO) << "Initializing cache with " << maybe_filenames->size()
+                << " delta files from " << location;
+      for (auto&& basename : std::move(*maybe_filenames)) {
+        auto blob = BlobStorageClient::DataLocation{
+            .bucket = options.data_bucket, .prefix = prefix, .key = basename};
+        if (!IsDeltaFilename(blob.key)) {
+          LOG(WARNING) << "Saw a file " << blob
+                       << " not in delta file format. Skipping it.";
+          continue;
+        }
+        (*ending_delta_files)[prefix] = blob.key;
+        if (const auto s = TraceLoadCacheWithDataFromFile(blob, options);
+            !s.ok()) {
+          return s.status();
+        }
+        LOG(INFO) << "Done loading " << blob;
       }
-      LOG(INFO) << "Done loading " << last_basename;
     }
-    return last_basename;
+    return ending_delta_files;
   }
 
   absl::Status Start() override {
@@ -328,9 +336,10 @@ class DataOrchestratorImpl : public DataOrchestrator {
       return absl::OkStatus();
     }
     LOG(INFO) << "Transitioning to state ContinuouslyLoadNewData";
+    auto prefix_last_basenames = prefix_last_basenames_;
     absl::Status status = options_.delta_notifier.Start(
         options_.change_notifier, {.bucket = options_.data_bucket},
-        {std::make_pair("", last_basename_of_init_)},
+        std::move(prefix_last_basenames),
         absl::bind_front(&DataOrchestratorImpl::EnqueueNewFilesToProcess,
                          this));
     if (!status.ok()) {
@@ -375,16 +384,25 @@ class DataOrchestratorImpl : public DataOrchestrator {
         unprocessed_basenames_.pop_back();
       }
       LOG(INFO) << "Loading " << basename;
-      if (!IsDeltaFilename(basename)) {
+      auto blob = ParseBlobName(basename);
+      if (!IsDeltaFilename(blob.key)) {
         LOG(WARNING) << "Received file with invalid name: " << basename;
         continue;
       }
+      if (!options_.blob_prefix_allowlist.Contains(blob.prefix)) {
+        LOG(WARNING) << "Received file with prefix not allowlisted: "
+                     << basename;
+        continue;
+      }
       RetryUntilOk(
-          [this, &basename] {
+          [this, &basename, &blob] {
             // TODO: distinguish status. Some can be retried while others
             // are fatal.
             return TraceLoadCacheWithDataFromFile(
-                {.bucket = options_.data_bucket, .key = basename}, options_);
+                {.bucket = options_.data_bucket,
+                 .prefix = blob.prefix,
+                 .key = basename},
+                options_);
           },
           "LoadNewFile", LogStatusSafeMetricsFn<kLoadNewFilesStatus>());
     }
@@ -400,48 +418,55 @@ class DataOrchestratorImpl : public DataOrchestrator {
 
   // Loads snapshot files if there are any.
   // Returns the latest delta file to be included in a snapshot.
-  static absl::StatusOr<std::string> LoadSnapshotFiles(const Options& options) {
-    LOG(INFO) << "Initializing cache with snapshot file(s) from: "
-              << options.data_bucket;
-    std::string ending_delta_file;
-    PS_ASSIGN_OR_RETURN(
-        auto snapshot_group,
-        FindMostRecentFileGroup(
-            BlobStorageClient::DataLocation{.bucket = options.data_bucket},
-            FileGroupFilter{.file_type = FileType::SNAPSHOT,
-                            .status = FileGroup::FileStatus::kComplete},
-            options.blob_client));
-    if (!snapshot_group.has_value()) {
-      return ending_delta_file;
-    }
-    for (const auto& snapshot : snapshot_group->Filenames()) {
-      BlobStorageClient::DataLocation location{.bucket = options.data_bucket,
-                                               .key = snapshot};
-      auto record_reader =
-          options.delta_stream_reader_factory.CreateConcurrentReader(
-              /*stream_factory=*/[&location, &options]() {
-                return std::make_unique<BlobRecordStream>(
-                    options.blob_client.GetBlobReader(location));
-              });
-      PS_ASSIGN_OR_RETURN(auto metadata, record_reader->GetKVFileMetadata(),
-                          _ << "Blob " << location);
-      if (metadata.has_sharding_metadata() &&
-          metadata.sharding_metadata().shard_num() != options.shard_num) {
-        LOG(INFO) << "Snapshot " << location << " belongs to shard num "
-                  << metadata.sharding_metadata().shard_num()
-                  << " but server shard num is " << options.shard_num
-                  << ". Skipping it.";
+  static absl::StatusOr<absl::flat_hash_map<std::string, std::string>>
+  LoadSnapshotFiles(const Options& options) {
+    absl::flat_hash_map<std::string, std::string> ending_delta_files;
+    for (const auto& prefix : options.blob_prefix_allowlist.Prefixes()) {
+      auto location = BlobStorageClient::DataLocation{
+          .bucket = options.data_bucket, .prefix = prefix};
+      LOG(INFO) << "Initializing cache with snapshot file(s) from: "
+                << location;
+      PS_ASSIGN_OR_RETURN(
+          auto snapshot_group,
+          FindMostRecentFileGroup(
+              location,
+              FileGroupFilter{.file_type = FileType::SNAPSHOT,
+                              .status = FileGroup::FileStatus::kComplete},
+              options.blob_client));
+      if (!snapshot_group.has_value()) {
+        LOG(INFO) << "No snapshot files found in: " << location;
         continue;
       }
-      LOG(INFO) << "Loading snapshot file: " << location;
-      PS_ASSIGN_OR_RETURN(auto stats,
-                          TraceLoadCacheWithDataFromFile(location, options));
-      if (metadata.snapshot().ending_delta_file() > ending_delta_file) {
-        ending_delta_file = metadata.snapshot().ending_delta_file();
+      for (const auto& snapshot : snapshot_group->Filenames()) {
+        auto snapshot_blob = BlobStorageClient::DataLocation{
+            .bucket = options.data_bucket, .prefix = prefix, .key = snapshot};
+        auto record_reader =
+            options.delta_stream_reader_factory.CreateConcurrentReader(
+                /*stream_factory=*/[&snapshot_blob, &options]() {
+                  return std::make_unique<BlobRecordStream>(
+                      options.blob_client.GetBlobReader(snapshot_blob));
+                });
+        PS_ASSIGN_OR_RETURN(auto metadata, record_reader->GetKVFileMetadata());
+        if (metadata.has_sharding_metadata() &&
+            metadata.sharding_metadata().shard_num() != options.shard_num) {
+          LOG(INFO) << "Snapshot " << snapshot_blob << " belongs to shard num "
+                    << metadata.sharding_metadata().shard_num()
+                    << " but server shard num is " << options.shard_num
+                    << ". Skipping it.";
+          continue;
+        }
+        LOG(INFO) << "Loading snapshot file: " << snapshot_blob;
+        PS_ASSIGN_OR_RETURN(
+            auto stats, TraceLoadCacheWithDataFromFile(snapshot_blob, options));
+        if (auto iter = ending_delta_files.find(prefix);
+            iter == ending_delta_files.end() ||
+            metadata.snapshot().ending_delta_file() > iter->second) {
+          ending_delta_files[prefix] = metadata.snapshot().ending_delta_file();
+        }
+        LOG(INFO) << "Done loading snapshot file: " << snapshot_blob;
       }
-      LOG(INFO) << "Done loading snapshot file: " << location;
     }
-    return ending_delta_file;
+    return ending_delta_files;
   }
 
   absl::StatusOr<DataLoadingStats> LoadCacheWithHighPriorityUpdates(
@@ -463,19 +488,19 @@ class DataOrchestratorImpl : public DataOrchestrator {
   std::unique_ptr<std::thread> data_loader_thread_;
   bool stop_ ABSL_GUARDED_BY(mu_) = false;
   // last basename of file in initialization.
-  const std::string last_basename_of_init_;
+  absl::flat_hash_map<std::string, std::string> prefix_last_basenames_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<DataOrchestrator>> DataOrchestrator::TryCreate(
     Options options) {
-  const auto maybe_last_basename = DataOrchestratorImpl::Init(options);
-  if (!maybe_last_basename.ok()) {
-    return maybe_last_basename.status();
+  const auto prefix_last_basenames = DataOrchestratorImpl::Init(options);
+  if (!prefix_last_basenames.ok()) {
+    return prefix_last_basenames.status();
   }
   auto orchestrator = std::make_unique<DataOrchestratorImpl>(
-      std::move(options), std::move(maybe_last_basename.value()));
+      std::move(options), std::move(prefix_last_basenames.value()));
   return orchestrator;
 }
 }  // namespace kv_server

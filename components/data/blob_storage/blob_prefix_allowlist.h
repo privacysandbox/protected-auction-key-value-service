@@ -36,6 +36,7 @@ class BlobPrefixAllowlist {
     std::string key;
   };
 
+  BlobPrefixAllowlist() : BlobPrefixAllowlist("") {}
   explicit BlobPrefixAllowlist(std::string_view allowed_prefixes);
 
   // Returns true if `prefix` is allowlisted, meaning that blobs with this

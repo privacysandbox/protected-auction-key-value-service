@@ -22,6 +22,7 @@
 
 #include "absl/functional/any_invocable.h"
 #include "absl/status/status.h"
+#include "components/data/blob_storage/blob_prefix_allowlist.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
@@ -56,6 +57,7 @@ class DataOrchestrator {
     const int32_t shard_num = 0;
     const int32_t num_shards = 1;
     const KeySharder key_sharder;
+    BlobPrefixAllowlist blob_prefix_allowlist;
   };
 
   // Creates initial state. Scans the bucket and initializes the cache with data

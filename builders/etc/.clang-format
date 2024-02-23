@@ -4,8 +4,8 @@ DerivePointerAlignment: false
 SortIncludes: true
 IncludeBlocks: Regroup
 IncludeCategories:
-  # gtest, this should be put first in tests.
-  - Regex:           '^<gtest\/'
+  # gtest and gmock, this should be put first in tests.
+  - Regex:           '^<(gtest|gmock)\/'
     Priority:        20
   # Top level .h headers in <> from OS.
   - Regex:           '^<[_A-Za-z0-9-]+\.h>'

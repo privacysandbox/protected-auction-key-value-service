@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.55.2 (2024-02-23)
+
+
+### Bug Fixes
+
+* Add gmock to .clang-format
+
 ## 0.55.1 (2024-02-22)
 
 

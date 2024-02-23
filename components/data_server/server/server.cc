@@ -43,6 +43,7 @@
 #include "components/udf/hooks/run_query_hook.h"
 #include "components/udf/udf_config_builder.h"
 #include "components/util/build_info.h"
+#include "google/protobuf/text_format.h"
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
 #include "grpcpp/health_check_service_interface.h"
 #include "public/constants.h"
@@ -107,6 +108,7 @@ constexpr absl::string_view kEnableOtelLoggerParameterSuffix =
     "enable-otel-logger";
 constexpr std::string_view kDataLoadingBlobPrefixAllowlistSuffix =
     "data-loading-blob-prefix-allowlist";
+constexpr std::string_view kTelemetryConfigSuffix = "telemetry-config";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -166,10 +168,15 @@ absl::optional<std::string> GetMetricsCollectorEndPoint(
 privacy_sandbox::server_common::telemetry::TelemetryConfig
 GetServerTelemetryConfig(const ParameterClient& parameter_client,
                          const std::string& environment) {
-  // TODO(b/304306398): Read telemetry config from parameter
+  ParameterFetcher parameter_fetcher(environment, parameter_client);
+  auto config_string = parameter_fetcher.GetParameter(kTelemetryConfigSuffix);
   privacy_sandbox::server_common::telemetry::TelemetryConfig config;
-  config.set_mode(
-      privacy_sandbox::server_common::telemetry::TelemetryConfig::EXPERIMENT);
+  if (!google::protobuf::TextFormat::ParseFromString(config_string, &config)) {
+    LOG(ERROR) << "Invalid proto format for telemetry config " << config_string
+               << ", fall back to prod config mode";
+    config.set_mode(
+        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
+  }
   return config;
 }
 

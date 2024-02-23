@@ -66,6 +66,7 @@ module "kv_server" {
   metrics_collector_endpoint              = var.metrics_collector_endpoint
   metrics_export_interval_millis          = var.metrics_export_interval_millis
   metrics_export_timeout_millis           = var.metrics_export_timeout_millis
+  telemetry_config                        = var.telemetry_config
 
   # Variables related to prometheus service
   prometheus_service_region = var.prometheus_service_region

@@ -172,6 +172,12 @@
 
     Tee can impersonate these service accounts. Necessary for coordinators.
 
+-   **telemetry_config**
+
+    Telemetry configuration to control whether metrics are raw or noised. Options are: mode:
+    PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics),
+    mode: OFF(no metrics)
+
 -   **udf_num_workers**
 
     Number of workers for UDF execution.

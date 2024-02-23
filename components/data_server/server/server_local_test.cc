@@ -56,6 +56,9 @@ void RegisterRequiredTelemetryExpectations(MockParameterClient& client) {
   EXPECT_CALL(client,
               GetBoolParameter("kv-server-environment-enable-otel-logger"))
       .WillOnce(::testing::Return(false));
+  EXPECT_CALL(client, GetParameter("kv-server-environment-telemetry-config",
+                                   testing::Eq(std::nullopt)))
+      .WillOnce(::testing::Return("mode: EXPERIMENT"));
 }
 
 void InitializeMetrics() {

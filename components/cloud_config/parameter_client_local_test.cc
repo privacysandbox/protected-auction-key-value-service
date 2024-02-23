@@ -134,6 +134,12 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
     ASSERT_TRUE(statusor.ok());
     EXPECT_EQ(false, *statusor);
   }
+  {
+    const auto statusor =
+        client->GetParameter("kv-server-local-telemetry-config");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ("mode: EXPERIMENT", *statusor);
+  }
 }
 
 }  // namespace

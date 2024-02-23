@@ -191,6 +191,12 @@
 
     Source ips allowed to send ssh traffic to the ssh instance.
 
+-   **telemetry_config**
+
+    Telemetry configuration to control whether metrics are raw or noised. Options are: mode:
+    PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics),
+    mode: OFF(no metrics)
+
 -   **udf_min_log_level**
 
     Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for

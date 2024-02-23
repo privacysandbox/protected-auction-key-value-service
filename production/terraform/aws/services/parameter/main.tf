@@ -79,6 +79,13 @@ resource "aws_ssm_parameter" "metrics_export_timeout_millis_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "telemetry_config_parameter" {
+  name      = "${var.service}-${var.environment}-telemetry-config"
+  type      = "String"
+  value     = var.telemetry_config
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "realtime_updater_num_threads_parameter" {
   name      = "${var.service}-${var.environment}-realtime-updater-num-threads"
   type      = "String"

@@ -59,6 +59,11 @@ variable "metrics_export_timeout_millis_parameter_value" {
   type        = number
 }
 
+variable "telemetry_config" {
+  description = "Telemetry config for exporting raw or noised metrics"
+  type        = string
+}
+
 variable "realtime_updater_num_threads_parameter_value" {
   description = "Amount of realtime notifier threads."
   type        = number

@@ -60,6 +60,8 @@ ABSL_FLAG(int32_t, udf_min_log_level, 0,
           "Minimum logging level for UDFs. Info=0, Warn=1, Error=2. Default is "
           "0(info).");
 ABSL_FLAG(bool, enable_otel_logger, false, "Whether to enable otel logger.");
+ABSL_FLAG(std::string, telemetry_config, "mode: EXPERIMENT",
+          "Telemetry configuration for exporting raw or noised metrics");
 
 namespace kv_server {
 namespace {
@@ -83,6 +85,8 @@ class LocalParameterClient : public ParameterClient {
                                 absl::GetFlag(FLAGS_realtime_directory)});
     string_flag_values_.insert({"kv-server-local-data-loading-file-format",
                                 absl::GetFlag(FLAGS_data_loading_file_format)});
+    string_flag_values_.insert({"kv-server-local-telemetry-config",
+                                absl::GetFlag(FLAGS_telemetry_config)});
     // Insert more string flag values here.
 
     int32_t_flag_values_.insert(

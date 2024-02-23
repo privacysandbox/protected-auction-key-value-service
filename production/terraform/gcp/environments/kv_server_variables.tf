@@ -305,3 +305,9 @@ variable "enable_external_traffic" {
   default     = true
   type        = bool
 }
+
+variable "telemetry_config" {
+  description = "Telemetry configuration to control whether metrics are raw or noised. Options are: mode: PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics), mode: OFF(no metrics)"
+  default     = "mode: PROD"
+  type        = string
+}

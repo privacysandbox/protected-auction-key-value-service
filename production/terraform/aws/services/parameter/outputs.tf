@@ -54,6 +54,10 @@ output "metrics_export_timeout_millis_parameter_arn" {
   value = aws_ssm_parameter.metrics_export_timeout_millis_parameter.arn
 }
 
+output "telemetry_config_parameter_arn" {
+  value = aws_ssm_parameter.telemetry_config_parameter.arn
+}
+
 output "realtime_updater_num_threads_parameter_arn" {
   value = aws_ssm_parameter.realtime_updater_num_threads_parameter.arn
 }

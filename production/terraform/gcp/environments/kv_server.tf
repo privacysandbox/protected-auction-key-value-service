@@ -98,5 +98,6 @@ module "kv_server" {
     tls-cert                                  = var.tls_cert
     enable-otel-logger                        = var.enable_otel_logger
     enable-external-traffic                   = var.enable_external_traffic
+    telemetry-config                          = var.telemetry_config
   }
 }

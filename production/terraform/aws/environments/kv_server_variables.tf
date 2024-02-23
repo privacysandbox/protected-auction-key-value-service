@@ -156,6 +156,12 @@ variable "metrics_export_timeout_millis" {
   type        = number
 }
 
+variable "telemetry_config" {
+  description = "Telemetry configuration to control whether metrics are raw or noised. Options are: mode: PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics), mode: OFF(no metrics)"
+  default     = "mode: PROD"
+  type        = string
+}
+
 variable "realtime_updater_num_threads" {
   description = "Number of realtime threads."
   type        = number

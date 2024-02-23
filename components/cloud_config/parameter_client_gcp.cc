@@ -107,6 +107,8 @@ class GcpParameterClient : public ParameterClient {
                  << " with error: " << status;
       return status;
     }
+    LOG(INFO) << "Got parameter: " << parameter_name
+              << " with value: " << param_value;
     return param_value;
   }
 

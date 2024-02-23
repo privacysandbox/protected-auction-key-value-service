@@ -152,6 +152,7 @@ module "parameter" {
   metrics_collector_endpoint                             = var.metrics_collector_endpoint
   metrics_export_interval_millis_parameter_value         = var.metrics_export_interval_millis
   metrics_export_timeout_millis_parameter_value          = var.metrics_export_timeout_millis
+  telemetry_config                                       = var.telemetry_config
   realtime_updater_num_threads_parameter_value           = var.realtime_updater_num_threads
   data_loading_num_threads_parameter_value               = var.data_loading_num_threads
   s3client_max_connections_parameter_value               = var.s3client_max_connections
@@ -205,6 +206,7 @@ module "iam_role_policies" {
     module.parameter.use_external_metrics_collector_endpoint_arn,
     module.parameter.metrics_export_interval_millis_parameter_arn,
     module.parameter.metrics_export_timeout_millis_parameter_arn,
+    module.parameter.telemetry_config_parameter_arn,
     module.parameter.realtime_updater_num_threads_parameter_arn,
     module.parameter.data_loading_num_threads_parameter_arn,
     module.parameter.s3client_max_connections_parameter_arn,

@@ -32,7 +32,7 @@ VALID EXAMPLES:
     10 part files.
 
 There is a util function to generate split file names conforming to this naming scheme from
-components [ToFileGroupFileName(...)](../public/data_loading/filename_utils.h#L67)
+components [ToFileGroupFileName(...)](/public/data_loading/filename_utils.h#L67)
 
 ## Server startup and snapshot file groups
 

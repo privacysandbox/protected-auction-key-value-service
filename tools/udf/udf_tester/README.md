@@ -4,7 +4,8 @@ This binary directly invokes UDF which can access data input.
 
 It requires two delta files:
 
--   Delta file with key-value pairs to be stored in memory ([docs](/docs/loading_data.md))
+-   Delta file with key-value pairs to be stored in memory
+    ([docs](/docs/data_loading/loading_data.md))
 -   Delta file with the UDF configuration ([docs](/docs/generating_udf_files.md)).
 
 ## Flags:

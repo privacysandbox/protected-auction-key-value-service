@@ -38,7 +38,7 @@ versions are released. The query API conforms to the
 [API explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md). At the
 moment, to load data, instead of calling the mutation API, you would place the data as files into a
 location that can be directly read by the server. See more details in the
-[data loading guide](/docs/loading_data.md).
+[data loading guide](/docs/data_loading/loading_data.md).
 
 Currently, this service can be deployed to 1 region of your choice with more regions to be added
 soon. Monitoring and alerts are currently unavailable.
@@ -77,7 +77,7 @@ changes.
 -   [Integrating the K/V server with FLEDGE](/docs/integrating_with_fledge.md)
 -   [FLEDGE K/V server sharding explainer](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/key_value_service_sharding.md)
 -   Operating documentation
-    -   [Data loading API and operations](/docs/loading_data.md)
+    -   [Data loading API and operations](/docs/data_loading/loading_data.md)
     -   [Generating and loading UDF files](/docs/generating_udf_files.md)
     -   Error handling explainer (_to be published_)
 -   Developer guide

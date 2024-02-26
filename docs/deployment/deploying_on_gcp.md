@@ -188,8 +188,8 @@ builders/tools/terraform -chdir=production/terraform/gcp/environments destroy --
 
 # Loading data into the server
 
-Refer to the [FLEDGE Key/Value data loading guide documentation](/docs/loading_data.md) for loading
-data to be queried into the server.
+Refer to the [FLEDGE Key/Value data loading guide documentation](/docs/data_loading/loading_data.md)
+for loading data to be queried into the server.
 
 # Common operations
 

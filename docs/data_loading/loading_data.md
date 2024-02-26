@@ -32,7 +32,7 @@ both cases, newer key/value pairs supersede existing key/value pairs.
 ## Delta files
 
 Delta filename must conform to the regular expression `DELTA_\d{16}`. See
-[constants.h](../public/constants.h) for the most up-to-date format. More recent delta files are
+[constants.h](/public/constants.h) for the most up-to-date format. More recent delta files are
 lexicographically greater than older delta files. Delta files have the following properties:
 
 -   Consists of key/value mutation events (updates/deletes) for a fixed time window. The events are
@@ -50,7 +50,7 @@ lexicographically greater than older delta files. Delta files have the following
 ## Snapshot files
 
 Snapshot filename must conform to the regular expression `SNAPSHOT_\d{16}`. See
-[constants.h](../public/constants.h). for the most up-to-date format. More recent snapshot files are
+[constants.h](/public/constants.h). for the most up-to-date format. More recent snapshot files are
 lexicographically greater than older snapshot files. SNpashot files have the following properties:
 
 -   Uses the same file format as delta files and are only read at server startup time.
@@ -206,13 +206,13 @@ records are stored as [Flatbuffers](https://google.github.io/flatbuffers/). The 
 here: [Flatbuffer record schema](/public/data_loading/data_loading.fbs).
 
 The C++ reference library implementation can be found under:
-[C++ data file readers](../public/data_loading/readers) and
-[C++ data file writers](../public/data_loading/writers). To write snapshot files, you can use
-[Snapshot writer](../public/data_loading/writers/snapshot_stream_writer.h) and to write delta files,
-you can use [Delta writer](../public/data_loading/writers/delta_record_stream_writer.h). Both files
-can be read using the
-[data file reader](../public/data_loading/readers/delta_record_stream_reader.h). The source and
-destination of the provided readers and writers are required to be `std::iostream` objects.
+[C++ data file readers](/public/data_loading/readers) and
+[C++ data file writers](/public/data_loading/writers). To write snapshot files, you can use
+[Snapshot writer](/public/data_loading/writers/snapshot_stream_writer.h) and to write delta files,
+you can use [Delta writer](/public/data_loading/writers/delta_record_stream_writer.h). Both files
+can be read using the [data file reader](/public/data_loading/readers/delta_record_stream_reader.h).
+The source and destination of the provided readers and writers are required to be `std::iostream`
+objects.
 
 # Writing your own C++ data libraries
 
@@ -223,7 +223,7 @@ data library. Keep the following things in mind:
     file properties listed above.
 -   Snapshot files must be written with metadata specifying the starting and ending filenames of
     records included in the snapshot. See
-    [SnpashotMetadata proto](../public/data_loading/riegeli_metadata.proto).
+    [SnpashotMetadata proto](/public/data_loading/riegeli_metadata.proto).
 
 # Upload data files to AWS
 
@@ -244,7 +244,7 @@ You can use the AWS CLI to upload the sample data to S3, or you can also use the
 
 Confirm that the file is present in the S3 bucket:
 
-![the delta file listed in the S3 console](assets/s3_delta_file.png)
+![the delta file listed in the S3 console](/docs/assets/s3_delta_file.png)
 
 ## Upload data files to GCP
 
@@ -252,7 +252,7 @@ Similar to AWS, the server in GCP watches a Google Cloud Storage (GCS) bucket co
 Terraform config. New files in the bucket will be automatically uploaded to the server. You can
 uploade files to your GCS bucket through Google Cloud Console.
 
-![files listed in the Google Cloud Console](assets/gcp_gcs_bucket.png)
+![files listed in the Google Cloud Console](/docs/assets/gcp_gcs_bucket.png)
 
 Alternatively, you can use [gsutil tool](https://cloud.google.com/storage/docs/gsutil) to upload
 files to GCS. For example:
@@ -275,7 +275,7 @@ delta file to a dedicated broadcast topic.
 
 ## AWS
 
-![Realtime design](assets/realtime_design.png)
+![Realtime design](/docs/assets/realtime_design.png)
 
 In the case of AWS it is a Simple Notification Service (SNS) topic. That topic is created in
 terraform
@@ -296,8 +296,8 @@ The setup is similar to AWS above. The differences are in terminology:
 -   EC2->VM
 
 In the case of AWS it is a PubSub topic. That topic is created in terraform
-[here](../production/terraform/gcp/services/realtime/main.tf) Delta files contain multiple rows,
-which allows you to batch multiple updates together. There is a
+[here](/production/terraform/gcp/services/realtime/main.tf) Delta files contain multiple rows, which
+allows you to batch multiple updates together. There is a
 [limit](https://cloud.google.com/pubsub/quotas#resource_limits) of 10MB for the message size.
 
 Each data server is subscribed to the topic through
@@ -312,7 +312,7 @@ data loading path. If it is not, then that update can be lost, for example, duri
 The standard upload is the authoritative and persistent source of truth, and the low latency update
 allows to speed up the update latency.
 
-![Realtime sequence](assets/realtime_sequence.png)
+![Realtime sequence](/docs/assets/realtime_sequence.png)
 
 As per the diagram below, first you should
 [write](#using-the-c-reference-library-to-read-and-write-data-files) the updates to a delta file
@@ -368,5 +368,5 @@ gcloud pubsub topics publish "$topic_arn" --message "$file"
 
 ### Cpp
 
-Check out this sample [tool](../components/tools/realtime_updates_publisher.cc) on how to insert low
+Check out this sample [tool](/components/tools/realtime_updates_publisher.cc) on how to insert low
 latency updates.

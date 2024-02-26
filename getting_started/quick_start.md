@@ -173,7 +173,7 @@ curl http://localhost:51052/v1/getvalues?keys=example_key
 }
 ```
 
-See [here](/docs/loading_data.md) for more information about data loading.
+See [here](/docs/data_loading/loading_data.md) for more information about data loading.
 
 ## Use `User Defined Functions (UDF)` to process requests
 

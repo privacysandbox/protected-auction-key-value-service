@@ -69,7 +69,7 @@ Tools to generate UDF delta files and test them are in the `tools/udf` directory
 ### Option 2. Generating your own delta file
 
 You can use other options to generate delta files, e.g. using the
-[`data_cli` tool](./loading_data.md).
+[`data_cli` tool](/docs/data_loading/loading_data.md).
 
 The delta file must have a `DataRecord` with a `UserDefinedFunctionsConfig` as its record.
 

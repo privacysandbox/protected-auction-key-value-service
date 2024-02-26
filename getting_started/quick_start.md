@@ -318,5 +318,5 @@ advanced topics and features:
 -   [Deploying on AWS](/docs/deployment/deploying_on_aws.md)
 -   [Deploying on GCP](/docs/deployment/deploying_on_gcp.md)
 -   [Sharding](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/key_value_service_sharding.md)
--   [Working with Terraform](/docs/working_with_terraform.md)
+-   [Working with Terraform](/docs/deployment/working_with_terraform.md)
 -   [UDF binary data API](/docs/udf_read_apis_with_binary_data.md)

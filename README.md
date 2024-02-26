@@ -82,7 +82,7 @@ changes.
     -   Error handling explainer (_to be published_)
 -   Developer guide
     -   [Codebase structure](/docs/repo_layout.md)
-    -   [Working with Terraform](/production/terraform/README.md)
+    -   [Working with Terraform](/docs/deployment/working_with_terraform.md)
     -   [Contributing to the codebase](/docs/contributing.md)
 -   [Code of conduct](/docs/CODE_OF_CONDUCT.md)
 -   [Change log](/CHANGELOG.md)

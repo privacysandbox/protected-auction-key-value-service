@@ -71,9 +71,6 @@ class LocalLookup : public Lookup {
         auto status = result.mutable_status();
         status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
         status->set_message("Key not found");
-        LogInternalLookupRequestErrorMetric(
-            request_context.GetInternalLookupMetricsContext(),
-            kLocalGetKeyValueSetKeySetNotFound);
       } else {
         result.set_value(std::move(key_iter->second));
       }
@@ -100,9 +97,6 @@ class LocalLookup : public Lookup {
         auto status = result.mutable_status();
         status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
         status->set_message("Key not found");
-        LogInternalLookupRequestErrorMetric(
-            request_context.GetInternalLookupMetricsContext(),
-            kLocalGetKeyValueSetKeySetNotFound);
       } else {
         auto keyset_values = result.mutable_keyset_values();
         keyset_values->mutable_values()->Add(value_set.begin(),

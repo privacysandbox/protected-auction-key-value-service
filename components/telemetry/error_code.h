@@ -71,9 +71,6 @@ inline constexpr std::string_view kInternalRunQueryRequestFailure =
 // Failure in executing run query in local lookup
 inline constexpr std::string_view kLocalRunQueryFailure =
     "LocalRunQueryFailure";
-// Keyset not found error in the GetKeyValueSet in local lookup
-inline constexpr std::string_view kLocalGetKeyValueSetKeySetNotFound =
-    "LocalGetKeyValueSetKeySetNotFound";
 // Missing keyset in the run query in local lookup
 inline constexpr std::string_view kLocalRunQueryMissingKeySet =
     "LocalRunQueryMissingKeySet";
@@ -160,10 +157,10 @@ inline constexpr std::string_view kKVServerErrorCode[] = {
 
 // Strings must be sorted, this is required by the API of partitioned metrics
 inline constexpr absl::string_view kInternalLookupRequestErrorCode[] = {
-    kInternalRunQueryRequestFailure, kLocalGetKeyValueSetKeySetNotFound,
-    kLocalRunQueryFailure,           kLocalRunQueryMissingKeySet,
-    kLocalRunQueryParsingFailure,    kRequestDecryptionFailure,
-    kRequestUnpaddingError,          kResponseEncryptionFailure,
+    kInternalRunQueryRequestFailure, kLocalRunQueryFailure,
+    kLocalRunQueryMissingKeySet,     kLocalRunQueryParsingFailure,
+    kRequestDecryptionFailure,       kRequestUnpaddingError,
+    kResponseEncryptionFailure,
 };
 
 }  // namespace kv_server

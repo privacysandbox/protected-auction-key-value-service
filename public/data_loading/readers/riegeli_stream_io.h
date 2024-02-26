@@ -58,7 +58,8 @@ class RiegeliStreamReader : public StreamRecordReader {
     riegeli::RecordsMetadata metadata;
     if (!reader_.ReadMetadata(metadata)) {
       if (reader_.ok()) {
-        return absl::UnavailableError("Metadata not found");
+        return absl::UnavailableError(
+            "Metadata not found. Please ensure metadata is set properly.");
       }
       return reader_.status();
     }
@@ -75,7 +76,9 @@ class RiegeliStreamReader : public StreamRecordReader {
     RecordT record;
     absl::Status overall_status;
     while (reader_.ReadRecord(record)) {
-      overall_status.Update(callback(record));
+      const auto callback_status = callback(record);
+      LOG_IF(WARNING, !callback_status.ok());
+      overall_status.Update(callback_status);
     }
     if (!overall_status.ok()) {
       LOG(ERROR) << overall_status;

@@ -197,17 +197,15 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
               .logical_commit_time = udf_config->logical_commit_time(),
               .version = udf_config->version()});
         }
-        LOG(ERROR) << "Received unsupported record ";
-        return absl::InvalidArgumentError("Record type not supported.");
+        return absl::InvalidArgumentError("Received unsupported record.");
       };
-
-  auto status = record_reader.ReadStreamRecords(
+  // TODO(b/314302953): ReadStreamRecords will skip over individual records that
+  // have errors. We should pass the file name to the function so that it will
+  // appear in error logs.
+  PS_RETURN_IF_ERROR(record_reader.ReadStreamRecords(
       [&process_data_record_fn](std::string_view raw) {
         return DeserializeDataRecord(raw, process_data_record_fn);
-      });
-  if (!status.ok()) {
-    return status;
-  }
+      }));
   LogDataLoadingMetrics(data_source, data_loading_stats);
   return data_loading_stats;
 }
@@ -225,14 +223,12 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
             return std::make_unique<BlobRecordStream>(
                 options.blob_client.GetBlobReader(location));
           });
-  auto metadata = record_reader->GetKVFileMetadata();
-  if (!metadata.ok()) {
-    return metadata.status();
-  }
-  if (metadata->has_sharding_metadata() &&
-      metadata->sharding_metadata().shard_num() != options.shard_num) {
+  PS_ASSIGN_OR_RETURN(auto metadata, record_reader->GetKVFileMetadata(),
+                      _ << "Blob " << location);
+  if (metadata.has_sharding_metadata() &&
+      metadata.sharding_metadata().shard_num() != options.shard_num) {
     LOG(INFO) << "Blob " << location << " belongs to shard num "
-              << metadata->sharding_metadata().shard_num()
+              << metadata.sharding_metadata().shard_num()
               << " but server shard num is " << options.shard_num
               << " Skipping it.";
     return DataLoadingStats{
@@ -245,15 +241,16 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
       location.prefix.empty()
           ? location.key
           : absl::StrCat(location.prefix, "/", location.key);
-  auto status =
+  PS_ASSIGN_OR_RETURN(
+      auto data_loading_stats,
       LoadCacheWithData(file_name, location.prefix, *record_reader, cache,
                         max_timestamp, options.shard_num, options.num_shards,
-                        options.udf_client, options.key_sharder);
-  if (status.ok()) {
-    cache.RemoveDeletedKeys(max_timestamp, location.prefix);
-  }
-  return status;
+                        options.udf_client, options.key_sharder),
+      _ << "Blob: " << location);
+  cache.RemoveDeletedKeys(max_timestamp, location.prefix);
+  return data_loading_stats;
 }
+
 absl::StatusOr<DataLoadingStats> TraceLoadCacheWithDataFromFile(
     BlobStorageClient::DataLocation location,
     const DataOrchestrator::Options& options) {
@@ -426,7 +423,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
                 return std::make_unique<BlobRecordStream>(
                     options.blob_client.GetBlobReader(location));
               });
-      PS_ASSIGN_OR_RETURN(auto metadata, record_reader->GetKVFileMetadata());
+      PS_ASSIGN_OR_RETURN(auto metadata, record_reader->GetKVFileMetadata(),
+                          _ << "Blob " << location);
       if (metadata.has_sharding_metadata() &&
           metadata.sharding_metadata().shard_num() != options.shard_num) {
         LOG(INFO) << "Snapshot " << location << " belongs to shard num "

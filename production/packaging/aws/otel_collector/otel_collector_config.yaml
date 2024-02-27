@@ -50,6 +50,7 @@ exporters:
     namespace: 'KV-Server'
     resource_to_telemetry_conversion:
         enabled: true
+    retain_initial_value_of_delta_metric: true
   prometheusremotewrite:
     endpoint: "https://aps-workspaces.$REGION.amazonaws.com/workspaces/$WORKSPACE_ID/api/v1/remote_write"
     auth:

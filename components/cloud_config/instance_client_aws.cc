@@ -39,10 +39,13 @@
 #include "aws/ec2/model/DescribeTagsResponse.h"
 #include "aws/ec2/model/Filter.h"
 #include "components/cloud_config/instance_client.h"
+#include "components/errors/error_tag.h"
 #include "components/errors/error_util_aws.h"
 
 namespace kv_server {
 namespace {
+
+enum class ErrorTag : int { kGetAwsHttpResourceError = 1 };
 
 using Aws::AutoScaling::Model::DescribeAutoScalingGroupsRequest;
 using Aws::AutoScaling::Model::Instance;
@@ -94,8 +97,10 @@ absl::StatusOr<std::string> GetAwsHttpResource(
   if (result.GetResponseCode() == Aws::Http::HttpResponseCode::OK) {
     return Aws::Utils::StringUtils::Trim(result.GetPayload().c_str());
   }
-  return absl::Status(HttpResponseCodeToStatusCode(result.GetResponseCode()),
-                      "Failed to get AWS Http resource.");
+  return StatusWithErrorTag(
+      absl::Status(HttpResponseCodeToStatusCode(result.GetResponseCode()),
+                   "Failed to get AWS Http resource."),
+      __FILE__, ErrorTag::kGetAwsHttpResourceError);
 }
 
 absl::StatusOr<std::string> GetImdsToken(

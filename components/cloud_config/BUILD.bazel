@@ -156,6 +156,7 @@ cc_library(
         ],
         "//conditions:default": [],
     }) + [
+        "//components/errors:error_tag",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/log:check",

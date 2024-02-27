@@ -17,6 +17,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 package(default_visibility = [
     "//components:__subpackages__",
     "//production/packaging:__subpackages__",
+    "//public/data_loading:__subpackages__",
 ])
 
 cc_library(
@@ -103,5 +104,17 @@ cc_test(
         ":retry",
         "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "error_tag",
+    srcs = [
+        "error_tag.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:cord",
     ],
 )

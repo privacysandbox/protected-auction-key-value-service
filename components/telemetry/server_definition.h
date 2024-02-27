@@ -329,21 +329,27 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kTotalRowsDroppedInDataLoading("TotalRowsDroppedInDataLoading",
-                                   "Total rows dropped during data loading");
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kTotalRowsDroppedInDataLoading(
+        "TotalRowsDroppedInDataLoading",
+        "Total rows dropped during data loading", "file_name",
+        privacy_sandbox::server_common::metrics::kEmptyPublicPartition);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kTotalRowsUpdatedInDataLoading("TotalRowsUpdatedInDataLoading",
-                                   "Total rows updated during data loading");
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kTotalRowsUpdatedInDataLoading(
+        "TotalRowsUpdatedInDataLoading",
+        "Total rows updated during data loading", "file_name",
+        privacy_sandbox::server_common::metrics::kEmptyPublicPartition);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kTotalRowsDeletedInDataLoading("TotalRowsDeletedInDataLoading",
-                                   "Total rows deleted during data loading");
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kTotalRowsDeletedInDataLoading(
+        "TotalRowsDeletedInDataLoading",
+        "Total rows deleted during data loading", "file_name",
+        privacy_sandbox::server_common::metrics::kEmptyPublicPartition);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,

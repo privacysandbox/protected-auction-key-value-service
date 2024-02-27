@@ -52,22 +52,30 @@ class BlobRecordStream : public RecordStream {
   std::unique_ptr<BlobReader> blob_reader_;
 };
 
-void LogDataLoadingMetrics(const DataLoadingStats& data_loading_stats) {
+void LogDataLoadingMetrics(const BlobStorageClient::DataLocation& location,
+                           const DataLoadingStats& data_loading_stats) {
+  std::string file_name =
+      location.prefix.empty()
+          ? location.key
+          : absl::StrCat(location.prefix, "/", location.key);
   LogIfError(
       KVServerContextMap()
           ->SafeMetric()
           .LogUpDownCounter<kTotalRowsUpdatedInDataLoading>(
-              static_cast<double>(data_loading_stats.total_updated_records)));
+              {{file_name, static_cast<double>(
+                               data_loading_stats.total_updated_records)}}));
   LogIfError(
       KVServerContextMap()
           ->SafeMetric()
           .LogUpDownCounter<kTotalRowsDeletedInDataLoading>(
-              static_cast<double>(data_loading_stats.total_deleted_records)));
+              {{file_name, static_cast<double>(
+                               data_loading_stats.total_deleted_records)}}));
   LogIfError(
       KVServerContextMap()
           ->SafeMetric()
           .LogUpDownCounter<kTotalRowsDroppedInDataLoading>(
-              static_cast<double>(data_loading_stats.total_dropped_records)));
+              {{file_name, static_cast<double>(
+                               data_loading_stats.total_dropped_records)}}));
 }
 
 absl::Status ApplyUpdateMutation(std::string_view prefix,
@@ -203,7 +211,6 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
   if (!status.ok()) {
     return status;
   }
-  LogDataLoadingMetrics(data_loading_stats);
   return data_loading_stats;
 }
 
@@ -240,6 +247,7 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
       location.prefix, *record_reader, cache, max_timestamp, options.shard_num,
       options.num_shards, options.udf_client, options.key_sharder);
   if (status.ok()) {
+    LogDataLoadingMetrics(location, *status);
     cache.RemoveDeletedKeys(max_timestamp, location.prefix);
   }
   return status;

@@ -106,9 +106,27 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kShardedLookupGetKeyValuesLatencyInMicros(
+        "ShardedLookupGetKeyValuesLatencyInMicros",
+        "Latency in executing GetKeyValues in the sharded lookup",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kShardedLookupGetKeyValueSetLatencyInMicros(
+        "ShardedLookupGetKeyValueSetLatencyInMicros",
+        "Latency in executing GetKeyValueSet in the sharded lookup",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kShardedLookupRunQueryLatencyInMicros(
         "ShardedLookupRunQueryLatencyInMicros",
-        "Latency in executing run query in the sharded lookup",
+        "Latency in executing RunQuery in the sharded lookup",
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
 
@@ -429,7 +447,9 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
         // Unsafe metrics
-        &kKVUdfRequestError, &kShardedLookupRunQueryLatencyInMicros,
+        &kKVUdfRequestError, &kShardedLookupGetKeyValuesLatencyInMicros,
+        &kShardedLookupGetKeyValueSetLatencyInMicros,
+        &kShardedLookupRunQueryLatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros,
         // Safe metrics
         &kKVServerError,

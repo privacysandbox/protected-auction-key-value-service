@@ -92,12 +92,18 @@ class ShardedLookup : public Lookup {
   absl::StatusOr<InternalLookupResponse> GetKeyValues(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const override {
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupGetKeyValuesLatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
     return ProcessShardedKeys(request_context, keys);
   }
 
   absl::StatusOr<InternalLookupResponse> GetKeyValueSet(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const override {
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupGetKeyValueSetLatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
     InternalLookupResponse response;
     if (keys.empty()) {
       return response;

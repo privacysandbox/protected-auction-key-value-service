@@ -45,7 +45,10 @@
 namespace kv_server {
 namespace {
 
-enum class ErrorTag : int { kGetAwsHttpResourceError = 1 };
+enum class ErrorTag : int {
+  kGetAwsHttpResourceError = 1,
+  kAutoScalingSizeError = 2
+};
 
 using Aws::AutoScaling::Model::DescribeAutoScalingGroupsRequest;
 using Aws::AutoScaling::Model::Instance;
@@ -148,7 +151,8 @@ absl::StatusOr<std::string> GetAutoScalingGroupName(
         "Could not get auto scaling instances for instance ", instance_id,
         ". Retrieved ", outcome.GetResult().GetAutoScalingInstances().size(),
         " auto scaling groups.");
-    return absl::NotFoundError(error_msg);
+    return StatusWithErrorTag(absl::NotFoundError(error_msg), __FILE__,
+                              ErrorTag::kAutoScalingSizeError);
   }
   return outcome.GetResult()
       .GetAutoScalingInstances()[0]

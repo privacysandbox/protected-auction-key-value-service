@@ -51,6 +51,7 @@ cc_test(
 cc_binary(
     name = "record_aggregator_benchmarks",
     srcs = ["record_aggregator_benchmarks.cc"],
+    malloc = "@com_google_tcmalloc//tcmalloc",
     deps = [
         ":record_aggregator",
         "//public/data_loading:records_utils",

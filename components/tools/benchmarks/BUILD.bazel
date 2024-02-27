@@ -47,6 +47,7 @@ cc_test(
 cc_binary(
     name = "data_loading_benchmark",
     srcs = ["data_loading_benchmark.cc"],
+    malloc = "@com_google_tcmalloc//tcmalloc",
     deps = [
         ":benchmark_util",
         "//components/data/blob_storage:blob_storage_client",
@@ -73,6 +74,7 @@ cc_binary(
 cc_binary(
     name = "cache_benchmark",
     srcs = ["cache_benchmark.cc"],
+    malloc = "@com_google_tcmalloc//tcmalloc",
     deps = [
         ":benchmark_util",
         "//components/data_server/cache",

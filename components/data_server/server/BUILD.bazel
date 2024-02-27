@@ -200,6 +200,7 @@ cc_test(
 cc_binary(
     name = "server",
     srcs = ["main.cc"],
+    malloc = "@com_google_tcmalloc//tcmalloc",
     visibility = [
         "//google_internal/production/packaging:__subpackages__",
         "//production/packaging:__subpackages__",

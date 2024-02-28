@@ -74,7 +74,7 @@ changes.
 -   [Local server quickstart guide](/docs/developing_the_server.md)
 -   [AWS server user deployment documentation](/docs/deployment/deploying_on_aws.md)
 -   [GCP server user deployment documentation](/docs/deployment/deploying_on_gcp.md)
--   [Integrating the K/V server with FLEDGE](/docs/integrating_with_fledge.md)
+-   [Integrating the K/V server with FLEDGE](/docs/protected_audience/integrating_with_fledge.md)
 -   [FLEDGE K/V server sharding explainer](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/key_value_service_sharding.md)
 -   Operating documentation
     -   [Data loading API and operations](/docs/data_loading/loading_data.md)

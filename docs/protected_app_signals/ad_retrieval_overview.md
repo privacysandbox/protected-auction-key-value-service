@@ -35,7 +35,7 @@ phase and the focus of this document. Bids are computed for the selected set of 
 sent to the seller who would score and pick the winning ad. The winning ad is then rendered by the
 client.
 
-![alt_text](assets/ad_retrieval_use_case_overview.png 'use case overview')
+![alt_text](../assets/ad_retrieval_use_case_overview.png 'use case overview')
 
 #### Figure 1: High level layout of the retrieval flow
 
@@ -43,7 +43,7 @@ An ad tech has up to N active ad campaigns at any given time. To choose relevant
 retrieval request an ad tech needs to filter the ads to the top K number of ads. To do this ad techs
 typically follow a multi stage filtering process that looks something like the following:
 
-![alt_text](assets/ad_retrieval_filter_funnel.png 'image_tooltip')
+![alt_text](../assets/ad_retrieval_filter_funnel.png 'image_tooltip')
 
 ### Coarse-grained selection
 
@@ -71,7 +71,7 @@ processes involved may vary depending on the individual ad tech implementation.
 
 ## Ad retrieval walkthrough
 
-![alt_text](assets/ad_retrieval_walkthrough.png 'walkthrough')
+![alt_text](../assets/ad_retrieval_walkthrough.png 'walkthrough')
 
 <!-- markdownlint-disable MD013 -->
 
@@ -227,7 +227,7 @@ string handleAdsFetchRequest(
 -   Output: string. This will be sent back to the bidding service and passed into the `generateBid`
     function for bid generation.
 
-![alt_text](assets/ad_retrieval_udf.png 'ad_retrieval_udf')
+![alt_text](../assets/ad_retrieval_udf.png 'ad_retrieval_udf')
 
 #### Figure 3: Zoomed-in view of request path.
 

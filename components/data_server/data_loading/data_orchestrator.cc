@@ -38,6 +38,7 @@ namespace {
 //  for now. This needs to be removed after we are done with directory support
 //  for file updates.
 constexpr std::string_view kDefaultPrefixForRealTimeUpdates = "";
+constexpr std::string_view kDefaultDataSourceForRealtimeUpdates = "realtime";
 
 using privacy_sandbox::server_common::TraceWithStatusOr;
 
@@ -52,30 +53,26 @@ class BlobRecordStream : public RecordStream {
   std::unique_ptr<BlobReader> blob_reader_;
 };
 
-void LogDataLoadingMetrics(const BlobStorageClient::DataLocation& location,
+void LogDataLoadingMetrics(std::string_view source,
                            const DataLoadingStats& data_loading_stats) {
-  std::string file_name =
-      location.prefix.empty()
-          ? location.key
-          : absl::StrCat(location.prefix, "/", location.key);
-  LogIfError(
-      KVServerContextMap()
-          ->SafeMetric()
-          .LogUpDownCounter<kTotalRowsUpdatedInDataLoading>(
-              {{file_name, static_cast<double>(
-                               data_loading_stats.total_updated_records)}}));
-  LogIfError(
-      KVServerContextMap()
-          ->SafeMetric()
-          .LogUpDownCounter<kTotalRowsDeletedInDataLoading>(
-              {{file_name, static_cast<double>(
-                               data_loading_stats.total_deleted_records)}}));
-  LogIfError(
-      KVServerContextMap()
-          ->SafeMetric()
-          .LogUpDownCounter<kTotalRowsDroppedInDataLoading>(
-              {{file_name, static_cast<double>(
-                               data_loading_stats.total_dropped_records)}}));
+  LogIfError(KVServerContextMap()
+                 ->SafeMetric()
+                 .LogUpDownCounter<kTotalRowsUpdatedInDataLoading>(
+                     {{std::string(source),
+                       static_cast<double>(
+                           data_loading_stats.total_updated_records)}}));
+  LogIfError(KVServerContextMap()
+                 ->SafeMetric()
+                 .LogUpDownCounter<kTotalRowsDeletedInDataLoading>(
+                     {{std::string(source),
+                       static_cast<double>(
+                           data_loading_stats.total_deleted_records)}}));
+  LogIfError(KVServerContextMap()
+                 ->SafeMetric()
+                 .LogUpDownCounter<kTotalRowsDroppedInDataLoading>(
+                     {{std::string(source),
+                       static_cast<double>(
+                           data_loading_stats.total_dropped_records)}}));
 }
 
 absl::Status ApplyUpdateMutation(std::string_view prefix,
@@ -170,10 +167,10 @@ absl::Status ApplyKeyValueMutationToCache(
 }
 
 absl::StatusOr<DataLoadingStats> LoadCacheWithData(
-    std::string_view prefix, StreamRecordReader& record_reader, Cache& cache,
-    int64_t& max_timestamp, const int32_t server_shard_num,
-    const int32_t num_shards, UdfClient& udf_client,
-    const KeySharder& key_sharder) {
+    std::string_view data_source, std::string_view prefix,
+    StreamRecordReader& record_reader, Cache& cache, int64_t& max_timestamp,
+    const int32_t server_shard_num, const int32_t num_shards,
+    UdfClient& udf_client, const KeySharder& key_sharder) {
   DataLoadingStats data_loading_stats;
   const auto process_data_record_fn =
       [prefix, &cache, &max_timestamp, &data_loading_stats, server_shard_num,
@@ -211,6 +208,7 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
   if (!status.ok()) {
     return status;
   }
+  LogDataLoadingMetrics(data_source, data_loading_stats);
   return data_loading_stats;
 }
 
@@ -243,11 +241,15 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
         .total_dropped_records = 0,
     };
   }
-  auto status = LoadCacheWithData(
-      location.prefix, *record_reader, cache, max_timestamp, options.shard_num,
-      options.num_shards, options.udf_client, options.key_sharder);
+  std::string file_name =
+      location.prefix.empty()
+          ? location.key
+          : absl::StrCat(location.prefix, "/", location.key);
+  auto status =
+      LoadCacheWithData(file_name, location.prefix, *record_reader, cache,
+                        max_timestamp, options.shard_num, options.num_shards,
+                        options.udf_client, options.key_sharder);
   if (status.ok()) {
-    LogDataLoadingMetrics(location, *status);
     cache.RemoveDeletedKeys(max_timestamp, location.prefix);
   }
   return status;
@@ -345,6 +347,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
          &delta_stream_reader_factory = options_.delta_stream_reader_factory](
             const std::string& message_body) {
           return LoadCacheWithHighPriorityUpdates(
+              kDefaultDataSourceForRealtimeUpdates,
               kDefaultPrefixForRealTimeUpdates, delta_stream_reader_factory,
               message_body, cache);
         });
@@ -444,15 +447,16 @@ class DataOrchestratorImpl : public DataOrchestrator {
   }
 
   absl::StatusOr<DataLoadingStats> LoadCacheWithHighPriorityUpdates(
-      std::string_view prefix,
+      std::string_view data_source, std::string_view prefix,
       StreamRecordReaderFactory& delta_stream_reader_factory,
       const std::string& record_string, Cache& cache) {
     std::istringstream is(record_string);
     int64_t max_timestamp = 0;
     auto record_reader = delta_stream_reader_factory.CreateReader(is);
-    return LoadCacheWithData(prefix, *record_reader, cache, max_timestamp,
-                             options_.shard_num, options_.num_shards,
-                             options_.udf_client, options_.key_sharder);
+    return LoadCacheWithData(data_source, prefix, *record_reader, cache,
+                             max_timestamp, options_.shard_num,
+                             options_.num_shards, options_.udf_client,
+                             options_.key_sharder);
   }
 
   const Options options_;

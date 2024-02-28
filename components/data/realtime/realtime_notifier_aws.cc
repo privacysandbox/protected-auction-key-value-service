@@ -93,14 +93,10 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
       sequential_failures = 0;
 
       for (const auto& realtime_message : updates->realtime_messages) {
-        auto count = callback(realtime_message.parsed_notification);
-        if (count.ok()) {
-          LogIfError(
-              KVServerContextMap()
-                  ->SafeMetric()
-                  .LogUpDownCounter<kRealtimeTotalRowsUpdated>(
-                      static_cast<double>(count->total_updated_records +
-                                          count->total_deleted_records)));
+        if (auto count = callback(realtime_message.parsed_notification);
+            !count.ok()) {
+          LOG(ERROR) << "Data loading callback failed: " << count.status();
+          LogServerErrorMetric(kRealtimeMessageApplicationFailure);
         }
         auto e2e_cloud_provided_latency = absl::ToDoubleMicroseconds(
             absl::Now() - realtime_message.notifications_sns_inserted);

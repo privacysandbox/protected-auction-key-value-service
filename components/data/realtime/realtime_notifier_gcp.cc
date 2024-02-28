@@ -118,14 +118,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
       std::move(h).ack();
       return;
     }
-    auto count = callback(string_decoded);
-    if (count.ok()) {
-      LogIfError(KVServerContextMap()
-                     ->SafeMetric()
-                     .LogUpDownCounter<kRealtimeTotalRowsUpdated>(
-                         static_cast<double>(count->total_updated_records +
-                                             count->total_deleted_records)));
-    } else {
+    if (auto count = callback(string_decoded); !count.ok()) {
       LOG(ERROR) << "Data loading callback failed: " << count.status();
       LogServerErrorMetric(kRealtimeMessageApplicationFailure);
     }

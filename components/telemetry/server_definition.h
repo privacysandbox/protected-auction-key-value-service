@@ -278,12 +278,6 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRealtimeTotalRowsUpdated("RealtimeTotalRowsUpdated",
-                              "Realtime total rows updated count");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kReceivedLowLatencyNotificationsE2ECloudProvided(
         "ReceivedLowLatencyNotificationsE2ECloudProvided",
@@ -350,7 +344,9 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
     kTotalRowsDroppedInDataLoading(
         "TotalRowsDroppedInDataLoading",
-        "Total rows dropped during data loading", "file_name",
+        "Total rows dropped during data loading from data source,"
+        "data source can be a data file or realtime",
+        "data_source",
         privacy_sandbox::server_common::metrics::kEmptyPublicPartition);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
@@ -358,7 +354,9 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
     kTotalRowsUpdatedInDataLoading(
         "TotalRowsUpdatedInDataLoading",
-        "Total rows updated during data loading", "file_name",
+        "Total rows updated during data loading from data source,"
+        "data source can be a data file or realtime ",
+        "data_source",
         privacy_sandbox::server_common::metrics::kEmptyPublicPartition);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
@@ -366,7 +364,9 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
     kTotalRowsDeletedInDataLoading(
         "TotalRowsDeletedInDataLoading",
-        "Total rows deleted during data loading", "file_name",
+        "Total rows deleted during data loading from data source,"
+        "data source can be a data file or realtime",
+        "data_source",
         privacy_sandbox::server_common::metrics::kEmptyPublicPartition);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
@@ -461,7 +461,7 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kCompleteLifecycleStatus, &kCreateDataOrchestratorStatus,
         &kStartDataOrchestratorStatus, &kLoadNewFilesStatus,
         &kGetShardManagerStatus, &kDescribeInstanceGroupInstancesStatus,
-        &kDescribeInstancesStatus, &kRealtimeTotalRowsUpdated,
+        &kDescribeInstancesStatus,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
         &kAwsSqsReceiveMessageLatency, &kSeekingInputStreambufSeekoffLatency,

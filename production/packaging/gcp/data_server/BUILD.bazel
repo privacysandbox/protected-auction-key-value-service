@@ -130,11 +130,11 @@ container_image(
         "/init_server_basic",
         # These affect PCR0, so changing these would result in the loss of
         # access to private keys for decryption.
-        "--public_key_endpoint='https://publickeyservice-test1.bas-kms.xyz/v1alpha/publicKeys'",
-        "--primary_coordinator_private_key_endpoint='https://privatekeyservice-test1.bas-kms.xyz/v1alpha/encryptionKeys'",
-        "--secondary_coordinator_private_key_endpoint='https://privatekeyservice-test2.bas-kms.xyz/v1alpha/encryptionKeys'",
-        "--primary_coordinator_region='us-central1'",
-        "--secondary_coordinator_region='us-central1'",
+        "--public_key_endpoint=https://publickeyservice-v150.coordinator-a.bas-gcp.pstest.dev/.well-known/protected-auction/v1/public-keys",
+        "--primary_coordinator_private_key_endpoint=https://privatekeyservice-v150.coordinator-a.bas-gcp.pstest.dev/v1alpha/encryptionKeys",
+        "--secondary_coordinator_private_key_endpoint=https://privatekeyservice-v150.coordinator-b.bas-gcp.pstest.dev/v1alpha/encryptionKeys",
+        "--primary_coordinator_region=us-central1",
+        "--secondary_coordinator_region=us-central",
         "--stderrthreshold=0",
     ],
     env = {

@@ -98,11 +98,11 @@ constexpr std::string_view kTestPublicKey =
 // Parameters used to configure Oblivious HTTP according to
 // https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#encryption
 //
-// KEM: DHKEM(X25519, HKDF-SHA256) 0x0020
+// KEM: DHKEM(X25519, HKDF-SHA256)
 const uint16_t kKEMParameter = 0x0020;
-// KDF: HKDF-SHA256 0x0001
+// KDF: HKDF-SHA256
 const uint16_t kKDFParameter = 0x0001;
-// AEAD: AES-256-GCM 0X0001
+// AEAD: AES-256-GCM
 const uint16_t kAEADParameter = 0x0002;
 
 constexpr std::string_view kServiceName = "kv-server";

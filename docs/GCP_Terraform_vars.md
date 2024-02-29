@@ -127,6 +127,11 @@
 
     Regions to deploy to.
 
+-   **regions_cidr_blocks**
+
+    A set of CIDR ranges for all specified regions. The number of blocks here should correspond to
+    the number of regions.
+
 -   **regions_use_existing_nat**
 
     Regions that use existing nat. No new nats will be created for regions specified here.

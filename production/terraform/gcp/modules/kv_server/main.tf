@@ -19,6 +19,7 @@ module "networking" {
   service                  = var.service
   environment              = var.environment
   regions                  = var.regions
+  regions_cidr_blocks      = var.regions_cidr_blocks
   regions_use_existing_nat = var.regions_use_existing_nat
   collector_service_name   = var.collector_service_name
   use_existing_vpc         = var.use_existing_vpc

@@ -27,7 +27,7 @@ resource "google_compute_subnetwork" "kv_server" {
   network       = var.use_existing_vpc ? var.existing_vpc_id : google_compute_network.kv_server[0].id
   purpose       = "PRIVATE"
   region        = each.value
-  ip_cidr_range = "10.${each.key}.3.0/24"
+  ip_cidr_range = tolist(var.regions_cidr_blocks)[each.key]
 }
 
 resource "google_compute_router" "kv_server" {

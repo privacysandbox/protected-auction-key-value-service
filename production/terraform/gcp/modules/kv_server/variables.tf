@@ -44,6 +44,11 @@ variable "regions" {
   type        = set(string)
 }
 
+variable "regions_cidr_blocks" {
+  description = "A set of CIDR ranges for all specified regions. The number of blocks here should correspond to the number of regions."
+  type        = set(string)
+}
+
 variable "regions_use_existing_nat" {
   description = "Regions that use existing nat. No new nats will be created for regions specified here."
   type        = set(string)

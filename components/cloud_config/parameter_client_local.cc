@@ -120,7 +120,7 @@ class LocalParameterClient : public ParameterClient {
         {"kv-server-local-udf-timeout-millis",
          absl::ToInt64Milliseconds(absl::GetFlag(FLAGS_udf_timeout))});
     int32_t_flag_values_.insert({"kv-server-local-udf-min-log-level",
-                                 absl::GetFlag(FLAGS_logging_verbosity_level)});
+                                 absl::GetFlag(FLAGS_udf_min_log_level)});
     // Insert more int32 flag values here.
     bool_flag_values_.insert({"kv-server-local-route-v1-to-v2",
                               absl::GetFlag(FLAGS_route_v1_to_v2)});

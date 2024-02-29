@@ -11,7 +11,7 @@ To learn more about FLEDGE and the Key/Value server, take a look at the followin
 
 -   [FLEDGE Key/Value server explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md)
 -   [FLEDGE Key/Value server trust model](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_trust_model.md)
--   [FLEDGE explainer](https://developer.chrome.com/en/docs/privacy-sandbox/fledge/)
+-   [FLEDGE explainer](https://developers.google.com/privacy-sandbox/relevance/protected-audience)
 -   [FLEDGE API developer guide](https://developer.chrome.com/blog/fledge-api/)
 
     > The instructions written in this document are for running a test Key/Value server that does

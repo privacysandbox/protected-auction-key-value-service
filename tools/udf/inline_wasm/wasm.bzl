@@ -22,7 +22,7 @@ def inline_wasm_udf_delta(
         custom_udf_js,
         custom_udf_js_handler = "HandleRequest",
         output_file_name = "DELTA_0000000000000005",
-        logical_commit_time = "123123123",
+        logical_commit_time = None,
         udf_tool = "//tools/udf/udf_generator:udf_delta_file_generator",
         tags = ["manual"]):
     """Generate a JS + inline WASM UDF delta file and put it under dist/ directory
@@ -52,8 +52,7 @@ def inline_wasm_udf_delta(
         output_file_name: Name of UDF delta file output.
             Recommended to follow DELTA file naming convention.
             Defaults to `DELTA_0000000000000005`
-        logical_commit_time: Logical commit timestamp for UDF config.
-            Defaults to `123123123`.
+        logical_commit_time: Logical commit timestamp for UDF config. Optional, defaults to now.
         udf_tool: build target for the udf_delta_file_generator.
             Defaults to `//tools/udf/udf_generator:udf_delta_file_generator`
         tags: tags to propagate to rules
@@ -79,6 +78,8 @@ def inline_wasm_udf_delta(
         tags = tags,
     )
 
+    logical_commit_time_args = [] if logical_commit_time == None else ["--logical_commit_time", logical_commit_time]
+
     run_binary(
         name = "{}_udf_delta".format(name),
         srcs = [
@@ -92,11 +93,9 @@ def inline_wasm_udf_delta(
             "$(location {}_generated)".format(name),
             "--output_path",
             "$(location {})".format(output_file_name),
-            "--logical_commit_time",
-            logical_commit_time,
             "--udf_handler_name",
             custom_udf_js_handler,
-        ],
+        ] + logical_commit_time_args,
         tool = udf_tool,
         visibility = ["//visibility:private"],
         tags = tags,
@@ -110,11 +109,12 @@ def inline_wasm_udf_delta(
         ],
         outs = ["{}_copy_to_dist.bin".format(name)],
         cmd_bash = """cat << EOF > '$@'
-mkdir -p dist/debian
-cp $(location {}_udf_delta) dist
-cp $(location {}_generated) dist
+mkdir -p dist/deltas
+mkdir -p dist/udfs
+cp $(location {name}_udf_delta) dist/deltas
+cp $(location {name}_generated) dist/udfs
 builders/tools/normalize-dist
-EOF""".format(name, name),
+EOF""".format(name = name),
         executable = True,
         local = True,
         message = "Copying {} dist directory".format(output_file_name),
@@ -127,7 +127,7 @@ def cc_inline_wasm_udf_delta(
         custom_udf_js,
         custom_udf_js_handler = "HandleRequest",
         output_file_name = "DELTA_0000000000000005",
-        logical_commit_time = "123123123",
+        logical_commit_time = None,
         udf_tool = "//tools/udf/udf_generator:udf_delta_file_generator",
         deps = [],
         tags = ["manual"],
@@ -167,7 +167,6 @@ def cc_inline_wasm_udf_delta(
             Recommended to follow DELTA file naming convention.
             Defaults to `DELTA_0000000000000005`
         logical_commit_time: Logical commit timestamp for UDF config.
-            Defaults to `123123123`.
         udf_tool: build target for the udf_delta_file_generator.
             Defaults to `//tools/udf/udf_generator:udf_delta_file_generator`
         tags: tags to propagate to rules

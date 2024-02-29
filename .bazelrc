@@ -43,6 +43,7 @@ build:clang --per_file_copt=external/nitrokmscli_.*\.c@-Wno-int-conversion
 # Required to use protos in wasm_cc_binary/inline_wasm_cc_binary
 build:emscripten --per_file_copt=.*zlib.*@-Wno-deprecated-non-prototype
 build:emscripten --per_file_copt=.*utf8_range.*@-Wno-unused-function
+build:emscripten --per_file_copt=.*protobuf.*@-Wno-deprecated-declarations
 
 # Address sanitizer, set action_env to segregate cache entries
 build:asan --action_env=PRIVACY_SANDBOX_SERVERS_ASAN=1

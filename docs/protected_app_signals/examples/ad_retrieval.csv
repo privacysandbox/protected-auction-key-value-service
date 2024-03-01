@@ -1,0 +1,2 @@
+key,logical_commit_time,mutation_type,value,value_type
+ad_id1,1680815895468056,UPDATE,ad_id1_value,string

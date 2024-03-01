@@ -186,13 +186,13 @@ There is one UDF invocation per request (one request per auction).
 In the initial version, the server uses a JavaScript wrapper layer even if WASM is used. So for
 `byte[]` inputs, the input will be a base64 encoded string.
 
-```json
-string handleAdsFetchRequest(
-  JSONobject requestMetadata,
-  byte[] protectedSignals,
-  JSONobject deviceMetadata,
-  byte[] contextualSignals,
-  string[] contextualAdIds,
+```javascript
+string HandleRequest(
+  requestMetadata,
+  protectedSignals,
+  deviceMetadata,
+  contextualSignals,
+  contextualAdIds,
 )
 ```
 

@@ -252,4 +252,5 @@ module "iam_group_policies" {
 module "dashboards" {
   source      = "../../services/dashboard"
   environment = var.environment
+  region      = var.region
 }

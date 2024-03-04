@@ -67,11 +67,6 @@
 
     Consecutive health check failures required to be considered unhealthy.
 
--   **http_api_paths**
-
-    URL paths the load balancer will forward to the server. By default the load balancer will
-    forward requests with `/v1/*`, `/v2/*`, and `/healthcheck`.
-
 -   **instance_ami_id**
 
     Set the value to the AMI ID that was generated when the image was built.
@@ -149,8 +144,7 @@
 
 -   **run_server_outside_tee**
 
-    Whether to run the server outside the TEE. Not suitable for production. This runs the server in
-    a Docker container and can be useful for debugging.
+    Whether to run the server outside the TEE.
 
 -   **s3_delta_file_bucket_name**
 
@@ -196,11 +190,6 @@
     Telemetry configuration to control whether metrics are raw or noised. Options are: mode:
     PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics),
     mode: OFF(no metrics)
-
--   **udf_min_log_level**
-
-    Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for
-    min_log_level and above. Default is 0 (info).
 
 -   **udf_num_workers**
 

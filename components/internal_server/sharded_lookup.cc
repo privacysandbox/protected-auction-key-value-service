@@ -266,6 +266,10 @@ class ShardedLookup : public Lookup {
     std::vector<std::future<absl::StatusOr<InternalLookupResponse>>> responses;
     for (int shard_num = 0; shard_num < num_shards_; shard_num++) {
       auto& shard_lookup_input = shard_lookup_inputs[shard_num];
+      LogIfError(request_context.GetUdfRequestMetricsContext()
+                     .AccumulateMetric<kShardedLookupKeyCountByShard>(
+                         (int)shard_lookup_input.keys.size(),
+                         std::to_string(shard_num)));
       if (shard_num == current_shard_num_) {
         // Eventually this whole branch will go away.
         responses.push_back(std::async(std::launch::async, get_local_future,

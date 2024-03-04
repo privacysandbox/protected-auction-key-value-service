@@ -92,6 +92,8 @@ grpc::Status LookupServiceImpl::SecureLookup(
     SecureLookupResponse* secure_response) {
   auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
   RequestContext request_context(*scope_metrics_context);
+  LogIfError(request_context.GetInternalLookupMetricsContext()
+                 .AccumulateMetric<kSecureLookupRequestCount>(1));
   ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
                               kInternalSecureLookupLatencyInMicros>
       latency_recorder(request_context.GetInternalLookupMetricsContext());

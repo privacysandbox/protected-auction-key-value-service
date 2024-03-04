@@ -103,6 +103,17 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
                        kKVUdfRequestErrorCode, kErrorCounterDPUpperBound,
                        kErrorCounterDPLowerBound, kErrorMinNoiseToOutput);
 
+// Metric definitions for request level metrics that are privacy impacting
+// and should be logged unsafe with DP(differential privacy) noises.
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kShardedLookupKeyCountByShard(
+        "ShardedLookupKeyCountByShard", "Keys count by shard number",
+        "key_shard_num", 1 /*max_partitions_contributed*/,
+        privacy_sandbox::server_common::metrics::kEmptyPublicPartition,
+        kCounterDPUpperBound, kCounterDPLowerBound);
+
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
@@ -442,12 +453,20 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
                                   "Latency in cleaning up key value set map",
                                   kLatencyInMicroSecondsBoundaries);
 
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kSecureLookupRequestCount(
+        "SecureLookupRequestCount",
+        "Number of secure lookup requests received from remote server");
+
 // KV server metrics list contains contains non request related safe metrics
 // and request metrics collected before stage of internal lookups
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
         // Unsafe metrics
-        &kKVUdfRequestError, &kShardedLookupGetKeyValuesLatencyInMicros,
+        &kKVUdfRequestError, &kShardedLookupKeyCountByShard,
+        &kShardedLookupGetKeyValuesLatencyInMicros,
         &kShardedLookupGetKeyValueSetLatencyInMicros,
         &kShardedLookupRunQueryLatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros,
@@ -484,15 +503,14 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
 // remote lookups
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kInternalLookupServiceMetricsList[] = {
+        // Safe metrics
+        &kSecureLookupRequestCount,
         // Unsafe metrics
-        &kInternalLookupRequestError,
-        &kInternalRunQueryLatencyInMicros,
+        &kInternalLookupRequestError, &kInternalRunQueryLatencyInMicros,
         &kInternalGetKeyValuesLatencyInMicros,
         &kInternalGetKeyValueSetLatencyInMicros,
-        &kInternalSecureLookupLatencyInMicros,
-        &kGetValuePairsLatencyInMicros,
-        &kGetKeyValueSetLatencyInMicros,
-        &kCacheAccessEventCount};
+        &kInternalSecureLookupLatencyInMicros, &kGetValuePairsLatencyInMicros,
+        &kGetKeyValueSetLatencyInMicros, &kCacheAccessEventCount};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>

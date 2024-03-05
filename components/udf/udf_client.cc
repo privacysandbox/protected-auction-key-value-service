@@ -94,16 +94,17 @@ class UdfClientImpl : public UdfClient {
     return ExecuteCode(std::move(request_context), std::move(string_args));
   }
 
-  absl::StatusOr<std::string> ExecuteCode(RequestContext request_context,
-                                          std::vector<std::string> keys) const {
+  absl::StatusOr<std::string> ExecuteCode(
+      RequestContext request_context, std::vector<std::string> input) const {
     std::shared_ptr<absl::Status> response_status =
         std::make_shared<absl::Status>();
     std::shared_ptr<std::string> result = std::make_shared<std::string>();
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();
     auto invocation_request =
-        BuildInvocationRequest(std::move(request_context), std::move(keys));
-    VLOG(9) << "Executing UDF";
+        BuildInvocationRequest(std::move(request_context), std::move(input));
+    VLOG(9) << "Executing UDF with input arg(s): "
+            << absl::StrJoin(invocation_request.input, ",");
     const auto status = roma_service_.Execute(
         std::make_unique<InvocationStrRequest<RequestContext>>(
             std::move(invocation_request)),
@@ -190,12 +191,12 @@ class UdfClientImpl : public UdfClient {
 
  private:
   InvocationStrRequest<RequestContext> BuildInvocationRequest(
-      RequestContext request_context, std::vector<std::string> keys) const {
+      RequestContext request_context, std::vector<std::string> input) const {
     return {.id = kInvocationRequestId,
             .version_string = absl::StrCat("v", version_),
             .handler_name = handler_name_,
             .tags = {{kTimeoutDurationTag, FormatDuration(udf_timeout_)}},
-            .input = std::move(keys),
+            .input = std::move(input),
             .metadata = std::move(request_context),
             .min_log_level = absl::LogSeverity(udf_min_log_level_)};
   }

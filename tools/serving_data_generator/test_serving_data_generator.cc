@@ -34,6 +34,7 @@
 ABSL_FLAG(std::string, key, "foo", "Specify the key prefix for lookups");
 ABSL_FLAG(int, value_size, 10, "Specify the size of value for the key");
 ABSL_FLAG(std::string, output_dir, "", "Output file directory");
+ABSL_FLAG(std::string, output_filename, "", "Output file name");
 ABSL_FLAG(int, num_records, 5, "Number of records to generate");
 ABSL_FLAG(int, num_shards, 1, "Number of shards");
 ABSL_FLAG(int, shard_number, 0, "Shard number");
@@ -141,6 +142,7 @@ int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
   absl::InitializeLog();
   const std::string output_dir = absl::GetFlag(FLAGS_output_dir);
+  std::string output_filename = absl::GetFlag(FLAGS_output_filename);
 
   auto write_records = [](std::ostream* os) {
     const std::string key = absl::GetFlag(FLAGS_key);
@@ -168,23 +170,27 @@ int main(int argc, char** argv) {
 
   if (output_dir == "-") {
     LOG(INFO) << "Writing records to console";
-
     write_records(&std::cout);
-  } else {
+    return 0;
+  }
+
+  if (output_filename.empty()) {
     absl::Time now = absl::Now();
     if (const auto maybe_name = ToDeltaFileName(absl::ToUnixMicros(now));
         !maybe_name.ok()) {
       LOG(ERROR) << "Unable to construct file name: " << maybe_name.status();
       return -1;
     } else {
-      const std::string outfile =
-          absl::StrCat(output_dir, "/", maybe_name.value());
-      LOG(INFO) << "Writing records to " << outfile;
-
-      std::ofstream ofs(outfile);
-      write_records(&ofs);
-      ofs.close();
+      output_filename = *maybe_name;
     }
   }
+
+  const std::string outfile = absl::StrCat(output_dir, "/", output_filename);
+  LOG(INFO) << "Writing records to " << outfile;
+
+  std::ofstream ofs(outfile);
+  write_records(&ofs);
+  ofs.close();
+
   return 0;
 }

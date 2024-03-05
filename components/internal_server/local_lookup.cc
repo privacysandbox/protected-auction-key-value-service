@@ -70,7 +70,7 @@ class LocalLookup : public Lookup {
       if (key_iter == kv_pairs.end()) {
         auto status = result.mutable_status();
         status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
-        status->set_message("Key not found");
+        status->set_message(absl::StrCat("Key not found: ", key));
       } else {
         result.set_value(std::move(key_iter->second));
       }
@@ -96,7 +96,7 @@ class LocalLookup : public Lookup {
       if (value_set.empty()) {
         auto status = result.mutable_status();
         status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
-        status->set_message("Key not found");
+        status->set_message(absl::StrCat("Key not found: ", key));
       } else {
         auto keyset_values = result.mutable_keyset_values();
         keyset_values->mutable_values()->Add(value_set.begin(),

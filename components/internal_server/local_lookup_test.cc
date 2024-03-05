@@ -109,7 +109,7 @@ TEST_F(LocalLookupTest, GetKeyValues_KeyMissing_ReturnsStatusForKey) {
            }
            kv_pairs {
              key: "key2"
-             value { status { code: 5 message: "Key not found" } }
+             value { status { code: 5 message: "Key not found: key2" } }
            }
       )pb",
       &expected);
@@ -159,7 +159,7 @@ TEST_F(LocalLookupTest, GetKeyValueSets_SetEmpty_Success) {
   TextFormat::ParseFromString(
       R"pb(kv_pairs {
              key: "key1"
-             value { status { code: 5 message: "Key not found" } }
+             value { status { code: 5 message: "Key not found: key1" } }
            }
       )pb",
       &expected);

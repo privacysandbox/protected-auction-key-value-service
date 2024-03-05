@@ -237,9 +237,9 @@ While the server invokes the UDF to process requests, the UDF has access to a fe
 the server to assist certain operations. The usage will be explained concretely in the example
 below.
 
--   `GetValues([key_strings])`: Given a list of keys, performs lookups in the loaded dataset and
+-   `getValues([key_strings])`: Given a list of keys, performs lookups in the loaded dataset and
     returns a list of values corresponding to the keys.
--   `RunQuery(query_string)`: UDF can construct a query to perform set operations, such as union,
+-   `runQuery(query_string)`: UDF can construct a query to perform set operations, such as union,
     intersection and difference. The query uses keys to represent the sets. The keys are defined as
     the sets are loaded into the dataset. See the exact grammar
     [here](https://github.com/privacysandbox/fledge-key-value-service/blob/main/components/query/parser.yy).

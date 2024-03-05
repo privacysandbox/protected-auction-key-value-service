@@ -29,8 +29,7 @@ constexpr std::string_view kKVV2KeyValueDSPRequestBodyFormat = R"json(
 std::vector<std::string> GenerateRandomKeys(int number_of_keys, int key_size) {
   std::vector<std::string> result;
   for (int i = 0; i < number_of_keys; ++i) {
-    result.push_back(
-        std::string(key_size, 'A' + (std::rand() % number_of_keys)));
+    result.push_back(std::string(key_size, 'A' + (std::rand() % 26)));
   }
   return result;
 }

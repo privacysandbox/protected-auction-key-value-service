@@ -4,9 +4,9 @@ This Ad Retrieval guide is a natural extension of this PAS
 [guide](https://developer.android.com/design-for-safety/privacy-sandbox/guides/protected-audience/protected-app-signals#ad-retrieval)
 which assumes a BYOS set up, but it could use a TEE Ad Retrieval server instead.
 
-This guide provides a sample retrieval usecase. To support this usecase, details on how to set up a
-test environment in the same VPC as the B&A server and reuse the same mesh, upload a sample UDF
-function and upload a sample Delta file are given.
+This guide provides sample retrieval and lookup usecases. To support these usecases, details on how
+to set up a test environment in the same VPC as the B&A server and reuse the same mesh, upload a
+sample UDF function and upload a sample Delta file are given.
 
 For an overview of the Protected App Signals API, read the design
 [proposal.](https://developer.android.com/design-for-safety/privacy-sandbox/protected-app-signals)
@@ -61,45 +61,48 @@ Upload the delta file to the bucket
 
 ```sh
 export GCS_BUCKET=your-gcs-bucket-id
-gsutil cp bazel-bin/docs/protected_app_signals/examples/DELTA_0000000000000002 gs://${GCS_BUCKET}
+gsutil cp bazel-bin/docs/protected_app_signals/examples/DELTA_0000000000000001 gs://${GCS_BUCKET}
 ```
 
 More [details](../data_loading/loading_data.md#upload-data-files-to-gcp)
 
+### Retrieval Path
+
+Note that this is a simplistic example created for an illustrative purpose. The retrieval case can
+get more complicated.
+
+See this [example](/getting_started/examples/sample_word2vec/). The sample demonstrates how you can
+query for a set of words, taking advantage of the native set query support, and sort them based on
+scoring criteria defined by word similarities, using embeddings.
+
 ### UDF
 
-This script looks up and returns values for the keys specified in `protectedSignals`.
+This [script](examples/ad_retrieval_udf.js) looks up and returns values for the keys specified in
+`protectedSignals`.
 
 ```javascript
-function HandleRequest(
-    requestMetadata,
-    protectedSignals,
-    deviceMetadata,
-    contextualSignals,
-    contextualAdIds
-) {
+function HandleRequest(requestMetadata, protectedSignals, deviceMetadata, contextualSignals) {
     let protectedSignalsKeys = [];
     const parsedProtectedSignals = JSON.parse(protectedSignals);
     for (const [key, value] of Object.entries(parsedProtectedSignals)) {
         protectedSignalsKeys.push(key);
     }
-    return getValues(protectedSignalsKeys);
+    const kv_result = JSON.parse(getValues(protectedSignalsKeys));
+    if (kv_result.hasOwnProperty('kvPairs')) {
+        return kv_result.kvPairs;
+    }
+    const error_message = 'Error executing handle PAS:' + JSON.stringify(kv_result);
+    console.error(error_message);
+    throw new Error(error_message);
 }
 ```
-
-Note that this is a simplistic example created for an illustrative purpose. The retreieval case can
-get more complicated.
-
-See this [example](../../getting_started/examples/sample_word2vec/). The sample demonstrates how you
-can query for a set of words, taking advantage of the native set query support, and sort them based
-on scoring criteria defined by word similarities, using embeddings.
 
 #### Loading the UDF
 
 UDFs are also ingested through Delta files. Build the delta file:
 
 ```sh
-./builders/tools/bazel-debian build //docs/protected_app_signals/examples:ad_retreival_udf
+./builders/tools/bazel-debian build //docs/protected_app_signals/examples:ad_retrieval_udf
 ```
 
 ##### GCP
@@ -108,14 +111,10 @@ Upload the delta file to the bucket
 
 ```sh
 export GCS_BUCKET=your-gcs-bucket-id
-gsutil cp bazel-bin/docs/protected_app_signals/examples/DELTA_0000000000000001 gs://${GCS_BUCKET}
+gsutil cp bazel-bin/docs/protected_app_signals/examples/DELTA_0000000000000002 gs://${GCS_BUCKET}
 ```
 
 More [details](../data_loading/loading_data.md#upload-data-files-to-gcp)
-
-### Retrieval Path
-
-Summary: Retrieve ads data.
 
 #### Input
 
@@ -164,6 +163,48 @@ partitions {
 
 ```proto
 single_partition {
-  string_output: "[{\"ad_id1\":\"ad_id1_value\"}]"
+  string_output: "{\"ad_id1\":{\"value\":\"ad_id1_value\"}}"
+}
+```
+
+### Lookup Path
+
+The list of IDs is provided by the buyer in the contextual path. The server will lookup the data
+associated with the IDs.
+
+No need to load a UDF here, since the default UDF for PAS usecase should handle that.
+
+#### Input
+
+```proto
+metadata {
+  fields {
+    key: "is_pas"
+    value {
+      string_value: "true"
+    }
+  }
+}
+partitions {
+  arguments {
+    data {
+      list_value {
+        values {
+          string_value: "ad_id1"
+        }
+        values {
+          string_value: "ad_id2"
+        }
+      }
+    }
+  }
+}
+```
+
+#### Output
+
+```proto
+single_partition {
+  string_output: "{\"ad_id1\":{\"value\":\"ad_id1_value\"},\"ad_id2\":{\"status\":{\"code\":5,\"message\":\"Key not found: ad_id2\"}}}"
 }
 ```

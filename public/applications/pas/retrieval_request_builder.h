@@ -35,6 +35,9 @@ v2::GetValuesRequest BuildRetrievalRequest(
     std::string contextual_signals,
     std::vector<std::string> optional_ad_ids = {});
 
+// Builds a GetValuesRequest. Stores the input arguments into the request.
+v2::GetValuesRequest BuildLookupRequest(std::vector<std::string> ad_ids);
+
 }  // namespace kv_server::application_pas
 
 #endif  // PUBLIC_APPLICATIONS_PAS_RETRIEVAL_REQUEST_BUILDER_H_

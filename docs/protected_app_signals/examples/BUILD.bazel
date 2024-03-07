@@ -25,7 +25,7 @@ run_binary(
         ":ad_retrieval.csv",
     ],
     outs = [
-        "DELTA_0000000000000002",
+        "DELTA_0000000000000001",
     ],
     args = [
         "format_data",
@@ -34,7 +34,7 @@ run_binary(
         "--input_format",
         "CSV",
         "--output_file",
-        "$(location DELTA_0000000000000002)",
+        "$(location DELTA_0000000000000001)",
         "--output_format",
         "DELTA",
     ],
@@ -43,18 +43,18 @@ run_binary(
 )
 
 run_binary(
-    name = "ad_retreival_udf",
+    name = "ad_retrieval_udf",
     srcs = [
-        ":ad_retreival_udf.js",
+        ":ad_retrieval_udf.js",
     ],
     outs = [
-        "DELTA_0000000000000001",
+        "DELTA_0000000000000002",
     ],
     args = [
         "--udf_file_path",
-        "$(location :ad_retreival_udf.js)",
+        "$(location :ad_retrieval_udf.js)",
         "--output_path",
-        "$(location DELTA_0000000000000001)",
+        "$(location DELTA_0000000000000002)",
         "--logical_commit_time",
         "1700000000",
     ],

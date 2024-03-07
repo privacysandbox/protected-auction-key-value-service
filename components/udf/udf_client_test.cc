@@ -31,6 +31,8 @@
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
+#include "public/query/v2/get_values_v2.pb.h"
+#include "public/udf/constants.h"
 #include "src/roma/config/config.h"
 #include "src/roma/interface/roma.h"
 
@@ -565,6 +567,200 @@ TEST_F(UdfClientTest, CodeObjectNotSetError) {
   EXPECT_FALSE(result.ok());
   EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
 
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, MetadataPassedSuccesfully) {
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      std::move(config_builder.SetNumberOfWorkers(1).Config()));
+  EXPECT_TRUE(udf_client.ok());
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(metadata) {
+          if(metadata.requestMetadata &&
+              metadata.requestMetadata.is_pas)
+          {
+            return "true";
+          }
+          return "false";
+        }
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+  v2::GetValuesRequest req;
+  (*(req.mutable_metadata()->mutable_fields()))["is_pas"].set_string_value(
+      "true");
+  UDFExecutionMetadata udf_metadata;
+  *udf_metadata.mutable_request_metadata() = *req.mutable_metadata();
+  ScopeMetricsContext metrics_context;
+  google::protobuf::RepeatedPtrField<UDFArgument> args;
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      RequestContext(metrics_context), std::move(udf_metadata), args);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"("true")");
+
+  UDFExecutionMetadata udf_metadata_non_pas;
+  result = udf_client.value()->ExecuteCode(
+      RequestContext(metrics_context), std::move(udf_metadata_non_pas), args);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"("false")");
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, DefaultUdfPASucceeds) {
+  auto mock_lookup = std::make_unique<MockLookup>();
+  InternalLookupResponse response;
+  TextFormat::ParseFromString(R"pb(kv_pairs {
+                                     key: "key1"
+                                     value { value: "value1" }
+                                   })pb",
+                              &response);
+  ON_CALL(*mock_lookup, GetKeyValues(_, _)).WillByDefault(Return(response));
+
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
+                    .SetNumberOfWorkers(1)
+                    .Config()));
+  EXPECT_TRUE(udf_client.ok());
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = kDefaultUdfCodeSnippet,
+      .udf_handler_name = kDefaultUdfHandlerName,
+      .logical_commit_time = kDefaultLogicalCommitTime,
+      .version = kDefaultVersion,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+  ScopeMetricsContext metrics_context;
+  UDFExecutionMetadata udf_metadata;
+  google::protobuf::RepeatedPtrField<UDFArgument> args;
+  args.Add([] {
+    UDFArgument arg;
+    TextFormat::ParseFromString(R"(
+    data {
+      list_value {
+        values {
+          string_value: "key1"
+        }
+      }
+    })",
+                                &arg);
+    return arg;
+  }());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      RequestContext(metrics_context), std::move(udf_metadata), args);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(
+      *result,
+      R"({"keyGroupOutputs":[{"keyValues":{"key1":{"value":"value1"}}}],"udfOutputApiVersion":1})");
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, DefaultUdfPasKeyLookupFails) {
+  auto mock_lookup = std::make_unique<MockLookup>();
+  absl::Status status = absl::InvalidArgumentError("Error!");
+  ON_CALL(*mock_lookup, GetKeyValues(_, _)).WillByDefault(Return(status));
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
+                    .SetNumberOfWorkers(1)
+                    .Config()));
+  EXPECT_TRUE(udf_client.ok());
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = kDefaultUdfCodeSnippet,
+      .udf_handler_name = kDefaultUdfHandlerName,
+      .logical_commit_time = kDefaultLogicalCommitTime,
+      .version = kDefaultVersion,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+  ScopeMetricsContext metrics_context;
+  v2::GetValuesRequest req;
+  (*(req.mutable_metadata()->mutable_fields()))["is_pas"].set_string_value(
+      "true");
+  UDFExecutionMetadata udf_metadata;
+  *udf_metadata.mutable_request_metadata() = *req.mutable_metadata();
+  google::protobuf::RepeatedPtrField<UDFArgument> args;
+  args.Add([] {
+    UDFArgument arg;
+    TextFormat::ParseFromString(R"(
+    data {
+      list_value {
+        values {
+          string_value: "key1"
+        }
+      }
+    })",
+                                &arg);
+    return arg;
+  }());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      RequestContext(metrics_context), std::move(udf_metadata), args);
+  EXPECT_FALSE(result.ok());
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, DefaultUdfPasSucceeds) {
+  auto mock_lookup = std::make_unique<MockLookup>();
+  InternalLookupResponse response;
+  TextFormat::ParseFromString(R"pb(kv_pairs {
+                                     key: "key1"
+                                     value { value: "value1" }
+                                   })pb",
+                              &response);
+  ON_CALL(*mock_lookup, GetKeyValues(_, _)).WillByDefault(Return(response));
+  auto get_values_hook =
+      GetValuesHook::Create(GetValuesHook::OutputType::kString);
+  get_values_hook->FinishInit(std::move(mock_lookup));
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
+                    .SetNumberOfWorkers(1)
+                    .Config()));
+  EXPECT_TRUE(udf_client.ok());
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = kDefaultUdfCodeSnippet,
+      .udf_handler_name = kDefaultUdfHandlerName,
+      .logical_commit_time = kDefaultLogicalCommitTime,
+      .version = kDefaultVersion,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+  ScopeMetricsContext metrics_context;
+  v2::GetValuesRequest req;
+  (*(req.mutable_metadata()->mutable_fields()))["is_pas"].set_string_value(
+      "true");
+  UDFExecutionMetadata udf_metadata;
+  *udf_metadata.mutable_request_metadata() = *req.mutable_metadata();
+  google::protobuf::RepeatedPtrField<UDFArgument> args;
+  args.Add([] {
+    UDFArgument arg;
+    TextFormat::ParseFromString(R"(
+    data {
+      list_value {
+        values {
+          string_value: "key1"
+        }
+      }
+    })",
+                                &arg);
+    return arg;
+  }());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      RequestContext(metrics_context), std::move(udf_metadata), args);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"({"key1":{"value":"value1"}})");
   absl::Status stop = udf_client.value()->Stop();
   EXPECT_TRUE(stop.ok());
 }

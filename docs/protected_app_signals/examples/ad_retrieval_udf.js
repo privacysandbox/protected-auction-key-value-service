@@ -20,5 +20,11 @@ function HandleRequest(requestMetadata, protectedSignals, deviceMetadata, contex
   for (const [key, value] of Object.entries(parsedProtectedSignals)) {
     protectedSignalsKeys.push(key);
   }
-  return getValues(protectedSignalsKeys);
+  const kv_result = JSON.parse(getValues(protectedSignalsKeys));
+  if (kv_result.hasOwnProperty('kvPairs')) {
+    return kv_result.kvPairs;
+  }
+  const error_message = 'Error executing handle PAS:' + JSON.stringify(kv_result);
+  console.error(error_message);
+  throw new Error(error_message);
 }

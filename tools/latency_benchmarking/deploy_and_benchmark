@@ -26,6 +26,7 @@ EXTRA_SERVER_WAIT_TIMEOUT="5m"
 MINIMUM_SERVER_WAIT_SECS=60
 NUMBER_OF_LOOKUP_KEYS_LIST="1 10 50 100"
 GHZ_TAGS="{}"
+REQUEST_METADATA_JSON_LIST="{}"
 
 # Additional GHZ tags per deployment/udf
 DEPLOYMENT_GHZ_TAGS="{}"
@@ -92,18 +93,21 @@ function set_benchmark_args() {
     --server-address "${SERVER_ADDRESS}"
     --ghz-tags "${RUN_BENCHMARK_GHZ_TAGS}"
     --snapshot-dir "${SNAPSHOT_DIR}"
+    --request-metadata-json "${REQUEST_METADATA_JSON}"
   )
 }
 
 function run_benchmarks() {
-  set_benchmark_args
-  printf "BENCHMARK ARGS: %s\n" "${RUN_BENCHMARK_ARGS[*]}"
+  for REQUEST_METADATA_JSON in "${REQUEST_METADATA_JSON_LIST[@]}"; do
+    set_benchmark_args
+    printf "BENCHMARK ARGS: %s\n" "${RUN_BENCHMARK_ARGS[*]}"
 
-  local BENCHMARK_OUTPUT
-  BENCHMARK_OUTPUT=$(./tools/latency_benchmarking/run_benchmarks "${RUN_BENCHMARK_ARGS[@]}")
-  BENCHMARK_CSVS+=(
-    "$(echo "${BENCHMARK_OUTPUT}" | tail -n 1 2>&1 | tee /dev/tty)"
-  )
+    local BENCHMARK_OUTPUT
+    BENCHMARK_OUTPUT=$(./tools/latency_benchmarking/run_benchmarks "${RUN_BENCHMARK_ARGS[@]}")
+    BENCHMARK_CSVS+=(
+      "$(echo "${BENCHMARK_OUTPUT}" | tail -n 1 2>&1 | tee /dev/tty)"
+    )
+  done
 }
 
 function set_server_address() {
@@ -182,6 +186,27 @@ function deploy_and_benchmark() {
   fi
 }
 
+function merge_benchmark_csvs() {
+  # Map csv summary files from run_benchmarks to docker volume paths
+  # so that we can access them from within builders/tools/bazel-debian
+  # i.e. csv_output_dir/summary.csv -> docker_mounted_dir/summary.csv
+  declare -a DOCKER_BENCHMARK_CSVS
+  for BENCHMARK_CSV in "${BENCHMARK_CSVS[@]}"; do
+    DOCKER_BENCHMARK_CSVS+=(
+      "${DOCKER_INPUT_DIR}${BENCHMARK_CSV#"${CSV_SUMMARY_INPUT_DIR}"}"
+    )
+  done
+  touch "${CSV_OUTPUT}"
+  # Run merge_csvs python script
+  EXTRA_DOCKER_RUN_ARGS+=" --volume ${CSV_SUMMARY_INPUT_DIR}:${DOCKER_INPUT_DIR} --volume ${CSV_OUTPUT}:${DOCKER_OUTPUT_CSV} " \
+    builders/tools/bazel-debian run //tools/latency_benchmarking:merge_csvs \
+    -- \
+    --csv-inputs "${DOCKER_BENCHMARK_CSVS[@]}" \
+    --csv-output "${DOCKER_OUTPUT_CSV}"
+
+  printf "Results in: %s\n" "${CSV_OUTPUT}"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
   --tf-var-file)
@@ -240,6 +265,10 @@ while [[ $# -gt 0 ]]; do
     DESTROY_INSTANCES=1
     shift
     ;;
+  --request-metadata-json-list)
+    REQUEST_METADATA_JSON_LIST_STR="$2"
+    shift 2
+    ;;
   -h | --help) usage 0 ;;
   *) usage ;;
   esac
@@ -255,6 +284,8 @@ if [[ -z "${SERVER_URL}" ]]; then
   exit 1
 fi
 
+IFS=' ' read -ra REQUEST_METADATA_JSON_LIST <<<"${REQUEST_METADATA_JSON_LIST_STR}"
+
 # Check for SNAPSHOT_DIR. If not available, exit.
 if [[ -z "${SNAPSHOT_DIR}" || ! -d "${SNAPSHOT_DIR}" ]]; then
   printf "snapshot-dir not found:%s\n" "${SNAPSHOT_DIR}"
@@ -263,7 +294,7 @@ fi
 
 # No terraform variable overrides, deploy and benchmark without overrides
 if [[ -z "${TF_OVERRIDES}" ]]; then
-  deploy_and_benchmark "${GHZ_TAGS}"
+  deploy_and_benchmark
 else
   # Terraform override file found:
   # Each row defines a set of overrides for terraform variables.
@@ -275,28 +306,11 @@ else
     for VAR in "${VARS[@]}"; do
       VAR_OVERRIDES+=(-var "${VAR}")
       OVERRIDE_VAR_GHZ_TAG=$(echo "${VAR}" | jq -s -R 'split("\n") | .[0] | split("=") | {(.[0]): .[1]}')
-      DEPLOYMENT_GHZ_TAGS=$(jq -s -c 'add' <(echo "${DEPLOYMENT_GHZ_TAGS}") <(echo "${OVERRIDE_VAR_GHZ_TAG}"))
+      DEPLOYMENT_GHZ_TAGS=$(echo "${DEPLOYMENT_GHZ_TAGS} ${OVERRIDE_VAR_GHZ_TAG}" | jq -s -c 'add')
     done
     deploy_and_benchmark
   done <"${TF_OVERRIDES}"
 fi
 
 # Benchmarks done, merge CSVs
-
-# Map csv summary files from run_benchmarks to docker volume paths
-# so that we can access them from within builders/tools/bazel-debian
-declare -a DOCKER_BENCHMARK_CSVS
-for BENCHMARK_CSV in "${BENCHMARK_CSVS[@]}"; do
-  DOCKER_BENCHMARK_CSVS+=(
-    "${DOCKER_INPUT_DIR}${BENCHMARK_CSV#"${CSV_SUMMARY_INPUT_DIR}"}"
-  )
-done
-touch "${CSV_OUTPUT}"
-# Run merge_csvs python script
-EXTRA_DOCKER_RUN_ARGS+=" --volume ${CSV_SUMMARY_INPUT_DIR}:${DOCKER_INPUT_DIR} --volume ${CSV_OUTPUT}:${DOCKER_OUTPUT_CSV} " \
-  builders/tools/bazel-debian run //tools/latency_benchmarking:merge_csvs \
-  -- \
-  --csv-inputs "${DOCKER_BENCHMARK_CSVS[@]}" \
-  --csv-output "${DOCKER_OUTPUT_CSV}"
-
-printf "Results in: %s\n" "${CSV_OUTPUT}"
+merge_benchmark_csvs

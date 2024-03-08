@@ -50,12 +50,14 @@ DOCKER_INPUT_DIR="/tmp/latency_benchmarking/output"
 readonly DOCKER_INPUT_DIR
 
 DESTROY_INSTANCES=0
+TF_DEPLOY_SUCCESS=0
 
 trap _destroy EXIT
 function _destroy() {
-  if [[ ${DESTROY_INSTANCES} == 1 ]]; then
+  if [[ ${DESTROY_INSTANCES} == 1 && ${TF_DEPLOY_SUCCESS} == 1 ]]; then
     printf "Running terraform destroy\n"
-    builders/tools/terraform -chdir="${WORKSPACE}"/production/terraform/aws/environments \
+    builders/tools/terraform \
+      -chdir="${WORKSPACE}"/production/terraform/"${CLOUD_PROVIDER}"/environments \
       destroy --var-file="${TF_VAR_FILE}" --auto-approve >/dev/null
   fi
 }
@@ -86,12 +88,12 @@ function set_benchmark_args() {
     <(echo "${DEPLOYMENT_GHZ_TAGS}") \
     <(echo "${UDF_GHZ_TAGS}"))
   RUN_BENCHMARK_ARGS=(
-      --number-of-lookup-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}"
-      --server-address "${SERVER_ADDRESS}"
-      --ghz-tags "${RUN_BENCHMARK_GHZ_TAGS}"
-      --snapshot-dir "${SNAPSHOT_DIR}"
-      )
-  }
+    --number-of-lookup-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}"
+    --server-address "${SERVER_ADDRESS}"
+    --ghz-tags "${RUN_BENCHMARK_GHZ_TAGS}"
+    --snapshot-dir "${SNAPSHOT_DIR}"
+  )
+}
 
 function run_benchmarks() {
   set_benchmark_args
@@ -106,34 +108,53 @@ function run_benchmarks() {
 
 function set_server_address() {
   # Build HTTP server endpoint from tf output
-  local SERVER_URL
   local SERVER_HOSTNAME
-  SERVER_URL=$([[ "$1" =~ \"(.*)\" ]] && echo "${BASH_REMATCH[1]}")
   SERVER_ENDPOINT="${SERVER_URL}/v1/getvalues?keys=hi"
   # Build gRPC server address from tf output
   SERVER_HOSTNAME=$([[ "${SERVER_URL}" =~ https://(.*) ]] && echo "${BASH_REMATCH[1]}")
   SERVER_ADDRESS="${SERVER_HOSTNAME}:8443"
 }
 
-# TODO: GCP
+function upload_file_to_bucket() {
+  if [[ "${CLOUD_PROVIDER}" == "aws" ]]; then
+    builders/tools/aws-cli s3 cp "${1}" "${2}"
+  elif [[ "${CLOUD_PROVIDER}" == "gcp" ]]; then
+    gcloud storage cp "${1}" "${2}"
+  else
+    echo "Cloud provider not supported"
+    exit 1
+  fi
+}
+
+function remove_file_from_bucket() {
+  if [[ "${CLOUD_PROVIDER}" == "aws" ]]; then
+    builders/tools/aws-cli s3 rm "${1}"
+  elif [[ "${CLOUD_PROVIDER}" == "gcp" ]]; then
+    gcloud storage rm "${1}"
+  else
+    echo "Cloud provider not supported"
+    exit 1
+  fi
+}
+
 function deploy_and_benchmark() {
   printf "Running terraform init\n"
   builders/tools/terraform \
-    -chdir=production/terraform/aws/environments \
+    -chdir=production/terraform/"${CLOUD_PROVIDER}"/environments \
     init --backend-config="${TF_BACKEND_CONFIG}" \
-    --var-file="${TF_VAR_FILE}" --reconfigure -input=false  \
+    --var-file="${TF_VAR_FILE}" --reconfigure -input=false \
     >/dev/null
 
   printf "Running terraform apply with var file: %s\n" "${TF_VAR_FILE}"
   printf "and var overrides: %s\n" "${VAR_OVERRIDES[*]}"
-  local TF_APPLY_LAST_LINE
-  TF_APPLY_LAST_LINE=$(builders/tools/terraform \
-    -chdir=production/terraform/aws/environments \
+  builders/tools/terraform \
+    -chdir=production/terraform/"${CLOUD_PROVIDER}"/environments \
     apply --var-file="${TF_VAR_FILE}" "${VAR_OVERRIDES[@]}" \
-    -auto-approve | tail -n 1)
+    -auto-approve
+  TF_DEPLOY_SUCCESS=1
   printf "Done applying terraform, waiting for server to be ready\n"
 
-  set_server_address "${TF_APPLY_LAST_LINE}"
+  set_server_address
 
   # Wait for potential instance teardown before periodically checking if server is ready
   sleep "${MINIMUM_SERVER_WAIT_SECS}"
@@ -149,12 +170,12 @@ function deploy_and_benchmark() {
     for FILE in "${UDF_DELTA_DIR}"/*; do
       local FILENAME
       FILENAME=$(basename "${FILE}")
-      aws s3 cp "${FILE}" "${DATA_BUCKET}/${FILENAME}"
+      upload_file_to_bucket "${FILE}" "${DATA_BUCKET}/${FILENAME}"
       # Allow some time for server to pick up new UDF
       sleep 60
       UDF_GHZ_TAGS="{ \"udf_delta_file\": \"${FILENAME}\" }"
       run_benchmarks
-      aws s3 rm "${DATA_BUCKET}/${FILENAME}"
+      remove_file_from_bucket "${DATA_BUCKET}/${FILENAME}"
     done
   else
     run_benchmarks
@@ -163,63 +184,81 @@ function deploy_and_benchmark() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --tf-var-file)
-      TF_VAR_FILE="$2"
-      shift 2 || usage
-      ;;
-    --tf-backend-config)
-      TF_BACKEND_CONFIG="$2"
-      shift 2 || usage
-      ;;
-    --tf-overrides)
-      TF_OVERRIDES="$2"
-      shift 2
-      ;;
-    --csv-output)
-      CSV_OUTPUT="$2"
-      shift 2
-      ;;
-    --snapshot-dir)
-      SNAPSHOT_DIR="$2"
-      shift 2
-      ;;
-    --udf-delta-dir)
-      UDF_DELTA_DIR="$2"
-      shift 2
-      ;;
-    --data-bucket)
-      DATA_BUCKET="$2"
-      shift 2
-      ;;
-    --extra-server-wait-timeout)
-      EXTRA_SERVER_WAIT_TIMEOUT="$2"
-      shift 2
-      ;;
-    --number-of-lookup-keys-list)
-      NUMBER_OF_LOOKUP_KEYS_LIST="$2"
-      shift 2
-      ;;
-    --ghz-tags)
-      GHZ_TAGS="$2"
-      shift 2
-      ;;
-    --cleanup-deployment)
-      DESTROY_INSTANCES=1
-      shift
-      ;;
-    --minimum-server-wait-secs)
-      MINIMUM_SERVER_WAIT_SECS=1
-      shift
-      ;;
-    -h | --help) usage 0 ;;
-    *) usage ;;
+  --tf-var-file)
+    TF_VAR_FILE="$2"
+    shift 2 || usage
+    ;;
+  --tf-backend-config)
+    TF_BACKEND_CONFIG="$2"
+    shift 2 || usage
+    ;;
+  --tf-overrides)
+    TF_OVERRIDES="$2"
+    shift 2
+    ;;
+  --csv-output)
+    CSV_OUTPUT="$2"
+    shift 2
+    ;;
+  --snapshot-dir)
+    SNAPSHOT_DIR="$2"
+    shift 2
+    ;;
+  --udf-delta-dir)
+    UDF_DELTA_DIR="$2"
+    shift 2
+    ;;
+  --data-bucket)
+    DATA_BUCKET="$2"
+    shift 2
+    ;;
+  --extra-server-wait-timeout)
+    EXTRA_SERVER_WAIT_TIMEOUT="$2"
+    shift 2
+    ;;
+  --number-of-lookup-keys-list)
+    NUMBER_OF_LOOKUP_KEYS_LIST="$2"
+    shift 2
+    ;;
+  --ghz-tags)
+    GHZ_TAGS="$2"
+    shift 2
+    ;;
+  --minimum-server-wait-secs)
+    MINIMUM_SERVER_WAIT_SECS="$2"
+    shift 2
+    ;;
+  --cloud-provider)
+    CLOUD_PROVIDER="$2"
+    shift 2
+    ;;
+  --server-url)
+    SERVER_URL="$2"
+    shift 2
+    ;;
+  --cleanup-deployment)
+    DESTROY_INSTANCES=1
+    shift
+    ;;
+  -h | --help) usage 0 ;;
+  *) usage ;;
   esac
 done
+
+if [[ -z "${CLOUD_PROVIDER}" || ! ("${CLOUD_PROVIDER}" == "aws" || "${CLOUD_PROVIDER}" == "gcp") ]]; then
+  printf "cloud-provider must equal \"aws\" or \"gcp\""
+  exit 1
+fi
+
+if [[ -z "${SERVER_URL}" ]]; then
+  printf "server-url must be provided"
+  exit 1
+fi
 
 # Check for SNAPSHOT_DIR. If not available, exit.
 if [[ -z "${SNAPSHOT_DIR}" || ! -d "${SNAPSHOT_DIR}" ]]; then
   printf "snapshot-dir not found:%s\n" "${SNAPSHOT_DIR}"
-  exit 1;
+  exit 1
 fi
 
 # No terraform variable overrides, deploy and benchmark without overrides
@@ -234,12 +273,12 @@ else
     declare -a VAR_OVERRIDES=()
     DEPLOYMENT_GHZ_TAGS="{}"
     for VAR in "${VARS[@]}"; do
-        VAR_OVERRIDES+=(-var "${VAR}")
-        OVERRIDE_VAR_GHZ_TAG=$(echo "${VAR}" | jq -s -R 'split("\n") | .[0] | split("=") | {(.[0]): .[1]}')
-        DEPLOYMENT_GHZ_TAGS=$(jq -s -c 'add' <(echo "${DEPLOYMENT_GHZ_TAGS}") <(echo "${OVERRIDE_VAR_GHZ_TAG}"))
+      VAR_OVERRIDES+=(-var "${VAR}")
+      OVERRIDE_VAR_GHZ_TAG=$(echo "${VAR}" | jq -s -R 'split("\n") | .[0] | split("=") | {(.[0]): .[1]}')
+      DEPLOYMENT_GHZ_TAGS=$(jq -s -c 'add' <(echo "${DEPLOYMENT_GHZ_TAGS}") <(echo "${OVERRIDE_VAR_GHZ_TAG}"))
     done
     deploy_and_benchmark
-  done < "${TF_OVERRIDES}"
+  done <"${TF_OVERRIDES}"
 fi
 
 # Benchmarks done, merge CSVs

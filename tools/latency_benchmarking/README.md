@@ -4,7 +4,7 @@
 
 -   Install ghz
 
-The benchmarking tool is a wrapper around [ghz](https://ghz.sh/docs/intro).
+The `run_benchmarks` script uses [ghz](https://ghz.sh/docs/intro).
 
 Follow instructions to [install ghz](https://ghz.sh/docs/install) and make sure it is installed
 correctly:
@@ -13,13 +13,16 @@ correctly:
 ghz -v
 ```
 
--   Follow deployment guides
+-   (Optional) Follow deployment guides
+
+If you want to run the `deploy_and_benchmark` script, you will need to have gone through at least
+one deployment to your chosen cloud provider before.
 
 Please read through the deployment guide for the relevant cloud provider
-([AWS](/docs/deployment/deploying_on_aws.md)).
+([AWS](/docs/deployment/deploying_on_aws.md) or [GCP](/docs/deployment/deploying_on_gcp.md)).
 
 At the minimum, you will need to go through the steps up until the `terraform init` command.
-Ideally, follow the entire guide and make sure the deployment setup works.
+Ideally, follow the entire guide and make sure your deployment setup works.
 
 ## Running benchmarks
 
@@ -35,12 +38,23 @@ Note: Please make sure enclave memory is large enough for your data set.
 
 Start from the workspace root.
 
-1. Generate SNAPSHOT/DELTA files to upload to data storage For AWS:
+1. Generate SNAPSHOT/DELTA files to upload to data storage:
 
     ```sh
     ./tools/serving_data_generator/generate_test_riegeli_data
     GENERATED_DELTA=/path/to/delta/dir/GENERATED_DELTA_FILE
+    ```
+
+    For AWS:
+
+    ```sh
     aws s3 cp $GENERATED_DELTA s3://bucket_name
+    ```
+
+    For GCP:
+
+    ```sh
+    gcloud storage cp $GENERATED_DELTA gs://bucket_name
     ```
 
 1. Provide a directory of SNAPSHOT (or DELTA) files with keys that should be sent in the request to
@@ -54,7 +68,7 @@ Start from the workspace root.
     SNAPSHOT_DIR=/path/to/delta/dir/
     ```
 
-1. Set up your terraform config files and save them
+1. Set up your terraform config files
 
     ```sh
     TF_VAR_FILE=/path/to/my.tfvars.json
@@ -89,10 +103,25 @@ Start from the workspace root.
     DATA_BUCKET=s3://bucket_name
     ```
 
+1. Set your cloud provider
+
+    AWS:
+
+    ```sh
+    CLOUD_PROVIDER="aws"
+    ```
+
+    GCP:
+
+    ```sh
+    CLOUD_PROVIDER="gcp"
+    ```
+
 1. Run the script and wait for the result
 
     ```sh
     ./tools/latency_benchmarking/deploy_and_benchmark \
+    --cloud-provider ${CLOUD_PROVIDER} \
     --snapshot-dir ${SNAPSHOT_DIR} \
     --tf-var-file ${TF_VAR_FILE} \
     --tf-backend-config ${TF_BACKEND_CONFIG} \

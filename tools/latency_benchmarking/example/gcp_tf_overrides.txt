@@ -1,0 +1,2 @@
+machine_type=n2d-standard-4,num_shards=1,udf_num_workers=4
+machine_type=n2d-standard-8,num_shards=1,udf_num_workers=8

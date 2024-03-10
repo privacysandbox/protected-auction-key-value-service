@@ -30,7 +30,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
     ],
 )
 
@@ -43,7 +43,7 @@ cc_test(
         ":seeking_input_streambuf",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
     ],
 )
 
@@ -56,7 +56,7 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )
 
@@ -213,7 +213,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
-        "@google_privacysandbox_servers_common//src/cpp/util:duration",
+        "@google_privacysandbox_servers_common//src/util:duration",
     ],
 )
 

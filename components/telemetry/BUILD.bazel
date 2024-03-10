@@ -51,10 +51,10 @@ cc_library(
     ],
     deps = [
         ":error_code",
-        "@google_privacysandbox_servers_common//scp/cc/core/common/uuid/src:uuid_lib",
-        "@google_privacysandbox_servers_common//src/cpp/metric:context_map",
-        "@google_privacysandbox_servers_common//src/cpp/util:duration",
-        "@google_privacysandbox_servers_common//src/cpp/util:read_system",
+        "@google_privacysandbox_servers_common//src/core/common/uuid",
+        "@google_privacysandbox_servers_common//src/metric:context_map",
+        "@google_privacysandbox_servers_common//src/util:duration",
+        "@google_privacysandbox_servers_common//src/util:read_system",
     ],
 )
 
@@ -68,6 +68,6 @@ cc_library(
     ],
     deps = [
         "@com_google_absl//absl/log",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/telemetry",
     ],
 )

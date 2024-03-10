@@ -47,7 +47,7 @@ cc_library(
         "//components/util:sleepfor",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/cpp/util:duration",
+        "@google_privacysandbox_servers_common//src/util:duration",
     ],
 )
 
@@ -82,7 +82,7 @@ cc_library(
         "//components/util:sleepfor",
         "@com_github_grpc_grpc//test/core/util:grpc_test_util_base",
         "@com_google_absl//absl/log",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/telemetry:metrics_recorder",
     ],
 )
 
@@ -120,8 +120,8 @@ cc_library(
         "@com_github_google_flatbuffers//:flatbuffers",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:tracing",
+        "@google_privacysandbox_servers_common//src/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/telemetry:tracing",
     ],
 )
 
@@ -271,7 +271,7 @@ cc_test(
         "//public/testing:fake_key_value_service_impl",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/telemetry:mocks",
     ],
 )
 
@@ -283,7 +283,7 @@ cc_test(
         ":metrics_collector",
         "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/telemetry:mocks",
     ],
 )
 
@@ -306,7 +306,7 @@ cc_test(
         "//tools/request_simulation:mocks",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/telemetry:mocks",
     ],
 )
 
@@ -319,7 +319,7 @@ cc_test(
         "//components/data/common:mocks",
         "//public/test_util:mocks",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/telemetry:mocks",
     ],
 )
 
@@ -332,7 +332,7 @@ cc_library(
         "//public/data_loading/writers:delta_record_limiting_file_writer",
         "//public/sharding:key_sharder",
         "@com_google_absl//absl/log:check",
-        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )
 

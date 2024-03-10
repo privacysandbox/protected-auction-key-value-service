@@ -24,7 +24,7 @@ pkg_tar(
     name = "data_loading_analyzer_binaries",
     srcs = [
         ":data_loading_analyzer",
-        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify_layer",
+        "@google_privacysandbox_servers_common//src/aws/proxy:libnsm_and_proxify_tar",
     ],
     package_dir = "/opt/privacysandbox/bin",
 )
@@ -297,6 +297,6 @@ cc_library(
         ":publisher_service",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/util:duration",
+        "@google_privacysandbox_servers_common//src/util:duration",
     ],
 )

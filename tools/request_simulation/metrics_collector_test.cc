@@ -21,7 +21,7 @@
 
 #include "components/util/sleepfor_mock.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
+#include "src/telemetry/mocks.h"
 
 namespace kv_server {
 

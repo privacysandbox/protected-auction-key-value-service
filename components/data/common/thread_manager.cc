@@ -26,7 +26,7 @@
 #include "components/errors/retry.h"
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
-#include "src/cpp/util/duration.h"
+#include "src/util/duration.h"
 
 namespace kv_server {
 namespace {

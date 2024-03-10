@@ -23,7 +23,7 @@ cc_library(
     deps = [
         "//public/query/v2:get_values_v2_cc_proto",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )
 

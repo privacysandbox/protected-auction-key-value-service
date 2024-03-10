@@ -32,7 +32,7 @@
 #include "grpcpp/grpcpp.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 #include "quiche/binary_http/binary_http_message.h"
-#include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/key_fetcher_manager.h"
 
 namespace kv_server {
 

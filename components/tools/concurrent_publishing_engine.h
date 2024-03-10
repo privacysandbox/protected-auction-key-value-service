@@ -23,7 +23,7 @@
 
 #include "absl/log/log.h"
 #include "components/tools/publisher_service.h"
-#include "src/cpp/util/duration.h"
+#include "src/util/duration.h"
 
 namespace kv_server {
 

@@ -24,9 +24,9 @@
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/hooks/logging_hook.h"
 #include "components/udf/hooks/run_query_hook.h"
-#include "scp/cc/roma/config/src/config.h"
-#include "scp/cc/roma/config/src/function_binding_object_v2.h"
-#include "scp/cc/roma/interface/roma.h"
+#include "src/roma/config/config.h"
+#include "src/roma/config/function_binding_object_v2.h"
+#include "src/roma/interface/roma.h"
 
 namespace kv_server {
 namespace {

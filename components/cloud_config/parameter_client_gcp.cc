@@ -28,9 +28,9 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "components/cloud_config/parameter_client.h"
-#include "scp/cc/public/core/interface/errors.h"
-#include "scp/cc/public/core/interface/execution_result.h"
-#include "scp/cc/public/cpio/interface/parameter_client/parameter_client_interface.h"
+#include "src/public/core/interface/errors.h"
+#include "src/public/core/interface/execution_result.h"
+#include "src/public/cpio/interface/parameter_client/parameter_client_interface.h"
 
 namespace kv_server {
 namespace {

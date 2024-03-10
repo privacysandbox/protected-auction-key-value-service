@@ -34,7 +34,7 @@
 #include "grpcpp/grpcpp.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/query/get_values.grpc.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/telemetry/metrics_recorder.h"
 #include "test/core/util/histogram.h"
 #include "tools/request_simulation/client_worker.h"
 #include "tools/request_simulation/delta_based_request_generator.h"

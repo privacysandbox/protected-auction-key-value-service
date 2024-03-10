@@ -29,8 +29,8 @@
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/query/v2/get_values_v2.pb.h"
 #include "public/udf/constants.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "src/telemetry/telemetry_provider.h"
+#include "src/util/status_macro/status_macros.h"
 
 ABSL_FLAG(std::string, kv_delta_file_path, "",
           "Path to delta file with KV pairs.");

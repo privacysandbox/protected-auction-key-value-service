@@ -47,7 +47,7 @@ selects.config_setting_group(
     name = "local_otel_otlp",
     match_all = [
         "//:local_instance",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:local_otel_export_otlp",
+        "@google_privacysandbox_servers_common//src/telemetry:local_otel_export_otlp",
     ],
 )
 
@@ -55,7 +55,7 @@ selects.config_setting_group(
     name = "local_otel_ostream",
     match_all = [
         "//:local_instance",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:local_otel_export_ostream",
+        "@google_privacysandbox_servers_common//src/telemetry:local_otel_export_ostream",
     ],
 )
 
@@ -136,11 +136,11 @@ cc_library(
         "//:aws_platform": [
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:core",
-            "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:cpio",
+            "@google_privacysandbox_servers_common//src/public/cpio/interface:cpio",
         ],
         "//:gcp_platform": [
-            "@google_privacysandbox_servers_common//scp/cc/public/core/interface:errors",
-            "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:cpio",
+            "@google_privacysandbox_servers_common//src/public/core/interface:errors",
+            "@google_privacysandbox_servers_common//src/public/cpio/interface:cpio",
         ],
         "//conditions:default": [],
     }) + [

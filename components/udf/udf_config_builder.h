@@ -17,7 +17,7 @@
 
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/hooks/run_query_hook.h"
-#include "scp/cc/roma/config/src/config.h"
+#include "src/roma/config/config.h"
 
 namespace kv_server {
 

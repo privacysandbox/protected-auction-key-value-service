@@ -16,7 +16,7 @@
 
 #include "absl/functional/bind_front.h"
 #include "public/data_loading/filename_utils.h"
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "src/util/status_macro/status_macros.h"
 
 using privacy_sandbox::server_common::TraceWithStatusOr;
 

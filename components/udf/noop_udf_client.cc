@@ -24,7 +24,7 @@
 #include "absl/status/statusor.h"
 #include "components/udf/code_config.h"
 #include "components/udf/udf_client.h"
-#include "scp/cc/roma/config/src/config.h"
+#include "src/roma/config/config.h"
 
 namespace kv_server {
 

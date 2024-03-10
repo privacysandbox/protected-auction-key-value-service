@@ -36,7 +36,7 @@
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "public/sharding/sharding_function.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/telemetry_provider.h"
 
 namespace kv_server {
 namespace {

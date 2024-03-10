@@ -40,7 +40,7 @@ cc_library(
         "//components/data/common:change_notifier",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry",
+        "@google_privacysandbox_servers_common//src/telemetry",
     ],
 )
 
@@ -94,7 +94,7 @@ cc_library(
             "//components/errors:retry",
             "//components/util:sleepfor",
             "//public:constants",
-            "@google_privacysandbox_servers_common//src/cpp/util:duration",
+            "@google_privacysandbox_servers_common//src/util:duration",
         ],
     }) + [
         "//components/data/common:thread_manager",

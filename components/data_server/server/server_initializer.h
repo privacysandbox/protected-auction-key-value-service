@@ -29,7 +29,7 @@
 #include "components/udf/hooks/run_query_hook.h"
 #include "grpcpp/grpcpp.h"
 #include "public/sharding/key_sharder.h"
-#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
+#include "src/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 namespace kv_server {
 

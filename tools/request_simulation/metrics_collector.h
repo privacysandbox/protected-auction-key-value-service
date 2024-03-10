@@ -22,7 +22,7 @@
 #include "absl/flags/flag.h"
 #include "components/data/common/thread_manager.h"
 #include "components/util/sleepfor.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/telemetry/metrics_recorder.h"
 #include "test/core/util/histogram.h"
 
 namespace kv_server {

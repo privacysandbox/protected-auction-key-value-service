@@ -21,8 +21,8 @@
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/metrics_recorder.h"
+#include "src/telemetry/telemetry_provider.h"
 #include "tools/request_simulation/grpc_client.h"
 #include "tools/request_simulation/request_simulation_system.h"
 

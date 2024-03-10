@@ -20,7 +20,7 @@
 #define COMPONENTS_DATA_SERVER_SERVER_KEY_FETCHER_FACTORY_H_
 
 #include "components/data_server/server/parameter_fetcher.h"
-#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
+#include "src/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 namespace kv_server {
 // Constructs KeyFetcherManager.

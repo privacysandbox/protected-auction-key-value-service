@@ -28,9 +28,9 @@
 #include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
 #include "google/protobuf/util/json_util.h"
-#include "scp/cc/roma/config/src/config.h"
-#include "scp/cc/roma/interface/roma.h"
-#include "scp/cc/roma/roma_service/roma_service.h"
+#include "src/roma/config/config.h"
+#include "src/roma/interface/roma.h"
+#include "src/roma/roma_service/roma_service.h"
 
 namespace kv_server {
 
@@ -195,7 +195,8 @@ class UdfClientImpl : public UdfClient {
     return {.id = kInvocationRequestId,
             .version_string = absl::StrCat("v", version_),
             .handler_name = handler_name_,
-            .tags = {{kTimeoutDurationTag, FormatDuration(udf_timeout_)}},
+            .tags = {{std::string(kTimeoutDurationTag),
+                      FormatDuration(udf_timeout_)}},
             .input = std::move(input),
             .metadata = std::move(request_context),
             .min_log_level = absl::LogSeverity(udf_min_log_level_)};

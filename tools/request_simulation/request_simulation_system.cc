@@ -27,7 +27,7 @@
 #include "opentelemetry/sdk/resource/semantic_conventions.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/query/get_values.grpc.pb.h"
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "src/util/status_macro/status_macros.h"
 #include "tools/request_simulation/realtime_message_batcher.h"
 #include "tools/request_simulation/request/raw_request.pb.h"
 #include "tools/request_simulation/request_generation_util.h"

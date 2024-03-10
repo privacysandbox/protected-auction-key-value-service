@@ -26,7 +26,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/internal_server/lookup.h"
 #include "components/util/request_context.h"
-#include "scp/cc/roma/config/src/function_binding_object_v2.h"
+#include "src/roma/config/function_binding_object_v2.h"
 
 namespace kv_server {
 

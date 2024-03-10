@@ -28,9 +28,9 @@
 #include "components/cloud_config/instance_client.h"
 #include "components/errors/error_util_gcp.h"
 #include "google/cloud/compute/instances/v1/instances_client.h"
-#include "scp/cc/public/core/interface/execution_result.h"
-#include "scp/cc/public/cpio/interface/instance_client/instance_client_interface.h"
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "src/public/core/interface/execution_result.h"
+#include "src/public/cpio/interface/instance_client/instance_client_interface.h"
+#include "src/util/status_macro/status_macros.h"
 
 ABSL_FLAG(std::string, shard_num, "0", "Shard number.");
 

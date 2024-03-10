@@ -20,7 +20,7 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
-#include "src/cpp/telemetry/tracing.h"
+#include "src/telemetry/tracing.h"
 
 using privacy_sandbox::server_common::MetricsRecorder;
 using privacy_sandbox::server_common::TraceWithStatusOr;

@@ -23,7 +23,7 @@
 #include "absl/strings/str_cat.h"
 #include "components/data_server/server/server.h"
 #include "components/util/build_info.h"
-#include "src/cpp/util/rlimit_core_config.h"
+#include "src/util/rlimit_core_config.h"
 
 ABSL_FLAG(bool, buildinfo, false, "Print build info.");
 

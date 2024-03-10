@@ -43,7 +43,7 @@
 #include "components/data/common/msg_svc.h"
 #include "components/errors/error_util_aws.h"
 #include "components/telemetry/server_definition.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/telemetry_provider.h"
 
 namespace kv_server {
 namespace {

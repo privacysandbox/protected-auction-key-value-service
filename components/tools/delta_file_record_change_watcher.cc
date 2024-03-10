@@ -26,7 +26,7 @@
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/records_utils.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 

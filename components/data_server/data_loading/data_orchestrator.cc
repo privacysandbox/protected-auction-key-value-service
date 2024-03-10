@@ -30,8 +30,8 @@
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
 #include "public/sharding/sharding_function.h"
-#include "src/cpp/telemetry/tracing.h"
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "src/telemetry/tracing.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {

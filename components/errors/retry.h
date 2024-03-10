@@ -24,7 +24,7 @@
 #include "absl/time/time.h"
 #include "components/telemetry/server_definition.h"
 #include "components/util/sleepfor.h"
-#include "src/cpp/telemetry/tracing.h"
+#include "src/telemetry/tracing.h"
 
 namespace kv_server {
 

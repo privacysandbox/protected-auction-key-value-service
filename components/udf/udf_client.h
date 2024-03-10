@@ -28,8 +28,8 @@
 #include "components/util/request_context.h"
 #include "google/protobuf/message.h"
 #include "public/api_schema.pb.h"
-#include "scp/cc/roma/config/src/config.h"
-#include "scp/cc/roma/interface/roma.h"
+#include "src/roma/config/config.h"
+#include "src/roma/interface/roma.h"
 
 namespace kv_server {
 

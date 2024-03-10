@@ -17,8 +17,8 @@
 #include "components/data_server/request_handler/ohttp_client_encryptor.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
 #include "gtest/gtest.h"
-#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
-#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 namespace kv_server {
 namespace {

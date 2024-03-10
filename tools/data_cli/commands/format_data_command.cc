@@ -31,7 +31,7 @@
 #include "public/data_loading/writers/avro_delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/sharding/sharding_function.h"
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {

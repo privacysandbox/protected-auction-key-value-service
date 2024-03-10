@@ -26,7 +26,7 @@
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
 #include "public/test_util/mocks.h"
-#include "src/cpp/telemetry/mocks.h"
+#include "src/telemetry/mocks.h"
 #include "tools/request_simulation/request_generation_util.h"
 
 using kv_server::BlobStorageChangeNotifier;

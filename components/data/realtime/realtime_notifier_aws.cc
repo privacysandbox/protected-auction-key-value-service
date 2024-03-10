@@ -25,8 +25,8 @@
 #include "components/data/realtime/realtime_notifier.h"
 #include "components/errors/retry.h"
 #include "public/constants.h"
-#include "src/cpp/telemetry/telemetry.h"
-#include "src/cpp/util/duration.h"
+#include "src/telemetry/telemetry.h"
+#include "src/util/duration.h"
 
 namespace kv_server {
 namespace {

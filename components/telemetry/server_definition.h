@@ -23,10 +23,10 @@
 
 #include "absl/time/time.h"
 #include "components/telemetry/error_code.h"
-#include "scp/cc/core/common/uuid/src/uuid.h"
-#include "src/cpp/metric/context_map.h"
-#include "src/cpp/util/duration.h"
-#include "src/cpp/util/read_system.h"
+#include "src/core/common/uuid/uuid.h"
+#include "src/metric/context_map.h"
+#include "src/util/duration.h"
+#include "src/util/read_system.h"
 
 namespace kv_server {
 

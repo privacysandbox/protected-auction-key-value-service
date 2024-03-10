@@ -16,7 +16,7 @@
 #include "opentelemetry/exporters/ostream/span_exporter_factory.h"
 #include "opentelemetry/sdk/metrics/export/periodic_exporting_metric_reader.h"
 #include "opentelemetry/sdk/trace/random_id_generator_factory.h"
-#include "src/cpp/telemetry/init.h"
+#include "src/telemetry/init.h"
 
 namespace kv_server {
 

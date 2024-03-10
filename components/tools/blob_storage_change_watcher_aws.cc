@@ -20,7 +20,7 @@
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
 

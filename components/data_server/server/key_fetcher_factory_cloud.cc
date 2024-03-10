@@ -22,10 +22,10 @@
 #include "absl/flags/usage.h"
 #include "absl/log/log.h"
 #include "components/data_server/server/key_fetcher_factory.h"
+#include "src/concurrent/event_engine_executor.h"
 #include "src/core/lib/event_engine/default_event_engine.h"
-#include "src/cpp/concurrent/event_engine_executor.h"
-#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
-#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 ABSL_FLAG(std::string, public_key_endpoint, "", "Public key endpoint.");
 ABSL_FLAG(std::string, primary_coordinator_private_key_endpoint, "",

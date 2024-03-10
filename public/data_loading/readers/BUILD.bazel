@@ -42,7 +42,7 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_riegeli//riegeli/bytes:istream_reader",
         "@com_google_riegeli//riegeli/records:record_reader",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
     ],
 )
 
@@ -68,7 +68,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
     ],
 )
 
@@ -77,7 +77,7 @@ cc_library(
     hdrs = ["stream_record_reader_factory.h"],
     deps = [
         ":stream_record_reader",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
     ],
 )
 

@@ -31,8 +31,8 @@
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
-#include "scp/cc/roma/config/src/config.h"
-#include "scp/cc/roma/interface/roma.h"
+#include "src/roma/config/config.h"
+#include "src/roma/interface/roma.h"
 
 using google::protobuf::TextFormat;
 using google::scp::roma::Config;

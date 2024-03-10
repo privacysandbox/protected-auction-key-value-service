@@ -22,9 +22,9 @@
 
 #include "components/cloud_config/parameter_client.h"
 #include "gtest/gtest.h"
-#include "scp/cc/public/cpio/interface/error_codes.h"
-#include "scp/cc/public/cpio/interface/parameter_client/parameter_client_interface.h"
-#include "scp/cc/public/cpio/mock/parameter_client/mock_parameter_client.h"
+#include "src/public/cpio/interface/error_codes.h"
+#include "src/public/cpio/interface/parameter_client/parameter_client_interface.h"
+#include "src/public/cpio/mock/parameter_client/mock_parameter_client.h"
 
 namespace kv_server {
 namespace {

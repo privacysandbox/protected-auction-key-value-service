@@ -13,11 +13,11 @@ python_deps("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit 9cef8ff 2024-02-15
-    sha256 = "00716c001eed1a3b182885848ec6ace10d14c38d79fbbbd71078bc97515b1956",
-    strip_prefix = "data-plane-shared-libraries-9cef8ff8083c1e405318066ed1785c93c205d967",
+    # commit 8448f3 2024-03-14
+    sha256 = "cf93d1c4e6b692d5efecaea2929c3a8a32e385aef38369dd3d60cf2501aa1b15",
+    strip_prefix = "data-plane-shared-libraries-b75cc6c626621e1f7a94e829b9d2a4700227a4d2",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/9cef8ff8083c1e405318066ed1785c93c205d967.zip",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/b75cc6c626621e1f7a94e829b9d2a4700227a4d2.zip",
     ],
 )
 
@@ -128,3 +128,15 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 go_rules_dependencies()
 
 go_register_toolchains(nogo = "@//:kv_nogo")
+
+# setup container_structure_test
+http_archive(
+    name = "container_structure_test",
+    sha256 = "2da13da4c4fec9d4627d4084b122be0f4d118bd02dfa52857ff118fde88e4faa",
+    strip_prefix = "container-structure-test-1.16.0",
+    urls = ["https://github.com/GoogleContainerTools/container-structure-test/archive/v1.16.0.zip"],
+)
+
+load("@container_structure_test//:repositories.bzl", "container_structure_test_register_toolchain")
+
+container_structure_test_register_toolchain(name = "cst")

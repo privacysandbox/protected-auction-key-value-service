@@ -24,7 +24,7 @@
 #include "absl/status/statusor.h"
 #include "components/internal_server/lookup.grpc.pb.h"
 #include "components/util/request_context.h"
-#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
+#include "src/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 namespace kv_server {
 

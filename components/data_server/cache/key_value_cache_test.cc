@@ -30,7 +30,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/base_types.pb.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/telemetry_provider.h"
 
 namespace kv_server {
 

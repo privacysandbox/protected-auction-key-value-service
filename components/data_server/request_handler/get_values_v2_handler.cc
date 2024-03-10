@@ -34,8 +34,8 @@
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
-#include "src/cpp/telemetry/telemetry.h"
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "src/telemetry/telemetry.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {

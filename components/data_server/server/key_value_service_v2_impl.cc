@@ -17,7 +17,7 @@
 #include <grpcpp/grpcpp.h>
 
 #include "public/query/v2/get_values_v2.grpc.pb.h"
-#include "src/cpp/telemetry/telemetry.h"
+#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 namespace {

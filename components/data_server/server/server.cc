@@ -51,10 +51,10 @@
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/readers/stream_record_reader_factory.h"
 #include "public/udf/constants.h"
-#include "src/cpp/telemetry/init.h"
-#include "src/cpp/telemetry/telemetry.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
 #include "src/google/protobuf/struct.pb.h"
+#include "src/telemetry/init.h"
+#include "src/telemetry/telemetry.h"
+#include "src/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(uint16_t, port, 50051,
           "Port the server is listening on. Defaults to 50051.");

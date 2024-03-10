@@ -23,7 +23,7 @@
 #include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup_server_impl.h"
 #include "components/internal_server/sharded_lookup.h"
-#include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/key_fetcher_manager.h"
 
 namespace kv_server {
 namespace {

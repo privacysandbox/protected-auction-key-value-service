@@ -23,8 +23,8 @@
 #include "components/internal_server/lookup.h"
 #include "components/util/request_context.h"
 #include "grpcpp/grpcpp.h"
-#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
-#include "src/cpp/telemetry/telemetry.h"
+#include "src/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
+#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 // Implements the internal lookup service for the data store.

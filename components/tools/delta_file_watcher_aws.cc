@@ -21,7 +21,7 @@
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/common/thread_manager.h"
 #include "components/util/platform_initializer.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");

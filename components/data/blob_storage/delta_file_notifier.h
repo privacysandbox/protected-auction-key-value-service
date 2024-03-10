@@ -27,7 +27,7 @@
 #include "components/data/common/thread_manager.h"
 #include "components/errors/retry.h"
 #include "components/util/sleepfor.h"
-#include "src/cpp/util/duration.h"
+#include "src/util/duration.h"
 
 namespace kv_server {
 

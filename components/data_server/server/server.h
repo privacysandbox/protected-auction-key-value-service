@@ -46,7 +46,7 @@
 #include "public/base_types.pb.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "public/sharding/key_sharder.h"
-#include "src/cpp/telemetry/telemetry.h"
+#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 

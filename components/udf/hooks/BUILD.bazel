@@ -38,7 +38,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_protobuf//:protobuf",
-        "@google_privacysandbox_servers_common//scp/cc/roma/interface:roma_interface_lib",
+        "@google_privacysandbox_servers_common//src/roma/interface",
         "@nlohmann_json//:lib",
     ],
 )
@@ -59,8 +59,8 @@ cc_library(
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//scp/cc/roma/interface:roma_function_binding_io_cc_proto",
-        "@google_privacysandbox_servers_common//scp/cc/roma/interface:roma_interface_lib",
+        "@google_privacysandbox_servers_common//src/roma/interface",
+        "@google_privacysandbox_servers_common//src/roma/interface:function_binding_io_cc_proto",
         "@nlohmann_json//:lib",
     ],
 )

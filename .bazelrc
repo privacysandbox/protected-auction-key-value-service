@@ -19,12 +19,12 @@ test:run_all_tests --test_verbose_timeout_warnings
 build:noexcept --copt=-fno-exceptions
 # Grant exceptions to some dependencies so they can use exceptions
 build:noexcept --per_file_copt=.*boost.*@-fexceptions
-build:noexcept --per_file_copt=.*cc/aws/proxy.*@-fexceptions
-build:noexcept --per_file_copt=.*cc/roma.*@-fexceptions
+build:noexcept --per_file_copt=.*src/aws/proxy.*@-fexceptions
+build:noexcept --per_file_copt=.*src/roma.*@-fexceptions
 build:noexcept --per_file_copt=.*oneTBB.*@-fexceptions
 build:noexcept --per_file_copt=.*com_github_nghttp2_nghttp2.*@-fexceptions
-build:noexcept --per_file_copt=.*cc/core.*@-fexceptions
-build:noexcept --per_file_copt=.*cc/cpio.*@-fexceptions
+build:noexcept --per_file_copt=.*src/core.*@-fexceptions
+build:noexcept --per_file_copt=.*src/cpio.*@-fexceptions
 
 test --test_output=errors
 # Disable ICU linking for googleurl.

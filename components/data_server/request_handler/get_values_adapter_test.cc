@@ -26,7 +26,7 @@
 #include "public/applications/pa/api_overlay.pb.h"
 #include "public/applications/pa/response_utils.h"
 #include "public/test_util/proto_matcher.h"
-#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
 
 namespace kv_server {
 namespace {

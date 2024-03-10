@@ -20,7 +20,7 @@
 #include <memory>
 
 #include "absl/log/log.h"
-#include "src/cpp/telemetry/telemetry.h"
+#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 

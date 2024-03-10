@@ -22,7 +22,7 @@
 #include "absl/strings/escaping.h"
 #include "public/constants.h"
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
-#include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/key_fetcher_manager.h"
 
 namespace kv_server {
 

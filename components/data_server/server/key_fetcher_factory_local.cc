@@ -17,7 +17,7 @@
 
 #include "absl/flags/flag.h"
 #include "components/data_server/server/key_fetcher_factory.h"
-#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
 
 ABSL_FLAG(std::string, public_key_endpoint, "", "Public key endpoint.");
 ABSL_FLAG(std::string, primary_coordinator_private_key_endpoint, "",

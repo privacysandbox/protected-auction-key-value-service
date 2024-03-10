@@ -26,9 +26,9 @@
 #include "grpcpp/grpcpp.h"
 #include "public/constants.h"
 #include "public/query/get_values.grpc.pb.h"
-#include "src/cpp/telemetry/telemetry.h"
 #include "src/google/protobuf/message.h"
 #include "src/google/protobuf/struct.pb.h"
+#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 namespace {

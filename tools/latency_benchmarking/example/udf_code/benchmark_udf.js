@@ -63,7 +63,7 @@ function callGetValuesBinary(lookupData) {
     const getValuesBinaryProto = proto.kv_server.BinaryGetValuesResponse.deserializeBinary(getValuesUnparsed);
     processGetValuesBinary(getValuesBinaryProto, keyValuesOutput);
   }
-  keyValuesOutput['udfApi'] = 'getValuesBinary';
+  keyValuesOutput['getValuesApi'] = 'getValuesBinary';
   return keyValuesOutput;
 }
 
@@ -87,7 +87,7 @@ function callGetValues(lookupData) {
       }
     }
   }
-  keyValuesOutput['udfApi'] = 'getValues';
+  keyValuesOutput['getValuesApi'] = 'getValues';
   return keyValuesOutput;
 }
 
@@ -106,12 +106,11 @@ function splitDataByBatchSize(data, batchSize) {
 }
 
 /**
- * @param {boolean} useBinary
  * @param {Object} requestMetadata
  * @param {!Array<Object>} udf_arguments
  * @return {Object}
  */
-function handleGetValuesRequest(useBinary, requestMetadata, udf_arguments) {
+function handleGetValuesRequest(requestMetadata, udf_arguments) {
   let keyGroupOutputs = [];
   for (let argument of udf_arguments) {
     let keyGroupOutput = {};
@@ -121,41 +120,88 @@ function handleGetValuesRequest(useBinary, requestMetadata, udf_arguments) {
       batchSize = parseInt(requestMetadata['lookup_batch_size'], 10);
       lookupData = splitDataByBatchSize(data, batchSize);
     }
-    keyGroupOutput['keyValues'] = useBinary ? callGetValuesBinary(lookupData) : callGetValues(lookupData);
+    keyGroupOutput['keyValues'] = requestMetadataKeyIsTrue(requestMetadata, 'useGetValuesBinary')
+      ? callGetValuesBinary(lookupData)
+      : callGetValues(lookupData);
     keyGroupOutputs.push(keyGroupOutput);
   }
   return keyGroupOutputs;
 }
 
-function getKeyGroupOutputs(executionMetadata, udf_arguments) {
-  if (!executionMetadata.hasOwnProperty('requestMetadata')) {
-    return handleGetValuesRequest(false, {}, udf_arguments);
+function requestMetadataKeyIsTrue(requestMetadata, key) {
+  return requestMetadata.hasOwnProperty(key) && requestMetadata[key] == true;
+}
+
+/**
+ * Handles the runQuery flow:
+ *   1. compute set union on arguments using `runQuery`
+ *   2. getValues/getValuesBinary on returned keys
+ *   3. sort returned KVs by key length
+ *   4. return top 5 KVs
+ *
+ * @param {!Object} requestMetadata
+ * @param {!Array<Object>} udf_arguments
+ * @returns {Object}
+ */
+function handleRunQueryFlow(requestMetadata, udf_arguments) {
+  var result = {};
+  result['udfOutputApiVersion'] = 1;
+  if (!udf_arguments.length) {
+    return result;
   }
 
-  const requestMetadata = executionMetadata['requestMetadata'];
-  if (!requestMetadata.hasOwnProperty('udfApi')) {
-    return handleGetValuesRequest(false, requestMetadata, udf_arguments);
-  }
+  // Union all the sets in the udf_arguments
+  let setKeys = udf_arguments[0].hasOwnProperty('data') ? udf_arguments[0]['data'] : udf_arguments[0];
+  let keys = runQuery(setKeys.join('|'));
 
-  if (requestMetadata['udfApi'] == 'getValues') {
-    return handleGetValuesRequest(false, requestMetadata, udf_arguments);
+  const keyValuesOutput = handleGetValuesRequest(requestMetadata, [keys]);
+  if (!keyValuesOutput.length || !keyValuesOutput[0].hasOwnProperty('keyValues')) {
+    return result;
   }
-  if (requestMetadata['udfApi'] == 'getValuesBinary') {
-    return handleGetValuesRequest(true, requestMetadata, udf_arguments);
-  }
-  return { error: 'unsupported udfApi ' + requestMetadata['udfApi'] };
+  let top5keyValuesArray = Object.entries(keyValuesOutput[0]['keyValues'])
+    .sort((a, b) => a[0].length - b[0].length)
+    .slice(0, 5);
+  result['keyGroupOutputs'] = Object.fromEntries(top5keyValuesArray);
+  return result;
+}
+
+/**
+ * Handles the getValues flow (without runQuery&sorting).
+ *
+ * @param {!Object} requestMetadata
+ * @param {!Array<Object>} udf_arguments
+ * @returns {Object}
+ */
+function handleGetValuesFlow(requestMetadata, udf_arguments) {
+  const keyGroupOutputs = handleGetValuesRequest(requestMetadata, udf_arguments);
+  var result = {};
+  result['keyGroupOutputs'] = keyGroupOutputs;
+  result['udfOutputApiVersion'] = 1;
+  return result;
 }
 
 /**
  * Entry point for code snippet execution.
  *
- * This is a pass-through UDF js that calls either
- * getValues or getValuesBinary, depending on
- * `executionMetadata.requestMetadata.udfApi`.
+ * This is a sample UDF js that calls different UDF APIs depending
+ * on executionMetadata.requestMetadata fields.
+ *
+ * If `executionMetadata.requestMetadata.useGetValuesBinary` is set to true,
+ * the UDF will use the `getValuesBinary` API to retrieve key-values.
+ * Otherwise, the UDF will use the `getValues` API to retrieve key-values.
+ *
+ * If `executionMetadata.requestMetadata.runQuery` is set to true,
+ * the UDF will do the following steps:
+ *   1. Compute the set union of all elements in the first `udf_argument`
+ *   2. Call `getValues`/`getValuesBinary` on the returned keys from step 1.
+ *   3. Return the top 5 key values (sorted by key length) from step 2.
+ * Otherwise, the UDF will just act as a pass-through UDF that calls
+ * `getValues`/`getValuesBinary` on the `udf_arguments` and return the
+ * retrieved key-value pairs.
  *
  * If `requestMetadata` has a `lookup_batch_size`, it will batch
- * calls by the provided `lookup_batch_size`.
- * For example, if the UDF input has 800 keys and `lookup_batch_size` is 300,
+ * getValues/getValuesBinary calls by the provided `lookup_batch_size`.
+ * For example, if the input has 800 keys and `lookup_batch_size` is 300,
  * the UDF will make 3 getValues/getValuesBinary calls:
  *   2 call with 300 keys
  *   1 call with 200 keys
@@ -178,9 +224,12 @@ function getKeyGroupOutputs(executionMetadata, udf_arguments) {
  * @suppress {checkTypes}
  */
 function HandleRequest(executionMetadata, ...udf_arguments) {
-  const keyGroupOutputs = getKeyGroupOutputs(executionMetadata, udf_arguments);
-  var result = {};
-  result['keyGroupOutputs'] = keyGroupOutputs;
-  result['udfOutputApiVersion'] = 1;
-  return result;
+  const requestMetadata = executionMetadata.hasOwnProperty('requestMetadata')
+    ? executionMetadata['requestMetadata']
+    : {};
+
+  if (requestMetadataKeyIsTrue(requestMetadata, 'runQuery')) {
+    return handleRunQueryFlow(requestMetadata, udf_arguments);
+  }
+  return handleGetValuesFlow(requestMetadata, udf_arguments);
 }

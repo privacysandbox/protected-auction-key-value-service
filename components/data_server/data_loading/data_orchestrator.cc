@@ -261,6 +261,7 @@ absl::StatusOr<DataLoadingStats> TraceLoadCacheWithDataFromFile(
       },
       "LoadCacheWithDataFromFile",
       {{"bucket", std::move(location.bucket)},
+       {"prefix", std::move(location.prefix)},
        {"key", std::move(location.key)}});
 }
 
@@ -401,7 +402,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
             return TraceLoadCacheWithDataFromFile(
                 {.bucket = options_.data_bucket,
                  .prefix = blob.prefix,
-                 .key = basename},
+                 .key = blob.key},
                 options_);
           },
           "LoadNewFile", LogStatusSafeMetricsFn<kLoadNewFilesStatus>());

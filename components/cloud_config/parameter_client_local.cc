@@ -51,7 +51,8 @@ ABSL_FLAG(bool, route_v1_to_v2, false,
 ABSL_FLAG(std::string, data_loading_file_format,
           std::string(kv_server::kFileFormats[static_cast<int>(
               kv_server::FileFormat::kRiegeli)]),
-          "File format of the input data files.");
+          "File format of the input data files. See /public/constants.h for "
+          "possible values.");
 ABSL_FLAG(std::int32_t, logging_verbosity_level, 0,
           "Loggging verbosity level.");
 ABSL_FLAG(absl::Duration, udf_timeout, absl::Seconds(5),

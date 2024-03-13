@@ -23,10 +23,10 @@ WORKSPACE="$(git rev-parse --show-toplevel)"
 
 # Script input params
 EXTRA_SERVER_WAIT_TIMEOUT="5m"
-MINIMUM_SERVER_WAIT_SECS=60
+MINIMUM_SERVER_WAIT_SECS=90
 NUMBER_OF_LOOKUP_KEYS_LIST="1 10 50 100"
 GHZ_TAGS="{}"
-REQUEST_METADATA_JSON_LIST="{}"
+REQUEST_METADATA_JSON="{}"
 
 # Additional GHZ tags per deployment/udf
 DEPLOYMENT_GHZ_TAGS="{}"
@@ -83,7 +83,6 @@ USAGE
 }
 
 function set_benchmark_args() {
-  SERVER_ADDRESS="lusa.kv-server.privacysandboxdemo.app:8443"
   local -a RUN_BENCHMARK_GHZ_TAGS
   RUN_BENCHMARK_GHZ_TAGS=$(jq -s -c 'add' <(echo "${GHZ_TAGS}") \
     <(echo "${DEPLOYMENT_GHZ_TAGS}") \
@@ -98,7 +97,7 @@ function set_benchmark_args() {
 }
 
 function run_benchmarks() {
-  for REQUEST_METADATA_JSON in "${REQUEST_METADATA_JSON_LIST[@]}"; do
+  if [[ -z "${REQUEST_METADATA_JSON_FILE}" ]]; then
     set_benchmark_args
     printf "BENCHMARK ARGS: %s\n" "${RUN_BENCHMARK_ARGS[*]}"
 
@@ -107,7 +106,18 @@ function run_benchmarks() {
     BENCHMARK_CSVS+=(
       "$(echo "${BENCHMARK_OUTPUT}" | tail -n 1 2>&1 | tee /dev/tty)"
     )
-  done
+  else
+    while IFS= read -r REQUEST_METADATA_JSON; do
+      set_benchmark_args
+      printf "BENCHMARK ARGS: %s\n" "${RUN_BENCHMARK_ARGS[*]}"
+
+      local BENCHMARK_OUTPUT
+      BENCHMARK_OUTPUT=$(./tools/latency_benchmarking/run_benchmarks "${RUN_BENCHMARK_ARGS[@]}")
+      BENCHMARK_CSVS+=(
+        "$(echo "${BENCHMARK_OUTPUT}" | tail -n 1 2>&1 | tee /dev/tty)"
+      )
+    done < "${REQUEST_METADATA_JSON_FILE}"
+  fi
 }
 
 function set_server_address() {
@@ -121,7 +131,8 @@ function set_server_address() {
 
 function upload_file_to_bucket() {
   if [[ "${CLOUD_PROVIDER}" == "aws" ]]; then
-    builders/tools/aws-cli s3 cp "${1}" "${2}"
+    EXTRA_DOCKER_RUN_ARGS+=" --volume ${1}:/tmp/deltas/${1}" \
+    builders/tools/aws-cli s3 cp "/tmp/deltas/${1}" "${2}"
   elif [[ "${CLOUD_PROVIDER}" == "gcp" ]]; then
     gcloud storage cp "${1}" "${2}"
   else
@@ -166,7 +177,7 @@ function deploy_and_benchmark() {
   # Wait for server to be up
   timeout --foreground "${EXTRA_SERVER_WAIT_TIMEOUT}" bash -c \
     "until curl --output /dev/null --silent --fail ${SERVER_ENDPOINT};do sleep 15; done"
-  printf "Server ready, running benchmarks\n"
+  printf "Server ready\n"
 
   # Iterate through each given UDF
   # Upload delta file, run benchmarks, then remove it
@@ -174,11 +185,13 @@ function deploy_and_benchmark() {
     for FILE in "${UDF_DELTA_DIR}"/*; do
       local FILENAME
       FILENAME=$(basename "${FILE}")
+      printf "Uploading UDF file %s to cloud storage %s\n" "${FILE}" "${DATA_BUCKET}"
       upload_file_to_bucket "${FILE}" "${DATA_BUCKET}/${FILENAME}"
       # Allow some time for server to pick up new UDF
       sleep 60
       UDF_GHZ_TAGS="{ \"udf_delta_file\": \"${FILENAME}\" }"
       run_benchmarks
+      printf "Removing file from cloud storage %s\n" "${DATA_BUCKET}/${FILENAME}"
       remove_file_from_bucket "${DATA_BUCKET}/${FILENAME}"
     done
   else
@@ -265,8 +278,8 @@ while [[ $# -gt 0 ]]; do
     DESTROY_INSTANCES=1
     shift
     ;;
-  --request-metadata-json-list)
-    REQUEST_METADATA_JSON_LIST_STR="$2"
+  --request-metadata-json-file)
+    REQUEST_METADATA_JSON_FILE="$2"
     shift 2
     ;;
   -h | --help) usage 0 ;;
@@ -284,13 +297,23 @@ if [[ -z "${SERVER_URL}" ]]; then
   exit 1
 fi
 
-IFS=' ' read -ra REQUEST_METADATA_JSON_LIST <<<"${REQUEST_METADATA_JSON_LIST_STR}"
-
 # Check for SNAPSHOT_DIR. If not available, exit.
 if [[ -z "${SNAPSHOT_DIR}" || ! -d "${SNAPSHOT_DIR}" ]]; then
   printf "snapshot-dir not found:%s\n" "${SNAPSHOT_DIR}"
   exit 1
 fi
+
+# Check that files, if provided, are readable
+if [[ -v "${TF_OVERRIDES}" && ! -r "${TF_OVERRIDES}" ]]; then
+  printf "tf-overrides file not readable: %s\n" "${TF_OVERRIDES}"
+  exit 1
+fi
+
+if [[ -v "${REQUEST_METADATA_JSON_FILE}" && ! -r "${REQUEST_METADATA_JSON_FILE}" ]]; then
+  printf "request-metadata-json-file file not readable: %s\n" "${REQUEST_METADATA_JSON_FILE}"
+  exit 1
+fi
+
 
 # No terraform variable overrides, deploy and benchmark without overrides
 if [[ -z "${TF_OVERRIDES}" ]]; then

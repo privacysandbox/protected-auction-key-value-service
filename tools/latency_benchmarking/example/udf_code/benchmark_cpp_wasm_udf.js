@@ -16,6 +16,12 @@
 
 async function HandleRequest(executionMetadata, ...udf_arguments) {
   const module = await getModule();
-  const result = module.handleRequestCc(getValues, getValuesBinary, executionMetadata.requestMetadata, udf_arguments);
+  const result = module.handleRequestCc(
+    getValues,
+    getValuesBinary,
+    runQuery,
+    executionMetadata.requestMetadata,
+    udf_arguments
+  );
   return result;
 }

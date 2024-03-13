@@ -23,11 +23,13 @@
 
 namespace {
 
+constexpr int kTopK = 4;
+
 // Calls getValues for a list of keys and processes the response.
-absl::StatusOr<emscripten::val> getKvPairs(
+absl::StatusOr<std::vector<nlohmann::json>> GetKvPairs(
     const emscripten::val& get_values_cb,
     const std::vector<emscripten::val>& lookup_data) {
-  emscripten::val kv_pairs = emscripten::val::object();
+  std::vector<nlohmann::json> kv_pairs_json;
   for (const auto& keys : lookup_data) {
     // `get_values_cb` takes an emscripten::val of type array and returns
     // an emscripten::val of type string.
@@ -43,8 +45,23 @@ absl::StatusOr<emscripten::val> getKvPairs(
         !get_values_json.contains("kvPairs")) {
       return absl::InvalidArgumentError("No kvPairs returned");
     }
+    kv_pairs_json.push_back(get_values_json);
+  }
+  return kv_pairs_json;
+}
 
-    for (auto& [k, v] : get_values_json["kvPairs"].items()) {
+absl::StatusOr<emscripten::val> GetKvPairsAsEmVal(
+    const emscripten::val& get_values_cb,
+    const std::vector<emscripten::val>& lookup_data) {
+  emscripten::val kv_pairs = emscripten::val::object();
+  kv_pairs.set("udfApi", "getValues");
+
+  const auto kv_pairs_json_or_status = GetKvPairs(get_values_cb, lookup_data);
+  if (!kv_pairs_json_or_status.ok()) {
+    return kv_pairs_json_or_status.status();
+  }
+  for (const auto& kv_pair_json : *kv_pairs_json_or_status) {
+    for (auto& [k, v] : kv_pair_json["kvPairs"].items()) {
       if (v.contains("value")) {
         emscripten::val value = emscripten::val::object();
         value.set("value", emscripten::val(v["value"].get<std::string>()));
@@ -52,16 +69,34 @@ absl::StatusOr<emscripten::val> getKvPairs(
       }
     }
   }
-
-  kv_pairs.set("udfApi", "getValues");
   return kv_pairs;
 }
 
-// Calls getValuesBinary for a list of keys and processes the response.
-absl::StatusOr<emscripten::val> getKvPairsBinary(
-    const emscripten::val& get_values_binary_cb,
+absl::StatusOr<std::map<std::string, std::string>> GetKvPairsAsMap(
+    const emscripten::val& get_values_cb,
     const std::vector<emscripten::val>& lookup_data) {
-  emscripten::val kv_pairs = emscripten::val::object();
+  std::map<std::string, std::string> kv_map;
+  kv_map["udfApi"] = "getValues";
+
+  const auto kv_pairs_json_or_status = GetKvPairs(get_values_cb, lookup_data);
+  if (!kv_pairs_json_or_status.ok()) {
+    return kv_pairs_json_or_status.status();
+  }
+  for (const auto& kv_pair_json : *kv_pairs_json_or_status) {
+    for (auto& [k, v] : kv_pair_json["kvPairs"].items()) {
+      if (v.contains("value")) {
+        kv_map[k] = v["value"];
+      }
+    }
+  }
+  return kv_map;
+}
+
+// Calls getValuesBinary for a list of keys and processes the response.
+absl::StatusOr<std::vector<kv_server::BinaryGetValuesResponse>>
+GetKvPairsBinary(const emscripten::val& get_values_binary_cb,
+                 const std::vector<emscripten::val>& lookup_data) {
+  std::vector<kv_server::BinaryGetValuesResponse> responses;
   for (const auto& keys : lookup_data) {
     // `get_values_cb` takes an emscripten::val of type array and returns
     // an emscripten::val of type Uint8Array that contains a serialized
@@ -70,22 +105,58 @@ absl::StatusOr<emscripten::val> getKvPairsBinary(
         emscripten::convertJSArrayToNumberVector<uint8_t>(
             get_values_binary_cb(keys));
     kv_server::BinaryGetValuesResponse response;
-    response.ParseFromArray(get_values_binary_result_array.data(),
-                            get_values_binary_result_array.size());
+    if (!response.ParseFromArray(get_values_binary_result_array.data(),
+                                 get_values_binary_result_array.size())) {
+      return absl::InternalError(
+          absl::StrCat("Could not parse binary response to proto"));
+    }
+    responses.push_back(response);
+  }
+  return responses;
+}
+
+absl::StatusOr<emscripten::val> GetKvPairsBinaryAsEmVal(
+    const emscripten::val& get_values_binary_cb,
+    const std::vector<emscripten::val>& lookup_data) {
+  emscripten::val kv_pairs = emscripten::val::object();
+  kv_pairs.set("udfApi", "getValuesBinary");
+  const auto responses_or_status =
+      GetKvPairsBinary(get_values_binary_cb, lookup_data);
+  if (!responses_or_status.ok()) {
+    return responses_or_status.status();
+  }
+  for (const auto& response : *responses_or_status) {
     for (auto& [k, v] : response.kv_pairs()) {
       kv_pairs.set(k, v.data());
     }
   }
-  kv_pairs.set("udfApi", "getValuesBinary");
   return kv_pairs;
 }
 
-std::vector<emscripten::val> maybeSplitDataByBatchSize(
-    const emscripten::val& execution_metadata, const emscripten::val& data) {
-  if (!execution_metadata.hasOwnProperty("lookup_batch_size")) {
+absl::StatusOr<std::map<std::string, std::string>> GetKvPairsBinaryAsMap(
+    const emscripten::val& get_values_binary_cb,
+    const std::vector<emscripten::val>& lookup_data) {
+  std::map<std::string, std::string> kv_map;
+  kv_map["udfApi"] = "getValuesBinary";
+  const auto responses_or_status =
+      GetKvPairsBinary(get_values_binary_cb, lookup_data);
+  if (!responses_or_status.ok()) {
+    return responses_or_status.status();
+  }
+  for (const auto& response : *responses_or_status) {
+    for (auto& [k, v] : response.kv_pairs()) {
+      kv_map[k] = v.data();
+    }
+  }
+  return kv_map;
+}
+
+std::vector<emscripten::val> MaybeSplitDataByBatchSize(
+    const emscripten::val& request_metadata, const emscripten::val& data) {
+  if (!request_metadata.hasOwnProperty("lookup_batch_size")) {
     return std::vector<emscripten::val>({data});
   }
-  const int batch_size = execution_metadata["lookup_batch_size"].as<int>();
+  const int batch_size = request_metadata["lookup_batch_size"].as<int>();
   const int data_length = data["length"].as<int>();
   if (batch_size >= data_length) {
     return std::vector<emscripten::val>({data});
@@ -100,26 +171,26 @@ std::vector<emscripten::val> maybeSplitDataByBatchSize(
 
 // I/O processing, similar to
 // tools/latency_benchmarking/example/udf_code/benchmark_udf.js
-emscripten::val getKeyGroupOutputs(const emscripten::val& get_values_cb,
+emscripten::val GetKeyGroupOutputs(const emscripten::val& get_values_cb,
                                    const emscripten::val& get_values_binary_cb,
-                                   const emscripten::val& execution_metadata,
-                                   const emscripten::val& udf_arguments,
-                                   bool use_binary) {
+                                   const emscripten::val& request_metadata,
+                                   const emscripten::val& udf_arguments) {
   emscripten::val key_group_outputs = emscripten::val::array();
   // Convert a JS array to a std::vector so we can iterate through it.
   const std::vector<emscripten::val> key_groups =
       emscripten::vecFromJSArray<emscripten::val>(udf_arguments);
   for (const auto& key_group : key_groups) {
     emscripten::val key_group_output = emscripten::val::object();
-    key_group_output.set("tags", key_group["tags"]);
     const emscripten::val data =
         key_group.hasOwnProperty("tags") ? key_group["data"] : key_group;
 
     std::vector<emscripten::val> lookup_data =
-        maybeSplitDataByBatchSize(execution_metadata, data);
+        MaybeSplitDataByBatchSize(request_metadata, data);
     absl::StatusOr<emscripten::val> kv_pairs;
-    kv_pairs = use_binary ? getKvPairsBinary(get_values_binary_cb, lookup_data)
-                          : getKvPairs(get_values_cb, lookup_data);
+    kv_pairs = request_metadata.hasOwnProperty("useGetValuesBinary") &&
+                       request_metadata["useGetValuesBinary"].as<bool>()
+                   ? GetKvPairsBinaryAsEmVal(get_values_binary_cb, lookup_data)
+                   : GetKvPairsAsEmVal(get_values_cb, lookup_data);
     if (kv_pairs.ok()) {
       key_group_output.set("keyValues", *kv_pairs);
       key_group_outputs.call<void>("push", key_group_output);
@@ -128,42 +199,86 @@ emscripten::val getKeyGroupOutputs(const emscripten::val& get_values_cb,
   return key_group_outputs;
 }
 
-absl::StatusOr<bool> useBinary(const emscripten::val& execution_metadata) {
-  if (!execution_metadata.hasOwnProperty("udfApi")) {
-    return false;
-  }
-  const std::string udf_api = execution_metadata["udfApi"].as<std::string>();
-  if (udf_api == "getValues") {
-    return false;
-  }
-  if (udf_api == "getValuesBinary") {
-    return true;
-  }
-  return absl::InvalidArgumentError("unsupported udfApi");
-}
-
-}  // namespace
-
-emscripten::val handleRequestCc(const emscripten::val& get_values_cb,
-                                const emscripten::val& get_values_binary_cb,
-                                const emscripten::val& execution_metadata,
-                                const emscripten::val& udf_arguments) {
+emscripten::val HandleGetValuesFlow(const emscripten::val& get_values_cb,
+                                    const emscripten::val& get_values_binary_cb,
+                                    const emscripten::val& request_metadata,
+                                    const emscripten::val& udf_arguments) {
   emscripten::val result = emscripten::val::object();
-  emscripten::val key_group_outputs;
-  const auto use_binary_or_status = useBinary(execution_metadata);
-  if (use_binary_or_status.ok()) {
-    key_group_outputs = getKeyGroupOutputs(get_values_cb, get_values_binary_cb,
-                                           execution_metadata, udf_arguments,
-                                           *use_binary_or_status);
-  } else {
-    key_group_outputs = emscripten::val::object();
-    key_group_outputs.set("error", "unsupported udfApi");
-  }
+  emscripten::val key_group_outputs = GetKeyGroupOutputs(
+      get_values_cb, get_values_binary_cb, request_metadata, udf_arguments);
   result.set("keyGroupOutputs", key_group_outputs);
   result.set("udfOutputApiVersion", emscripten::val(1));
   return result;
 }
 
+// The run query flow performs the following steps:
+// 1. Compute the set union of given arguments using `runQuery` API
+// 2. Call `getValues`/`getValuesBinary` with returned keys
+// 3. Sort returned KVs
+// 4. Return top 5 KV pairs
+emscripten::val HandleRunQueryFlow(const emscripten::val& get_values_cb,
+                                   const emscripten::val& get_values_binary_cb,
+                                   const emscripten::val& run_query_cb,
+                                   const emscripten::val& request_metadata,
+                                   const emscripten::val& udf_arguments) {
+  emscripten::val result = emscripten::val::object();
+  result.set("udfOutputApiVersion", emscripten::val(1));
+  if (udf_arguments["length"].as<int>() <= 0) {
+    return result;
+  }
+  // Union of all sets in udf_arguments
+  emscripten::val set_keys = udf_arguments[0].hasOwnProperty("data")
+                                 ? udf_arguments[0]["data"]
+                                 : udf_arguments[0];
+  emscripten::val query =
+      set_keys.call<emscripten::val>("join", emscripten::val("|"));
+  emscripten::val keys = run_query_cb(query);
+
+  std::vector<emscripten::val> lookup_data =
+      MaybeSplitDataByBatchSize(request_metadata, keys);
+  absl::StatusOr<std::map<std::string, std::string>> kv_map =
+      request_metadata.hasOwnProperty("useGetValuesBinary") &&
+              request_metadata["useGetValuesBinary"].as<bool>()
+          ? GetKvPairsBinaryAsMap(get_values_binary_cb, lookup_data)
+          : GetKvPairsAsMap(get_values_cb, lookup_data);
+  if (!kv_map.ok()) {
+    return result;
+  }
+  int i = 0;
+  emscripten::val key_group_outputs = emscripten::val::array();
+  emscripten::val key_group_output = emscripten::val::object();
+  emscripten::val kv_pairs = emscripten::val::object();
+  // select only kTopK
+  for (const auto& [k, v] : *kv_map) {
+    emscripten::val value = emscripten::val::object();
+    value.set("value", v);
+    kv_pairs.set(k, value);
+    if (++i > kTopK) {
+      break;
+    }
+  }
+  key_group_output.set("keyValues", kv_pairs);
+  key_group_outputs.call<void>("push", key_group_output);
+  result.set("keyGroupOutputs", key_group_outputs);
+  return result;
+}
+
+}  // namespace
+
+emscripten::val HandleRequestCc(const emscripten::val& get_values_cb,
+                                const emscripten::val& get_values_binary_cb,
+                                const emscripten::val& run_query_cb,
+                                const emscripten::val& request_metadata,
+                                const emscripten::val& udf_arguments) {
+  if (request_metadata.hasOwnProperty("runQuery") &&
+      request_metadata["runQuery"].as<bool>()) {
+    return HandleRunQueryFlow(get_values_cb, get_values_binary_cb, run_query_cb,
+                              request_metadata, udf_arguments);
+  }
+  return HandleGetValuesFlow(get_values_cb, get_values_binary_cb,
+                             request_metadata, udf_arguments);
+}
+
 EMSCRIPTEN_BINDINGS(HandleRequestExample) {
-  emscripten::function("handleRequestCc", &handleRequestCc);
+  emscripten::function("handleRequestCc", &HandleRequestCc);
 }

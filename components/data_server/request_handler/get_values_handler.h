@@ -33,10 +33,11 @@ namespace kv_server {
 class GetValuesHandler {
  public:
   explicit GetValuesHandler(const Cache& cache, const GetValuesAdapter& adapter,
-                            bool use_v2)
+                            bool use_v2, bool add_missing_keys_v1 = true)
       : cache_(std::move(cache)),
         adapter_(std::move(adapter)),
-        use_v2_(use_v2) {}
+        use_v2_(use_v2),
+        add_missing_keys_v1_(add_missing_keys_v1) {}
 
   // TODO: Implement hostname, ad/render url lookups.
   grpc::Status GetValues(const RequestContext& request_context,
@@ -48,6 +49,7 @@ class GetValuesHandler {
   const GetValuesAdapter& adapter_;
   // If true, routes requests through V2 (UDF). Otherwise, calls cache.
   const bool use_v2_;
+  const bool add_missing_keys_v1_;
 };
 
 }  // namespace kv_server

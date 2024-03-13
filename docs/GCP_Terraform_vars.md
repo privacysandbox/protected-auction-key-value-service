@@ -1,5 +1,9 @@
 # GCP Key Value Server Terraform vars documentation
 
+-   **add_missing_keys_v1**
+
+    Add missing keys v1.
+
 -   **backup_poll_frequency_secs**
 
     Backup poll frequency for delta file notifier in seconds.

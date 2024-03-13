@@ -118,6 +118,12 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
   }
   {
     const auto statusor =
+        client->GetBoolParameter("kv-server-local-add-missing-keys-v1");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(false, *statusor);
+  }
+  {
+    const auto statusor =
         client->GetBoolParameter("kv-server-local-use-real-coordinators");
     ASSERT_TRUE(statusor.ok());
     EXPECT_EQ(false, *statusor);

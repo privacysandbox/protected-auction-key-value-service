@@ -208,6 +208,11 @@ variable "route_v1_requests_to_v2" {
   type        = bool
 }
 
+variable "add_missing_keys_v1" {
+  description = "Add missing keys v1."
+  type        = bool
+}
+
 variable "use_real_coordinators" {
   description = "Use real coordinators."
   type        = bool

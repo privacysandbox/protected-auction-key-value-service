@@ -185,6 +185,11 @@ variable "route_v1_to_v2" {
   description = "Whether to route V1 requests through V2."
 }
 
+variable "add_missing_keys_v1" {
+  type        = bool
+  description = "Add missing keys for v1."
+}
+
 variable "use_real_coordinators" {
   type        = bool
   description = "Use real coordinators."

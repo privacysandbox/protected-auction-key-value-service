@@ -99,6 +99,11 @@ variable "route_v1_requests_to_v2_parameter_value" {
   type        = bool
 }
 
+variable "add_missing_keys_v1_parameter_value" {
+  description = "Add missing keys v1."
+  type        = bool
+}
+
 variable "use_real_coordinators_parameter_value" {
   description = "Number of parallel threads for reading and loading data files."
   type        = bool

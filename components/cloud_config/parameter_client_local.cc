@@ -130,6 +130,7 @@ class LocalParameterClient : public ParameterClient {
     // Insert more int32 flag values here.
     bool_flag_values_.insert({"kv-server-local-route-v1-to-v2",
                               absl::GetFlag(FLAGS_route_v1_to_v2)});
+    bool_flag_values_.insert({"kv-server-local-add-missing-keys-v1", false});
     bool_flag_values_.insert({"kv-server-local-use-real-coordinators", false});
     bool_flag_values_.insert(
         {"kv-server-local-use-external-metrics-collector-endpoint", false});

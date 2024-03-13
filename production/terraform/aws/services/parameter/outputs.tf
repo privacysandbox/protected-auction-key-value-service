@@ -86,6 +86,10 @@ output "route_v1_requests_to_v2_parameter_arn" {
   value = aws_ssm_parameter.route_v1_requests_to_v2_parameter.arn
 }
 
+output "add_missing_keys_v1_parameter_arn" {
+  value = aws_ssm_parameter.add_missing_keys_v1_parameter.arn
+}
+
 output "use_real_coordinators_parameter_arn" {
   value = aws_ssm_parameter.use_real_coordinators_parameter.arn
 }

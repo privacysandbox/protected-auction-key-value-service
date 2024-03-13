@@ -1,5 +1,9 @@
 # AWS Key Value Server Terraform vars documentation
 
+-   **add_missing_keys_v1**
+
+    Add missing keys v1.
+
 -   **autoscaling_desired_capacity**
 
     Number of Amazon EC2 instances that should be running in the autoscaling group

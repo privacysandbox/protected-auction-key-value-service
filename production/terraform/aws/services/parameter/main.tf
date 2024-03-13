@@ -135,6 +135,13 @@ resource "aws_ssm_parameter" "route_v1_requests_to_v2_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "add_missing_keys_v1_parameter" {
+  name      = "${var.service}-${var.environment}-add-missing-keys-v1"
+  type      = "String"
+  value     = var.add_missing_keys_v1_parameter_value
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "use_real_coordinators_parameter" {
   name      = "${var.service}-${var.environment}-use-real-coordinators"
   type      = "String"

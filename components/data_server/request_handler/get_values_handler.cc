@@ -52,10 +52,11 @@ absl::flat_hash_set<std::string_view> GetKeys(
   return key_list;
 }
 
-void ProcessKeys(const RequestContext& request_context,
-                 const RepeatedPtrField<std::string>& keys, const Cache& cache,
-                 google::protobuf::Map<std::string, v1::V1SingleLookupResult>&
-                     result_struct) {
+void ProcessKeys(
+    const RequestContext& request_context,
+    const RepeatedPtrField<std::string>& keys, const Cache& cache,
+    google::protobuf::Map<std::string, v1::V1SingleLookupResult>& result_struct,
+    bool add_missing_keys_v1) {
   if (keys.empty()) return;
   auto actual_keys = GetKeys(keys);
   auto kv_pairs = cache.GetKeyValuePairs(request_context, actual_keys);
@@ -64,9 +65,12 @@ void ProcessKeys(const RequestContext& request_context,
     v1::V1SingleLookupResult result;
     const auto key_iter = kv_pairs.find(key);
     if (key_iter == kv_pairs.end()) {
-      auto status = result.mutable_status();
-      status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
-      status->set_message("Key not found");
+      if (add_missing_keys_v1) {
+        auto status = result.mutable_status();
+        status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+        status->set_message("Key not found");
+        result_struct[key] = std::move(result);
+      }
     } else {
       Value value_proto;
       absl::Status status = google::protobuf::util::JsonStringToMessage(
@@ -80,8 +84,8 @@ void ProcessKeys(const RequestContext& request_context,
         value.set_string_value(std::move(key_iter->second));
         *result.mutable_value() = std::move(value);
       }
+      result_struct[key] = std::move(result);
     }
-    result_struct[key] = std::move(result);
   }
 }
 
@@ -97,23 +101,24 @@ grpc::Status GetValuesHandler::GetValues(const RequestContext& request_context,
   if (!request.kv_internal().empty()) {
     VLOG(5) << "Processing kv_internal for " << request.DebugString();
     ProcessKeys(request_context, request.kv_internal(), cache_,
-                *response->mutable_kv_internal());
+                *response->mutable_kv_internal(), add_missing_keys_v1_);
   }
   if (!request.keys().empty()) {
     VLOG(5) << "Processing keys for " << request.DebugString();
     ProcessKeys(request_context, request.keys(), cache_,
-                *response->mutable_keys());
+                *response->mutable_keys(), add_missing_keys_v1_);
   }
   if (!request.render_urls().empty()) {
     VLOG(5) << "Processing render_urls for " << request.DebugString();
     ProcessKeys(request_context, request.render_urls(), cache_,
-                *response->mutable_render_urls());
+                *response->mutable_render_urls(), add_missing_keys_v1_);
   }
   if (!request.ad_component_render_urls().empty()) {
     VLOG(5) << "Processing ad_component_render_urls for "
             << request.DebugString();
     ProcessKeys(request_context, request.ad_component_render_urls(), cache_,
-                *response->mutable_ad_component_render_urls());
+                *response->mutable_ad_component_render_urls(),
+                add_missing_keys_v1_);
   }
   return grpc::Status::OK;
 }

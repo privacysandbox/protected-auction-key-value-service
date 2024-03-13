@@ -119,6 +119,31 @@ TEST_F(GetValuesHandlerTest, RepeatedKeys) {
   EXPECT_THAT(response, EqualsProto(expected));
 }
 
+TEST_F(GetValuesHandlerTest, RepeatedKeysSkipEmpty) {
+  EXPECT_CALL(mock_cache_,
+              GetKeyValuePairs(_, UnorderedElementsAre("key1", "key2", "key3")))
+      .Times(1)
+      .WillRepeatedly(Return(
+          absl::flat_hash_map<std::string, std::string>{{"key1", "value1"}}));
+  GetValuesRequest request;
+  request.add_keys("key1,key2,key3");
+  GetValuesResponse response;
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           /*use_v2=*/false, /*add_missing_keys_v1=*/false);
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
+
+  GetValuesResponse expected;
+  TextFormat::ParseFromString(
+      R"pb(
+        keys {
+          key: "key1"
+          value { value { string_value: "value1" } }
+        }
+      )pb",
+      &expected);
+  EXPECT_THAT(response, EqualsProto(expected));
+}
+
 TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   EXPECT_CALL(mock_cache_,
               GetKeyValuePairs(_, UnorderedElementsAre("key1", "key2")))

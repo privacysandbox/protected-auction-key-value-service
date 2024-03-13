@@ -101,6 +101,7 @@ constexpr absl::string_view kUseShardingKeyRegexParameterSuffix =
 constexpr absl::string_view kShardingKeyRegexParameterSuffix =
     "sharding-key-regex";
 constexpr absl::string_view kRouteV1ToV2Suffix = "route-v1-to-v2";
+constexpr absl::string_view kAddMissingKeysV1Suffix = "add-missing-keys-v1";
 constexpr absl::string_view kAutoscalerHealthcheck = "autoscaler-healthcheck";
 constexpr absl::string_view kLoadbalancerHealthcheck =
     "loadbalancer-healthcheck";
@@ -620,11 +621,14 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
 
 void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
   const bool use_v2 = parameter_fetcher.GetBoolParameter(kRouteV1ToV2Suffix);
+  const bool add_missing_keys_v1 =
+      parameter_fetcher.GetBoolParameter(kAddMissingKeysV1Suffix);
   LOG(INFO) << "Retrieved " << kRouteV1ToV2Suffix << " parameter: " << use_v2;
   get_values_adapter_ =
       GetValuesAdapter::Create(std::make_unique<GetValuesV2Handler>(
           *udf_client_, *key_fetcher_manager_));
-  GetValuesHandler handler(*cache_, *get_values_adapter_, use_v2);
+  GetValuesHandler handler(*cache_, *get_values_adapter_, use_v2,
+                           add_missing_keys_v1);
   grpc_services_.push_back(
       std::make_unique<KeyValueServiceImpl>(std::move(handler)));
   GetValuesV2Handler v2handler(*udf_client_, *key_fetcher_manager_);

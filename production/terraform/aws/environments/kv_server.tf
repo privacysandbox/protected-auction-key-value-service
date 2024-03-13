@@ -38,6 +38,7 @@ module "kv_server" {
   enclave_memory_mib        = var.enclave_memory_mib
   enclave_enable_debug_mode = var.enclave_enable_debug_mode
   run_server_outside_tee    = var.run_server_outside_tee
+  add_missing_keys_v1       = var.add_missing_keys_v1
 
   # Variables related to autoscaling and load balancing.
   autoscaling_desired_capacity = var.autoscaling_desired_capacity
@@ -84,7 +85,7 @@ module "kv_server" {
   use_sharding_key_regex = var.use_sharding_key_regex
   sharding_key_regex     = var.sharding_key_regex
 
-  # Variables related to UDF exeuction.
+  # Variables related to UDF execution.
   udf_num_workers    = var.udf_num_workers
   udf_timeout_millis = var.udf_timeout_millis
   udf_min_log_level  = var.udf_min_log_level

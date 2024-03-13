@@ -121,6 +121,9 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-add-missing-keys-v1"))
+      .WillOnce(::testing::Return(false));
   EXPECT_CALL(
       *parameter_client,
       GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
@@ -186,6 +189,9 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
       .WillOnce(::testing::Return(0));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-add-missing-keys-v1"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(
       *parameter_client,
@@ -260,6 +266,9 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-add-missing-keys-v1"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
@@ -326,6 +335,9 @@ TEST(ServerLocalTest, ForceServerShutdown) {
       .WillOnce(::testing::Return(0));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-add-missing-keys-v1"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(
       *parameter_client,

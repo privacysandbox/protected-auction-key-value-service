@@ -26,7 +26,7 @@ EXTRA_SERVER_WAIT_TIMEOUT="5m"
 MINIMUM_SERVER_WAIT_SECS=90
 NUMBER_OF_LOOKUP_KEYS_LIST="1 10 50 100"
 GHZ_TAGS="{}"
-REQUEST_METADATA_JSON="{}"
+FILTER_BY_SETS=0
 
 # Additional GHZ tags per deployment/udf
 DEPLOYMENT_GHZ_TAGS="{}"
@@ -94,6 +94,11 @@ function set_benchmark_args() {
     --snapshot-dir "${SNAPSHOT_DIR}"
     --request-metadata-json "${REQUEST_METADATA_JSON}"
   )
+  if [[ "${FILTER_BY_SETS}" = 1 ]]; then
+    RUN_BENCHMARK_ARGS+=(
+      --filter-snapshot-by-sets
+    )
+  fi
 }
 
 function run_benchmarks() {
@@ -281,6 +286,10 @@ while [[ $# -gt 0 ]]; do
   --request-metadata-json-file)
     REQUEST_METADATA_JSON_FILE="$2"
     shift 2
+    ;;
+  --filter-snapshot-by-sets)
+    FILTER_BY_SETS=1
+    shift
     ;;
   -h | --help) usage 0 ;;
   *) usage ;;

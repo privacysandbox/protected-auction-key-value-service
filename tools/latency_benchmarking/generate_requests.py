@@ -84,19 +84,24 @@ def _ReadCsv(snapshot_csv_file: str) -> Iterator[str]:
             yield row
 
 
-def ReadKeys(snapshot_csv_file: str, max_number_of_keys: int) -> list[str]:
+def ReadKeys(
+    snapshot_csv_file: str, max_number_of_keys: int, filter_by_sets: bool
+) -> list[str]:
     """Read keys from CSV file. Only include update and string type mutations.
 
     Args:
       snapshot_csv_file: Path to snapshot CSV file.
       max_number_of_keys: Maximum number of keys to read.
+      filter_by_sets: Whether to only use rows with value_type "string_set"
 
     Returns:
       List of unique set of keys.
     """
     keys = set()
     for row in _ReadCsv(snapshot_csv_file):
-        if row["value_type"].lower() != "string":
+        if filter_by_sets and row["value_type"].lower() != "string_set":
+            continue
+        if not filter_by_sets and row["value_type"].lower() != "string":
             continue
         if row["mutation_type"].lower() == "update":
             keys.add(row["key"])
@@ -134,11 +139,19 @@ def Main():
         default="{}",
         help="Request metadata as a JSON object.",
     )
+    parser.add_argument(
+        "--filter-by-sets",
+        dest="filter_by_sets",
+        action="store_true",
+        help="Whether to only use keys of sets from the input to build the requests",
+    )
     args = parser.parse_args()
     metadata = json.loads(args.metadata)
     if not isinstance(metadata, dict):
         raise ValueError("metadata is not a JSON object")
-    keys = ReadKeys(args.snapshot_csv_file, max(args.number_of_keys_list))
+    keys = ReadKeys(
+        args.snapshot_csv_file, max(args.number_of_keys_list), args.filter_by_sets
+    )
     WriteRequests(keys, args.number_of_keys_list, args.output_dir, metadata)
 
 

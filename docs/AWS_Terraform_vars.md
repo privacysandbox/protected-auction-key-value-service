@@ -24,6 +24,10 @@
     If you want to import an existing public certificate into ACM, follow these steps to
     [import the certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html).
 
+-   **data_loading_blob_prefix_allowlist**
+
+    A comma separated list of prefixes (i.e., directories) where data is loaded from.
+
 -   **data_loading_file_format**
 
     Data file format for blob storage and realtime updates. See /public/constants.h for possible

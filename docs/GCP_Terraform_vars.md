@@ -32,6 +32,10 @@
 
     Directory to watch for files.
 
+-   **data_loading_blob_prefix_allowlist**
+
+    A comma separated list of prefixes (i.e., directories) where data is loaded from.
+
 -   **data_loading_num_threads**
 
     Number of parallel threads for reading and loading data files.

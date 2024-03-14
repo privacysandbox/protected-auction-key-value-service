@@ -63,6 +63,8 @@ ABSL_FLAG(int32_t, udf_min_log_level, 0,
 ABSL_FLAG(bool, enable_otel_logger, false, "Whether to enable otel logger.");
 ABSL_FLAG(std::string, telemetry_config, "mode: EXPERIMENT",
           "Telemetry configuration for exporting raw or noised metrics");
+ABSL_FLAG(std::string, data_loading_prefix_allowlist, "",
+          "Allowlist for blob prefixes.");
 
 namespace kv_server {
 namespace {
@@ -88,6 +90,9 @@ class LocalParameterClient : public ParameterClient {
                                 absl::GetFlag(FLAGS_data_loading_file_format)});
     string_flag_values_.insert({"kv-server-local-telemetry-config",
                                 absl::GetFlag(FLAGS_telemetry_config)});
+    string_flag_values_.insert(
+        {"kv-server-data-loading-blob-prefix-allowlist",
+         absl::GetFlag(FLAGS_data_loading_prefix_allowlist)});
     // Insert more string flag values here.
 
     int32_t_flag_values_.insert(

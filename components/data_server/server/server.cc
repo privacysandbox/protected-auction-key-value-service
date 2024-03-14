@@ -182,8 +182,11 @@ GetServerTelemetryConfig(const ParameterClient& parameter_client,
 
 BlobPrefixAllowlist GetBlobPrefixAllowlist(
     const ParameterFetcher& parameter_fetcher) {
-  // TODO: actually use parameter fetcher
-  return BlobPrefixAllowlist("");
+  const auto prefix_allowlist = parameter_fetcher.GetParameter(
+      kDataLoadingBlobPrefixAllowlistSuffix, /*default_value=*/"");
+  LOG(INFO) << "Retrieved " << kDataLoadingBlobPrefixAllowlistSuffix
+            << " parameter: " << prefix_allowlist;
+  return BlobPrefixAllowlist(prefix_allowlist);
 }
 
 }  // namespace

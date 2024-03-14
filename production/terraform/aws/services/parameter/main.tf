@@ -207,3 +207,10 @@ resource "aws_ssm_parameter" "enable_otel_logger_parameter" {
   value     = var.enable_otel_logger_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "data_loading_blob_prefix_allowlist" {
+  name      = "${var.service}-${var.environment}-data-loading-blob-prefix-allowlist"
+  type      = "String"
+  value     = var.data_loading_blob_prefix_allowlist
+  overwrite = true
+}

@@ -279,3 +279,9 @@ variable "enable_otel_logger" {
   type        = bool
   default     = true
 }
+
+variable "data_loading_blob_prefix_allowlist" {
+  description = "A comma separated list of prefixes (i.e., directories) where data is loaded from."
+  default     = ","
+  type        = string
+}

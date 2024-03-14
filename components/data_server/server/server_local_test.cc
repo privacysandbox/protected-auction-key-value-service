@@ -128,6 +128,11 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
+  EXPECT_CALL(
+      *parameter_client,
+      GetParameter("kv-server-environment-data-loading-blob-prefix-allowlist",
+                   ::testing::Eq("")))
+      .WillOnce(::testing::Return(""));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -191,7 +196,12 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
-
+  EXPECT_CALL(
+      *parameter_client,
+      GetParameter("kv-server-environment-data-loading-blob-prefix-allowlist",
+                   ::testing::Eq("")))
+      .Times(2)
+      .WillRepeatedly(::testing::Return(""));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -254,7 +264,12 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
-
+  EXPECT_CALL(
+      *parameter_client,
+      GetParameter("kv-server-environment-data-loading-blob-prefix-allowlist",
+                   ::testing::Eq("")))
+      .Times(2)
+      .WillRepeatedly(::testing::Return(""));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -321,7 +336,12 @@ TEST(ServerLocalTest, ForceServerShutdown) {
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
-
+  EXPECT_CALL(
+      *parameter_client,
+      GetParameter("kv-server-environment-data-loading-blob-prefix-allowlist",
+                   ::testing::Eq("")))
+      .Times(2)
+      .WillRepeatedly(::testing::Return(""));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),

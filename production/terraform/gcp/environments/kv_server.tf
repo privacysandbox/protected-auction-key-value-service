@@ -100,5 +100,6 @@ module "kv_server" {
     enable-otel-logger                        = var.enable_otel_logger
     enable-external-traffic                   = var.enable_external_traffic
     telemetry-config                          = var.telemetry_config
+    data-loading-blob-prefix-allowlist        = var.data_loading_blob_prefix_allowlist
   }
 }

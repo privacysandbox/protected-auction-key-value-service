@@ -316,3 +316,9 @@ variable "telemetry_config" {
   default     = "mode: PROD"
   type        = string
 }
+
+variable "data_loading_blob_prefix_allowlist" {
+  description = "A comma separated list of prefixes (i.e., directories) where data is loaded from."
+  default     = ","
+  type        = string
+}

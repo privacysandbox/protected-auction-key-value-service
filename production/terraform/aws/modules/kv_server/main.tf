@@ -171,6 +171,7 @@ module "parameter" {
   use_sharding_key_regex_parameter_value                 = var.use_sharding_key_regex
   sharding_key_regex_parameter_value                     = var.sharding_key_regex
   enable_otel_logger_parameter_value                     = var.enable_otel_logger
+  data_loading_blob_prefix_allowlist                     = var.data_loading_blob_prefix_allowlist
 }
 
 module "security_group_rules" {

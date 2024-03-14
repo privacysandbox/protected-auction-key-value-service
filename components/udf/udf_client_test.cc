@@ -47,6 +47,7 @@ using google::scp::roma::FunctionBindingObjectV2;
 using google::scp::roma::FunctionBindingPayload;
 using testing::_;
 using testing::ContainsRegex;
+using testing::HasSubstr;
 using testing::Return;
 
 namespace kv_server {
@@ -93,6 +94,26 @@ TEST_F(UdfClientTest, JsCallSucceeds) {
       *request_context_factory_, {}, execution_metadata_);
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("Hello world!")");
+
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, JsExceptionReturnsStatus) {
+  auto udf_client = CreateUdfClient();
+  EXPECT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "function hello() { throw new Error('Oh no!'); }",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      *request_context_factory_, {}, execution_metadata_);
+  EXPECT_FALSE(result.ok());
+  EXPECT_THAT(result.status().message(), HasSubstr("Oh no!"));
 
   absl::Status stop = udf_client.value()->Stop();
   EXPECT_TRUE(stop.ok());

@@ -27,8 +27,7 @@ Generates JSON requests to be sent to the KV server V2 API.
 For each N in a number-of-keys-list, it will
   * select N keys from the given snapshot.csv file
   * generate a request body with the list of keys
-  * save request under <output_dir>/n=<N>/request.json
-
+  * save request under <output_dir>/<snapshot_csv_filename>/n=<N>/request.json
 """
 
 
@@ -69,7 +68,6 @@ def WriteRequests(
             continue
 
         request = _BuildRequest(keys[:n], metadata)
-
         # Write to an output file at <output_dir>/n=<n>/request.json
         output_dir_n = os.path.join(output_dir, f"{n=}")
         Path(output_dir_n).mkdir(parents=True, exist_ok=True)
@@ -127,10 +125,10 @@ def Main():
         help="Output directory for benchmarks",
     )
     parser.add_argument(
-        "--snapshot-csv-file",
-        dest="snapshot_csv_file",
+        "--snapshot-csv-dir",
+        dest="snapshot_csv_dir",
         default="snapshot.csv",
-        help="Snapshot CSV file with KVMutation update entries.",
+        help="Directory with snapshot CSVs with KVMutation update entries.",
     )
     parser.add_argument(
         "--metadata",
@@ -149,10 +147,13 @@ def Main():
     metadata = json.loads(args.metadata)
     if not isinstance(metadata, dict):
         raise ValueError("metadata is not a JSON object")
-    keys = ReadKeys(
-        args.snapshot_csv_file, max(args.number_of_keys_list), args.filter_by_sets
-    )
-    WriteRequests(keys, args.number_of_keys_list, args.output_dir, metadata)
+    for filename in os.listdir(args.snapshot_csv_dir):
+        snapshot_csv_file = os.path.join(args.snapshot_csv_dir, filename)
+        keys = ReadKeys(
+            snapshot_csv_file, max(args.number_of_keys_list), args.filter_by_sets
+        )
+        output_dir_for_snapshot = os.path.join(args.output_dir, filename)
+        WriteRequests(keys, args.number_of_keys_list, output_dir_for_snapshot, metadata)
 
 
 if __name__ == "__main__":

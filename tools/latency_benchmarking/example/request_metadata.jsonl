@@ -1,8 +1,4 @@
 {"useGetValuesBinary":false}
-{"useGetValuesBinary":false,"lookup_batch_size":50}
 {"useGetValuesBinary":false,"lookup_batch_size":100}
-{"useGetValuesBinary":false,"lookup_batch_size": 500}
 {"useGetValuesBinary":true}
-{"useGetValuesBinary":true, "lookup_batch_size":50}
 {"useGetValuesBinary":true, "lookup_batch_size":100}
-{"useGetValuesBinary":true, "lookup_batch_size":500}

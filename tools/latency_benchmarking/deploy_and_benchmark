@@ -42,8 +42,10 @@ declare SERVER_ENDPOINT
 # CSV I/O
 declare -a BENCHMARK_CSVS
 CSV_OUTPUT="${WORKSPACE}/dist/tools/latency_benchmarking/output/output.csv"
-DOCKER_OUTPUT_CSV="/tmp/latency_benchmarking/output/deploy_and_benchmark/output.csv"
-readonly DOCKER_OUTPUT_CSV
+declare -r DOCKER_OUTPUT_CSV="/tmp/latency_benchmarking/output/deploy_and_benchmark/output.csv"
+declare -r SNAPSHOT_CSV_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/deploy_and_benchmark/snapshot_csvs/"
+declare -r DOCKER_SNAPSHOT_CSV_DIR="/tmp/latency_benchmarking/deploy_and_benchmark/snapshot_csvs/"
+declare -r DOCKER_SNAPSHOT_DIR="/tmp/latency_benchmarking/deploy_and_benchmark/snapshots/"
 
 # run_benchmarks writes output to this directory
 CSV_SUMMARY_INPUT_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/output"
@@ -82,6 +84,21 @@ USAGE
   exit ${exitval}
 }
 
+function convert_snapshots_to_csvs() {
+  mkdir -p "${SNAPSHOT_CSV_DIR}"
+  # Iterate through snapshot files and convert them to CSV
+  for SNAPSHOT_FILE in "${SNAPSHOT_DIR}"/*; do
+    SNAPSHOT_FILENAME=$(basename "${SNAPSHOT_FILE}")
+    EXTRA_DOCKER_RUN_ARGS+=" --volume ${SNAPSHOT_CSV_DIR}:${DOCKER_SNAPSHOT_CSV_DIR} --volume ${SNAPSHOT_DIR}:${DOCKER_SNAPSHOT_DIR} " \
+    builders/tools/bazel-debian run //tools/data_cli:data_cli format_data \
+    -- \
+    --input_file "${DOCKER_SNAPSHOT_DIR}/${SNAPSHOT_FILENAME}" \
+    --input_format DELTA \
+    --output_file  "${DOCKER_SNAPSHOT_CSV_DIR}/${SNAPSHOT_FILENAME}.csv" \
+    --output_format CSV
+  done
+}
+
 function set_benchmark_args() {
   local -a RUN_BENCHMARK_GHZ_TAGS
   RUN_BENCHMARK_GHZ_TAGS=$(jq -s -c 'add' <(echo "${GHZ_TAGS}") \
@@ -91,7 +108,7 @@ function set_benchmark_args() {
     --number-of-lookup-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}"
     --server-address "${SERVER_ADDRESS}"
     --ghz-tags "${RUN_BENCHMARK_GHZ_TAGS}"
-    --snapshot-dir "${SNAPSHOT_DIR}"
+    --snapshot-csv-dir "${SNAPSHOT_CSV_DIR}"
     --request-metadata-json "${REQUEST_METADATA_JSON}"
   )
   if [[ "${FILTER_BY_SETS}" = 1 ]]; then
@@ -323,6 +340,7 @@ if [[ -v "${REQUEST_METADATA_JSON_FILE}" && ! -r "${REQUEST_METADATA_JSON_FILE}"
   exit 1
 fi
 
+convert_snapshots_to_csvs
 
 # No terraform variable overrides, deploy and benchmark without overrides
 if [[ -z "${TF_OVERRIDES}" ]]; then

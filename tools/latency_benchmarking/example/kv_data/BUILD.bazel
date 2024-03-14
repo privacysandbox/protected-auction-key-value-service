@@ -50,3 +50,39 @@ total_records = num_kv_records + num_kv_set_records
         1,
     )
 ]
+
+[
+    run_binary(
+        name = "generate_{}_csv".format(size),
+        outs = [
+            "DELTA_100000000000000{}.csv".format(num),
+        ],
+        args = [
+            "format_data",
+            "--input_file",
+            "--output_filename",
+            "$(location DELTA_100000000000000{})".format(num),
+            "--key",
+            "value{}_".format(size),
+            "--num_records",
+            "{}".format(num_kv_records),
+            "--value_size",
+            "{}".format(size),
+            "--timestamp",
+            "{}".format(total_records * num),
+            "--generate_set_record",
+            "--set_value_key",
+            "setvalue{}_".format(size),
+            "--num_set_records",
+            "{}".format(num_kv_set_records),
+            "--num_values_in_set",
+            "{}".format(num_values_in_set),
+        ],
+        tags = ["manual"],
+        tool = "//tools/data_cli",
+    )
+    for num, size in enumerate(
+        ("10", "20", "50", "100", "500", "1000", "5000"),
+        1,
+    )
+]

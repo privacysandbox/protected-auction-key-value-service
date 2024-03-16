@@ -99,7 +99,7 @@ function run_ghz_for_requests() {
       --call kv_server.v2.KeyValueService/GetValuesHttp \
       "${SERVER_ADDRESS}"
     # In case the server hangs from previous requests, wait before sending next batch
-    sleep 60
+    sleep 30
   done
 }
 

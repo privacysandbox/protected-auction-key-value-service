@@ -19,6 +19,7 @@ set -o errexit
 # shellcheck disable=SC1090
 source ./builders/tools/builder.sh
 
+START=$(date +%s)
 WORKSPACE="$(git rev-parse --show-toplevel)"
 
 # Script input params
@@ -43,7 +44,7 @@ declare SERVER_ENDPOINT
 declare -a BENCHMARK_CSVS
 CSV_OUTPUT="${WORKSPACE}/dist/tools/latency_benchmarking/output/output.csv"
 declare -r DOCKER_OUTPUT_CSV="/tmp/latency_benchmarking/output/deploy_and_benchmark/output.csv"
-declare -r SNAPSHOT_CSV_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/deploy_and_benchmark/snapshot_csvs/"
+declare -r SNAPSHOT_CSV_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/deploy_and_benchmark/snapshot_csvs/${START}"
 declare -r DOCKER_SNAPSHOT_CSV_DIR="/tmp/latency_benchmarking/deploy_and_benchmark/snapshot_csvs/"
 declare -r DOCKER_SNAPSHOT_DIR="/tmp/latency_benchmarking/deploy_and_benchmark/snapshots/"
 
@@ -109,8 +110,12 @@ function set_benchmark_args() {
     --server-address "${SERVER_ADDRESS}"
     --ghz-tags "${RUN_BENCHMARK_GHZ_TAGS}"
     --snapshot-csv-dir "${SNAPSHOT_CSV_DIR}"
-    --request-metadata-json "${REQUEST_METADATA_JSON}"
   )
+  if [[ -v "${REQUEST_METADATA_JSON}" ]]; then
+    RUN_BENCHMARK_ARGS+=(
+      --request-metadata-json "${REQUEST_METADATA_JSON}"
+    )
+  fi
   if [[ "${FILTER_BY_SETS}" = 1 ]]; then
     RUN_BENCHMARK_ARGS+=(
       --filter-snapshot-by-sets

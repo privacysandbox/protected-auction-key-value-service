@@ -38,8 +38,14 @@ function usage() {
   local -r -i exitval=${1-1}
   cat &>/dev/stderr <<USAGE
 usage:
-  ${BASH_SOURCE[0]}
-  TODO: Add usage description
+  ${BASH_SOURCE[0]} <flags>
+    [--server-address]                (Required) gRPC host and port.
+    [--snapshot-dir] or               (Required) Full path to either snapshot-dir or snapshot-csv-dir
+    [--snapshot-csv-dir]                is required.
+    [--number-of-lookup-keys-list]    (Optional) List of number of keys to include in a request.
+    [--ghz-tags]                      (Optional) Tags to include in the ghz run.
+    [--request-metadata-json]         (Optional) Request metadata to set for all requests
+    [--filter-snapshot-by-sets]       (Optional) Whether to filter snapshots by sets when creating requests.
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}

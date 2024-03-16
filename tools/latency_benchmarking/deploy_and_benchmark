@@ -78,8 +78,23 @@ function usage() {
   local -r -i exitval=${1-1}
   cat &>/dev/stderr <<USAGE
 usage:
-  ${BASH_SOURCE[0]}
-  TODO: Add usage description
+  ${BASH_SOURCE[0]} <flags>
+  [--cloud-provider]                  (Required) Cloud provider. Options: "aws" or "gcp"
+  [--tf-var-file]                     (Required) Full path to tfvars.json file.
+  [--tf-backend-config]               (Required) Full path to tf backend.conf file.
+  [--server-url]                      (Required) URL of deployed server.
+  [--snapshot-dir]                    (Required) Full path to a directory of snapshot files.
+  [--csv-output]                      (Optional) Path to output file for summary of benchmarks.
+  [--tf-overrides]                    (Optional) Path to file with terraform variable overrides.
+  [--udf-delta-dir]                   (Optional) Full path to directory of udf delta files.
+  [--data-bucket]                     (Optional) Data bucket to upload the udf files too.
+  [--request-metadata-json-file]      (Optional) Path to JSON lines file with request metadata.
+  [--number-of-lookup-keys-list]      (Optional) List of number of keys to include in a request.
+  [--minimum-server-wait-secs]        (Optional) Amount of time to wait before checking server health.
+  [--extra-server-wait-timeout]       (Optional) Timeout for waiting for server to become healthy.
+  [--ghz-tags]                        (Optional) Tags to include in the ghz run.
+  [--cleanup-deployment]              (Optional) Whether to call terraform destroy once the tool exits.
+  [--filter-snapshot-by-sets]         (Optional) Whether to filter snapshots by sets when creating requests.
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}

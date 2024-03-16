@@ -8,6 +8,9 @@
     },
     {
       "pattern": "^https://demo.kv-server.your-domain.example/"
+    },
+    {
+      "pattern": "^demo.kv-server.your-domain.example:8443"
     }
   ],
   "replacementPatterns": [

@@ -91,7 +91,7 @@ class LocalParameterClient : public ParameterClient {
     string_flag_values_.insert({"kv-server-local-telemetry-config",
                                 absl::GetFlag(FLAGS_telemetry_config)});
     string_flag_values_.insert(
-        {"kv-server-data-loading-blob-prefix-allowlist",
+        {"kv-server-local-data-loading-blob-prefix-allowlist",
          absl::GetFlag(FLAGS_data_loading_prefix_allowlist)});
     // Insert more string flag values here.
 

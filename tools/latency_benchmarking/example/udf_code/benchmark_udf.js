@@ -135,7 +135,7 @@ function requestMetadataKeyIsTrue(requestMetadata, key) {
 /**
  * Handles the runQuery flow:
  *   1. compute set union on arguments using `runQuery`
- *   2. getValues/getValuesBinary on returned keys
+ *   2. getValues/getValuesBinary on first `lookup_n_keys_from_runquery` keys
  *   3. sort returned KVs by key length
  *   4. return top 5 KVs
  *
@@ -151,10 +151,11 @@ function handleRunQueryFlow(requestMetadata, udf_arguments) {
   }
 
   // Union all the sets in the udf_arguments
-  let setKeys = udf_arguments[0].hasOwnProperty('data') ? udf_arguments[0]['data'] : udf_arguments[0];
-  let keys = runQuery(setKeys.join('|'));
+  const setKeys = udf_arguments[0].hasOwnProperty('data') ? udf_arguments[0]['data'] : udf_arguments[0];
+  const keys = runQuery(setKeys.join('|'));
+  const n = parseInt(requestMetadata['lookup_n_keys_from_runquery'] || '100', 10);
 
-  const keyValuesOutput = handleGetValuesRequest(requestMetadata, [keys]);
+  const keyValuesOutput = handleGetValuesRequest(requestMetadata, [keys.slice(0, n)]);
   if (!keyValuesOutput.length || !keyValuesOutput[0].hasOwnProperty('keyValues')) {
     return result;
   }

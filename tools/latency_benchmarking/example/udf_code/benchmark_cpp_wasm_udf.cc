@@ -24,6 +24,7 @@
 namespace {
 
 constexpr int kTopK = 4;
+constexpr int kLookupNKeysFromRunQuery = 100;
 
 // Calls getValues for a list of keys and processes the response.
 absl::StatusOr<std::vector<nlohmann::json>> GetKvPairs(
@@ -213,7 +214,8 @@ emscripten::val HandleGetValuesFlow(const emscripten::val& get_values_cb,
 
 // The run query flow performs the following steps:
 // 1. Compute the set union of given arguments using `runQuery` API
-// 2. Call `getValues`/`getValuesBinary` with returned keys
+// 2. Call `getValues`/`getValuesBinary` with first
+// `lookup_n_keys_from_runquery` keys
 // 3. Sort returned KVs
 // 4. Return top 5 KV pairs
 emscripten::val HandleRunQueryFlow(const emscripten::val& get_values_cb,
@@ -233,9 +235,13 @@ emscripten::val HandleRunQueryFlow(const emscripten::val& get_values_cb,
   emscripten::val query =
       set_keys.call<emscripten::val>("join", emscripten::val("|"));
   emscripten::val keys = run_query_cb(query);
-
+  int n = kLookupNKeysFromRunQuery;
+  if (request_metadata.hasOwnProperty("lookup_n_keys_from_runquery")) {
+    n = request_metadata["lookup_n_keys_from_runquery"].as<int>();
+  }
+  emscripten::val lookup_keys = keys.call<emscripten::val>("slice", 0, n);
   std::vector<emscripten::val> lookup_data =
-      MaybeSplitDataByBatchSize(request_metadata, keys);
+      MaybeSplitDataByBatchSize(request_metadata, lookup_keys);
   absl::StatusOr<std::map<std::string, std::string>> kv_map =
       request_metadata.hasOwnProperty("useGetValuesBinary") &&
               request_metadata["useGetValuesBinary"].as<bool>()

@@ -245,7 +245,7 @@ The setup is similar to AWS above. The differences are in terminology:
 -   Sqs->Subscription
 -   EC2->VM
 
-In the case of AWS it is a PubSub topic. That topic is created in terraform
+In the case of GCP it is a PubSub topic. That topic is created in terraform
 [here](/production/terraform/gcp/services/realtime/main.tf) Delta files contain multiple rows, which
 allows you to batch multiple updates together. There is a
 [limit](https://cloud.google.com/pubsub/quotas#resource_limits) of 10MB for the message size.

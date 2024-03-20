@@ -106,7 +106,8 @@ absl::StatusOr<std::string> DeltaFileNotifierImpl::WaitForNotification(
   }
   std::string_view max_change = "";
   for (const auto& change : *changes) {
-    if (change > max_change && IsDeltaFilename(change)) {
+    if (auto blob = ParseBlobName(change);
+        change > max_change && IsDeltaFilename(blob.key)) {
       max_change = change;
     }
   }

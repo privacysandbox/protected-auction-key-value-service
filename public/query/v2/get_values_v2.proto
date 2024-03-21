@@ -21,6 +21,7 @@ import "google/api/httpbody.proto";
 import "google/protobuf/struct.proto";
 import "google/rpc/status.proto";
 import "public/api_schema.proto";
+import "src/logger/logger.proto";
 
 // Key Value Service API V2.
 // Spec:
@@ -107,6 +108,10 @@ message GetValuesRequest {
   // Metadata that is useful for all partitions in a request.
   google.protobuf.Struct metadata = 2;
   repeated RequestPartition partitions = 3;
+  // Context useful for logging and tracing requests
+  privacy_sandbox.server_common.LogContext log_context = 4;
+  // Consented debugging configuration
+  privacy_sandbox.server_common.ConsentedDebugConfiguration consented_debug_config = 5;
 }
 
 message ResponsePartition {

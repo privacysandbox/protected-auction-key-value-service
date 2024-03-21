@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@google_privacysandbox_servers_common//src/roma/tools/api_plugin:roma_app_api.bzl", "js_proto_library")
+load("@google_privacysandbox_servers_common//src/roma/tools/api_plugin:roma_app_api.bzl", "declare_roma_app_api", "js_proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 
@@ -30,11 +30,16 @@ cc_proto_library(
     deps = [":binary_get_values_proto"],
 )
 
+kv_api = declare_roma_app_api(
+    cc_protos = [":binary_get_values_cc_proto"],
+    proto_basename = "binary_get_values",
+    protos = [":binary_get_values_proto"],
+)
+
 # Library that can be added as a dep from closure_js_library or *_js_binary rules
 js_proto_library(
     name = "binary_get_values_js_proto",
-    proto_basename = "binary_get_values",
-    protos = [":binary_get_values_proto"],
+    roma_app_api = kv_api,
 )
 
 cc_library(

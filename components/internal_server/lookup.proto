@@ -17,6 +17,7 @@ syntax = "proto3";
 package kv_server;
 
 import "google/rpc/status.proto";
+import "src/logger/logger.proto";
 
 // Internal Lookup Service API.
 service InternalLookupService {
@@ -39,6 +40,10 @@ message InternalLookupRequest {
   // False means values are looked up.
   // True means value sets are looked up.
   bool lookup_sets = 2;
+  // Context useful for logging and tracing requests
+  privacy_sandbox.server_common.LogContext log_context = 3;
+  // Consented debugging configuration
+  privacy_sandbox.server_common.ConsentedDebugConfiguration consented_debug_config = 4;
 }
 
 // Encrypted and padded lookup request for internal datastore.
@@ -92,6 +97,10 @@ message KeysetValues {
 message InternalRunQueryRequest {
   // Query to run.
   optional string query = 1;
+  // Context useful for logging and tracing requests
+  privacy_sandbox.server_common.LogContext log_context = 2;
+  // Consented debugging configuration
+  privacy_sandbox.server_common.ConsentedDebugConfiguration consented_debug_config = 3;
 }
 
 // Run Query response.

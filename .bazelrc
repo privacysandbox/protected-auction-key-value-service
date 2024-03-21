@@ -43,6 +43,10 @@ build:clang --per_file_copt=external/nitrokmscli_.*\.c@-Wno-int-conversion
 build:cpp_nowarn --copt=-Werror
 build:cpp_nowarn --per_file_copt=external/.*@-Wno-error
 
+build:clang-tidy --aspects @bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
+build:clang-tidy --output_groups=report
+build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=//:clang_tidy_config
+
 # Required to use protos in wasm_cc_binary/inline_wasm_cc_binary
 build:emscripten --per_file_copt=.*zlib.*@-Wno-deprecated-non-prototype
 build:emscripten --per_file_copt=.*utf8_range.*@-Wno-unused-function

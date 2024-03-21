@@ -40,6 +40,9 @@ build:clang --host_cxxopt=-std=c++17
 build:clang --client_env=BAZEL_CXXOPTS=-std=c++17
 build:clang --per_file_copt=external/nitrokmscli_.*\.c@-Wno-int-conversion
 
+build:cpp_nowarn --copt=-Werror
+build:cpp_nowarn --per_file_copt=external/.*@-Wno-error
+
 # Required to use protos in wasm_cc_binary/inline_wasm_cc_binary
 build:emscripten --per_file_copt=.*zlib.*@-Wno-deprecated-non-prototype
 build:emscripten --per_file_copt=.*utf8_range.*@-Wno-unused-function

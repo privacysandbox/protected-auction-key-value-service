@@ -96,14 +96,13 @@ function __init() {
   export CBUILD_IMAGE="${IMAGE_TAGGED}"
 
   local -r ARCH="$("${TOOLS_DIR}"/get-architecture)"
+  SKIP_HOOKS="${SKIP}"
   if [[ ${ARCH} == arm64 ]]; then
     if [[ -z ${SKIP} ]]; then
       SKIP_HOOKS="terraform-fmt"
     else
-      SKIP_HOOKS="${SKIP},terraform-fmt"
+      SKIP_HOOKS+=",terraform-fmt"
     fi
-  else
-    SKIP_HOOKS="${SKIP}"
   fi
   if [[ -n ${SKIP_HOOKS} ]]; then
     printf "Skipping pre-commit hooks: %s\n" "${SKIP_HOOKS}"

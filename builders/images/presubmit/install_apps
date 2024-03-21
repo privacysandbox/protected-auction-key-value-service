@@ -82,7 +82,9 @@ function install_docker() {
 
 function install_precommit() {
   /usr/bin/python3.9 -m venv "${PRE_COMMIT_VENV_DIR}"
-  "${PRE_COMMIT_VENV_DIR}"/bin/pip install pre-commit~=3.1
+  "${PRE_COMMIT_VENV_DIR}"/bin/pip install \
+    pre-commit~=3.1 \
+    pylint~=3.1.0
   "${PRE_COMMIT_TOOL}" --version
 
   # initialize pre-commit cache, which needs a git repo (a temporary will suffice)
@@ -105,7 +107,7 @@ function cleanup() {
   apt-get clean
   rm -rf /var/lib/apt/lists
   cd /
-  go clean -cache
+  go clean -cache -modcache
 }
 
 if [[ ${VERBOSE} -eq 1 ]]; then

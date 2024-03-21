@@ -29,8 +29,21 @@
 
 set -o errexit
 
+TOOLS_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+readonly TOOLS_DIR
+
+function check_arch() {
+  local -r ARCH="$("${TOOLS_DIR}"/get-architecture)"
+  if [[ ${ARCH} == arm64 ]]; then
+    printf "architecture %s not supported\n" "${ARCH}" &>/dev/stderr
+    exit 0
+  fi
+}
+
+check_arch
+
 # shellcheck disable=SC1090
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
+source "${TOOLS_DIR}"/builder.sh
 
 declare -a ENV_VARS
 builder::add_aws_env_vars ENV_VARS
@@ -68,4 +81,4 @@ docker run \
   --volume "${HOME}"/.aws/:/home/.aws/ \
   --volume "${WORKSPACE}":/src/workspace \
   --workdir /src/workspace/"${REL_PWD}" \
-  ghcr.io/okigan/awscurl:latest "$@"
+  ghcr.io/okigan/awscurl:v0.29 "$@"

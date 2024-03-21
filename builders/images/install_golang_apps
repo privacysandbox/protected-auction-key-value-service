@@ -43,4 +43,10 @@ function install_bazelisk() {
   rm -rf /bazel_root/*
 }
 
+function cleanup() {
+  cd /
+  go clean -cache -modcache
+}
+
 install_bazelisk
+cleanup

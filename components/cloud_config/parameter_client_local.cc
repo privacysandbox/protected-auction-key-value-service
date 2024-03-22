@@ -65,6 +65,8 @@ ABSL_FLAG(std::string, telemetry_config, "mode: EXPERIMENT",
           "Telemetry configuration for exporting raw or noised metrics");
 ABSL_FLAG(std::string, data_loading_prefix_allowlist, "",
           "Allowlist for blob prefixes.");
+ABSL_FLAG(bool, add_missing_keys_v1, false,
+          "Whether to add missing keys for v1.");
 
 namespace kv_server {
 namespace {
@@ -130,7 +132,8 @@ class LocalParameterClient : public ParameterClient {
     // Insert more int32 flag values here.
     bool_flag_values_.insert({"kv-server-local-route-v1-to-v2",
                               absl::GetFlag(FLAGS_route_v1_to_v2)});
-    bool_flag_values_.insert({"kv-server-local-add-missing-keys-v1", false});
+    bool_flag_values_.insert({"kv-server-local-add-missing-keys-v1",
+                              absl::GetFlag(FLAGS_add_missing_keys_v1)});
     bool_flag_values_.insert({"kv-server-local-use-real-coordinators", false});
     bool_flag_values_.insert(
         {"kv-server-local-use-external-metrics-collector-endpoint", false});

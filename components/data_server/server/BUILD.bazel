@@ -257,33 +257,59 @@ cc_library(
 cc_library(
     name = "key_fetcher_factory",
     srcs = select({
-        "//:aws_platform": [
+        "//:aws_nonprod": [
+            "key_fetcher_factory_cloud.cc",
+            "nonprod_key_fetcher_factory_aws.cc",
+            "nonprod_key_fetcher_factory_cloud.cc",
+        ],
+        "//:aws_prod": [
             "key_fetcher_factory_aws.cc",
             "key_fetcher_factory_cloud.cc",
         ],
-        "//:gcp_platform": [
+        "//:gcp_nonprod": [
+            "key_fetcher_factory_cloud.cc",
+            "key_fetcher_utils_gcp.cc",
+            "nonprod_key_fetcher_factory_cloud.cc",
+            "nonprod_key_fetcher_factory_gcp.cc",
+        ],
+        "//:gcp_prod": [
             "key_fetcher_factory_cloud.cc",
             "key_fetcher_factory_gcp.cc",
+            "key_fetcher_utils_gcp.cc",
         ],
         "//:local_platform": [
             "key_fetcher_factory_local.cc",
         ],
     }),
-    hdrs = [
+    hdrs = select({
+        "//:gcp_platform": [
+            "key_fetcher_utils_gcp.h",
+        ],
+        "//:nonprod_mode": [
+            "nonprod_key_fetcher_factory_cloud.h",
+        ],
+        "//conditions:default": [],
+    }) + [
         "key_fetcher_factory.h",
     ],
-    deps = [
-        ":parameter_fetcher",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/flags:parse",
-        "@com_google_absl//absl/strings",
-        "@com_google_absl//absl/time",
-        "@google_privacysandbox_servers_common//src/concurrent:executor",
-        "@google_privacysandbox_servers_common//src/encryption/key_fetcher:fake_key_fetcher_manager",
-        "@google_privacysandbox_servers_common//src/encryption/key_fetcher:key_fetcher_manager",
-        "@google_privacysandbox_servers_common//src/encryption/key_fetcher:private_key_fetcher",
-        "@google_privacysandbox_servers_common//src/encryption/key_fetcher:public_key_fetcher",
-    ],
+    deps =
+        select({
+            "//:gcp_platform": [
+                ":key_fetcher_utils_gcp",
+            ],
+            "//conditions:default": [],
+        }) + [
+            ":parameter_fetcher",
+            "@com_google_absl//absl/flags:flag",
+            "@com_google_absl//absl/flags:parse",
+            "@com_google_absl//absl/strings",
+            "@com_google_absl//absl/time",
+            "@google_privacysandbox_servers_common//src/concurrent:executor",
+            "@google_privacysandbox_servers_common//src/encryption/key_fetcher:fake_key_fetcher_manager",
+            "@google_privacysandbox_servers_common//src/encryption/key_fetcher:key_fetcher_manager",
+            "@google_privacysandbox_servers_common//src/encryption/key_fetcher:private_key_fetcher",
+            "@google_privacysandbox_servers_common//src/encryption/key_fetcher:public_key_fetcher",
+        ],
 )
 
 cc_library(
@@ -306,5 +332,15 @@ cc_library(
         "//components/udf/hooks:run_query_hook",
         "//public/sharding:key_sharder",
         "@com_google_absl//absl/log",
+    ],
+)
+
+cc_library(
+    name = "key_fetcher_utils_gcp",
+    srcs = ["key_fetcher_utils_gcp.cc"],
+    hdrs = ["key_fetcher_utils_gcp.h"],
+    deps = [
+        ":parameter_fetcher",
+        "@google_privacysandbox_servers_common//src/encryption/key_fetcher:key_fetcher_manager",
     ],
 )

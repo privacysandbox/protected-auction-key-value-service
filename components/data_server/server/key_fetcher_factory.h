@@ -15,6 +15,8 @@
  */
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #ifndef COMPONENTS_DATA_SERVER_SERVER_KEY_FETCHER_FACTORY_H_
 #define COMPONENTS_DATA_SERVER_SERVER_KEY_FETCHER_FACTORY_H_
@@ -55,6 +57,8 @@ class CloudKeyFetcherFactory : public KeyFetcherFactory {
       const ParameterFetcher& parameter_fetcher) const;
   virtual google::scp::cpio::PrivateKeyVendingEndpoint
   GetSecondaryKeyFetchingEndpoint(
+      const ParameterFetcher& parameter_fetcher) const;
+  virtual std::vector<std::string> GetPublicKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const;
   virtual ::privacy_sandbox::server_common::CloudPlatform GetCloudPlatform()
       const;

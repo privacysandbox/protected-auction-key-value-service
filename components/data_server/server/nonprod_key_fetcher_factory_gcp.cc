@@ -1,4 +1,4 @@
-// Copyright 2023 Google LLC
+// Copyright 2024 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,17 +15,18 @@
 #include "absl/log/log.h"
 #include "components/data_server/server/key_fetcher_factory.h"
 #include "components/data_server/server/key_fetcher_utils_gcp.h"
+#include "components/data_server/server/nonprod_key_fetcher_factory_cloud.h"
 
 namespace kv_server {
 namespace {
 using ::google::scp::cpio::PrivateKeyVendingEndpoint;
 using ::privacy_sandbox::server_common::CloudPlatform;
 
-class KeyFetcherFactoryGcp : public CloudKeyFetcherFactory {
+class KeyFetcherFactoryGcpNonProd : public NonprodCloudKeyFetcherFactory {
   PrivateKeyVendingEndpoint GetPrimaryKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const override {
     PrivateKeyVendingEndpoint endpoint =
-        CloudKeyFetcherFactory::GetPrimaryKeyFetchingEndpoint(
+        NonprodCloudKeyFetcherFactory::GetPrimaryKeyFetchingEndpoint(
             parameter_fetcher);
     UpdatePrimaryGcpEndpoint(endpoint, parameter_fetcher);
     return endpoint;
@@ -34,7 +35,7 @@ class KeyFetcherFactoryGcp : public CloudKeyFetcherFactory {
   PrivateKeyVendingEndpoint GetSecondaryKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const override {
     PrivateKeyVendingEndpoint endpoint =
-        CloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
+        NonprodCloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
             parameter_fetcher);
     UpdateSecondaryGcpEndpoint(endpoint, parameter_fetcher);
     return endpoint;
@@ -47,6 +48,6 @@ class KeyFetcherFactoryGcp : public CloudKeyFetcherFactory {
 }  // namespace
 
 std::unique_ptr<KeyFetcherFactory> KeyFetcherFactory::Create() {
-  return std::make_unique<KeyFetcherFactoryGcp>();
+  return std::make_unique<KeyFetcherFactoryGcpNonProd>();
 }
 }  // namespace kv_server

@@ -104,13 +104,9 @@ oci_image(
         "--",
         # Note: these ports must correspond with those specified in envoy.yaml.
         "--port=50051",
-        # These affect PCR0, so changing these would result in the loss of
-        # access to private keys for decryption.
+        # These affect PCR0, so changing these would result in the loss of ability to communicate with
+        # the downstream components
         "--public_key_endpoint=https://d3gf5400xe31j1.cloudfront.net/v1alpha/publicKeys",
-        "--primary_coordinator_private_key_endpoint=https://uun5qzrqvj.execute-api.us-east-1.amazonaws.com/stage/v1alpha/encryptionKeys",
-        "--secondary_coordinator_private_key_endpoint=https://ddqkl8ay59.execute-api.us-east-1.amazonaws.com/stage/v1alpha/encryptionKeys",
-        "--primary_coordinator_region=us-east-1",
-        "--secondary_coordinator_region=us-east-1",
         "--stderrthreshold=0",
     ],
     tars = [

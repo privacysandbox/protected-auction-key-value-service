@@ -5,7 +5,7 @@ build --output_filter='^//((?!(third_party):).)*$'`
 build --color=yes
 build --@io_bazel_rules_docker//transitions:enable=false
 build --workspace_status_command="bash tools/get_workspace_status"
-build --copt=-Werror=thread-safety-analysis
+build --copt=-Werror=thread-safety
 build --config=clang
 build --config=noexcept
 # Disable some ROMA error checking

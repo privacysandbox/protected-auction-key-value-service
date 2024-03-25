@@ -48,7 +48,9 @@ class RiegeliStreamReader : public StreamRecordReader {
   // `data_input` must be at the file beginning when passed in.
   explicit RiegeliStreamReader(
       std::istream& data_input,
-      std::function<bool(const riegeli::SkippedRegion&)> recover)
+      std::function<bool(const riegeli::SkippedRegion&,
+                         riegeli::RecordReaderBase& record_reader)>
+          recover)
       : reader_(riegeli::RecordReader(
             riegeli::IStreamReader(&data_input),
             riegeli::RecordReaderBase::Options().set_recovery(
@@ -134,8 +136,10 @@ class ConcurrentStreamRecordReader : public StreamRecordReader {
   struct Options {
     int64_t num_worker_threads = kDefaultNumWorkerThreads;
     int64_t min_shard_size_bytes = kDefaultMinShardSize;
-    std::function<bool(const riegeli::SkippedRegion&)> recovery_callback =
-        [](const riegeli::SkippedRegion& region) {
+    std::function<bool(const riegeli::SkippedRegion&,
+                       riegeli::RecordReaderBase& record_reader)>
+        recovery_callback = [](const riegeli::SkippedRegion& region,
+                               riegeli::RecordReaderBase& record_reader) {
           LOG(WARNING) << "Skipping over corrupted region: " << region;
           return true;
         };
@@ -188,7 +192,8 @@ absl::StatusOr<KVFileMetadata>
 ConcurrentStreamRecordReader<RecordT>::GetKVFileMetadata() {
   auto record_stream = stream_factory_();
   RiegeliStreamReader<RecordT> metadata_reader(
-      record_stream->Stream(), [](const riegeli::SkippedRegion& region) {
+      record_stream->Stream(), [](const riegeli::SkippedRegion& region,
+                                  riegeli::RecordReaderBase& record_reader) {
         LOG(WARNING) << "Skipping over corrupted region: " << region;
         return true;
       });

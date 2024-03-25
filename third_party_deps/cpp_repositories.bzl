@@ -23,9 +23,9 @@ def cpp_repositories():
         repo_mapping = {
             "@org_brotli": "@brotli",
         },
-        sha256 = "32f303a9b0b6e07101a7a95a4cc364fb4242f0f7431de5da1a2e0ee61f5924c5",
-        strip_prefix = "riegeli-562f26cbb685aae10b7d32e32fb53d2e42a5d8c2",
-        url = "https://github.com/google/riegeli/archive/562f26cbb685aae10b7d32e32fb53d2e42a5d8c2.zip",
+        sha256 = "0aad9af403e5f394cf30330658a361c622a0155499d8726112b8fb1716750cf9",
+        strip_prefix = "riegeli-0bf809f36ae5be8a5684f63d8238b5440b42bbec",
+        url = "https://github.com/google/riegeli/archive/0bf809f36ae5be8a5684f63d8238b5440b42bbec.zip",
     )
 
     #external deps for riegeli

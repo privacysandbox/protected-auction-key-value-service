@@ -45,7 +45,8 @@ class DeltaRecordStreamReader : public DeltaRecordReader {
  public:
   explicit DeltaRecordStreamReader(SrcStreamT& src_stream)
       : stream_reader_(RiegeliStreamReader<std::string_view>(
-            src_stream, [](const riegeli::SkippedRegion& region) {
+            src_stream, [](const riegeli::SkippedRegion& region,
+                           riegeli::RecordReaderBase& record_reader) {
               LOG(ERROR) << "Failed to read region: " << region;
               return true;
             })) {}

@@ -218,6 +218,45 @@ export GCS_BUCKET=your-gcs-bucket-id
 gsutil cp DELTA_* gs://${GCS_BUCKET}
 ```
 
+## Organizing data files using prefixes
+
+### Intended use case
+
+By default, the server automatically monitors and loads data files uploaded to the S3 or GCS bucket.
+However, since the server expects the file names to monotonically increase and will not read files
+older than the previous file it has read, it can be challenging if there are more than one data
+ingestion pipelines creating delta files independently, because this would require them to
+coordinate the file names to make sure the server reads all the files. And the coordination adds
+extra complexity and latency.
+
+This feature allows multiple data ingestion pipelines to operate completely independently.
+
+### Allow listing prefixes
+
+Prefixes need to be allow listed before the server can continuously monitor and load new files under
+them. The allowlist is a comma separated list of prefixes and is controlled via a server flag
+`data_loading_blob_prefix_allowlist`:
+
+-   For AWS, see docs here: [AWS vars](/docs/AWS_Terraform_vars.md)
+-   For GCP, see docs here: [GCP vars](/docs/GCP_Terraform_vars.md)
+-   For local, set the flag: `--data_loading_blob_prefix_allowlist`
+    [defined here](/components/cloud_config/parameter_client_local.cc).
+
+For example, to add `prefix1` and `prefix2` to the allow list, set
+`data_loading_blob_prefix_allowlist` to `prefix1,prefix2`. With this setup the server will continue
+to load data files at the main bucket level, and will also monitor and load files that start with
+`prefix1` or `prefix2`, e.g., `prefix1/DELTA_001` and `prefix2/DELTA_001`.
+
+### Important things to note
+
+-   Records from files with different prefixes are merged in the internal cache so two records with
+    the same key (from different prefixes) will conflict with each other. These collisions should be
+    managed when writing records into data files, e.g., use keys `prefix1:foo0` and `prefix2:foo0`
+    for writing the records to data files and at query time.
+-   The server keeps track of the most recent loaded file separately for each prefix.
+-   The server does garbage collection of deleted records using a separate max cutoff timestamp for
+    each prefix.
+
 # Realtime updates
 
 The server exposes a way to post low latency updates. To apply such an update, you should send a

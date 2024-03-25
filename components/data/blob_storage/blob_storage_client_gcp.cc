@@ -162,15 +162,12 @@ absl::StatusOr<std::vector<std::string>> GcpBlobStorageClient::ListBlobs(
       continue;
     }
     // Manually exclude the starting name as the StartOffset option is
-    // inclusive.
-    auto& full_key_name = object_metadata->name();
-    if (full_key_name == options.start_after) {
+    // inclusive and also drop blobs with different prefix.
+    auto blob = ParseBlobName(object_metadata->name());
+    if (blob.key == options.start_after || blob.prefix != location.prefix) {
       continue;
     }
-    if (auto blob = ParseBlobName(full_key_name);
-        blob.prefix == location.prefix) {
-      keys.push_back(std::move(blob.key));
-    }
+    keys.push_back(std::move(blob.key));
   }
   std::sort(keys.begin(), keys.end());
   return keys;

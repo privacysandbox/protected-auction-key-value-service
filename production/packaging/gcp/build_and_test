@@ -33,6 +33,8 @@ function _print_runtime() {
   exit ${STATUS}
 }
 
+declare MODE=prod
+
 function usage() {
   local exitval=${1-1}
   cat &>/dev/stderr <<USAGE
@@ -41,6 +43,7 @@ usage:
     --without-shared-cache       Containers will not mount ${HOME}/.cache/bazel
     --no-precommit               Skip precommit checks
     --with-tests                 Also runs tests before building
+    --mode <type>                Mode can  be prod or nonprod. Default: ${MODE}
 
 environment variables (all optional):
     WORKSPACE                    Set the path to the workspace (repo root)
@@ -62,6 +65,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --with-tests)
       BUILD_AND_TEST_ARGS+=("--with-tests")
+      shift
+      ;;
+    --mode)
+      MODE="$2"
+      shift
       shift
       ;;
     --verbose)
@@ -102,6 +110,6 @@ fi
 source "${BUILDER}" || fail "Failed to source builder.sh"
 
 printf "==== Running build_and_test_all_in_docker =====\n"
-if ! "${WORKSPACE}"/production/packaging/build_and_test_all_in_docker "${BUILD_AND_TEST_ARGS[@]}" --instance gcp --platform gcp; then
+if ! "${WORKSPACE}"/production/packaging/build_and_test_all_in_docker "${BUILD_AND_TEST_ARGS[@]}" --instance gcp --platform gcp --mode "${MODE}"; then
   fail "Failed to run build_and_test_all_in_docker"
 fi

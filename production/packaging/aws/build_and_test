@@ -33,6 +33,8 @@ function _print_runtime() {
   exit ${STATUS}
 }
 
+declare MODE=prod
+
 function usage() {
   local exitval=${1-1}
   cat &>/dev/stderr <<USAGE
@@ -43,6 +45,7 @@ usage:
                                  If empty, none will be built
     --no-precommit               Skip precommit checks
     --with-tests                 Also runs tests before building
+    --mode <type>                Mode can  be prod or nonprod. Default: ${MODE}
 
 environment variables (all optional):
     WORKSPACE                    Set the path to the workspace (repo root)
@@ -69,6 +72,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --with-tests)
       BUILD_AND_TEST_ARGS+=("--with-tests")
+      shift
+      ;;
+    --mode)
+      MODE="$2"
+      shift
       shift
       ;;
     --verbose)
@@ -115,7 +123,7 @@ if ! [[ -r ${WORKSPACE}/production/packaging/build_and_test_all_in_docker && -x 
   printf "build_and_test script not found at location: %s/production/packaging/build_and_test_all_in_docker\n" "${WORKSPACE}" &>/dev/stderr
   fail "build_and_test not found"
 fi
-if ! "${WORKSPACE}"/production/packaging/build_and_test_all_in_docker "${BUILD_AND_TEST_ARGS[@]}" --instance aws; then
+if ! "${WORKSPACE}"/production/packaging/build_and_test_all_in_docker "${BUILD_AND_TEST_ARGS[@]}" --instance aws --mode "${MODE}"; then
   fail "Failed to run build_and_test_all_in_docker"
 fi
 

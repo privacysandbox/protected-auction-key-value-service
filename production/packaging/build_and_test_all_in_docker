@@ -45,6 +45,7 @@ declare -i SKIP_PRECOMMIT=0
 declare -i RUN_TESTS=0
 declare INSTANCE=local
 declare PLATFORM=aws
+declare MODE=prod
 
 function usage() {
   local -r -i exitval=${1-1}
@@ -53,6 +54,7 @@ usage:
   ${BASH_SOURCE[0]} <options>
     --instance <type>            Instance can be local or aws. Default: ${INSTANCE}
     --platform <type>            Platform can be aws or local. Default: ${PLATFORM}
+    --mode <type>                Mode can  be prod or nonprod. Default: ${MODE}
     --precommit-only             Run precommit then exit
     --no-precommit               Skip precommit checks
     --with-tests                 Also runs tests before building
@@ -103,6 +105,11 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --mode)
+      MODE="$2"
+      shift
+      shift
+      ;;
     --verbose)
       VERBOSE=1
       shift
@@ -112,7 +119,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --config=${INSTANCE}_instance --config=${PLATFORM}_platform"
+BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --config=${INSTANCE}_instance --config=${PLATFORM}_platform --config=${MODE}_mode"
 
 if [[ ${VERBOSE} -eq 1 ]]; then
   set -o xtrace
@@ -135,7 +142,7 @@ set -o errexit
 trap _collect_logs EXIT
 function _collect_logs() {
   declare -r -i status\$?
-  declare -r filename=${INSTANCE}-${PLATFORM}-logs.zip
+  declare -r filename=${INSTANCE}-${PLATFORM}-${MODE}-logs.zip
   printf 'Collecting bazel logs [%s]... [status: %d]\n' \${filename@Q} \${status} &>/dev/stderr
   bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //:collect-logs \${filename}
   exit \${status}

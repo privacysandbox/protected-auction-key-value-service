@@ -107,6 +107,37 @@ config_setting(
     ],
 )
 
+string_flag(
+    name = "mode",
+    build_setting_default = "prod",
+    values = [
+        "prod",
+        "nonprod",
+    ],
+)
+
+config_setting(
+    name = "prod_mode",
+    flag_values = {
+        ":mode": "prod",
+    },
+    visibility = [
+        "//components:__subpackages__",
+        "//tools:__subpackages__",
+    ],
+)
+
+config_setting(
+    name = "nonprod_mode",
+    flag_values = {
+        ":mode": "nonprod",
+    },
+    visibility = [
+        "//components:__subpackages__",
+        "//tools:__subpackages__",
+    ],
+)
+
 exports_files(
     [".bazelversion"],
 )

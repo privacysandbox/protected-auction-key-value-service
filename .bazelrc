@@ -114,9 +114,14 @@ build:aws_platform --@google_privacysandbox_servers_common//:platform=aws
 build:gcp_platform --//:platform=gcp
 build:gcp_platform --@google_privacysandbox_servers_common//:platform=gcp
 
+# --config prod_mode: builds the service in prod mode
+build:prod_mode --//:mode=prod
+build:prod_mode --@google_privacysandbox_servers_common//:build_flavor=prod
+
+# --config prod_mode: builds the service in prod mode
+build:nonprod_mode --//:mode=nonprod
+build:nonprod_mode --@google_privacysandbox_servers_common//:build_flavor=non_prod
+
 try-import %workspace%/builders/.coverage.bazelrc
 coverage --test_tag_filters=-nocoverage
 coverage --test_size_filters=-enormous
-
-build:non_prod --@google_privacysandbox_servers_common//:build_flavor=non_prod
-build:prod --@google_privacysandbox_servers_common//:build_flavor=prod

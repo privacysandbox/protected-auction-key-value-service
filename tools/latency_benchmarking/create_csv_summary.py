@@ -23,16 +23,7 @@ Iterates through ghz_output.json files and collects relevant data in a CSV file.
 
 
 def _ExtractGhzInfo(ghz_output_df: pd.DataFrame) -> pd.DataFrame:
-    keys = [
-        "date",
-        "count",
-        "total",
-        "average",
-        "fastest",
-        "slowest",
-        "rps",
-        "latencyDistribution",
-    ]
+    keys = ["date", "count", "total", "average", "fastest", "slowest", "rps"]
     prefixes = ("tags", "statusCodeDistribution")
     return ghz_output_df.loc[
         :,
@@ -46,15 +37,14 @@ def JsonToDataFrame(ghz_result_dir: str) -> pd.DataFrame:
 
     The dataframe will contain:
         - metadata: date, user tags added to the ghz command
-        - overall stats: # requests, total time spent, rps, avg latency, fastest, slowest
-        - latency stats: percentage, latency
+        - overall stats: # requests, total time spent, rps, fastest, slowest
         - status code distributions
 
     Example:
-                           date  count       total   average  fastest    slowest          rps  statusCodeDistribution.OK  statusCodeDistribution.Unavailable  percentage   latency
-        0  2024-01-30T21:27:06Z  13130  5000416406  37281592  6313913  100341707  2625.781322                      13021                                 109          10  24852951
-        0  2024-01-30T21:27:06Z  13130  5000416406  37281592  6313913  100341707  2625.781322                      13021                                 109          25  33538656
-        0  2024-01-30T21:27:06Z  13130  5000416406  37281592  6313913  100341707  2625.781322                      13021                                 109          50  38416267
+                           date  count       total   average  fastest    slowest          rps  statusCodeDistribution.OK  statusCodeDistribution.Unavailable
+        0  2024-01-30T21:27:06Z  13130  5000416406  37281592  6313913  100341707  2625.781322                      13021                                 109
+        0  2024-01-30T21:27:06Z  13130  5000416406  37281592  6313913  100341707  2625.781322                      13021                                 109
+        0  2024-01-30T21:27:06Z  13130  5000416406  37281592  6313913  100341707  2625.781322                      13021                                 109
     """
     output_dfs = []
     for root, dirs, files in os.walk(ghz_result_dir):
@@ -68,18 +58,7 @@ def JsonToDataFrame(ghz_result_dir: str) -> pd.DataFrame:
                         output_dfs.append(_ExtractGhzInfo(ghz_output_df))
                 except FileNotFoundError:
                     print(f"File not found: {fp}")
-    output_df = pd.concat(output_dfs)
-    # 'latencyDistribution' is a list of dictionaries with 'percentage' and 'latency' keys
-    # Flatten/unnest each list as its own row and concat with the other columns.
-    output_df = output_df.explode("latencyDistribution")
-    output_df = pd.concat(
-        [
-            output_df.drop("latencyDistribution", axis=1),
-            output_df["latencyDistribution"].apply(pd.Series),
-        ],
-        axis=1,
-    )
-    return output_df
+    return pd.concat(output_dfs)
 
 
 def Main():

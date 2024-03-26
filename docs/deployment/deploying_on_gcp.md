@@ -158,10 +158,10 @@ Update the `[[REGION]].backend.conf`:
     [Set up GCS bucket for Terraform states](#set-up-gcs-bucket-for-terraform-states) step.
 -   `prefix` - Set a path/to/directory to contain the Terraform state.
 
-## B&A integration within the same VPC
+## Bidding and Auction services integration within the same VPC
 
-If you're integrating with B&A, you are likely going to be reusing the same VPC (virtual private
-cloud) and Service Mesh (internal LB).
+If you're integrating with Bidding and Auction services (B&A), you are likely going to be reusing
+the same VPC (virtual private cloud) and Service Mesh (internal LB).
 
 Hence, you need to set these two parameters to true: `use_existing_service_mesh`,
 `use_existing_vpc`.

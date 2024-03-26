@@ -27,6 +27,7 @@ NUMBER_OF_LOOKUP_KEYS="1 5 10"
 REQUEST_METADATA="{}"
 FILTER_BY_SETS=0
 FILTER_BY_SETS_JSON='{"filter_snapshot_by_sets": "false"}'
+BENCHMARK_DURATION="5s"
 
 DOCKER_OUTPUT_DIR="/tmp/latency_benchmarking/output"
 readonly DOCKER_OUTPUT_DIR
@@ -43,6 +44,7 @@ usage:
     [--snapshot-dir] or               (Required) Full path to either snapshot-dir or snapshot-csv-dir
     [--snapshot-csv-dir]                is required.
     [--number-of-lookup-keys-list]    (Optional) List of number of keys to include in a request.
+    [--benchmark-duration]            (Optional) Duration of each benchmark. Default "5s".
     [--ghz-tags]                      (Optional) Tags to include in the ghz run.
     [--request-metadata-json]         (Optional) Request metadata to set for all requests
     [--filter-snapshot-by-sets]       (Optional) Whether to filter snapshots by sets when creating requests.
@@ -96,7 +98,7 @@ function run_ghz_for_requests() {
     GHZ_OUTPUT_JSON_FILE="${DIR}/ghz_output.json"
     ghz --protoset "${WORKSPACE}/dist/query_api_descriptor_set.pb" \
       -D "${REQUEST_JSON}" \
-      --duration=5s \
+      --duration="${BENCHMARK_DURATION}" \
       --skipFirst=100 \
       --concurrency=100 \
       --format=pretty \
@@ -117,6 +119,10 @@ while [[ $# -gt 0 ]]; do
     ;;
   --number-of-lookup-keys-list)
     NUMBER_OF_LOOKUP_KEYS="$2"
+    shift 2
+    ;;
+  --benchmark-duration)
+    BENCHMARK_DURATION="$2"
     shift 2
     ;;
   --ghz-tags)

@@ -35,6 +35,7 @@ UDF_GHZ_TAGS="{}"
 
 # Input to run_benchmark script
 declare RUN_BENCHMARK_ARGS
+BENCHMARK_DURATION="5s"
 
 # Deployment vars
 declare SERVER_ADDRESS
@@ -92,6 +93,7 @@ usage:
   [--number-of-lookup-keys-list]      (Optional) List of number of keys to include in a request.
   [--minimum-server-wait-secs]        (Optional) Amount of time to wait before checking server health.
   [--extra-server-wait-timeout]       (Optional) Timeout for waiting for server to become healthy.
+  [--benchmark-duration]              (Optional) Duration of each benchmark. Default "5s".
   [--ghz-tags]                        (Optional) Tags to include in the ghz run.
   [--cleanup-deployment]              (Optional) Whether to call terraform destroy once the tool exits.
   [--filter-snapshot-by-sets]         (Optional) Whether to filter snapshots by sets when creating requests.
@@ -125,6 +127,7 @@ function set_benchmark_args() {
     --server-address "${SERVER_ADDRESS}"
     --ghz-tags "${RUN_BENCHMARK_GHZ_TAGS}"
     --snapshot-csv-dir "${SNAPSHOT_CSV_DIR}"
+    --benchmark-duration "${BENCHMARK_DURATION}"
   )
   if [[ -v "${REQUEST_METADATA_JSON}" ]]; then
     RUN_BENCHMARK_ARGS+=(
@@ -298,6 +301,10 @@ while [[ $# -gt 0 ]]; do
     ;;
   --number-of-lookup-keys-list)
     NUMBER_OF_LOOKUP_KEYS_LIST="$2"
+    shift 2
+    ;;
+  --benchmark-duration)
+    BENCHMARK_DURATION="$2"
     shift 2
     ;;
   --ghz-tags)

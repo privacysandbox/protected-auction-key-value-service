@@ -100,6 +100,10 @@ Flags:
 
     Example: `--number-of-lookup-keys-list "1 10"`
 
+-   `--benchmark-duration` (Optional)
+
+    How long each benchmark iteration should run for. Default is `"5s"`.
+
 -   `--ghz-tags` (Optional)
 
     Tags to include for all ghz runs. The csv summary will include this tag for all iterations.
@@ -255,6 +259,10 @@ Flags:
     Default is `5m`.
 
     Examples: `5m`, `600s`
+
+-   `--benchmark-duration` (Optional)
+
+    How long each benchmark iteration should run for. Default is `"5s"`.
 
 -   `--ghz-tags` (Optional)
 

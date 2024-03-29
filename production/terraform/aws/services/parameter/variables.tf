@@ -163,3 +163,28 @@ variable "data_loading_blob_prefix_allowlist" {
   description = "A comma separated list of prefixes (i.e., directories) where data is loaded from."
   type        = string
 }
+
+variable "primary_coordinator_private_key_endpoint_parameter_value" {
+  description = "Primary coordinator private key endpoint."
+  type        = string
+}
+
+variable "secondary_coordinator_private_key_endpoint_parameter_value" {
+  description = "Secondary coordinator private key endpoint."
+  type        = string
+}
+
+variable "primary_coordinator_region_parameter_value" {
+  description = "Primary coordinator region."
+  type        = string
+}
+
+variable "secondary_coordinator_region_parameter_value" {
+  description = "Secondary coordinator region."
+  type        = string
+}
+
+variable "public_key_endpoint_parameter_value" {
+  description = "Public key endpoint. Can only be overriden in non-prod mode."
+  type        = string
+}

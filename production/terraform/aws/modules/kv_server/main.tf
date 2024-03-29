@@ -142,37 +142,44 @@ module "ssh" {
 }
 
 module "parameter" {
-  source                                                 = "../../services/parameter"
-  service                                                = local.service
-  environment                                            = var.environment
-  s3_bucket_parameter_value                              = module.data_storage.s3_data_bucket_id
-  bucket_update_sns_arn_parameter_value                  = module.data_storage.sns_data_updates_topic_arn
-  realtime_sns_arn_parameter_value                       = module.data_storage.sns_realtime_topic_arn
-  backup_poll_frequency_secs_parameter_value             = var.backup_poll_frequency_secs
-  use_external_metrics_collector_endpoint                = var.use_external_metrics_collector_endpoint
-  metrics_collector_endpoint                             = var.metrics_collector_endpoint
-  metrics_export_interval_millis_parameter_value         = var.metrics_export_interval_millis
-  metrics_export_timeout_millis_parameter_value          = var.metrics_export_timeout_millis
-  telemetry_config                                       = var.telemetry_config
-  realtime_updater_num_threads_parameter_value           = var.realtime_updater_num_threads
-  data_loading_num_threads_parameter_value               = var.data_loading_num_threads
-  s3client_max_connections_parameter_value               = var.s3client_max_connections
-  s3client_max_range_bytes_parameter_value               = var.s3client_max_range_bytes
-  num_shards_parameter_value                             = var.num_shards
-  udf_num_workers_parameter_value                        = var.udf_num_workers
-  udf_timeout_millis_parameter_value                     = var.udf_timeout_millis
-  udf_min_log_level_parameter_value                      = var.udf_min_log_level
-  route_v1_requests_to_v2_parameter_value                = var.route_v1_requests_to_v2
-  add_missing_keys_v1_parameter_value                    = var.add_missing_keys_v1
-  use_real_coordinators_parameter_value                  = var.use_real_coordinators
-  primary_coordinator_account_identity_parameter_value   = var.primary_coordinator_account_identity
-  secondary_coordinator_account_identity_parameter_value = var.secondary_coordinator_account_identity
-  data_loading_file_format_parameter_value               = var.data_loading_file_format
-  logging_verbosity_level_parameter_value                = var.logging_verbosity_level
-  use_sharding_key_regex_parameter_value                 = var.use_sharding_key_regex
-  sharding_key_regex_parameter_value                     = var.sharding_key_regex
-  enable_otel_logger_parameter_value                     = var.enable_otel_logger
-  data_loading_blob_prefix_allowlist                     = var.data_loading_blob_prefix_allowlist
+  source                                                     = "../../services/parameter"
+  service                                                    = local.service
+  environment                                                = var.environment
+  s3_bucket_parameter_value                                  = module.data_storage.s3_data_bucket_id
+  bucket_update_sns_arn_parameter_value                      = module.data_storage.sns_data_updates_topic_arn
+  realtime_sns_arn_parameter_value                           = module.data_storage.sns_realtime_topic_arn
+  backup_poll_frequency_secs_parameter_value                 = var.backup_poll_frequency_secs
+  use_external_metrics_collector_endpoint                    = var.use_external_metrics_collector_endpoint
+  metrics_collector_endpoint                                 = var.metrics_collector_endpoint
+  metrics_export_interval_millis_parameter_value             = var.metrics_export_interval_millis
+  metrics_export_timeout_millis_parameter_value              = var.metrics_export_timeout_millis
+  telemetry_config                                           = var.telemetry_config
+  realtime_updater_num_threads_parameter_value               = var.realtime_updater_num_threads
+  data_loading_num_threads_parameter_value                   = var.data_loading_num_threads
+  s3client_max_connections_parameter_value                   = var.s3client_max_connections
+  s3client_max_range_bytes_parameter_value                   = var.s3client_max_range_bytes
+  num_shards_parameter_value                                 = var.num_shards
+  udf_num_workers_parameter_value                            = var.udf_num_workers
+  udf_timeout_millis_parameter_value                         = var.udf_timeout_millis
+  udf_min_log_level_parameter_value                          = var.udf_min_log_level
+  route_v1_requests_to_v2_parameter_value                    = var.route_v1_requests_to_v2
+  add_missing_keys_v1_parameter_value                        = var.add_missing_keys_v1
+  use_real_coordinators_parameter_value                      = var.use_real_coordinators
+  primary_coordinator_account_identity_parameter_value       = var.primary_coordinator_account_identity
+  secondary_coordinator_account_identity_parameter_value     = var.secondary_coordinator_account_identity
+  primary_coordinator_private_key_endpoint_parameter_value   = var.primary_coordinator_private_key_endpoint
+  secondary_coordinator_private_key_endpoint_parameter_value = var.secondary_coordinator_private_key_endpoint
+  primary_coordinator_region_parameter_value                 = var.primary_coordinator_region
+  secondary_coordinator_region_parameter_value               = var.secondary_coordinator_region
+  public_key_endpoint_parameter_value                        = var.public_key_endpoint
+
+
+  data_loading_file_format_parameter_value = var.data_loading_file_format
+  logging_verbosity_level_parameter_value  = var.logging_verbosity_level
+  use_sharding_key_regex_parameter_value   = var.use_sharding_key_regex
+  sharding_key_regex_parameter_value       = var.sharding_key_regex
+  enable_otel_logger_parameter_value       = var.enable_otel_logger
+  data_loading_blob_prefix_allowlist       = var.data_loading_blob_prefix_allowlist
 }
 
 module "security_group_rules" {
@@ -229,7 +236,12 @@ module "iam_role_policies" {
   coordinator_parameter_arns = (
     var.use_real_coordinators ? [
       module.parameter.primary_coordinator_account_identity_parameter_arn,
-      module.parameter.secondary_coordinator_account_identity_parameter_arn
+      module.parameter.secondary_coordinator_account_identity_parameter_arn,
+      module.parameter.primary_coordinator_private_key_endpoint_parameter_arn,
+      module.parameter.secondary_coordinator_private_key_endpoint_parameter_arn,
+      module.parameter.primary_coordinator_region_parameter_arn,
+      module.parameter.secondary_coordinator_region_parameter_arn,
+      module.parameter.public_key_endpoint_parameter_arn
     ] : []
   )
   metrics_collector_endpoint_arns = (

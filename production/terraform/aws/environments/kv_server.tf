@@ -91,9 +91,14 @@ module "kv_server" {
   udf_min_log_level  = var.udf_min_log_level
 
   # Variables related to coordinators
-  use_real_coordinators                  = var.use_real_coordinators
-  primary_coordinator_account_identity   = var.primary_coordinator_account_identity
-  secondary_coordinator_account_identity = var.secondary_coordinator_account_identity
+  use_real_coordinators                      = var.use_real_coordinators
+  primary_coordinator_account_identity       = var.primary_coordinator_account_identity
+  secondary_coordinator_account_identity     = var.secondary_coordinator_account_identity
+  primary_coordinator_private_key_endpoint   = var.primary_coordinator_private_key_endpoint
+  secondary_coordinator_private_key_endpoint = var.secondary_coordinator_private_key_endpoint
+  primary_coordinator_region                 = var.primary_coordinator_region
+  secondary_coordinator_region               = var.secondary_coordinator_region
+  public_key_endpoint                        = var.public_key_endpoint
 
   # Variables related to logging
   logging_verbosity_level = var.logging_verbosity_level

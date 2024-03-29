@@ -130,7 +130,7 @@ container_image(
         "/init_server_basic",
         # These affect PCR0, so changing these would result in the loss of ability to communicate with
         # the downstream components
-        "--public_key_endpoint=https://publickeyservice-v150.coordinator-a.bas-gcp.pstest.dev/.well-known/protected-auction/v1/public-keys",
+        "--public_key_endpoint=https://publickeyservice-a.pa-3.gcp.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
         "--stderrthreshold=0",
     ],
     env = {

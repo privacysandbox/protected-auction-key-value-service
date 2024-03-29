@@ -115,6 +115,14 @@
 
     Account identity for the primary coordinator.
 
+-   **primary_coordinator_private_key_endpoint**
+
+    Primary coordinator private key endpoint.
+
+-   **primary_coordinator_region**
+
+    Primary coordinator region.
+
 -   **primary_key_service_cloud_function_url**
 
     Primary workload identity pool provider.
@@ -126,6 +134,10 @@
 -   **project_id**
 
     GCP project id.
+
+-   **public_key_endpoint**
+
+    Public key endpoint. Can only be overriden in non-prod mode.
 
 -   **realtime_updater_num_threads**
 
@@ -151,6 +163,14 @@
 -   **secondary_coordinator_account_identity**
 
     Account identity for the secondary coordinator.
+
+-   **secondary_coordinator_private_key_endpoint**
+
+    Secondary coordinator private key endpoint.
+
+-   **secondary_coordinator_region**
+
+    Secondary coordinator region.
 
 -   **secondary_key_service_cloud_function_url**
 

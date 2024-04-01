@@ -30,12 +30,12 @@
 
 namespace kv_server {
 namespace {
-class TheadManagerImpl : public TheadManager {
+class ThreadManagerImpl : public ThreadManager {
  public:
-  explicit TheadManagerImpl(std::string thread_name)
+  explicit ThreadManagerImpl(std::string thread_name)
       : thread_name_(std::move(thread_name)) {}
 
-  ~TheadManagerImpl() {
+  ~ThreadManagerImpl() {
     if (!IsRunning()) return;
     VLOG(8) << thread_name_ << " In destructor. Attempting to stop the thread.";
     if (const auto s = Stop(); !s.ok()) {
@@ -78,8 +78,8 @@ class TheadManagerImpl : public TheadManager {
 
 }  // namespace
 
-std::unique_ptr<TheadManager> TheadManager::Create(std::string thread_name) {
-  return std::make_unique<TheadManagerImpl>(std::move(thread_name));
+std::unique_ptr<ThreadManager> ThreadManager::Create(std::string thread_name) {
+  return std::make_unique<ThreadManagerImpl>(std::move(thread_name));
 }
 
 }  // namespace kv_server

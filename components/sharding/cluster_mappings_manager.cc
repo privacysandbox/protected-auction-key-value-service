@@ -26,7 +26,7 @@ ClusterMappingsManager::ClusterMappingsManager(
     : environment_{std::move(environment)},
       num_shards_{num_shards},
       instance_client_{instance_client},
-      thread_manager_(TheadManager::Create("Cluster mappings updater")),
+      thread_manager_(ThreadManager::Create("Cluster mappings updater")),
       sleep_for_(std::move(sleep_for)),
       update_interval_millis_(update_interval_millis) {
   CHECK_GT(num_shards, 1) << "num_shards for ShardedLookup must be > 1";

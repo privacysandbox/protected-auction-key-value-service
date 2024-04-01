@@ -37,7 +37,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
  public:
   explicit RealtimeNotifierGcp(std::unique_ptr<Subscriber> gcp_subscriber,
                                std::unique_ptr<SleepFor> sleep_for)
-      : thread_manager_(TheadManager::Create("Realtime notifier")),
+      : thread_manager_(ThreadManager::Create("Realtime notifier")),
         sleep_for_(std::move(sleep_for)),
         gcp_subscriber_(std::move(gcp_subscriber)) {}
 
@@ -146,7 +146,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
     LOG(INFO) << "Realtime updater stopped watching.";
   }
 
-  std::unique_ptr<TheadManager> thread_manager_;
+  std::unique_ptr<ThreadManager> thread_manager_;
   mutable absl::Mutex mutex_;
   future<cloud::Status> session_ ABSL_GUARDED_BY(mutex_);
   std::unique_ptr<SleepFor> sleep_for_;

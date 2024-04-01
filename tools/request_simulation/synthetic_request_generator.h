@@ -44,7 +44,7 @@ class SyntheticRequestGenerator {
       MessageQueue& message_queue, RateLimiter& rate_limiter,
       std::unique_ptr<SleepFor> sleep_for, int64_t requests_fill_qps,
       absl::AnyInvocable<std::string()> request_body_generation_fn)
-      : thread_manager_(TheadManager::Create("Synthetic request generator")),
+      : thread_manager_(ThreadManager::Create("Synthetic request generator")),
         message_queue_(message_queue),
         rate_limiter_(rate_limiter),
         sleep_for_(std::move(sleep_for)),
@@ -65,7 +65,7 @@ class SyntheticRequestGenerator {
  private:
   // The actual function that generates requests
   void GenerateRequests();
-  std::unique_ptr<TheadManager> thread_manager_;
+  std::unique_ptr<ThreadManager> thread_manager_;
   kv_server::MessageQueue& message_queue_;
   RateLimiter& rate_limiter_;
   std::unique_ptr<SleepFor> sleep_for_;

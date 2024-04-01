@@ -36,7 +36,7 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
   explicit RealtimeNotifierImpl(
       std::unique_ptr<SleepFor> sleep_for,
       std::unique_ptr<DeltaFileRecordChangeNotifier> change_notifier)
-      : thread_manager_(TheadManager::Create("Realtime notifier")),
+      : thread_manager_(ThreadManager::Create("Realtime notifier")),
         sleep_for_(std::move(sleep_for)),
         change_notifier_(std::move(change_notifier)) {}
 
@@ -140,7 +140,7 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
     }
   }
 
-  std::unique_ptr<TheadManager> thread_manager_;
+  std::unique_ptr<ThreadManager> thread_manager_;
   std::unique_ptr<SleepFor> sleep_for_;
   std::unique_ptr<DeltaFileRecordChangeNotifier> change_notifier_;
 };

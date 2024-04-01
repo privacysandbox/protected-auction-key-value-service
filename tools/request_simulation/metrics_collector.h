@@ -77,7 +77,7 @@ class MetricsCollector {
   mutable std::atomic<int64_t> requests_with_ok_response_per_interval_;
   mutable std::atomic<int64_t> requests_with_error_response_per_interval_;
   absl::Duration report_interval_;
-  std::unique_ptr<TheadManager> report_thread_manager_;
+  std::unique_ptr<ThreadManager> report_thread_manager_;
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   std::unique_ptr<SleepFor> sleep_for_;
   grpc_histogram* histogram_per_interval_ ABSL_GUARDED_BY(mutex_);

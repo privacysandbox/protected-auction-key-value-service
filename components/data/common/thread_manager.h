@@ -24,11 +24,11 @@
 
 namespace kv_server {
 
-class TheadManager {
+class ThreadManager {
  public:
-  virtual ~TheadManager() = default;
+  virtual ~ThreadManager() = default;
 
-  // Checks if the TheadManager is already running.
+  // Checks if the ThreadManager is already running.
   // If not, starts a thread on which `watch` is executed.
   // Start and Stop should be called on the same thread as
   // the constructor.
@@ -43,7 +43,7 @@ class TheadManager {
 
   virtual bool ShouldStop() = 0;
 
-  static std::unique_ptr<TheadManager> Create(std::string thread_name);
+  static std::unique_ptr<ThreadManager> Create(std::string thread_name);
 };
 
 }  // namespace kv_server

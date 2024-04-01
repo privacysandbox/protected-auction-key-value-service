@@ -57,7 +57,7 @@ class DeltaBasedRequestGenerator {
       privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
       : options_(std::move(options)),
         data_load_thread_manager_(
-            TheadManager::Create("Delta file loading thread")),
+            ThreadManager::Create("Delta file loading thread")),
         request_generation_fn_(std::move(request_generation_fn)),
         metrics_recorder_(metrics_recorder) {}
   ~DeltaBasedRequestGenerator() = default;
@@ -92,7 +92,7 @@ class DeltaBasedRequestGenerator {
   absl::Mutex mu_;
   std::deque<std::string> unprocessed_basenames_ ABSL_GUARDED_BY(mu_);
   bool stop_ ABSL_GUARDED_BY(mu_) = false;
-  std::unique_ptr<TheadManager> data_load_thread_manager_;
+  std::unique_ptr<ThreadManager> data_load_thread_manager_;
   // Callback function to generate KV request from a given key
   absl::AnyInvocable<std::string(std::string_view)> request_generation_fn_;
   privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;

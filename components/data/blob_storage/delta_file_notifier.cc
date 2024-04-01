@@ -42,7 +42,7 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
                                  std::unique_ptr<SleepFor> sleep_for,
                                  SteadyClock& clock,
                                  BlobPrefixAllowlist blob_prefix_allowlist)
-      : thread_manager_(TheadManager::Create("Delta file notifier")),
+      : thread_manager_(ThreadManager::Create("Delta file notifier")),
         client_(client),
         poll_frequency_(poll_frequency),
         sleep_for_(std::move(sleep_for)),
@@ -88,7 +88,7 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
       absl::flat_hash_map<std::string, std::string>&& prefix_start_after_map,
       std::function<void(const std::string& key)> callback);
 
-  std::unique_ptr<TheadManager> thread_manager_;
+  std::unique_ptr<ThreadManager> thread_manager_;
   BlobStorageClient& client_;
   const absl::Duration poll_frequency_;
   std::unique_ptr<SleepFor> sleep_for_;

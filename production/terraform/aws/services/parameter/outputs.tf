@@ -129,3 +129,7 @@ output "udf_min_log_level_parameter_arn" {
 output "enable_otel_logger_parameter_arn" {
   value = aws_ssm_parameter.enable_otel_logger_parameter.arn
 }
+
+output "data_loading_blob_prefix_allowlist_parameter_arn" {
+  value = aws_ssm_parameter.data_loading_blob_prefix_allowlist.arn
+}

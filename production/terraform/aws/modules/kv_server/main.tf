@@ -224,7 +224,8 @@ module "iam_role_policies" {
     module.parameter.use_sharding_key_regex_parameter_arn,
     module.parameter.udf_timeout_millis_parameter_arn,
     module.parameter.udf_min_log_level_parameter_arn,
-  module.parameter.enable_otel_logger_parameter_arn]
+    module.parameter.enable_otel_logger_parameter_arn,
+  module.parameter.data_loading_blob_prefix_allowlist_parameter_arn]
   coordinator_parameter_arns = (
     var.use_real_coordinators ? [
       module.parameter.primary_coordinator_account_identity_parameter_arn,

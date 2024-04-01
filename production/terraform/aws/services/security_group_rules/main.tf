@@ -157,3 +157,12 @@ resource "aws_security_group_rule" "allow_ec2_to_ec2_endpoint_ingress" {
   type                     = "ingress"
   source_security_group_id = var.instances_security_group_id
 }
+
+resource "aws_security_group_rule" "allow_ec2_secure_tcp_egress" {
+  from_port         = 443
+  protocol          = "TCP"
+  security_group_id = var.instances_security_group_id
+  to_port           = 443
+  type              = "egress"
+  cidr_blocks       = ["0.0.0.0/0"]
+}

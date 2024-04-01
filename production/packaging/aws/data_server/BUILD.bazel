@@ -132,7 +132,7 @@ container_structure_test(
     size = "medium",
     configs = ["test/structure.yaml"],
     driver = "tar",
-    image = ":server_docker_image",
+    image = ":server_docker_tarball",
 )
 
 container_structure_test(

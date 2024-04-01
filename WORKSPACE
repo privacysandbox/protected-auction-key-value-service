@@ -13,11 +13,11 @@ python_deps("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit b3820cb 2024-03-20
-    sha256 = "5c6015ec4d609f0c0f895a56aa15e3731c6953a95efc5428ff058e069c57214b",
-    strip_prefix = "data-plane-shared-libraries-b3820cb70a47ed0979e036458c9767e05fd3bb42",
+    # commit b3820cb 2024-04-01
+    sha256 = "e36cc26c917ec4b1066a32777b48ac8728ba13c276cdda2e91c36ad2037d9bcd",
+    strip_prefix = "data-plane-shared-libraries-1fbac466b6b88e00a4ca037f7359ee1942ade13e",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/b3820cb70a47ed0979e036458c9767e05fd3bb42.zip",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/1fbac466b6b88e00a4ca037f7359ee1942ade13e.zip",
     ],
 )
 
@@ -50,6 +50,20 @@ load(
 )
 
 cpp_repositories()
+
+http_archive(
+    name = "io_bazel_rules_docker",
+    sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
+)
+
+load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
+
+container_repositories()
+
+load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
+
+container_deps()
 
 load("//third_party_deps:container_deps.bzl", "container_deps")
 

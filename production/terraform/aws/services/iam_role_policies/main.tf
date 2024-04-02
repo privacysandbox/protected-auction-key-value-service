@@ -147,7 +147,7 @@ data "aws_iam_policy_document" "sqs_cleanup_lambda_policy_doc" {
       "sns:List*",
       "sns:Unsubscribe"
     ]
-    resources = [var.sns_data_updates_topic_arn, var.sns_realtime_topic_arn]
+    resources = ["*"]
   }
   statement {
     sid = "AllowLambdaToManageSQSQueues"

@@ -20,6 +20,32 @@ package(default_visibility = [
 ])
 
 cc_library(
+    name = "uint32_value_set",
+    srcs = ["uint32_value_set.cc"],
+    hdrs = ["uint32_value_set.h"],
+    deps = [
+        "//third_party_deps/roaring",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+    ],
+)
+
+cc_test(
+    name = "uint32_value_set_test",
+    size = "small",
+    srcs = [
+        "uint32_value_set_test.cc",
+    ],
+    deps = [
+        ":uint32_value_set",
+        "//third_party_deps/roaring",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
     name = "get_key_value_set_result_impl",
     srcs = [
         "get_key_value_set_result_impl.cc",

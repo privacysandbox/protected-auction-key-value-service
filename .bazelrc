@@ -25,6 +25,7 @@ build:noexcept --per_file_copt=.*oneTBB.*@-fexceptions
 build:noexcept --per_file_copt=.*com_github_nghttp2_nghttp2.*@-fexceptions
 build:noexcept --per_file_copt=.*src/core.*@-fexceptions
 build:noexcept --per_file_copt=.*src/cpio.*@-fexceptions
+build:noexcept --per_file_copt=//components/data_server/cache:uint32_value_set@-fexceptions
 
 test --test_output=errors
 # Disable ICU linking for googleurl.

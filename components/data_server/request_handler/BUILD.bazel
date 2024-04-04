@@ -252,6 +252,11 @@ cc_library(
         "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
         "//conditions:default": [],
     }),
+    visibility = [
+        "//components/data_server:__subpackages__",
+        "//components/internal_server:__subpackages__",
+        "//components/tools:__subpackages__",
+    ],
     deps = [
         "//public:constants",
         "@com_github_google_quiche//quiche:oblivious_http_unstable_api",

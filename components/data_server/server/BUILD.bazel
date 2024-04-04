@@ -41,6 +41,7 @@ cc_library(
     hdrs = ["parameter_fetcher.h"],
     visibility = [
         "//components/sharding:__subpackages__",
+        "//components/tools:__subpackages__",
         "//production/packaging:__subpackages__",
     ],
     deps = [
@@ -293,6 +294,7 @@ cc_library(
     }) + [
         "key_fetcher_factory.h",
     ],
+    visibility = ["//components/tools:__subpackages__"],
     deps =
         select({
             "//:gcp_platform": [

@@ -23,10 +23,6 @@ variable "environment" {
   type        = string
 }
 
-variable "instance_type" {
-  type = string
-}
-
 variable "vpc_cidr_block" {
   description = "CIDR range for the VPC where KV server will be deployed."
   type        = string

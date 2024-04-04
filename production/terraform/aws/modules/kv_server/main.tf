@@ -54,7 +54,6 @@ module "networking" {
   source         = "../../services/networking"
   service        = local.service
   environment    = var.environment
-  instance_type  = var.instance_type
   vpc_cidr_block = var.vpc_cidr_block
 }
 

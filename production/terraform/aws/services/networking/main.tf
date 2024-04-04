@@ -34,33 +34,12 @@ data "aws_availability_zones" "azs" {
   state = "available"
 }
 
-# Filter out zones without the specified instance type
-data "aws_ec2_instance_type_offerings" "filtered_zone_to_instance" {
-  for_each = toset(data.aws_availability_zones.azs.names)
-  filter {
-    name   = "instance-type"
-    values = [var.instance_type]
-  }
-  filter {
-    name   = "location"
-    values = [each.value]
-  }
-  location_type = "availability-zone"
-}
-
-locals {
-  filtered_azs = keys({
-    for k, v in data.aws_ec2_instance_type_offerings.filtered_zone_to_instance : k => v
-    if length(v.instance_types) != 0
-  })
-}
-
 # Create public subnets used to connect to instances in private subnets.
 resource "aws_subnet" "public_subnet" {
-  count                   = length(local.filtered_azs)
+  count                   = length(data.aws_availability_zones.azs.names)
   cidr_block              = cidrsubnet(aws_vpc.vpc.cidr_block, 4, count.index)
   vpc_id                  = aws_vpc.vpc.id
-  availability_zone       = local.filtered_azs[count.index]
+  availability_zone       = data.aws_availability_zones.azs.names[count.index]
   map_public_ip_on_launch = true
 
   tags = {
@@ -70,10 +49,10 @@ resource "aws_subnet" "public_subnet" {
 
 # Create private subnets where instances will be launched.
 resource "aws_subnet" "private_subnet" {
-  count                   = length(local.filtered_azs)
+  count                   = length(data.aws_availability_zones.azs.names)
   cidr_block              = cidrsubnet(aws_vpc.vpc.cidr_block, 4, 15 - count.index)
   vpc_id                  = aws_vpc.vpc.id
-  availability_zone       = local.filtered_azs[count.index]
+  availability_zone       = data.aws_availability_zones.azs.names[count.index]
   map_public_ip_on_launch = false
 
   tags = {

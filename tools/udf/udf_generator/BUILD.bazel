@@ -15,11 +15,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 package(default_visibility = [
-    "//docs/protected_app_signals:__subpackages__",
-    "//getting_started:__subpackages__",
-    "//production/packaging/tools:__subpackages__",
-    "//testing:__subpackages__",
-    "//tools:__subpackages__",
+    "//visibility:public",
 ])
 
 cc_binary(

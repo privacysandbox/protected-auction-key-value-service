@@ -20,12 +20,14 @@
 #include <memory>
 #include <string>
 
+#include "absl/container/flat_hash_map.h"
+#include "components/data/blob_storage/blob_prefix_allowlist.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/common/thread_manager.h"
 #include "components/errors/retry.h"
 #include "components/util/sleepfor.h"
-#include "src/cpp/util/duration.h"
+#include "src/util/duration.h"
 
 namespace kv_server {
 
@@ -46,8 +48,9 @@ class DeltaFileNotifier {
   // the constructor.
   virtual absl::Status Start(
       BlobStorageChangeNotifier& change_notifier,
-      BlobStorageClient::DataLocation location, std::string start_after,
-      std::function<void(const std::string& key)> callback) = 0;
+      BlobStorageClient::DataLocation location,
+      absl::flat_hash_map<std::string, std::string>&& prefix_start_after_map,
+      std::function<void(const std::string&)> callback) = 0;
 
   // Blocks until `IsRunning` is False.
   virtual absl::Status Stop() = 0;
@@ -58,13 +61,15 @@ class DeltaFileNotifier {
 
   static std::unique_ptr<DeltaFileNotifier> Create(
       BlobStorageClient& client,
-      const absl::Duration poll_frequency = absl::Minutes(5));
+      const absl::Duration poll_frequency = absl::Minutes(5),
+      BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""));
 
   // Used for test
   static std::unique_ptr<DeltaFileNotifier> Create(
       BlobStorageClient& client, const absl::Duration poll_frequency,
       std::unique_ptr<SleepFor> sleep_for,
-      privacy_sandbox::server_common::SteadyClock& clock);
+      privacy_sandbox::server_common::SteadyClock& clock,
+      BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""));
 };
 
 }  // namespace kv_server

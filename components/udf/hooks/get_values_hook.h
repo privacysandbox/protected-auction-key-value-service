@@ -25,12 +25,10 @@
 #include "absl/functional/any_invocable.h"
 #include "components/data_server/cache/cache.h"
 #include "components/internal_server/lookup.h"
-#include "roma/config/src/function_binding_object_v2.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
+#include "components/util/request_context.h"
+#include "src/roma/config/function_binding_object_v2.h"
 
 namespace kv_server {
-
-using privacy_sandbox::server_common::MetricsRecorder;
 
 // Functor that acts as a wrapper for the internal lookup client call.
 class GetValuesHook {
@@ -48,7 +46,7 @@ class GetValuesHook {
   // This is registered with v8 and is exposed to the UDF. Internally, it calls
   // the internal lookup client.
   virtual void operator()(
-      google::scp::roma::FunctionBindingPayload<>& payload) = 0;
+      google::scp::roma::FunctionBindingPayload<RequestContext>& payload) = 0;
 
   static std::unique_ptr<GetValuesHook> Create(OutputType output_type);
 };

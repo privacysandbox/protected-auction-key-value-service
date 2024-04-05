@@ -18,11 +18,11 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_split.h"
-#include "glog/logging.h"
 #include "public/data_loading/record_utils.h"
 
 namespace kv_server {

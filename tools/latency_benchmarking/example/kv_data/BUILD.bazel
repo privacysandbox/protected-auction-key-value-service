@@ -1,0 +1,52 @@
+load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
+
+package(default_visibility = [
+    "//tools:__subpackages__",
+])
+
+num_kv_records = 100000
+
+num_kv_set_records = 25000
+
+num_values_in_set = 5
+
+total_records = num_kv_records + num_kv_set_records
+
+# Rule to generate example KV delta that includes
+# num_kv_records key value records and
+# num_kv_set_records set records each of size num_values_in_set
+[
+    run_binary(
+        name = "generate_{}_delta".format(size),
+        outs = [
+            "DELTA_100000000000000{}".format(num),
+        ],
+        args = [
+            "--output_dir",
+            "/src/workspace",
+            "--output_filename",
+            "$(location DELTA_100000000000000{})".format(num),
+            "--key",
+            "value{}_".format(size),
+            "--num_records",
+            "{}".format(num_kv_records),
+            "--value_size",
+            "{}".format(size),
+            "--timestamp",
+            "{}".format(total_records * num),
+            "--generate_set_record",
+            "--set_value_key",
+            "setvalue{}_".format(size),
+            "--num_set_records",
+            "{}".format(num_kv_set_records),
+            "--num_values_in_set",
+            "{}".format(num_values_in_set),
+        ],
+        tags = ["manual"],
+        tool = "//tools/serving_data_generator:test_serving_data_generator",
+    )
+    for num, size in enumerate(
+        ("10", "20", "50", "100", "500", "1000", "5000"),
+        1,
+    )
+]

@@ -53,7 +53,6 @@ docker run \
     --env CPUPROFILE=/data/profiles/server.cpu.prof \
     --env CPUPROFILESIGNAL=12 \
     --env LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libprofiler.so \
-    --env GLOG_logtostder=1 \
     --volume=/data:/data \
     --network=host \
     --security-opt=seccomp=unconfined \
@@ -61,7 +60,8 @@ docker run \
     --cpus=4 \
     --entrypoint=/server \
     bazel/production/packaging/local/data_server:server_profiling_docker_image \
-    --port 50051 -delta_directory=/data --realtime_directory=/data/realtime
+    --port 50051 -delta_directory=/data --realtime_directory=/data/realtime \
+    --stderrthreshold=0
 ```
 
 **STEP 2:** Run the following command to profile the server for 10 seconds and generate a CPU
@@ -106,7 +106,6 @@ docker run \
     --env HEAPPROFILE=/data/profiles/server.heap.hprof \
     --env CPUPROFILESIGNAL=12 \
     --env LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc.so \
-    --env GLOG_logtostder=1 \
     --volume=/data:/data \
     --network=host \
     --security-opt=seccomp=unconfined \
@@ -114,7 +113,8 @@ docker run \
     --cpus=4 \
     --entrypoint=/server \
     bazel/production/packaging/local/data_server:server_profiling_docker_image \
-    --port 50051 -delta_directory=/data --realtime_directory=/data/realtime
+    --port 50051 -delta_directory=/data --realtime_directory=/data/realtime \
+    --stderrthreshold=0
 ```
 
 The command above may generate a number of heap profiles during startup depending on how much data
@@ -185,7 +185,6 @@ List of pre-defined events (to be used in -e):
 ```bash
 docker run \
     -it --init --rm --name=server-profiling-container \
-    --env GLOG_logtostder=1 \
     --volume=/data:/data \
     --network=host \
     --security-opt=seccomp=unconfined \
@@ -193,7 +192,8 @@ docker run \
     --cpus=4 \
     --entrypoint=/server \
     bazel/production/packaging/local/data_server:server_profiling_docker_image \
-    --port 50051 -delta_directory=/data --realtime_directory=/data/realtime
+    --port 50051 -delta_directory=/data --realtime_directory=/data/realtime \
+    --stderrthreshold=0
 ```
 
 **STEP 2:** Run the following command to grap the PID of the server process running inside the

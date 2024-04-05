@@ -78,7 +78,7 @@ variable "autoscaling_min_size" {
 
 variable "autoscaling_wait_for_capacity_timeout" {
   type    = string
-  default = "10m"
+  default = "20m"
 }
 
 variable "sqs_cleanup_image_uri" {
@@ -157,6 +157,12 @@ variable "metrics_export_timeout_millis" {
   type        = number
 }
 
+variable "telemetry_config" {
+  description = "Telemetry configuration to control whether metrics are raw or noised. Options are: mode: PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics), mode: OFF(no metrics)"
+  default     = "mode: PROD"
+  type        = string
+}
+
 variable "realtime_updater_num_threads" {
   description = "The number of threads for the realtime updater."
   type        = number
@@ -200,6 +206,11 @@ variable "udf_num_workers" {
 
 variable "route_v1_requests_to_v2" {
   description = "Whether to route V1 requests through V2."
+  type        = bool
+}
+
+variable "add_missing_keys_v1" {
+  description = "Add missing keys v1."
   type        = bool
 }
 
@@ -257,4 +268,45 @@ variable "udf_timeout_millis" {
   description = "UDF execution timeout in milliseconds. Default is 5000."
   default     = 5000
   type        = number
+}
+
+variable "udf_min_log_level" {
+  description = "Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for min_log_level and above. Default is 0(info)."
+  type        = number
+}
+
+variable "enable_otel_logger" {
+  description = "Whether to enable otel logger."
+  type        = bool
+  default     = true
+}
+
+variable "data_loading_blob_prefix_allowlist" {
+  description = "A comma separated list of prefixes (i.e., directories) where data is loaded from."
+  type        = string
+}
+
+variable "primary_coordinator_private_key_endpoint" {
+  description = "Primary coordinator private key endpoint."
+  type        = string
+}
+
+variable "secondary_coordinator_private_key_endpoint" {
+  description = "Secondary coordinator private key endpoint."
+  type        = string
+}
+
+variable "primary_coordinator_region" {
+  description = "Primary coordinator region."
+  type        = string
+}
+
+variable "secondary_coordinator_region" {
+  description = "Secondary coordinator region."
+  type        = string
+}
+
+variable "public_key_endpoint" {
+  description = "Public key endpoint. Can only be overriden in non-prod mode."
+  type        = string
 }

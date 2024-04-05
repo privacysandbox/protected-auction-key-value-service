@@ -16,10 +16,12 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-#include "glog/logging.h"
 #include "public/applications/pa/response_utils.h"
 #include "public/query/cpp/grpc_client.h"
 
@@ -30,6 +32,7 @@ ABSL_FLAG(int, number_of_requests_to_make, 1, "Number of requests to make");
 ABSL_FLAG(int, value_size, 10000, "Specify the size of value for the key");
 ABSL_FLAG(int, batch_size, 10, "Batch size");
 ABSL_FLAG(std::string, key_prefix, "foo", "Key prefix");
+ABSL_FLAG(bool, use_tls, false, "Whether to use TLS for grpc calls.");
 
 namespace kv_server {
 namespace {
@@ -121,11 +124,18 @@ void Validate() {
   const int qps = absl::GetFlag(FLAGS_qps);
   const int number_of_requests_to_make =
       absl::GetFlag(FLAGS_number_of_requests_to_make);
+  const bool use_tls = absl::GetFlag(FLAGS_use_tls);
   int requests_made_this_second = 0;
   int total_requests_made = 0;
   auto batch_end = absl::Now() + absl::Seconds(1);
-  std::unique_ptr<v2::KeyValueService::Stub> stub =
-      GrpcClient::CreateStub(kv_endpoint, grpc::InsecureChannelCredentials());
+  std::unique_ptr<v2::KeyValueService::Stub> stub;
+  if (use_tls) {
+    stub = GrpcClient::CreateStub(
+        kv_endpoint, grpc::SslCredentials(grpc::SslCredentialsOptions()));
+  } else {
+    stub =
+        GrpcClient::CreateStub(kv_endpoint, grpc::InsecureChannelCredentials());
+  }
   GrpcClient client(*stub);
   while (total_requests_made < number_of_requests_to_make) {
     auto random_index = Get(inclusive_upper_bound / batch_size);
@@ -168,7 +178,7 @@ void Validate() {
 
 int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   kv_server::Validate();
 
   if (kv_server::total_failures > 0 || kv_server::total_mismatches > 0) {

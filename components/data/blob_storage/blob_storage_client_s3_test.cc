@@ -31,11 +31,14 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
+
+using testing::AllOf;
+using testing::Property;
 
 constexpr int64_t kMaxRangeBytes = 1024 * 1024 * 8;
 
@@ -156,6 +159,65 @@ TEST_F(BlobStorageClientS3Test, ListBlobsFails) {
   BlobStorageClient::ListOptions list_options;
   EXPECT_EQ(absl::StatusCode::kUnknown,
             client->ListBlobs(location, list_options).status().code());
+}
+
+TEST_F(BlobStorageClientS3Test, DeleteBlobWithPrefixSucceeds) {
+  auto mock_s3_client = std::make_shared<MockS3Client>();
+  Aws::S3::Model::DeleteObjectResult result;  // An empty result means success
+  EXPECT_CALL(
+      *mock_s3_client,
+      DeleteObject(::testing::AllOf(
+          testing::Property(&Aws::S3::Model::DeleteObjectRequest::GetBucket,
+                            "bucket"),
+          testing::Property(&Aws::S3::Model::DeleteObjectRequest::GetKey,
+                            "prefix/object"))))
+      .WillOnce(::testing::Return(result));
+  std::unique_ptr<BlobStorageClient> client =
+      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes);
+  BlobStorageClient::DataLocation location{
+      .bucket = "bucket",
+      .prefix = "prefix",
+      .key = "object",
+  };
+  EXPECT_TRUE(client->DeleteBlob(location).ok());
+}
+
+TEST_F(BlobStorageClientS3Test, ListBlobsWithPrefixSucceeds) {
+  auto mock_s3_client = std::make_shared<MockS3Client>();
+  {
+    Aws::S3::Model::ListObjectsV2Result
+        result;  // An empty result means success.
+    Aws::S3::Model::Object object_to_return;
+    object_to_return.SetKey("directory1/DELTA_1699834075511696");
+    Aws::Vector<Aws::S3::Model::Object> objects_to_return = {object_to_return};
+    result.SetContents(objects_to_return);
+    EXPECT_CALL(
+        *mock_s3_client,
+        ListObjectsV2(
+            AllOf(Property(&Aws::S3::Model::ListObjectsV2Request::GetBucket,
+                           "bucket"),
+                  Property(&Aws::S3::Model::ListObjectsV2Request::GetPrefix,
+                           "directory1/DELTA"),
+                  Property(&Aws::S3::Model::ListObjectsV2Request::GetStartAfter,
+                           "directory1/DELTA_1699834075511695"))))
+        .WillOnce(::testing::Return(result));
+  }
+
+  std::unique_ptr<BlobStorageClient> client =
+      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes);
+  BlobStorageClient::DataLocation location{
+      .bucket = "bucket",
+      .prefix = "directory1",
+  };
+  BlobStorageClient::ListOptions list_options{
+      .prefix = "DELTA",
+      .start_after = "DELTA_1699834075511695",
+  };
+  absl::StatusOr<std::vector<std::string>> response =
+      client->ListBlobs(location, list_options);
+  ASSERT_TRUE(response.ok());
+  EXPECT_THAT(*response,
+              testing::UnorderedElementsAreArray({"DELTA_1699834075511696"}));
 }
 
 }  // namespace

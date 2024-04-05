@@ -45,12 +45,12 @@ cc_library(
         "//public/data_loading/writers:delta_record_stream_writer",
         "//public/data_loading/writers:delta_record_writer",
         "//public/sharding:sharding_function",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/memory",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )
 

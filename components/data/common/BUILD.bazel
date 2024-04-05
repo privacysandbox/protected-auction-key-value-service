@@ -49,7 +49,7 @@ cc_library(
         "//conditions:default": [],
     }) + [
         ":msg_svc_util",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -88,11 +88,11 @@ cc_library(
         ":message_service",
         "//components/telemetry:server_definition",
         "//components/util:sleepfor",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
     ],
 )
 
@@ -123,10 +123,9 @@ cc_test(
         ],
     }) + [
         ":change_notifier",
-        "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/log",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -142,13 +141,13 @@ cc_library(
         "//components/errors:retry",
         "//public:constants",
         "//public/data_loading:filename_utils",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
-        "@google_privacysandbox_servers_common//src/cpp/util:duration",
+        "@google_privacysandbox_servers_common//src/util:duration",
     ],
 )
 
@@ -175,6 +174,7 @@ cc_library(
             "//components/data/blob_storage:delta_file_notifier",
             "//components/data/realtime:realtime_notifier",
             "//components/data/realtime:realtime_thread_pool_manager",
+            "@com_google_absl//absl/container:flat_hash_map",
             "@com_google_googletest//:gtest",
         ],
 )

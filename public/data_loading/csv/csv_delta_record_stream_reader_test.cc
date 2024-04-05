@@ -18,7 +18,7 @@
 
 #include <sstream>
 
-#include "glog/logging.h"
+#include "absl/log/log.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/csv/csv_delta_record_stream_writer.h"

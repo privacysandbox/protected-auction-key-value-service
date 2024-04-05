@@ -106,7 +106,19 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
   }
   {
     const auto statusor =
+        client->GetInt32Parameter("kv-server-local-udf-min-log-level");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(0, *statusor);
+  }
+  {
+    const auto statusor =
         client->GetBoolParameter("kv-server-local-route-v1-to-v2");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(false, *statusor);
+  }
+  {
+    const auto statusor =
+        client->GetBoolParameter("kv-server-local-add-missing-keys-v1");
     ASSERT_TRUE(statusor.ok());
     EXPECT_EQ(false, *statusor);
   }
@@ -121,6 +133,18 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
         "kv-server-local-use-external-metrics-collector-endpoint");
     ASSERT_TRUE(statusor.ok());
     EXPECT_EQ(false, *statusor);
+  }
+  {
+    const auto statusor =
+        client->GetBoolParameter("kv-server-local-enable-otel-logger");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ(false, *statusor);
+  }
+  {
+    const auto statusor =
+        client->GetParameter("kv-server-local-telemetry-config");
+    ASSERT_TRUE(statusor.ok());
+    EXPECT_EQ("mode: EXPERIMENT", *statusor);
   }
 }
 

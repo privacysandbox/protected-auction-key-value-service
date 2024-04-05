@@ -23,7 +23,6 @@
 #include "components/util/sleepfor_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

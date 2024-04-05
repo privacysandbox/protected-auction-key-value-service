@@ -20,7 +20,7 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
-#include "glog/logging.h"
+#include "absl/log/log.h"
 #include "public/data_loading/filename_utils.h"
 
 #include "custom_audience_data_parser.h"

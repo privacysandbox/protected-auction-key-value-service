@@ -20,6 +20,7 @@ def closure_to_delta(
         closure_js_library_target,
         custom_udf_js_handler = "HandleRequest",
         output_file_name = "DELTA_0000000000000009",
+        logical_commit_time = None,  # Not passing a logical_commit_time will default to now.
         udf_tool = "//tools/udf/udf_generator:udf_delta_file_generator",
         tags = ["manual"]):
     """Generate a JS UDF delta file from a given closure_js_library target and put it under dist/
@@ -30,6 +31,7 @@ def closure_to_delta(
             closure_js_library_target = ":my_js_lib",
             custom_udf_js_handler = "MyHandlerName",
             output_file_name = "DELTA_0000000000000009",
+            logical_commit_time="123123123",
         )
 
     Args:
@@ -39,6 +41,7 @@ def closure_to_delta(
         output_file_name: Name of UDF delta file output
         udf_tool: BUILD target for the udf_delta_file_generator.
             Defaults to `//tools/udf/udf_generator:udf_delta_file_generator`
+        logical_commit_time: Logical commit timestamp for UDF config. Optional, defaults to now.
         tags: tags to propagate to rules
     """
     closure_js_binary(
@@ -49,6 +52,8 @@ def closure_to_delta(
         visibility = ["//visibility:private"],
         tags = tags,
     )
+
+    logical_commit_time_args = [] if logical_commit_time == None else ["--logical_commit_time", logical_commit_time]
 
     run_binary(
         name = "{}_udf_delta".format(name),
@@ -65,7 +70,7 @@ def closure_to_delta(
             "$(location {})".format(output_file_name),
             "--udf_handler_name",
             custom_udf_js_handler,
-        ],
+        ] + logical_commit_time_args,
         tool = udf_tool,
         visibility = ["//visibility:private"],
         tags = tags,
@@ -78,8 +83,8 @@ def closure_to_delta(
         ],
         outs = ["{}_copy_to_dist.bin".format(name)],
         cmd_bash = """cat << EOF > '$@'
-mkdir -p dist
-cp $(location {}_udf_delta) dist
+mkdir -p dist/deltas
+cp $(location {}_udf_delta) dist/deltas
 builders/tools/normalize-dist
 EOF""".format(name),
         executable = True,

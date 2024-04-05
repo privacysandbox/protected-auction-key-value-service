@@ -44,6 +44,16 @@ variable "regions" {
   type        = set(string)
 }
 
+variable "regions_cidr_blocks" {
+  description = "A set of CIDR ranges for all specified regions. The number of blocks here should correspond to the number of regions."
+  type        = set(string)
+}
+
+variable "regions_use_existing_nat" {
+  description = "Regions that use existing nat. No new nats will be created for regions specified here."
+  type        = set(string)
+}
+
 variable "gcp_image_repo" {
   description = "A URL to a docker image repo containing the key-value service"
   type        = string
@@ -174,4 +184,16 @@ variable "server_dns_zone" {
 variable "server_domain_ssl_certificate_id" {
   description = "Ssl certificate id of the Kv-server domain."
   type        = string
+}
+
+variable "service_mesh_address" {
+  description = "Service mesh address of the KV server."
+  default     = "xds:///kv-service-host"
+  type        = string
+}
+
+variable "enable_external_traffic" {
+  description = "Whether to serve external traffic. If disabled, only internal traffic via service mesh will be served."
+  default     = true
+  type        = bool
 }

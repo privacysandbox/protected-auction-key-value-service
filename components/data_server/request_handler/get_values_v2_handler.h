@@ -26,14 +26,25 @@
 #include "absl/strings/escaping.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/compression.h"
+#include "components/telemetry/server_definition.h"
 #include "components/udf/udf_client.h"
+#include "components/util/request_context.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 #include "quiche/binary_http/binary_http_message.h"
-#include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/encryption/key_fetcher/key_fetcher_manager.h"
 
 namespace kv_server {
+
+// Content Type Header Name. Can be set for bhttp request to proto or json
+// values below.
+inline constexpr std::string_view kContentTypeHeader = "content-type";
+// Protobuf Content Type Header Value.
+inline constexpr std::string_view kContentEncodingProtoHeaderValue =
+    "application/protobuf";
+// Json Content Type Header Value.
+inline constexpr std::string_view kContentEncodingJsonHeaderValue =
+    "application/json";
 
 // Handles the request family of *GetValues.
 // See the Service proto definition for details.
@@ -42,14 +53,12 @@ class GetValuesV2Handler {
   // Accepts a functor to create compression blob builder for testing purposes.
   explicit GetValuesV2Handler(
       const UdfClient& udf_client,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       privacy_sandbox::server_common::KeyFetcherManagerInterface&
           key_fetcher_manager,
       std::function<CompressionGroupConcatenator::FactoryFunctionType>
           create_compression_group_concatenator =
               &CompressionGroupConcatenator::Create)
       : udf_client_(udf_client),
-        metrics_recorder_(metrics_recorder),
         create_compression_group_concatenator_(
             std::move(create_compression_group_concatenator)),
         key_fetcher_manager_(key_fetcher_manager) {}
@@ -81,8 +90,16 @@ class GetValuesV2Handler {
                                   google::api::HttpBody* response) const;
 
  private:
-  absl::Status GetValuesHttp(std::string_view request,
-                             std::string& json_response) const;
+  enum class ContentType {
+    kJson = 0,
+    kProto,
+  };
+  ContentType GetContentType(
+      const quiche::BinaryHttpRequest& deserialized_req) const;
+
+  absl::Status GetValuesHttp(
+      std::string_view request, std::string& json_response,
+      ContentType content_type = ContentType::kJson) const;
 
   // On success, returns a BinaryHttpResponse with a successful response. The
   // reason that this is a separate function is so that the error status
@@ -99,14 +116,14 @@ class GetValuesV2Handler {
                                    std::string& response) const;
 
   // Invokes UDF to process one partition.
-  void ProcessOnePartition(const google::protobuf::Struct& req_metadata,
+  void ProcessOnePartition(RequestContext request_context,
+                           const google::protobuf::Struct& req_metadata,
                            const v2::RequestPartition& req_partition,
                            v2::ResponsePartition& resp_partition) const;
 
   const UdfClient& udf_client_;
   std::function<CompressionGroupConcatenator::FactoryFunctionType>
       create_compression_group_concatenator_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&
       key_fetcher_manager_;
 };

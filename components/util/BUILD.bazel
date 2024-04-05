@@ -47,7 +47,7 @@ selects.config_setting_group(
     name = "local_otel_otlp",
     match_all = [
         "//:local_instance",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:local_otel_export_otlp",
+        "@google_privacysandbox_servers_common//src/telemetry:local_otel_export_otlp",
     ],
 )
 
@@ -55,7 +55,7 @@ selects.config_setting_group(
     name = "local_otel_ostream",
     match_all = [
         "//:local_instance",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:local_otel_export_ostream",
+        "@google_privacysandbox_servers_common//src/telemetry:local_otel_export_ostream",
     ],
 )
 
@@ -102,8 +102,8 @@ cc_library(
     local_defines = local_defines,
     visibility = ["//visibility:private"],
     deps = [
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
     ],
 )
 
@@ -136,15 +136,15 @@ cc_library(
         "//:aws_platform": [
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:core",
-            "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:cpio",
+            "@google_privacysandbox_servers_common//src/public/cpio/interface:cpio",
         ],
         "//:gcp_platform": [
-            "@google_privacysandbox_servers_common//scp/cc/public/core/interface:errors",
-            "@google_privacysandbox_servers_common//scp/cc/public/cpio/interface:cpio",
+            "@google_privacysandbox_servers_common//src/public/core/interface:errors",
+            "@google_privacysandbox_servers_common//src/public/cpio/interface:cpio",
         ],
         "//conditions:default": [],
     }) + [
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -171,7 +171,7 @@ cc_library(
         "sleepfor.h",
     ],
     deps = [
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/time",
     ],
@@ -196,5 +196,18 @@ cc_library(
     deps = [
         ":sleepfor",
         "@com_google_googletest//:gtest",
+    ],
+)
+
+cc_library(
+    name = "request_context",
+    srcs = [
+        "request_context.cc",
+    ],
+    hdrs = [
+        "request_context.h",
+    ],
+    deps = [
+        "//components/telemetry:server_definition",
     ],
 )

@@ -38,7 +38,12 @@ using google::scp::roma::proto::FunctionBindingIoProto;
 using testing::_;
 using testing::Return;
 
-TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
+class GetValuesHookTest : public ::testing::Test {
+ protected:
+  void SetUp() override { InitMetricsContextMap(); }
+};
+
+TEST_F(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   InternalLookupResponse lookup_response;
   TextFormat::ParseFromString(R"pb(kv_pairs {
@@ -51,7 +56,7 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
                                    })pb",
                               &lookup_response);
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
+  EXPECT_CALL(*mock_lookup, GetKeyValues(_, keys))
       .WillOnce(Return(lookup_response));
 
   FunctionBindingIoProto io;
@@ -60,7 +65,9 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<> payload{io, {}};
+  ScopeMetricsContext metrics_context;
+  FunctionBindingPayload<RequestContext> payload{
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   nlohmann::json result_json =
@@ -77,7 +84,7 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
   EXPECT_EQ(result_json["status"]["message"], "ok");
 }
 
-TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
+TEST_F(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   InternalLookupResponse lookup_response;
   TextFormat::ParseFromString(
@@ -88,7 +95,7 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
       &lookup_response);
 
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
+  EXPECT_CALL(*mock_lookup, GetKeyValues(_, keys))
       .WillOnce(Return(lookup_response));
 
   FunctionBindingIoProto io;
@@ -97,7 +104,9 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<> payload{io, {}};
+  ScopeMetricsContext metrics_context;
+  FunctionBindingPayload<RequestContext> payload{
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   nlohmann::json expected =
@@ -105,10 +114,10 @@ TEST(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
   EXPECT_EQ(io.output_string(), expected.dump());
 }
 
-TEST(GetValuesHookTest, StringOutput_LookupReturnsError) {
+TEST_F(GetValuesHookTest, StringOutput_LookupReturnsError) {
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
+  EXPECT_CALL(*mock_lookup, GetKeyValues(_, keys))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   FunctionBindingIoProto io;
@@ -117,14 +126,16 @@ TEST(GetValuesHookTest, StringOutput_LookupReturnsError) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<> payload{io, {}};
+  ScopeMetricsContext metrics_context;
+  FunctionBindingPayload<RequestContext> payload{
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   nlohmann::json expected = R"({"code":2,"message":"Some error"})"_json;
   EXPECT_EQ(io.output_string(), expected.dump());
 }
 
-TEST(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
+TEST_F(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   auto mock_lookup = std::make_unique<MockLookup>();
 
@@ -133,7 +144,9 @@ TEST(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<> payload{io, {}};
+  ScopeMetricsContext metrics_context;
+  FunctionBindingPayload<RequestContext> payload{
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   nlohmann::json expected =
@@ -141,7 +154,7 @@ TEST(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
   EXPECT_EQ(io.output_string(), expected.dump());
 }
 
-TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
+TEST_F(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   InternalLookupResponse lookup_response;
   TextFormat::ParseFromString(
@@ -155,7 +168,7 @@ TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
            })pb",
       &lookup_response);
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
+  EXPECT_CALL(*mock_lookup, GetKeyValues(_, keys))
       .WillOnce(Return(lookup_response));
 
   FunctionBindingIoProto io;
@@ -164,7 +177,9 @@ TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<> payload{io, {}};
+  ScopeMetricsContext metrics_context;
+  FunctionBindingPayload<RequestContext> payload{
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   EXPECT_TRUE(io.has_output_bytes());
@@ -187,10 +202,10 @@ TEST(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
   EXPECT_THAT(response.kv_pairs().at("key2"), EqualsProto(value_with_status));
 }
 
-TEST(GetValuesHookTest, BinaryOutput_LookupReturnsError) {
+TEST_F(GetValuesHookTest, BinaryOutput_LookupReturnsError) {
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, GetKeyValues(keys))
+  EXPECT_CALL(*mock_lookup, GetKeyValues(_, keys))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   FunctionBindingIoProto io;
@@ -199,7 +214,9 @@ TEST(GetValuesHookTest, BinaryOutput_LookupReturnsError) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<> payload{io, {}};
+  ScopeMetricsContext metrics_context;
+  FunctionBindingPayload<RequestContext> payload{
+      io, RequestContext(metrics_context)};
   (*get_values_hook)(payload);
 
   EXPECT_TRUE(io.has_output_bytes());

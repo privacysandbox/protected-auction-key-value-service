@@ -13,11 +13,11 @@ python_deps("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit f198e86 2024-01-16
-    sha256 = "979d467165bef950ed69bc913e9ea743bfc068714fb43cf61e02b52b910a5561",
-    strip_prefix = "data-plane-shared-libraries-f198e86307028ad98c38a8ed1c72189eefa97334",
+    # commit b34fe82 2024-04-03
+    sha256 = "2afc7017723efb9d34b6ed713be03dbdf9b45de8ba585d2ea314eb3a52903d0a",
+    strip_prefix = "data-plane-shared-libraries-b34fe821b982e06446df617edb7a6e3041c8b0db",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/f198e86307028ad98c38a8ed1c72189eefa97334.zip",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/b34fe821b982e06446df617edb7a6e3041c8b0db.zip",
     ],
 )
 
@@ -50,6 +50,20 @@ load(
 )
 
 cpp_repositories()
+
+http_archive(
+    name = "io_bazel_rules_docker",
+    sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
+    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
+)
+
+load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
+
+container_repositories()
+
+load("@io_bazel_rules_docker//repositories:deps.bzl", io_bazel_rules_docker_deps = "deps")
+
+io_bazel_rules_docker_deps()
 
 load("//third_party_deps:container_deps.bzl", "container_deps")
 
@@ -110,14 +124,13 @@ load("//third_party_deps:python_deps.bzl", "python_repositories")
 python_repositories()
 
 # Load the starlark macro, which will define your dependencies.
-load("@word2vec//:requirements.bzl", "install_deps")
+load("@latency_benchmark//:requirements.bzl", latency_benchmark_install_deps = "install_deps")
+load("@word2vec//:requirements.bzl", word2vec_install_deps = "install_deps")
 
 # Call it to define repos for your requirements.
-install_deps()
+latency_benchmark_install_deps()
 
-load("//third_party_deps:rules_closure_repositories.bzl", "rules_closure_repositories")
-
-rules_closure_repositories()
+word2vec_install_deps()
 
 # Use nogo to run `go vet` with bazel
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
@@ -125,3 +138,15 @@ load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_depe
 go_rules_dependencies()
 
 go_register_toolchains(nogo = "@//:kv_nogo")
+
+# setup container_structure_test
+http_archive(
+    name = "container_structure_test",
+    sha256 = "2da13da4c4fec9d4627d4084b122be0f4d118bd02dfa52857ff118fde88e4faa",
+    strip_prefix = "container-structure-test-1.16.0",
+    urls = ["https://github.com/GoogleContainerTools/container-structure-test/archive/v1.16.0.zip"],
+)
+
+load("@container_structure_test//:repositories.bzl", "container_structure_test_register_toolchain")
+
+container_structure_test_register_toolchain(name = "cst")

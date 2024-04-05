@@ -26,6 +26,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 
 namespace kv_server {
 
@@ -43,10 +44,12 @@ class BlobStorageClient {
  public:
   struct DataLocation {
     std::string bucket;
+    std::string prefix;
     std::string key;
 
     bool operator==(const DataLocation& other) const {
-      return key == other.key && bucket == other.bucket;
+      return prefix == other.prefix && key == other.key &&
+             bucket == other.bucket;
     }
   };
   struct ListOptions {
@@ -56,7 +59,7 @@ class BlobStorageClient {
 
   // Options for the underyling storage client.
   struct ClientOptions {
-    ClientOptions() {}
+    ClientOptions() = default;
     int64_t max_connections = std::thread::hardware_concurrency();
     int64_t max_range_bytes = 8 * 1024 * 1024;  // 8MB
   };
@@ -81,7 +84,9 @@ class BlobStorageClient {
 
 inline std::ostream& operator<<(
     std::ostream& os, const BlobStorageClient::DataLocation& location) {
-  os << location.bucket << "/" << location.key;
+  location.prefix.empty()
+      ? os << location.bucket << "/" << location.key
+      : os << location.bucket << "/" << location.prefix << "/" << location.key;
   return os;
 }
 

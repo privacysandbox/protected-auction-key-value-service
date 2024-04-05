@@ -243,7 +243,9 @@ fi
 generate_hashes_cbuild
 
 # CLI tests
-
+if [[ ${VERBOSE} -eq 1 ]]; then
+  set -o xtrace
+fi
 cli_tests_misc
 for img in ${IMAGE_LIST}; do
   cli_tests_test-tools "${img}"

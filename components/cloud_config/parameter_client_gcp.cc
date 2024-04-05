@@ -20,16 +20,17 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
+#include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/blocking_counter.h"
 #include "components/cloud_config/parameter_client.h"
-#include "glog/logging.h"
-#include "scp/cc/public/core/interface/errors.h"
-#include "scp/cc/public/core/interface/execution_result.h"
-#include "scp/cc/public/cpio/interface/parameter_client/parameter_client_interface.h"
+#include "src/public/core/interface/errors.h"
+#include "src/public/core/interface/execution_result.h"
+#include "src/public/cpio/interface/parameter_client/parameter_client_interface.h"
 
 namespace kv_server {
 namespace {
@@ -106,6 +107,8 @@ class GcpParameterClient : public ParameterClient {
                  << " with error: " << status;
       return status;
     }
+    LOG(INFO) << "Got parameter: " << parameter_name
+              << " with value: " << param_value;
     return param_value;
   }
 

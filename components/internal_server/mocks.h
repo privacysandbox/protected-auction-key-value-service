@@ -33,7 +33,8 @@ class MockRemoteLookupClient : public RemoteLookupClient {
  public:
   MockRemoteLookupClient() : RemoteLookupClient() {}
   MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetValues,
-              (std::string_view serialized_message, int32_t padding_length),
+              (const RequestContext& request_context,
+               std::string_view serialized_message, int32_t padding_length),
               (const, override));
   MOCK_METHOD(std::string_view, GetIpAddress, (), (const, override));
 };
@@ -41,13 +42,15 @@ class MockRemoteLookupClient : public RemoteLookupClient {
 class MockLookup : public Lookup {
  public:
   MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetKeyValues,
-              (const absl::flat_hash_set<std::string_view>&),
+              (const RequestContext&,
+               const absl::flat_hash_set<std::string_view>&),
               (const, override));
   MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetKeyValueSet,
-              (const absl::flat_hash_set<std::string_view>&),
+              (const RequestContext&,
+               const absl::flat_hash_set<std::string_view>&),
               (const, override));
   MOCK_METHOD(absl::StatusOr<InternalRunQueryResponse>, RunQuery,
-              (std::string query), (const, override));
+              (const RequestContext&, std::string query), (const, override));
 };
 
 }  // namespace kv_server

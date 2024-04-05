@@ -42,7 +42,7 @@ ABSL_FLAG(std::string, environment, "NOT_SPECIFIED", "Environment name.");
 // The environment flag is defined for local instance (in instance_client_local)
 // but not for GCP instance, hence the difference here.
 
-void PrepareTlsKeyCertForEnvoy() {
+bool PrepareTlsKeyCertForEnvoy() {
   // Initializes GCP platform and its parameter client.
   kv_server::PlatformInitializer platform_initializer;
   std::unique_ptr<kv_server::ParameterClient> parameter_client =
@@ -58,19 +58,50 @@ void PrepareTlsKeyCertForEnvoy() {
         "GetEnvironment", kv_server::LogMetricsNoOpCallback());
   }
 
+  kv_server::ParameterFetcher parameter_fetcher(environment, *parameter_client);
+  if (bool enable_external_traffic =
+          parameter_fetcher.GetBoolParameter("enable-external-traffic");
+      !enable_external_traffic) {
+    return false;  // Envoy is not needed if we don't serve external traffic.
+  }
+
   // Prepares TLS cert and key for the connection between XLB and envoy. Per
   // GCP's protocol, the certificate here is not verified and it's ok to use a
   // self-signed cert.
   // (https://cloud.google.com/load-balancing/docs/ssl-certificates/encryption-to-the-backends#secure-protocol-considerations)
-  kv_server::ParameterFetcher parameter_fetcher(environment, *parameter_client);
   std::string tls_key_str = parameter_fetcher.GetParameter("tls-key");
   std::string tls_cert_str = parameter_fetcher.GetParameter("tls-cert");
+  if (tls_key_str == "NOT_PROVIDED" || tls_cert_str == "NOT_PROVIDED") {
+    LOG(ERROR) << "TLS key/cert are not provided!";
+    exit(1);
+  }
   std::ofstream key_file("/etc/envoy/key.pem");
   std::ofstream cert_file("/etc/envoy/cert.pem");
   key_file << tls_key_str;
   cert_file << tls_cert_str;
   key_file.close();
   cert_file.close();
+  return true;
+}
+
+void StartKvServer(int argc, char* argv[]) {
+  std::vector<char*> server_exec_args = {"/server"};
+  for (int i = 1; i < argc; ++i) {
+    server_exec_args.push_back(argv[i]);
+  }
+  server_exec_args.push_back(nullptr);
+  LOG(INFO) << "Starting KV-Server";
+  execv(server_exec_args[0], &server_exec_args[0]);
+  LOG(ERROR) << "Server failure:" << std::strerror(errno);
+}
+
+void StartEnvoy() {
+  LOG(INFO) << "Starting Envoy";
+  std::vector<char*> envoy_exec_args = {"/usr/local/bin/envoy", "--config-path",
+                                        "/etc/envoy/envoy.yaml", "-l", "warn"};
+  envoy_exec_args.push_back(nullptr);
+  execv(envoy_exec_args[0], &envoy_exec_args[0]);
+  LOG(ERROR) << "Envoy failure:" << std::strerror(errno);
 }
 
 int main(int argc, char* argv[]) {
@@ -80,30 +111,20 @@ int main(int argc, char* argv[]) {
   // errors. The unrecognized flags will later be used by "/server".
   absl::ParseAbseilFlagsOnly(argc, argv, positional_args, unrecognized_flags);
 
-  PrepareTlsKeyCertForEnvoy();
-
-  // Starts Envoy and server in separate processes
-  if (const pid_t pid = fork(); pid == 1) {
-    LOG(ERROR) << "Fork failure!";
-    return errno;
-  } else if (pid == 0) {
-    LOG(INFO) << "Starting Envoy";
-    std::vector<char*> envoy_exec_args = {
-        "/usr/local/bin/envoy", "--config-path", "/etc/envoy/envoy.yaml", "-l",
-        "warn"};
-    envoy_exec_args.push_back(nullptr);
-    execv(envoy_exec_args[0], &envoy_exec_args[0]);
-    LOG(ERROR) << "Envoy failure:" << std::strerror(errno);
-  } else {
-    sleep(5);
-    std::vector<char*> server_exec_args = {"/server"};
-    for (int i = 1; i < argc; ++i) {
-      server_exec_args.push_back(argv[i]);
+  if (PrepareTlsKeyCertForEnvoy()) {
+    // Starts Envoy and server in separate processes
+    if (const pid_t pid = fork(); pid == 1) {
+      LOG(ERROR) << "Fork failure!";
+      return errno;
+    } else if (pid == 0) {
+      StartEnvoy();
+    } else {
+      sleep(5);
+      StartKvServer(argc, argv);
     }
-    server_exec_args.push_back(nullptr);
-    LOG(INFO) << "Starting KV-Server";
-    execv(server_exec_args[0], &server_exec_args[0]);
-    LOG(ERROR) << "Server failure:" << std::strerror(errno);
+  } else {
+    // Only starts server if envoy is not needed.
+    StartKvServer(argc, argv);
   }
   return errno;
 }

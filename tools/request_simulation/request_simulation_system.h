@@ -18,6 +18,7 @@
 #define TOOLS_REQUEST_SIMULATION_REQUEST_SIMULATION_SYSTEM_H_
 
 #include <memory>
+#include <queue>
 #include <string>
 #include <utility>
 #include <vector>
@@ -33,10 +34,11 @@
 #include "grpcpp/grpcpp.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/query/get_values.grpc.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
+#include "src/telemetry/metrics_recorder.h"
 #include "test/core/util/histogram.h"
 #include "tools/request_simulation/client_worker.h"
 #include "tools/request_simulation/delta_based_request_generator.h"
+#include "tools/request_simulation/detla_based_realtime_updates_publisher.h"
 #include "tools/request_simulation/message_queue.h"
 #include "tools/request_simulation/rate_limiter.h"
 #include "tools/request_simulation/request/raw_request.pb.h"
@@ -73,6 +75,8 @@ namespace kv_server {
 // 4. Client workers that send requests to the target server.
 // The number of client workers is determined by the given concurrency
 // parameter.
+// 5. A delta based request generator that reads keys from delta file and
+// publishes realtime updates to the specified SNS/pubsub endpoint.
 //
 // Once the system successfully starts, the system will continuously generates
 // requests and send requests to the target server.
@@ -147,16 +151,25 @@ class RequestSimulationSystem {
   std::unique_ptr<BlobStorageClient> blob_storage_client_;
   std::unique_ptr<MessageService> message_service_blob_;
   std::unique_ptr<BlobStorageChangeNotifier> blob_change_notifier_;
+  std::unique_ptr<BlobStorageChangeNotifier> realtime_blob_change_notifier_;
   std::unique_ptr<DeltaFileNotifier> delta_file_notifier_;
+  std::unique_ptr<DeltaFileNotifier> realtime_delta_file_notifier_;
   std::unique_ptr<StreamRecordReaderFactory> delta_stream_reader_factory_;
   std::unique_ptr<MessageQueue> message_queue_;
   std::unique_ptr<RateLimiter> synthetic_request_generator_rate_limiter_;
   std::unique_ptr<RateLimiter> grpc_request_rate_limiter_;
   std::unique_ptr<SyntheticRequestGenerator> synthetic_request_generator_;
   std::unique_ptr<DeltaBasedRequestGenerator> delta_based_request_generator_;
+  std::unique_ptr<DeltaBasedRealtimeUpdatesPublisher>
+      delta_based_realtime_updates_publisher_;
   std::vector<std::unique_ptr<ClientWorker<RawRequest, google::api::HttpBody>>>
       grpc_client_workers_;
   std::unique_ptr<RequestSimulationParameterFetcher> parameter_fetcher_;
+  std::queue<RealtimeMessage> realtime_messages_;
+  absl::Mutex realtime_messages_mutex_;
+  std::unique_ptr<RealtimeMessageBatcher> realtime_message_batcher_;
+  std::unique_ptr<ConcurrentPublishingEngine> concurrent_publishing_engine_;
+
   bool is_running;
   friend class RequestSimulationSystemTestPeer;
 };

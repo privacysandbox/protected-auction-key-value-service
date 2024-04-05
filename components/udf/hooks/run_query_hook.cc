@@ -21,9 +21,9 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "components/internal_server/lookup.h"
-#include "glog/logging.h"
 #include "nlohmann/json.hpp"
 
 namespace kv_server {
@@ -39,7 +39,7 @@ class RunQueryHookImpl : public RunQueryHook {
     }
   }
 
-  void operator()(FunctionBindingPayload<>& payload) {
+  void operator()(FunctionBindingPayload<RequestContext>& payload) {
     if (lookup_ == nullptr) {
       nlohmann::json status;
       status["code"] = absl::StatusCode::kInternal;
@@ -62,7 +62,7 @@ class RunQueryHookImpl : public RunQueryHook {
 
     VLOG(9) << "Calling internal run query client";
     absl::StatusOr<InternalRunQueryResponse> response_or_status =
-        lookup_->RunQuery(payload.io_proto.input_string());
+        lookup_->RunQuery(payload.metadata, payload.io_proto.input_string());
 
     if (!response_or_status.ok()) {
       LOG(ERROR) << "Internal run query returned error: "

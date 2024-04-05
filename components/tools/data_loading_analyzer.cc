@@ -19,6 +19,7 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
@@ -27,13 +28,11 @@
 #include "components/data_server/data_loading/data_orchestrator.h"
 #include "components/udf/noop_udf_client.h"
 #include "components/util/platform_initializer.h"
-#include "glog/logging.h"
 #include "public/base_types.pb.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/sharding/key_sharder.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::vector<std::string>, operations,
           std::vector<std::string>({"PASS_THROUGH", "READ_ONLY", "CACHE"}),
@@ -43,10 +42,6 @@ ABSL_FLAG(std::string, bucket, "performance-test-data-bucket",
 
 namespace kv_server {
 namespace {
-
-using privacy_sandbox::server_common::GetTracer;
-using privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::TelemetryProvider;
 
 class NoopBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
@@ -146,9 +141,7 @@ std::vector<Operation> OperationsFromFlag() {
 absl::Status InitOnce(Operation operation) {
   std::unique_ptr<UdfClient> noop_udf_client = NewNoopUdfClient();
   InitMetricsContextMap();
-  auto noop_metrics_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
 
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();

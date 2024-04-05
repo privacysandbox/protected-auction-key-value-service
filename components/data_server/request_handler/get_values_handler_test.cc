@@ -28,15 +28,12 @@
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
 using grpc::StatusCode;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::DoAll;
 using testing::Return;
@@ -48,13 +45,21 @@ using v1::GetValuesResponse;
 
 class GetValuesHandlerTest : public ::testing::Test {
  protected:
+  GetValuesHandlerTest() {
+    InitMetricsContextMap();
+    scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
+    request_context_ =
+        std::make_unique<RequestContext>(*scope_metrics_context_);
+  }
   MockCache mock_cache_;
-  MockMetricsRecorder mock_metrics_recorder_;
   MockGetValuesAdapter mock_get_values_adapter_;
+  RequestContext& GetRequestContext() { return *request_context_; }
+  std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
+  std::unique_ptr<RequestContext> request_context_;
 };
 
 TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(UnorderedElementsAre("my_key")))
+  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_, UnorderedElementsAre("my_key")))
       .Times(2)
       .WillRepeatedly(Return(absl::flat_hash_map<std::string, std::string>{
           {"my_key", "my_value"}}));
@@ -62,9 +67,9 @@ TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
   request.add_keys("my_key");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/false);
-  const auto result = handler.GetValues(request, &response);
+  const auto result =
+      handler.GetValues(GetRequestContext(), request, &response);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -77,13 +82,13 @@ TEST_F(GetValuesHandlerTest, ReturnsExistingKeyTwice) {
       &expected);
   EXPECT_THAT(response, EqualsProto(expected));
 
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
   EXPECT_THAT(response, EqualsProto(expected));
 }
 
 TEST_F(GetValuesHandlerTest, RepeatedKeys) {
   EXPECT_CALL(mock_cache_,
-              GetKeyValuePairs(UnorderedElementsAre("key1", "key2", "key3")))
+              GetKeyValuePairs(_, UnorderedElementsAre("key1", "key2", "key3")))
       .Times(1)
       .WillRepeatedly(Return(
           absl::flat_hash_map<std::string, std::string>{{"key1", "value1"}}));
@@ -91,9 +96,8 @@ TEST_F(GetValuesHandlerTest, RepeatedKeys) {
   request.add_keys("key1,key2,key3");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/false);
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
 
   GetValuesResponse expected;
   TextFormat::ParseFromString(
@@ -115,9 +119,34 @@ TEST_F(GetValuesHandlerTest, RepeatedKeys) {
   EXPECT_THAT(response, EqualsProto(expected));
 }
 
+TEST_F(GetValuesHandlerTest, RepeatedKeysSkipEmpty) {
+  EXPECT_CALL(mock_cache_,
+              GetKeyValuePairs(_, UnorderedElementsAre("key1", "key2", "key3")))
+      .Times(1)
+      .WillRepeatedly(Return(
+          absl::flat_hash_map<std::string, std::string>{{"key1", "value1"}}));
+  GetValuesRequest request;
+  request.add_keys("key1,key2,key3");
+  GetValuesResponse response;
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           /*use_v2=*/false, /*add_missing_keys_v1=*/false);
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
+
+  GetValuesResponse expected;
+  TextFormat::ParseFromString(
+      R"pb(
+        keys {
+          key: "key1"
+          value { value { string_value: "value1" } }
+        }
+      )pb",
+      &expected);
+  EXPECT_THAT(response, EqualsProto(expected));
+}
+
 TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   EXPECT_CALL(mock_cache_,
-              GetKeyValuePairs(UnorderedElementsAre("key1", "key2")))
+              GetKeyValuePairs(_, UnorderedElementsAre("key1", "key2")))
       .Times(1)
       .WillOnce(Return(absl::flat_hash_map<std::string, std::string>{
           {"key1", "value1"}, {"key2", "value2"}}));
@@ -126,9 +155,8 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
   request.add_keys("key2");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/false);
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
 
   GetValuesResponse expected;
   TextFormat::ParseFromString(R"pb(
@@ -145,11 +173,11 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysSameNamespace) {
 }
 
 TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(UnorderedElementsAre("key1")))
+  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_, UnorderedElementsAre("key1")))
       .Times(1)
       .WillOnce(Return(
           absl::flat_hash_map<std::string, std::string>{{"key1", "value1"}}));
-  EXPECT_CALL(mock_cache_, GetKeyValuePairs(UnorderedElementsAre("key2")))
+  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_, UnorderedElementsAre("key2")))
       .Times(1)
       .WillOnce(Return(
           absl::flat_hash_map<std::string, std::string>{{"key2", "value2"}}));
@@ -158,9 +186,8 @@ TEST_F(GetValuesHandlerTest, ReturnsMultipleExistingKeysDifferentNamespace) {
   request.add_ad_component_render_urls("key2");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/false);
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
 
   GetValuesResponse expected;
   TextFormat::ParseFromString(R"pb(render_urls {
@@ -252,7 +279,7 @@ TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
   })json";
 
   EXPECT_CALL(mock_cache_,
-              GetKeyValuePairs(UnorderedElementsAre("key1", "key2", "key3")))
+              GetKeyValuePairs(_, UnorderedElementsAre("key1", "key2", "key3")))
       .Times(1)
       .WillOnce(Return(absl::flat_hash_map<std::string, std::string>{
           {"key1", value1}, {"key2", value2}, {"key3", value3}}));
@@ -263,9 +290,8 @@ TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
   request.add_keys("key3");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/false);
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
   GetValuesResponse expected_from_pb;
   TextFormat::ParseFromString(response_pb_string, &expected_from_pb);
   EXPECT_THAT(response, EqualsProto(expected_from_pb));
@@ -292,9 +318,8 @@ TEST_F(GetValuesHandlerTest, CallsV2Adapter) {
   request.add_keys("key1");
   GetValuesResponse response;
   GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
-                           mock_metrics_recorder_,
                            /*use_v2=*/true);
-  ASSERT_TRUE(handler.GetValues(request, &response).ok());
+  ASSERT_TRUE(handler.GetValues(GetRequestContext(), request, &response).ok());
   EXPECT_THAT(response, EqualsProto(adapter_response));
 }
 

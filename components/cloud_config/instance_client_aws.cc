@@ -16,6 +16,8 @@
 #include <string_view>
 #include <thread>
 
+#include "absl/log/check.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -37,11 +39,16 @@
 #include "aws/ec2/model/DescribeTagsResponse.h"
 #include "aws/ec2/model/Filter.h"
 #include "components/cloud_config/instance_client.h"
+#include "components/errors/error_tag.h"
 #include "components/errors/error_util_aws.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {
+
+enum class ErrorTag : int {
+  kGetAwsHttpResourceError = 1,
+  kAutoScalingSizeError = 2
+};
 
 using Aws::AutoScaling::Model::DescribeAutoScalingGroupsRequest;
 using Aws::AutoScaling::Model::Instance;
@@ -93,8 +100,10 @@ absl::StatusOr<std::string> GetAwsHttpResource(
   if (result.GetResponseCode() == Aws::Http::HttpResponseCode::OK) {
     return Aws::Utils::StringUtils::Trim(result.GetPayload().c_str());
   }
-  return absl::Status(HttpResponseCodeToStatusCode(result.GetResponseCode()),
-                      "Failed to get AWS Http resource.");
+  return StatusWithErrorTag(
+      absl::Status(HttpResponseCodeToStatusCode(result.GetResponseCode()),
+                   "Failed to get AWS Http resource."),
+      __FILE__, ErrorTag::kGetAwsHttpResourceError);
 }
 
 absl::StatusOr<std::string> GetImdsToken(
@@ -142,7 +151,8 @@ absl::StatusOr<std::string> GetAutoScalingGroupName(
         "Could not get auto scaling instances for instance ", instance_id,
         ". Retrieved ", outcome.GetResult().GetAutoScalingInstances().size(),
         " auto scaling groups.");
-    return absl::NotFoundError(error_msg);
+    return StatusWithErrorTag(absl::NotFoundError(error_msg), __FILE__,
+                              ErrorTag::kAutoScalingSizeError);
   }
   return outcome.GetResult()
       .GetAutoScalingInstances()[0]

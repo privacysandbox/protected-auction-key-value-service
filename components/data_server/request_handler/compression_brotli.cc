@@ -18,10 +18,10 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/strings/str_join.h"
 #include "brotli/decode.h"
 #include "brotli/encode.h"
-#include "glog/logging.h"
 #include "quiche/common/quiche_data_writer.h"
 
 namespace kv_server {

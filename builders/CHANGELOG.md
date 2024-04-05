@@ -2,6 +2,114 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.57.0 (2024-03-10)
+
+
+### Features
+
+* Add a generic pylintrc
+* Add clang-tidy to build-debian
+
+## 0.56.0 (2024-02-29)
+
+
+### Features
+
+* Add pylint to presubmit
+
+
+### Bug Fixes
+
+* Clean bazel build and mod caches
+* Pin okigan/awscurl to v0.29
+
+## 0.55.2 (2024-02-23)
+
+
+### Bug Fixes
+
+* Add gmock to .clang-format
+
+## 0.55.1 (2024-02-22)
+
+
+### Bug Fixes
+
+* Do not invoke normalize-bazel-symlinks for cbuild --cmd
+
+## 0.55.0 (2024-02-22)
+
+
+### Bug Fixes
+
+* Normalize bazel symlinks to a resolved path
+* Pass the correct path for normalize-bazel-symlinks
+
+## 0.54.0 (2024-02-09)
+
+
+### Features
+
+* Set cbuild workdir to pwd relative to root workspace
+
+## 0.53.0 (2024-01-25)
+
+
+### Features
+
+* Add support to collect-coverage tool for custom lcov report
+
+
+### Bug Fixes
+
+* Improve --cmd-profiler support
+
+## 0.52.0 (2023-12-02)
+
+
+### Features
+
+* add python3.9 dev to bazel-debian
+
+## 0.51.0 (2023-11-30)
+
+
+### Bug Fixes
+
+* Clean go build cache at the end of image build script
+
+
+### Dependencies
+
+* **deps:** Upgrade bazelisk to 1.19.0
+
+## 0.50.0 (2023-11-06)
+
+
+### Features
+
+* Add openssh-client to build-debian image
+
+## 0.49.1 (2023-10-30)
+
+
+### Bug Fixes
+
+* Add tools/wrk2 wrapper script
+
+## 0.49.0 (2023-10-27)
+
+
+### Features
+
+* Add wrk2 to test-tools image
+* Extend normalize-bazel-symlink to normalize within containers
+
+
+### Dependencies
+
+* **deps:** Update versions in test-tools image
+
 ## 0.48.0 (2023-10-11)
 
 

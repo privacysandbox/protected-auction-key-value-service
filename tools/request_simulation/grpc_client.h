@@ -135,7 +135,7 @@ class GrpcClient {
                            std::shared_ptr<ResponseT> response) {
     if (is_client_channel_ &&
         grpc_channel_->GetState(true) != GRPC_CHANNEL_READY) {
-      return absl::FailedPreconditionError("GRPC channel is disconnected");
+      return absl::UnavailableError("GRPC channel is disconnected");
     }
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();

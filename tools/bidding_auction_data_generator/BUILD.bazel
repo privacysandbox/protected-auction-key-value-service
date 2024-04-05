@@ -63,8 +63,8 @@ cc_library(
     hdrs = ["value_fetch_util.h"],
     deps = [
         "//public/query:get_values_cc_grpc",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_protobuf//:protobuf",
         "@curl",
@@ -76,7 +76,7 @@ cc_library(
     srcs = ["http_url_fetch_client.cc"],
     hdrs = ["http_url_fetch_client.h"],
     deps = [
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@curl",
@@ -91,9 +91,9 @@ cc_library(
         ":http_url_fetch_client",
         ":value_fetch_util",
         "//public/query:get_values_cc_grpc",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_protobuf//:protobuf",
@@ -124,7 +124,6 @@ cc_test(
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "//public/data_loading/writers:delta_record_stream_writer",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 

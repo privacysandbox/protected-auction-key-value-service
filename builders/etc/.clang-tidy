@@ -1,0 +1,8 @@
+Checks: >
+    -*,
+    bugprone-*,
+    -bugprone-narrowing-conversions,
+    performance-*,
+
+WarningsAsErrors:    '*'
+...

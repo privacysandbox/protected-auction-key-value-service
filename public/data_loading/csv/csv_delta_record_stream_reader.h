@@ -21,7 +21,7 @@
 #include <utility>
 #include <vector>
 
-#include "glog/logging.h"
+#include "absl/log/log.h"
 #include "public/data_loading/csv/constants.h"
 #include "public/data_loading/readers/delta_record_reader.h"
 #include "public/data_loading/record_utils.h"

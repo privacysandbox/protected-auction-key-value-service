@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@io_bazel_rules_go//go:def.bzl", "nogo")
 
@@ -104,6 +105,69 @@ config_setting(
         "//components:__subpackages__",
         "//production/packaging:__subpackages__",
         "//tools:__subpackages__",
+    ],
+)
+
+string_flag(
+    name = "mode",
+    build_setting_default = "prod",
+    values = [
+        "prod",
+        "nonprod",
+    ],
+)
+
+config_setting(
+    name = "prod_mode",
+    flag_values = {
+        ":mode": "prod",
+    },
+    visibility = [
+        "//components:__subpackages__",
+        "//tools:__subpackages__",
+    ],
+)
+
+config_setting(
+    name = "nonprod_mode",
+    flag_values = {
+        ":mode": "nonprod",
+    },
+    visibility = [
+        "//components:__subpackages__",
+        "//tools:__subpackages__",
+    ],
+)
+
+selects.config_setting_group(
+    name = "aws_prod",
+    match_all = [
+        "//:aws_platform",
+        "//:prod_mode",
+    ],
+)
+
+selects.config_setting_group(
+    name = "aws_nonprod",
+    match_all = [
+        "//:aws_platform",
+        "//:nonprod_mode",
+    ],
+)
+
+selects.config_setting_group(
+    name = "gcp_prod",
+    match_all = [
+        "//:gcp_platform",
+        "//:prod_mode",
+    ],
+)
+
+selects.config_setting_group(
+    name = "gcp_nonprod",
+    match_all = [
+        "//:gcp_platform",
+        "//:nonprod_mode",
     ],
 )
 

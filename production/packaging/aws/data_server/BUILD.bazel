@@ -12,16 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
-    "container_layer",
-)
-load("@io_bazel_rules_docker//contrib:test.bzl", "container_test")
+load("@container_structure_test//:defs.bzl", "container_structure_test")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 load(
     "@rules_pkg//pkg:mappings.bzl",
     "pkg_attributes",
     "pkg_files",
+    "pkg_mklink",
 )
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
@@ -40,7 +37,7 @@ pkg_files(
 pkg_files(
     name = "kmstool_enclave_executables",
     srcs = [
-        "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:kms_cli",
+        "@google_privacysandbox_servers_common//src/cpio/client_providers/kms_client_provider/aws:kms_cli",
     ],
     attributes = pkg_attributes(mode = "0555"),
     prefix = "/cpio/bin",
@@ -49,16 +46,25 @@ pkg_files(
 pkg_files(
     name = "kmstool_enclave_libs",
     srcs = [
-        "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:libnsm_so",
+        "@google_privacysandbox_servers_common//src/cpio/client_providers/kms_client_provider/aws:libnsm_so",
     ],
     attributes = pkg_attributes(mode = "0444"),
     prefix = "/cpio/lib",
+)
+
+# Create a symlink between where kmstool_enclave_cli expects shell to be
+# (/bin/sh) and where it actually is on our image (/busybox/sh).
+pkg_mklink(
+    name = "busybox_sh_symlink",
+    link_name = "/bin/sh",
+    target = "/busybox/sh",
 )
 
 server_binaries = [
     ":kmstool_enclave_executables",
     ":kmstool_enclave_libs",
     ":server_executables",
+    ":busybox_sh_symlink",
 ]
 
 pkg_zip(
@@ -75,43 +81,18 @@ pkg_tar(
 pkg_tar(
     name = "libnsm-tar",
     srcs = [
-        "@google_privacysandbox_servers_common//scp/cc/cpio/client_providers/kms_client_provider/src/aws:libnsm_so",
+        "@google_privacysandbox_servers_common//src/cpio/client_providers/kms_client_provider/aws:libnsm_so",
     ],
     mode = "0444",
     package_dir = "/cpio/lib",
     visibility = ["//visibility:public"],
 )
 
-container_layer(
-    name = "server_binary_layer",
-    directory = "/",
-    tars = [
-        ":libnsm-tar",
-        ":server_binaries_tar",
-    ],
-)
-
-# Create a symlink between where kmstool_enclave_cli expects shell to be
-# (/bin/sh) and where it actually is on our image (/busybox/sh).
-container_layer(
-    name = "kmstool_enclave_cli_layer",
-    symlinks = {
-        "/bin/sh": "/busybox/sh",
-    },
-    tars = [
-        ":libnsm-tar",
-    ],
-)
-
 # This image target is meant for testing running the server in an enclave using.
 #
 # See project README.md on how to run the image.
-container_image(
+oci_image(
     name = "server_docker_image",
-    architecture = select({
-        "@platforms//cpu:arm64": "arm64",
-        "@platforms//cpu:x86_64": "amd64",
-    }),
     base = select({
         "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64//image",
         "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64//image",
@@ -123,32 +104,34 @@ container_image(
         "--",
         # Note: these ports must correspond with those specified in envoy.yaml.
         "--port=50051",
-        # These affect PCR0, so changing these would result in the loss of
-        # access to private keys for decryption.
-        "--public_key_endpoint='https://d3gf5400xe31j1.cloudfront.net/v1alpha/publicKeys'",
-        "--primary_coordinator_private_key_endpoint='https://uun5qzrqvj.execute-api.us-east-1.amazonaws.com/stage/v1alpha/encryptionKeys'",
-        "--secondary_coordinator_private_key_endpoint='https://ddqkl8ay59.execute-api.us-east-1.amazonaws.com/stage/v1alpha/encryptionKeys'",
-        "--primary_coordinator_region='us-east-1'",
-        "--secondary_coordinator_region='us-east-1'",
+        # These affect PCR0, so changing these would result in the loss of ability to communicate with
+        # the downstream components
+        "--public_key_endpoint=https://publickeyservice.pa.aws.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
+        "--stderrthreshold=0",
     ],
-    env = {"GLOG_logtostderr": "1"},
-    layers = [
-        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify_layer",
+    tars = [
+        "@google_privacysandbox_servers_common//src/aws/proxy:libnsm_and_proxify_tar",
         "//production/packaging/aws/resolv:resolv_config_layer",
-        ":server_binary_layer",
-        ":kmstool_enclave_cli_layer",
+        ":libnsm-tar",
+        ":server_binaries_tar",
     ],
 )
 
-container_test(
+oci_tarball(
+    name = "server_docker_tarball",
+    image = ":server_docker_image",
+    repo_tags = ["bazel/production/packaging/aws/data_server:server_docker_image"],
+)
+
+container_structure_test(
     name = "structure_test",
     size = "medium",
     configs = ["test/structure.yaml"],
     driver = "tar",
-    image = ":server_docker_image",
+    image = ":server_docker_tarball",
 )
 
-container_test(
+container_structure_test(
     name = "commands_test",
     size = "small",
     configs = ["test/commands.yaml"],
@@ -166,14 +149,15 @@ genrule(
     name = "copy_to_dist",
     srcs = [
         ":server_artifacts",
-        ":server_docker_image.tar",
+        ":server_docker_tarball",
         "//public/query:query_api_descriptor_set",
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/debian
 cp $(execpath :server_artifacts) dist/debian
-cp $(execpath :server_docker_image.tar) $(execpath //public/query:query_api_descriptor_set) dist
+cp $(execpath :server_docker_tarball) dist/server_docker_image.tar
+cp $(execpath //public/query:query_api_descriptor_set) dist
 # retain previous server_docker_image.tar location as a symlink
 ln -rsf dist/server_docker_image.tar dist/debian/server_docker_image.tar
 builders/tools/normalize-dist

@@ -63,3 +63,9 @@ variable "existing_service_mesh" {
   description = "Existing service mesh. This would only be used if use_existing_service_mesh is true."
   type        = string
 }
+
+variable "enable_external_traffic" {
+  description = "Whether to serve external traffic. If disabled, only internal traffic via service mesh will be served."
+  default     = true
+  type        = bool
+}

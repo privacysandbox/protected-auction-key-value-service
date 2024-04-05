@@ -13,13 +13,13 @@
 // limitations under the License.
 
 #include "absl/functional/bind_front.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "aws/core/utils/json/JsonSerializer.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/common/change_notifier.h"
 #include "components/telemetry/server_definition.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {
@@ -47,10 +47,7 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
       if (!parsedMessage.ok()) {
         LOG(ERROR) << "Failed to parse JSON. Error: " << parsedMessage.status()
                    << " Message:" << message;
-        LogIfError(KVServerContextMap()
-                       ->SafeMetric()
-                       .LogUpDownCounter<kChangeNotifierErrors>(
-                           {{std::string(kAwsJsonParseError), 1}}));
+        LogServerErrorMetric(kAwsJsonParseError);
         continue;
       }
       parsed_notifications.push_back(std::move(*parsedMessage));

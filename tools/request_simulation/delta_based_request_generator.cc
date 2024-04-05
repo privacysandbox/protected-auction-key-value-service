@@ -20,7 +20,7 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
-#include "src/cpp/telemetry/tracing.h"
+#include "src/telemetry/tracing.h"
 
 using privacy_sandbox::server_common::MetricsRecorder;
 using privacy_sandbox::server_common::TraceWithStatusOr;
@@ -42,7 +42,8 @@ class BlobRecordStream : public RecordStream {
 absl::Status DeltaBasedRequestGenerator::Start() {
   LOG(INFO) << "Start monitor and load delta files";
   absl::Status status = options_.delta_notifier.Start(
-      options_.change_notifier, {.bucket = options_.data_bucket}, "",
+      options_.change_notifier, {.bucket = options_.data_bucket},
+      {std::make_pair("", "")},
       absl::bind_front(&DeltaBasedRequestGenerator::EnqueueNewFilesToProcess,
                        this));
   if (!status.ok()) {

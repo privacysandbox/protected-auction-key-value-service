@@ -22,7 +22,7 @@
 #include "absl/strings/escaping.h"
 #include "public/constants.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
-#include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/key_fetcher_manager.h"
 
 namespace kv_server {
 
@@ -44,12 +44,7 @@ class OhttpClientEncryptor {
   absl::StatusOr<std::string> EncryptRequest(std::string payload);
   // Decrypts incoming reponse. Since OHTTP is stateful, this method should be
   // called after EncryptRequest.
-  // In order to avoid an extra copy, leaking the `ObliviousHttpResponse`.
-  // Note that we have a CL for the underlying library that might allow us to
-  // not do leak this object and not do the copy. If/when that's merged, we
-  // should refactor this back to returning a string.
-  absl::StatusOr<quiche::ObliviousHttpResponse> DecryptResponse(
-      std::string encrypted_payload);
+  absl::StatusOr<std::string> DecryptResponse(std::string encrypted_payload);
 
  private:
   ::privacy_sandbox::server_common::CloudPlatform cloud_platform_ =

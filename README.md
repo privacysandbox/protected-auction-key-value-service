@@ -38,7 +38,7 @@ versions are released. The query API conforms to the
 [API explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md). At the
 moment, to load data, instead of calling the mutation API, you would place the data as files into a
 location that can be directly read by the server. See more details in the
-[data loading guide](/docs/loading_data.md).
+[data loading guide](/docs/data_loading/loading_data.md).
 
 Currently, this service can be deployed to 1 region of your choice with more regions to be added
 soon. Monitoring and alerts are currently unavailable.
@@ -72,18 +72,18 @@ changes.
 -   [FLEDGE K/V server API explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md)
 -   [FLEDGE K/V server trust model](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_trust_model.md)
 -   [Local server quickstart guide](/docs/developing_the_server.md)
--   [AWS server user deployment documentation](/docs/deploying_on_aws.md)
--   [GCP server user deployment documentation](/docs/deploying_on_gcp.md)
--   [Integrating the K/V server with FLEDGE](/docs/integrating_with_fledge.md)
--   [FLEDGE K/V server sharding explainer](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_sharding.md)
+-   [AWS server user deployment documentation](/docs/deployment/deploying_on_aws.md)
+-   [GCP server user deployment documentation](/docs/deployment/deploying_on_gcp.md)
+-   [Integrating the K/V server with FLEDGE](/docs/protected_audience/integrating_with_fledge.md)
+-   [FLEDGE K/V server sharding explainer](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/key_value_service_sharding.md)
 -   Operating documentation
-    -   [Data loading API and operations](/docs/loading_data.md)
+    -   [Data loading API and operations](/docs/data_loading/loading_data.md)
     -   [Generating and loading UDF files](/docs/generating_udf_files.md)
     -   Error handling explainer (_to be published_)
 -   Developer guide
     -   [Codebase structure](/docs/repo_layout.md)
-    -   [Working with Terraform](/production/terraform/README.md)
-    -   [Contributing to the codebase](/docs/CONTRIBUTING.md)
+    -   [Working with Terraform](/docs/deployment/working_with_terraform.md)
+    -   [Contributing to the codebase](/docs/contributing.md)
 -   [Code of conduct](/docs/CODE_OF_CONDUCT.md)
 -   [Change log](/CHANGELOG.md)
 

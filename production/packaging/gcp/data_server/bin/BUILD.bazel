@@ -11,6 +11,7 @@ cc_binary(
         "//:local_instance": ["-DINSTANCE_LOCAL=1"],
         "//conditions:default": [],
     }),
+    malloc = "@com_google_tcmalloc//tcmalloc",
     deps = [
         "//components/cloud_config:instance_client",
         "//components/cloud_config:parameter_client",

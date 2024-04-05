@@ -51,11 +51,22 @@ ABSL_FLAG(bool, route_v1_to_v2, false,
 ABSL_FLAG(std::string, data_loading_file_format,
           std::string(kv_server::kFileFormats[static_cast<int>(
               kv_server::FileFormat::kRiegeli)]),
-          "File format of the input data files.");
+          "File format of the input data files. See /public/constants.h for "
+          "possible values.");
 ABSL_FLAG(std::int32_t, logging_verbosity_level, 0,
           "Loggging verbosity level.");
 ABSL_FLAG(absl::Duration, udf_timeout, absl::Seconds(5),
           "Timeout for one UDF invocation");
+ABSL_FLAG(int32_t, udf_min_log_level, 0,
+          "Minimum logging level for UDFs. Info=0, Warn=1, Error=2. Default is "
+          "0(info).");
+ABSL_FLAG(bool, enable_otel_logger, false, "Whether to enable otel logger.");
+ABSL_FLAG(std::string, telemetry_config, "mode: EXPERIMENT",
+          "Telemetry configuration for exporting raw or noised metrics");
+ABSL_FLAG(std::string, data_loading_prefix_allowlist, "",
+          "Allowlist for blob prefixes.");
+ABSL_FLAG(bool, add_missing_keys_v1, false,
+          "Whether to add missing keys for v1.");
 
 namespace kv_server {
 namespace {
@@ -79,6 +90,11 @@ class LocalParameterClient : public ParameterClient {
                                 absl::GetFlag(FLAGS_realtime_directory)});
     string_flag_values_.insert({"kv-server-local-data-loading-file-format",
                                 absl::GetFlag(FLAGS_data_loading_file_format)});
+    string_flag_values_.insert({"kv-server-local-telemetry-config",
+                                absl::GetFlag(FLAGS_telemetry_config)});
+    string_flag_values_.insert(
+        {"kv-server-local-data-loading-blob-prefix-allowlist",
+         absl::GetFlag(FLAGS_data_loading_prefix_allowlist)});
     // Insert more string flag values here.
 
     int32_t_flag_values_.insert(
@@ -111,13 +127,19 @@ class LocalParameterClient : public ParameterClient {
     int32_t_flag_values_.insert(
         {"kv-server-local-udf-timeout-millis",
          absl::ToInt64Milliseconds(absl::GetFlag(FLAGS_udf_timeout))});
+    int32_t_flag_values_.insert({"kv-server-local-udf-min-log-level",
+                                 absl::GetFlag(FLAGS_udf_min_log_level)});
     // Insert more int32 flag values here.
     bool_flag_values_.insert({"kv-server-local-route-v1-to-v2",
                               absl::GetFlag(FLAGS_route_v1_to_v2)});
+    bool_flag_values_.insert({"kv-server-local-add-missing-keys-v1",
+                              absl::GetFlag(FLAGS_add_missing_keys_v1)});
     bool_flag_values_.insert({"kv-server-local-use-real-coordinators", false});
     bool_flag_values_.insert(
         {"kv-server-local-use-external-metrics-collector-endpoint", false});
     bool_flag_values_.insert({"kv-server-local-use-sharding-key-regex", false});
+    bool_flag_values_.insert({"kv-server-local-enable-otel-logger",
+                              absl::GetFlag(FLAGS_enable_otel_logger)});
     // Insert more bool flag values here.
   }
 

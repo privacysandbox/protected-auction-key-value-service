@@ -19,7 +19,9 @@
 #include <fstream>
 #include <utility>
 
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "absl/log/check.h"
+#include "absl/strings/substitute.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {
@@ -89,8 +91,9 @@ RealtimeMessage RealtimeMessageBatcher::GetMessage(int shard_num) const {
     shard_num_opt = shard_num;
   }
   RealtimeMessage rm{
-      .message = std::string(std::istreambuf_iterator<char>(file_stream),
-                             std::istreambuf_iterator<char>()),
+      .message = absl::Base64Escape(
+          std::string(std::istreambuf_iterator<char>(file_stream),
+                      std::istreambuf_iterator<char>())),
       .shard_num = shard_num_opt,
   };
   return rm;

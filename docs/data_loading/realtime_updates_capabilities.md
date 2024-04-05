@@ -4,9 +4,9 @@
 
 A parameter
 ([AWS](https://github.com/privacysandbox/fledge-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/production/terraform/aws/environments/kv_server.tf#L51),
-[GCP](../docs/GCP_Terraform_vars.md#L96)) sets the size of the thread pool that reads off a queue.
-The bigger that number is, the smaller the batch size can be. It is preferred to use a larger batch
-size where possible.
+[GCP](/docs/GCP_Terraform_vars.md#L96)) sets the size of the thread pool that reads off a queue. The
+bigger that number is, the smaller the batch size can be. It is preferred to use a larger batch size
+where possible.
 
 ### AWS
 
@@ -46,7 +46,7 @@ While similar logic applies, the GCP SDK has superior performance due to
 
 To get to a higher QPS we can have multiple threads reading off a queue. This is a parameter
 ([AWS](https://github.com/privacysandbox/fledge-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/production/terraform/aws/environments/kv_server.tf#L51),
-[GCP](../docs/GCP_Terraform_vars.md#L96)) that our solution exposes. It can be increased to match
+[GCP](/docs/GCP_Terraform_vars.md#L96)) that our solution exposes. It can be increased to match
 specific QPS requirements and underlying hardware - based on the number of cores.
 
 ## Batching
@@ -219,5 +219,6 @@ histogram_quantile(0.5,rate(Latency_bucket{event="ReceivedLowLatencyNotification
 You can query the prometheus the same way it's done for AWS. Note that KV server doesn't expose
 `AwsSqsReceiveMessageLatency`, and `AWS` in the metric name should be substituted with `GCP`.
 
-You can also use the UI [dashboard](../production/terraform/gcp/realtime_pubsub_dashboard.json).
-Make sure to replace PROJECT_ID and ENVIRONMENT with your values.
+You can also use the UI
+[dashboard](/production/terraform/gcp/dashboards/realtime_pubsub_dashboard.json). Make sure to
+replace PROJECT_ID and ENVIRONMENT with your values.

@@ -24,7 +24,6 @@
 #include "components/data_server/request_handler/get_values_v2_handler.h"
 #include "grpcpp/grpcpp.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
@@ -32,10 +31,8 @@ namespace kv_server {
 class KeyValueServiceV2Impl final
     : public v2::KeyValueService::CallbackService {
  public:
-  explicit KeyValueServiceV2Impl(
-      GetValuesV2Handler handler,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
-      : handler_(std::move(handler)), metrics_recorder_(metrics_recorder) {}
+  explicit KeyValueServiceV2Impl(GetValuesV2Handler handler)
+      : handler_(std::move(handler)) {}
 
   grpc::ServerUnaryReactor* GetValuesHttp(
       grpc::CallbackServerContext* context,
@@ -58,7 +55,6 @@ class KeyValueServiceV2Impl final
 
  private:
   const GetValuesV2Handler handler_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

@@ -36,41 +36,50 @@ using testing::_;
 using testing::Return;
 using testing::UnorderedElementsAreArray;
 
-TEST(RunQueryHookTest, SuccessfullyProcessesValue) {
+class RunQueryHookTest : public ::testing::Test {
+ protected:
+  void SetUp() override { InitMetricsContextMap(); }
+};
+
+TEST_F(RunQueryHookTest, SuccessfullyProcessesValue) {
   std::string query = "Q";
   InternalRunQueryResponse run_query_response;
   TextFormat::ParseFromString(R"pb(elements: "a" elements: "b")pb",
                               &run_query_response);
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, RunQuery(query))
+  EXPECT_CALL(*mock_lookup, RunQuery(_, query))
       .WillOnce(Return(run_query_response));
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<> payload{io, {}};
+  ScopeMetricsContext metrics_context;
+  RequestContext request_context(metrics_context);
+  FunctionBindingPayload<RequestContext> payload{io, request_context};
   (*run_query_hook)(payload);
   EXPECT_THAT(io.output_list_of_string().data(),
               UnorderedElementsAreArray({"a", "b"}));
 }
 
-TEST(GetValuesHookTest, RunQueryClientReturnsError) {
+TEST_F(RunQueryHookTest, RunQueryClientReturnsError) {
   std::string query = "Q";
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, RunQuery(query))
+  EXPECT_CALL(*mock_lookup, RunQuery(_, query))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<> payload{io, {}};
+  ScopeMetricsContext metrics_context;
+  RequestContext request_context(metrics_context);
+  FunctionBindingPayload<RequestContext> payload{io, request_context};
   (*run_query_hook)(payload);
   EXPECT_TRUE(io.output_list_of_string().data().empty());
 }
 
-TEST(GetValuesHookTest, InputIsNotString) {
+TEST_F(RunQueryHookTest, InputIsNotString) {
   auto mock_lookup = std::make_unique<MockLookup>();
 
   FunctionBindingIoProto io;
@@ -78,7 +87,9 @@ TEST(GetValuesHookTest, InputIsNotString) {
                               &io);
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<> payload{io, {}};
+  ScopeMetricsContext metrics_context;
+  RequestContext request_context(metrics_context);
+  FunctionBindingPayload<RequestContext> payload{io, request_context};
   (*run_query_hook)(payload);
 
   EXPECT_THAT(

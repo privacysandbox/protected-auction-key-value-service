@@ -51,11 +51,15 @@ class DeltaBasedRealtimeUpdatesPublisher {
   };
   DeltaBasedRealtimeUpdatesPublisher(
       std::unique_ptr<RealtimeMessageBatcher> realtime_message_batcher,
+      std::unique_ptr<ConcurrentPublishingEngine> concurrent_publishing_engine,
       Options options)
       : realtime_message_batcher_(std::move(realtime_message_batcher)),
+        concurrent_publishing_engine_(std::move(concurrent_publishing_engine)),
         options_(std::move(options)),
         data_load_thread_manager_(
-            TheadManager::Create("Realtime sharded publisher thread")) {}
+            ThreadManager::Create("Realtime sharded publisher thread")),
+        rt_publisher_thread_manager_(
+            ThreadManager::Create("Publisher thread")) {}
   ~DeltaBasedRealtimeUpdatesPublisher() = default;
 
   // DeltaBasedRealtimeUpdatesPublisher is neither copyable nor movable.
@@ -75,7 +79,8 @@ class DeltaBasedRealtimeUpdatesPublisher {
 
  private:
   std::unique_ptr<RealtimeMessageBatcher> realtime_message_batcher_;
-  // Checks if there is a new event such as new file or stop event to process
+  std::unique_ptr<ConcurrentPublishingEngine> concurrent_publishing_engine_;
+  // Checks if there is new event such as new file or stop event to process
   bool HasNewEventToProcess() const ABSL_EXCLUSIVE_LOCKS_REQUIRED(mu_);
   absl::Mutex mu_;
   Options options_;
@@ -90,7 +95,8 @@ class DeltaBasedRealtimeUpdatesPublisher {
       BlobStorageClient::DataLocation location);
   std::deque<std::string> unprocessed_basenames_ ABSL_GUARDED_BY(mu_);
   bool stop_ ABSL_GUARDED_BY(mu_) = false;
-  std::unique_ptr<TheadManager> data_load_thread_manager_;
+  std::unique_ptr<ThreadManager> data_load_thread_manager_;
+  std::unique_ptr<ThreadManager> rt_publisher_thread_manager_;
 };
 
 }  // namespace kv_server

@@ -23,6 +23,9 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
@@ -33,11 +36,9 @@
 #include "components/data_server/cache/noop_key_value_cache.h"
 #include "components/tools/benchmarks/benchmark_util.h"
 #include "components/util/platform_initializer.h"
-#include "glog/logging.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/records_utils.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, data_directory, "",
           "Data directory or bucket to store benchmark input data files in.");
@@ -83,8 +84,6 @@ using kv_server::RecordStream;
 using kv_server::Value;
 using kv_server::benchmark::ParseInt64List;
 using kv_server::benchmark::WriteRecords;
-using privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::TelemetryProvider;
 
 constexpr std::string_view kNoOpCacheNameFormat =
     "BM_DataLoading_NoOpCache/tds:%d/conns:%d/buf:%d";
@@ -169,11 +168,7 @@ void RegisterBenchmarks() {
         RegisterBenchmark(absl::StrFormat(kNoOpCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),
                           args);
-        auto noop_metrics_recorder =
-            TelemetryProvider::GetInstance().CreateMetricsRecorder();
-        args.create_cache_fn = [&noop_metrics_recorder]() {
-          return KeyValueCache::Create(*noop_metrics_recorder);
-        };
+        args.create_cache_fn = []() { return KeyValueCache::Create(); };
         RegisterBenchmark(absl::StrFormat(kMutexCacheNameFormat, num_threads,
                                           num_connections, byte_range_mb),
                           args);
@@ -283,7 +278,7 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
 
 // Sample usage:
 //
-// GLOG_logtostderr=1 bazel run \
+// bazel run \
 //  components/tools/benchmarks:data_loading_benchmark \
 //    --//:instance=local --//:platform=local -- \
 //    --benchmark_time_unit=ms \
@@ -295,10 +290,10 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
 //    --record_size=1000 \
 //    --args_client_max_range_mb=8 \
 //    --args_client_max_connections=64 \
-//    --args_reader_worker_threads=16,32,64
+//    --args_reader_worker_threads=16,32,64 --stderrthreshold=0
 int main(int argc, char** argv) {
   ::kv_server::PlatformInitializer platform_initializer;
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   ::benchmark::Initialize(&argc, argv);
   absl::ParseCommandLine(argc, argv);
   if (absl::GetFlag(FLAGS_data_directory).empty()) {

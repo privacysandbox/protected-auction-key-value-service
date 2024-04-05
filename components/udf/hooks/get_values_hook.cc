@@ -21,16 +21,16 @@
 #include <vector>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_join.h"
 #include "components/data_server/cache/cache.h"
 #include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup.pb.h"
-#include "glog/logging.h"
+#include "components/telemetry/server_definition.h"
 #include "google/protobuf/util/json_util.h"
 #include "nlohmann/json.hpp"
 #include "public/udf/binary_get_values.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 namespace {
@@ -38,7 +38,6 @@ namespace {
 using google::protobuf::json::MessageToJsonString;
 using google::scp::roma::FunctionBindingPayload;
 using google::scp::roma::proto::FunctionBindingIoProto;
-using privacy_sandbox::server_common::MetricsRecorder;
 
 constexpr char kOkStatusMessage[] = "ok";
 
@@ -129,7 +128,7 @@ class GetValuesHookImpl : public GetValuesHook {
     }
   }
 
-  void operator()(FunctionBindingPayload<>& payload) {
+  void operator()(FunctionBindingPayload<RequestContext>& payload) {
     VLOG(9) << "Called getValues hook";
     if (lookup_ == nullptr) {
       SetStatus(absl::StatusCode::kInternal,
@@ -154,7 +153,7 @@ class GetValuesHookImpl : public GetValuesHook {
 
     VLOG(9) << "Calling internal lookup client";
     absl::StatusOr<InternalLookupResponse> response_or_status =
-        lookup_->GetKeyValues(keys);
+        lookup_->GetKeyValues(payload.metadata, keys);
     if (!response_or_status.ok()) {
       SetStatus(response_or_status.status().code(),
                 response_or_status.status().message(), payload.io_proto);

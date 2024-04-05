@@ -95,5 +95,41 @@ TEST(SnapshotFilename, ToLogicalShardingConfigFilename) {
             ("LOGICAL_SHARDING_CONFIG_1234512345123451"));
 }
 
+TEST(FileGroupFilename, IsFileGroupFileName) {
+  EXPECT_FALSE(IsFileGroupFileName(""));
+  EXPECT_FALSE(IsFileGroupFileName("DELTA"));
+  EXPECT_FALSE(IsFileGroupFileName("SNAPSHOT"));
+  EXPECT_FALSE(IsFileGroupFileName("DELTA_1234512345123451"));
+  EXPECT_FALSE(IsFileGroupFileName("SNAPSHOT_1234512345123451"));
+  EXPECT_FALSE(IsFileGroupFileName("SNAPSHOT_1234512345123451_00000"));
+  EXPECT_TRUE(IsFileGroupFileName("DELTA_1234512345123451_00000_OF_000100"));
+  EXPECT_TRUE(IsFileGroupFileName("SNAPSHOT_1234512345123451_00000_OF_000100"));
+}
+
+TEST(FileGroupFilename, ToFileGroupFileNameInvalidInputs) {
+  auto filename =
+      ToFileGroupFileName(FileType::DELTA, /*logical_commit_time=*/10,
+                          /*file_index=*/11, /*file_group_size=*/10);
+  EXPECT_FALSE(filename.ok()) << filename.status();
+  EXPECT_THAT(filename.status().code(), absl::StatusCode::kInvalidArgument);
+  filename = ToFileGroupFileName(FileType::FILE_TYPE_UNSPECIFIED,
+                                 /*logical_commit_time=*/10,
+                                 /*file_index=*/1, /*file_group_size=*/10);
+  EXPECT_FALSE(filename.ok()) << filename.status();
+  EXPECT_THAT(filename.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST(FileGroupFilename, ToFileGroupFileNameValidInputs) {
+  auto filename =
+      ToFileGroupFileName(FileType::DELTA, /*logical_commit_time=*/10,
+                          /*file_index=*/1, /*file_group_size=*/10);
+  ASSERT_TRUE(filename.ok()) << filename.status();
+  EXPECT_THAT(*filename, "DELTA_0000000000000010_00001_OF_000010");
+  filename = ToFileGroupFileName(FileType::SNAPSHOT, /*logical_commit_time=*/10,
+                                 /*file_index=*/0, /*file_group_size=*/10);
+  ASSERT_TRUE(filename.ok()) << filename.status();
+  EXPECT_THAT(*filename, "SNAPSHOT_0000000000000010_00000_OF_000010");
+}
+
 }  // namespace
 }  // namespace kv_server

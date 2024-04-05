@@ -20,6 +20,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/log/check.h"
 #include "absl/status/status.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -30,7 +31,6 @@
 #include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/bytes/string_writer.h"
 #include "riegeli/records/record_writer.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {
@@ -268,6 +268,7 @@ class NonSeekingStringBlobStream : public RecordStream {
 };
 
 TEST(ConcurrentStreamRecordReaderTest, FailsToReadNonSeekingStream) {
+  kv_server::InitMetricsContextMap();
   std::string content;
   auto writer = riegeli::RecordWriter(riegeli::StringWriter(&content),
                                       riegeli::RecordWriterBase::Options());

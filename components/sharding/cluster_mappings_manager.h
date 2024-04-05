@@ -68,7 +68,7 @@ class ClusterMappingsManager {
   std::string environment_;
   int32_t num_shards_;
   InstanceClient& instance_client_;
-  std::unique_ptr<TheadManager> thread_manager_;
+  std::unique_ptr<ThreadManager> thread_manager_;
   std::unique_ptr<SleepFor> sleep_for_;
   int32_t update_interval_millis_;
 };

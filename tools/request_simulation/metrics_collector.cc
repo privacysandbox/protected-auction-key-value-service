@@ -16,7 +16,7 @@
 
 #include <utility>
 
-#include "glog/logging.h"
+#include "absl/log/log.h"
 
 ABSL_FLAG(absl::Duration, metrics_report_interval, absl::Minutes(1),
           "The interval for reporting metrics");
@@ -41,7 +41,7 @@ MetricsCollector::MetricsCollector(
       requests_with_error_response_per_interval_(0),
       report_interval_(std::move(absl::GetFlag(FLAGS_metrics_report_interval))),
       report_thread_manager_(
-          TheadManager::Create("Metrics periodic report thread")),
+          ThreadManager::Create("Metrics periodic report thread")),
       metrics_recorder_(metrics_recorder),
       sleep_for_(std::move(sleep_for)) {
   histogram_per_interval_ = grpc_histogram_create(kDefaultHistogramResolution,

@@ -1,5 +1,9 @@
 # GCP Key Value Server Terraform vars documentation
 
+-   **add_missing_keys_v1**
+
+    Add missing keys v1.
+
 -   **backup_poll_frequency_secs**
 
     Backup poll frequency for delta file notifier in seconds.
@@ -32,9 +36,18 @@
 
     Directory to watch for files.
 
+-   **data_loading_blob_prefix_allowlist**
+
+    A comma separated list of prefixes (i.e., directories) where data is loaded from.
+
 -   **data_loading_num_threads**
 
     Number of parallel threads for reading and loading data files.
+
+-   **enable_external_traffic**
+
+    Whether to serve external traffic. If disabled, only internal traffic via service mesh will be
+    served.
 
 -   **environment**
 
@@ -43,7 +56,7 @@
 -   **envoy_port**
 
     External load balancer will send traffic to this port. Envoy will forward traffic to
-    kv_service_port. Must match envoy.yaml.
+    kv_service_port. Must match envoy.yaml. Ignored if `enable_external_traffic` is false.
 
 -   **existing_service_mesh**
 
@@ -102,6 +115,14 @@
 
     Account identity for the primary coordinator.
 
+-   **primary_coordinator_private_key_endpoint**
+
+    Primary coordinator private key endpoint.
+
+-   **primary_coordinator_region**
+
+    Primary coordinator region.
+
 -   **primary_key_service_cloud_function_url**
 
     Primary workload identity pool provider.
@@ -114,6 +135,10 @@
 
     GCP project id.
 
+-   **public_key_endpoint**
+
+    Public key endpoint. Can only be overriden in non-prod mode.
+
 -   **realtime_updater_num_threads**
 
     Amount of realtime updates threads locally.
@@ -122,6 +147,15 @@
 
     Regions to deploy to.
 
+-   **regions_cidr_blocks**
+
+    A set of CIDR ranges for all specified regions. The number of blocks here should correspond to
+    the number of regions.
+
+-   **regions_use_existing_nat**
+
+    Regions that use existing nat. No new nats will be created for regions specified here.
+
 -   **route_v1_to_v2**
 
     Whether to route V1 requests through V2.
@@ -129,6 +163,14 @@
 -   **secondary_coordinator_account_identity**
 
     Account identity for the secondary coordinator.
+
+-   **secondary_coordinator_private_key_endpoint**
+
+    Secondary coordinator private key endpoint.
+
+-   **secondary_coordinator_region**
+
+    Secondary coordinator region.
 
 -   **secondary_key_service_cloud_function_url**
 
@@ -140,23 +182,34 @@
 
 -   **server_dns_zone**
 
-    Dns zone for Kv-serer.
+    Dns zone for Kv-serer. Ignored if `enable_external_traffic` is false.
 
 -   **server_domain_ssl_certificate_id**
 
-    Ssl certificate id of the Kv-server domain.
+    Ssl certificate id of the Kv-server domain. Ignored if `enable_external_traffic` is false.
 
 -   **server_url**
 
-    Kv-serer URL. Example: kv-server-environment.example.com
+    Kv-serer URL. Example: kv-server-environment.example.com. Ignored if `enable_external_traffic`
+    is false.
 
 -   **service_account_email**
 
     Email of the service account that be used by all instances.
 
+-   **service_mesh_address**
+
+    Service mesh address of the KV server.
+
 -   **tee_impersonate_service_accounts**
 
     Tee can impersonate these service accounts. Necessary for coordinators.
+
+-   **telemetry_config**
+
+    Telemetry configuration to control whether metrics are raw or noised. Options are: mode:
+    PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics),
+    mode: OFF(no metrics)
 
 -   **udf_num_workers**
 

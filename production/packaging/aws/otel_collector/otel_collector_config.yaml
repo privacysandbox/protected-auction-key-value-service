@@ -37,14 +37,20 @@ processors:
     send_batch_size: 50
   batch/metrics:
     timeout: 60s
+  batch/logs:
+    timeout: 60s
 
 exporters:
+  awscloudwatchlogs:
+    log_group_name: "kv-server-log-group"
+    log_stream_name: "kv-server-log-stream"
   awsxray:
     index_all_attributes: true
   awsemf:
     namespace: 'KV-Server'
     resource_to_telemetry_conversion:
         enabled: true
+    retain_initial_value_of_delta_metric: true
   prometheusremotewrite:
     endpoint: "https://aps-workspaces.$REGION.amazonaws.com/workspaces/$WORKSPACE_ID/api/v1/remote_write"
     auth:
@@ -65,5 +71,8 @@ service:
       receivers: [otlp]
       processors: [batch/metrics]
       exporters: [prometheusremotewrite]
-
+    logs:
+      receivers: [otlp]
+      processors: [batch/logs]
+      exporters: [awscloudwatchlogs]
   extensions: [health_check,sigv4auth]

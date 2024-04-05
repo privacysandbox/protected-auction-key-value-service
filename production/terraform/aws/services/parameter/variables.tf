@@ -59,6 +59,11 @@ variable "metrics_export_timeout_millis_parameter_value" {
   type        = number
 }
 
+variable "telemetry_config" {
+  description = "Telemetry config for exporting raw or noised metrics"
+  type        = string
+}
+
 variable "realtime_updater_num_threads_parameter_value" {
   description = "Amount of realtime notifier threads."
   type        = number
@@ -91,6 +96,11 @@ variable "udf_num_workers_parameter_value" {
 
 variable "route_v1_requests_to_v2_parameter_value" {
   description = "Whether to route V1 requests through V2."
+  type        = bool
+}
+
+variable "add_missing_keys_v1_parameter_value" {
+  description = "Add missing keys v1."
   type        = bool
 }
 
@@ -137,4 +147,44 @@ variable "sharding_key_regex_parameter_value" {
 variable "udf_timeout_millis_parameter_value" {
   description = "UDF execution timeout in milliseconds."
   type        = number
+}
+
+variable "udf_min_log_level_parameter_value" {
+  description = "Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for min_log_level and above. Default is 0(info)."
+  type        = number
+}
+
+variable "enable_otel_logger_parameter_value" {
+  description = "Whether to enable otel logger."
+  type        = bool
+}
+
+variable "data_loading_blob_prefix_allowlist" {
+  description = "A comma separated list of prefixes (i.e., directories) where data is loaded from."
+  type        = string
+}
+
+variable "primary_coordinator_private_key_endpoint_parameter_value" {
+  description = "Primary coordinator private key endpoint."
+  type        = string
+}
+
+variable "secondary_coordinator_private_key_endpoint_parameter_value" {
+  description = "Secondary coordinator private key endpoint."
+  type        = string
+}
+
+variable "primary_coordinator_region_parameter_value" {
+  description = "Primary coordinator region."
+  type        = string
+}
+
+variable "secondary_coordinator_region_parameter_value" {
+  description = "Secondary coordinator region."
+  type        = string
+}
+
+variable "public_key_endpoint_parameter_value" {
+  description = "Public key endpoint. Can only be overriden in non-prod mode."
+  type        = string
 }

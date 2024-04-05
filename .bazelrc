@@ -19,12 +19,12 @@ test:run_all_tests --test_verbose_timeout_warnings
 build:noexcept --copt=-fno-exceptions
 # Grant exceptions to some dependencies so they can use exceptions
 build:noexcept --per_file_copt=.*boost.*@-fexceptions
-build:noexcept --per_file_copt=.*cc/aws/proxy.*@-fexceptions
-build:noexcept --per_file_copt=.*cc/roma.*@-fexceptions
+build:noexcept --per_file_copt=.*src/aws/proxy.*@-fexceptions
+build:noexcept --per_file_copt=.*src/roma.*@-fexceptions
 build:noexcept --per_file_copt=.*oneTBB.*@-fexceptions
 build:noexcept --per_file_copt=.*com_github_nghttp2_nghttp2.*@-fexceptions
-build:noexcept --per_file_copt=.*cc/core.*@-fexceptions
-build:noexcept --per_file_copt=.*cc/cpio.*@-fexceptions
+build:noexcept --per_file_copt=.*src/core.*@-fexceptions
+build:noexcept --per_file_copt=.*src/cpio.*@-fexceptions
 
 test --test_output=errors
 # Disable ICU linking for googleurl.
@@ -40,9 +40,17 @@ build:clang --host_cxxopt=-std=c++17
 build:clang --client_env=BAZEL_CXXOPTS=-std=c++17
 build:clang --per_file_copt=external/nitrokmscli_.*\.c@-Wno-int-conversion
 
+build:cpp_nowarn --copt=-Werror
+build:cpp_nowarn --per_file_copt=external/.*@-Wno-error
+
+build:clang-tidy --aspects @bazel_clang_tidy//clang_tidy:clang_tidy.bzl%clang_tidy_aspect
+build:clang-tidy --output_groups=report
+build:clang-tidy --@bazel_clang_tidy//:clang_tidy_config=//:clang_tidy_config
+
 # Required to use protos in wasm_cc_binary/inline_wasm_cc_binary
 build:emscripten --per_file_copt=.*zlib.*@-Wno-deprecated-non-prototype
 build:emscripten --per_file_copt=.*utf8_range.*@-Wno-unused-function
+build:emscripten --per_file_copt=.*protobuf.*@-Wno-deprecated-declarations
 
 # Address sanitizer, set action_env to segregate cache entries
 build:asan --action_env=PRIVACY_SANDBOX_SERVERS_ASAN=1
@@ -106,9 +114,14 @@ build:aws_platform --@google_privacysandbox_servers_common//:platform=aws
 build:gcp_platform --//:platform=gcp
 build:gcp_platform --@google_privacysandbox_servers_common//:platform=gcp
 
+# --config prod_mode: builds the service in prod mode
+build:prod_mode --//:mode=prod
+build:prod_mode --@google_privacysandbox_servers_common//:build_flavor=prod
+
+# --config prod_mode: builds the service in prod mode
+build:nonprod_mode --//:mode=nonprod
+build:nonprod_mode --@google_privacysandbox_servers_common//:build_flavor=non_prod
+
 try-import %workspace%/builders/.coverage.bazelrc
 coverage --test_tag_filters=-nocoverage
 coverage --test_size_filters=-enormous
-
-build:non_prod --@google_privacysandbox_servers_common//:build_flavor=non_prod
-build:prod --@google_privacysandbox_servers_common//:build_flavor=prod

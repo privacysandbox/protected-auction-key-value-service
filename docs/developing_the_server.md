@@ -3,7 +3,7 @@
 
 # FLEDGE K/V Server developer guide
 
-## Data Server
+## Develop and run the server for AWS platform in your local machine
 
 The data server provides the read API for the KV service.
 
@@ -11,7 +11,7 @@ The data server provides the read API for the KV service.
 <!-- markdownlint-disable line-length -->
 > Attention: The server can run locally (in or outside of Docker) while specifying `aws` as platform, in which case it will
 > contact AWS based on the local AWS credentials. However, this requires the AWS environment to be
-> set up first following the [AWS deployment guide](/docs/deploying_on_aws.md). You might need to
+> set up first following the [AWS deployment guide](/docs/deployment/deploying_on_aws.md). You might need to
 > set up the following parameters in the AWS System Manager:
 >
 > | Parameter Name                                           | Value                                                             |
@@ -76,7 +76,7 @@ The data server provides the read API for the KV service.
 1.  Run the container. Port 50051 can be used to query the server directly through gRPC.
     --environment must be specified. The server will still read data from S3 and the server uses
     environment to find the S3 bucket. The environment is configured as part of the
-    [AWS deployment process](/docs/deploying_on_aws.md).
+    [AWS deployment process](/docs/deployment/deploying_on_aws.md).
 
     Set region. The region should be where your environment is deployed:
 
@@ -137,12 +137,65 @@ grpc_cli call localhost:50051 kv_server.v1.KeyValueService.GetValues \
 curl http://localhost:51052/v1/getvalues?kv_internal=hi
 ```
 
+## Develop and run the server for GCP platform in your local machine
+
+The server can run locally while specifying `gcp` as platform. However, certain GCP resources (such
+as parameters, GCS data bucket) are still required and please follow
+[GCP deployment guide](/docs/deployment/deploying_on_gcp.md) to set up the GCP environment first.
+
+### Run the server locally inside a docker container
+
+#### Build the image
+
+From the kv-server repo folder, execute the following command
+
+```sh
+builders/tools/bazel-debian run //production/packaging/gcp/data_server:copy_to_dist --config=local_instance --config=gcp_platform
+```
+
+#### Load the image into docker
+
+```sh
+docker load -i dist/server_docker_image.tar
+```
+
+#### Start the server
+
+```sh
+docker run --init -v "$HOME/.config/gcloud/application_default_credentials.json":/root/.config/gcloud/application_default_credentials.json:ro  --network host --add-host=host.docker.internal:host-gateway  --privileged --rm bazel/production/packaging/gcp/data_server:server_docker_image --gcp_project_id=${GCP_PROJECT_ID}  --environment=${GCP_ENVIRONMENT}
+```
+
+where `${GCP_PROJECT_ID}` is your GCP project_id and `${GCP_ENVIRONMENT}` is the environment name
+for your GCP resources.
+
+### Interact with the server
+
+-   If the parameter `enable_external_traffic` (Terraform variable) is set to true, we can query the
+    server via the envoy port:
+
+```sh
+./grpcurl -insecure  -d '{"kv_internal":"hi"}'  localhost:51052 kv_server.v1.KeyValueService.GetValues
+```
+
+-   Alternatively, if `enable_external_traffic` is false, we can directly query the server port:
+
+```sh
+./grpcurl -plaintext  -d '{"kv_internal":"hi"}'  localhost:50051 kv_server.v1.KeyValueService.GetValues
+```
+
+Note that you may need to set the path to your `grpcurl` tool, or install `grpcurl` if you haven't
+done so already
+
+```sh
+curl -L https://github.com/fullstorydev/grpcurl/releases/download/v1.8.1/grpcurl_1.8.1_linux_x86_64.tar.gz | tar -xz
+```
+
 ## Develop and run the server inside AWS enclave
 
 The KV service instance should be set up by following the deployment guide
-([AWS](/docs/deploying_on_aws.md)). For faster iteration, enclave image of the server is also
-produced under `dist/`. Once the system has been started, iterating on changes to the server itself
-only requires restarting the enclave image:
+([AWS](/docs/deployment/deploying_on_aws.md)). For faster iteration, enclave image of the server is
+also produced under `dist/`. Once the system has been started, iterating on changes to the server
+itself only requires restarting the enclave image:
 
 1. Copy the new enclave EIF to an AWS EC2 instance that supports nitro enclave. Note: The system has
    a SSH instance that a developer can access. From there the user can access actual server EC2

@@ -23,223 +23,509 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
 {
     "widgets": [
         {
-            "height": 9,
-            "width": 9,
-            "y": 0,
-            "x": 9,
-            "type": "metric",
-            "properties": {
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "us-east-1",
-                "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} CacheKey', 'Average', 300)", "id": "e1", "period": 300, "label": "$${PROP('Dim.event')} $${PROP('Dim.service.instance.id')}" } ]
-                ],
-                "title": "Cache hits",
-                "period": 300,
-                "yAxis": {
-                    "left": {
-                        "showUnits": false,
-                        "min": 0
-                    }
-                }
-            }
-        },
-        {
-            "height": 9,
-            "width": 9,
+            "height": 10,
+            "width": 12,
             "y": 0,
             "x": 0,
             "type": "metric",
             "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.count\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
                 "view": "timeSeries",
                 "stacked": false,
-                "region": "us-east-1",
-                "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,status,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} GetValuesSuccess', 'Average', 300)", "id": "e1", "period": 300, "label": "$${PROP('Dim.service.instance.id')}" } ]
-                ],
-                "title": "GetValuesSuccess",
-                "period": 300,
-                "yAxis": {
-                    "left": {
-                        "showUnits": false,
-                        "min": 0
-                    }
-                }
-            }
-        },
-        {
-            "height": 9,
-            "width": 9,
-            "y": 9,
-            "x": 0,
-            "type": "metric",
-            "properties": {
-                "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} GetValuesV1Latency', 'Average', 1)", "id": "e1", "label": "$${PROP('Dim.service.instance.id')}" } ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "us-east-1",
-                "stat": "Average",
-                "period": 300,
-                "title": "GetValuesV1Latency (nanoseconds)",
-                "yAxis": {
-                    "left": {
-                        "label": "",
-                        "showUnits": false,
-                        "min": 0
-                    }
-                }
-            }
-        },
-        {
-            "type": "metric",
-            "x": 9,
-            "y": 9,
-            "width": 9,
-            "height": 9,
-            "properties": {
-                "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} ConcurrentStreamRecordReader', 'Average', 300)", "id": "e1", "period": 300 } ],
-                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} AwsSqsReceiveMessageLatency', 'Average', 300)", "id": "e2", "period": 300 } ],
-                    [ { "expression": "SEARCH('{KV-Server,OTelLib,deployment.environment,event,host.arch,service.instance.id,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} SeekingInputStreambuf', 'Average', 300)", "id": "e3", "period": 300 } ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "us-east-1",
-                "stat": "Average",
-                "period": 300,
-                "title": "Read latency",
-                "yAxis": {
-                    "left": {
-                        "showUnits": false,
-                        "min": 0
-                    }
-                }
-            }
-        },
-        {
-            "type": "metric",
-            "x": 0,
-            "y": 18,
-            "width": 9,
-            "height": 9,
-            "properties": {
-                "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total cores', 'Average', 60)", "id": "e1", "period": 60 } ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "us-east-1",
-                "stat": "Average",
-                "period": 60,
-                "title": "system.cpu.total_cores[MEAN]",
-                "yAxis": {
-                    "left": {
-                        "showUnits": false,
-                        "min": 0
-                    }
-                }
-            }
-        },
-        {
-            "type": "metric",
-            "x": 9,
-            "y": 18,
-            "width": 9,
-            "height": 9,
-            "properties": {
-                "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} main process utilization', 'Average', 60)", "id": "e1", "period": 60 } ],
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total utilization', 'Average', 60)", "id": "e2", "period": 60 } ],
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} total load', 'Average', 60)", "id": "e3", "period": 60 } ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "us-east-1",
-                "stat": "Average",
-                "period": 60,
-                "title": "system.cpu.percent[MEAN]",
-                "yAxis": {
-                    "left": {
-                        "showUnits": false,
-                        "min": 0
-                    }
-                }
-            }
-        },
-        {
-            "type": "metric",
-            "x": 0,
-            "y": 27,
-            "width": 9,
-            "height": 9,
-            "properties": {
-                "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} system.memory.usage main process', 'Average', 60)", "id": "e1", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "us-east-1",
-                "stat": "Average",
-                "period": 60,
-                "title": "system.memory.usage_kb for main process[MEAN]",
-                "yAxis": {
-                    "left": {
-                        "showUnits": false,
-                        "min": 0
-                    }
-                }
-            }
-        },
-        {
-            "type": "metric",
-            "x": 9,
-            "y": 27,
-            "width": 9,
-            "height": 9,
-            "properties": {
-                "metrics": [
-                    [ { "expression": "SEARCH('{KV-Server,Noise,deployment.environment,host.arch,label,service.instance.id,service.name,service.version,shard_number,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version} ${var.environment} system.memory.usage MemAvailable', 'Average', 60)", "id": "e1", "period": 60, "label": "$${PROP('Dim.service.instance.id')}" } ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "us-east-1",
-                "stat": "Average",
-                "period": 60,
-                "title": "system.memory.usage_kb for MemAvailable[MEAN]",
-                "yAxis": {
-                    "left": {
-                        "showUnits": false,
-                        "min": 0
-                    }
-                }
-            }
-        },
-        {
-            "type": "metric",
-            "x": 0,
-            "y": 36,
-            "width": 9,
-            "height": 9,
-            "properties": {
-                "metrics": [
-                     [ { "expression": "SELECT COUNT(ChangeNotifierErrors) FROM SCHEMA(\"KV-Server\", Noise,\"deployment.environment\",error_code,\"host.arch\",\"service.instance.id\",\"service.name\",\"service.version\",shard_number,\"telemetry.sdk.language\",\"telemetry.sdk.name\",\"telemetry.sdk.version\") WHERE \"deployment.environment\" = '${var.environment}' GROUP BY error_code, \"service.instance.id\"", "label": "error rate", "id": "m1", "stat": "Average", "visible": false } ],
-                     [ { "expression": "DIFF(m1)", "label": "error count", "id": "e1" } ]
-                ],
-                "view": "timeSeries",
-                "stacked": false,
-                "region": "us-east-1",
-                "title": "Change notifier error count",
-                "period": 60,
-                "stat": "Average",
                 "yAxis": {
                     "left": {
                         "min": 0,
                         "showUnits": false
                     }
-                }
+                },
+                "title": "request.count [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 0,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"SecureLookupRequestCount\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Secure lookup request count [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 10,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.failed_count_by_status\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.error_code')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "request.failed_count_by_status [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 10,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.duration_ms\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "request.duration_ms [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 20,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.size_bytes\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "request.size_bytes [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 20,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"response.size_bytes\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "response.size_bytes [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 30,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"KVUdfRequestError\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.error_code')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Request Errors [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 30,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"InternalLookupRequestError\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.error_code')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Internal Request Errors [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 40,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"KVServerError\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.error_code')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Server Non-request Errors [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 40,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"ShardedLookupGetKeyValuesLatencyInMicros\" OR \"ShardedLookupGetKeyValueSetLatencyInMicros\" OR \"ShardedLookupRunQueryLatencyInMicros\") Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Sharded Lookup Latency Microseconds [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 50,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"ShardedLookupKeyCountByShard\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.key_shard_num')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Sharded Lookup Key Count By Shard [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 50,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"InternalGetKeyValuesLatencyInMicros\" OR \"InternalGetKeyValueSetLatencyInMicros\" OR \"InternalRunQueryLatencyInMicros\") Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Internal Lookup Latency Microseconds [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 60,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"GetValuePairsLatencyInMicros\" OR \"GetKeyValueSetLatencyInMicros\") Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Cache Query Latency Microseconds [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 60,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"CacheAccessEventCount\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.cache_access')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Cache Access Event Count [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 70,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} status Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.status')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Server Retryable Operation Status Count [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 70,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} data_source data_source=(NOT \"realtime\") Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.data_source')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "File Update Stats [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 80,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"ConcurrentStreamRecordReaderReadShardRecordsLatency\" OR \"ConcurrentStreamRecordReaderReadStreamRecordsLatency\" OR \"ConcurrentStreamRecordReaderReadByteRangeLatency\")  Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Data Reader Latency Microseconds[MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 80,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"UpdateKeyValueLatency\" OR \"UpdateKeyValueSetLatency\" OR \"DeleteKeyLatency\" OR \"DeleteValuesInSetLatency\" OR \"RemoveDeletedKeyLatency\") Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Cache Update Latency Microseconds[MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 90,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} data_source data_source=\"realtime\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Realtime Update Stats [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 90,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"ReceivedLowLatencyNotifications\"  Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "region": "${var.region}",
+                "view": "timeSeries",
+                "stacked": false,
+                "yAxis": {
+                    "left": {
+                        "min": 0,
+                        "showUnits": false
+                    }
+                },
+                "title": "Realtime Message Processing Latency Microseconds[MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 100,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=\"${var.environment}\" Noise=(\"Raw\" OR \"Noised\") MetricName=\"system.cpu.percent\" label=(\"total utilization\" OR \"main process utilization\" OR \"total load\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.label')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${var.region}",
+                "yAxis": {
+                    "left": {
+                        "showUnits": false,
+                        "min": 0
+                    }
+                },
+                 "title": "system.cpu.percent [MEAN]"
+            }
+        },
+        {
+            "height": 10,
+            "width": 12,
+            "y": 100,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                     [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=\"${var.environment}\" Noise=(\"Raw\" OR \"Noised\") MetricName=\"system.memory.usage_kb\" label=(\"MemTotal:\" OR \"main process\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.label')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${var.region}",
+                "yAxis": {
+                    "left": {
+                        "showUnits": false,
+                        "min": 0
+                    }
+                },
+                "title": "system.memory.usage_kb [MEAN]"
+            }
+        },
+        {
+           "height": 10,
+            "width": 12,
+            "y": 110,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=\"${var.environment}\" Noise=(\"Raw\" OR \"Noised\") MetricName=\"system.cpu.percent\" label=\"total cpu cores\"', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.label')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${var.region}",
+                "yAxis": {
+                    "left": {
+                        "showUnits": false,
+                        "min": 0
+                    }
+                },
+                "title": "system.cpu.total_cores [MEAN]"
             }
         }
     ]

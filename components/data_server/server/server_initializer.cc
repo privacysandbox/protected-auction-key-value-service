@@ -18,13 +18,12 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "components/internal_server/constants.h"
 #include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup_server_impl.h"
-#include "components/internal_server/remote_lookup_client.h"
 #include "components/internal_server/sharded_lookup.h"
-#include "glog/logging.h"
-#include "src/cpp/encryption/key_fetcher/src/key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/key_fetcher_manager.h"
 
 namespace kv_server {
 namespace {
@@ -45,9 +44,7 @@ absl::Status InitializeUdfHooksInternal(
 
 class NonshardedServerInitializer : public ServerInitializer {
  public:
-  explicit NonshardedServerInitializer(MetricsRecorder& metrics_recorder,
-                                       Cache& cache)
-      : metrics_recorder_(metrics_recorder), cache_(cache) {}
+  explicit NonshardedServerInitializer(Cache& cache) : cache_(cache) {}
 
   RemoteLookup CreateAndStartRemoteLookupServer() override {
     RemoteLookup remote_lookup;
@@ -59,9 +56,8 @@ class NonshardedServerInitializer : public ServerInitializer {
       GetValuesHook& binary_get_values_hook,
       RunQueryHook& run_query_hook) override {
     ShardManagerState shard_manager_state;
-    auto lookup_supplier = [&cache = cache_,
-                            &metrics_recorder = metrics_recorder_]() {
-      return CreateLocalLookup(cache, metrics_recorder);
+    auto lookup_supplier = [&cache = cache_]() {
+      return CreateLocalLookup(cache);
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
@@ -70,20 +66,17 @@ class NonshardedServerInitializer : public ServerInitializer {
   }
 
  private:
-  MetricsRecorder& metrics_recorder_;
   Cache& cache_;
 };
 
 class ShardedServerInitializer : public ServerInitializer {
  public:
   explicit ShardedServerInitializer(
-      MetricsRecorder& metrics_recorder,
       KeyFetcherManagerInterface& key_fetcher_manager, Lookup& local_lookup,
       std::string environment, int32_t num_shards, int32_t current_shard_num,
       InstanceClient& instance_client, ParameterFetcher& parameter_fetcher,
       KeySharder key_sharder)
-      : metrics_recorder_(metrics_recorder),
-        key_fetcher_manager_(key_fetcher_manager),
+      : key_fetcher_manager_(key_fetcher_manager),
         local_lookup_(local_lookup),
         environment_(environment),
         num_shards_(num_shards),
@@ -95,7 +88,7 @@ class ShardedServerInitializer : public ServerInitializer {
   RemoteLookup CreateAndStartRemoteLookupServer() override {
     RemoteLookup remote_lookup;
     remote_lookup.remote_lookup_service = std::make_unique<LookupServiceImpl>(
-        local_lookup_, key_fetcher_manager_, metrics_recorder_);
+        local_lookup_, key_fetcher_manager_);
     grpc::ServerBuilder remote_lookup_server_builder;
     auto remoteLookupServerAddress =
         absl::StrCat(kLocalIp, ":", kRemoteLookupServerPort);
@@ -122,10 +115,9 @@ class ShardedServerInitializer : public ServerInitializer {
                             num_shards = num_shards_,
                             current_shard_num = current_shard_num_,
                             &shard_manager = *maybe_shard_state->shard_manager,
-                            &metrics_recorder = metrics_recorder_,
                             &key_sharder = key_sharder_]() {
       return CreateShardedLookup(local_lookup, num_shards, current_shard_num,
-                                 shard_manager, metrics_recorder, key_sharder);
+                                 shard_manager, key_sharder);
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
@@ -143,8 +135,8 @@ class ShardedServerInitializer : public ServerInitializer {
     shard_manager_state.shard_manager = TraceRetryUntilOk(
         [&cluster_mappings_manager =
              *shard_manager_state.cluster_mappings_manager,
-         &num_shards = num_shards_, &key_fetcher_manager = key_fetcher_manager_,
-         &metrics_recorder = metrics_recorder_] {
+         &num_shards = num_shards_,
+         &key_fetcher_manager = key_fetcher_manager_] {
           // It might be that the cluster mappings that are passed don't pass
           // validation. E.g. a particular cluster might not have any
           // replicas
@@ -153,7 +145,7 @@ class ShardedServerInitializer : public ServerInitializer {
           // at that point in time might have new replicas spun up.
           return ShardManager::Create(
               num_shards, key_fetcher_manager,
-              cluster_mappings_manager.GetClusterMappings(), metrics_recorder);
+              cluster_mappings_manager.GetClusterMappings());
         },
         "GetShardManager", LogStatusSafeMetricsFn<kGetShardManagerStatus>());
     auto start_status = shard_manager_state.cluster_mappings_manager->Start(
@@ -163,8 +155,6 @@ class ShardedServerInitializer : public ServerInitializer {
     }
     return std::move(shard_manager_state);
   }
-
-  MetricsRecorder& metrics_recorder_;
   KeyFetcherManagerInterface& key_fetcher_manager_;
   Lookup& local_lookup_;
   std::string environment_;
@@ -178,20 +168,18 @@ class ShardedServerInitializer : public ServerInitializer {
 }  // namespace
 
 std::unique_ptr<ServerInitializer> GetServerInitializer(
-    int64_t num_shards, MetricsRecorder& metrics_recorder,
-    KeyFetcherManagerInterface& key_fetcher_manager, Lookup& local_lookup,
-    std::string environment, int32_t current_shard_num,
+    int64_t num_shards, KeyFetcherManagerInterface& key_fetcher_manager,
+    Lookup& local_lookup, std::string environment, int32_t current_shard_num,
     InstanceClient& instance_client, Cache& cache,
     ParameterFetcher& parameter_fetcher, KeySharder key_sharder) {
   CHECK_GT(num_shards, 0) << "num_shards must be greater than 0";
   if (num_shards == 1) {
-    return std::make_unique<NonshardedServerInitializer>(metrics_recorder,
-                                                         cache);
+    return std::make_unique<NonshardedServerInitializer>(cache);
   }
 
   return std::make_unique<ShardedServerInitializer>(
-      metrics_recorder, key_fetcher_manager, local_lookup, environment,
-      num_shards, current_shard_num, instance_client, parameter_fetcher,
+      key_fetcher_manager, local_lookup, environment, num_shards,
+      current_shard_num, instance_client, parameter_fetcher,
       std::move(key_sharder));
 }
 }  // namespace kv_server

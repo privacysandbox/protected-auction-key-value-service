@@ -14,11 +14,11 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/data/common/change_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {

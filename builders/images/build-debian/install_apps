@@ -44,8 +44,8 @@ function apt_update() {
 }
 
 function install_python() {
-  DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y --no-install-recommends \
-    python3.9-venv="3.9.*"
+  apt-get --quiet install -y --no-install-recommends \
+    python3.9-venv="3.9.*" python3.9-dev
   mkdir -p /opt/bin
   update-alternatives \
     --force \
@@ -63,19 +63,21 @@ function install_python() {
 }
 
 function install_misc() {
-  DEBIAN_FRONTEND=noninteractive apt-get --quiet install -y --no-install-recommends \
+  apt-get --quiet install -y --no-install-recommends \
     apt-transport-https="2.0.*" \
     bsdmainutils \
     ca-certificates \
     chrpath="0.16-*" \
     libcurl4="7.68.*" \
     curl="7.68.*" \
-    file="1:5*" \
+    file="1:5.*" \
     gettext="0.19.*" \
     git="1:2.25.*" \
     gnupg="2.2.*" \
+    google-perftools="2.*" \
     locales="2.31-*" \
     lsb-release="11.1.*" \
+    openssh-client="1:8.2*" \
     patch="2.7.*" \
     rename="1.10-*" \
     software-properties-common="0.99.*" \
@@ -121,11 +123,19 @@ function install_docker() {
   apt-get --quiet install -y --no-install-recommends docker-ce docker-ce-cli containerd.io
 }
 
-function clean_debian() {
+function install_clang_tidy() {
+  apt-get --quiet install -y clang-tidy
+  printf "clang-tidy version: %s\n" "$(clang-tidy --version)"
+  printf "clang-tidy config: %s\n" "$(clang-tidy -dump-config)"
+}
+
+function cleanup() {
   apt-get --quiet autoremove -y
   apt-get autoclean
   apt-get clean
   rm -rf /var/lib/apt/lists
+  cd /
+  go clean -cache -modcache
 }
 
 if [[ ${VERBOSE} -eq 1 ]]; then
@@ -133,10 +143,13 @@ if [[ ${VERBOSE} -eq 1 ]]; then
   env
 fi
 
+declare -x -r DEBIAN_FRONTEND=noninteractive
+
 apt_update
 install_misc
 install_clang
+install_clang_tidy
 install_golang "${BUILD_ARCH}"
 install_docker "${BUILD_ARCH}"
 install_python # should run after other install_*
-clean_debian
+cleanup

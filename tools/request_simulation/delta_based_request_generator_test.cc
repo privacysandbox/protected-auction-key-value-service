@@ -26,7 +26,7 @@
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
 #include "public/test_util/mocks.h"
-#include "src/cpp/telemetry/mocks.h"
+#include "src/telemetry/mocks.h"
 #include "tools/request_simulation/request_generation_util.h"
 
 using kv_server::BlobStorageChangeNotifier;
@@ -58,8 +58,10 @@ using testing::_;
 using testing::AllOf;
 using testing::ByMove;
 using testing::Field;
+using testing::Pair;
 using testing::Return;
 using testing::ReturnRef;
+using testing::UnorderedElementsAre;
 
 namespace {
 
@@ -103,10 +105,11 @@ TEST_F(GenerateRequestsFromDeltaFilesTest, LoadingDataFromDeltaFiles) {
   DeltaBasedRequestGenerator request_generator(
       std::move(options_), std::move(GetRequestGenFn()), metrics_recorder_);
   const std::string last_basename = "";
-  EXPECT_CALL(notifier_, Start(_, GetTestLocation(), last_basename, _))
-      .WillOnce([](BlobStorageChangeNotifier& change_notifier,
-                   BlobStorageClient::DataLocation location,
-                   std::string start_after,
+  EXPECT_CALL(notifier_,
+              Start(_, GetTestLocation(),
+                    UnorderedElementsAre(Pair("", last_basename)), _))
+      .WillOnce([](BlobStorageChangeNotifier&, BlobStorageClient::DataLocation,
+                   absl::flat_hash_map<std::string, std::string>,
                    std::function<void(const std::string& key)> callback) {
         callback(ToDeltaFileName(1).value());
         LOG(INFO) << "Notified 1 file";

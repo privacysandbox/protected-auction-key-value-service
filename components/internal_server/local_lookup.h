@@ -21,13 +21,10 @@
 
 #include "components/data_server/cache/cache.h"
 #include "components/internal_server/lookup.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
-std::unique_ptr<Lookup> CreateLocalLookup(
-    const Cache& cache,
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
+std::unique_ptr<Lookup> CreateLocalLookup(const Cache& cache);
 
 }  // namespace kv_server
 

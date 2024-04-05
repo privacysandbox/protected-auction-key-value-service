@@ -56,11 +56,92 @@ inline constexpr absl::string_view kRealtimeSleepFailure =
 inline constexpr absl::string_view kRealtimeDecodeMessageFailure =
     "RealtimeDecodeMessageFailure";
 
-// TODO(b/304311724): Revisit the error codes and provide utililities to make
-//  it easier to log error metrics
+// Failure in decrypting request in the internal secure lookup
+inline constexpr absl::string_view kRequestDecryptionFailure =
+    "RequestDecryptionFailure";
+// Error in unpadding request in the internal secure lookup
+inline constexpr absl::string_view kRequestUnpaddingError =
+    "RequestUnpaddingError";
+// Failure in encrypting response in internal secure lookup
+inline constexpr absl::string_view kResponseEncryptionFailure =
+    "ResponseEncryptionFailure";
+// Internal run query request failure
+inline constexpr std::string_view kInternalRunQueryRequestFailure =
+    "InternalRunQueryRequestFailure";
+// Failure in executing run query in local lookup
+inline constexpr std::string_view kLocalRunQueryFailure =
+    "LocalRunQueryFailure";
+// Missing keyset in the run query in local lookup
+inline constexpr std::string_view kLocalRunQueryMissingKeySet =
+    "LocalRunQueryMissingKeySet";
+// Query parsing failure in the run query in local lookup
+inline constexpr std::string_view kLocalRunQueryParsingFailure =
+    "LocalRunQueryParsingFailure";
+
+// Lookup client missing in the sharded lookup
+inline constexpr std::string_view kLookupClientMissing = "LookupClientMissing";
+// Failure in creating lookup futures
+inline constexpr std::string_view kLookupFuturesCreationFailure =
+    "LookupFuturesCreationFailure";
+inline constexpr std::string_view kRemoteRequestEncryptionFailure =
+    "RemoteRequestEncryptionFailure";
+inline constexpr std::string_view kRemoteResponseDecryptionFailure =
+    "RemoteResponseDecryptionFailure";
+inline constexpr std::string_view kRemoteSecureLookupFailure =
+    "RemoteSecureLookupFailure";
+// Sharded GetKeyValues request failure
+inline constexpr std::string_view kShardedKeyValueRequestFailure =
+    "ShardedKeyValueRequestFailure";
+// Sharded GetKeyValueSet request failure
+inline constexpr std::string_view kShardedKeyValueSetRequestFailure =
+    "ShardedKeyValueSetRequestFailure";
+// Key collisions in collecting results from sharded GetKeyValueSet requests
+inline constexpr std::string_view kShardedKeyCollisionOnKeySetCollection =
+    "ShardedKeyCollisionOnKeySetCollection";
+// Empty query encountered in the sharded lookup
+inline constexpr std::string_view kShardedRunQueryEmptyQuery =
+    "ShardedRunQueryEmptyQuery";
+// Failure in running query in sharded lookup
+inline constexpr std::string_view kShardedRunQueryFailure =
+    "ShardedRunQueryFailure";
+// Key set not found error in the GetValueKeySet in sharded lookup
+inline constexpr std::string_view kShardedGetKeyValueSetKeySetNotFound =
+    "ShardedGetKeyValueSetKeySetNotFound";
+// Key set retrieval failure in the GetValueKeySet in sharded lookup
+inline constexpr std::string_view kShardedGetKeyValueSetKeySetRetrievalFailure =
+    "ShardedGetKeyValueSetKeySetRetrievalFailure";
+// Failure in key set retrieval in the run query in sharded lookup
+inline constexpr std::string_view kShardedRunQueryKeySetRetrievalFailure =
+    "ShardedRunQueryKeySetRetrievalFailure";
+// Missing keyset in the run query in sharded lookup
+inline constexpr std::string_view kShardedRunQueryMissingKeySet =
+    "ShardedRunQueryMissingKeySet";
+// Query parsing failure in the run query in sharded lookup
+inline constexpr std::string_view kShardedRunQueryParsingFailure =
+    "ShardedRunQueryParsingFailure";
 
 // Strings must be sorted, this is required by the API of partitioned metrics
-inline constexpr absl::string_view kChangeNotifierErrorCode[] = {
+inline constexpr absl::string_view kKVUdfRequestErrorCode[] = {
+    kLookupClientMissing,
+    kLookupFuturesCreationFailure,
+    kRemoteRequestEncryptionFailure,
+    kRemoteResponseDecryptionFailure,
+    kRemoteSecureLookupFailure,
+    kShardedGetKeyValueSetKeySetNotFound,
+    kShardedGetKeyValueSetKeySetRetrievalFailure,
+    kShardedKeyCollisionOnKeySetCollection,
+    kShardedKeyValueRequestFailure,
+    kShardedKeyValueSetRequestFailure,
+    kShardedRunQueryEmptyQuery,
+    kShardedRunQueryFailure,
+    kShardedRunQueryKeySetRetrievalFailure,
+    kShardedRunQueryMissingKeySet,
+    kShardedRunQueryParsingFailure,
+};
+
+// Non request related server error
+// Strings must be sorted, this is required by the API of partitioned metrics
+inline constexpr std::string_view kKVServerErrorCode[] = {
     kAwsChangeNotifierMessagesDataLoss,
     kAwsChangeNotifierMessagesDeletionFailure,
     kAwsChangeNotifierMessagesReceivingFailure,
@@ -68,14 +149,18 @@ inline constexpr absl::string_view kChangeNotifierErrorCode[] = {
     kAwsChangeNotifierTagFailure,
     kAwsJsonParseError,
     kDeltaFileRecordChangeNotifierParsingFailure,
-};
-
-// Strings must be sorted, this is required by the API of partitioned metrics
-inline constexpr absl::string_view kRealtimeErrorCode[] = {
     kRealtimeDecodeMessageFailure,
     kRealtimeGetNotificationsFailure,
     kRealtimeMessageApplicationFailure,
     kRealtimeSleepFailure,
+};
+
+// Strings must be sorted, this is required by the API of partitioned metrics
+inline constexpr absl::string_view kInternalLookupRequestErrorCode[] = {
+    kInternalRunQueryRequestFailure, kLocalRunQueryFailure,
+    kLocalRunQueryMissingKeySet,     kLocalRunQueryParsingFailure,
+    kRequestDecryptionFailure,       kRequestUnpaddingError,
+    kResponseEncryptionFailure,
 };
 
 }  // namespace kv_server

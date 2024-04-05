@@ -25,12 +25,12 @@ cc_library(
     hdrs = ["seeking_input_streambuf.h"],
     deps = [
         "//components/telemetry:server_definition",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
     ],
 )
 
@@ -43,8 +43,31 @@ cc_test(
         ":seeking_input_streambuf",
         "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
+    ],
+)
+
+cc_library(
+    name = "blob_prefix_allowlist",
+    srcs = ["blob_prefix_allowlist.cc"],
+    hdrs = ["blob_prefix_allowlist.h"],
+    deps = [
+        "//public/data_loading:filename_utils",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
+    ],
+)
+
+cc_test(
+    name = "blob_prefix_allowlist_test",
+    size = "small",
+    srcs = ["blob_prefix_allowlist_test.cc"],
+    deps = [
+        ":blob_prefix_allowlist",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -72,8 +95,9 @@ cc_library(
         ],
         "//conditions:default": [],
     }) + [
+        ":blob_prefix_allowlist",
         ":seeking_input_streambuf",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -109,7 +133,6 @@ cc_test(
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/flags:flag",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -160,10 +183,9 @@ cc_test(
         ],
     }) + [
         ":blob_storage_change_notifier",
-        "@com_github_google_glog//:glog",
         "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/log",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -176,6 +198,7 @@ cc_library(
         "delta_file_notifier.h",
     ],
     deps = [
+        ":blob_prefix_allowlist",
         ":blob_storage_change_notifier",
         ":blob_storage_client",
         "//components/data/common:thread_manager",
@@ -183,13 +206,14 @@ cc_library(
         "//components/util:sleepfor",
         "//public:constants",
         "//public/data_loading:filename_utils",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
-        "@google_privacysandbox_servers_common//src/cpp/util:duration",
+        "@google_privacysandbox_servers_common//src/util:duration",
     ],
 )
 

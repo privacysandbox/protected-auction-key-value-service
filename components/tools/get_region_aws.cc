@@ -20,6 +20,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
@@ -30,7 +31,6 @@
 #include "aws/core/internal/AWSHttpResourceClient.h"
 #include "aws/core/utils/Outcome.h"
 #include "components/errors/error_util_aws.h"
-#include "glog/logging.h"
 
 ABSL_FLAG(std::string, output_file, "", "output_file");
 

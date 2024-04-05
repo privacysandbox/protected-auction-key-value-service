@@ -14,15 +14,15 @@
 
 #include <mutex>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/strings/escaping.h"
 #include "components/data/common/msg_svc.h"
 #include "components/data/common/thread_manager.h"
 #include "components/data/realtime/realtime_notifier.h"
-#include "glog/logging.h"
 #include "google/cloud/pubsub/message.h"
 #include "google/cloud/pubsub/subscriber.h"
-#include "src/cpp/telemetry/telemetry.h"
+#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 namespace {
@@ -37,7 +37,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
  public:
   explicit RealtimeNotifierGcp(std::unique_ptr<Subscriber> gcp_subscriber,
                                std::unique_ptr<SleepFor> sleep_for)
-      : thread_manager_(TheadManager::Create("Realtime notifier")),
+      : thread_manager_(ThreadManager::Create("Realtime notifier")),
         sleep_for_(std::move(sleep_for)),
         gcp_subscriber_(std::move(gcp_subscriber)) {}
 
@@ -113,24 +113,14 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
     auto start = absl::Now();
     std::string string_decoded;
     if (!absl::Base64Unescape(m.data(), &string_decoded)) {
-      LogIfError(
-          KVServerContextMap()->SafeMetric().LogUpDownCounter<kRealtimeErrors>(
-              {{std::string(kRealtimeDecodeMessageFailure), 1}}));
+      LogServerErrorMetric(kRealtimeDecodeMessageFailure);
       LOG(ERROR) << "The body of the message is not a base64 encoded string.";
       std::move(h).ack();
       return;
     }
-    auto count = callback(string_decoded);
-    if (count.ok()) {
-      LogIfError(KVServerContextMap()
-                     ->SafeMetric()
-                     .LogUpDownCounter<kRealtimeTotalRowsUpdated>(
-                         static_cast<double>(count->total_updated_records +
-                                             count->total_deleted_records)));
-    } else {
-      LogIfError(
-          KVServerContextMap()->SafeMetric().LogUpDownCounter<kRealtimeErrors>(
-              {{std::string(kRealtimeMessageApplicationFailure), 1}}));
+    if (auto count = callback(string_decoded); !count.ok()) {
+      LOG(ERROR) << "Data loading callback failed: " << count.status();
+      LogServerErrorMetric(kRealtimeMessageApplicationFailure);
     }
     RecordGcpSuppliedE2ELatency(m);
     RecordProducerSuppliedE2ELatency(m);
@@ -156,7 +146,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
     LOG(INFO) << "Realtime updater stopped watching.";
   }
 
-  std::unique_ptr<TheadManager> thread_manager_;
+  std::unique_ptr<ThreadManager> thread_manager_;
   mutable absl::Mutex mutex_;
   future<cloud::Status> session_ ABSL_GUARDED_BY(mutex_);
   std::unique_ptr<SleepFor> sleep_for_;

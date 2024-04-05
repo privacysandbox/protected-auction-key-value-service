@@ -27,7 +27,6 @@
 #include "absl/strings/str_format.h"
 #include "components/telemetry/server_definition.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 namespace {

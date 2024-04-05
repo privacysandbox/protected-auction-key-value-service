@@ -5,13 +5,13 @@
 
 This article is for adtech engineers who want to test the Key/Value server locally. Deploying
 production servers in this way is not recommended, please see the
-[AWS deployment guide](deploying_on_aws.md) instead.
+[AWS deployment guide](deploying_on_aws.md) or [GCP deployment guide](deploying_on_gcp.md) instead.
 
 To learn more about FLEDGE and the Key/Value server, take a look at the following documents:
 
 -   [FLEDGE Key/Value server explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md)
 -   [FLEDGE Key/Value server trust model](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_trust_model.md)
--   [FLEDGE explainer](https://developer.chrome.com/en/docs/privacy-sandbox/fledge/)
+-   [FLEDGE explainer](https://developers.google.com/privacy-sandbox/relevance/protected-audience)
 -   [FLEDGE API developer guide](https://developer.chrome.com/blog/fledge-api/)
 
     > The instructions written in this document are for running a test Key/Value server that does
@@ -51,7 +51,7 @@ From the Key/Value server repo folder, execute the following command:
 
 We provide a default UDF implementation that is loaded into the server at startup.
 
-To use your own UDF, refer to the [UDF Delta file documentation](./generating_udf_files.md) to
+To use your own UDF, refer to the [UDF Delta file documentation](/docs/generating_udf_files.md) to
 generate a UDF delta file.
 
 Include the delta file in your local delta directory (see below).
@@ -73,10 +73,9 @@ their contents on startup and continue to watch them while it is running.
 ## Start the server
 
 ```sh
-GLOG_alsologtostderr=1 GLOG_v=4 \
   ./bazel-bin/components/data_server/server/server \
   --delta_directory=/tmp/deltas \
-  --realtime_directory=/tmp/realtime
+  --realtime_directory=/tmp/realtime --v=4 --stderrthreshold=0
 ```
 
 The server will start up and begin listening for new delta and realtime files in the directories

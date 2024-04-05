@@ -20,17 +20,16 @@
 #include <string>
 #include <tuple>
 
-#include "glog/logging.h"
+#include "absl/log/log.h"
+#include "components/util/request_context.h"
 
 namespace kv_server {
 
-// UDF hook for logging a string.
-// TODO(b/285331079): Disable for production builds.
-inline void LogMessage(google::scp::roma::FunctionBindingPayload<>& payload) {
-  if (payload.io_proto.has_input_string()) {
-    LOG(INFO) << payload.io_proto.input_string();
-  }
-  payload.io_proto.set_output_string("");
+// Logging function to register with Roma.
+inline void LoggingFunction(absl::LogSeverity severity,
+                            const RequestContext& context,
+                            std::string_view msg) {
+  LOG(LEVEL(severity)) << msg;
 }
 
 }  // namespace kv_server

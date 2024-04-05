@@ -1,8 +1,9 @@
 ## Directory Structure
 
-### AWS
+### AWS/GCP
 
-The root directory for Terraform templates is `${project_root}/production/terraform/aws`.
+The root directory for Terraform templates is `${project_root}/production/terraform/${platform}`,
+where `${platform}` is eigher `aws` or `gcp`.
 
 Within the root directory, the templates are organized as follows:
 
@@ -16,4 +17,5 @@ Within the root directory, the templates are organized as follows:
 ### Usage
 
 Terraform operations should be performed on a particular environment. See the
-[environment guide](/production/terraform/aws/environments/README.md) for actual usage.
+[AWS environment guide](/production/terraform/aws/environments/README.md) and
+[GCP environment guide](/production/terraform/gcp/environments/README.md) for actual usage.

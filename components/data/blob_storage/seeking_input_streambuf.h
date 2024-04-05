@@ -20,7 +20,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/telemetry_provider.h"
 
 #ifndef COMPONENTS_DATA_BLOB_STORAGE_SEEKING_INPUT_STREAMBUF_H_
 #define COMPONENTS_DATA_BLOB_STORAGE_SEEKING_INPUT_STREAMBUF_H_

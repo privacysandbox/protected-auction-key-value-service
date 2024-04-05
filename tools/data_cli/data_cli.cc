@@ -19,8 +19,10 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "components/util/platform_initializer.h"
-#include "glog/logging.h"
 #include "tools/data_cli/commands/command.h"
 #include "tools/data_cli/commands/format_data_command.h"
 #include "tools/data_cli/commands/generate_snapshot_command.h"
@@ -134,18 +136,19 @@ bool IsSupportedCommand(std::string_view command) {
 
 // Sample run using bazel:
 //
-// GLOG_logtostderr=1 GLOG_v=3 bazel run \
+//   bazel run \
 //   //tools/data_cli:data_cli \
 //   --//:instance=local --//:platform=local -- \
 //   format_data \
 //    --input_file=/data/DELTA_1689344645643610 \
 //    --input_format=DELTA \
 //    --output_format=CSV \
-//    --output_file=/data/DELTA_1689344645643610.csv
+//    --output_file=/data/DELTA_1689344645643610.csv \
+//    --v=3 --stderrthreshold=0
 int main(int argc, char** argv) {
   kv_server::PlatformInitializer initializer;
 
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   absl::SetProgramUsageMessage(kUsageMessage);
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
   if (commands.size() < 2) {

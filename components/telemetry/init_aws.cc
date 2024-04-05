@@ -16,8 +16,8 @@
 #include "opentelemetry/exporters/otlp/otlp_grpc_exporter_factory.h"
 #include "opentelemetry/exporters/otlp/otlp_grpc_metric_exporter_factory.h"
 #include "opentelemetry/sdk/trace/random_id_generator_factory.h"
-#include "src/cpp/telemetry/init.h"
-#include "src/cpp/telemetry/trace_generator_aws.h"
+#include "src/telemetry/init.h"
+#include "src/telemetry/trace_generator_aws.h"
 
 namespace kv_server {
 std::unique_ptr<opentelemetry::sdk::trace::SpanExporter> CreateSpanExporter() {

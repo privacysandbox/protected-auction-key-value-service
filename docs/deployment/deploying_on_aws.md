@@ -118,7 +118,7 @@ Take a note of the AMI ID from the output as it will be used for Terraform later
 
 We provide a default UDF implementation that is loaded into the server at startup.
 
-To use your own UDF, refer to the [UDF Delta file documentation](./generating_udf_files.md) to
+To use your own UDF, refer to the [UDF Delta file documentation](/docs/generating_udf_files.md) to
 generate a UDF delta file.
 
 Upload this UDF delta file to the S3 bucket that will be used for delta files before attempting to
@@ -245,8 +245,8 @@ scope for this documentation.
 
 # Loading data into the server
 
-Refer to the [FLEDGE Key/Value data loading guide documentation](./loading_data.md) for loading data
-to be queried into the server.
+Refer to the [FLEDGE Key/Value data loading guide documentation](/docs/data_loading/loading_data.md)
+for loading data to be queried into the server.
 
 # Common operations
 
@@ -297,7 +297,7 @@ grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'
 
 ## SSH into EC2
 
-![how a single SSH instance is used to log into multiple server instances](assets/ssh_instance.png)
+![how a single SSH instance is used to log into multiple server instances](../assets/ssh_instance.png)
 
 ### Step 1: SSH into the SSH EC2 instance
 
@@ -309,7 +309,7 @@ proceeding. We will need either the instance id (if connecting using EC2 instanc
 the public IP dns (if connecting using own key and SSH client) of the SSH instance and both can be
 retrieved from the EC2 dashboard.
 
-![where to find the instance id or public dns for the EC2 instance](assets/ec2_instance_id_and_public_dns.png)
+![where to find the instance id or public dns for the EC2 instance](../assets/ec2_instance_id_and_public_dns.png)
 
 Confirm that you can SSH into your SSH EC2 instance by following the instructions on
 [Connect using EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html).
@@ -477,8 +477,8 @@ Alternatively, you can SSH into an existing server instance and start the Docker
 1. Run the docker container
 
     ```sh
-    docker run -d --init --rm --env GLOG_v=5 --network host --security-opt=seccomp=unconfined  \
-    --entrypoint=/init_server_basic bazel/production/packaging/aws/data_server:server_docker_image -- --port 50051
+    docker run -d --init --rm --network host --security-opt=seccomp=unconfined  \
+    --entrypoint=/init_server_basic bazel/production/packaging/aws/data_server:server_docker_image -- --port 50051 --v=5
     ```
 
 ## Viewing Telemetry
@@ -537,4 +537,4 @@ The resources are allocated by specifying the per-TEE values in the terraform va
 
 ## How is private communication configured?
 
-See this [doc](private_communication_aws.md) for more details.
+See this [doc](/docs/private_communication_aws.md) for more details.

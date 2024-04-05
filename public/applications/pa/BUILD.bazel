@@ -37,7 +37,7 @@ cc_library(
     deps = [
         "api_overlay_cc_proto",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )
 

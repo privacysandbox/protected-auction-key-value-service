@@ -1,66 +1,31 @@
-> FLEDGE has been renamed to Protected Audience API. To learn more about the name change, see the
-> [blog post](https://privacysandbox.com/intl/en_us/news/protected-audience-api-our-new-name-for-fledge)
+# Loading data into the Key/Value server
 
-# Load data into the FLEDGE Key/Value server
+There are two ways to populate data in the server.
 
-The FLEDGE Key/Value server is used to send real-time signals to the buyers and the sellers during a
-FLEDGE auction.
+-   The standard path is by uploading files to a cloud file storage service. The standard upload is
+    the authoritative, high bandwidth and persistent source of truth.
+-   The other way is via a low latency path. To apply such an update, you should send an update to a
+    dedicated broadcast topic.
 
-There are two ways to populate data in the server. The standard path is by uploading files to a
-cloud file storage service. The standard upload is the authoritative, high bandwidth and persistent
-source of truth.
-
-The other way is via a low latency path. To apply such an update, you should send an update to a
-dedicated broadcast topic.
-
-This doc explains the expected file format, and processes to perform the common data loading
-operations. Please note the following:
+The data format specification is defined [here](/docs/data_loading/data_format_specification.md).
+This doc talks about how to load the data.
 
 -   We provide a
     [C++ library reference implementation](#using-the-c-reference-library-to-read-and-write-data-files)
     and a [CLI tool](#using-the-cli-tool-to-generate-delta-and-snapshot-files) that can be used to
     generate (or write) and read data files.
 -   The reference library and CLI tool are ready to use as-is, or you can write your own libraries.
--   The data generation part is a general process that applies to all cloud providers, but the
-    uploading instructions are for AWS only.
+-   The data generation part is a general process that applies to all cloud providers.
 
-# Data files
+# Before you start: choose your file format
 
-There are two types data files consumed by the server, (1) delta files and (2) snapshot files. In
-both cases, newer key/value pairs supersede existing key/value pairs.
+Currently the files can be in one of multiple formats. When deploying the system, set the data
+format parameter to instruct the system to read data files as the specified format.
 
-## Delta files
-
-Delta filename must conform to the regular expression `DELTA_\d{16}`. See
-[constants.h](../public/constants.h) for the most up-to-date format. More recent delta files are
-lexicographically greater than older delta files. Delta files have the following properties:
-
--   Consists of key/value mutation events (updates/deletes) for a fixed time window. The events are
-    in the format of Flatbuffers ([Schema](/public/data_loading/data_loading.fbs)).
--   Each mutation event is associated with a `logical_commit_timestamp`, larger timestamp indicates
-    a more recent record.
--   `logical_commit_timestamp` of the records have no relation with their file's name. It is
-    acceptable to also use timestamps in file names for ordering purposes for your convenience but
-    the system makes no assumption on the relation between the record timestamps and the file names.
--   There are two types of mutation events: (1) UPDATE which introduces/modifies a key/value record,
-    and (2) DELETE which deletes an existing key/value record.
--   There are no enforced size limits for delta files, but smaller files are faster to read.
--   Server instances continually watch for newer delta files and update their in-memory caches.
-
-## Snapshot files
-
-Snapshot filename must conform to the regular expression `SNAPSHOT_\d{16}`. See
-[constants.h](../public/constants.h). for the most up-to-date format. More recent snapshot files are
-lexicographically greater than older snapshot files. SNpashot files have the following properties:
-
--   Uses the same file format as delta files and are only read at server startup time.
--   Generated from:
-    -   compacting a set of delta files by merging multiple mutation events for the same key such
-        that the resulting snapshot consists of only UPDATE mutation events.
-    -   compacting a base snapshot file together with a set of delta files that are not in the base
-        snapshot file.
--   Contains the entire set of key/value records since the beginning of time.
--   There are no enforced size limits for snapshot files.
+-   For AWS: Set the [Terraform var](/docs/AWS_Terraform_vars.md) data_loading_file_format.
+-   For Local: Set flag `--data_loading_file_format`
+    ([defined here](/components/cloud_config/parameter_client_local.cc)).
+-   For GCP: To be supported.
 
 # Experimenting with sample data
 
@@ -77,9 +42,7 @@ Confirm that the sample data file `DELTA_\d{16}` has been generated.
 
 # Using the CLI tool to generate delta and snapshot files
 
-The data CLI is located under: `//tools/data_cli`. First build the cli using the following command
-(Note that to build the cli to use `generate_snapshot` command with data in AWS S3, use
-`--//:platform=aws`.):
+The data CLI is located under: `//tools/data_cli`. First build the cli using the following command:
 
 ```sh
 -$ builders/tools/bazel-debian run //production/packaging/tools:copy_to_dist --//:instance=local --//:platform=local
@@ -178,10 +141,8 @@ And to generate a snapshot from a set of delta files, run the following command 
 values with your own values):
 
 ```sh
--$ export GLOG_logtostderr=1;
-export DATA_DIR=<data_dir>;
+-$ export DATA_DIR=<data_dir>;
 docker run -it --rm \
-    --env GLOG_logtostderr \
     --volume=/tmp:/tmp \
     --volume=$DATA_DIR:$DATA_DIR \
     --user $(id -u ${USER}):$(id -g ${USER}) \
@@ -193,35 +154,32 @@ docker run -it --rm \
     --starting_file=DELTA_0000000000000001 \
     --ending_delta_file=DELTA_0000000000000010 \
     --snapshot_file=SNAPSHOT_0000000000000001
+    --stderrthreshold=0
 ```
 
 The output snapshot file will be written to `$DATA_DIR`.
 
 # Using the C++ reference library to read and write data files
 
-Data files are written using the [Riegeli](https://github.com/google/riegeli) format and data
-records are stored as [Flatbuffers](https://google.github.io/flatbuffers/). The record schema is
-here: [Flatbuffer record schema](public/data_loading/data_loading.fbs).
-
 The C++ reference library implementation can be found under:
-[C++ data file readers](../public/data_loading/readers) and
-[C++ data file writers](../public/data_loading/writers). To write snapshot files, you can use
-[Snapshot writer](../public/data_loading/writers/snapshot_stream_writer.h) and to write delta files,
-you can use [Delta writer](../public/data_loading/writers/delta_record_stream_writer.h). Both files
-can be read using the
-[data file reader](../public/data_loading/readers/delta_record_stream_reader.h). The source and
-destination of the provided readers and writers are required to be `std::iostream` objects.
+[C++ data file readers](/public/data_loading/readers) and
+[C++ data file writers](/public/data_loading/writers). To write snapshot files, you can use
+[Snapshot writer](/public/data_loading/writers/snapshot_stream_writer.h) and to write delta files,
+you can use [Delta writer](/public/data_loading/writers/delta_record_stream_writer.h). Both files
+can be read using the [data file reader](/public/data_loading/readers/delta_record_stream_reader.h).
+The source and destination of the provided readers and writers are required to be `std::iostream`
+objects.
 
 # Writing your own C++ data libraries
 
 Feel free to use the C++ reference library provided above as examples if you want to write your own
 data library. Keep the following things in mind:
 
--   Make sure the output files adhere to the [delta](#delta-files) and [snapshot](#snapshot-files)
-    file properties listed above.
+-   Make sure the output files adhere to the
+    [specification](/docs/data_loading/data_format_specification.md).
 -   Snapshot files must be written with metadata specifying the starting and ending filenames of
     records included in the snapshot. See
-    [SnpashotMetadata proto](../public/data_loading/riegeli_metadata.proto).
+    [SnpashotMetadata proto](/public/data_loading/riegeli_metadata.proto).
 
 # Upload data files to AWS
 
@@ -242,7 +200,7 @@ You can use the AWS CLI to upload the sample data to S3, or you can also use the
 
 Confirm that the file is present in the S3 bucket:
 
-![the delta file listed in the S3 console](assets/s3_delta_file.png)
+![the delta file listed in the S3 console](/docs/assets/s3_delta_file.png)
 
 ## Upload data files to GCP
 
@@ -250,7 +208,7 @@ Similar to AWS, the server in GCP watches a Google Cloud Storage (GCS) bucket co
 Terraform config. New files in the bucket will be automatically uploaded to the server. You can
 uploade files to your GCS bucket through Google Cloud Console.
 
-![files listed in the Google Cloud Console](assets/gcp_gcs_bucket.png)
+![files listed in the Google Cloud Console](/docs/assets/gcp_gcs_bucket.png)
 
 Alternatively, you can use [gsutil tool](https://cloud.google.com/storage/docs/gsutil) to upload
 files to GCS. For example:
@@ -260,11 +218,44 @@ export GCS_BUCKET=your-gcs-bucket-id
 gsutil cp DELTA_* gs://${GCS_BUCKET}
 ```
 
-## Integrating file uploading with your data source for AWS
+## Organizing data files using prefixes
 
-AWS provides libraries to communicate with S3, such as the
-[C++ SDK](https://aws.amazon.com/sdk-for-cpp/). As soon as a file is uploaded to a watched bucket it
-will be read into the service, assuming that it has a higher logical commit timestamp.
+### Intended use case
+
+By default, the server automatically monitors and loads data files uploaded to the S3 or GCS bucket.
+However, since the server expects the file names to monotonically increase and will not read files
+older than the previous file it has read, it can be challenging if there are more than one data
+ingestion pipelines creating delta files independently, because this would require them to
+coordinate the file names to make sure the server reads all the files. And the coordination adds
+extra complexity and latency.
+
+This feature allows multiple data ingestion pipelines to operate completely independently.
+
+### Allow listing prefixes
+
+Prefixes need to be allow listed before the server can continuously monitor and load new files under
+them. The allowlist is a comma separated list of prefixes and is controlled via a server flag
+`data_loading_blob_prefix_allowlist`:
+
+-   For AWS, see docs here: [AWS vars](/docs/AWS_Terraform_vars.md)
+-   For GCP, see docs here: [GCP vars](/docs/GCP_Terraform_vars.md)
+-   For local, set the flag: `--data_loading_blob_prefix_allowlist`
+    [defined here](/components/cloud_config/parameter_client_local.cc).
+
+For example, to add `prefix1` and `prefix2` to the allow list, set
+`data_loading_blob_prefix_allowlist` to `prefix1,prefix2`. With this setup the server will continue
+to load data files at the main bucket level, and will also monitor and load files that start with
+`prefix1` or `prefix2`, e.g., `prefix1/DELTA_001` and `prefix2/DELTA_001`.
+
+### Important things to note
+
+-   Records from files with different prefixes are merged in the internal cache so two records with
+    the same key (from different prefixes) will conflict with each other. These collisions should be
+    managed when writing records into data files, e.g., use keys `prefix1:foo0` and `prefix2:foo0`
+    for writing the records to data files and at query time.
+-   The server keeps track of the most recent loaded file separately for each prefix.
+-   The server does garbage collection of deleted records using a separate max cutoff timestamp for
+    each prefix.
 
 # Realtime updates
 
@@ -273,7 +264,7 @@ delta file to a dedicated broadcast topic.
 
 ## AWS
 
-![Realtime design](assets/realtime_design.png)
+![Realtime design](/docs/assets/realtime_design.png)
 
 In the case of AWS it is a Simple Notification Service (SNS) topic. That topic is created in
 terraform
@@ -293,9 +284,9 @@ The setup is similar to AWS above. The differences are in terminology:
 -   Sqs->Subscription
 -   EC2->VM
 
-In the case of AWS it is a PubSub topic. That topic is created in terraform
-[here](../production/terraform/gcp/services/realtime/main.tf) Delta files contain multiple rows,
-which allows you to batch multiple updates together. There is a
+In the case of GCP it is a PubSub topic. That topic is created in terraform
+[here](/production/terraform/gcp/services/realtime/main.tf) Delta files contain multiple rows, which
+allows you to batch multiple updates together. There is a
 [limit](https://cloud.google.com/pubsub/quotas#resource_limits) of 10MB for the message size.
 
 Each data server is subscribed to the topic through
@@ -310,10 +301,10 @@ data loading path. If it is not, then that update can be lost, for example, duri
 The standard upload is the authoritative and persistent source of truth, and the low latency update
 allows to speed up the update latency.
 
-![Realtime sequence](assets/realtime_sequence.png)
+![Realtime sequence](/docs/assets/realtime_sequence.png)
 
 As per the diagram below, first you should
-[write](<(#using-the-c-reference-library-to-read-and-write-data-files)>) the updates to a delta file
+[write](#using-the-c-reference-library-to-read-and-write-data-files) the updates to a delta file
 that will be uploaded via a standard path later. The purpose of this step is to guarantee that this
 record won't be missed later.
 
@@ -366,5 +357,5 @@ gcloud pubsub topics publish "$topic_arn" --message "$file"
 
 ### Cpp
 
-Check out this sample [tool](../components/tools/realtime_updates_publisher.cc) on how to insert low
+Check out this sample [tool](/components/tools/realtime_updates_publisher.cc) on how to insert low
 latency updates.

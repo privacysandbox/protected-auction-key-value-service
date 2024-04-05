@@ -21,9 +21,10 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/tools/blob_storage_commands.h"
 #include "components/util/platform_initializer.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
+ABSL_FLAG(std::string, prefix, "", "object prefix name");
 
 using kv_server::BlobReader;
 using kv_server::BlobStorageClient;
@@ -102,13 +103,15 @@ int main(int argc, char** argv) {
     std::cerr << "Must specify bucket" << std::endl;
     return -1;
   }
+  std::string prefix = absl::GetFlag(FLAGS_prefix);
   absl::string_view operation = commands[1];
   if (operation == "ls") {
     if (commands.size() != 2) {
       std::cerr << "ls does not take any extra arguments." << std::endl;
       return -1;
     }
-    return kv_server::blob_storage_commands::ListObjects(std::move(bucket))
+    return kv_server::blob_storage_commands::ListObjects(std::move(bucket),
+                                                         std::move(prefix))
                ? 0
                : -1;
   }
@@ -118,7 +121,8 @@ int main(int argc, char** argv) {
       return -1;
     }
     return kv_server::blob_storage_commands::DeleteObjects(
-               std::move(bucket), absl::MakeSpan(commands).subspan(2))
+               std::move(bucket), std::move(prefix),
+               absl::MakeSpan(commands).subspan(2))
                ? 0
                : -1;
   }
@@ -128,7 +132,8 @@ int main(int argc, char** argv) {
       return -1;
     }
     return kv_server::blob_storage_commands::CatObjects(
-               std::move(bucket), absl::MakeSpan(commands).subspan(2))
+               std::move(bucket), std::move(prefix),
+               absl::MakeSpan(commands).subspan(2))
                ? 0
                : -1;
   }

@@ -27,6 +27,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "components/data_server/cache/get_key_value_set_result.h"
+#include "components/util/request_context.h"
 
 namespace kv_server {
 
@@ -38,35 +39,42 @@ class Cache {
 
   // Looks up and returns key-value pairs for the given keys.
   virtual absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_list) const = 0;
 
   // Looks up and returns key-value set result for the given key set.
   virtual std::unique_ptr<GetKeyValueSetResult> GetKeyValueSet(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const = 0;
 
-  // Inserts or updates the key with the new value.
+  // Inserts or updates the key with the new value for a given prefix
   virtual void UpdateKeyValue(std::string_view key, std::string_view value,
-                              int64_t logical_commit_time) = 0;
+                              int64_t logical_commit_time,
+                              std::string_view prefix = "") = 0;
 
-  // Inserts or updates values in the set for a given key, if a value exists,
-  // updates its timestamp to the latest logical commit time.
+  // Inserts or updates values in the set for a given key and prefix, if a value
+  // exists, updates its timestamp to the latest logical commit time.
   virtual void UpdateKeyValueSet(std::string_view key,
                                  absl::Span<std::string_view> value_set,
-                                 int64_t logical_commit_time) = 0;
+                                 int64_t logical_commit_time,
+                                 std::string_view prefix = "") = 0;
 
-  // Deletes a particular (key, value) pair.
-  virtual void DeleteKey(std::string_view key, int64_t logical_commit_time) = 0;
+  // Deletes a particular (key, value) pair for a given prefix.
+  virtual void DeleteKey(std::string_view key, int64_t logical_commit_time,
+                         std::string_view prefix = "") = 0;
 
-  // Deletes values in the set for a given key. The deletion, this object
-  // still exist and is marked "deleted", in case there are
-  // late-arriving updates to this value.
+  // Deletes values in the set for a given key and prefix. The deletion, this
+  // object still exist and is marked "deleted", in case there are late-arriving
+  // updates to this value.
   virtual void DeleteValuesInSet(std::string_view key,
                                  absl::Span<std::string_view> value_set,
-                                 int64_t logical_commit_time) = 0;
+                                 int64_t logical_commit_time,
+                                 std::string_view prefix = "") = 0;
 
   // Removes the values that were deleted before the specified
-  // logical_commit_time.
-  virtual void RemoveDeletedKeys(int64_t logical_commit_time) = 0;
+  // logical_commit_time for a given prefix.
+  virtual void RemoveDeletedKeys(int64_t logical_commit_time,
+                                 std::string_view prefix = "") = 0;
 };
 
 }  // namespace kv_server

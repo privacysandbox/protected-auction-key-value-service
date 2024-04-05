@@ -15,6 +15,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
 
 package(default_visibility = [
+    "//docs/protected_app_signals:__subpackages__",
     "//getting_started:__subpackages__",
     "//production/packaging/tools:__subpackages__",
     "//testing:__subpackages__",
@@ -33,5 +34,7 @@ cc_binary(
         "//tools/data_cli/commands:generate_snapshot_command",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log:flags",
+        "@com_google_absl//absl/log:initialize",
     ],
 )

@@ -16,6 +16,7 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/log.h"
 #include "absl/strings/substitute.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
@@ -23,15 +24,13 @@
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/udf/udf_config_builder.h"
-#include "glog/logging.h"
 #include "google/protobuf/util/json_util.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/query/v2/get_values_v2.pb.h"
 #include "public/udf/constants.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "src/telemetry/telemetry_provider.h"
+#include "src/util/status_macro/status_macros.h"
 
 ABSL_FLAG(std::string, kv_delta_file_path, "",
           "Path to delta file with KV pairs.");
@@ -138,9 +137,9 @@ void ShutdownUdf(UdfClient& udf_client) {
 absl::Status TestUdf(const std::string& kv_delta_file_path,
                      const std::string& udf_delta_file_path,
                      const std::string& input_arguments) {
+  InitMetricsContextMap();
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
-  auto noop_metrics_recorder = MetricsRecorder::CreateNoop();
-  std::unique_ptr<Cache> cache = KeyValueCache::Create(*noop_metrics_recorder);
+  std::unique_ptr<Cache> cache = KeyValueCache::Create();
   PS_RETURN_IF_ERROR(LoadCacheFromFile(kv_delta_file_path, *cache))
       << "Error loading cache from file";
 
@@ -154,20 +153,18 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   UdfConfigBuilder config_builder;
   auto string_get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
-  string_get_values_hook->FinishInit(
-      CreateLocalLookup(*cache, *noop_metrics_recorder));
+  string_get_values_hook->FinishInit(CreateLocalLookup(*cache));
   auto binary_get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
-  binary_get_values_hook->FinishInit(
-      CreateLocalLookup(*cache, *noop_metrics_recorder));
+  binary_get_values_hook->FinishInit(CreateLocalLookup(*cache));
   auto run_query_hook = RunQueryHook::Create();
-  run_query_hook->FinishInit(CreateLocalLookup(*cache, *noop_metrics_recorder));
+  run_query_hook->FinishInit(CreateLocalLookup(*cache));
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
       UdfClient::Create(std::move(
           config_builder.RegisterStringGetValuesHook(*string_get_values_hook)
               .RegisterBinaryGetValuesHook(*binary_get_values_hook)
               .RegisterRunQueryHook(*run_query_hook)
-              .RegisterLoggingHook()
+              .RegisterLoggingFunction()
               .SetNumberOfWorkers(1)
               .Config()));
   PS_RETURN_IF_ERROR(udf_client.status())
@@ -188,8 +185,9 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   JsonStringToMessage(req_partition_json, &req_partition);
 
   LOG(INFO) << "Calling UDF for partition: " << req_partition.DebugString();
-  auto udf_result =
-      udf_client.value()->ExecuteCode({}, req_partition.arguments());
+  auto metrics_context = std::make_unique<ScopeMetricsContext>();
+  auto udf_result = udf_client.value()->ExecuteCode(
+      RequestContext(*metrics_context), {}, req_partition.arguments());
   if (!udf_result.ok()) {
     LOG(ERROR) << "UDF execution failed: " << udf_result.status();
     ShutdownUdf(*udf_client.value());

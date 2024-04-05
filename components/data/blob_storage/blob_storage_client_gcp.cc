@@ -24,17 +24,24 @@
 #include <thread>
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
+#include "components/data/blob_storage/blob_prefix_allowlist.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/seeking_input_streambuf.h"
 #include "components/errors/error_util_gcp.h"
-#include "glog/logging.h"
 #include "google/cloud/storage/client.h"
 
 namespace kv_server {
 namespace {
+
+std::string AppendPrefix(const std::string& value, const std::string& prefix) {
+  return prefix.empty() ? value : absl::StrCat(prefix, "/", value);
+}
 
 class GcpBlobInputStreamBuf : public SeekingInputStreambuf {
  public:
@@ -50,8 +57,8 @@ class GcpBlobInputStreamBuf : public SeekingInputStreambuf {
 
  protected:
   absl::StatusOr<int64_t> SizeImpl() override {
-    auto object_metadata =
-        client_.GetObjectMetadata(location_.bucket, location_.key);
+    auto object_metadata = client_.GetObjectMetadata(
+        location_.bucket, AppendPrefix(location_.key, location_.prefix));
     if (!object_metadata) {
       return GoogleErrorStatusToAbslStatus(object_metadata.status());
     }
@@ -61,7 +68,7 @@ class GcpBlobInputStreamBuf : public SeekingInputStreambuf {
   absl::StatusOr<int64_t> ReadChunk(int64_t offset, int64_t chunk_size,
                                     char* dest_buffer) override {
     auto stream = client_.ReadObject(
-        location_.bucket, location_.key,
+        location_.bucket, AppendPrefix(location_.key, location_.prefix),
         google::cloud::storage::ReadRange(offset, offset + chunk_size));
     if (!stream.status().ok()) {
       return GoogleErrorStatusToAbslStatus(stream.status());
@@ -84,7 +91,8 @@ class GcpBlobReader : public BlobReader {
       : BlobReader(),
         streambuf_(client, location,
                    GetOptions([this, location](absl::Status status) {
-                     LOG(ERROR) << "Blob " << location.key
+                     LOG(ERROR) << "Blob "
+                                << AppendPrefix(location.key, location.prefix)
                                 << " failed stream with: " << status;
                      is_.setstate(std::ios_base::badbit);
                    })),
@@ -117,7 +125,8 @@ std::unique_ptr<BlobReader> GcpBlobStorageClient::GetBlobReader(
 
 absl::Status GcpBlobStorageClient::PutBlob(BlobReader& blob_reader,
                                            DataLocation location) {
-  auto blob_ostream = client_->WriteObject(location.bucket, location.key);
+  auto blob_ostream = client_->WriteObject(
+      location.bucket, AppendPrefix(location.key, location.prefix));
   if (!blob_ostream) {
     return GoogleErrorStatusToAbslStatus(blob_ostream.last_status());
   }
@@ -129,16 +138,19 @@ absl::Status GcpBlobStorageClient::PutBlob(BlobReader& blob_reader,
 }
 
 absl::Status GcpBlobStorageClient::DeleteBlob(DataLocation location) {
-  google::cloud::Status status =
-      client_->DeleteObject(location.bucket, location.key);
+  google::cloud::Status status = client_->DeleteObject(
+      location.bucket, AppendPrefix(location.key, location.prefix));
   return status.ok() ? absl::OkStatus() : GoogleErrorStatusToAbslStatus(status);
 }
 
 absl::StatusOr<std::vector<std::string>> GcpBlobStorageClient::ListBlobs(
     DataLocation location, ListOptions options) {
-  auto list_object_reader = client_->ListObjects(
-      location.bucket, google::cloud::storage::Prefix(options.prefix),
-      google::cloud::storage::StartOffset(options.start_after));
+  auto list_object_reader =
+      client_->ListObjects(location.bucket,
+                           google::cloud::storage::Prefix(
+                               AppendPrefix(options.prefix, location.prefix)),
+                           google::cloud::storage::StartOffset(AppendPrefix(
+                               options.start_after, location.prefix)));
   std::vector<std::string> keys;
   if (list_object_reader.begin() == list_object_reader.end()) {
     return keys;
@@ -149,13 +161,13 @@ absl::StatusOr<std::vector<std::string>> GcpBlobStorageClient::ListBlobs(
                  << std::move(object_metadata).status().message();
       continue;
     }
-
     // Manually exclude the starting name as the StartOffset option is
-    // inclusive.
-    if (object_metadata->name() == options.start_after) {
+    // inclusive and also drop blobs with different prefix.
+    auto blob = ParseBlobName(object_metadata->name());
+    if (blob.key == options.start_after || blob.prefix != location.prefix) {
       continue;
     }
-    keys.push_back(object_metadata->name());
+    keys.push_back(std::move(blob.key));
   }
   std::sort(keys.begin(), keys.end());
   return keys;

@@ -1,0 +1,23 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+
+py_binary(
+    name = "generate_requests",
+    srcs = ["generate_requests.py"],
+    tags = ["manual"],
+)
+
+py_binary(
+    name = "create_csv_summary",
+    srcs = ["create_csv_summary.py"],
+    deps = [
+        "@latency_benchmark_pandas//:pkg",
+    ],
+)
+
+py_binary(
+    name = "merge_csvs",
+    srcs = ["merge_csvs.py"],
+    deps = [
+        "@latency_benchmark_pandas//:pkg",
+    ],
+)

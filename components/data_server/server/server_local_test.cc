@@ -53,6 +53,12 @@ void RegisterRequiredTelemetryExpectations(MockParameterClient& client) {
   EXPECT_CALL(client, GetInt32Parameter(
                           "kv-server-environment-backup-poll-frequency-secs"))
       .WillOnce(::testing::Return(123));
+  EXPECT_CALL(client,
+              GetBoolParameter("kv-server-environment-enable-otel-logger"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(client, GetParameter("kv-server-environment-telemetry-config",
+                                   testing::Eq(std::nullopt)))
+      .WillOnce(::testing::Return("mode: EXPERIMENT"));
 }
 
 void InitializeMetrics() {
@@ -110,7 +116,13 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-min-log-level"))
+      .WillOnce(::testing::Return(0));
+  EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-add-missing-keys-v1"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(
       *parameter_client,
@@ -119,6 +131,11 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
+  EXPECT_CALL(
+      *parameter_client,
+      GetParameter("kv-server-environment-data-loading-blob-prefix-allowlist",
+                   ::testing::Eq("")))
+      .WillOnce(::testing::Return(""));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -168,7 +185,13 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-min-log-level"))
+      .WillOnce(::testing::Return(0));
+  EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-add-missing-keys-v1"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(
       *parameter_client,
@@ -179,7 +202,12 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
-
+  EXPECT_CALL(
+      *parameter_client,
+      GetParameter("kv-server-environment-data-loading-blob-prefix-allowlist",
+                   ::testing::Eq("")))
+      .Times(2)
+      .WillRepeatedly(::testing::Return(""));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -232,14 +260,25 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-min-log-level"))
+      .WillOnce(::testing::Return(0));
+  EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-add-missing-keys-v1"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
-
+  EXPECT_CALL(
+      *parameter_client,
+      GetParameter("kv-server-environment-data-loading-blob-prefix-allowlist",
+                   ::testing::Eq("")))
+      .Times(2)
+      .WillRepeatedly(::testing::Return(""));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -292,7 +331,13 @@ TEST(ServerLocalTest, ForceServerShutdown) {
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-udf-min-log-level"))
+      .WillOnce(::testing::Return(0));
+  EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-route-v1-to-v2"))
+      .WillOnce(::testing::Return(false));
+  EXPECT_CALL(*parameter_client,
+              GetBoolParameter("kv-server-environment-add-missing-keys-v1"))
       .WillOnce(::testing::Return(false));
   EXPECT_CALL(
       *parameter_client,
@@ -301,10 +346,14 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
-
   EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
       .WillOnce(testing::Return(absl::OkStatus()));
-
+  EXPECT_CALL(
+      *parameter_client,
+      GetParameter("kv-server-environment-data-loading-blob-prefix-allowlist",
+                   ::testing::Eq("")))
+      .Times(2)
+      .WillRepeatedly(::testing::Return(""));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),

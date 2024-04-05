@@ -17,10 +17,13 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
+#include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "components/data_server/server/server.h"
 #include "components/util/build_info.h"
-#include "glog/logging.h"
+#include "src/util/rlimit_core_config.h"
 
 ABSL_FLAG(bool, buildinfo, false, "Print build info.");
 
@@ -35,12 +38,15 @@ int main(int argc, char** argv) {
   // 3. Production versions of the K/V Server run inside Trusted Execution
   //    Environments, which restrict where STDOUT and STDERR are visible to.
   absl::InitializeSymbolizer(argv[0]);
+  privacysandbox::server_common::SetRLimits({
+      .enable_core_dumps = true,
+  });
   {
     absl::FailureSignalHandlerOptions options;
     absl::InstallFailureSignalHandler(options);
   }
 
-  google::InitGoogleLogging(argv[0]);
+  absl::InitializeLog();
   absl::SetProgramUsageMessage(absl::StrCat(
       "FLEDGE Key/Value Server.  Sample usage:\n", argv[0], " --port=50051"));
   absl::ParseCommandLine(argc, argv);

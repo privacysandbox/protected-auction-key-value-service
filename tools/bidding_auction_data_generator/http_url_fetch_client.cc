@@ -19,9 +19,9 @@
 #include <string>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "curl/multi.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {

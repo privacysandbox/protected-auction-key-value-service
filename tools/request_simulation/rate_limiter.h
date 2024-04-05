@@ -25,7 +25,7 @@
 #include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
 #include "components/util/sleepfor.h"
-#include "src/cpp/util/duration.h"
+#include "src/util/duration.h"
 namespace kv_server {
 
 // A simple permit-based rate limiter. The permits are refilled at given rate

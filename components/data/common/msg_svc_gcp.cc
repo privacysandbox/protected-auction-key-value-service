@@ -14,13 +14,13 @@
 
 #include <optional>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_format.h"
 #include "components/data/common/msg_svc.h"
 #include "components/data/common/msg_svc_util.h"
 #include "components/errors/error_util_gcp.h"
-#include "glog/logging.h"
 #include "google/cloud/pubsub/message.h"
 #include "google/cloud/pubsub/subscriber.h"
 #include "google/cloud/pubsub/subscription_admin_client.h"

@@ -21,11 +21,17 @@
 #include <string>
 #include <utility>
 
+#include "absl/time/time.h"
 #include "components/telemetry/error_code.h"
-#include "src/cpp/metric/context_map.h"
-#include "src/cpp/util/read_system.h"
+#include "src/core/common/uuid/uuid.h"
+#include "src/metric/context_map.h"
+#include "src/util/duration.h"
+#include "src/util/read_system.h"
 
 namespace kv_server {
+
+constexpr std::string_view kKVServerServiceName = "KVServer";
+constexpr std::string_view kInternalLookupServiceName = "InternalLookupServer";
 
 // When server is running in debug mode, all unsafe metrics will be logged
 // safely without DP noise applied. Therefore for now it is okay to set DP
@@ -36,6 +42,11 @@ namespace kv_server {
 // unsafe metrics.
 constexpr int kCounterDPLowerBound = 1;
 constexpr int kCounterDPUpperBound = 10;
+
+constexpr int kErrorCounterDPLowerBound = 0;
+constexpr int kErrorCounterDPUpperBound = 1;
+constexpr int kErrorMaxPartitionsContributed = 1;
+constexpr double kErrorMinNoiseToOutput = 0.99;
 
 constexpr int kMicroSecondsLowerBound = 1;
 constexpr int kMicroSecondsUpperBound = 2'000'000'000;
@@ -69,6 +80,15 @@ inline constexpr absl::string_view kAbslStatusStrings[] = {
     "UNIMPLEMENTED",
     "UNKNOWN"};
 
+inline constexpr std::string_view kKeyValueCacheHit = "KeyValueCacheHit";
+inline constexpr std::string_view kKeyValueCacheMiss = "KeyValueCacheMiss";
+inline constexpr std::string_view kKeyValueSetCacheHit = "KeyValueSetCacheHit";
+inline constexpr std::string_view kKeyValueSetCacheMiss =
+    "KeyValueSetCacheMiss";
+inline constexpr std::string_view kCacheAccessEvents[] = {
+    kKeyValueCacheHit, kKeyValueCacheMiss, kKeyValueSetCacheHit,
+    kKeyValueSetCacheMiss};
+
 inline constexpr privacy_sandbox::server_common::metrics::PrivacyBudget
     privacy_total_budget{/*epsilon*/ 5};
 
@@ -76,147 +96,53 @@ inline constexpr privacy_sandbox::server_common::metrics::PrivacyBudget
 // and should be logged unsafe with DP(differential privacy) noises.
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kInternalRunQueryKeySetRetrievalFailure(
-        "InternalRunQueryKeySetRetrievalFailure",
-        "Number of key set internal retrieval failures during internal"
-        "run query processing",
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kKVUdfRequestError("KVUdfRequestError",
+                       "Errors in processing KV server V2 request",
+                       "error_code", kErrorMaxPartitionsContributed,
+                       kKVUdfRequestErrorCode, kErrorCounterDPUpperBound,
+                       kErrorCounterDPLowerBound, kErrorMinNoiseToOutput);
+
+// Metric definitions for request level metrics that are privacy impacting
+// and should be logged unsafe with DP(differential privacy) noises.
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kShardedLookupKeyCountByShard(
+        "ShardedLookupKeyCountByShard", "Keys count by shard number",
+        "key_shard_num", 1 /*max_partitions_contributed*/,
+        privacy_sandbox::server_common::metrics::kEmptyPublicPartition,
         kCounterDPUpperBound, kCounterDPLowerBound);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kKeysNotFoundInKeySetsInShardedLookup(
-        "KeysNotFoundInKeySetsInShardedLookup",
-        "Number of keys not found in the result key set in the sharded lookup",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kKeysNotFoundInKeySetsInLocalLookup(
-        "KeysNotFoundInKeySetsInLocalLookup",
-        "Number of keys not found in the result key set in the local lookup",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kInternalRunQueryEmtpyQuery("InternalRunQueryEmtpyQuery",
-                                "Number of empty queries encountered during "
-                                "internal run query processing",
-                                kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kInternalRunQueryMissingKeySet(
-        "InternalRunQueryMissingKeySet",
-        "Number of missing keys not found in the key set "
-        "during internal run query processing",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kInternalRunQueryParsingFailure(
-        "InternalRunQueryParsingFailure",
-        "Number of failures in parsing query during "
-        "internal run query processing",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kLookupClientMissing(
-        "LookupClientMissing",
-        "Number of missing internal lookup clients encountered during "
-        "sharded lookup",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kShardedLookupServerRequestFailed(
-        "ShardedLookupServerRequestFailed",
-        "Number of failed server requests in the sharded lookup",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kShardedLookupServerKeyCollisionOnCollection(
-        "ShardedLookupServerKeyCollisionOnCollection",
-        "Number of key collisions when collecting results from shards",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kLookupFuturesCreationFailure(
-        "LookupFuturesCreationFailure",
-        "Number of failures in creating lookup futures in the sharded lookup",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kShardedLookupFailure("ShardedLookupFailure",
-                          "Number of lookup failures in the sharded lookup",
-                          kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRemoteClientEncryptionFailure(
-        "RemoteClientEncryptionFailure",
-        "Number of request encryption failures in the remote lookup client",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRemoteClientSecureLookupFailure(
-        "RemoteClientSecureLookupFailure",
-        "Number of secure lookup failures in the remote lookup client",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRemoteClientDecryptionFailure(
-        "RemoteClientDecryptionFailure",
-        "Number of response decryption failures in the remote lookup client",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kInternalClientDecryptionFailure(
-        "InternalClientEncryptionFailure",
-        "Number of request decryption failures in the internal lookup client",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kInternalClientUnpaddingRequestError(
-        "InternalClientUnpaddingRequestError",
-        "Number of unpadding errors in the request deserialization in the "
-        "internal lookup client",
-        kCounterDPUpperBound, kCounterDPLowerBound);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
-    kShardedLookupRunQueryLatencyInMicros(
-        "ShardedLookupRunQueryLatencyInMicros",
-        "Latency in executing run query in the sharded lookup",
+    kShardedLookupGetKeyValuesLatencyInMicros(
+        "ShardedLookupGetKeyValuesLatencyInMicros",
+        "Latency in executing GetKeyValues in the sharded lookup",
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kShardedLookupGetKeyValueSetLatencyInMicros(
+        "ShardedLookupGetKeyValueSetLatencyInMicros",
+        "Latency in executing GetKeyValueSet in the sharded lookup",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kShardedLookupRunQueryLatencyInMicros(
+        "ShardedLookupRunQueryLatencyInMicros",
+        "Latency in executing RunQuery in the sharded lookup",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kRemoteLookupGetValuesLatencyInMicros(
         "RemoteLookupGetValuesLatencyInMicros",
@@ -225,7 +151,45 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kMicroSecondsLowerBound);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kInternalRunQueryLatencyInMicros("InternalRunQueryLatencyInMicros",
+                                     "Latency in internal run query call",
+                                     kLatencyInMicroSecondsBoundaries,
+                                     kMicroSecondsUpperBound,
+                                     kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kInternalGetKeyValuesLatencyInMicros(
+        "InternalGetKeyValuesLatencyInMicros",
+        "Latency in internal get key values call",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kInternalGetKeyValueSetLatencyInMicros(
+        "InternalGetKeyValueSetLatencyInMicros",
+        "Latency in internal get key value set call",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kInternalLookupRequestError("InternalLookupRequestError",
+                                "Errors in processing internal lookup request",
+                                "error_code", kErrorMaxPartitionsContributed,
+                                kInternalLookupRequestErrorCode,
+                                kErrorCounterDPUpperBound,
+                                kErrorCounterDPLowerBound,
+                                kErrorMinNoiseToOutput);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kInternalSecureLookupLatencyInMicros("InternalSecureLookupLatencyInMicros",
                                          "Latency in internal secure lookup",
@@ -234,7 +198,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
                                          kMicroSecondsLowerBound);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kGetValuePairsLatencyInMicros("GetValuePairsLatencyInMicros",
                                   "Latency in executing GetValuePairs in cache",
@@ -243,7 +207,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
                                   kMicroSecondsLowerBound);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kGetKeyValueSetLatencyInMicros(
         "GetKeyValueSetLatencyInMicros",
@@ -251,7 +215,24 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
 
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kCacheAccessEventCount("CacheAccessEventCount",
+                           "Count of cache hit or miss events by request",
+                           "cache_access", 4 /*max_partitions_contributed*/,
+                           kCacheAccessEvents, kCounterDPUpperBound,
+                           kCounterDPLowerBound);
+
 // Metric definitions for safe metrics that are not privacy impacting
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kRequestFailedCountByStatus(
+        "request.failed_count_by_status",
+        "Total number of requests that resulted in failure partitioned by "
+        "Error Code",
+        "error_code", kAbslStatusStrings);
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
@@ -308,12 +289,6 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kRealtimeTotalRowsUpdated("RealtimeTotalRowsUpdated",
-                              "Realtime total rows updated count");
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kReceivedLowLatencyNotificationsE2ECloudProvided(
         "ReceivedLowLatencyNotificationsE2ECloudProvided",
@@ -349,15 +324,8 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
-    kChangeNotifierErrors("ChangeNotifierErrors",
-                          "Errors in the change notifier", "error_code",
-                          kChangeNotifierErrorCode);
-
-inline constexpr privacy_sandbox::server_common::metrics::Definition<
-    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
-    kRealtimeErrors("RealtimeErrors", "Errors in realtime data loading",
-                    "error_code", kRealtimeErrorCode);
+    kKVServerError("KVServerError", "Non request related server errors",
+                   "error_code", kKVServerErrorCode);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
@@ -384,21 +352,33 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kTotalRowsDroppedInDataLoading("TotalRowsDroppedInDataLoading",
-                                   "Total rows dropped during data loading");
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kTotalRowsDroppedInDataLoading(
+        "TotalRowsDroppedInDataLoading",
+        "Total rows dropped during data loading from data source,"
+        "data source can be a data file or realtime",
+        "data_source",
+        privacy_sandbox::server_common::metrics::kEmptyPublicPartition);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kTotalRowsUpdatedInDataLoading("TotalRowsUpdatedInDataLoading",
-                                   "Total rows updated during data loading");
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kTotalRowsUpdatedInDataLoading(
+        "TotalRowsUpdatedInDataLoading",
+        "Total rows updated during data loading from data source,"
+        "data source can be a data file or realtime ",
+        "data_source",
+        privacy_sandbox::server_common::metrics::kEmptyPublicPartition);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
-    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
-    kTotalRowsDeletedInDataLoading("TotalRowsDeletedInDataLoading",
-                                   "Total rows deleted during data loading");
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kTotalRowsDeletedInDataLoading(
+        "TotalRowsDeletedInDataLoading",
+        "Total rows deleted during data loading from data source,"
+        "data source can be a data file or realtime",
+        "data_source",
+        privacy_sandbox::server_common::metrics::kEmptyPublicPartition);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
@@ -424,56 +404,146 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         "Latency in ConcurrentStreamRecordReader reading byte range",
         kLatencyInMicroSecondsBoundaries);
 
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kUpdateKeyValueLatency("UpdateKeyValueLatency",
+                           "Latency in key value update",
+                           kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kUpdateKeyValueSetLatency("UpdateKeyValueSetLatency",
+                              "Latency in key value set update",
+                              kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kDeleteKeyLatency("DeleteKeyLatency", "Latency in deleting key",
+                      kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kDeleteValuesInSetLatency("DeleteValuesInSetLatency",
+                              "Latency in deleting values in set",
+                              kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kRemoveDeletedKeyLatency(
+        "RemoveDeletedKeyLatency",
+        "Latency in removing deleted keys in the clean up process",
+        kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kCleanUpKeyValueMapLatency("CleanUpKeyValueMapLatency",
+                               "Latency in cleaning up key value map",
+                               kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kCleanUpKeyValueSetMapLatency("CleanUpKeyValueSetMapLatency",
+                                  "Latency in cleaning up key value set map",
+                                  kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kSecureLookupRequestCount(
+        "SecureLookupRequestCount",
+        "Number of secure lookup requests received from remote server");
+
+// KV server metrics list contains contains non request related safe metrics
+// and request metrics collected before stage of internal lookups
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
         // Unsafe metrics
-        &kInternalRunQueryKeySetRetrievalFailure,
-        &kKeysNotFoundInKeySetsInShardedLookup,
-        &kKeysNotFoundInKeySetsInLocalLookup, &kInternalRunQueryEmtpyQuery,
-        &kInternalRunQueryMissingKeySet, &kInternalRunQueryParsingFailure,
-        &kLookupClientMissing, &kShardedLookupServerRequestFailed,
-        &kShardedLookupServerKeyCollisionOnCollection,
-        &kLookupFuturesCreationFailure, &kShardedLookupFailure,
-        &kRemoteClientEncryptionFailure, &kRemoteClientSecureLookupFailure,
-        &kRemoteClientDecryptionFailure, &kInternalClientDecryptionFailure,
-        &kInternalClientUnpaddingRequestError,
+        &kKVUdfRequestError, &kShardedLookupKeyCountByShard,
+        &kShardedLookupGetKeyValuesLatencyInMicros,
+        &kShardedLookupGetKeyValueSetLatencyInMicros,
         &kShardedLookupRunQueryLatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros,
-        &kInternalSecureLookupLatencyInMicros, &kGetValuePairsLatencyInMicros,
-        &kGetKeyValueSetLatencyInMicros,
         // Safe metrics
+        &kKVServerError,
+        &privacy_sandbox::server_common::metrics::kTotalRequestCount,
         &privacy_sandbox::server_common::metrics::kServerTotalTimeMs,
-        &kGetParameterStatus, &kCompleteLifecycleStatus,
-        &kCreateDataOrchestratorStatus, &kStartDataOrchestratorStatus,
-        &kLoadNewFilesStatus, &kGetShardManagerStatus,
-        &kDescribeInstanceGroupInstancesStatus, &kDescribeInstancesStatus,
-        &kRealtimeTotalRowsUpdated,
+        &privacy_sandbox::server_common::metrics::kRequestByte,
+        &privacy_sandbox::server_common::metrics::kResponseByte,
+        &kRequestFailedCountByStatus, &kGetParameterStatus,
+        &kCompleteLifecycleStatus, &kCreateDataOrchestratorStatus,
+        &kStartDataOrchestratorStatus, &kLoadNewFilesStatus,
+        &kGetShardManagerStatus, &kDescribeInstanceGroupInstancesStatus,
+        &kDescribeInstancesStatus,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
-        &kChangeNotifierErrors, &kRealtimeErrors, &kAwsSqsReceiveMessageLatency,
-        &kSeekingInputStreambufSeekoffLatency,
+        &kAwsSqsReceiveMessageLatency, &kSeekingInputStreambufSeekoffLatency,
         &kSeekingInputStreambufSizeLatency,
         &kSeekingInputStreambufUnderflowLatency,
         &kTotalRowsDroppedInDataLoading, &kTotalRowsUpdatedInDataLoading,
         &kTotalRowsDeletedInDataLoading,
         &kConcurrentStreamRecordReaderReadShardRecordsLatency,
         &kConcurrentStreamRecordReaderReadStreamRecordsLatency,
-        &kConcurrentStreamRecordReaderReadByteRangeLatency};
+        &kConcurrentStreamRecordReaderReadByteRangeLatency,
+        &kUpdateKeyValueLatency, &kUpdateKeyValueSetLatency, &kDeleteKeyLatency,
+        &kDeleteValuesInSetLatency, &kRemoveDeletedKeyLatency,
+        &kCleanUpKeyValueMapLatency, &kCleanUpKeyValueSetMapLatency};
+
+// Internal lookup service metrics list contains metrics collected in the
+// internal lookup server. This separation from KV metrics list allows all
+// lookup requests (local and request from remote KV server) to contribute to
+// the same set of metrics, so that the noise of unsafe metric won't be skewed
+// for particular batch of requests, e.g server request that requires only
+// remote lookups
+inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
+    kInternalLookupServiceMetricsList[] = {
+        // Safe metrics
+        &kSecureLookupRequestCount,
+        // Unsafe metrics
+        &kInternalLookupRequestError, &kInternalRunQueryLatencyInMicros,
+        &kInternalGetKeyValuesLatencyInMicros,
+        &kInternalGetKeyValueSetLatencyInMicros,
+        &kInternalSecureLookupLatencyInMicros, &kGetValuePairsLatencyInMicros,
+        &kGetKeyValueSetLatencyInMicros, &kCacheAccessEventCount};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>
     kKVServerMetricSpan = kKVServerMetricList;
+
+inline constexpr absl::Span<
+    const privacy_sandbox::server_common::metrics::DefinitionName* const>
+    kInternalLookupServiceMetricsSpan = kInternalLookupServiceMetricsList;
 
 inline auto* KVServerContextMap(
     std::optional<
         privacy_sandbox::server_common::telemetry::BuildDependentConfig>
         config = std::nullopt,
     std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
-    absl::string_view service = "", absl::string_view version = "") {
+    absl::string_view service = kKVServerServiceName,
+    absl::string_view version = "") {
   return privacy_sandbox::server_common::metrics::GetContextMap<
       const std::string, kKVServerMetricSpan>(std::move(config),
                                               std::move(provider), service,
                                               version, privacy_total_budget);
+}
+
+inline auto* InternalLookupServerContextMap(
+    std::optional<
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig>
+        config = std::nullopt,
+    std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
+    absl::string_view service = kInternalLookupServiceName,
+    absl::string_view version = "") {
+  return privacy_sandbox::server_common::metrics::GetContextMap<
+      const std::string, kInternalLookupServiceMetricsSpan>(
+      std::move(config), std::move(provider), service, version,
+      privacy_total_budget);
 }
 
 template <typename T>
@@ -519,7 +589,153 @@ inline void InitMetricsContextMap() {
   kv_server::KVServerContextMap(
       privacy_sandbox::server_common::telemetry::BuildDependentConfig(
           config_proto));
+  kv_server::InternalLookupServerContextMap(
+      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+          config_proto));
 }
+
+using UdfRequestMetricsContext =
+    privacy_sandbox::server_common::metrics::ServerContext<kKVServerMetricSpan>;
+using InternalLookupMetricsContext =
+    privacy_sandbox::server_common::metrics::ServerContext<
+        kInternalLookupServiceMetricsSpan>;
+using ServerSafeMetricsContext =
+    privacy_sandbox::server_common::metrics::ServerSafeContext<
+        kKVServerMetricSpan>;
+
+inline void LogUdfRequestErrorMetric(UdfRequestMetricsContext& metrics_context,
+                                     std::string_view error_code) {
+  LogIfError(
+      metrics_context.AccumulateMetric<kKVUdfRequestError>(1, error_code));
+}
+
+inline void LogInternalLookupRequestErrorMetric(
+    InternalLookupMetricsContext& metrics_context,
+    std::string_view error_code) {
+  LogIfError(metrics_context.AccumulateMetric<kInternalLookupRequestError>(
+      1, error_code));
+}
+
+// Logs non-request related error metrics
+inline void LogServerErrorMetric(std::string_view error_code) {
+  LogIfError(
+      KVServerContextMap()->SafeMetric().LogUpDownCounter<kKVServerError>(
+          {{std::string(error_code), 1}}));
+}
+
+// Logs common safe request metrics
+template <typename RequestT, typename ResponseT>
+inline void LogRequestCommonSafeMetrics(
+    const RequestT* request, const ResponseT* response,
+    const grpc::Status& grpc_request_status,
+    const absl::Time& request_received_time) {
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogUpDownCounter<
+              privacy_sandbox::server_common::metrics::kTotalRequestCount>(1));
+  if (auto request_status =
+          privacy_sandbox::server_common::ToAbslStatus(grpc_request_status);
+      !request_status.ok()) {
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogUpDownCounter<kRequestFailedCountByStatus>(
+                       {{absl::StatusCodeToString(request_status.code()), 1}}));
+  }
+  LogIfError(KVServerContextMap()
+                 ->SafeMetric()
+                 .template LogHistogram<
+                     privacy_sandbox::server_common::metrics::kRequestByte>(
+                     (int)request->ByteSizeLong()));
+  LogIfError(KVServerContextMap()
+                 ->SafeMetric()
+                 .template LogHistogram<
+                     privacy_sandbox::server_common::metrics::kResponseByte>(
+                     (int)response->ByteSizeLong()));
+  int duration_ms =
+      (absl::Now() - request_received_time) / absl::Milliseconds(1);
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<
+              privacy_sandbox::server_common::metrics::kServerTotalTimeMs>(
+              duration_ms));
+}
+
+// ScopeMetricsContext provides metrics context ties to the request and
+// should have the same lifetime of the request.
+// The purpose of this class is to avoid explicit creating and deleting metrics
+// context from context map. The metrics context associated with the request
+// will be destroyed after ScopeMetricsContext goes out of scope.
+class ScopeMetricsContext {
+ public:
+  explicit ScopeMetricsContext(
+      std::string request_id = google::scp::core::common::ToString(
+          google::scp::core::common::Uuid::GenerateUuid()))
+      : request_id_(std::move(request_id)) {
+    // Create a metrics context in the context map and
+    // associated it with request id
+    KVServerContextMap()->Get(&request_id_);
+    CHECK_OK([this]() {
+      // Remove the metrics context for request_id to transfer the ownership
+      // of metrics context to the ScopeMetricsContext. This is to ensure that
+      // metrics context has the same lifetime with RequestContext and be
+      // destroyed when ScopeMetricsContext goes out of scope.
+      PS_ASSIGN_OR_RETURN(udf_request_metrics_context_,
+                          KVServerContextMap()->Remove(&request_id_));
+      return absl::OkStatus();
+    }()) << "Udf request metrics context is not initialized";
+    InternalLookupServerContextMap()->Get(&request_id_);
+    CHECK_OK([this]() {
+      // Remove the metrics context for request_id to transfer the ownership
+      // of metrics context to the ScopeMetricsContext. This is to ensure that
+      // metrics context has the same lifetime with RequestContext and be
+      // destroyed when ScopeMetricsContext goes out of scope.
+      PS_ASSIGN_OR_RETURN(
+          internal_lookup_metrics_context_,
+          InternalLookupServerContextMap()->Remove(&request_id_));
+      return absl::OkStatus();
+    }()) << "Internal lookup metrics context is not initialized";
+  }
+  UdfRequestMetricsContext& GetUdfRequestMetricsContext() const {
+    return *udf_request_metrics_context_;
+  }
+  InternalLookupMetricsContext& GetInternalLookupMetricsContext() const {
+    return *internal_lookup_metrics_context_;
+  }
+
+ private:
+  const std::string request_id_;
+  // Metrics context has the same lifetime of server request context
+  std::unique_ptr<UdfRequestMetricsContext> udf_request_metrics_context_;
+  std::unique_ptr<InternalLookupMetricsContext>
+      internal_lookup_metrics_context_;
+};
+
+// Measures the latency of a block of code. The latency is recorded in
+// microseconds as histogram metrics when the object of this class goes
+// out of scope. The metric can be either safe or unsafe metric.
+template <typename ContextT, const auto& definition>
+class ScopeLatencyMetricsRecorder {
+ public:
+  explicit ScopeLatencyMetricsRecorder<ContextT, definition>(
+      ContextT& metrics_context,
+      std::unique_ptr<privacy_sandbox::server_common::Stopwatch> stopwatch =
+          std::make_unique<privacy_sandbox::server_common::Stopwatch>())
+      : metrics_context_(metrics_context) {
+    stopwatch_ = std::move(stopwatch);
+  }
+  ~ScopeLatencyMetricsRecorder<ContextT, definition>() {
+    LogIfError(metrics_context_.template LogHistogram<definition>(
+        absl::ToDoubleMicroseconds(stopwatch_->GetElapsedTime())));
+  }
+  // Returns the latency so far
+  absl::Duration GetLatency() { return stopwatch_->GetElapsedTime(); }
+
+ private:
+  ContextT& metrics_context_;
+  std::unique_ptr<privacy_sandbox::server_common::Stopwatch> stopwatch_;
+};
 
 }  // namespace kv_server
 

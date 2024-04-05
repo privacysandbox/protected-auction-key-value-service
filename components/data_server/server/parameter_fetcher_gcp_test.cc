@@ -19,7 +19,6 @@
 #include "components/data_server/server/parameter_fetcher.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "src/cpp/telemetry/mocks.h"
 
 namespace kv_server {
 

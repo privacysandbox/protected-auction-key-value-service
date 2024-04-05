@@ -26,23 +26,30 @@ namespace kv_server {
 class NoOpKeyValueCache : public Cache {
  public:
   absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override {
     return {};
   };
   std::unique_ptr<kv_server::GetKeyValueSetResult> GetKeyValueSet(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override {
     return std::make_unique<NoOpGetKeyValueSetResult>();
   }
   void UpdateKeyValue(std::string_view key, std::string_view value,
-                      int64_t logical_commit_time) override {}
+                      int64_t logical_commit_time,
+                      std::string_view prefix) override {}
   void UpdateKeyValueSet(std::string_view key,
                          absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time) override {}
-  void DeleteKey(std::string_view key, int64_t logical_commit_time) override {}
+                         int64_t logical_commit_time,
+                         std::string_view prefix) override {}
+  void DeleteKey(std::string_view key, int64_t logical_commit_time,
+                 std::string_view prefix) override {}
   void DeleteValuesInSet(std::string_view key,
                          absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time) override {}
-  void RemoveDeletedKeys(int64_t logical_commit_time) override {}
+                         int64_t logical_commit_time,
+                         std::string_view prefix) override {}
+  void RemoveDeletedKeys(int64_t logical_commit_time,
+                         std::string_view prefix) override {}
   static std::unique_ptr<Cache> Create() {
     return std::make_unique<NoOpKeyValueCache>();
   }

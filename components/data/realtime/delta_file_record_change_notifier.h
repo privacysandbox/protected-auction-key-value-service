@@ -26,7 +26,7 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "components/data/common/change_notifier.h"
-#include "src/cpp/telemetry/telemetry.h"
+#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 

@@ -21,11 +21,11 @@
 #include <utility>
 
 #include "absl/container/flat_hash_set.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
-#include "glog/logging.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_writer.h"

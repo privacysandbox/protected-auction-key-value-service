@@ -17,8 +17,7 @@
 #include <grpcpp/grpcpp.h>
 
 #include "public/query/v2/get_values_v2.grpc.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
-#include "src/cpp/telemetry/telemetry.h"
+#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 namespace {
@@ -37,10 +36,11 @@ grpc::ServerUnaryReactor* HandleRequest(
     CallbackServerContext* context, const RequestT* request,
     ResponseT* response, const GetValuesV2Handler& handler,
     HandlerFunctionT<RequestT, ResponseT> handler_function) {
+  auto request_received_time = absl::Now();
   grpc::Status status = (handler.*handler_function)(*request, response);
-
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
+  LogRequestCommonSafeMetrics(request, response, status, request_received_time);
   return reactor;
 }
 

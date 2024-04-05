@@ -128,17 +128,12 @@ container_image(
     }),
     entrypoint = [
         "/init_server_basic",
-        # These affect PCR0, so changing these would result in the loss of
-        # access to private keys for decryption.
-        "--public_key_endpoint='https://publickeyservice-test1.bas-kms.xyz/v1alpha/publicKeys'",
-        "--primary_coordinator_private_key_endpoint='https://privatekeyservice-test1.bas-kms.xyz/v1alpha/encryptionKeys'",
-        "--secondary_coordinator_private_key_endpoint='https://privatekeyservice-test2.bas-kms.xyz/v1alpha/encryptionKeys'",
-        "--primary_coordinator_region='us-central1'",
-        "--secondary_coordinator_region='us-central1'",
+        # These affect PCR0, so changing these would result in the loss of ability to communicate with
+        # the downstream components
+        "--public_key_endpoint=https://publickeyservice-a.pa-3.gcp.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
+        "--stderrthreshold=0",
     ],
     env = {
-        "GLOG_logtostderr": "1",
-        "GLOG_stderrthreshold": "0",
         "GRPC_DNS_RESOLVER": "native",
     },
     labels = {"tee.launch_policy.log_redirect": "always"},

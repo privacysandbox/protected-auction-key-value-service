@@ -14,6 +14,7 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
@@ -21,8 +22,7 @@
 #include "components/data/common/change_notifier.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/telemetry/server_definition.h"
-#include "glog/logging.h"
-#include "src/cpp/telemetry/telemetry.h"
+#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 namespace {
@@ -65,12 +65,7 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
       if (!parsedMessage.ok()) {
         LOG(ERROR) << "Failed to parse JSON: " << message
                    << ", error: " << parsedMessage.status();
-        LogIfError(
-            KVServerContextMap()
-                ->SafeMetric()
-                .LogUpDownCounter<kChangeNotifierErrors>(
-                    {{std::string(kDeltaFileRecordChangeNotifierParsingFailure),
-                      1}}));
+        LogServerErrorMetric(kDeltaFileRecordChangeNotifierParsingFailure);
         continue;
       }
       nc.realtime_messages.push_back(RealtimeMessage{

@@ -1,0 +1,6 @@
+instance_type=c5.4xlarge,enclave_cpu_count=12,enclave_memory_mib=24576,num_shards=1,udf_num_workers=12,instance_ami_id=ami-0c3ea8d5ff3ef70d2
+instance_type=c5.12xlarge,enclave_cpu_count=36,enclave_memory_mib=73728,num_shards=1,udf_num_workers=36,instance_ami_id=ami-0c3ea8d5ff3ef70d2
+instance_type=m5.4xlarge,enclave_cpu_count=12,enclave_memory_mib=49152,num_shards=1,udf_num_workers=12,instance_ami_id=ami-0c3ea8d5ff3ef70d2
+instance_type=m5.12xlarge,enclave_cpu_count=36,enclave_memory_mib=147456,num_shards=1,udf_num_workers=36,instance_ami_id=ami-0c3ea8d5ff3ef70d2
+instance_type=c5.4xlarge,enclave_cpu_count=12,enclave_memory_mib=24576,num_shards=2,udf_num_workers=12,instance_ami_id=ami-0c3ea8d5ff3ef70d2
+instance_type=m5.4xlarge,enclave_cpu_count=12,enclave_memory_mib=49152,num_shards=2,udf_num_workers=12,instance_ami_id=ami-0c3ea8d5ff3ef70d2

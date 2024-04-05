@@ -26,6 +26,7 @@ class RequestSimulationParameterFetcher {
   RequestSimulationParameterFetcher() = default;
   virtual ~RequestSimulationParameterFetcher() = default;
   virtual NotifierMetadata GetBlobStorageNotifierMetadata() const;
+  virtual NotifierMetadata GetRealtimeNotifierMetadata() const;
 };
 
 }  // namespace kv_server

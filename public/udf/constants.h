@@ -50,10 +50,35 @@ function getKeyGroupOutputs(udf_arguments) {
   return keyGroupOutputs;
 }
 
+function handlePas(udf_arguments) {
+  if (udf_arguments.length != 1) {
+    const error_message =
+      'For PAS default UDF exactly one argument should be provided, but was provided ' + udf_arguments.length;
+    console.error(error_message);
+    throw new Error(error_message);
+  }
+  const kv_result = JSON.parse(getValues(udf_arguments[0]));
+  if (kv_result.hasOwnProperty("kvPairs")) {
+    return kv_result.kvPairs;
+  }
+  const error_message = "Error executing handle PAS:" +
+        JSON.stringify(kv_result);
+  console.error(error_message);
+  throw new Error(error_message);
+}
+
+function handlePA(udf_arguments) {
+  const keyGroupOutputs = getKeyGroupOutputs(udf_arguments);
+  return { keyGroupOutputs, udfOutputApiVersion: 1 };
+}
 
 function HandleRequest(executionMetadata, ...udf_arguments) {
-  const keyGroupOutputs = getKeyGroupOutputs(udf_arguments);
-  return {keyGroupOutputs, udfOutputApiVersion: 1};
+  if(executionMetadata.requestMetadata &&
+    executionMetadata.requestMetadata.is_pas) {
+    console.log('Executing PAS branch');
+    return handlePas(udf_arguments);
+  }
+  return handlePA(udf_arguments);
 }
 )";
 

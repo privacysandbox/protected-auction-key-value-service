@@ -79,6 +79,13 @@ resource "aws_ssm_parameter" "metrics_export_timeout_millis_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "telemetry_config_parameter" {
+  name      = "${var.service}-${var.environment}-telemetry-config"
+  type      = "String"
+  value     = var.telemetry_config
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "realtime_updater_num_threads_parameter" {
   name      = "${var.service}-${var.environment}-realtime-updater-num-threads"
   type      = "String"
@@ -128,6 +135,13 @@ resource "aws_ssm_parameter" "route_v1_requests_to_v2_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "add_missing_keys_v1_parameter" {
+  name      = "${var.service}-${var.environment}-add-missing-keys-v1"
+  type      = "String"
+  value     = var.add_missing_keys_v1_parameter_value
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "use_real_coordinators_parameter" {
   name      = "${var.service}-${var.environment}-use-real-coordinators"
   type      = "String"
@@ -148,6 +162,46 @@ resource "aws_ssm_parameter" "secondary_coordinator_account_identity_parameter" 
   name      = "${var.service}-${var.environment}-secondary-coordinator-account-identity"
   type      = "String"
   value     = var.secondary_coordinator_account_identity_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "primary_coordinator_private_key_endpoint_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
+  name      = "${var.service}-${var.environment}-primary-coordinator-private-key-endpoint"
+  type      = "String"
+  value     = var.primary_coordinator_private_key_endpoint_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "secondary_coordinator_private_key_endpoint_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
+  name      = "${var.service}-${var.environment}-primary-coordinator-region"
+  type      = "String"
+  value     = var.secondary_coordinator_private_key_endpoint_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "primary_coordinator_region_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
+  name      = "${var.service}-${var.environment}-secondary-coordinator-private-key-endpoint"
+  type      = "String"
+  value     = var.primary_coordinator_region_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "secondary_coordinator_region_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
+  name      = "${var.service}-${var.environment}-secondary-coordinator-region"
+  type      = "String"
+  value     = var.secondary_coordinator_region_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "public_key_endpoint_parameter" {
+  count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
+  name      = "${var.service}-${var.environment}-public-key-endpoint"
+  type      = "String"
+  value     = var.public_key_endpoint_parameter_value
   overwrite = true
 }
 
@@ -184,5 +238,26 @@ resource "aws_ssm_parameter" "udf_timeout_millis_parameter" {
   name      = "${var.service}-${var.environment}-udf-timeout-millis"
   type      = "String"
   value     = var.udf_timeout_millis_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "udf_min_log_level_parameter" {
+  name      = "${var.service}-${var.environment}-udf-min-log-level"
+  type      = "String"
+  value     = var.udf_min_log_level_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "enable_otel_logger_parameter" {
+  name      = "${var.service}-${var.environment}-enable-otel-logger"
+  type      = "String"
+  value     = var.enable_otel_logger_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "data_loading_blob_prefix_allowlist" {
+  name      = "${var.service}-${var.environment}-data-loading-blob-prefix-allowlist"
+  type      = "String"
+  value     = var.data_loading_blob_prefix_allowlist
   overwrite = true
 }

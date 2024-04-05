@@ -37,6 +37,7 @@
 #include "components/internal_server/lookup.h"
 #include "components/sharding/cluster_mappings_manager.h"
 #include "components/sharding/shard_manager.h"
+#include "components/telemetry/open_telemetry_sink.h"
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/hooks/run_query_hook.h"
 #include "components/udf/udf_client.h"
@@ -45,8 +46,7 @@
 #include "public/base_types.pb.h"
 #include "public/query/get_values.grpc.pb.h"
 #include "public/sharding/key_sharder.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
-#include "src/cpp/telemetry/telemetry.h"
+#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 
@@ -98,11 +98,14 @@ class Server {
   absl::Status InitializeUdfHooks();
   std::unique_ptr<grpc::Server> CreateAndStartRemoteLookupServer();
 
-  void SetDefaultUdfCodeObject();
+  absl::Status SetDefaultUdfCodeObject();
 
   void InitializeTelemetry(const ParameterClient& parameter_client,
                            InstanceClient& instance_client);
   absl::Status CreateShardManager();
+  void InitOtelLogger(::opentelemetry::sdk::resource::Resource server_info,
+                      absl::optional<std::string> collector_endpoint,
+                      const ParameterFetcher& parameter_fetcher);
 
   // This must be first, otherwise the AWS SDK will crash when it's called:
   PlatformInitializer platform_initializer_;
@@ -110,8 +113,6 @@ class Server {
   std::unique_ptr<const ParameterClient> parameter_client_;
   std::unique_ptr<InstanceClient> instance_client_;
   std::string environment_;
-  std::unique_ptr<privacy_sandbox::server_common::MetricsRecorder>
-      metrics_recorder_;
   std::vector<std::unique_ptr<grpc::Service>> grpc_services_;
   std::unique_ptr<grpc::Server> grpc_server_;
   std::unique_ptr<Cache> cache_;
@@ -153,6 +154,8 @@ class Server {
 
   std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
       key_fetcher_manager_;
+  std::unique_ptr<opentelemetry::logs::LoggerProvider> log_provider_;
+  std::unique_ptr<OpenTelemetrySink> open_telemetry_sink_;
 };
 
 }  // namespace kv_server

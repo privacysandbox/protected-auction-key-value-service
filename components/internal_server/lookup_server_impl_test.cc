@@ -29,14 +29,12 @@
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
 #include "public/test_util/proto_matcher.h"
-#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
-#include "src/cpp/telemetry/mocks.h"
+#include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
 
 namespace kv_server {
 namespace {
 
 using google::protobuf::TextFormat;
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
 using testing::Return;
 using testing::ReturnRef;
@@ -45,15 +43,15 @@ class LookupServiceImplTest : public ::testing::Test {
  protected:
   LookupServiceImplTest() {
     lookup_service_ = std::make_unique<LookupServiceImpl>(
-        mock_lookup_, fake_key_fetcher_manager_, mock_metrics_recorder_);
+        mock_lookup_, fake_key_fetcher_manager_);
     grpc::ServerBuilder builder;
     builder.RegisterService(lookup_service_.get());
     server_ = (builder.BuildAndStart());
 
     stub_ = InternalLookupService::NewStub(
         server_->InProcessChannel(grpc::ChannelArguments()));
+    InitMetricsContextMap();
   }
-
   ~LookupServiceImplTest() {
     server_->Shutdown();
     server_->Wait();
@@ -64,7 +62,6 @@ class LookupServiceImplTest : public ::testing::Test {
   std::unique_ptr<LookupServiceImpl> lookup_service_;
   std::unique_ptr<grpc::Server> server_;
   std::unique_ptr<InternalLookupService::Stub> stub_;
-  MockMetricsRecorder mock_metrics_recorder_;
 };
 
 TEST_F(LookupServiceImplTest, InternalLookup_Success) {
@@ -82,7 +79,7 @@ TEST_F(LookupServiceImplTest, InternalLookup_Success) {
                                    }
                               )pb",
                               &expected);
-  EXPECT_CALL(mock_lookup_, GetKeyValues(_)).WillOnce(Return(expected));
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_, _)).WillOnce(Return(expected));
 
   InternalLookupResponse response;
   grpc::ClientContext context;
@@ -96,7 +93,7 @@ TEST_F(LookupServiceImplTest,
   InternalLookupRequest request;
   request.add_keys("key1");
   request.add_keys("key2");
-  EXPECT_CALL(mock_lookup_, GetKeyValues(_))
+  EXPECT_CALL(mock_lookup_, GetKeyValues(_, _))
       .WillOnce(Return(absl::UnknownError("Some error")));
 
   InternalLookupResponse response;
@@ -114,7 +111,7 @@ TEST_F(LookupServiceImplTest, InternalRunQuery_Success) {
   InternalRunQueryResponse expected;
   expected.add_elements("value1");
   expected.add_elements("value2");
-  EXPECT_CALL(mock_lookup_, RunQuery(_)).WillOnce(Return(expected));
+  EXPECT_CALL(mock_lookup_, RunQuery(_, _)).WillOnce(Return(expected));
   InternalRunQueryResponse response;
   grpc::ClientContext context;
   grpc::Status status = stub_->InternalRunQuery(&context, request, &response);
@@ -126,7 +123,7 @@ TEST_F(LookupServiceImplTest, InternalRunQuery_Success) {
 TEST_F(LookupServiceImplTest, InternalRunQuery_LookupError_Failure) {
   InternalRunQueryRequest request;
   request.set_query("fail|||||now");
-  EXPECT_CALL(mock_lookup_, RunQuery(_))
+  EXPECT_CALL(mock_lookup_, RunQuery(_, _))
       .WillOnce(Return(absl::UnknownError("Some error")));
   InternalRunQueryResponse response;
   grpc::ClientContext context;

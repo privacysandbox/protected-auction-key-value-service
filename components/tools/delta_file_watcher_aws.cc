@@ -21,7 +21,7 @@
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/common/thread_manager.h"
 #include "components/util/platform_initializer.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, bucket, "", "cloud storage bucket name");
 ABSL_FLAG(std::string, sns_arn, "", "sns_arn");
@@ -74,7 +74,8 @@ int main(int argc, char** argv) {
   }
 
   const absl::Status status = notifier->Start(
-      **status_or_change_notifier, {.bucket = std::move(bucket)}, "",
+      **status_or_change_notifier, {.bucket = std::move(bucket)},
+      /*prefix_start_after_map=*/{std::make_pair("", "")},
       [](const std::string& key) { std::cout << key << std::endl; });
   if (!status.ok()) {
     std::cerr << "Failed to start notifier: " << status << std::endl;

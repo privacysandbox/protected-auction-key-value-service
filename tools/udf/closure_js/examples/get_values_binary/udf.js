@@ -57,6 +57,33 @@ function getKeyGroupOutputs(udf_arguments) {
 }
 
 /**
+ * @param {!Array} udf_arguments
+ * @suppress {reportUnknownTypes}
+ * @return {Object}
+ */
+function handlePas(udf_arguments) {
+  if (udf_arguments.length != 1) {
+    const error_message =
+      'For PAS default UDF exactly one argument should be provided, but was provided ' + udf_arguments.length;
+    console.error(error_message);
+    throw new Error(error_message);
+  }
+  var serializedGetValuesBinary = /** @type {!Array} */ (getValuesBinary(udf_arguments[0]));
+  var getValuesBinaryProto = proto.kv_server.BinaryGetValuesResponse.deserializeBinary(serializedGetValuesBinary);
+  return getValuesBinaryProto.getKvPairsMap();
+}
+
+/**
+ * @param {!Array} udf_arguments
+ * @suppress {reportUnknownTypes}
+ * @return {Object}
+ */
+function handlePa(udf_arguments) {
+  const keyGroupOutputs = getKeyGroupOutputs(udf_arguments);
+  return { keyGroupOutputs, udfOutputApiVersion: 1 };
+}
+
+/**
  * Entry point for code snippet execution.
  *
  * The Closure Compiler will see the @export JSDoc annotation below and
@@ -71,11 +98,15 @@ function getKeyGroupOutputs(udf_arguments) {
  * from being minified.
  *
  * @export
+ * @suppress {reportUnknownTypes}
  * @param {!Object} executionMetadata
  * @param {...?} udf_arguments
  * @return {Object}
  */
 function HandleRequest(executionMetadata, ...udf_arguments) {
-  const keyGroupOutputs = getKeyGroupOutputs(udf_arguments);
-  return { keyGroupOutputs: keyGroupOutputs, udfOutputApiVersion: 1 };
+  if (executionMetadata.requestMetadata && executionMetadata.requestMetadata.is_pas) {
+    console.log('Executing PAS branch');
+    return handlePas(udf_arguments);
+  }
+  return handlePa(udf_arguments);
 }

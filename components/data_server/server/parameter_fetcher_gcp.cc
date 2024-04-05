@@ -17,9 +17,9 @@
 
 #include <string>
 
+#include "absl/log/log.h"
 #include "absl/strings/str_format.h"
 #include "components/data_server/server/parameter_fetcher.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 constexpr std::string_view kEnvironment = "environment";

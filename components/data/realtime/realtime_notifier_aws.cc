@@ -18,15 +18,15 @@
 #include <utility>
 #include <vector>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "components/data/common/thread_manager.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/data/realtime/realtime_notifier.h"
 #include "components/errors/retry.h"
-#include "glog/logging.h"
 #include "public/constants.h"
-#include "src/cpp/telemetry/telemetry.h"
-#include "src/cpp/util/duration.h"
+#include "src/telemetry/telemetry.h"
+#include "src/util/duration.h"
 
 namespace kv_server {
 namespace {
@@ -36,7 +36,7 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
   explicit RealtimeNotifierImpl(
       std::unique_ptr<SleepFor> sleep_for,
       std::unique_ptr<DeltaFileRecordChangeNotifier> change_notifier)
-      : thread_manager_(TheadManager::Create("Realtime notifier")),
+      : thread_manager_(ThreadManager::Create("Realtime notifier")),
         sleep_for_(std::move(sleep_for)),
         change_notifier_(std::move(change_notifier)) {}
 
@@ -82,48 +82,50 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
             ExponentialBackoffForRetry(sequential_failures);
         LOG(ERROR) << "Failed to get realtime notifications: "
                    << updates.status() << ".  Waiting for " << backoff_time;
-        LogIfError(
-            KVServerContextMap()
-                ->SafeMetric()
-                .LogUpDownCounter<kRealtimeErrors>(
-                    {{std::string(kRealtimeGetNotificationsFailure), 1}}));
+        LogServerErrorMetric(kRealtimeGetNotificationsFailure);
         if (!sleep_for_->Duration(backoff_time)) {
           LOG(ERROR) << "Failed to sleep for " << backoff_time
                      << ".  SleepFor invalid.";
-          LogIfError(KVServerContextMap()
-                         ->SafeMetric()
-                         .LogUpDownCounter<kRealtimeErrors>(
-                             {{std::string(kRealtimeSleepFailure), 1}}));
+          LogServerErrorMetric(kRealtimeSleepFailure);
         }
         continue;
       }
       sequential_failures = 0;
 
       for (const auto& realtime_message : updates->realtime_messages) {
-        auto count = callback(realtime_message.parsed_notification);
-        if (count.ok()) {
-          LogIfError(
-              KVServerContextMap()
-                  ->SafeMetric()
-                  .LogUpDownCounter<kRealtimeTotalRowsUpdated>(
-                      static_cast<double>(count->total_updated_records +
-                                          count->total_deleted_records)));
+        if (auto count = callback(realtime_message.parsed_notification);
+            !count.ok()) {
+          LOG(ERROR) << "Data loading callback failed: " << count.status();
+          LogServerErrorMetric(kRealtimeMessageApplicationFailure);
+        }
+        auto e2e_cloud_provided_latency = absl::ToDoubleMicroseconds(
+            absl::Now() - realtime_message.notifications_sns_inserted);
+        // we're getting this value based on two different clocks. Opentelemetry
+        // does not allow negative values for histograms. However, not logging
+        // this will affect the pvalues, so the next best thing is set it to 0.
+        if (e2e_cloud_provided_latency < 0) {
+          e2e_cloud_provided_latency = 0;
         }
         LogIfError(
             KVServerContextMap()
                 ->SafeMetric()
                 .LogHistogram<kReceivedLowLatencyNotificationsE2ECloudProvided>(
-                    absl::ToDoubleMicroseconds(
-                        absl::Now() -
-                        (realtime_message.notifications_sns_inserted))));
+                    e2e_cloud_provided_latency));
 
         if (realtime_message.notifications_inserted) {
-          auto e2eDuration =
-              absl::Now() - (realtime_message.notifications_inserted).value();
+          // we're getting this value based on two different clocks.
+          // Opentelemetry does not allow negative values for histograms.
+          // However, not logging this will affect the pvalues, so the next best
+          // thing is set it to 0.
+          auto e2e_latency = absl::ToDoubleMicroseconds(
+              absl::Now() - realtime_message.notifications_inserted.value());
+          if (e2e_latency < 0) {
+            e2e_latency = 0;
+          }
           LogIfError(KVServerContextMap()
                          ->SafeMetric()
                          .LogHistogram<kReceivedLowLatencyNotificationsE2E>(
-                             absl::ToDoubleMicroseconds(e2eDuration)));
+                             e2e_latency));
         }
       }
       LogIfError(KVServerContextMap()
@@ -138,7 +140,7 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
     }
   }
 
-  std::unique_ptr<TheadManager> thread_manager_;
+  std::unique_ptr<ThreadManager> thread_manager_;
   std::unique_ptr<SleepFor> sleep_for_;
   std::unique_ptr<DeltaFileRecordChangeNotifier> change_notifier_;
 };

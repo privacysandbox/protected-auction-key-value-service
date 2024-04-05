@@ -16,10 +16,10 @@
 
 #include "public/data_loading/csv/csv_delta_record_stream_writer.h"
 
+#include "absl/log/log.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
-#include "glog/logging.h"
 #include "public/data_loading/data_loading_generated.h"
 
 namespace kv_server {

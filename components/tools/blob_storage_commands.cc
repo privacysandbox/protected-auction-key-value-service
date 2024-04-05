@@ -24,7 +24,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_client.h"
-#include "src/cpp/telemetry/telemetry_provider.h"
+#include "src/telemetry/telemetry_provider.h"
 
 namespace kv_server {
 namespace blob_storage_commands {
@@ -55,12 +55,16 @@ class StdinBlobReader : public BlobReader {
 
 using kv_server::BlobStorageClient;
 
-bool CatObjects(std::string bucket_or_directory, absl::Span<char*> keys) {
+bool CatObjects(std::string bucket_or_directory, std::string prefix,
+                absl::Span<char*> keys) {
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
       blob_storage_client_factory->CreateBlobStorageClient();
-  BlobStorageClient::DataLocation location = {std::move(bucket_or_directory)};
+  BlobStorageClient::DataLocation location = {
+      .bucket = std::move(bucket_or_directory),
+      .prefix = std::move(prefix),
+  };
   for (const auto& key : keys) {
     location.key = key;
     auto reader = client->GetBlobReader(location);
@@ -69,12 +73,16 @@ bool CatObjects(std::string bucket_or_directory, absl::Span<char*> keys) {
   return true;
 }
 
-bool DeleteObjects(std::string bucket_or_directory, absl::Span<char*> keys) {
+bool DeleteObjects(std::string bucket_or_directory, std::string prefix,
+                   absl::Span<char*> keys) {
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
       blob_storage_client_factory->CreateBlobStorageClient();
-  BlobStorageClient::DataLocation location = {std::move(bucket_or_directory)};
+  BlobStorageClient::DataLocation location = {
+      .bucket = std::move(bucket_or_directory),
+      .prefix = std::move(prefix),
+  };
   for (const auto& key : keys) {
     location.key = key;
     const absl::Status status = client->DeleteBlob(location);
@@ -86,13 +94,15 @@ bool DeleteObjects(std::string bucket_or_directory, absl::Span<char*> keys) {
   return true;
 }
 
-bool ListObjects(std::string bucket_or_directory) {
+bool ListObjects(std::string bucket_or_directory, std::string prefix) {
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =
       blob_storage_client_factory->CreateBlobStorageClient();
   const BlobStorageClient::DataLocation location = {
-      std::move(bucket_or_directory)};
+      .bucket = std::move(bucket_or_directory),
+      .prefix = std::move(prefix),
+  };
   const absl::StatusOr<std::vector<std::string>> keys =
       client->ListBlobs(location, {});
   if (!keys.ok()) {

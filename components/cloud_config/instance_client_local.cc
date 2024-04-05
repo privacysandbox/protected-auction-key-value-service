@@ -17,10 +17,10 @@
 #include <thread>
 
 #include "absl/flags/flag.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/cloud_config/instance_client.h"
-#include "glog/logging.h"
 
 ABSL_FLAG(std::string, environment, "local", "Environment name.");
 ABSL_FLAG(std::string, shard_num, "0", "Shard number.");

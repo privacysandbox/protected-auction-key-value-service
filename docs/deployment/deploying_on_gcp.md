@@ -149,14 +149,39 @@ deploy to, and update the `[[REGION]].tfvars.json` with Terraform variables for 
 The description of each variable is described in
 [GCP Terraform Vars doc](/docs/GCP_Terraform_vars.md).
 
-Note that variable `tls-key` and `tls-cert` are not in `[[REGION]].tfvars.json`. Please supply these
-with a `secrets.auto.tfvar` file under `production/terraform/gcp/environments/`.
+Note that variable `tls_key` and `tls_cert` are not in `[[REGION]].tfvars.json`. Please supply these
+with a `secrets.auto.tfvars` file under `production/terraform/gcp/environments/`.
 
 Update the `[[REGION]].backend.conf`:
 
 -   `bucket` - Set the bucket name that Terraform will use. The bucket was created in the previous
     [Set up GCS bucket for Terraform states](#set-up-gcs-bucket-for-terraform-states) step.
 -   `prefix` - Set a path/to/directory to contain the Terraform state.
+
+## Bidding and Auction services integration within the same VPC
+
+If you're integrating with Bidding and Auction services (B&A), you are likely going to be reusing
+the same VPC (virtual private cloud) and Service Mesh (internal LB).
+
+Hence, you need to set these two parameters to true: `use_existing_service_mesh`,
+`use_existing_vpc`.
+
+You also need to set these parameters to proper values: `existing_service_mesh`, `existing_vpc_id`.
+Example value:
+
+`existing_service_mesh`: `projects/your-project/locations/global/meshes/your-mesh`
+`existing_vpc_id`: `projects/your-project/global/networks/your-vpc`
+
+Other things to keep in mind
+
+-   CIDR range needs to be different for each server deployment (B&A, each kv). It is specified with
+    `regions_cidr_blocks`
+-   `enable_external_traffic` can be set to false. In this case, several other terraform vars can be
+    [ignored](../GCP_Terraform_vars.md)
+-   `regions_use_existing_nat` -- note that the NAT for each region can only be set up once under
+    the same VPC. If a NAT has already been set up in an existing server deployment (by specifying
+    an empty set of the `regions_use_existing_nat`), other sever deployments in the same region(s)
+    need to specify the region(s) in the `regions_use_existing_nat` var.
 
 ## Apply Terraform
 
@@ -183,13 +208,13 @@ builders/tools/terraform -chdir=production/terraform/gcp/environments apply --va
 At the end, to destroy all the GCP resources:
 
 ```sh
-builders/tools/terraform -chdir=production/terraform/gcp/environments destroy --var-file=--var-file=${ENVIRONMENT}/${REGION}.tfvars.json
+builders/tools/terraform -chdir=production/terraform/gcp/environments destroy --var-file=${ENVIRONMENT}/${REGION}.tfvars.json
 ```
 
 # Loading data into the server
 
-Refer to the [FLEDGE Key/Value data loading guide documentation](./loading_data.md) for loading data
-to be queried into the server.
+Refer to the [FLEDGE Key/Value data loading guide documentation](/docs/data_loading/loading_data.md)
+for loading data to be queried into the server.
 
 # Common operations
 
@@ -259,7 +284,7 @@ BODY='{ "metadata": { "hostname": "example.com" }, "partitions": [{ "id": 0, "co
 ### Option 2: Via service mesh
 
 In short, service mesh is an internal load balancer. So, it is only available internally within a
-VPC. The Kv-server is set up with a service mesh as a backend service and we can query it internally
+VPC. The KV Server is set up with a service mesh as a backend service and we can query it internally
 using proxyless gRPC. Normally, you would send proxyless gRPC queries from other internal servers
 (e.g., a bidding server). For this demo, however, we are setting up a temporary server within the
 same VPC and service mesh as the Kv-server for demonstration purposes.
@@ -272,7 +297,7 @@ export ENVIRONMENT=your_environment
 ```
 
 Then, use the following command to set up a client VM within the same VPC network as your already
-deployed Kv-server. Note that you still need to manually replace `[[your_environment]]` at the end
+deployed KV Server. Note that you still need to manually replace `[[your_environment]]` at the end
 of the script.
 
 ```sh

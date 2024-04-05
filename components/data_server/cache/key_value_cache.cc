@@ -19,32 +19,20 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/log/log.h"
 #include "absl/memory/memory.h"
 #include "absl/synchronization/mutex.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/get_key_value_set_result.h"
-#include "glog/logging.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 
-using privacy_sandbox::server_common::MetricsRecorder;
-using privacy_sandbox::server_common::ScopeLatencyRecorder;
-
-constexpr char kGetKeyValuePairsEvent[] = "GetKeyValuePairs";
-constexpr char kGetKeyValueSetEvent[] = "GetKeyValueSet";
-constexpr char kUpdateKeyValueEvent[] = "UpdateKeyValue";
-constexpr char kUpdateKeyValueSetEvent[] = "UpdateKeyValueSet";
-constexpr char kDeleteKeyEvent[] = "DeleteKey";
-constexpr char kDeleteValuesInSetEvent[] = "DeleteValuesInSet";
-constexpr char kRemoveDeletedKeysEvent[] = "RemoveDeletedKeys";
-constexpr char kCleanUpKeyValueMapEvent[] = "CleanUpKeyValueMap";
-constexpr char kCleanUpKeyValueSetMapEvent[] = "CleanUpKeyValueSetMap";
-
 absl::flat_hash_map<std::string, std::string> KeyValueCache::GetKeyValuePairs(
+    const RequestContext& request_context,
     const absl::flat_hash_set<std::string_view>& key_set) const {
-  ScopeLatencyRecorder latency_recorder(kGetKeyValuePairsEvent,
-                                        metrics_recorder_);
+  ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
+                              kGetValuePairsLatencyInMicros>
+      latency_recorder(request_context.GetInternalLookupMetricsContext());
   absl::flat_hash_map<std::string, std::string> kv_pairs;
   absl::ReaderMutexLock lock(&mutex_);
   for (std::string_view key : key_set) {
@@ -57,16 +45,24 @@ absl::flat_hash_map<std::string, std::string> KeyValueCache::GetKeyValuePairs(
       kv_pairs.insert_or_assign(key, *(key_iter->second.value));
     }
   }
+  if (kv_pairs.empty()) {
+    LogCacheAccessMetrics(request_context, kKeyValueCacheMiss);
+  } else {
+    LogCacheAccessMetrics(request_context, kKeyValueCacheHit);
+  }
   return kv_pairs;
 }
 
 std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
+    const RequestContext& request_context,
     const absl::flat_hash_set<std::string_view>& key_set) const {
-  ScopeLatencyRecorder latency_recorder(kGetKeyValueSetEvent,
-                                        metrics_recorder_);
+  ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
+                              kGetKeyValueSetLatencyInMicros>
+      latency_recorder(request_context.GetInternalLookupMetricsContext());
   // lock the cache map
   absl::ReaderMutexLock lock(&set_map_mutex_);
   auto result = GetKeyValueSetResult::Create();
+  bool cache_hit = false;
   for (const auto& key : key_set) {
     VLOG(8) << "Getting key: " << key;
     const auto key_itr = key_to_value_set_map_.find(key);
@@ -81,25 +77,35 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
       }
       // Add key value set to the result
       result->AddKeyValueSet(key, std::move(value_set), std::move(set_lock));
+      cache_hit = true;
     }
+  }
+  if (cache_hit) {
+    LogCacheAccessMetrics(request_context, kKeyValueSetCacheHit);
+  } else {
+    LogCacheAccessMetrics(request_context, kKeyValueSetCacheMiss);
   }
   return result;
 }
 
 // Replaces the current key-value entry with the new key-value entry.
 void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
-                                   int64_t logical_commit_time) {
-  ScopeLatencyRecorder latency_recorder(kUpdateKeyValueEvent,
-                                        metrics_recorder_);
+                                   int64_t logical_commit_time,
+                                   std::string_view prefix) {
+  ScopeLatencyMetricsRecorder<ServerSafeMetricsContext, kUpdateKeyValueLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
   VLOG(9) << "Received update for [" << key << "] at " << logical_commit_time
           << ". value will be set to: " << value;
   absl::MutexLock lock(&mutex_);
 
-  if (logical_commit_time <= max_cleanup_logical_commit_time_) {
+  auto max_cleanup_logical_commit_time =
+      max_cleanup_logical_commit_time_map_[prefix];
+
+  if (logical_commit_time <= max_cleanup_logical_commit_time) {
     VLOG(1) << "Skipping the update as its logical_commit_time: "
             << logical_commit_time
             << " is not newer than the current cutoff time:"
-            << max_cleanup_logical_commit_time_;
+            << max_cleanup_logical_commit_time;
 
     return;
   }
@@ -119,10 +125,15 @@ void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
       key_iter->second.last_logical_commit_time < logical_commit_time &&
       key_iter->second.value == nullptr) {
     // should always have this, but checking just in case
-    auto dl_key_iter =
-        deleted_nodes_.find(key_iter->second.last_logical_commit_time);
-    if (dl_key_iter != deleted_nodes_.end() && dl_key_iter->second == key) {
-      deleted_nodes_.erase(dl_key_iter);
+
+    if (auto prefix_deleted_nodes_iter = deleted_nodes_map_.find(prefix);
+        prefix_deleted_nodes_iter != deleted_nodes_map_.end()) {
+      auto dl_key_iter = prefix_deleted_nodes_iter->second.find(
+          key_iter->second.last_logical_commit_time);
+      if (dl_key_iter != prefix_deleted_nodes_iter->second.end() &&
+          dl_key_iter->second == key) {
+        prefix_deleted_nodes_iter->second.erase(dl_key_iter);
+      }
     }
   }
 
@@ -132,9 +143,10 @@ void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
 
 void KeyValueCache::UpdateKeyValueSet(
     std::string_view key, absl::Span<std::string_view> input_value_set,
-    int64_t logical_commit_time) {
-  ScopeLatencyRecorder latency_recorder(kUpdateKeyValueSetEvent,
-                                        metrics_recorder_);
+    int64_t logical_commit_time, std::string_view prefix) {
+  ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
+                              kUpdateKeyValueSetLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
   VLOG(9) << "Received update for [" << key << "] at " << logical_commit_time;
   std::unique_ptr<absl::MutexLock> key_lock;
   absl::flat_hash_map<std::string, SetValueMeta>* existing_value_set;
@@ -142,11 +154,14 @@ void KeyValueCache::UpdateKeyValueSet(
   {
     absl::MutexLock lock_map(&set_map_mutex_);
 
-    if (logical_commit_time <= max_cleanup_logical_commit_time_for_set_cache_) {
+    auto max_cleanup_logical_commit_time =
+        max_cleanup_logical_commit_time_map_for_set_cache_[prefix];
+
+    if (logical_commit_time <= max_cleanup_logical_commit_time) {
       VLOG(1) << "Skipping the update as its logical_commit_time: "
               << logical_commit_time
               << " is older than the current cutoff time:"
-              << max_cleanup_logical_commit_time_for_set_cache_;
+              << max_cleanup_logical_commit_time;
       return;
     } else if (input_value_set.empty()) {
       VLOG(1) << "Skipping the update as it has no value in the set.";
@@ -191,11 +206,14 @@ void KeyValueCache::UpdateKeyValueSet(
   // end locking key
 }
 
-void KeyValueCache::DeleteKey(std::string_view key,
-                              int64_t logical_commit_time) {
-  ScopeLatencyRecorder latency_recorder(kDeleteKeyEvent, metrics_recorder_);
+void KeyValueCache::DeleteKey(std::string_view key, int64_t logical_commit_time,
+                              std::string_view prefix) {
+  ScopeLatencyMetricsRecorder<ServerSafeMetricsContext, kDeleteKeyLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
   absl::MutexLock lock(&mutex_);
-  if (logical_commit_time <= max_cleanup_logical_commit_time_) {
+  auto max_cleanup_logical_commit_time =
+      max_cleanup_logical_commit_time_map_[prefix];
+  if (logical_commit_time <= max_cleanup_logical_commit_time) {
     return;
   }
   const auto key_iter = map_.find(key);
@@ -208,23 +226,25 @@ void KeyValueCache::DeleteKey(std::string_view key,
     map_.insert_or_assign(
         key,
         {.value = nullptr, .last_logical_commit_time = logical_commit_time});
-
-    auto result = deleted_nodes_.emplace(logical_commit_time, key);
+    auto result = deleted_nodes_map_[prefix].emplace(logical_commit_time, key);
   }
 }
 
 void KeyValueCache::DeleteValuesInSet(std::string_view key,
                                       absl::Span<std::string_view> value_set,
-                                      int64_t logical_commit_time) {
-  ScopeLatencyRecorder latency_recorder(kDeleteValuesInSetEvent,
-                                        metrics_recorder_);
+                                      int64_t logical_commit_time,
+                                      std::string_view prefix) {
+  ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
+                              kDeleteValuesInSetLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
   std::unique_ptr<absl::MutexLock> key_lock;
   absl::flat_hash_map<std::string, SetValueMeta>* existing_value_set;
   // The max cleanup time needs to be locked before doing this comparison
   {
     absl::MutexLock lock_map(&set_map_mutex_);
-
-    if (logical_commit_time <= max_cleanup_logical_commit_time_for_set_cache_ ||
+    auto max_cleanup_logical_commit_time =
+        max_cleanup_logical_commit_time_map_for_set_cache_[prefix];
+    if (logical_commit_time <= max_cleanup_logical_commit_time ||
         value_set.empty()) {
       return;
     }
@@ -243,7 +263,7 @@ void KeyValueCache::DeleteValuesInSet(std::string_view key,
       key_to_value_set_map_.emplace(key, std::move(mutex_value_map_pair));
       // Add to deleted set nodes
       for (const std::string_view value : value_set) {
-        deleted_set_nodes_[logical_commit_time][key].emplace(value);
+        deleted_set_nodes_map_[prefix][logical_commit_time][key].emplace(value);
       }
       return;
     }
@@ -273,25 +293,36 @@ void KeyValueCache::DeleteValuesInSet(std::string_view key,
     key_lock.reset();
     absl::MutexLock lock_map(&set_map_mutex_);
     for (const std::string_view value : values_to_delete) {
-      deleted_set_nodes_[logical_commit_time][key].emplace(value);
+      deleted_set_nodes_map_[prefix][logical_commit_time][key].emplace(value);
     }
   }
 }
 
-void KeyValueCache::RemoveDeletedKeys(int64_t logical_commit_time) {
-  ScopeLatencyRecorder latency_recorder(kRemoveDeletedKeysEvent,
-                                        metrics_recorder_);
-  CleanUpKeyValueMap(logical_commit_time);
-  CleanUpKeyValueSetMap(logical_commit_time);
+void KeyValueCache::RemoveDeletedKeys(int64_t logical_commit_time,
+                                      std::string_view prefix) {
+  ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
+                              kRemoveDeletedKeyLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
+  CleanUpKeyValueMap(logical_commit_time, prefix);
+  CleanUpKeyValueSetMap(logical_commit_time, prefix);
 }
 
-void KeyValueCache::CleanUpKeyValueMap(int64_t logical_commit_time) {
-  ScopeLatencyRecorder latency_recorder(kCleanUpKeyValueMapEvent,
-                                        metrics_recorder_);
+void KeyValueCache::CleanUpKeyValueMap(int64_t logical_commit_time,
+                                       std::string_view prefix) {
+  ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
+                              kCleanUpKeyValueMapLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
   absl::MutexLock lock(&mutex_);
-  auto it = deleted_nodes_.begin();
+  if (max_cleanup_logical_commit_time_map_[prefix] < logical_commit_time) {
+    max_cleanup_logical_commit_time_map_[prefix] = logical_commit_time;
+  }
+  auto deleted_nodes_per_prefix = deleted_nodes_map_.find(prefix);
+  if (deleted_nodes_per_prefix == deleted_nodes_map_.end()) {
+    return;
+  }
+  auto it = deleted_nodes_per_prefix->second.begin();
 
-  while (it != deleted_nodes_.end()) {
+  while (it != deleted_nodes_per_prefix->second.end()) {
     if (it->first > logical_commit_time) {
       break;
     }
@@ -305,17 +336,30 @@ void KeyValueCache::CleanUpKeyValueMap(int64_t logical_commit_time) {
 
     ++it;
   }
-  deleted_nodes_.erase(deleted_nodes_.begin(), it);
-  max_cleanup_logical_commit_time_ =
-      std::max(max_cleanup_logical_commit_time_, logical_commit_time);
+  deleted_nodes_per_prefix->second.erase(
+      deleted_nodes_per_prefix->second.begin(), it);
+  if (deleted_nodes_per_prefix->second.empty()) {
+    deleted_nodes_map_.erase(prefix);
+  }
 }
 
-void KeyValueCache::CleanUpKeyValueSetMap(int64_t logical_commit_time) {
-  ScopeLatencyRecorder latency_recorder(kCleanUpKeyValueSetMapEvent,
-                                        metrics_recorder_);
+void KeyValueCache::CleanUpKeyValueSetMap(int64_t logical_commit_time,
+                                          std::string_view prefix) {
+  ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
+                              kCleanUpKeyValueSetMapLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
   absl::MutexLock lock_set_map(&set_map_mutex_);
-  auto delete_itr = deleted_set_nodes_.begin();
-  while (delete_itr != deleted_set_nodes_.end()) {
+  if (max_cleanup_logical_commit_time_map_for_set_cache_[prefix] <
+      logical_commit_time) {
+    max_cleanup_logical_commit_time_map_for_set_cache_[prefix] =
+        logical_commit_time;
+  }
+  auto deleted_nodes_per_prefix = deleted_set_nodes_map_.find(prefix);
+  if (deleted_nodes_per_prefix == deleted_set_nodes_map_.end()) {
+    return;
+  }
+  auto delete_itr = deleted_nodes_per_prefix->second.begin();
+  while (delete_itr != deleted_nodes_per_prefix->second.end()) {
     if (delete_itr->first > logical_commit_time) {
       break;
     }
@@ -341,13 +385,22 @@ void KeyValueCache::CleanUpKeyValueSetMap(int64_t logical_commit_time) {
     }
     ++delete_itr;
   }
-  deleted_set_nodes_.erase(deleted_set_nodes_.begin(), delete_itr);
-  max_cleanup_logical_commit_time_for_set_cache_ = std::max(
-      max_cleanup_logical_commit_time_for_set_cache_, logical_commit_time);
+  deleted_nodes_per_prefix->second.erase(
+      deleted_nodes_per_prefix->second.begin(), delete_itr);
+  if (deleted_nodes_per_prefix->second.empty()) {
+    deleted_set_nodes_map_.erase(prefix);
+  }
 }
 
-std::unique_ptr<Cache> KeyValueCache::Create(
-    MetricsRecorder& metrics_recorder) {
-  return absl::WrapUnique(new KeyValueCache(metrics_recorder));
+void KeyValueCache::LogCacheAccessMetrics(
+    const RequestContext& request_context,
+    std::string_view cache_access_event) const {
+  LogIfError(
+      request_context.GetInternalLookupMetricsContext()
+          .AccumulateMetric<kCacheAccessEventCount>(1, cache_access_event));
+}
+
+std::unique_ptr<Cache> KeyValueCache::Create() {
+  return absl::WrapUnique(new KeyValueCache());
 }
 }  // namespace kv_server

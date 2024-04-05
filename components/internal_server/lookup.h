@@ -24,6 +24,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
 #include "components/internal_server/lookup.pb.h"
+#include "components/util/request_context.h"
 
 namespace kv_server {
 
@@ -33,13 +34,15 @@ class Lookup {
   virtual ~Lookup() = default;
 
   virtual absl::StatusOr<InternalLookupResponse> GetKeyValues(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const = 0;
 
   virtual absl::StatusOr<InternalLookupResponse> GetKeyValueSet(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const = 0;
 
   virtual absl::StatusOr<InternalRunQueryResponse> RunQuery(
-      std::string query) const = 0;
+      const RequestContext& request_context, std::string query) const = 0;
 };
 
 }  // namespace kv_server

@@ -47,10 +47,11 @@ Tools to generate UDF delta files and test them are in the `tools/udf` directory
 1. Build the executables:
 
     ```sh
-    -$ builders/tools/bazel-debian run //production/packaging/tools:copy_to_dist_udf
+    -$ builders/tools/bazel-debian build -c opt //tools/udf/udf_generator:udf_delta_file_generator
     ```
 
-2. Generate a UDF delta file using the `dist/debian/udf_delta_file_generator` executable.
+2. Generate a UDF delta file using the `bazel-bin/tools/udf/udf_generator/udf_delta_file_generator`
+   executable.
 
     Flags:
 
@@ -63,13 +64,13 @@ Tools to generate UDF delta files and test them are in the `tools/udf` directory
     Example:
 
     ```sh
-    -$ dist/debian/udf_delta_file_generator --output_dir="$PWD" --udf_file_path="path/to/my/udf/udf.js"
+    -$ bazel-bin/tools/udf/udf_generator/udf_delta_file_generator --output_dir="$PWD" --udf_file_path="path/to/my/udf/udf.js"
     ```
 
 ### Option 2. Generating your own delta file
 
 You can use other options to generate delta files, e.g. using the
-[`data_cli` tool](./loading_data.md).
+[`data_cli` tool](/docs/data_loading/loading_data.md).
 
 The delta file must have a `DataRecord` with a `UserDefinedFunctionsConfig` as its record.
 

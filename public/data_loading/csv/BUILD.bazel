@@ -67,7 +67,7 @@ cc_library(
         "@com_google_riegeli//riegeli/bytes:istream_reader",
         "@com_google_riegeli//riegeli/csv:csv_reader",
         "@com_google_riegeli//riegeli/csv:csv_record",
-        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )
 
@@ -75,11 +75,10 @@ cc_test(
     name = "csv_delta_record_stream_reader_test",
     size = "small",
     srcs = ["csv_delta_record_stream_reader_test.cc"],
-    env = {"GLOG_v": "10"},
     deps = [
         ":csv_delta_record_stream_reader",
         ":csv_delta_record_stream_writer",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_googletest//:gtest_main",
     ],
 )

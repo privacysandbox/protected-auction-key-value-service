@@ -33,11 +33,11 @@ cc_binary(
         "//public/data_loading/readers:delta_record_stream_reader",
         "//public/query/v2:get_values_v2_cc_proto",
         "//public/udf:constants",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
-        "@google_privacysandbox_servers_common//src/cpp/util/status_macro:status_macros",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )

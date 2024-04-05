@@ -24,7 +24,7 @@ pkg_tar(
     name = "data_loading_analyzer_binaries",
     srcs = [
         ":data_loading_analyzer",
-        "@google_privacysandbox_servers_common//scp/cc/aws/proxy/src:proxify_layer",
+        "@google_privacysandbox_servers_common//src/aws/proxy:libnsm_and_proxify_tar",
     ],
     package_dir = "/opt/privacysandbox/bin",
 )
@@ -74,12 +74,10 @@ cc_binary(
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "//public/sharding:key_sharder",
         "@com_github_google_flatbuffers//:flatbuffers",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:metrics_recorder",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
     ],
 )
 
@@ -111,7 +109,7 @@ cc_library(
 cc_binary(
     name = "blob_storage_util",
     srcs = [
-        "blob_storage_util_aws.cc",
+        "blob_storage_util.cc",
     ],
     deps = [
         ":blob_storage_commands",
@@ -167,10 +165,10 @@ cc_binary(
         "//components/errors:aws_error_util",
         "@aws_sdk_cpp//:core",
         "@aws_sdk_cpp//:ec2",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/cleanup",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
     ],
@@ -189,9 +187,11 @@ cc_binary(
     deps = [
         ":concurrent_publishing_engine",
         "//components/util:platform_initializer",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:flags",
+        "@com_google_absl//absl/log:initialize",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -201,6 +201,9 @@ cc_library(
     srcs = select({
         "//:gcp_platform": [
             "publisher_service_gcp.cc",
+        ],
+        "//:local_platform": [
+            "publisher_service_local.cc",
         ],
         "//conditions:default": [
             "publisher_service_aws.cc",
@@ -220,15 +223,17 @@ cc_library(
             "//components/util:platform_initializer",
             "@com_github_googleapis_google_cloud_cpp//:pubsub",
         ],
+        "//:local_platform": [
+        ],
         "//conditions:default": [
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:sns",
         ],
     }) + [
         "//components/data/common:message_service",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -275,6 +280,8 @@ cc_binary(
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/flags:usage",
+        "@com_google_absl//absl/log:flags",
+        "@com_google_absl//absl/log:initialize",
         "@com_google_absl//absl/strings",
     ],
 )
@@ -288,8 +295,8 @@ cc_library(
     visibility = ["//tools:__subpackages__"],
     deps = [
         ":publisher_service",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/util:duration",
+        "@google_privacysandbox_servers_common//src/util:duration",
     ],
 )

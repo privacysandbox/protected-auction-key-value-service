@@ -1,5 +1,9 @@
 # AWS Key Value Server Terraform vars documentation
 
+-   **add_missing_keys_v1**
+
+    Add missing keys v1.
+
 -   **autoscaling_desired_capacity**
 
     Number of Amazon EC2 instances that should be running in the autoscaling group
@@ -23,6 +27,10 @@
     [these steps to request a public certificate](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html).
     If you want to import an existing public certificate into ACM, follow these steps to
     [import the certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html).
+
+-   **data_loading_blob_prefix_allowlist**
+
+    A comma separated list of prefixes (i.e., directories) where data is loaded from.
 
 -   **data_loading_file_format**
 
@@ -107,6 +115,14 @@
 
     Primary coordinator account identity.
 
+-   **primary_coordinator_private_key_endpoint**
+
+    Primary coordinator private key endpoint.
+
+-   **primary_coordinator_region**
+
+    Primary coordinator region.
+
 -   **prometheus_service_region**
 
     Specifies which region to find Prometheus service and use. Not all regions have Prometheus
@@ -121,6 +137,10 @@
     existing workspace id from another region should be provided. It is expected that the workspace
     from that region is created before this terraform file is applied. That can be done by running
     the Key Value service terraform file in that region.
+
+-   **public_key_endpoint**
+
+    Public key endpoint. Can only be overriden in non-prod mode.
 
 -   **realtime_updater_num_threads**
 
@@ -149,8 +169,7 @@
 
 -   **run_server_outside_tee**
 
-    Whether to run the server outside the TEE. Not suitable for production. This runs the server in
-    a Docker container and can be useful for debugging.
+    Whether to run the server outside the TEE.
 
 -   **s3_delta_file_bucket_name**
 
@@ -169,6 +188,14 @@
 -   **secondary_coordinator_account_identity**
 
     Secondary coordinator account identity.
+
+-   **secondary_coordinator_private_key_endpoint**
+
+    Secondary coordinator private key endpoint.
+
+-   **secondary_coordinator_region**
+
+    Secondary coordinator region.
 
 -   **server_port**
 
@@ -190,6 +217,17 @@
 -   **ssh_source_cidr_blocks**
 
     Source ips allowed to send ssh traffic to the ssh instance.
+
+-   **telemetry_config**
+
+    Telemetry configuration to control whether metrics are raw or noised. Options are: mode:
+    PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics),
+    mode: OFF(no metrics)
+
+-   **udf_min_log_level**
+
+    Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for
+    min_log_level and above. Default is 0 (info).
 
 -   **udf_num_workers**
 

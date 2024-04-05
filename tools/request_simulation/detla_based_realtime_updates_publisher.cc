@@ -16,6 +16,7 @@
 
 #include "absl/functional/bind_front.h"
 #include "public/data_loading/filename_utils.h"
+#include "src/util/status_macro/status_macros.h"
 
 using privacy_sandbox::server_common::TraceWithStatusOr;
 
@@ -33,16 +34,20 @@ class BlobRecordStream : public RecordStream {
 };
 }  // namespace
 
+// b/321746753 -- this class can potentially benefit from refactoring
 absl::Status DeltaBasedRealtimeUpdatesPublisher::Start() {
   LOG(INFO) << "Start monitor delta files and publish them as realtime updates";
-  absl::Status status = options_.delta_notifier.Start(
-      options_.change_notifier, {.bucket = options_.data_bucket}, "",
+  PS_RETURN_IF_ERROR(options_.delta_notifier.Start(
+      options_.change_notifier, {.bucket = options_.data_bucket},
+      {std::make_pair("", "")},
       absl::bind_front(
-          &DeltaBasedRealtimeUpdatesPublisher::EnqueueNewFilesToProcess, this));
-  if (!status.ok()) {
-    return status;
-  }
-  return data_load_thread_manager_->Start([this]() { ProcessNewFiles(); });
+          &DeltaBasedRealtimeUpdatesPublisher::EnqueueNewFilesToProcess,
+          this)));
+  PS_RETURN_IF_ERROR(
+      data_load_thread_manager_->Start([this]() { ProcessNewFiles(); }));
+
+  return rt_publisher_thread_manager_->Start(
+      [this]() { concurrent_publishing_engine_->Start(); });
 }
 
 absl::Status DeltaBasedRealtimeUpdatesPublisher::Stop() {
@@ -55,6 +60,15 @@ absl::Status DeltaBasedRealtimeUpdatesPublisher::Stop() {
   if (options_.delta_notifier.IsRunning()) {
     if (const auto status = options_.delta_notifier.Stop(); !status.ok()) {
       LOG(ERROR) << "Failed to stop notify: " << status;
+    }
+  }
+
+  if (rt_publisher_thread_manager_->IsRunning()) {
+    concurrent_publishing_engine_->Stop();
+    if (const auto status = rt_publisher_thread_manager_->Stop();
+        !status.ok()) {
+      LOG(ERROR) << "Failed to stop realtime publisher thread manager: "
+                 << status;
     }
   }
   LOG(INFO) << "Delta notifier stopped";
@@ -112,10 +126,6 @@ DeltaBasedRealtimeUpdatesPublisher::CreateRealtimeMessagesAndAddToQueue(
             return std::make_unique<BlobRecordStream>(
                 blob_client.GetBlobReader(location));
           });
-  auto metadata = record_reader->GetKVFileMetadata();
-  if (!metadata.ok()) {
-    return metadata.status();
-  }
   DataLoadingStats data_loading_stats;
   const auto process_data_record_fn =
       [this, &data_loading_stats](const DataRecord& data_record) {
@@ -136,13 +146,10 @@ DeltaBasedRealtimeUpdatesPublisher::CreateRealtimeMessagesAndAddToQueue(
           }
         }
       };
-  auto status = record_reader->ReadStreamRecords(
+  PS_RETURN_IF_ERROR(record_reader->ReadStreamRecords(
       [&process_data_record_fn](std::string_view raw) {
         return DeserializeDataRecord(raw, process_data_record_fn);
-      });
-  if (!status.ok()) {
-    return status;
-  }
+      }));
   return data_loading_stats;
 }
 bool DeltaBasedRealtimeUpdatesPublisher::HasNewEventToProcess() const {

@@ -15,12 +15,16 @@
 #include <string>
 
 #include "absl/flags/flag.h"
-#include "glog/logging.h"
+#include "absl/log/log.h"
 #include "tools/request_simulation/request_simulation_parameter_fetcher.h"
 
 ABSL_FLAG(std::string, s3_bucket_sns_arn, "",
           "The Amazon Resource Name(ARN) for the SNS topic"
           "configured for the S3 bucket");
+
+ABSL_FLAG(std::string, realtime_sns_arn, "",
+          "The Amazon Resource Name(ARN) for the SNS topic"
+          "configured for the realtime updates");
 
 namespace kv_server {
 
@@ -29,6 +33,13 @@ RequestSimulationParameterFetcher::GetBlobStorageNotifierMetadata() const {
   std::string bucket_sns_arn = absl::GetFlag(FLAGS_s3_bucket_sns_arn);
   LOG(INFO) << "The sns arn for s3 bucket is " << bucket_sns_arn;
   return AwsNotifierMetadata{"BlobNotifier_", std::move(bucket_sns_arn)};
+}
+
+NotifierMetadata
+RequestSimulationParameterFetcher::GetRealtimeNotifierMetadata() const {
+  std::string realtime_sns_arn = absl::GetFlag(FLAGS_realtime_sns_arn);
+  LOG(INFO) << "The sns arn for s3 bucket is " << realtime_sns_arn;
+  return AwsNotifierMetadata{"QueueNotifier_", std::move(realtime_sns_arn)};
 }
 
 }  // namespace kv_server

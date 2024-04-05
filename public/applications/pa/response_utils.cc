@@ -15,7 +15,7 @@
 #include "public/applications/pa/response_utils.h"
 
 #include "google/protobuf/util/json_util.h"
-#include "src/cpp/util/status_macro/status_macros.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server::application_pa {
 

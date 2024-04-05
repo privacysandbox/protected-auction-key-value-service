@@ -33,15 +33,16 @@ cc_library(
         ":stream_record_reader",
         "//components/telemetry:server_definition",
         "//public/data_loading:riegeli_metadata_cc_proto",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_riegeli//riegeli/bytes:istream_reader",
         "@com_google_riegeli//riegeli/records:record_reader",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
     ],
 )
 
@@ -60,13 +61,14 @@ cc_library(
         "//components/telemetry:server_definition",
         "//public/data_loading:riegeli_metadata_cc_proto",
         "@avro//:avrocpp",
-        "@com_github_google_glog//:glog",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:check",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
     ],
 )
 
@@ -75,7 +77,7 @@ cc_library(
     hdrs = ["stream_record_reader_factory.h"],
     deps = [
         ":stream_record_reader",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
     ],
 )
 
@@ -124,7 +126,6 @@ cc_test(
         "@com_google_riegeli//riegeli/bytes:ostream_writer",
         "@com_google_riegeli//riegeli/bytes:string_writer",
         "@com_google_riegeli//riegeli/records:record_writer",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -145,7 +146,6 @@ cc_test(
         "//public/test_util:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest_main",
-        "@google_privacysandbox_servers_common//src/cpp/telemetry:mocks",
     ],
 )
 
@@ -174,7 +174,7 @@ cc_library(
         ":delta_record_reader",
         "//public/data_loading:records_utils",
         "@avro//:avrocpp",
-        "@com_github_google_glog//:glog",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],

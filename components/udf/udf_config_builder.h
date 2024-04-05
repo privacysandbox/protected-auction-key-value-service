@@ -17,7 +17,7 @@
 
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/hooks/run_query_hook.h"
-#include "roma/config/src/config.h"
+#include "src/roma/config/config.h"
 
 namespace kv_server {
 
@@ -29,13 +29,13 @@ class UdfConfigBuilder {
 
   UdfConfigBuilder& RegisterRunQueryHook(RunQueryHook& run_query_hook);
 
-  UdfConfigBuilder& RegisterLoggingHook();
+  UdfConfigBuilder& RegisterLoggingFunction();
 
   UdfConfigBuilder& SetNumberOfWorkers(int number_of_workers);
 
-  google::scp::roma::Config<>& Config();
+  google::scp::roma::Config<RequestContext>& Config();
 
  private:
-  google::scp::roma::Config<> config_;
+  google::scp::roma::Config<RequestContext> config_;
 };
 }  // namespace kv_server

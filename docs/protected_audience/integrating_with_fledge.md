@@ -51,7 +51,7 @@ navigator.joinAdInterestGroup(interestGroup, 7 * kSecsPerDay);
 The ad interest group properties can be inspected in DevTools. Open the **Application** tab and
 select **Interest Group** from the sidebar.
 
-![inspecting bidding signals in devtools](assets/devtools_bidding_signals.png)
+![inspecting bidding signals in devtools](../assets/devtools_bidding_signals.png)
 
 When the auction is executed at a later time, the browser will use the keys defined when the user
 was added to an interest group to query the Key/Value server. The trusted bidding signal values will
@@ -177,7 +177,7 @@ scoreAd(adMetadata, bid, adSelectionConfig, sellerSignals, trustedScoringSignals
 
 # Bidding and Auction Services with Key-Value Integration
 
-![architecture of FLEDGE services](assets/fledge_services_architecture.png)
+![architecture of FLEDGE services](../assets/fledge_services_architecture.png)
 
 Bidding & Auction services is a way to allow FLEDGE computation to take place on cloud servers in a
 trusted execution environment, rather than running locally on a user's device. Bidding & Auction

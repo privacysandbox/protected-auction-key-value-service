@@ -21,10 +21,11 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
-#include "glog/logging.h"
+#include "components/telemetry/server_definition.h"
 #include "google/protobuf/util/json_util.h"
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
@@ -33,11 +34,8 @@
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
-#include "src/cpp/telemetry/telemetry.h"
-#include "src/cpp/util/status_macro/status_macros.h"
-
-constexpr char* kCacheKeyV2Hit = "CacheKeyHit";
-constexpr char* kCacheKeyV2Miss = "CacheKeyMiss";
+#include "src/telemetry/telemetry.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {
@@ -75,16 +73,35 @@ grpc::Status GetValuesV2Handler::GetValuesHttp(
       GetValuesHttp(request.raw_body().data(), *response->mutable_data()));
 }
 
-absl::Status GetValuesV2Handler::GetValuesHttp(
-    std::string_view request, std::string& json_response) const {
+absl::Status GetValuesV2Handler::GetValuesHttp(std::string_view request,
+                                               std::string& response,
+                                               ContentType content_type) const {
   v2::GetValuesRequest request_proto;
-  PS_RETURN_IF_ERROR(
-      google::protobuf::util::JsonStringToMessage(request, &request_proto));
+  if (content_type == ContentType::kJson) {
+    PS_RETURN_IF_ERROR(
+        google::protobuf::util::JsonStringToMessage(request, &request_proto));
+  } else {  // proto
+    if (!request_proto.ParseFromString(request)) {
+      auto error_message =
+          "Cannot parse request as a valid serilized proto object.";
+      VLOG(4) << error_message;
+      return absl::InvalidArgumentError(error_message);
+    }
+  }
   VLOG(9) << "Converted the http request to proto: "
           << request_proto.DebugString();
   v2::GetValuesResponse response_proto;
   PS_RETURN_IF_ERROR(GetValues(request_proto, &response_proto));
-  return MessageToJsonString(response_proto, &json_response);
+  if (content_type == ContentType::kJson) {
+    return MessageToJsonString(response_proto, &response);
+  }
+  // content_type == proto
+  if (!response_proto.SerializeToString(&response)) {
+    auto error_message = "Cannot serialize the response as a proto.";
+    VLOG(4) << error_message;
+    return absl::InvalidArgumentError(error_message);
+  }
+  return absl::OkStatus();
 }
 
 grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
@@ -94,22 +111,38 @@ grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
                                             *response->mutable_data()));
 }
 
+GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
+    const quiche::BinaryHttpRequest& deserialized_req) const {
+  for (const auto& header : deserialized_req.GetHeaderFields()) {
+    if (absl::AsciiStrToLower(header.name) == kContentTypeHeader &&
+        absl::AsciiStrToLower(header.value) ==
+            kContentEncodingProtoHeaderValue) {
+      return ContentType::kProto;
+    }
+  }
+  return ContentType::kJson;
+}
+
 absl::StatusOr<quiche::BinaryHttpResponse>
 GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
     std::string_view bhttp_request_body) const {
   VLOG(9) << "Handling the binary http layer";
-  PS_ASSIGN_OR_RETURN(quiche::BinaryHttpRequest maybe_deserialized_req,
+  PS_ASSIGN_OR_RETURN(quiche::BinaryHttpRequest deserialized_req,
                       quiche::BinaryHttpRequest::Create(bhttp_request_body),
                       _ << "Failed to deserialize binary http request");
-  VLOG(3) << "BinaryHttpGetValues request: "
-          << maybe_deserialized_req.DebugString();
-
-  std::string json_response;
+  VLOG(3) << "BinaryHttpGetValues request: " << deserialized_req.DebugString();
+  std::string response;
+  auto content_type = GetContentType(deserialized_req);
   PS_RETURN_IF_ERROR(
-      GetValuesHttp(maybe_deserialized_req.body(), json_response));
-
+      GetValuesHttp(deserialized_req.body(), response, content_type));
   quiche::BinaryHttpResponse bhttp_response(200);
-  bhttp_response.set_body(std::move(json_response));
+  if (content_type == ContentType::kProto) {
+    bhttp_response.AddHeaderField({
+        .name = std::string(kContentTypeHeader),
+        .value = std::string(kContentEncodingProtoHeaderValue),
+    });
+  }
+  bhttp_response.set_body(std::move(response));
   return bhttp_response;
 }
 
@@ -159,6 +192,7 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
 }
 
 void GetValuesV2Handler::ProcessOnePartition(
+    RequestContext request_context,
     const google::protobuf::Struct& req_metadata,
     const v2::RequestPartition& req_partition,
     v2::ResponsePartition& resp_partition) const {
@@ -166,7 +200,8 @@ void GetValuesV2Handler::ProcessOnePartition(
   UDFExecutionMetadata udf_metadata;
   *udf_metadata.mutable_request_metadata() = req_metadata;
   const auto maybe_output_string = udf_client_.ExecuteCode(
-      std::move(udf_metadata), req_partition.arguments());
+      std::move(request_context), std::move(udf_metadata),
+      req_partition.arguments());
   if (!maybe_output_string.ok()) {
     resp_partition.mutable_status()->set_code(
         static_cast<int>(maybe_output_string.status().code()));
@@ -181,8 +216,11 @@ void GetValuesV2Handler::ProcessOnePartition(
 grpc::Status GetValuesV2Handler::GetValues(
     const v2::GetValuesRequest& request,
     v2::GetValuesResponse* response) const {
+  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
+  RequestContext request_context(*scope_metrics_context);
   if (request.partitions().size() == 1) {
-    ProcessOnePartition(request.metadata(), request.partitions(0),
+    ProcessOnePartition(std::move(request_context), request.metadata(),
+                        request.partitions(0),
                         *response->mutable_single_partition());
     return grpc::Status::OK;
   }

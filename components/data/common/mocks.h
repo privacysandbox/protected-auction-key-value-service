@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/common/change_notifier.h"
@@ -50,12 +51,10 @@ class MockBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
 class MockDeltaFileNotifier : public DeltaFileNotifier {
  public:
   MockDeltaFileNotifier() : DeltaFileNotifier() {}
-
   MOCK_METHOD(absl::Status, Start,
-              (BlobStorageChangeNotifier & change_notifier,
-               BlobStorageClient::DataLocation location,
-               std::string start_after,
-               std::function<void(const std::string& key)> callback),
+              (BlobStorageChangeNotifier&, BlobStorageClient::DataLocation,
+               (absl::flat_hash_map<std::string, std::string>&&),
+               std::function<void(const std::string&)>),
               (override));
   MOCK_METHOD(absl::Status, Stop, (), (override));
   MOCK_METHOD(bool, IsRunning, (), (const, override));

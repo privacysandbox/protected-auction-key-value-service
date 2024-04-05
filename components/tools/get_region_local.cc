@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "glog/logging.h"
+#include "absl/log/log.h"
 
 int main(int argc, char** argv) {
   LOG(FATAL) << "The get_region tool is not available for --platform==local";

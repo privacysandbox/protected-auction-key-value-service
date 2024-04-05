@@ -17,8 +17,8 @@
 #include "components/data_server/request_handler/ohttp_client_encryptor.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
 #include "gtest/gtest.h"
-#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
-#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 namespace kv_server {
 namespace {
@@ -43,7 +43,7 @@ TEST(OhttpEncryptorTest, FullCircleSuccess) {
   auto response_decrypted_status =
       client_encryptor.DecryptResponse(*response_encrypted_status);
   ASSERT_TRUE(response_decrypted_status.ok());
-  EXPECT_EQ(kTestResponse, response_decrypted_status->GetPlaintextData());
+  EXPECT_EQ(kTestResponse, *response_decrypted_status);
 }
 
 TEST(OhttpEncryptorTest, ServerDecryptRequestFails) {

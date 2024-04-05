@@ -54,6 +54,10 @@ output "metrics_export_timeout_millis_parameter_arn" {
   value = aws_ssm_parameter.metrics_export_timeout_millis_parameter.arn
 }
 
+output "telemetry_config_parameter_arn" {
+  value = aws_ssm_parameter.telemetry_config_parameter.arn
+}
+
 output "realtime_updater_num_threads_parameter_arn" {
   value = aws_ssm_parameter.realtime_updater_num_threads_parameter.arn
 }
@@ -82,6 +86,10 @@ output "route_v1_requests_to_v2_parameter_arn" {
   value = aws_ssm_parameter.route_v1_requests_to_v2_parameter.arn
 }
 
+output "add_missing_keys_v1_parameter_arn" {
+  value = aws_ssm_parameter.add_missing_keys_v1_parameter.arn
+}
+
 output "use_real_coordinators_parameter_arn" {
   value = aws_ssm_parameter.use_real_coordinators_parameter.arn
 }
@@ -92,6 +100,26 @@ output "primary_coordinator_account_identity_parameter_arn" {
 
 output "secondary_coordinator_account_identity_parameter_arn" {
   value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.secondary_coordinator_account_identity_parameter[0].arn : ""
+}
+
+output "primary_coordinator_private_key_endpoint_parameter_arn" {
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.primary_coordinator_private_key_endpoint_parameter[0].arn : ""
+}
+
+output "secondary_coordinator_private_key_endpoint_parameter_arn" {
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.secondary_coordinator_private_key_endpoint_parameter[0].arn : ""
+}
+
+output "primary_coordinator_region_parameter_arn" {
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.primary_coordinator_region_parameter[0].arn : ""
+}
+
+output "secondary_coordinator_region_parameter_arn" {
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.secondary_coordinator_region_parameter[0].arn : ""
+}
+
+output "public_key_endpoint_parameter_arn" {
+  value = (var.use_real_coordinators_parameter_value) ? aws_ssm_parameter.public_key_endpoint_parameter[0].arn : ""
 }
 
 output "data_loading_file_format_parameter_arn" {
@@ -112,4 +140,16 @@ output "sharding_key_regex_parameter_arn" {
 
 output "udf_timeout_millis_parameter_arn" {
   value = aws_ssm_parameter.udf_timeout_millis_parameter.arn
+}
+
+output "udf_min_log_level_parameter_arn" {
+  value = aws_ssm_parameter.udf_min_log_level_parameter.arn
+}
+
+output "enable_otel_logger_parameter_arn" {
+  value = aws_ssm_parameter.enable_otel_logger_parameter.arn
+}
+
+output "data_loading_blob_prefix_allowlist_parameter_arn" {
+  value = aws_ssm_parameter.data_loading_blob_prefix_allowlist.arn
 }

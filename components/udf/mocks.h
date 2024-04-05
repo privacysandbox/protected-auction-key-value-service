@@ -25,16 +25,16 @@
 #include "components/udf/code_config.h"
 #include "components/udf/udf_client.h"
 #include "gmock/gmock.h"
-#include "roma/interface/roma.h"
+#include "src/roma/interface/roma.h"
 
 namespace kv_server {
 
 class MockUdfClient : public UdfClient {
  public:
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
-              (std::vector<std::string>), (const, override));
+              (RequestContext, std::vector<std::string>), (const, override));
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
-              (UDFExecutionMetadata&&,
+              (RequestContext, UDFExecutionMetadata&&,
                const google::protobuf::RepeatedPtrField<UDFArgument>&),
               (const, override));
   MOCK_METHOD((absl::Status), Stop, (), (override));

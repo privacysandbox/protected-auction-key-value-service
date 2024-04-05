@@ -33,24 +33,30 @@ MATCHER_P2(KVPairEq, key, value, "") {
 class MockCache : public Cache {
  public:
   MOCK_METHOD((absl::flat_hash_map<std::string, std::string>), GetKeyValuePairs,
-              (const absl::flat_hash_set<std::string_view>&),
+              (const RequestContext& request_context,
+               const absl::flat_hash_set<std::string_view>&),
               (const, override));
   MOCK_METHOD((std::unique_ptr<GetKeyValueSetResult>), GetKeyValueSet,
-              (const absl::flat_hash_set<std::string_view>&),
+              (const RequestContext& request_context,
+               const absl::flat_hash_set<std::string_view>&),
               (const, override));
   MOCK_METHOD(void, UpdateKeyValue,
-              (std::string_view key, std::string_view value, int64_t ts),
+              (std::string_view key, std::string_view value, int64_t ts,
+               std::string_view prefix),
               (override));
   MOCK_METHOD(void, UpdateKeyValueSet,
               (std::string_view key, absl::Span<std::string_view> value_set,
-               int64_t logical_commit_time),
+               int64_t logical_commit_time, std::string_view prefix),
               (override));
   MOCK_METHOD(void, DeleteValuesInSet,
               (std::string_view key, absl::Span<std::string_view> value_set,
-               int64_t logical_commit_time),
+               int64_t logical_commit_time, std::string_view prefix),
               (override));
-  MOCK_METHOD(void, DeleteKey, (std::string_view key, int64_t ts), (override));
-  MOCK_METHOD(void, RemoveDeletedKeys, (int64_t ts), (override));
+  MOCK_METHOD(void, DeleteKey,
+              (std::string_view key, int64_t ts, std::string_view prefix),
+              (override));
+  MOCK_METHOD(void, RemoveDeletedKeys, (int64_t ts, std::string_view prefix),
+              (override));
 };
 
 class MockGetKeyValueSetResult : public GetKeyValueSetResult {

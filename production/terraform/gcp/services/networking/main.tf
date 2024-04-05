@@ -27,7 +27,7 @@ resource "google_compute_subnetwork" "kv_server" {
   network       = var.use_existing_vpc ? var.existing_vpc_id : google_compute_network.kv_server[0].id
   purpose       = "PRIVATE"
   region        = each.value
-  ip_cidr_range = "10.${each.key}.3.0/24"
+  ip_cidr_range = tolist(var.regions_cidr_blocks)[each.key]
 }
 
 resource "google_compute_router" "kv_server" {
@@ -39,7 +39,10 @@ resource "google_compute_router" "kv_server" {
 }
 
 resource "google_compute_router_nat" "kv_server" {
-  for_each = google_compute_router.kv_server
+  for_each = {
+    for key, value in google_compute_router.kv_server : key => value
+    if !contains(var.regions_use_existing_nat, value.region)
+  }
 
   name                               = "${var.service}-${var.environment}-${each.value.region}-nat"
   router                             = each.value.name
@@ -59,6 +62,7 @@ resource "google_compute_global_address" "collector" {
 }
 
 resource "google_compute_global_address" "kv_server" {
+  count      = var.enable_external_traffic ? 1 : 0
   name       = "${var.service}-${var.environment}-xlb-ip"
   ip_version = "IPV4"
 }

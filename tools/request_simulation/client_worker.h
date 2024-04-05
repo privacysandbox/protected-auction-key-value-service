@@ -22,8 +22,8 @@
 #include <utility>
 
 #include "absl/functional/any_invocable.h"
+#include "absl/log/log.h"
 #include "components/data/common/thread_manager.h"
-#include "glog/logging.h"
 #include "grpcpp/grpcpp.h"
 #include "tools/request_simulation/grpc_client.h"
 #include "tools/request_simulation/message_queue.h"
@@ -67,7 +67,7 @@ class ClientWorker {
         metrics_collector_(metrics_collector),
         request_converter_(std::move(request_converter)),
         thread_manager_(
-            TheadManager::Create(absl::StrCat("Client worker ", id))) {
+            ThreadManager::Create(absl::StrCat("Client worker ", id))) {
     grpc_client_ = std::make_unique<GrpcClient<RequestT, ResponseT>>(
         channel, request_timeout, is_client_channel);
   }
@@ -93,7 +93,7 @@ class ClientWorker {
   std::unique_ptr<GrpcClient<RequestT, ResponseT>> grpc_client_;
   absl::AnyInvocable<RequestT(std::string)> request_converter_;
   // Thread manager to start or stop the request sending thread.
-  std::unique_ptr<TheadManager> thread_manager_;
+  std::unique_ptr<ThreadManager> thread_manager_;
 };
 
 template <typename RequestT, typename ResponseT>

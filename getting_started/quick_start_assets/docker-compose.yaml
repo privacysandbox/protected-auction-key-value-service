@@ -19,11 +19,9 @@ services:
       context: ../..
       dockerfile: getting_started/quick_start_assets/Dockerfile.server
     network_mode: host
-    environment:
-    - GLOG_alsologtostderr=1
-    - GLOG_v=9
     security_opt:
       - seccomp:unconfined
+    command: --v=9 --stderrthreshold=0
     volumes:
     - ../../dist/deltas:/tmp/deltas
 

@@ -19,14 +19,15 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "components/data/common/thread_manager.h"
 #include "components/errors/retry.h"
-#include "glog/logging.h"
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
-#include "src/cpp/util/duration.h"
+#include "src/util/duration.h"
 
 namespace kv_server {
 namespace {
@@ -39,24 +40,27 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
   explicit DeltaFileNotifierImpl(BlobStorageClient& client,
                                  const absl::Duration poll_frequency,
                                  std::unique_ptr<SleepFor> sleep_for,
-                                 SteadyClock& clock)
-      : thread_manager_(TheadManager::Create("Delta file notifier")),
+                                 SteadyClock& clock,
+                                 BlobPrefixAllowlist blob_prefix_allowlist)
+      : thread_manager_(ThreadManager::Create("Delta file notifier")),
         client_(client),
         poll_frequency_(poll_frequency),
         sleep_for_(std::move(sleep_for)),
-        clock_(clock) {}
+        clock_(clock),
+        blob_prefix_allowlist_(std::move(blob_prefix_allowlist)) {}
 
   absl::Status Start(
       BlobStorageChangeNotifier& change_notifier,
-      BlobStorageClient::DataLocation location, std::string start_after,
-      std::function<void(const std::string& key)> callback) override {
-    return thread_manager_->Start([this, location = std::move(location),
-                                   start_after = std::move(start_after),
-                                   callback = std::move(callback),
-                                   &change_notifier]() mutable {
-      Watch(change_notifier, std::move(location), std::move(start_after),
-            std::move(callback));
-    });
+      BlobStorageClient::DataLocation location,
+      absl::flat_hash_map<std::string, std::string>&& prefix_start_after_map,
+      std::function<void(const std::string&)> callback) override {
+    return thread_manager_->Start(
+        [this, location = std::move(location),
+         prefix_start_after_map = std::move(prefix_start_after_map),
+         callback = std::move(callback), &change_notifier]() mutable {
+          Watch(change_notifier, std::move(location),
+                std::move(prefix_start_after_map), std::move(callback));
+        });
   }
 
   absl::Status Stop() override {
@@ -71,128 +75,179 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
   // Returns max DeltaFile in alphabetical order from notification
   // Empty string if wait_duration exceeded.
   absl::StatusOr<std::string> WaitForNotification(
-      BlobStorageChangeNotifier& change_notifier,
-      absl::Duration wait_duration) {
-    absl::StatusOr<std::vector<std::string>> changes =
-        change_notifier.GetNotifications(
-            wait_duration, [this]() { return thread_manager_->ShouldStop(); });
-    if (!changes.ok()) {
-      return changes.status();
-    }
-    std::string_view max_change = "";
-    for (const auto& change : *changes) {
-      if (change > max_change && IsDeltaFilename(change)) {
-        max_change = change;
-      }
-    }
-    return std::string(max_change);
-  }
-
+      BlobStorageChangeNotifier& change_notifier, absl::Duration wait_duration);
   // Returns true if we need to check for new blobs.  Returns the error on
   // failure.
   absl::StatusOr<bool> ShouldListBlobs(
       BlobStorageChangeNotifier& change_notifier, ExpiringFlag& expiring_flag,
-      std::string_view last_key) {
-    if (!expiring_flag.Get()) {
-      VLOG(5) << "Backup poll";
-      return true;
-    }
-    absl::StatusOr<std::string> notification_key =
-        WaitForNotification(change_notifier, expiring_flag.GetTimeRemaining());
-    if (notification_key.ok() && *notification_key < last_key) {
-      // Ignore notifications for keys we've already seen.
-      return false;
-    }
-    if (absl::IsDeadlineExceeded(notification_key.status())) {
-      // Deadline exceeded while waiting, trigger backup poll
-      VLOG(5) << "Backup poll";
-      return true;
-    }
-    // Don't poll on error.  A backup poll will trigger if necessary.
-    if (!notification_key.ok()) {
-      return notification_key.status();
-    }
-    // Return True if there is a Delta file notification
-    // False is returned on DeadlineExceeded.
-    return IsDeltaFilename(*notification_key);
-  }
+      const absl::flat_hash_map<std::string, std::string>&
+          prefix_start_after_map);
+  void Watch(
+      BlobStorageChangeNotifier& change_notifier,
+      BlobStorageClient::DataLocation location,
+      absl::flat_hash_map<std::string, std::string>&& prefix_start_after_map,
+      std::function<void(const std::string& key)> callback);
 
-  void Watch(BlobStorageChangeNotifier& change_notifier,
-             BlobStorageClient::DataLocation location, std::string start_after,
-             std::function<void(const std::string& key)> callback) {
-    LOG(INFO) << "Started to watch " << location;
-    std::string last_key = std::move(start_after);
-    // Flag starts expired, and forces an initial poll.
-    ExpiringFlag expiring_flag(clock_);
-    uint32_t sequential_failures = 0;
-    while (!thread_manager_->ShouldStop()) {
-      const absl::StatusOr<bool> should_list_blobs =
-          ShouldListBlobs(change_notifier, expiring_flag, last_key);
-      if (!should_list_blobs.ok()) {
-        ++sequential_failures;
-        const absl::Duration backoff_time =
-            std::min(expiring_flag.GetTimeRemaining(),
-                     ExponentialBackoffForRetry(sequential_failures));
-        LOG(ERROR) << "Failed to get delta file notifications: "
-                   << should_list_blobs.status() << ".  Waiting for "
-                   << backoff_time;
-        if (!sleep_for_->Duration(backoff_time)) {
-          LOG(ERROR) << "Failed to sleep for " << backoff_time
-                     << ".  SleepFor invalid.";
-        }
-        continue;
-      }
-      sequential_failures = 0;
-      if (!*should_list_blobs) {
-        continue;
-      }
-      absl::StatusOr<std::vector<std::string>> result = client_.ListBlobs(
-          location, {.prefix = std::string(FilePrefix<FileType::DELTA>()),
-                     .start_after = last_key});
-      if (!result.ok()) {
-        LOG(ERROR) << "Failed to list " << location << ": " << result.status();
-        continue;
-      }
-      // Set expiring flag before callback for unit test simplicity.
-      // Fake clock is moved forward in callback so flag must be set beforehand.
-      expiring_flag.Set(poll_frequency_);
-      int delta_file_count = 0;
-      for (const std::string& key : *result) {
-        if (!IsDeltaFilename(key)) {
-          continue;
-        }
-        callback(key);
-        last_key = key;
-        delta_file_count++;
-      }
-      if (!delta_file_count) {
-        VLOG(2) << "No new file found";
-      }
-    }
-  }
-
-  std::unique_ptr<TheadManager> thread_manager_;
+  std::unique_ptr<ThreadManager> thread_manager_;
   BlobStorageClient& client_;
   const absl::Duration poll_frequency_;
   std::unique_ptr<SleepFor> sleep_for_;
   SteadyClock& clock_;
+  BlobPrefixAllowlist blob_prefix_allowlist_;
 };
+
+absl::StatusOr<std::string> DeltaFileNotifierImpl::WaitForNotification(
+    BlobStorageChangeNotifier& change_notifier, absl::Duration wait_duration) {
+  absl::StatusOr<std::vector<std::string>> changes =
+      change_notifier.GetNotifications(
+          wait_duration, [this]() { return thread_manager_->ShouldStop(); });
+  if (!changes.ok()) {
+    return changes.status();
+  }
+  std::string_view max_change = "";
+  for (const auto& change : *changes) {
+    if (auto blob = ParseBlobName(change);
+        change > max_change && IsDeltaFilename(blob.key)) {
+      max_change = change;
+    }
+  }
+  return std::string(max_change);
+}
+
+// Returns true if we need to check for new blobs.  Returns the error on
+// failure.
+absl::StatusOr<bool> DeltaFileNotifierImpl::ShouldListBlobs(
+    BlobStorageChangeNotifier& change_notifier, ExpiringFlag& expiring_flag,
+    const absl::flat_hash_map<std::string, std::string>&
+        prefix_start_after_map) {
+  if (!expiring_flag.Get()) {
+    VLOG(5) << "Backup poll";
+    return true;
+  }
+  absl::StatusOr<std::string> notification_key =
+      WaitForNotification(change_notifier, expiring_flag.GetTimeRemaining());
+  // Don't poll on error.  A backup poll will trigger if necessary.
+  if (absl::IsDeadlineExceeded(notification_key.status())) {
+    // Deadline exceeded while waiting, trigger backup poll
+    VLOG(5) << "Backup poll";
+    return true;
+  }
+  if (!notification_key.ok()) {
+    return notification_key.status();
+  }
+  auto notification_blob = ParseBlobName(*notification_key);
+  if (auto iter = prefix_start_after_map.find(notification_blob.prefix);
+      iter != prefix_start_after_map.end() &&
+      notification_blob.key < iter->second) {
+    // Ignore notifications for keys we've already seen.
+    return false;
+  }
+  // Return True if there is a Delta file notification
+  // False is returned on DeadlineExceeded.
+  return blob_prefix_allowlist_.Contains(notification_blob.prefix) &&
+         IsDeltaFilename(notification_blob.key);
+}
+
+absl::flat_hash_map<std::string, std::vector<std::string>> ListPrefixDeltaFiles(
+    BlobStorageClient::DataLocation location,
+    const BlobPrefixAllowlist& prefix_allowlist,
+    const absl::flat_hash_map<std::string, std::string>& prefix_start_after_map,
+    BlobStorageClient& blob_client) {
+  absl::flat_hash_map<std::string, std::vector<std::string>> prefix_blobs_map;
+  for (const auto& blob_prefix : prefix_allowlist.Prefixes()) {
+    location.prefix = blob_prefix;
+    auto iter = prefix_start_after_map.find(blob_prefix);
+    absl::StatusOr<std::vector<std::string>> result = blob_client.ListBlobs(
+        location,
+        {.prefix = std::string(FilePrefix<FileType::DELTA>()),
+         .start_after =
+             (iter == prefix_start_after_map.end()) ? "" : iter->second});
+    if (!result.ok()) {
+      LOG(ERROR) << "Failed to list " << location << ": " << result.status();
+      continue;
+    }
+    if (result->empty()) {
+      continue;
+    }
+    auto& prefix_blobs = prefix_blobs_map[blob_prefix];
+    prefix_blobs.reserve(result->size());
+    for (const auto& blob : *result) {
+      prefix_blobs.push_back(blob);
+    }
+  }
+  return prefix_blobs_map;
+}
+
+void DeltaFileNotifierImpl::Watch(
+    BlobStorageChangeNotifier& change_notifier,
+    BlobStorageClient::DataLocation location,
+    absl::flat_hash_map<std::string, std::string>&& prefix_start_after_map,
+    std::function<void(const std::string& key)> callback) {
+  LOG(INFO) << "Started to watch " << location;
+  // Flag starts expired, and forces an initial poll.
+  ExpiringFlag expiring_flag(clock_);
+  uint32_t sequential_failures = 0;
+  while (!thread_manager_->ShouldStop()) {
+    const absl::StatusOr<bool> should_list_blobs =
+        ShouldListBlobs(change_notifier, expiring_flag, prefix_start_after_map);
+    if (!should_list_blobs.ok()) {
+      ++sequential_failures;
+      const absl::Duration backoff_time =
+          std::min(expiring_flag.GetTimeRemaining(),
+                   ExponentialBackoffForRetry(sequential_failures));
+      LOG(ERROR) << "Failed to get delta file notifications: "
+                 << should_list_blobs.status() << ".  Waiting for "
+                 << backoff_time;
+      if (!sleep_for_->Duration(backoff_time)) {
+        LOG(ERROR) << "Failed to sleep for " << backoff_time
+                   << ".  SleepFor invalid.";
+      }
+      continue;
+    }
+    sequential_failures = 0;
+    if (!*should_list_blobs) {
+      continue;
+    }
+    // Set expiring flag before callback for unit test simplicity.
+    // Fake clock is moved forward in callback so flag must be set beforehand.
+    expiring_flag.Set(poll_frequency_);
+    int delta_file_count = 0;
+    auto prefix_blobs_map = ListPrefixDeltaFiles(
+        location, blob_prefix_allowlist_, prefix_start_after_map, client_);
+    for (const auto& [prefix, prefix_blobs] : prefix_blobs_map) {
+      for (const auto& blob : prefix_blobs) {
+        if (!IsDeltaFilename(blob)) {
+          continue;
+        }
+        callback(prefix.empty() ? blob : absl::StrCat(prefix, "/", blob));
+        prefix_start_after_map[prefix] = blob;
+        delta_file_count++;
+      }
+    }
+    if (delta_file_count == 0) {
+      VLOG(2) << "No new file found";
+    }
+  }
+}
 
 }  // namespace
 
 std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
-    BlobStorageClient& client, const absl::Duration poll_frequency) {
-  return std::make_unique<DeltaFileNotifierImpl>(client, poll_frequency,
-                                                 std::make_unique<SleepFor>(),
-                                                 SteadyClock::RealClock());
+    BlobStorageClient& client, const absl::Duration poll_frequency,
+    BlobPrefixAllowlist blob_prefix_allowlist) {
+  return std::make_unique<DeltaFileNotifierImpl>(
+      client, poll_frequency, std::make_unique<SleepFor>(),
+      SteadyClock::RealClock(), std::move(blob_prefix_allowlist));
 }
 
 // For test only
 std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
     BlobStorageClient& client, const absl::Duration poll_frequency,
-    std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock) {
-  return std::make_unique<DeltaFileNotifierImpl>(client, poll_frequency,
-                                                 std::move(sleep_for), clock);
+    std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock,
+    BlobPrefixAllowlist blob_prefix_allowlist) {
+  return std::make_unique<DeltaFileNotifierImpl>(
+      client, poll_frequency, std::move(sleep_for), clock,
+      std::move(blob_prefix_allowlist));
 }
 
 }  // namespace kv_server

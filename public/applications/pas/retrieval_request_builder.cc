@@ -16,14 +16,20 @@
 
 namespace kv_server::application_pas {
 
+v2::GetValuesRequest GetRequest() {
+  static const std::string* kClient = new std::string("Retrieval.20231018");
+  v2::GetValuesRequest req;
+  req.set_client_version(*kClient);
+  (*(req.mutable_metadata()->mutable_fields()))["is_pas"].set_string_value(
+      "true");
+  return req;
+}
+
 v2::GetValuesRequest BuildRetrievalRequest(
     std::string protected_signals,
     absl::flat_hash_map<std::string, std::string> device_metadata,
     std::string contextual_signals, std::vector<std::string> optional_ad_ids) {
-  static const std::string* kClient = new std::string("Retrieval.20231018");
-
-  v2::GetValuesRequest req;
-  req.set_client_version(*kClient);
+  v2::GetValuesRequest req = GetRequest();
   v2::RequestPartition* partition = req.add_partitions();
   {
     auto* protected_signals_arg = partition->add_arguments();
@@ -52,6 +58,19 @@ v2::GetValuesRequest BuildRetrievalRequest(
           ->add_values()
           ->set_string_value(std::move(item));
     }
+  }
+  return req;
+}
+
+v2::GetValuesRequest BuildLookupRequest(std::vector<std::string> ad_ids) {
+  v2::GetValuesRequest req = GetRequest();
+  v2::RequestPartition* partition = req.add_partitions();
+  auto* ad_id_arg = partition->add_arguments();
+  for (auto&& item : std::move(ad_ids)) {
+    ad_id_arg->mutable_data()
+        ->mutable_list_value()
+        ->add_values()
+        ->set_string_value(std::move(item));
   }
   return req;
 }

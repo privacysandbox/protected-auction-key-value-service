@@ -34,6 +34,16 @@ variable "regions" {
   type        = set(string)
 }
 
+variable "regions_cidr_blocks" {
+  description = "A set of CIDR ranges for all specified regions. The number of blocks here should correspond to the number of regions."
+  type        = set(string)
+}
+
+variable "regions_use_existing_nat" {
+  description = "Regions that use existing nat. No new nats will be created for regions specified here."
+  type        = set(string)
+}
+
 variable "gcp_image_tag" {
   description = "Tag of the gcp docker image uploaded to the artifact registry."
   type        = string
@@ -50,32 +60,34 @@ variable "kv_service_port" {
 }
 
 variable "envoy_port" {
-  description = "External load balancer will send traffic to this port. Envoy will forward traffic to kv_service_port. Must match envoy.yaml."
+  description = "External load balancer will send traffic to this port. Envoy will forward traffic to kv_service_port. Must match envoy.yaml. Ignored if `enable_external_traffic` is false."
   type        = number
 }
 
 variable "server_url" {
-  description = "Kv-serer URL. Example: kv-server-environment.example.com"
+  description = "Kv-serer URL. Example: kv-server-environment.example.com. Ignored if `enable_external_traffic` is false."
   type        = string
 }
 
 variable "server_dns_zone" {
-  description = "Google Cloud Dns zone for Kv-serer."
+  description = "Google Cloud Dns zone for Kv-serer. Ignored if `enable_external_traffic` is false."
   type        = string
 }
 
 variable "server_domain_ssl_certificate_id" {
-  description = "Ssl certificate id of the Kv-server URL."
+  description = "Ssl certificate id of the Kv-server URL. Ignored if `enable_external_traffic` is false."
   type        = string
 }
 
 variable "tls_key" {
-  description = "TLS key. Please specify this variable in a tfvars file (e.g., secrets.auto.tfvars) under the `environments` directory."
+  description = "TLS key. Please specify this variable in a tfvars file (e.g., secrets.auto.tfvars) under the `environments` directory. Ignored if `enable_external_traffic` is false."
+  default     = "NOT_PROVIDED"
   type        = string
 }
 
 variable "tls_cert" {
-  description = "TLS cert. Please specify this variable in a tfvars file (e.g., secrets.auto.tfvars) under the `environments` directory."
+  description = "TLS cert. Please specify this variable in a tfvars file (e.g., secrets.auto.tfvars) under the `environments` directory. Ignored if `enable_external_traffic` is false."
+  default     = "NOT_PROVIDED"
   type        = string
 }
 
@@ -162,9 +174,20 @@ variable "udf_timeout_millis" {
   description = "UDF execution timeout in milliseconds."
 }
 
+variable "udf_min_log_level" {
+  type        = number
+  default     = 0
+  description = "Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for min_log_level and above. Default is 0(info)."
+}
+
 variable "route_v1_to_v2" {
   type        = bool
   description = "Whether to route V1 requests through V2."
+}
+
+variable "add_missing_keys_v1" {
+  type        = bool
+  description = "Add missing keys for v1."
 }
 
 variable "use_real_coordinators" {
@@ -272,5 +295,60 @@ variable "use_sharding_key_regex" {
 variable "sharding_key_regex" {
   description = "Sharding key regex."
   default     = "EMPTY_STRING"
+  type        = string
+}
+
+variable "service_mesh_address" {
+  description = "Service mesh address of the KV server."
+  default     = "xds:///kv-service-host"
+  type        = string
+}
+
+variable "enable_otel_logger" {
+  description = "Whether to use otel logger."
+  default     = true
+  type        = bool
+}
+
+variable "enable_external_traffic" {
+  description = "Whether to serve external traffic. If disabled, only internal traffic via service mesh will be served."
+  default     = true
+  type        = bool
+}
+
+variable "telemetry_config" {
+  description = "Telemetry configuration to control whether metrics are raw or noised. Options are: mode: PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics), mode: OFF(no metrics)"
+  default     = "mode: PROD"
+  type        = string
+}
+
+variable "data_loading_blob_prefix_allowlist" {
+  description = "A comma separated list of prefixes (i.e., directories) where data is loaded from."
+  default     = ","
+  type        = string
+}
+
+variable "primary_coordinator_private_key_endpoint" {
+  description = "Primary coordinator private key endpoint."
+  type        = string
+}
+
+variable "secondary_coordinator_private_key_endpoint" {
+  description = "Secondary coordinator private key endpoint."
+  type        = string
+}
+
+variable "primary_coordinator_region" {
+  description = "Primary coordinator region."
+  type        = string
+}
+
+variable "secondary_coordinator_region" {
+  description = "Secondary coordinator region."
+  type        = string
+}
+
+variable "public_key_endpoint" {
+  description = "Public key endpoint. Can only be overriden in non-prod mode."
   type        = string
 }

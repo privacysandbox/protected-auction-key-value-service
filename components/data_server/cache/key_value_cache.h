@@ -32,53 +32,54 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/get_key_value_set_result.h"
 #include "public/base_types.pb.h"
-#include "src/cpp/telemetry/metrics_recorder.h"
 
 namespace kv_server {
 // In-memory datastore.
 // One cache object is only for keys in one namespace.
 class KeyValueCache : public Cache {
  public:
-  KeyValueCache(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
-      : metrics_recorder_(metrics_recorder) {}
-
   // Looks up and returns key-value pairs for the given keys.
   absl::flat_hash_map<std::string, std::string> GetKeyValuePairs(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override;
 
   // Looks up and returns key-value set result for the given key set.
   std::unique_ptr<GetKeyValueSetResult> GetKeyValueSet(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override;
 
-  // Inserts or updates the key with the new value.
+  // Inserts or updates the key with the new value for a given prefix
   void UpdateKeyValue(std::string_view key, std::string_view value,
-                      int64_t logical_commit_time) override;
+                      int64_t logical_commit_time,
+                      std::string_view prefix = "") override;
 
-  // Inserts or updates values in the set for a given key, if a value exists,
-  // updates its timestamp to the latest logical commit time.
+  // Inserts or updates values in the set for a given key and prefix, if a value
+  // exists, updates its timestamp to the latest logical commit time.
   void UpdateKeyValueSet(std::string_view key,
                          absl::Span<std::string_view> input_value_set,
-                         int64_t logical_commit_time) override;
+                         int64_t logical_commit_time,
+                         std::string_view prefix = "") override;
 
-  // Deletes a particular (key, value) pair.
-  void DeleteKey(std::string_view key, int64_t logical_commit_time) override;
+  // Deletes a particular (key, value) pair for a given prefix.
+  void DeleteKey(std::string_view key, int64_t logical_commit_time,
+                 std::string_view prefix = "") override;
 
-  // Deletes values in the set for a given key. The deletion, this object
-  // still exist and is marked "deleted", in case there are
-  // late-arriving updates to this value.
+  // Deletes values in the set for a given key and prefix. The deletion, this
+  // object still exist and is marked "deleted", in case there are late-arriving
+  // updates to this value.
   void DeleteValuesInSet(std::string_view key,
                          absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time) override;
+                         int64_t logical_commit_time,
+                         std::string_view prefix = "") override;
 
   // Removes the values that were deleted before the specified
-  // logical_commit_time.
+  // logical_commit_time for a given prefix.
   // TODO: b/267182790 -- Cache cleanup should be done periodically from a
   // background thread
-  void RemoveDeletedKeys(int64_t logical_commit_time) override;
+  void RemoveDeletedKeys(int64_t logical_commit_time,
+                         std::string_view prefix = "") override;
 
-  static std::unique_ptr<Cache> Create(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder);
+  static std::unique_ptr<Cache> Create();
 
  private:
   struct CacheValue {
@@ -113,18 +114,25 @@ class KeyValueCache : public Cache {
 
   // Sorted mapping from the logical timestamp to a key, for nodes that were
   // deleted We keep this to do proper and efficient clean up in map_.
-  std::multimap<int64_t, std::string> deleted_nodes_ ABSL_GUARDED_BY(mutex_);
+  // The key in the inner map is the prefix and the value is the keys of key
+  // value pairs deleted from that prefix
 
-  // The maximum value that was passed to RemoveDeletedKeys.
-  int64_t max_cleanup_logical_commit_time_ ABSL_GUARDED_BY(mutex_) = 0;
+  absl::flat_hash_map<std::string, std::multimap<int64_t, std::string>>
+      deleted_nodes_map_ ABSL_GUARDED_BY(mutex_);
 
-  // The maximum value of logical commit time that is used to do update/delete
-  // for key-value set map.
+  // The key is the prefix and the value is the
+  // maximum timestamp that was passed to RemoveDeletedKeys.
+  absl::flat_hash_map<std::string, int64_t> max_cleanup_logical_commit_time_map_
+      ABSL_GUARDED_BY(mutex_);
+
+  // The key is the prefix and the value is the maximum
+  // logical commit time that is used to do update/delete for key-value set map.
   // TODO(b/284474892) Need to evaluate if we really need to make this variable
   //  guarded b mutex, if not, we may want to remove it and use one
   // max_cleanup_logical_commit_time in update/deletion for both maps
-  int64_t max_cleanup_logical_commit_time_for_set_cache_
-      ABSL_GUARDED_BY(set_map_mutex_) = 0;
+  absl::flat_hash_map<std::string, int64_t>
+      max_cleanup_logical_commit_time_map_for_set_cache_
+          ABSL_GUARDED_BY(set_map_mutex_);
 
   // Mapping from a key to its value map. The key in the inner map is the
   // value string, and value is the ValueMeta. The inner map allows value
@@ -136,23 +144,30 @@ class KeyValueCache : public Cache {
       std::unique_ptr<std::pair<
           absl::Mutex, absl::flat_hash_map<std::string, SetValueMeta>>>>
       key_to_value_set_map_ ABSL_GUARDED_BY(set_map_mutex_);
-  // Sorted mapping from logical timestamp to key-value_set map to keep track of
+  // The key of outer map is the prefix, and value is the sorted mapping
+  // from logical timestamp to key-value_set map to keep track of
   // deleted key-values to handle out of order update case. In the inner map,
   // the key string is the key for the values, and the string
   // in the flat_hash_set is the value
-  absl::btree_map<int64_t, absl::flat_hash_map<
-                               std::string, absl::flat_hash_set<std::string>>>
-      deleted_set_nodes_ ABSL_GUARDED_BY(set_map_mutex_);
+  absl::flat_hash_map<
+      std::string,
+      absl::btree_map<
+          int64_t,
+          absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>>>
+      deleted_set_nodes_map_ ABSL_GUARDED_BY(set_map_mutex_);
 
-  // Removes deleted keys from key-value map
-  void CleanUpKeyValueMap(int64_t logical_commit_time);
+  // Removes deleted keys from key-value map for a given prefix
+  void CleanUpKeyValueMap(int64_t logical_commit_time, std::string_view prefix);
 
-  // Removes deleted key-values from key-value_set map
-  void CleanUpKeyValueSetMap(int64_t logical_commit_time);
+  // Removes deleted key-values from key-value_set map for a given prefix
+  void CleanUpKeyValueSetMap(int64_t logical_commit_time,
+                             std::string_view prefix);
+  // Logs cache access metrics for cache hit or miss counts. The cache access
+  // event name is defined in server_definition.h file
+  void LogCacheAccessMetrics(const RequestContext& request_context,
+                             std::string_view cache_access_event) const;
 
   friend class KeyValueCacheTestPeer;
-
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 }  // namespace kv_server
 

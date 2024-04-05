@@ -20,22 +20,14 @@
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
 #include "absl/flags/usage.h"
+#include "absl/log/log.h"
 #include "components/data_server/server/key_fetcher_factory.h"
-#include "glog/logging.h"
+#include "src/concurrent/event_engine_executor.h"
 #include "src/core/lib/event_engine/default_event_engine.h"
-#include "src/cpp/concurrent/event_engine_executor.h"
-#include "src/cpp/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
-#include "src/cpp/encryption/key_fetcher/src/fake_key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
+#include "src/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
 
 ABSL_FLAG(std::string, public_key_endpoint, "", "Public key endpoint.");
-ABSL_FLAG(std::string, primary_coordinator_private_key_endpoint, "",
-          "Primary coordinator private key endpoint.");
-ABSL_FLAG(std::string, secondary_coordinator_private_key_endpoint, "",
-          "Secondary coordinator private key endpoint.");
-ABSL_FLAG(std::string, primary_coordinator_region, "",
-          "Primary coordinator region.");
-ABSL_FLAG(std::string, secondary_coordinator_region, "",
-          "Secondary coordinator region.");
 
 namespace kv_server {
 using ::google::scp::cpio::PrivateKeyVendingEndpoint;
@@ -56,6 +48,17 @@ constexpr std::string_view kPrimaryCoordinatorAccountIdentityParameterSuffix =
     "primary-coordinator-account-identity";
 constexpr std::string_view kSecondaryCoordinatorAccountIdentityParameterSuffix =
     "secondary-coordinator-account-identity";
+constexpr std::string_view
+    kPrimaryCoordinatorPrivateKeyEndpointParameterSuffix =
+        "primary-coordinator-private-key-endpoint";
+constexpr std::string_view kPrimaryCoordinatorRegionParameterSuffix =
+    "primary-coordinator-region";
+constexpr std::string_view
+    kSecondaryCoordinatoPrivateKeyEndpointParameterSuffix =
+        "secondary-coordinator-private-key-endpoint";
+constexpr std::string_view kSecondaryCoordinatorRegionParameterSuffix =
+    "secondary-coordinator-region";
+
 // Setting these to match
 // ..fledge/servers/bidding-auction-server/+/main:services/common/constants/common_service_flags.cc
 constexpr absl::Duration kPrivateKeyCacheTtl = absl::Hours(24 * 45);  // 45 days
@@ -63,17 +66,20 @@ constexpr absl::Duration kKeyRefreshFlowRunFrequency = absl::Hours(3);
 
 PrivateKeyVendingEndpoint GetKeyFetchingEndpoint(
     const ParameterFetcher& parameter_fetcher,
-    std::string_view account_identity_prefix, std::string_view service_endpoint,
-    absl::string_view region) {
+    std::string_view account_identity_prefix,
+    std::string_view private_key_endpoint_prefix,
+    absl::string_view region_prefix) {
   PrivateKeyVendingEndpoint endpoint;
   endpoint.account_identity =
       parameter_fetcher.GetParameter(account_identity_prefix);
   LOG(INFO) << "Retrieved " << account_identity_prefix
             << " parameter: " << endpoint.account_identity;
-  endpoint.private_key_vending_service_endpoint = service_endpoint;
-  LOG(INFO) << "Service endpoint: " << service_endpoint;
-  endpoint.service_region = region;
-  LOG(INFO) << "Region: " << region;
+  endpoint.private_key_vending_service_endpoint =
+      parameter_fetcher.GetParameter(private_key_endpoint_prefix);
+  LOG(INFO) << "Service endpoint: "
+            << endpoint.private_key_vending_service_endpoint;
+  endpoint.service_region = parameter_fetcher.GetParameter(region_prefix);
+  LOG(INFO) << "Region: " << endpoint.service_region;
   return endpoint;
 }
 }  // namespace
@@ -87,10 +93,8 @@ CloudKeyFetcherFactory::CreateKeyFetcherManager(
                  "and private keys";
     return std::make_unique<FakeKeyFetcherManager>();
   }
-  auto publicKeyEndpointParameter = absl::GetFlag(FLAGS_public_key_endpoint);
-  LOG(INFO) << "Retrieved public_key_endpoint parameter: "
-            << publicKeyEndpointParameter;
-  std::vector<std::string> endpoints = {publicKeyEndpointParameter};
+  std::vector<std::string> endpoints =
+      GetPublicKeyFetchingEndpoint(parameter_fetcher);
   std::unique_ptr<PublicKeyFetcherInterface> public_key_fetcher =
       PublicKeyFetcherFactory::Create({{GetCloudPlatform(), endpoints}});
   auto primary = GetPrimaryKeyFetchingEndpoint(parameter_fetcher);
@@ -109,12 +113,21 @@ CloudKeyFetcherFactory::CreateKeyFetcherManager(
   return manager;
 }
 
+std::vector<std::string> CloudKeyFetcherFactory::GetPublicKeyFetchingEndpoint(
+    const ParameterFetcher& parameter_fetcher) const {
+  auto publicKeyEndpointParameter = absl::GetFlag(FLAGS_public_key_endpoint);
+  LOG(INFO) << "Retrieved public_key_endpoint parameter: "
+            << publicKeyEndpointParameter;
+  std::vector<std::string> endpoints = {publicKeyEndpointParameter};
+  return endpoints;
+}
+
 PrivateKeyVendingEndpoint CloudKeyFetcherFactory::GetPrimaryKeyFetchingEndpoint(
     const ParameterFetcher& parameter_fetcher) const {
   return GetKeyFetchingEndpoint(
       parameter_fetcher, kPrimaryCoordinatorAccountIdentityParameterSuffix,
-      absl::GetFlag(FLAGS_primary_coordinator_private_key_endpoint),
-      absl::GetFlag(FLAGS_primary_coordinator_region));
+      kPrimaryCoordinatorPrivateKeyEndpointParameterSuffix,
+      kPrimaryCoordinatorRegionParameterSuffix);
 }
 
 PrivateKeyVendingEndpoint
@@ -122,8 +135,8 @@ CloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
     const ParameterFetcher& parameter_fetcher) const {
   return GetKeyFetchingEndpoint(
       parameter_fetcher, kSecondaryCoordinatorAccountIdentityParameterSuffix,
-      absl::GetFlag(FLAGS_secondary_coordinator_private_key_endpoint),
-      absl::GetFlag(FLAGS_secondary_coordinator_region));
+      kPrimaryCoordinatorAccountIdentityParameterSuffix,
+      kSecondaryCoordinatorRegionParameterSuffix);
 }
 
 CloudPlatform CloudKeyFetcherFactory::GetCloudPlatform() const {

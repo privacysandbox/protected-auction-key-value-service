@@ -2,6 +2,116 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.16.0 (2024-04-05)
+
+
+### Features
+
+* Add cache hit or miss metrics
+* Add coorindator specific terraform parameters
+* Add data loading prefix allowlist parameter
+* Add default PAS UDF
+* Add E2E latency for GetKeyValues and GetKeyValueSet in sharded lookup
+* Add file groups and file group reader logic
+* Add go fmt to pre-commit
+* Add key prefix support to blob storage client
+* Add LogContext and ConsentedDebugConfiguration proto to v2 API and internal lookup API
+* Add prod and nonprod build flag
+* Add request context to wrap metrics context
+* Add support for configuring directory allowlist
+* Add wiring for prefix allowlist (actual impl in follow up cl)
+* Allow overrides for coordinators endpoints in nonprod mode
+* Allow to disable v1 key not found entry in response
+* Create separate metrics context map for internal lookup server
+* Deprecate metrics recorder for internal lookup
+* Deprecate metrics recorder for internal server
+* Deprecate metrics recorder for sharded lookup
+* deprecate metrics recorder for V1 server and handler
+* Deprecate metrics recorder from cache
+* Enable simulation system send realtime udpates
+* Enable TCMalloc for KV Server and benchmarks
+* Explicitly enable core dumps
+* Implement deletion cutoff max timestamp per directory
+* Load data files and allow notifications from configured prefix
+* Load prefix files on startup and handle prefix blob notifications
+* Log common request metrics
+* Migrate from glog to absl log
+* Partition data loading metrics by delta file name
+* Pass request context from hooks to downstream components
+* Pass request context to udf hooks
+* Read telemetry config from cloud parameter
+* Revamp AWS metrics dashboard
+* Revamp GCP metrics dashboard
+* Set udf_min_log_level from parameter store.
+* Support content type proto for v2 api
+* Support content type proto for v2 api response
+* Update cache interface and blob data location to pass prefix
+* Update start_after to use a map from prefix to start_after
+* Use file groups for loading snapshots
+* Write logs to an Otel endpoint
+
+
+### Bug Fixes
+
+* Actually load all files in a snapshot file group
+* **AWS:** Filter out unavailable zones.
+* Correct an error in kokoro_release.
+* Correct format for image tag.
+* Correct typo for internal dev's service_mesh_address.
+* Correct typos in GCP deployment guide.
+* Crash server if default UDF fails to load.
+* Delete non-active certificate before creating a new one.
+* Fix filtering logic for prefixed blobs
+* Fix permissions for data-loading-blob-prefix-allowlist
+* Make GCP nat optional.
+* Parse delta filename from notification before validating it
+* Remove glog dependency for record_utils
+* Remove temp dir only if it's successfully created.
+* Rename class to ThreadManager
+* Set retain_initial_value_of_delta_metric flag for aws metrics exporter
+* Update a outdated hyperlink.
+* Update common repo to pick up the AWS metrics dimension fix
+* Update GCP Terraform with ability to delete unhealthy instance.
+* Update tf variables to use gorekore instead of kelvingorekore
+* Use blob key instead of prefixed basename
+
+
+### GCP: Fixes
+
+* **GCP:** Make sure server is connected to otel collector before reaching to ready state
+
+
+### GCP: Features
+
+* **GCP:** Applying Terraform pulls docker image with new tag.
+* **GCP:** Make service mesh address configurable.
+* **GCP:** Make subnet ip cidr configurable.
+* **GCP:** Make xlb/envoy optional.
+
+
+### Documentation
+
+* Add ad retrieval explainer.
+* Add docs for directory support
+* Add PA and PAS folders
+* Add PAS developer guide
+* Add public docs for file groups
+* Ads retreival explainer update.
+
+
+### Dependencies
+
+* **deps:** Add clang-tidy bazel config
+* **deps:** Add cpp_nowarn bazel config
+* **deps:** Upgrade bazel to 6.5.0
+* **deps:** Upgrade build-system to 0.55.1
+* **deps:** Upgrade build-system to 0.55.2
+* **deps:** Upgrade build-system to 0.57.0
+* **deps:** Upgrade data-plane-shared repo
+* **deps:** Upgrade data-plane-shared repo to 1684674 2024-02-09
+* **deps:** Upgrade data-plane-shared-libraries to 1fbac46
+* **deps:** Upgrade pre-commit hooks
+
 ## 0.15.0 (2024-01-23)
 
 

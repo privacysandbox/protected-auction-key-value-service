@@ -85,6 +85,11 @@ function install_clang() {
   clang --version
 }
 
+function cleanup() {
+  cd /
+  go clean -cache -modcache
+}
+
 if [[ ${VERBOSE} -eq 1 ]]; then
   printf "=== SHELL ENVIRONMENT ===\n"
   env
@@ -98,3 +103,4 @@ install_clang
 install_golang "${BUILD_ARCH}"
 install_gcc
 install_packer
+cleanup

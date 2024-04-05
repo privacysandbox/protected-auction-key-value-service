@@ -19,7 +19,10 @@
 #include <thread>
 #include <utility>
 
+#include "absl/log/log.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "aws/core/Aws.h"
 #include "aws/core/utils/threading/Executor.h"
 #include "aws/s3/S3Client.h"
@@ -32,13 +35,17 @@
 #include "aws/s3/model/PutObjectRequest.h"
 #include "aws/transfer/TransferHandle.h"
 #include "aws/transfer/TransferManager.h"
+#include "components/data/blob_storage/blob_prefix_allowlist.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/seeking_input_streambuf.h"
 #include "components/errors/error_util_aws.h"
-#include "glog/logging.h"
 
 namespace kv_server {
 namespace {
+
+std::string AppendPrefix(const std::string& value, const std::string& prefix) {
+  return prefix.empty() ? value : absl::StrCat(prefix, "/", value);
+}
 
 // Sequentially load byte range data with a fixed amount of memory usage.
 class S3BlobInputStreamBuf : public SeekingInputStreambuf {
@@ -57,7 +64,7 @@ class S3BlobInputStreamBuf : public SeekingInputStreambuf {
   absl::StatusOr<int64_t> SizeImpl() override {
     Aws::S3::Model::HeadObjectRequest request;
     request.SetBucket(location_.bucket);
-    request.SetKey(location_.key);
+    request.SetKey(AppendPrefix(location_.key, location_.prefix));
     auto outcome = client_.HeadObject(request);
     if (!outcome.IsSuccess()) {
       return AwsErrorToStatus(outcome.GetError());
@@ -69,7 +76,7 @@ class S3BlobInputStreamBuf : public SeekingInputStreambuf {
                                     char* dest_buffer) override {
     Aws::S3::Model::GetObjectRequest request;
     request.SetBucket(location_.bucket);
-    request.SetKey(location_.key);
+    request.SetKey(AppendPrefix(location_.key, location_.prefix));
     request.SetRange(GetRange(offset, chunk_size));
     auto outcome = client_.GetObject(request);
     if (!outcome.IsSuccess()) {
@@ -160,7 +167,7 @@ absl::Status S3BlobStorageClient::PutBlob(BlobReader& reader,
   // The owner of the stream is the caller.
   auto handle = transfer_manager_->UploadFile(
       std::shared_ptr<std::iostream>(iostream.get(), [](std::iostream*) {}),
-      location.bucket, location.key, "", {});
+      location.bucket, AppendPrefix(location.key, location.prefix), "", {});
   handle->WaitUntilFinished();
   const bool success =
       handle->GetStatus() == Aws::Transfer::TransferStatus::COMPLETED;
@@ -170,7 +177,7 @@ absl::Status S3BlobStorageClient::PutBlob(BlobReader& reader,
 absl::Status S3BlobStorageClient::DeleteBlob(DataLocation location) {
   Aws::S3::Model::DeleteObjectRequest request;
   request.SetBucket(std::move(location.bucket));
-  request.SetKey(std::move(location.key));
+  request.SetKey(AppendPrefix(location.key, location.prefix));
   const auto outcome = client_->DeleteObject(request);
   return outcome.IsSuccess() ? absl::OkStatus()
                              : AwsErrorToStatus(outcome.GetError());
@@ -181,10 +188,12 @@ absl::StatusOr<std::vector<std::string>> S3BlobStorageClient::ListBlobs(
   Aws::S3::Model::ListObjectsV2Request request;
   request.SetBucket(std::move(location.bucket));
   if (!options.prefix.empty()) {
-    request.SetPrefix(std::move(options.prefix));
+    request.SetPrefix(
+        AppendPrefix(/*value=*/options.prefix, /*prefix=*/location.prefix));
   }
   if (!options.start_after.empty()) {
-    request.SetStartAfter(std::move(options.start_after));
+    request.SetStartAfter(AppendPrefix(/*value=*/options.start_after,
+                                       /*prefix=*/location.prefix));
   }
   bool done = false;
   std::vector<std::string> keys;
@@ -196,7 +205,10 @@ absl::StatusOr<std::vector<std::string>> S3BlobStorageClient::ListBlobs(
     const Aws::Vector<Aws::S3::Model::Object> objects =
         outcome.GetResult().GetContents();
     for (const Aws::S3::Model::Object& object : objects) {
-      keys.push_back(object.GetKey());
+      if (auto blob = ParseBlobName(object.GetKey());
+          blob.prefix == location.prefix) {
+        keys.emplace_back(std::move(blob.key));
+      }
     }
     done = !outcome.GetResult().GetIsTruncated();
     if (!done) {

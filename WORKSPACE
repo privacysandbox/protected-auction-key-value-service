@@ -61,9 +61,9 @@ load("@io_bazel_rules_docker//repositories:repositories.bzl", container_reposito
 
 container_repositories()
 
-load("@io_bazel_rules_docker//repositories:deps.bzl", container_deps = "deps")
+load("@io_bazel_rules_docker//repositories:deps.bzl", io_bazel_rules_docker_deps = "deps")
 
-container_deps()
+io_bazel_rules_docker_deps()
 
 load("//third_party_deps:container_deps.bzl", "container_deps")
 

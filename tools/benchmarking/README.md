@@ -1,4 +1,4 @@
-# Latency Benchmarking Tool
+# Request Benchmarking Tool
 
 ## Requirements
 
@@ -67,7 +67,7 @@ minutes to complete the benchmark + 1-2 minutes for pre- and post processing.
 Usage:
 
 ```sh
-./tools/latency_benchmarking/run_benchmarks <flags>
+./tools/benchmarking/run_benchmarks <flags>
 ```
 
 Flags:
@@ -129,14 +129,13 @@ Start from the workspace root.
 SNAPSHOT_DIR=/path/to/snapshot/dir
 NUMBER_OF_LOOKUP_KEYS_LIST="1 10 100"
 SERVER_ADDRESS="demo.kv-server.your-domain.example:8443"
-./tools/latency_benchmarking/run_benchmarks \
+./tools/benchmarking/run_benchmarks \
 --server-address ${SERVER_ADDRESS} \
 --snapshot-dir ${SNAPSHOT_DIR} \
 --number-of-lookup-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST}"
 ```
 
-The summary can be found in
-`dist/tools/latency_benchmarking/output/<timestamp_seconds>/summary.csv`.
+The summary can be found in `dist/tools/benchmarking/output/<timestamp_seconds>/summary.csv`.
 
 ### deploy_and_benchmark
 
@@ -166,7 +165,7 @@ iterate through.
 Usage:
 
 ```sh
-./tools/latency_benchmarking/deploy_and_benchmark <flags>
+./tools/benchmarking/deploy_and_benchmark <flags>
 ```
 
 Flags:
@@ -205,7 +204,7 @@ Flags:
     a comma-separated list of terraform variable overrides, e.g.
     `instance_type=c5.4xlarge,enclave_cpu_count=12`
 
-    Example: `/tools/latency_benchmarking/example/aws_tf_overrides.txt`
+    Example: `/tools/benchmarking/example/aws_tf_overrides.txt`
 
 -   `--udf-delta-dir` (Optional)
 
@@ -227,7 +226,7 @@ Flags:
 
     Path to JSON lines file to iterate through to generate requests.
 
-    Example: `/tools/latency_benchmarking/example/request_metadata.jsonl`
+    Example: `/tools/benchmarking/example/request_metadata.jsonl`
 
 -   `--number-of-lookup-keys-list` (Optional)
 
@@ -353,7 +352,7 @@ Start from the workspace root.
 
     - Each line is considered a set of variables to be overriden in one `terraform apply` command
 
-    - For an example, see `/latency_benchmarking/example/aws_tf_overrides.txt`.
+    - For an example, see `/benchmarking/example/aws_tf_overrides.txt`.
 
         ```sh
         TF_OVERRIDES=/path/to/tf_variable_overrides.txt
@@ -371,7 +370,7 @@ Start from the workspace root.
 1. Run the script and wait for the result
 
     ```sh
-    ./tools/latency_benchmarking/deploy_and_benchmark \
+    ./tools/benchmarking/deploy_and_benchmark \
     --cloud-provider ${CLOUD_PROVIDER} \
     --server-url ${SERVER_URL} \
     --snapshot-dir ${SNAPSHOT_DIR} \

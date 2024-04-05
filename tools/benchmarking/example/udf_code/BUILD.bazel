@@ -19,7 +19,7 @@ closure_js_library(
 
 # Generates a UDF delta file using the given closure_js_lib target
 # builders/tools/bazel-debian run \
-# //tools/latency_benchmarking/example/udf_code:benchmark_udf_js_delta
+# //tools/benchmarking/example/udf_code:benchmark_udf_js_delta
 closure_to_delta(
     name = "benchmark_udf_js_delta",
     closure_js_library_target = ":benchmark_udf_js_lib",
@@ -28,7 +28,7 @@ closure_to_delta(
 )
 
 # builders/tools/bazel-debian run --config=emscripten \
-# //tools/latency_benchmarking/example/udf_code:benchmark_cpp_wasm_udf_delta
+# //tools/benchmarking/example/udf_code:benchmark_cpp_wasm_udf_delta
 cc_inline_wasm_udf_delta(
     name = "benchmark_cpp_wasm_udf_delta",
     srcs = ["benchmark_cpp_wasm_udf.cc"],

@@ -121,7 +121,7 @@ def Main():
         "--output-dir",
         dest="output_dir",
         type=str,
-        default="/tmp/latency_benchmarking",
+        default="/tmp/benchmarking",
         help="Output directory for benchmarks",
     )
     parser.add_argument(

@@ -43,15 +43,15 @@ declare SERVER_ENDPOINT
 
 # CSV I/O
 declare -a BENCHMARK_CSVS
-CSV_OUTPUT="${WORKSPACE}/dist/tools/latency_benchmarking/output/output.csv"
-declare -r DOCKER_OUTPUT_CSV="/tmp/latency_benchmarking/output/deploy_and_benchmark/output.csv"
-declare -r SNAPSHOT_CSV_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/deploy_and_benchmark/snapshot_csvs/${START}"
-declare -r DOCKER_SNAPSHOT_CSV_DIR="/tmp/latency_benchmarking/deploy_and_benchmark/snapshot_csvs/"
-declare -r DOCKER_SNAPSHOT_DIR="/tmp/latency_benchmarking/deploy_and_benchmark/snapshots/"
+CSV_OUTPUT="${WORKSPACE}/dist/tools/benchmarking/output/output.csv"
+declare -r DOCKER_OUTPUT_CSV="/tmp/benchmarking/output/deploy_and_benchmark/output.csv"
+declare -r SNAPSHOT_CSV_DIR="${WORKSPACE}/dist/tools/benchmarking/deploy_and_benchmark/snapshot_csvs/${START}"
+declare -r DOCKER_SNAPSHOT_CSV_DIR="/tmp/benchmarking/deploy_and_benchmark/snapshot_csvs/"
+declare -r DOCKER_SNAPSHOT_DIR="/tmp/benchmarking/deploy_and_benchmark/snapshots/"
 
 # run_benchmarks writes output to this directory
-CSV_SUMMARY_INPUT_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/output"
-DOCKER_INPUT_DIR="/tmp/latency_benchmarking/output"
+CSV_SUMMARY_INPUT_DIR="${WORKSPACE}/dist/tools/benchmarking/output"
+DOCKER_INPUT_DIR="/tmp/benchmarking/output"
 readonly DOCKER_INPUT_DIR
 
 DESTROY_INSTANCES=0
@@ -147,7 +147,7 @@ function run_benchmarks() {
     printf "BENCHMARK ARGS: %s\n" "${RUN_BENCHMARK_ARGS[*]}"
 
     local BENCHMARK_OUTPUT
-    BENCHMARK_OUTPUT=$(./tools/latency_benchmarking/run_benchmarks "${RUN_BENCHMARK_ARGS[@]}")
+    BENCHMARK_OUTPUT=$(./tools/benchmarking/run_benchmarks "${RUN_BENCHMARK_ARGS[@]}")
     BENCHMARK_CSVS+=(
       "$(echo "${BENCHMARK_OUTPUT}" | tail -n 1 2>&1 | tee /dev/tty)"
     )
@@ -157,7 +157,7 @@ function run_benchmarks() {
       printf "BENCHMARK ARGS: %s\n" "${RUN_BENCHMARK_ARGS[*]}"
 
       local BENCHMARK_OUTPUT
-      BENCHMARK_OUTPUT=$(./tools/latency_benchmarking/run_benchmarks "${RUN_BENCHMARK_ARGS[@]}")
+      BENCHMARK_OUTPUT=$(./tools/benchmarking/run_benchmarks "${RUN_BENCHMARK_ARGS[@]}")
       BENCHMARK_CSVS+=(
         "$(echo "${BENCHMARK_OUTPUT}" | tail -n 1 2>&1 | tee /dev/tty)"
       )
@@ -257,7 +257,7 @@ function merge_benchmark_csvs() {
   touch "${CSV_OUTPUT}"
   # Run merge_csvs python script
   EXTRA_DOCKER_RUN_ARGS+=" --volume ${CSV_SUMMARY_INPUT_DIR}:${DOCKER_INPUT_DIR} --volume ${CSV_OUTPUT}:${DOCKER_OUTPUT_CSV} " \
-    builders/tools/bazel-debian run //tools/latency_benchmarking:merge_csvs \
+    builders/tools/bazel-debian run //tools/benchmarking:merge_csvs \
     -- \
     --csv-inputs "${DOCKER_BENCHMARK_CSVS[@]}" \
     --csv-output "${DOCKER_OUTPUT_CSV}"

@@ -21,7 +21,7 @@ readonly START
 
 WORKSPACE="$(git rev-parse --show-toplevel)"
 
-BASE_OUTPUT_DIR="${WORKSPACE}/dist/tools/latency_benchmarking/output/${START}"
+BASE_OUTPUT_DIR="${WORKSPACE}/dist/tools/benchmarking/output/${START}"
 
 NUMBER_OF_LOOKUP_KEYS="1 5 10"
 REQUEST_METADATA="{}"
@@ -29,11 +29,11 @@ FILTER_BY_SETS=0
 FILTER_BY_SETS_JSON='{"filter_snapshot_by_sets": "false"}'
 BENCHMARK_DURATION="5s"
 
-DOCKER_OUTPUT_DIR="/tmp/latency_benchmarking/output"
+DOCKER_OUTPUT_DIR="/tmp/benchmarking/output"
 readonly DOCKER_OUTPUT_DIR
 
-DOCKER_SNAPSHOT_DIR="/tmp/latency_benchmarking/snapshots"
-DOCKER_SNAPSHOT_CSV_DIR="/tmp/latency_benchmarking/snapshot_csvs"
+DOCKER_SNAPSHOT_DIR="/tmp/benchmarking/snapshots"
+DOCKER_SNAPSHOT_CSV_DIR="/tmp/benchmarking/snapshot_csvs"
 
 function usage() {
   local -r -i exitval=${1-1}
@@ -76,9 +76,9 @@ function generate_requests() {
   # Mount the output dir to docker and write requests to output dir for each item in
   # `NUMBER_OF_LOOKUP_KEYS_LIST`.
   # This will write a json request for each NUMBER_OF_LOOKUP_KEY=N to
-  # dist/tools/latency_benchmarking/output/${START}/${SNAPSHOT_FILENAME}/n=${N}/request.json
+  # dist/tools/benchmarking/output/${START}/${SNAPSHOT_FILENAME}/n=${N}/request.json
   EXTRA_DOCKER_RUN_ARGS+=" --volume ${BASE_OUTPUT_DIR}:${DOCKER_OUTPUT_DIR} --volume ${SNAPSHOT_CSV_DIR}:${DOCKER_SNAPSHOT_CSV_DIR} " \
-    builders/tools/bazel-debian run //tools/latency_benchmarking:generate_requests \
+    builders/tools/bazel-debian run //tools/benchmarking:generate_requests \
     -- "${GENERATE_REQUESTS_ARGS[@]}"
 }
 
@@ -178,7 +178,7 @@ else
 fi
 
 # Iterate through each snapshot file and
-#   1. create requests under dist/tools/latency_benchmarking/output/${START}/${SNAPSHOT_FILENAME}
+#   1. create requests under dist/tools/benchmarking/output/${START}/${SNAPSHOT_FILENAME}
 #   2. for each request, run benchmarks with ghz
 for SNAPSHOT_CSV_FILE in "${SNAPSHOT_CSV_DIR}"/*; do
   SNAPSHOT_CSV_FILENAME=$(basename "${SNAPSHOT_CSV_FILE}")
@@ -186,10 +186,10 @@ for SNAPSHOT_CSV_FILE in "${SNAPSHOT_CSV_DIR}"/*; do
   run_ghz_for_requests
 done
 
-# Go through all the ghz results in dist/tools/latency_benchmarking/output/${START}
+# Go through all the ghz results in dist/tools/benchmarking/output/${START}
 # and collect the summary in a csv
 EXTRA_DOCKER_RUN_ARGS+=" --volume ${BASE_OUTPUT_DIR}:${DOCKER_OUTPUT_DIR} " \
-  builders/tools/bazel-debian run //tools/latency_benchmarking:create_csv_summary \
+  builders/tools/bazel-debian run //tools/benchmarking:create_csv_summary \
   -- \
   --ghz-result-dir ${DOCKER_OUTPUT_DIR}
 

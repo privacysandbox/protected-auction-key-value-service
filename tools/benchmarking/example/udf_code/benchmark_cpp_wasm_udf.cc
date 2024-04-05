@@ -171,7 +171,7 @@ std::vector<emscripten::val> MaybeSplitDataByBatchSize(
 }
 
 // I/O processing, similar to
-// tools/latency_benchmarking/example/udf_code/benchmark_udf.js
+// tools/benchmarking/example/udf_code/benchmark_udf.js
 emscripten::val GetKeyGroupOutputs(const emscripten::val& get_values_cb,
                                    const emscripten::val& get_values_binary_cb,
                                    const emscripten::val& request_metadata,

@@ -646,6 +646,13 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
   builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
   // Register "service" as the instance through which we'll communicate with
   // clients. In this case it corresponds to a *synchronous* service.
+
+  // Increase metadata size, this includes, for example the HTTP URL. Default is
+  // 8KB.
+  builder.AddChannelArgument(GRPC_ARG_ABSOLUTE_MAX_METADATA_SIZE,
+                             32 * 1024);  // Set to 32KB
+  builder.AddChannelArgument(GRPC_ARG_MAX_METADATA_SIZE,
+                             32 * 1024);  // Set to 32KB
   for (auto& service : grpc_services_) {
     builder.RegisterService(service.get());
   }

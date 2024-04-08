@@ -82,7 +82,7 @@ cc_library(
         "//components/util:sleepfor",
         "@com_github_grpc_grpc//test/core/util:grpc_test_util_base",
         "@com_google_absl//absl/log",
-        "@google_privacysandbox_servers_common//src/telemetry:metrics_recorder",
+        "@google_privacysandbox_servers_common//src/metric:context_map",
     ],
 )
 
@@ -120,7 +120,6 @@ cc_library(
         "@com_github_google_flatbuffers//:flatbuffers",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/telemetry:metrics_recorder",
         "@google_privacysandbox_servers_common//src/telemetry:tracing",
     ],
 )

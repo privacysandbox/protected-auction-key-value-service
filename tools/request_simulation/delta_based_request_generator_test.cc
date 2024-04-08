@@ -94,7 +94,6 @@ class GenerateRequestsFromDeltaFilesTest : public ::testing::Test {
   MockDeltaFileNotifier notifier_;
   MockBlobStorageChangeNotifier change_notifier_;
   MockStreamRecordReaderFactory delta_stream_reader_factory_;
-  MockMetricsRecorder metrics_recorder_;
   MessageQueue message_queue_;
   DeltaBasedRequestGenerator::Options options_;
 };
@@ -102,8 +101,8 @@ class GenerateRequestsFromDeltaFilesTest : public ::testing::Test {
 TEST_F(GenerateRequestsFromDeltaFilesTest, LoadingDataFromDeltaFiles) {
   ON_CALL(blob_client_, ListBlobs)
       .WillByDefault(Return(std::vector<std::string>({})));
-  DeltaBasedRequestGenerator request_generator(
-      std::move(options_), std::move(GetRequestGenFn()), metrics_recorder_);
+  DeltaBasedRequestGenerator request_generator(std::move(options_),
+                                               std::move(GetRequestGenFn()));
   const std::string last_basename = "";
   EXPECT_CALL(notifier_,
               Start(_, GetTestLocation(),

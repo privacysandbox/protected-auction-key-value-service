@@ -102,7 +102,7 @@ constexpr int kMetricsExportTimeoutInMs = 500;
 
 using opentelemetry::sdk::resource::Resource;
 using opentelemetry::sdk::resource::ResourceAttributes;
-using privacy_sandbox::server_common::ConfigureMetrics;
+using privacy_sandbox::server_common::ConfigurePrivateMetrics;
 using privacy_sandbox::server_common::InitTelemetry;
 using privacy_sandbox::server_common::SteadyClock;
 namespace semantic_conventions =
@@ -173,8 +173,7 @@ absl::Status RequestSimulationSystem::Init(
   // Telemetry must be initialized before initializing metrics collector
   metrics_collector_ =
       metrics_collector == nullptr
-          ? std::make_unique<MetricsCollector>(metrics_recorder_,
-                                               std::make_unique<SleepFor>())
+          ? std::make_unique<MetricsCollector>(std::make_unique<SleepFor>())
           : std::move(metrics_collector);
   // Initialize no-op telemetry for the new Telemetry API
   // TODO(b/304306398): deprecate metric recorder and use new telemetry API to
@@ -225,7 +224,7 @@ absl::Status RequestSimulationSystem::Init(
           .delta_notifier = *delta_file_notifier_,
           .change_notifier = *blob_change_notifier_,
           .delta_stream_reader_factory = *delta_stream_reader_factory_},
-      CreateRequestFromKeyFn(), metrics_recorder_);
+      CreateRequestFromKeyFn());
   PS_ASSIGN_OR_RETURN(realtime_message_batcher_,
                       RealtimeMessageBatcher::Create(
                           realtime_messages_, realtime_messages_mutex_,
@@ -400,8 +399,14 @@ void RequestSimulationSystem::InitializeTelemetry() {
       {semantic_conventions::kHostArch, std::string(BuildPlatform())},
       {kTestingServer, server_address}};
   auto resource = Resource::Create(attributes);
-  ConfigureMetrics(resource, metrics_options);
   kv_server::InitMetricsContextMap();
+  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+  config_proto.set_mode(
+      privacy_sandbox::server_common::telemetry::TelemetryConfig::EXPERIMENT);
+  auto* context_map = RequestSimulationContextMap(
+      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+          config_proto),
+      ConfigurePrivateMetrics(resource, metrics_options));
 }
 
 }  // namespace kv_server

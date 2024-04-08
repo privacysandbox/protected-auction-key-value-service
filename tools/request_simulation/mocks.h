@@ -27,10 +27,8 @@ namespace kv_server {
 
 class MockMetricsCollector : public MetricsCollector {
  public:
-  MockMetricsCollector(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      std::unique_ptr<SleepFor> sleep_for)
-      : MetricsCollector(metrics_recorder, std::move(sleep_for)) {}
+  explicit MockMetricsCollector(std::unique_ptr<SleepFor> sleep_for)
+      : MetricsCollector(std::move(sleep_for)) {}
   MOCK_METHOD(void, IncrementServerResponseStatusEvent,
               (const absl::Status& status), (override));
   MOCK_METHOD(void, IncrementRequestSentPerInterval, (), (override));

@@ -59,11 +59,10 @@ namespace {
 class MetricsCollectorTest : public ::testing::Test {
  protected:
   MetricsCollectorTest() {
-    metrics_collector_ = std::make_unique<MetricsCollector>(
-        metrics_recorder_, std::make_unique<MockSleepFor>());
+    metrics_collector_ =
+        std::make_unique<MetricsCollector>(std::make_unique<MockSleepFor>());
   }
   SimulatedSteadyClock sim_clock_;
-  MockMetricsRecorder metrics_recorder_;
   std::unique_ptr<MetricsCollector> metrics_collector_;
 };
 

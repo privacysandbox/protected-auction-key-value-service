@@ -33,7 +33,6 @@
 
 namespace kv_server {
 
-using privacy_sandbox::server_common::MockMetricsRecorder;
 using privacy_sandbox::server_common::SimulatedSteadyClock;
 using privacy_sandbox::server_common::SteadyTime;
 using testing::_;
@@ -70,7 +69,6 @@ class ClientWorkerTest : public ::testing::Test {
   SimulatedSteadyClock sim_clock_;
   std::unique_ptr<MockSleepFor> sleep_for_metrics_collector_;
   std::unique_ptr<MockSleepFor> sleep_for_;
-  MockMetricsRecorder metrics_recorder_;
 };
 
 TEST_F(ClientWorkerTest, SingleClientWorkerTest) {
@@ -92,10 +90,9 @@ TEST_F(ClientWorkerTest, SingleClientWorkerTest) {
                            std::move(sleep_for_), absl::Seconds(0));
   EXPECT_CALL(*sleep_for_metrics_collector_, Duration(_))
       .WillRepeatedly(Return(true));
-  EXPECT_CALL(metrics_recorder_, RegisterHistogram(_, _, _, _)).Times(5);
   std::unique_ptr<MockMetricsCollector> metrics_collector =
       std::make_unique<MockMetricsCollector>(
-          metrics_recorder_, std::move(sleep_for_metrics_collector_));
+          std::move(sleep_for_metrics_collector_));
   EXPECT_CALL(*metrics_collector, IncrementServerResponseStatusEvent(_))
       .Times(requests_per_second);
   EXPECT_CALL(*metrics_collector, IncrementRequestSentPerInterval())
@@ -136,10 +133,9 @@ TEST_F(ClientWorkerTest, MultipleClientWorkersTest) {
                            std::move(sleep_for_), absl::Seconds(0));
   EXPECT_CALL(*sleep_for_metrics_collector_, Duration(_))
       .WillRepeatedly(Return(true));
-  EXPECT_CALL(metrics_recorder_, RegisterHistogram(_, _, _, _)).Times(5);
   std::unique_ptr<MockMetricsCollector> metrics_collector =
       std::make_unique<MockMetricsCollector>(
-          metrics_recorder_, std::move(sleep_for_metrics_collector_));
+          std::move(sleep_for_metrics_collector_));
   EXPECT_CALL(*metrics_collector, IncrementServerResponseStatusEvent(_))
       .Times(requests_per_second);
   EXPECT_CALL(*metrics_collector, IncrementRequestSentPerInterval())

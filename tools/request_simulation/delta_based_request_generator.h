@@ -30,7 +30,6 @@
 #include "components/data/realtime/realtime_notifier.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/readers/stream_record_reader_factory.h"
-#include "src/telemetry/metrics_recorder.h"
 #include "tools/request_simulation/message_queue.h"
 #include "tools/request_simulation/request_generation_util.h"
 
@@ -53,13 +52,11 @@ class DeltaBasedRequestGenerator {
   };
   DeltaBasedRequestGenerator(
       Options options,
-      absl::AnyInvocable<std::string(std::string_view)> request_generation_fn,
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder)
+      absl::AnyInvocable<std::string(std::string_view)> request_generation_fn)
       : options_(std::move(options)),
         data_load_thread_manager_(
             ThreadManager::Create("Delta file loading thread")),
-        request_generation_fn_(std::move(request_generation_fn)),
-        metrics_recorder_(metrics_recorder) {}
+        request_generation_fn_(std::move(request_generation_fn)) {}
   ~DeltaBasedRequestGenerator() = default;
 
   // DeltaBasedRequestGenerator is neither copyable nor movable.
@@ -95,7 +92,6 @@ class DeltaBasedRequestGenerator {
   std::unique_ptr<ThreadManager> data_load_thread_manager_;
   // Callback function to generate KV request from a given key
   absl::AnyInvocable<std::string(std::string_view)> request_generation_fn_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
 };
 
 }  // namespace kv_server

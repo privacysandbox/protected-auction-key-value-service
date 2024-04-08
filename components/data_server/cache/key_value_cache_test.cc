@@ -104,11 +104,15 @@ class CacheTest : public ::testing::Test {
   CacheTest() {
     InitMetricsContextMap();
     scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
-    request_context_ =
-        std::make_unique<RequestContext>(*scope_metrics_context_);
+    request_log_context_ = std::make_unique<RequestLogContext>(
+        privacy_sandbox::server_common::LogContext(),
+        privacy_sandbox::server_common::ConsentedDebugConfiguration());
+    request_context_ = std::make_unique<RequestContext>(*scope_metrics_context_,
+                                                        *request_log_context_);
   }
   RequestContext& GetRequestContext() { return *request_context_; }
   std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
+  std::unique_ptr<RequestLogContext> request_log_context_;
   std::unique_ptr<RequestContext> request_context_;
 };
 

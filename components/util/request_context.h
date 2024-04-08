@@ -22,29 +22,62 @@
 #include <utility>
 
 #include "components/telemetry/server_definition.h"
+#include "src/logger/request_context_impl.h"
 
 namespace kv_server {
 
-// RequestContext holds the reference of udf request metrics context and
-// internal lookup request context that ties to a single
-// request. The request_id can be either passed from upper stream or assigned
-// from uuid generated when RequestContext is constructed.
+// RequestLogContext holds value of LogContext and ConsentedDebugConfiguration
+// passed from the upstream application.
+class RequestLogContext {
+ public:
+  explicit RequestLogContext(
+      const privacy_sandbox::server_common::LogContext& log_context,
+      const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+          consented_debug_config);
+
+  privacy_sandbox::server_common::log::ContextImpl& GetRequestLoggingContext();
+
+  const privacy_sandbox::server_common::LogContext& GetLogContext() const;
+
+  const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+  GetConsentedDebugConfiguration() const;
+
+ private:
+  // Parses the LogContext to btree map which is used to construct request
+  // logging context and used as labels for logging messages
+  absl::btree_map<std::string, std::string> GetContextMap(
+      const privacy_sandbox::server_common::LogContext& log_context);
+  const privacy_sandbox::server_common::LogContext log_context_;
+  const privacy_sandbox::server_common::ConsentedDebugConfiguration
+      consented_debug_config_;
+  privacy_sandbox::server_common::log::ContextImpl request_logging_context_;
+};
+
+// RequestContext holds the reference of udf request metrics context,
+// internal lookup request context, and request log context
+// that ties to a single request. The request_id can be either passed
+// from upper stream or assigned from uuid generated when
+// RequestContext is constructed.
 
 class RequestContext {
  public:
-  explicit RequestContext(const ScopeMetricsContext& metrics_context)
+  explicit RequestContext(const ScopeMetricsContext& metrics_context,
+                          RequestLogContext& request_log_context)
       : udf_request_metrics_context_(
             metrics_context.GetUdfRequestMetricsContext()),
         internal_lookup_metrics_context_(
-            metrics_context.GetInternalLookupMetricsContext()) {}
+            metrics_context.GetInternalLookupMetricsContext()),
+        request_log_context_(request_log_context) {}
   UdfRequestMetricsContext& GetUdfRequestMetricsContext() const;
   InternalLookupMetricsContext& GetInternalLookupMetricsContext() const;
+  RequestLogContext& GetRequestLogContext() const;
 
   ~RequestContext() = default;
 
  private:
   UdfRequestMetricsContext& udf_request_metrics_context_;
   InternalLookupMetricsContext& internal_lookup_metrics_context_;
+  RequestLogContext& request_log_context_;
 };
 
 }  // namespace kv_server

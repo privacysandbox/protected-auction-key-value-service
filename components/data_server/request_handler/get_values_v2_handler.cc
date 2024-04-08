@@ -217,7 +217,9 @@ grpc::Status GetValuesV2Handler::GetValues(
     const v2::GetValuesRequest& request,
     v2::GetValuesResponse* response) const {
   auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  auto request_log_context = std::make_unique<RequestLogContext>(
+      request.log_context(), request.consented_debug_config());
+  RequestContext request_context(*scope_metrics_context, *request_log_context);
   if (request.partitions().size() == 1) {
     ProcessOnePartition(std::move(request_context), request.metadata(),
                         request.partitions(0),

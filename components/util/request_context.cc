@@ -19,6 +19,10 @@
 #include "components/telemetry/server_definition.h"
 
 namespace kv_server {
+namespace {
+constexpr char kGenerationId[] = "generationId";
+constexpr char kAdtechDebugId[] = "adtechDebugId";
+}  // namespace
 
 UdfRequestMetricsContext& RequestContext::GetUdfRequestMetricsContext() const {
   return udf_request_metrics_context_;
@@ -27,5 +31,34 @@ InternalLookupMetricsContext& RequestContext::GetInternalLookupMetricsContext()
     const {
   return internal_lookup_metrics_context_;
 }
+RequestLogContext& RequestContext::GetRequestLogContext() const {
+  return request_log_context_;
+}
 
+RequestLogContext::RequestLogContext(
+    const privacy_sandbox::server_common::LogContext& log_context,
+    const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+        consented_debug_config)
+    : log_context_(log_context),
+      consented_debug_config_(consented_debug_config),
+      request_logging_context_(GetContextMap(log_context),
+                               consented_debug_config) {}
+
+privacy_sandbox::server_common::log::ContextImpl&
+RequestLogContext::GetRequestLoggingContext() {
+  return request_logging_context_;
+}
+const privacy_sandbox::server_common::LogContext&
+RequestLogContext::GetLogContext() const {
+  return log_context_;
+}
+const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+RequestLogContext::GetConsentedDebugConfiguration() const {
+  return consented_debug_config_;
+}
+absl::btree_map<std::string, std::string> RequestLogContext::GetContextMap(
+    const privacy_sandbox::server_common::LogContext& log_context) {
+  return {{kGenerationId, log_context.generation_id()},
+          {kAdtechDebugId, log_context.adtech_debug_id()}};
+}
 }  // namespace kv_server

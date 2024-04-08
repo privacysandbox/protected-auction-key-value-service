@@ -63,9 +63,9 @@ class LookupServiceImpl final
       const RequestContext& request_context,
       const google::protobuf::RepeatedPtrField<std::string>& keys,
       InternalLookupResponse& response) const;
-  grpc::Status ToInternalGrpcStatus(const RequestContext& request_context,
-                                    const absl::Status& status,
-                                    std::string_view error_code) const;
+  grpc::Status ToInternalGrpcStatus(
+      InternalLookupMetricsContext& metrics_context, const absl::Status& status,
+      std::string_view error_code) const;
   const Lookup& lookup_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&
       key_fetcher_manager_;

@@ -172,7 +172,10 @@ void BM_GetKeyValuePairs(::benchmark::State& state, BenchmarkArgs args) {
   auto keys = GetKeys(args.query_size);
   auto keys_view = ToContainerView<absl::flat_hash_set<std::string_view>>(keys);
   auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  auto request_log_context = std::make_unique<RequestLogContext>(
+      privacy_sandbox::server_common::LogContext(),
+      privacy_sandbox::server_common::ConsentedDebugConfiguration());
+  RequestContext request_context(*scope_metrics_context, *request_log_context);
   for (auto _ : state) {
     ::benchmark::DoNotOptimize(
         args.cache->GetKeyValuePairs(request_context, keys_view));
@@ -201,7 +204,10 @@ void BM_GetKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
   auto keys = GetKeys(args.query_size);
   auto keys_view = ToContainerView<absl::flat_hash_set<std::string_view>>(keys);
   auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  auto request_log_context = std::make_unique<RequestLogContext>(
+      privacy_sandbox::server_common::LogContext(),
+      privacy_sandbox::server_common::ConsentedDebugConfiguration());
+  RequestContext request_context(*scope_metrics_context, *request_log_context);
   for (auto _ : state) {
     ::benchmark::DoNotOptimize(
         args.cache->GetKeyValueSet(request_context, keys_view));
@@ -214,7 +220,10 @@ void BM_UpdateKeyValue(::benchmark::State& state, BenchmarkArgs args) {
   uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> reader_tasks;
   auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  auto request_log_context = std::make_unique<RequestLogContext>(
+      privacy_sandbox::server_common::LogContext(),
+      privacy_sandbox::server_common::ConsentedDebugConfiguration());
+  RequestContext request_context(*scope_metrics_context, *request_log_context);
   if (state.thread_index() == 0 && args.concurrent_tasks) {
     auto num_readers = args.concurrent_tasks;
     reader_tasks.reserve(num_readers);
@@ -239,7 +248,10 @@ void BM_UpdateKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
   uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> reader_tasks;
   auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  auto request_log_context = std::make_unique<RequestLogContext>(
+      privacy_sandbox::server_common::LogContext(),
+      privacy_sandbox::server_common::ConsentedDebugConfiguration());
+  RequestContext request_context(*scope_metrics_context, *request_log_context);
   if (state.thread_index() == 0 && args.concurrent_tasks) {
     auto num_readers = args.concurrent_tasks;
     reader_tasks.reserve(num_readers);

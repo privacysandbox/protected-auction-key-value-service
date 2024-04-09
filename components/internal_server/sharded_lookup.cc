@@ -224,13 +224,19 @@ class ShardedLookup : public Lookup {
     return lookup_inputs;
   }
 
-  void SerializeShardedRequests(std::vector<ShardLookupInput>& lookup_inputs,
+  void SerializeShardedRequests(const RequestContext& request_context,
+                                std::vector<ShardLookupInput>& lookup_inputs,
                                 bool lookup_sets) const {
     for (auto& lookup_input : lookup_inputs) {
       InternalLookupRequest request;
       request.mutable_keys()->Assign(lookup_input.keys.begin(),
                                      lookup_input.keys.end());
       request.set_lookup_sets(lookup_sets);
+      *request.mutable_consented_debug_config() =
+          request_context.GetRequestLogContext()
+              .GetConsentedDebugConfiguration();
+      *request.mutable_log_context() =
+          request_context.GetRequestLogContext().GetLogContext();
       lookup_input.serialized_request = request.SerializeAsString();
     }
   }
@@ -248,10 +254,11 @@ class ShardedLookup : public Lookup {
   }
 
   std::vector<ShardLookupInput> ShardKeys(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys,
       bool lookup_sets) const {
     auto lookup_inputs = BucketKeys(keys);
-    SerializeShardedRequests(lookup_inputs, lookup_sets);
+    SerializeShardedRequests(request_context, lookup_inputs, lookup_sets);
     ComputePadding(lookup_inputs);
     return lookup_inputs;
   }
@@ -329,7 +336,7 @@ class ShardedLookup : public Lookup {
     if (keys.empty()) {
       return response;
     }
-    const auto shard_lookup_inputs = ShardKeys(keys, false);
+    const auto shard_lookup_inputs = ShardKeys(request_context, keys, false);
     auto responses =
         GetLookupFutures(request_context, shard_lookup_inputs,
                          [this, &request_context](
@@ -392,7 +399,7 @@ class ShardedLookup : public Lookup {
   GetShardedKeyValueSet(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const {
-    const auto shard_lookup_inputs = ShardKeys(key_set, true);
+    const auto shard_lookup_inputs = ShardKeys(request_context, key_set, true);
     auto responses = GetLookupFutures(
         request_context, shard_lookup_inputs,
         [this,

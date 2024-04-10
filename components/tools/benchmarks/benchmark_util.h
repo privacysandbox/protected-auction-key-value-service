@@ -24,6 +24,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "src/logger/request_context_impl.h"
 
 namespace kv_server::benchmark {
 
@@ -43,6 +44,12 @@ class AsyncTask {
  private:
   bool stop_signal_;
   std::thread runner_thread_;
+};
+
+class BenchmarkLogContext
+    : public privacy_sandbox::server_common::log::SafePathContext {
+ public:
+  BenchmarkLogContext() = default;
 };
 
 // Generates a random string with `char_count` characters.

@@ -158,15 +158,18 @@ struct BenchmarkArgs {
 void BM_GetKeyValuePairs(::benchmark::State& state, BenchmarkArgs args) {
   uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> writer_tasks;
+  benchmark::BenchmarkLogContext log_context;
   if (state.thread_index() == 0 && args.concurrent_tasks > 0) {
     auto num_writers = args.concurrent_tasks;
     writer_tasks.reserve(num_writers);
     while (num_writers-- > 0) {
-      writer_tasks.emplace_back(
-          [args, &seed, value = GenerateRandomString(args.record_size)]() {
-            auto key = std::to_string(rand_r(&seed) % args.query_size);
-            args.cache->UpdateKeyValue(key, value, ++GetLogicalTimestamp());
-          });
+      writer_tasks.emplace_back([args, &seed,
+                                 value = GenerateRandomString(args.record_size),
+                                 &log_context]() {
+        auto key = std::to_string(rand_r(&seed) % args.query_size);
+        args.cache->UpdateKeyValue(log_context, key, value,
+                                   ++GetLogicalTimestamp());
+      });
     }
   }
   auto keys = GetKeys(args.query_size);
@@ -187,16 +190,18 @@ void BM_GetKeyValuePairs(::benchmark::State& state, BenchmarkArgs args) {
 void BM_GetKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
   uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> writer_tasks;
+  benchmark::BenchmarkLogContext log_context;
   if (state.thread_index() == 0 && args.concurrent_tasks > 0) {
     auto num_writers = args.concurrent_tasks;
     writer_tasks.reserve(num_writers);
     while (num_writers-- > 0) {
       writer_tasks.emplace_back([args, &seed,
                                  set_query = GetSetQuery(args.set_query_size,
-                                                         args.record_size)]() {
+                                                         args.record_size),
+                                 &log_context]() {
         auto key = std::to_string(rand_r(&seed) % args.query_size);
         auto view = ToContainerView<std::vector<std::string_view>>(set_query);
-        args.cache->UpdateKeyValueSet(key, absl::MakeSpan(view),
+        args.cache->UpdateKeyValueSet(log_context, key, absl::MakeSpan(view),
                                       ++GetLogicalTimestamp());
       });
     }
@@ -224,6 +229,7 @@ void BM_UpdateKeyValue(::benchmark::State& state, BenchmarkArgs args) {
       privacy_sandbox::server_common::LogContext(),
       privacy_sandbox::server_common::ConsentedDebugConfiguration());
   RequestContext request_context(*scope_metrics_context, *request_log_context);
+  benchmark::BenchmarkLogContext log_context;
   if (state.thread_index() == 0 && args.concurrent_tasks) {
     auto num_readers = args.concurrent_tasks;
     reader_tasks.reserve(num_readers);
@@ -238,7 +244,8 @@ void BM_UpdateKeyValue(::benchmark::State& state, BenchmarkArgs args) {
   auto value = GenerateRandomString(args.record_size);
   for (auto _ : state) {
     auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
-    args.cache->UpdateKeyValue(key, value, ++GetLogicalTimestamp());
+    args.cache->UpdateKeyValue(log_context, key, value,
+                               ++GetLogicalTimestamp());
   }
   state.counters[std::string(kWritesPerSec)] =
       ::benchmark::Counter(state.iterations(), ::benchmark::Counter::kIsRate);
@@ -252,6 +259,7 @@ void BM_UpdateKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
       privacy_sandbox::server_common::LogContext(),
       privacy_sandbox::server_common::ConsentedDebugConfiguration());
   RequestContext request_context(*scope_metrics_context, *request_log_context);
+  benchmark::BenchmarkLogContext log_context;
   if (state.thread_index() == 0 && args.concurrent_tasks) {
     auto num_readers = args.concurrent_tasks;
     reader_tasks.reserve(num_readers);
@@ -266,7 +274,7 @@ void BM_UpdateKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
   auto set_view = ToContainerView<std::vector<std::string_view>>(set_value);
   for (auto _ : state) {
     auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
-    args.cache->UpdateKeyValueSet(key, absl::MakeSpan(set_view),
+    args.cache->UpdateKeyValueSet(log_context, key, absl::MakeSpan(set_view),
                                   ++GetLogicalTimestamp());
   }
   state.counters[std::string(kWritesPerSec)] =

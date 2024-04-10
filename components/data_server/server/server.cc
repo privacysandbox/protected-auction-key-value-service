@@ -205,7 +205,7 @@ Server::Server()
 void Server::InitializeKeyValueCache() {
   cache_ = KeyValueCache::Create();
   cache_->UpdateKeyValue(
-      "hi",
+      log_context_, "hi",
       "Hello, world! If you are seeing this, it means you can "
       "query me successfully",
       /*logical_commit_time = */ 1);

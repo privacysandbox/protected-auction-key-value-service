@@ -40,23 +40,34 @@ class MockCache : public Cache {
               (const RequestContext& request_context,
                const absl::flat_hash_set<std::string_view>&),
               (const, override));
-  MOCK_METHOD(void, UpdateKeyValue,
-              (std::string_view key, std::string_view value, int64_t ts,
-               std::string_view prefix),
-              (override));
-  MOCK_METHOD(void, UpdateKeyValueSet,
-              (std::string_view key, absl::Span<std::string_view> value_set,
-               int64_t logical_commit_time, std::string_view prefix),
-              (override));
-  MOCK_METHOD(void, DeleteValuesInSet,
-              (std::string_view key, absl::Span<std::string_view> value_set,
-               int64_t logical_commit_time, std::string_view prefix),
-              (override));
-  MOCK_METHOD(void, DeleteKey,
-              (std::string_view key, int64_t ts, std::string_view prefix),
-              (override));
-  MOCK_METHOD(void, RemoveDeletedKeys, (int64_t ts, std::string_view prefix),
-              (override));
+  MOCK_METHOD(
+      void, UpdateKeyValue,
+      (const privacy_sandbox::server_common::log::SafePathContext& log_context,
+       std::string_view key, std::string_view value, int64_t ts,
+       std::string_view prefix),
+      (override));
+  MOCK_METHOD(
+      void, UpdateKeyValueSet,
+      (const privacy_sandbox::server_common::log::SafePathContext& log_context,
+       std::string_view key, absl::Span<std::string_view> value_set,
+       int64_t logical_commit_time, std::string_view prefix),
+      (override));
+  MOCK_METHOD(
+      void, DeleteValuesInSet,
+      (const privacy_sandbox::server_common::log::SafePathContext& log_context,
+       std::string_view key, absl::Span<std::string_view> value_set,
+       int64_t logical_commit_time, std::string_view prefix),
+      (override));
+  MOCK_METHOD(
+      void, DeleteKey,
+      (const privacy_sandbox::server_common::log::SafePathContext& log_context,
+       std::string_view key, int64_t ts, std::string_view prefix),
+      (override));
+  MOCK_METHOD(
+      void, RemoveDeletedKeys,
+      (const privacy_sandbox::server_common::log::SafePathContext& log_context,
+       int64_t ts, std::string_view prefix),
+      (override));
 };
 
 class MockGetKeyValueSetResult : public GetKeyValueSetResult {

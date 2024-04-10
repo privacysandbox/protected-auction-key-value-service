@@ -35,21 +35,25 @@ class NoOpKeyValueCache : public Cache {
       const absl::flat_hash_set<std::string_view>& key_set) const override {
     return std::make_unique<NoOpGetKeyValueSetResult>();
   }
-  void UpdateKeyValue(std::string_view key, std::string_view value,
-                      int64_t logical_commit_time,
-                      std::string_view prefix) override {}
-  void UpdateKeyValueSet(std::string_view key,
-                         absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time,
-                         std::string_view prefix) override {}
-  void DeleteKey(std::string_view key, int64_t logical_commit_time,
-                 std::string_view prefix) override {}
-  void DeleteValuesInSet(std::string_view key,
-                         absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time,
-                         std::string_view prefix) override {}
-  void RemoveDeletedKeys(int64_t logical_commit_time,
-                         std::string_view prefix) override {}
+  void UpdateKeyValue(
+      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      std::string_view key, std::string_view value, int64_t logical_commit_time,
+      std::string_view prefix) override {}
+  void UpdateKeyValueSet(
+      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      std::string_view key, absl::Span<std::string_view> value_set,
+      int64_t logical_commit_time, std::string_view prefix) override {}
+  void DeleteKey(
+      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      std::string_view key, int64_t logical_commit_time,
+      std::string_view prefix) override {}
+  void DeleteValuesInSet(
+      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      std::string_view key, absl::Span<std::string_view> value_set,
+      int64_t logical_commit_time, std::string_view prefix) override {}
+  void RemoveDeletedKeys(
+      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      int64_t logical_commit_time, std::string_view prefix) override {}
   static std::unique_ptr<Cache> Create() {
     return std::make_unique<NoOpKeyValueCache>();
   }

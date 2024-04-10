@@ -357,9 +357,9 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
       .WillOnce(Return(ByMove(std::move(update_reader))))
       .WillOnce(Return(ByMove(std::move(delete_reader))));
 
-  EXPECT_CALL(cache_, UpdateKeyValue("bar", "bar value", 3, _)).Times(1);
-  EXPECT_CALL(cache_, DeleteKey("bar", 3, _)).Times(1);
-  EXPECT_CALL(cache_, RemoveDeletedKeys(3, _)).Times(2);
+  EXPECT_CALL(cache_, UpdateKeyValue(_, "bar", "bar value", 3, _)).Times(1);
+  EXPECT_CALL(cache_, DeleteKey(_, "bar", 3, _)).Times(1);
+  EXPECT_CALL(cache_, RemoveDeletedKeys(_, 3, _)).Times(2);
 
   auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
   ASSERT_TRUE(maybe_orchestrator.ok());
@@ -540,9 +540,9 @@ TEST_F(DataOrchestratorTest, StartLoading) {
       .WillOnce(Return(ByMove(std::move(update_reader))))
       .WillOnce(Return(ByMove(std::move(delete_reader))));
 
-  EXPECT_CALL(cache_, UpdateKeyValue("bar", "bar value", 3, _)).Times(1);
-  EXPECT_CALL(cache_, DeleteKey("bar", 3, _)).Times(1);
-  EXPECT_CALL(cache_, RemoveDeletedKeys(3, _)).Times(2);
+  EXPECT_CALL(cache_, UpdateKeyValue(_, "bar", "bar value", 3, _)).Times(1);
+  EXPECT_CALL(cache_, DeleteKey(_, "bar", 3, _)).Times(1);
+  EXPECT_CALL(cache_, RemoveDeletedKeys(_, 3, _)).Times(2);
 
   EXPECT_TRUE(orchestrator->Start().ok());
   LOG(INFO) << "Created ContinuouslyLoadNewData";
@@ -617,9 +617,9 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .WillOnce(Return(ByMove(std::move(update_reader))))
       .WillOnce(Return(ByMove(std::move(delete_reader))));
 
-  EXPECT_CALL(strict_cache, RemoveDeletedKeys(0, _)).Times(1);
-  EXPECT_CALL(strict_cache, DeleteKey("shard2", 3, _)).Times(1);
-  EXPECT_CALL(strict_cache, RemoveDeletedKeys(3, _)).Times(1);
+  EXPECT_CALL(strict_cache, RemoveDeletedKeys(_, 0, _)).Times(1);
+  EXPECT_CALL(strict_cache, DeleteKey(_, "shard2", 3, _)).Times(1);
+  EXPECT_CALL(strict_cache, RemoveDeletedKeys(_, 3, _)).Times(1);
 
   auto sharded_options = DataOrchestrator::Options{
       .data_bucket = GetTestLocation().bucket,

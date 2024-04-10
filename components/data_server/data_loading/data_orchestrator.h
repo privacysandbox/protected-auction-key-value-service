@@ -35,6 +35,14 @@
 #include "public/sharding/key_sharder.h"
 
 namespace kv_server {
+// Token that allows otel logging for safe code execution path initiated from
+// data orchestrator
+class DataOrchestratorLogContext
+    : public privacy_sandbox::server_common::log::SafePathContext {
+ private:
+  DataOrchestratorLogContext() = default;
+  friend class DataOrchestrator;
+};
 
 // Coordinate data loading.
 //

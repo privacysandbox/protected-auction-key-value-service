@@ -89,9 +89,10 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
 }
 
 // Replaces the current key-value entry with the new key-value entry.
-void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
-                                   int64_t logical_commit_time,
-                                   std::string_view prefix) {
+void KeyValueCache::UpdateKeyValue(
+    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    std::string_view key, std::string_view value, int64_t logical_commit_time,
+    std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext, kUpdateKeyValueLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
   VLOG(9) << "Received update for [" << key << "] at " << logical_commit_time
@@ -142,6 +143,7 @@ void KeyValueCache::UpdateKeyValue(std::string_view key, std::string_view value,
 }
 
 void KeyValueCache::UpdateKeyValueSet(
+    const privacy_sandbox::server_common::log::SafePathContext& log_context,
     std::string_view key, absl::Span<std::string_view> input_value_set,
     int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
@@ -206,8 +208,10 @@ void KeyValueCache::UpdateKeyValueSet(
   // end locking key
 }
 
-void KeyValueCache::DeleteKey(std::string_view key, int64_t logical_commit_time,
-                              std::string_view prefix) {
+void KeyValueCache::DeleteKey(
+    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    std::string_view key, int64_t logical_commit_time,
+    std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext, kDeleteKeyLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
   absl::MutexLock lock(&mutex_);
@@ -230,10 +234,10 @@ void KeyValueCache::DeleteKey(std::string_view key, int64_t logical_commit_time,
   }
 }
 
-void KeyValueCache::DeleteValuesInSet(std::string_view key,
-                                      absl::Span<std::string_view> value_set,
-                                      int64_t logical_commit_time,
-                                      std::string_view prefix) {
+void KeyValueCache::DeleteValuesInSet(
+    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    std::string_view key, absl::Span<std::string_view> value_set,
+    int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kDeleteValuesInSetLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
@@ -298,17 +302,19 @@ void KeyValueCache::DeleteValuesInSet(std::string_view key,
   }
 }
 
-void KeyValueCache::RemoveDeletedKeys(int64_t logical_commit_time,
-                                      std::string_view prefix) {
+void KeyValueCache::RemoveDeletedKeys(
+    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kRemoveDeletedKeyLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
-  CleanUpKeyValueMap(logical_commit_time, prefix);
-  CleanUpKeyValueSetMap(logical_commit_time, prefix);
+  CleanUpKeyValueMap(log_context, logical_commit_time, prefix);
+  CleanUpKeyValueSetMap(log_context, logical_commit_time, prefix);
 }
 
-void KeyValueCache::CleanUpKeyValueMap(int64_t logical_commit_time,
-                                       std::string_view prefix) {
+void KeyValueCache::CleanUpKeyValueMap(
+    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kCleanUpKeyValueMapLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
@@ -343,8 +349,9 @@ void KeyValueCache::CleanUpKeyValueMap(int64_t logical_commit_time,
   }
 }
 
-void KeyValueCache::CleanUpKeyValueSetMap(int64_t logical_commit_time,
-                                          std::string_view prefix) {
+void KeyValueCache::CleanUpKeyValueSetMap(
+    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kCleanUpKeyValueSetMapLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());

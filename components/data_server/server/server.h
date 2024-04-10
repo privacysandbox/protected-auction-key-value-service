@@ -50,6 +50,15 @@
 
 namespace kv_server {
 
+// Token that allows otel logging for safe code execution path in the server
+// life cycle
+class ServerLifeCycleLogContext
+    : public privacy_sandbox::server_common::log::SafePathContext {
+ private:
+  ServerLifeCycleLogContext() = default;
+  friend class Server;
+};
+
 class Server {
  public:
   Server();
@@ -156,6 +165,7 @@ class Server {
       key_fetcher_manager_;
   std::unique_ptr<opentelemetry::logs::LoggerProvider> log_provider_;
   std::unique_ptr<OpenTelemetrySink> open_telemetry_sink_;
+  const ServerLifeCycleLogContext log_context_;
 };
 
 }  // namespace kv_server

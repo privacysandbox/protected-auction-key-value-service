@@ -76,18 +76,19 @@ void LogDataLoadingMetrics(std::string_view source,
                            data_loading_stats.total_dropped_records)}}));
 }
 
-absl::Status ApplyUpdateMutation(std::string_view prefix,
-                                 const KeyValueMutationRecord& record,
-                                 Cache& cache) {
+absl::Status ApplyUpdateMutation(
+    std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
+    const DataOrchestratorLogContext& log_context) {
   if (record.value_type() == Value::StringValue) {
-    cache.UpdateKeyValue(record.key()->string_view(),
+    cache.UpdateKeyValue(log_context, record.key()->string_view(),
                          GetRecordValue<std::string_view>(record),
                          record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
     auto values = GetRecordValue<std::vector<std::string_view>>(record);
-    cache.UpdateKeyValueSet(record.key()->string_view(), absl::MakeSpan(values),
+    cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
+                            absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
@@ -96,17 +97,18 @@ absl::Status ApplyUpdateMutation(std::string_view prefix,
                    " has unsupported value type: ", record.value_type()));
 }
 
-absl::Status ApplyDeleteMutation(std::string_view prefix,
-                                 const KeyValueMutationRecord& record,
-                                 Cache& cache) {
+absl::Status ApplyDeleteMutation(
+    std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
+    const DataOrchestratorLogContext& log_context) {
   if (record.value_type() == Value::StringValue) {
-    cache.DeleteKey(record.key()->string_view(), record.logical_commit_time(),
-                    prefix);
+    cache.DeleteKey(log_context, record.key()->string_view(),
+                    record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
     auto values = GetRecordValue<std::vector<std::string_view>>(record);
-    cache.DeleteValuesInSet(record.key()->string_view(), absl::MakeSpan(values),
+    cache.DeleteValuesInSet(log_context, record.key()->string_view(),
+                            absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
@@ -118,7 +120,8 @@ absl::Status ApplyDeleteMutation(std::string_view prefix,
 bool ShouldProcessRecord(const KeyValueMutationRecord& record,
                          int64_t num_shards, int64_t server_shard_num,
                          const KeySharder& key_sharder,
-                         DataLoadingStats& data_loading_stats) {
+                         DataLoadingStats& data_loading_stats,
+                         const DataOrchestratorLogContext& log_context) {
   if (num_shards <= 1) {
     return true;
   }
@@ -139,10 +142,11 @@ bool ShouldProcessRecord(const KeyValueMutationRecord& record,
 
 absl::Status ApplyKeyValueMutationToCache(
     std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
-    int64_t& max_timestamp, DataLoadingStats& data_loading_stats) {
+    int64_t& max_timestamp, DataLoadingStats& data_loading_stats,
+    const DataOrchestratorLogContext& log_context) {
   switch (record.mutation_type()) {
     case KeyValueMutationType::Update: {
-      if (auto status = ApplyUpdateMutation(prefix, record, cache);
+      if (auto status = ApplyUpdateMutation(prefix, record, cache, log_context);
           !status.ok()) {
         return status;
       }
@@ -151,7 +155,7 @@ absl::Status ApplyKeyValueMutationToCache(
       break;
     }
     case KeyValueMutationType::Delete: {
-      if (auto status = ApplyDeleteMutation(prefix, record, cache);
+      if (auto status = ApplyDeleteMutation(prefix, record, cache, log_context);
           !status.ok()) {
         return status;
       }
@@ -171,35 +175,38 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
     std::string_view data_source, std::string_view prefix,
     StreamRecordReader& record_reader, Cache& cache, int64_t& max_timestamp,
     const int32_t server_shard_num, const int32_t num_shards,
-    UdfClient& udf_client, const KeySharder& key_sharder) {
+    UdfClient& udf_client, const KeySharder& key_sharder,
+    const DataOrchestratorLogContext log_context) {
   DataLoadingStats data_loading_stats;
-  const auto process_data_record_fn =
-      [prefix, &cache, &max_timestamp, &data_loading_stats, server_shard_num,
-       num_shards, &udf_client, &key_sharder](const DataRecord& data_record) {
-        if (data_record.record_type() == Record::KeyValueMutationRecord) {
-          const auto* record = data_record.record_as_KeyValueMutationRecord();
-          if (!ShouldProcessRecord(*record, num_shards, server_shard_num,
-                                   key_sharder, data_loading_stats)) {
-            // NOTE: currently upstream logic retries on non-ok status
-            // this will get us in a loop
-            return absl::OkStatus();
-          }
-          return ApplyKeyValueMutationToCache(
-              prefix, *record, cache, max_timestamp, data_loading_stats);
-        } else if (data_record.record_type() ==
-                   Record::UserDefinedFunctionsConfig) {
-          const auto* udf_config =
-              data_record.record_as_UserDefinedFunctionsConfig();
-          VLOG(3) << "Setting UDF code snippet for version: "
-                  << udf_config->version();
-          return udf_client.SetCodeObject(CodeConfig{
-              .js = udf_config->code_snippet()->str(),
-              .udf_handler_name = udf_config->handler_name()->str(),
-              .logical_commit_time = udf_config->logical_commit_time(),
-              .version = udf_config->version()});
-        }
-        return absl::InvalidArgumentError("Received unsupported record.");
-      };
+  const auto process_data_record_fn = [prefix, &cache, &max_timestamp,
+                                       &data_loading_stats, server_shard_num,
+                                       num_shards, &udf_client, &key_sharder,
+                                       &log_context](
+                                          const DataRecord& data_record) {
+    if (data_record.record_type() == Record::KeyValueMutationRecord) {
+      const auto* record = data_record.record_as_KeyValueMutationRecord();
+      if (!ShouldProcessRecord(*record, num_shards, server_shard_num,
+                               key_sharder, data_loading_stats, log_context)) {
+        // NOTE: currently upstream logic retries on non-ok status
+        // this will get us in a loop
+        return absl::OkStatus();
+      }
+      return ApplyKeyValueMutationToCache(prefix, *record, cache, max_timestamp,
+                                          data_loading_stats, log_context);
+    } else if (data_record.record_type() ==
+               Record::UserDefinedFunctionsConfig) {
+      const auto* udf_config =
+          data_record.record_as_UserDefinedFunctionsConfig();
+      VLOG(3) << "Setting UDF code snippet for version: "
+              << udf_config->version();
+      return udf_client.SetCodeObject(
+          CodeConfig{.js = udf_config->code_snippet()->str(),
+                     .udf_handler_name = udf_config->handler_name()->str(),
+                     .logical_commit_time = udf_config->logical_commit_time(),
+                     .version = udf_config->version()});
+    }
+    return absl::InvalidArgumentError("Received unsupported record.");
+  };
   // TODO(b/314302953): ReadStreamRecords will skip over individual records that
   // have errors. We should pass the file name to the function so that it will
   // appear in error logs.
@@ -214,7 +221,8 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
 // Reads the file from `location` and updates the cache based on the delta read.
 absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
     const BlobStorageClient::DataLocation& location,
-    const DataOrchestrator::Options& options) {
+    const DataOrchestrator::Options& options,
+    const DataOrchestratorLogContext& log_context) {
   LOG(INFO) << "Loading " << location;
   int64_t max_timestamp = 0;
   auto& cache = options.cache;
@@ -246,18 +254,20 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
       auto data_loading_stats,
       LoadCacheWithData(file_name, location.prefix, *record_reader, cache,
                         max_timestamp, options.shard_num, options.num_shards,
-                        options.udf_client, options.key_sharder),
+                        options.udf_client, options.key_sharder, log_context),
       _ << "Blob: " << location);
-  cache.RemoveDeletedKeys(max_timestamp, location.prefix);
+  cache.RemoveDeletedKeys(log_context, max_timestamp, location.prefix);
   return data_loading_stats;
 }
 
 absl::StatusOr<DataLoadingStats> TraceLoadCacheWithDataFromFile(
     BlobStorageClient::DataLocation location,
-    const DataOrchestrator::Options& options) {
+    const DataOrchestrator::Options& options,
+    const DataOrchestratorLogContext& log_context) {
   return TraceWithStatusOr(
-      [location, &options] {
-        return LoadCacheWithDataFromFile(std::move(location), options);
+      [location, &options, &log_context] {
+        return LoadCacheWithDataFromFile(std::move(location), options,
+                                         log_context);
       },
       "LoadCacheWithDataFromFile",
       {{"bucket", std::move(location.bucket)},
@@ -271,9 +281,11 @@ class DataOrchestratorImpl : public DataOrchestrator {
   // date until this file.
   DataOrchestratorImpl(
       Options options,
-      absl::flat_hash_map<std::string, std::string> prefix_last_basenames)
+      absl::flat_hash_map<std::string, std::string> prefix_last_basenames,
+      DataOrchestratorLogContext log_context)
       : options_(std::move(options)),
-        prefix_last_basenames_(std::move(prefix_last_basenames)) {}
+        prefix_last_basenames_(std::move(prefix_last_basenames)),
+        log_context_(std::move(log_context)) {}
 
   ~DataOrchestratorImpl() override {
     if (!data_loader_thread_) return;
@@ -294,8 +306,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
   }
 
   static absl::StatusOr<absl::flat_hash_map<std::string, std::string>> Init(
-      Options& options) {
-    auto ending_delta_files = LoadSnapshotFiles(options);
+      Options& options, const DataOrchestratorLogContext& log_context) {
+    auto ending_delta_files = LoadSnapshotFiles(options, log_context);
     if (!ending_delta_files.ok()) {
       return ending_delta_files.status();
     }
@@ -322,7 +334,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
           continue;
         }
         (*ending_delta_files)[prefix] = blob.key;
-        if (const auto s = TraceLoadCacheWithDataFromFile(blob, options);
+        if (const auto s =
+                TraceLoadCacheWithDataFromFile(blob, options, log_context);
             !s.ok()) {
           return s.status();
         }
@@ -356,7 +369,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
           return LoadCacheWithHighPriorityUpdates(
               kDefaultDataSourceForRealtimeUpdates,
               kDefaultPrefixForRealTimeUpdates, delta_stream_reader_factory,
-              message_body, cache);
+              message_body, cache, log_context_);
         });
   }
 
@@ -403,7 +416,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
                 {.bucket = options_.data_bucket,
                  .prefix = blob.prefix,
                  .key = blob.key},
-                options_);
+                options_, log_context_);
           },
           "LoadNewFile", LogStatusSafeMetricsFn<kLoadNewFilesStatus>());
     }
@@ -420,7 +433,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
   // Loads snapshot files if there are any.
   // Returns the latest delta file to be included in a snapshot.
   static absl::StatusOr<absl::flat_hash_map<std::string, std::string>>
-  LoadSnapshotFiles(const Options& options) {
+  LoadSnapshotFiles(const Options& options,
+                    const DataOrchestratorLogContext& log_context) {
     absl::flat_hash_map<std::string, std::string> ending_delta_files;
     for (const auto& prefix : options.blob_prefix_allowlist.Prefixes()) {
       auto location = BlobStorageClient::DataLocation{
@@ -458,7 +472,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
         }
         LOG(INFO) << "Loading snapshot file: " << snapshot_blob;
         PS_ASSIGN_OR_RETURN(
-            auto stats, TraceLoadCacheWithDataFromFile(snapshot_blob, options));
+            auto stats, TraceLoadCacheWithDataFromFile(snapshot_blob, options,
+                                                       log_context));
         if (auto iter = ending_delta_files.find(prefix);
             iter == ending_delta_files.end() ||
             metadata.snapshot().ending_delta_file() > iter->second) {
@@ -473,14 +488,15 @@ class DataOrchestratorImpl : public DataOrchestrator {
   absl::StatusOr<DataLoadingStats> LoadCacheWithHighPriorityUpdates(
       std::string_view data_source, std::string_view prefix,
       StreamRecordReaderFactory& delta_stream_reader_factory,
-      const std::string& record_string, Cache& cache) {
+      const std::string& record_string, Cache& cache,
+      const DataOrchestratorLogContext log_context) {
     std::istringstream is(record_string);
     int64_t max_timestamp = 0;
     auto record_reader = delta_stream_reader_factory.CreateReader(is);
     return LoadCacheWithData(data_source, prefix, *record_reader, cache,
                              max_timestamp, options_.shard_num,
                              options_.num_shards, options_.udf_client,
-                             options_.key_sharder);
+                             options_.key_sharder, log_context);
   }
 
   const Options options_;
@@ -490,18 +506,22 @@ class DataOrchestratorImpl : public DataOrchestrator {
   bool stop_ ABSL_GUARDED_BY(mu_) = false;
   // last basename of file in initialization.
   absl::flat_hash_map<std::string, std::string> prefix_last_basenames_;
+  const DataOrchestratorLogContext log_context_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<DataOrchestrator>> DataOrchestrator::TryCreate(
     Options options) {
-  const auto prefix_last_basenames = DataOrchestratorImpl::Init(options);
+  DataOrchestratorLogContext log_context;
+  const auto prefix_last_basenames =
+      DataOrchestratorImpl::Init(options, log_context);
   if (!prefix_last_basenames.ok()) {
     return prefix_last_basenames.status();
   }
   auto orchestrator = std::make_unique<DataOrchestratorImpl>(
-      std::move(options), std::move(prefix_last_basenames.value()));
+      std::move(options), std::move(prefix_last_basenames.value()),
+      std::move(log_context));
   return orchestrator;
 }
 }  // namespace kv_server

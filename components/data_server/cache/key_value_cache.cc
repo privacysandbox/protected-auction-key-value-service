@@ -13,7 +13,6 @@
 // limitations under the License.
 #include "components/data_server/cache/key_value_cache.h"
 
-#include <algorithm>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -88,6 +87,18 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
   return result;
 }
 
+// Looks up and returns int32 value set result for the given key set.
+std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetUInt32ValueSet(
+    const RequestContext& request_context,
+    const absl::flat_hash_set<std::string_view>& key_set) const {
+  // TODO: Add cache access and latency metrics
+  auto result = GetKeyValueSetResult::Create();
+  for (const auto& key : key_set) {
+    result->AddUInt32ValueSet(key, uint32_sets_map_.CGet(key));
+  }
+  return result;
+}
+
 // Replaces the current key-value entry with the new key-value entry.
 void KeyValueCache::UpdateKeyValue(
     privacy_sandbox::server_common::log::RequestContext& log_context,
@@ -157,7 +168,7 @@ void KeyValueCache::UpdateKeyValueSet(
     absl::MutexLock lock_map(&set_map_mutex_);
 
     auto max_cleanup_logical_commit_time =
-        max_cleanup_logical_commit_time_map_for_set_cache_[prefix];
+        set_cache_max_cleanup_logical_commit_time_[prefix];
 
     if (logical_commit_time <= max_cleanup_logical_commit_time) {
       VLOG(1) << "Skipping the update as its logical_commit_time: "
@@ -207,6 +218,24 @@ void KeyValueCache::UpdateKeyValueSet(
   }
   // end locking key
 }
+void KeyValueCache::UpdateKeyValueSet(
+    privacy_sandbox::server_common::log::RequestContext& log_context,
+    std::string_view key, absl::Span<uint32_t> value_set,
+    int64_t logical_commit_time, std::string_view prefix) {
+  // TODO: Add latency metrics
+  if (auto prefix_max_time_node =
+          uint32_sets_max_cleanup_commit_time_map_.CGet(prefix);
+      prefix_max_time_node.is_present() &&
+      logical_commit_time <= *prefix_max_time_node.value()) {
+    return;  // Skip old updates.
+  }
+  auto cached_set_node = uint32_sets_map_.Get(key);
+  if (!cached_set_node.is_present()) {
+    auto result = uint32_sets_map_.PutIfAbsent(key, UInt32ValueSet());
+    cached_set_node = std::move(result.first);
+  }
+  cached_set_node.value()->Add(value_set, logical_commit_time);
+}
 
 void KeyValueCache::DeleteKey(
     privacy_sandbox::server_common::log::RequestContext& log_context,
@@ -230,7 +259,7 @@ void KeyValueCache::DeleteKey(
     map_.insert_or_assign(
         key,
         {.value = nullptr, .last_logical_commit_time = logical_commit_time});
-    auto result = deleted_nodes_map_[prefix].emplace(logical_commit_time, key);
+    deleted_nodes_map_[prefix].emplace(logical_commit_time, key);
   }
 }
 
@@ -247,7 +276,7 @@ void KeyValueCache::DeleteValuesInSet(
   {
     absl::MutexLock lock_map(&set_map_mutex_);
     auto max_cleanup_logical_commit_time =
-        max_cleanup_logical_commit_time_map_for_set_cache_[prefix];
+        set_cache_max_cleanup_logical_commit_time_[prefix];
     if (logical_commit_time <= max_cleanup_logical_commit_time ||
         value_set.empty()) {
       return;
@@ -302,6 +331,41 @@ void KeyValueCache::DeleteValuesInSet(
   }
 }
 
+void KeyValueCache::DeleteValuesInSet(
+    privacy_sandbox::server_common::log::RequestContext& log_context,
+    std::string_view key, absl::Span<uint32_t> value_set,
+    int64_t logical_commit_time, std::string_view prefix) {
+  // TODO: Add latency metrics
+  if (auto prefix_max_time_node =
+          uint32_sets_max_cleanup_commit_time_map_.CGet(prefix);
+      prefix_max_time_node.is_present() &&
+      logical_commit_time <= *prefix_max_time_node.value()) {
+    return;  // Skip old deletes.
+  }
+  {
+    auto set_key = std::string(key);
+    auto cached_set_node = uint32_sets_map_.Get(set_key);
+    if (!cached_set_node.is_present()) {
+      auto result =
+          uint32_sets_map_.PutIfAbsent(std::move(set_key), UInt32ValueSet());
+      cached_set_node = std::move(result.first);
+    }
+    cached_set_node.value()->Remove(value_set, logical_commit_time);
+  }
+  {
+    // Mark set as having deleted elements.
+    auto prefix_deleted_sets_node = deleted_uint32_sets_map_.Get(prefix);
+    if (!prefix_deleted_sets_node.is_present()) {
+      auto result = deleted_uint32_sets_map_.PutIfAbsent(
+          prefix, absl::btree_map<int64_t, absl::flat_hash_set<std::string>>());
+      prefix_deleted_sets_node = std::move(result.first);
+    }
+    auto* commit_time_sets =
+        &(*prefix_deleted_sets_node.value())[logical_commit_time];
+    commit_time_sets->insert(std::string(key));
+  }
+}
+
 void KeyValueCache::RemoveDeletedKeys(
     privacy_sandbox::server_common::log::RequestContext& log_context,
     int64_t logical_commit_time, std::string_view prefix) {
@@ -310,6 +374,7 @@ void KeyValueCache::RemoveDeletedKeys(
       latency_recorder(KVServerContextMap()->SafeMetric());
   CleanUpKeyValueMap(log_context, logical_commit_time, prefix);
   CleanUpKeyValueSetMap(log_context, logical_commit_time, prefix);
+  CleanUpUInt32SetMap(log_context, logical_commit_time, prefix);
 }
 
 void KeyValueCache::CleanUpKeyValueMap(
@@ -356,10 +421,9 @@ void KeyValueCache::CleanUpKeyValueSetMap(
                               kCleanUpKeyValueSetMapLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
   absl::MutexLock lock_set_map(&set_map_mutex_);
-  if (max_cleanup_logical_commit_time_map_for_set_cache_[prefix] <
+  if (set_cache_max_cleanup_logical_commit_time_[prefix] <
       logical_commit_time) {
-    max_cleanup_logical_commit_time_map_for_set_cache_[prefix] =
-        logical_commit_time;
+    set_cache_max_cleanup_logical_commit_time_[prefix] = logical_commit_time;
   }
   auto deleted_nodes_per_prefix = deleted_set_nodes_map_.find(prefix);
   if (deleted_nodes_per_prefix == deleted_set_nodes_map_.end()) {
@@ -398,6 +462,46 @@ void KeyValueCache::CleanUpKeyValueSetMap(
       deleted_nodes_per_prefix->second.begin(), delete_itr);
   if (deleted_nodes_per_prefix->second.empty()) {
     deleted_set_nodes_map_.erase(prefix);
+  }
+}
+
+void KeyValueCache::CleanUpUInt32SetMap(
+    privacy_sandbox::server_common::log::RequestContext& log_context,
+    int64_t logical_commit_time, std::string_view prefix) {
+  {
+    if (auto max_cleanup_time_node =
+            uint32_sets_max_cleanup_commit_time_map_.PutIfAbsent(
+                prefix, logical_commit_time);
+        *max_cleanup_time_node.first.value() < logical_commit_time) {
+      *max_cleanup_time_node.first.value() = logical_commit_time;
+    }
+  }
+  absl::flat_hash_set<std::string> cleanup_sets;
+  {
+    auto prefix_deleted_sets_node = deleted_uint32_sets_map_.Get(prefix);
+    if (!prefix_deleted_sets_node.is_present()) {
+      return;  // nothing to cleanup for this prefix.
+    }
+    absl::flat_hash_set<int64_t> cleanup_commit_times;
+    for (const auto& [commit_time, deleted_sets] :
+         *prefix_deleted_sets_node.value()) {
+      if (commit_time > logical_commit_time) {
+        break;
+      }
+      cleanup_commit_times.insert(commit_time);
+      cleanup_sets.insert(deleted_sets.begin(), deleted_sets.end());
+    }
+    for (auto commit_time : cleanup_commit_times) {
+      prefix_deleted_sets_node.value()->erase(
+          prefix_deleted_sets_node.value()->find(commit_time));
+    }
+  }
+  {
+    for (const auto& set : cleanup_sets) {
+      if (auto set_node = uint32_sets_map_.Get(set); set_node.is_present()) {
+        set_node.value()->Cleanup(logical_commit_time);
+      }
+    }
   }
 }
 

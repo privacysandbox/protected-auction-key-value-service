@@ -16,15 +16,17 @@ load("@rules_cc//cc:defs.bzl", "cc_library")
 
 package(default_visibility = ["//visibility:public"])
 
+licenses(["notice"])  # Apache 2.0
+
+exports_files(["LICENSE"])
+
 cc_library(
-    name = "roaring",
-    srcs = [
-        "@roaring_c//file",
-    ],
-    hdrs = [
-        "@roaring_h//file",
-        "@roaring_hh//file",
-    ],
+    name = "c_roaring",
+    srcs = glob(["src/**/*.c"]),
+    hdrs = glob(["include/**/*.h"] + ["cpp/**/*.hh"]),
     defines = ["ROARING_EXCEPTIONS"],
-    strip_include_prefix = "/file",
+    includes = [
+        "cpp/.",
+        "include/.",
+    ],
 )

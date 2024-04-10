@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 def cpp_repositories():
     """Entry point for all external repositories used for C++/C dependencies."""
@@ -92,29 +92,12 @@ def cpp_repositories():
     )
 
     ### Roaring Bitmaps
-    http_file(
-        name = "roaring_c",
-        downloaded_file_path = "roaring.c",
-        sha256 = "d1fe3f22b11968d6edf6648b55c96a8df57f5875453be0409c8d5b4afeec3353",
+    http_archive(
+        name = "roaring_bitmap",
+        build_file = "//third_party_deps:roaring.BUILD",
+        sha256 = "c7b0e36dfeaca0d951b2842a747ddf6fec95355abba5970511bb68d698e10a90",
+        strip_prefix = "CRoaring-3.0.1",
         urls = [
-            "https://github.com/RoaringBitmap/CRoaring/releases/download/v3.0.1/roaring.c",
-        ],
-    )
-
-    http_file(
-        name = "roaring_h",
-        downloaded_file_path = "roaring.h",
-        sha256 = "57e0abc5e3f48e7c47743e49f1261747b41686993949896b3809f255ab5e282b",
-        urls = [
-            "https://github.com/RoaringBitmap/CRoaring/releases/download/v3.0.1/roaring.h",
-        ],
-    )
-
-    http_file(
-        name = "roaring_hh",
-        downloaded_file_path = "roaring.hh",
-        sha256 = "81d9cfc5704ea8fddd53bfe0b20b4678c8d3143d1a47ec684c009a9100c1f530",
-        urls = [
-            "https://github.com/RoaringBitmap/CRoaring/releases/download/v3.0.1/roaring.hh",
+            "https://github.com/RoaringBitmap/CRoaring/archive/refs/tags/v3.0.1.zip",
         ],
     )

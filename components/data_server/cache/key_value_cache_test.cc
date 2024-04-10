@@ -51,6 +51,16 @@ class KeyValueCacheTestPeer {
     return c.map_;
   }
 
+  static const auto& ReadUint32Nodes(KeyValueCache& cache,
+                                     std::string_view prefix = "") {
+    return cache.uint32_sets_map_;
+  }
+
+  static const auto& ReadDeletedUint32Nodes(KeyValueCache& cache,
+                                            std::string_view prefix = "") {
+    return cache.deleted_uint32_sets_map_;
+  }
+
   static int GetDeletedSetNodesMapSize(const KeyValueCache& c,
                                        std::string prefix = "") {
     absl::MutexLock lock(&c.set_map_mutex_);
@@ -100,6 +110,7 @@ namespace {
 
 using privacy_sandbox::server_common::TelemetryProvider;
 using testing::UnorderedElementsAre;
+using testing::UnorderedElementsAreArray;
 
 class SafePathTestLogContext
     : public privacy_sandbox::server_common::log::SafePathContext {
@@ -1340,5 +1351,85 @@ TEST_F(CacheTest, MultiplePrefixTimestampKeyValueSetCleanUps) {
   EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache, "prefix2"),
             1);
 }
+
+TEST_F(CacheTest, VerifyUpdatingUInt32Sets) {
+  auto cache = KeyValueCache::Create();
+  auto request_context = GetRequestContext();
+  auto keys = absl::flat_hash_set<std::string_view>({"set1", "set2"});
+  {
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    for (const auto& key : keys) {
+      auto* set = result->GetUInt32ValueSet(key);
+      EXPECT_EQ(set, nullptr);
+    }
+  }
+  {
+    auto set1_values = std::vector<uint32_t>({1, 2, 3, 4, 5});
+    cache->UpdateKeyValueSet(safe_path_log_context_, "set1",
+                             absl::MakeSpan(set1_values), 1);
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set1");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAreArray(set1_values));
+  }
+  {
+    auto set2_values = std::vector<uint32_t>({6, 7, 8, 9, 10});
+    cache->UpdateKeyValueSet(safe_path_log_context_, "set2",
+                             absl::MakeSpan(set2_values), 1);
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set2");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAreArray(set2_values));
+  }
+}
+
+TEST_F(CacheTest, VerifyDeletingUInt32Sets) {
+  auto cache = KeyValueCache::Create();
+  auto request_context = GetRequestContext();
+  auto keys = absl::flat_hash_set<std::string_view>({"set1", "set2"});
+  auto delete_values = std::vector<uint32_t>({1, 2, 6, 7});
+  {
+    auto set1_values = std::vector<uint32_t>({1, 2, 3, 4, 5});
+    cache->UpdateKeyValueSet(safe_path_log_context_, "set1",
+                             absl::MakeSpan(set1_values), 1);
+    cache->DeleteValuesInSet(safe_path_log_context_, "set1",
+                             absl::MakeSpan(delete_values), 2);
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set1");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAre(3, 4, 5));
+  }
+  {
+    auto set2_values = std::vector<uint32_t>({6, 7, 8, 9, 10});
+    cache->UpdateKeyValueSet(safe_path_log_context_, "set2",
+                             absl::MakeSpan(set2_values), 1);
+    cache->DeleteValuesInSet(safe_path_log_context_, "set2",
+                             absl::MakeSpan(delete_values), 2);
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set2");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAre(8, 9, 10));
+  }
+}
+
+TEST_F(CacheTest, VerifyCleaningUpUInt32Sets) {
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
+  auto request_context = GetRequestContext();
+  auto keys = absl::flat_hash_set<std::string_view>({"set1"});
+  auto delete_values = std::vector<uint32_t>({1, 2});
+  {
+    auto set1_values = std::vector<uint32_t>({1, 2, 3, 4, 5});
+    cache->UpdateKeyValueSet(safe_path_log_context_, "set1",
+                             absl::MakeSpan(set1_values), 1);
+    cache->DeleteValuesInSet(safe_path_log_context_, "set1",
+                             absl::MakeSpan(delete_values), 2);
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set1");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAre(3, 4, 5));
+    EXPECT_THAT(set->GetRemovedValues(), UnorderedElementsAre(1, 2));
+  }
+}
+
 }  // namespace
 }  // namespace kv_server

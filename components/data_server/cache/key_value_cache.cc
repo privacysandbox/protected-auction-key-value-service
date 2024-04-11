@@ -373,15 +373,17 @@ void KeyValueCache::CleanUpKeyValueSetMap(
     for (const auto& [key, values] : delete_itr->second) {
       if (auto key_itr = key_to_value_set_map_.find(key);
           key_itr != key_to_value_set_map_.end()) {
-        absl::MutexLock(&key_itr->second->first);
-        for (const auto& v_to_delete : values) {
-          auto existing_value_itr = key_itr->second->second.find(v_to_delete);
-          if (existing_value_itr != key_itr->second->second.end() &&
-              existing_value_itr->second.is_deleted &&
-              existing_value_itr->second.last_logical_commit_time <=
-                  logical_commit_time) {
-            // Delete the existing value that is marked deleted from set
-            key_itr->second->second.erase(existing_value_itr);
+        {
+          absl::MutexLock key_lock(&key_itr->second->first);
+          for (const auto& v_to_delete : values) {
+            auto existing_value_itr = key_itr->second->second.find(v_to_delete);
+            if (existing_value_itr != key_itr->second->second.end() &&
+                existing_value_itr->second.is_deleted &&
+                existing_value_itr->second.last_logical_commit_time <=
+                    logical_commit_time) {
+              // Delete the existing value that is marked deleted from set
+              key_itr->second->second.erase(existing_value_itr);
+            }
           }
         }
         if (key_itr->second->second.empty()) {

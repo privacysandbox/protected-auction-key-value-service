@@ -52,21 +52,13 @@ class GcpParameterClient : public ParameterClient {
       parameter_client_.reset(std::move(
           (ParameterClientInterface*)client_options.client_for_unit_testing_));
     }
-    auto execution_result = parameter_client_->Init();
-    CHECK(execution_result.Successful())
-        << "Cannot init parameter client!"
-        << GetErrorMessage(execution_result.status_code);
-    execution_result = parameter_client_->Run();
-    CHECK(execution_result.Successful())
-        << "Cannot run parameter client!"
-        << GetErrorMessage(execution_result.status_code);
+    CHECK_OK(parameter_client_->Init());
+    CHECK_OK(parameter_client_->Run());
   }
 
   ~GcpParameterClient() {
-    auto execution_result = parameter_client_->Stop();
-    if (!execution_result.Successful()) {
-      LOG(ERROR) << "Cannot stop parameter client!"
-                 << GetErrorMessage(execution_result.status_code);
+    if (absl::Status status = parameter_client_->Stop(); !status.ok()) {
+      LOG(ERROR) << "Cannot stop parameter client!" << status;
     }
   }
 
@@ -78,7 +70,7 @@ class GcpParameterClient : public ParameterClient {
     get_parameter_request.set_parameter_name(parameter_name);
     std::string param_value;
     absl::BlockingCounter counter(1);
-    auto execution_result = parameter_client_->GetParameter(
+    absl::Status status = parameter_client_->GetParameter(
         std::move(get_parameter_request),
         [&param_value, &counter](const ExecutionResult result,
                                  GetParameterResponse response) {
@@ -94,9 +86,7 @@ class GcpParameterClient : public ParameterClient {
           counter.DecrementCount();
         });
     counter.Wait();
-    if (!execution_result.Successful()) {
-      auto status =
-          absl::UnavailableError(GetErrorMessage(execution_result.status_code));
+    if (!status.ok()) {
       if (default_value.has_value()) {
         LOG(WARNING) << "Unable to get parameter: " << parameter_name
                      << " with error: " << status

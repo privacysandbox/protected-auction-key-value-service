@@ -237,7 +237,7 @@ class GcpInstanceClient : public InstanceClient {
     GetInstanceDetailsByResourceNameRequest request;
     request.set_instance_resource_name(resource_name.value());
 
-    const auto& result = instance_client_->GetInstanceDetailsByResourceName(
+    absl::Status status = instance_client_->GetInstanceDetailsByResourceName(
         std::move(request),
         [&done, this](
             const ExecutionResult& result,
@@ -257,16 +257,14 @@ class GcpInstanceClient : public InstanceClient {
           done.Notify();
         });
     done.WaitForNotification();
-    return result.Successful()
-               ? absl::OkStatus()
-               : absl::InternalError(GetErrorMessage(result.status_code));
+    return status;
   }
 
   absl::StatusOr<std::string> GetResourceName(
       std::unique_ptr<InstanceClientInterface>& instance_client) {
     std::string resource_name;
     absl::Notification done;
-    const auto& result = instance_client->GetCurrentInstanceResourceName(
+    absl::Status status = instance_client->GetCurrentInstanceResourceName(
         GetCurrentInstanceResourceNameRequest(),
         [&](const ExecutionResult& result,
             const GetCurrentInstanceResourceNameResponse& response) {
@@ -279,8 +277,8 @@ class GcpInstanceClient : public InstanceClient {
 
           done.Notify();
         });
-    if (!result.Successful()) {
-      return absl::InternalError(GetErrorMessage(result.status_code));
+    if (!status.ok()) {
+      return status;
     }
     done.WaitForNotification();
     if (resource_name.empty()) {

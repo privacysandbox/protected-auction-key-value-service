@@ -54,7 +54,6 @@ using google::cmrt::sdk::instance_service::v1::
 using ::google::scp::core::ExecutionResult;
 using ::google::scp::core::errors::GetErrorMessage;
 using google::scp::cpio::InstanceClientInterface;
-using google::scp::cpio::InstanceClientOptions;
 
 namespace compute = ::google::cloud::compute_instances_v1;
 
@@ -87,8 +86,7 @@ InstanceServiceStatus GetInstanceServiceStatus(const std::string& status) {
 class GcpInstanceClient : public InstanceClient {
  public:
   GcpInstanceClient()
-      : instance_client_(google::scp::cpio::InstanceClientFactory::Create(
-            InstanceClientOptions())) {
+      : instance_client_(google::scp::cpio::InstanceClientFactory::Create()) {
     instance_client_->Init();
   }
 

@@ -15,11 +15,11 @@
 #include <string>
 #include <thread>
 
+#include "aws/core/Aws.h"
 #include "aws/ssm/SSMClient.h"
 #include "aws/ssm/SSMErrors.h"
 #include "aws/ssm/model/GetParameterRequest.h"
 #include "components/cloud_config/parameter_client.h"
-#include "components/util/platform_initializer.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -38,7 +38,14 @@ class MockSsmClient : public ::Aws::SSM::SSMClient {
 
 class ParameterClientAwsTest : public ::testing::Test {
  protected:
-  PlatformInitializer initializer_;
+  ParameterClientAwsTest() {
+    options_.httpOptions.installSigPipeHandler = true;
+    Aws::InitAPI(options_);
+  }
+  ~ParameterClientAwsTest() override { Aws::ShutdownAPI(options_); }
+
+ private:
+  Aws::SDKOptions options_;
 };
 
 Aws::SSM::Model::GetParameterResult BuildParameterResult(std::string value) {

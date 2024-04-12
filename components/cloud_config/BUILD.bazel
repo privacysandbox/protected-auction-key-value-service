@@ -76,7 +76,6 @@ cc_test(
     }),
     deps = selects.with_or({
         "//:aws_platform": [
-            "//components/util:platform_initializer",
             "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:ssm",
         ],

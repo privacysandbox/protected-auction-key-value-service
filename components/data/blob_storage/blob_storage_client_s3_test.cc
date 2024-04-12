@@ -30,7 +30,6 @@
 #include "aws/s3/model/Object.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/telemetry/server_definition.h"
-#include "components/util/platform_initializer.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -55,8 +54,9 @@ class MockS3Client : public ::Aws::S3::S3Client {
 
 class BlobStorageClientS3Test : public ::testing::Test {
  protected:
-  PlatformInitializer initializer_;
   void SetUp() override {
+    options_.httpOptions.installSigPipeHandler = true;
+    Aws::InitAPI(options_);
     privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
     config_proto.set_mode(
         privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
@@ -64,6 +64,10 @@ class BlobStorageClientS3Test : public ::testing::Test {
         privacy_sandbox::server_common::telemetry::BuildDependentConfig(
             config_proto));
   }
+  void TearDown() override { Aws::ShutdownAPI(options_); }
+
+ private:
+  Aws::SDKOptions options_;
 };
 
 TEST_F(BlobStorageClientS3Test, DeleteBlobSucceeds) {

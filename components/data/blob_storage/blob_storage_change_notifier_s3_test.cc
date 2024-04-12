@@ -16,12 +16,12 @@
 
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
+#include "aws/core/Aws.h"
 #include "aws/sqs/SQSClient.h"
 #include "aws/sqs/model/ReceiveMessageRequest.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/common/msg_svc.h"
 #include "components/telemetry/server_definition.h"
-#include "components/util/platform_initializer.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -56,6 +56,8 @@ class MockSqsClient : public ::Aws::SQS::SQSClient {
 class BlobStorageChangeNotifierS3Test : public ::testing::Test {
  protected:
   void SetUp() override {
+    options_.httpOptions.installSigPipeHandler = true;
+    Aws::InitAPI(options_);
     privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
     config_proto.set_mode(
         privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
@@ -63,6 +65,7 @@ class BlobStorageChangeNotifierS3Test : public ::testing::Test {
         privacy_sandbox::server_common::telemetry::BuildDependentConfig(
             config_proto));
   }
+  void TearDown() override { Aws::ShutdownAPI(options_); }
   void CreateRequiredSqsCallExpectations() {
     static const std::string mock_sqs_url("mock sqs url");
     EXPECT_CALL(mock_message_service_, IsSetupComplete)
@@ -84,8 +87,10 @@ class BlobStorageChangeNotifierS3Test : public ::testing::Test {
         .WillOnce(::testing::Return(outcome));
   }
 
-  PlatformInitializer initializer_;
   MockMessageService mock_message_service_;
+
+ private:
+  Aws::SDKOptions options_;
 };
 
 TEST_F(BlobStorageChangeNotifierS3Test, AwsSqsUnavailable) {

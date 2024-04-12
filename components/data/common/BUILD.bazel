@@ -113,7 +113,7 @@ cc_test(
     deps = select({
         "//:aws_platform": [
             "//components/errors:aws_error_util",
-            "//components/util:platform_initializer",
+            "@aws_sdk_cpp//:core",
             "@aws_sdk_cpp//:sns",
             "@aws_sdk_cpp//:sqs",
         ],

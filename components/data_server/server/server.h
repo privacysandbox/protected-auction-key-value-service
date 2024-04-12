@@ -42,6 +42,7 @@
 #include "components/udf/hooks/run_query_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/util/platform_initializer.h"
+#include "components/util/safe_path_log_context.h"
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
 #include "public/query/get_values.grpc.pb.h"
@@ -49,15 +50,6 @@
 #include "src/telemetry/telemetry.h"
 
 namespace kv_server {
-
-// Token that allows otel logging for safe code execution path in the server
-// life cycle
-class ServerLifeCycleLogContext
-    : public privacy_sandbox::server_common::log::SafePathContext {
- private:
-  ServerLifeCycleLogContext() = default;
-  friend class Server;
-};
 
 class Server {
  public:
@@ -165,7 +157,7 @@ class Server {
       key_fetcher_manager_;
   std::unique_ptr<opentelemetry::logs::LoggerProvider> log_provider_;
   std::unique_ptr<OpenTelemetrySink> open_telemetry_sink_;
-  const ServerLifeCycleLogContext log_context_;
+  KVServerSafeLogContext server_safe_log_context_;
 };
 
 }  // namespace kv_server

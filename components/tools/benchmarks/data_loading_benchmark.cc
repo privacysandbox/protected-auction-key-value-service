@@ -178,7 +178,7 @@ void RegisterBenchmarks() {
 }
 
 absl::Status ApplyUpdateMutation(
-    const kv_server::benchmark::BenchmarkLogContext& log_context,
+    kv_server::benchmark::BenchmarkLogContext& log_context,
     const KeyValueMutationRecord& record, Cache& cache) {
   if (record.value_type() == Value::StringValue) {
     cache.UpdateKeyValue(log_context, record.key()->string_view(),
@@ -199,7 +199,7 @@ absl::Status ApplyUpdateMutation(
 }
 
 absl::Status ApplyDeleteMutation(
-    const kv_server::benchmark::BenchmarkLogContext& log_context,
+    kv_server::benchmark::BenchmarkLogContext& log_context,
     const KeyValueMutationRecord& record, Cache& cache) {
   if (record.value_type() == Value::StringValue) {
     cache.DeleteKey(log_context, record.key()->string_view(),

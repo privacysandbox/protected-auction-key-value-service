@@ -212,3 +212,13 @@ cc_library(
         "@google_privacysandbox_servers_common//src/logger:request_context_impl",
     ],
 )
+
+cc_library(
+    name = "safe_path_log_context",
+    hdrs = [
+        "safe_path_log_context.h",
+    ],
+    deps = [
+        "@google_privacysandbox_servers_common//src/logger:request_context_impl",
+    ],
+)

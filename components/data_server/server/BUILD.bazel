@@ -156,6 +156,7 @@ cc_library(
         "//components/udf/hooks:get_values_hook",
         "//components/util:periodic_closure",
         "//components/util:platform_initializer",
+        "//components/util:safe_path_log_context",
         "//components/util:version_linkstamp",
         "//public:base_types_cc_proto",
         "//public:constants",

@@ -205,7 +205,7 @@ Server::Server()
 void Server::InitializeKeyValueCache() {
   cache_ = KeyValueCache::Create();
   cache_->UpdateKeyValue(
-      log_context_, "hi",
+      server_safe_log_context_, "hi",
       "Hello, world! If you are seeing this, it means you can "
       "query me successfully",
       /*logical_commit_time = */ 1);
@@ -614,6 +614,7 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
             .num_shards = num_shards_,
             .key_sharder = std::move(key_sharder),
             .blob_prefix_allowlist = GetBlobPrefixAllowlist(parameter_fetcher),
+            .log_context = server_safe_log_context_,
         });
       },
       "CreateDataOrchestrator", metrics_callback);

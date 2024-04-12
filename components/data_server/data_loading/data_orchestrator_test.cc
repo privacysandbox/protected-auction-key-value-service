@@ -107,7 +107,8 @@ class DataOrchestratorTest : public ::testing::Test {
             .realtime_thread_pool_manager = realtime_thread_pool_manager_,
             .key_sharder =
                 kv_server::KeySharder(kv_server::ShardingFunction{/*seed=*/""}),
-            .blob_prefix_allowlist = kv_server::BlobPrefixAllowlist("")}) {}
+            .blob_prefix_allowlist = kv_server::BlobPrefixAllowlist(""),
+            .log_context = log_context_}) {}
 
   MockBlobStorageClient blob_client_;
   MockDeltaFileNotifier notifier_;
@@ -117,6 +118,7 @@ class DataOrchestratorTest : public ::testing::Test {
   MockCache cache_;
   MockRealtimeThreadPoolManager realtime_thread_pool_manager_;
   DataOrchestrator::Options options_;
+  privacy_sandbox::server_common::log::NoOpContext log_context_;
 };
 
 TEST_F(DataOrchestratorTest, InitCacheListRetriesOnFailure) {
@@ -634,7 +636,8 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .num_shards = 2,
       .key_sharder =
           kv_server::KeySharder(kv_server::ShardingFunction{/*seed=*/""}),
-      .blob_prefix_allowlist = BlobPrefixAllowlist("")};
+      .blob_prefix_allowlist = BlobPrefixAllowlist(""),
+      .log_context = log_context_};
 
   auto maybe_orchestrator = DataOrchestrator::TryCreate(sharded_options);
   ASSERT_TRUE(maybe_orchestrator.ok());

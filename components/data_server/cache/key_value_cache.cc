@@ -90,7 +90,7 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
 
 // Replaces the current key-value entry with the new key-value entry.
 void KeyValueCache::UpdateKeyValue(
-    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    privacy_sandbox::server_common::log::RequestContext& log_context,
     std::string_view key, std::string_view value, int64_t logical_commit_time,
     std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext, kUpdateKeyValueLatency>
@@ -143,7 +143,7 @@ void KeyValueCache::UpdateKeyValue(
 }
 
 void KeyValueCache::UpdateKeyValueSet(
-    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    privacy_sandbox::server_common::log::RequestContext& log_context,
     std::string_view key, absl::Span<std::string_view> input_value_set,
     int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
@@ -209,7 +209,7 @@ void KeyValueCache::UpdateKeyValueSet(
 }
 
 void KeyValueCache::DeleteKey(
-    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    privacy_sandbox::server_common::log::RequestContext& log_context,
     std::string_view key, int64_t logical_commit_time,
     std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext, kDeleteKeyLatency>
@@ -235,7 +235,7 @@ void KeyValueCache::DeleteKey(
 }
 
 void KeyValueCache::DeleteValuesInSet(
-    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    privacy_sandbox::server_common::log::RequestContext& log_context,
     std::string_view key, absl::Span<std::string_view> value_set,
     int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
@@ -303,7 +303,7 @@ void KeyValueCache::DeleteValuesInSet(
 }
 
 void KeyValueCache::RemoveDeletedKeys(
-    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    privacy_sandbox::server_common::log::RequestContext& log_context,
     int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kRemoveDeletedKeyLatency>
@@ -313,7 +313,7 @@ void KeyValueCache::RemoveDeletedKeys(
 }
 
 void KeyValueCache::CleanUpKeyValueMap(
-    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    privacy_sandbox::server_common::log::RequestContext& log_context,
     int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kCleanUpKeyValueMapLatency>
@@ -350,7 +350,7 @@ void KeyValueCache::CleanUpKeyValueMap(
 }
 
 void KeyValueCache::CleanUpKeyValueSetMap(
-    const privacy_sandbox::server_common::log::SafePathContext& log_context,
+    privacy_sandbox::server_common::log::RequestContext& log_context,
     int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kCleanUpKeyValueSetMapLatency>

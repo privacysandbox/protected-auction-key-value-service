@@ -43,6 +43,12 @@ ABSL_FLAG(std::string, bucket, "performance-test-data-bucket",
 namespace kv_server {
 namespace {
 
+class DataLoadingAnalyzerLogContext
+    : public privacy_sandbox::server_common::log::SafePathContext {
+ public:
+  DataLoadingAnalyzerLogContext() = default;
+};
+
 class NoopBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   absl::StatusOr<std::vector<std::string>> GetNotifications(
@@ -139,6 +145,7 @@ std::vector<Operation> OperationsFromFlag() {
 }
 
 absl::Status InitOnce(Operation operation) {
+  DataLoadingAnalyzerLogContext log_context;
   std::unique_ptr<UdfClient> noop_udf_client = NewNoopUdfClient();
   InitMetricsContextMap();
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
@@ -184,6 +191,7 @@ absl::Status InitOnce(Operation operation) {
       .realtime_thread_pool_manager = realtime_thread_pool_manager,
       .udf_client = *noop_udf_client,
       .key_sharder = KeySharder(ShardingFunction{/*seed=*/""}),
+      .log_context = log_context,
   });
   absl::Time end_time = absl::Now();
   LOG(INFO) << "Init used " << (end_time - start_time);

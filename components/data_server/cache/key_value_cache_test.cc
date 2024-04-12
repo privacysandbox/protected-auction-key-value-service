@@ -90,7 +90,7 @@ class KeyValueCacheTestPeer {
   }
 
   static void CallCacheCleanup(
-      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      privacy_sandbox::server_common::log::SafePathContext& log_context,
       KeyValueCache& c, int64_t logical_commit_time) {
     c.RemoveDeletedKeys(log_context, logical_commit_time);
   }
@@ -122,7 +122,7 @@ class CacheTest : public ::testing::Test {
   std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
   std::unique_ptr<RequestLogContext> request_log_context_;
   std::unique_ptr<RequestContext> request_context_;
-  const SafePathTestLogContext safe_path_log_context_;
+  SafePathTestLogContext safe_path_log_context_;
 };
 
 TEST_F(CacheTest, RetrievesMatchingEntry) {

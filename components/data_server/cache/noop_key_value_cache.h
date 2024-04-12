@@ -36,23 +36,23 @@ class NoOpKeyValueCache : public Cache {
     return std::make_unique<NoOpGetKeyValueSetResult>();
   }
   void UpdateKeyValue(
-      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      privacy_sandbox::server_common::log::RequestContext& log_context,
       std::string_view key, std::string_view value, int64_t logical_commit_time,
       std::string_view prefix) override {}
   void UpdateKeyValueSet(
-      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      privacy_sandbox::server_common::log::RequestContext& log_context,
       std::string_view key, absl::Span<std::string_view> value_set,
       int64_t logical_commit_time, std::string_view prefix) override {}
   void DeleteKey(
-      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      privacy_sandbox::server_common::log::RequestContext& log_context,
       std::string_view key, int64_t logical_commit_time,
       std::string_view prefix) override {}
   void DeleteValuesInSet(
-      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      privacy_sandbox::server_common::log::RequestContext& log_context,
       std::string_view key, absl::Span<std::string_view> value_set,
       int64_t logical_commit_time, std::string_view prefix) override {}
   void RemoveDeletedKeys(
-      const privacy_sandbox::server_common::log::SafePathContext& log_context,
+      privacy_sandbox::server_common::log::RequestContext& log_context,
       int64_t logical_commit_time, std::string_view prefix) override {}
   static std::unique_ptr<Cache> Create() {
     return std::make_unique<NoOpKeyValueCache>();

@@ -35,15 +35,6 @@
 #include "public/sharding/key_sharder.h"
 
 namespace kv_server {
-// Token that allows otel logging for safe code execution path initiated from
-// data orchestrator
-class DataOrchestratorLogContext
-    : public privacy_sandbox::server_common::log::SafePathContext {
- private:
-  DataOrchestratorLogContext() = default;
-  friend class DataOrchestrator;
-};
-
 // Coordinate data loading.
 //
 // This class is intended to be used in a single thread.
@@ -66,6 +57,7 @@ class DataOrchestrator {
     const int32_t num_shards = 1;
     const KeySharder key_sharder;
     BlobPrefixAllowlist blob_prefix_allowlist;
+    privacy_sandbox::server_common::log::RequestContext& log_context;
   };
 
   // Creates initial state. Scans the bucket and initializes the cache with data

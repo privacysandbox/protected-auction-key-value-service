@@ -54,7 +54,7 @@ using google::protobuf::util::JsonStringToMessage;
 // string_view to non-const string_view. Since this tool is for simple testing,
 // the current solution is to pass by value.
 absl::Status LoadCacheFromKVMutationRecord(
-    const UDFDeltaFileTestLogContext& log_context,
+    UDFDeltaFileTestLogContext& log_context,
     KeyValueMutationRecordStruct record, Cache& cache) {
   switch (record.mutation_type) {
     case KeyValueMutationType::Update: {
@@ -92,7 +92,7 @@ absl::Status LoadCacheFromKVMutationRecord(
   return absl::OkStatus();
 }
 
-absl::Status LoadCacheFromFile(const UDFDeltaFileTestLogContext& log_context,
+absl::Status LoadCacheFromFile(UDFDeltaFileTestLogContext& log_context,
                                std::string file_path, Cache& cache) {
   std::ifstream delta_file(file_path);
   DeltaRecordStreamReader record_reader(delta_file);

@@ -37,6 +37,7 @@
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "riegeli/bytes/istream_reader.h"
 #include "riegeli/records/record_reader.h"
+#include "src/logger/request_context_logger.h"
 #include "src/telemetry/telemetry_provider.h"
 
 namespace kv_server {
@@ -143,6 +144,9 @@ class ConcurrentStreamRecordReader : public StreamRecordReader {
           LOG(WARNING) << "Skipping over corrupted region: " << region;
           return true;
         };
+    privacy_sandbox::server_common::log::RequestContext& log_context =
+        const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+            privacy_sandbox::server_common::log::kNoOpContext);
   };
   ConcurrentStreamRecordReader(
       std::function<std::unique_ptr<RecordStream>()> stream_factory,

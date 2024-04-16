@@ -582,11 +582,13 @@ Server::CreateStreamRecordReaderFactory(
   if (file_format == kFileFormats[static_cast<int>(FileFormat::kAvro)]) {
     AvroConcurrentStreamRecordReader::Options options;
     options.num_worker_threads = data_loading_num_threads;
+    options.log_context = server_safe_log_context_;
     return std::make_unique<AvroStreamRecordReaderFactory>(options);
   } else if (file_format ==
              kFileFormats[static_cast<int>(FileFormat::kRiegeli)]) {
     ConcurrentStreamRecordReader<std::string_view>::Options options;
     options.num_worker_threads = data_loading_num_threads;
+    options.log_context = server_safe_log_context_;
     return std::make_unique<RiegeliStreamRecordReaderFactory>(options);
   }
 }

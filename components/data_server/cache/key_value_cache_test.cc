@@ -1416,9 +1416,9 @@ TEST_F(CacheTest, VerifyCleaningUpUInt32Sets) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   auto request_context = GetRequestContext();
   auto keys = absl::flat_hash_set<std::string_view>({"set1"});
+  auto set1_values = std::vector<uint32_t>({1, 2, 3, 4, 5});
   auto delete_values = std::vector<uint32_t>({1, 2});
   {
-    auto set1_values = std::vector<uint32_t>({1, 2, 3, 4, 5});
     cache->UpdateKeyValueSet(safe_path_log_context_, "set1",
                              absl::MakeSpan(set1_values), 1);
     cache->DeleteValuesInSet(safe_path_log_context_, "set1",
@@ -1427,7 +1427,32 @@ TEST_F(CacheTest, VerifyCleaningUpUInt32Sets) {
     auto* set = result->GetUInt32ValueSet("set1");
     ASSERT_TRUE(set != nullptr);
     EXPECT_THAT(set->GetValues(), UnorderedElementsAre(3, 4, 5));
-    EXPECT_THAT(set->GetRemovedValues(), UnorderedElementsAre(1, 2));
+    EXPECT_THAT(set->GetRemovedValues(),
+                UnorderedElementsAreArray(delete_values));
+  }
+  const auto& deleted_nodes =
+      KeyValueCacheTestPeer::ReadDeletedUint32Nodes(*cache);
+  {
+    auto prefix_nodes = deleted_nodes.CGet("");
+    ASSERT_TRUE(prefix_nodes.is_present());
+    auto iter = prefix_nodes.value()->find(2);
+    ASSERT_NE(iter, prefix_nodes.value()->end());
+    EXPECT_THAT(iter->first, 2);
+    EXPECT_TRUE(iter->second.contains("set1"));
+  }
+  {
+    cache->RemoveDeletedKeys(safe_path_log_context_, 3);
+    auto prefix_nodes = deleted_nodes.CGet("");
+    ASSERT_TRUE(prefix_nodes.is_present());
+    auto iter = prefix_nodes.value()->find(2);
+    ASSERT_EQ(iter, prefix_nodes.value()->end());
+  }
+  {
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set1");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAre(3, 4, 5));
+    EXPECT_TRUE(set->GetRemovedValues().empty());
   }
 }
 

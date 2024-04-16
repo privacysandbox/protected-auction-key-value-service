@@ -216,6 +216,15 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kMicroSecondsLowerBound);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kGetUInt32ValueSetLatencyInMicros(
+        "GetUInt32ValueSetLatencyInMicros",
+        "Latency in executing GetUInt32ValueSet in cache",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
     kCacheAccessEventCount("CacheAccessEventCount",
@@ -421,6 +430,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kUpdateUInt32ValueSetLatency("UpdateUInt32ValueSetLatency",
+                                 "Latency in uint32 key value set update",
+                                 kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kDeleteKeyLatency("DeleteKeyLatency", "Latency in deleting key",
                       kLatencyInMicroSecondsBoundaries);
 
@@ -430,6 +446,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     kDeleteValuesInSetLatency("DeleteValuesInSetLatency",
                               "Latency in deleting values in set",
                               kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kDeleteUInt32ValueSetLatency("DeleteUInt32ValueSetLatency",
+                                 "Latency in deleting values in an uint32 set",
+                                 kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
@@ -452,6 +475,14 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     kCleanUpKeyValueSetMapLatency("CleanUpKeyValueSetMapLatency",
                                   "Latency in cleaning up key value set map",
                                   kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kCleanUpUInt32SetMapLatency(
+        "CleanUpUInt32SetMapMapLatency",
+        "Latency in cleaning up key value uint32 set map",
+        kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
@@ -491,9 +522,11 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kConcurrentStreamRecordReaderReadShardRecordsLatency,
         &kConcurrentStreamRecordReaderReadStreamRecordsLatency,
         &kConcurrentStreamRecordReaderReadByteRangeLatency,
-        &kUpdateKeyValueLatency, &kUpdateKeyValueSetLatency, &kDeleteKeyLatency,
-        &kDeleteValuesInSetLatency, &kRemoveDeletedKeyLatency,
-        &kCleanUpKeyValueMapLatency, &kCleanUpKeyValueSetMapLatency};
+        &kUpdateKeyValueLatency, &kUpdateKeyValueSetLatency,
+        &kUpdateUInt32ValueSetLatency, &kDeleteKeyLatency,
+        &kDeleteValuesInSetLatency, &kDeleteUInt32ValueSetLatency,
+        &kRemoveDeletedKeyLatency, &kCleanUpKeyValueMapLatency,
+        &kCleanUpKeyValueSetMapLatency, &kCleanUpUInt32SetMapLatency};
 
 // Internal lookup service metrics list contains metrics collected in the
 // internal lookup server. This separation from KV metrics list allows all
@@ -510,7 +543,8 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kInternalGetKeyValuesLatencyInMicros,
         &kInternalGetKeyValueSetLatencyInMicros,
         &kInternalSecureLookupLatencyInMicros, &kGetValuePairsLatencyInMicros,
-        &kGetKeyValueSetLatencyInMicros, &kCacheAccessEventCount};
+        &kGetKeyValueSetLatencyInMicros, &kGetUInt32ValueSetLatencyInMicros,
+        &kCacheAccessEventCount};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>

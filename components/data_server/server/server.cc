@@ -567,7 +567,7 @@ std::unique_ptr<BlobStorageClient> Server::CreateBlobClient(
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   return blob_storage_client_factory->CreateBlobStorageClient(
-      std::move(client_options));
+      std::move(client_options), server_safe_log_context_);
 }
 
 std::unique_ptr<StreamRecordReaderFactory>

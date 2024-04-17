@@ -33,6 +33,11 @@
 namespace kv_server {
 namespace {
 
+class LocalBlobStorageClientTest : public ::testing::Test {
+ protected:
+  privacy_sandbox::server_common::log::NoOpContext no_op_context_;
+};
+
 void CreateSubDir(std::string_view subdir_name) {
   std::filesystem::create_directory(
       std::filesystem::path(::testing::TempDir()) / subdir_name);
@@ -45,9 +50,9 @@ void CreateFileInTmpDir(const std::string& filename) {
   file << "arbitrary file contents";
 }
 
-TEST(LocalBlobStorageClientTest, ListNotFoundDirectory) {
+TEST_F(LocalBlobStorageClientTest, ListNotFoundDirectory) {
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<FileBlobStorageClient>();
+      std::make_unique<FileBlobStorageClient>(no_op_context_);
 
   BlobStorageClient::DataLocation location;
   location.bucket = "this is not a valid directory path";
@@ -57,9 +62,9 @@ TEST(LocalBlobStorageClientTest, ListNotFoundDirectory) {
             client->ListBlobs(location, options).status().code());
 }
 
-TEST(LocalBlobStorageClientTest, ListEmptyDirectory) {
+TEST_F(LocalBlobStorageClientTest, ListEmptyDirectory) {
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<FileBlobStorageClient>();
+      std::make_unique<FileBlobStorageClient>(no_op_context_);
 
   BlobStorageClient::DataLocation location;
   // Directory contains no files by default.
@@ -70,9 +75,9 @@ TEST(LocalBlobStorageClientTest, ListEmptyDirectory) {
   EXPECT_TRUE(status_or.value().empty());
 }
 
-TEST(LocalBlobStorageClientTest, ListDirectoryWithFile) {
+TEST_F(LocalBlobStorageClientTest, ListDirectoryWithFile) {
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<FileBlobStorageClient>();
+      std::make_unique<FileBlobStorageClient>(no_op_context_);
 
   CreateFileInTmpDir("a");
   BlobStorageClient::DataLocation location;
@@ -84,9 +89,9 @@ TEST(LocalBlobStorageClientTest, ListDirectoryWithFile) {
   EXPECT_EQ(*status_or, std::vector<std::string>{"a"});
 }
 
-TEST(LocalBlobStorageClientTest, DeleteNotFoundBlob) {
+TEST_F(LocalBlobStorageClientTest, DeleteNotFoundBlob) {
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<FileBlobStorageClient>();
+      std::make_unique<FileBlobStorageClient>(no_op_context_);
 
   BlobStorageClient::DataLocation location;
   location.bucket = "this is not a valid directory path";
@@ -95,9 +100,9 @@ TEST(LocalBlobStorageClientTest, DeleteNotFoundBlob) {
   EXPECT_EQ(absl::StatusCode::kInternal, client->DeleteBlob(location).code());
 }
 
-TEST(LocalBlobStorageClientTest, DeleteBlob) {
+TEST_F(LocalBlobStorageClientTest, DeleteBlob) {
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<FileBlobStorageClient>();
+      std::make_unique<FileBlobStorageClient>(no_op_context_);
 
   BlobStorageClient::DataLocation location;
   location.bucket = ::testing::TempDir();
@@ -107,9 +112,9 @@ TEST(LocalBlobStorageClientTest, DeleteBlob) {
   EXPECT_EQ(absl::StatusCode::kOk, client->DeleteBlob(location).code());
 }
 
-TEST(LocalBlobStorageClientTest, PutBlob) {
+TEST_F(LocalBlobStorageClientTest, PutBlob) {
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<FileBlobStorageClient>();
+      std::make_unique<FileBlobStorageClient>(no_op_context_);
 
   BlobStorageClient::DataLocation from;
   from.bucket = ::testing::TempDir();
@@ -126,9 +131,9 @@ TEST(LocalBlobStorageClientTest, PutBlob) {
             client->PutBlob(*from_blob_reader, to).code());
 }
 
-TEST(LocalBlobStorageClientTest, DeleteBlobWithPrefix) {
+TEST_F(LocalBlobStorageClientTest, DeleteBlobWithPrefix) {
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<FileBlobStorageClient>();
+      std::make_unique<FileBlobStorageClient>(no_op_context_);
   CreateSubDir("prefix");
   BlobStorageClient::DataLocation location{
       .bucket = ::testing::TempDir(),
@@ -144,9 +149,9 @@ TEST(LocalBlobStorageClientTest, DeleteBlobWithPrefix) {
   EXPECT_EQ(status.code(), absl::StatusCode::kInternal) << status;
 }
 
-TEST(LocalBlobStorageClientTest, ListSubDirectoryWithFiles) {
+TEST_F(LocalBlobStorageClientTest, ListSubDirectoryWithFiles) {
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<FileBlobStorageClient>();
+      std::make_unique<FileBlobStorageClient>(no_op_context_);
   CreateSubDir("prefix");
   CreateFileInTmpDir("prefix/object1");
   CreateFileInTmpDir("prefix/object2");

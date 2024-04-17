@@ -136,8 +136,11 @@ class S3BlobReader : public BlobReader {
 }  // namespace
 
 S3BlobStorageClient::S3BlobStorageClient(
-    std::shared_ptr<Aws::S3::S3Client> client, int64_t max_range_bytes)
-    : client_(client), max_range_bytes_(max_range_bytes) {
+    std::shared_ptr<Aws::S3::S3Client> client, int64_t max_range_bytes,
+    privacy_sandbox::server_common::log::RequestContext& log_context)
+    : client_(client),
+      max_range_bytes_(max_range_bytes),
+      log_context_(log_context) {
   executor_ = std::make_unique<Aws::Utils::Threading::PooledThreadExecutor>(
       std::thread::hardware_concurrency());
   Aws::Transfer::TransferManagerConfiguration transfer_config(executor_.get());
@@ -224,14 +227,16 @@ class S3BlobStorageClientFactory : public BlobStorageClientFactory {
  public:
   ~S3BlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
-      BlobStorageClient::ClientOptions client_options) override {
+      BlobStorageClient::ClientOptions client_options,
+      privacy_sandbox::server_common::log::RequestContext& log_context)
+      override {
     Aws::Client::ClientConfiguration config;
     config.maxConnections = client_options.max_connections;
     std::shared_ptr<Aws::S3::S3Client> client =
         std::make_shared<Aws::S3::S3Client>(config);
 
     return std::make_unique<S3BlobStorageClient>(
-        client, client_options.max_range_bytes);
+        client, client_options.max_range_bytes, log_context);
   }
 };
 }  // namespace

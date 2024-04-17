@@ -228,6 +228,7 @@ void Server::InitOtelLogger(
       log_provider_->GetLogger(kServiceName.data()));
   absl::AddLogSink(open_telemetry_sink_.get());
   parameter_client_->UpdateLogContext(server_safe_log_context_);
+  instance_client_->UpdateLogContext(server_safe_log_context_);
 }
 
 void Server::InitializeTelemetry(const ParameterClient& parameter_client,
@@ -288,7 +289,25 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
       [this]() { return instance_client_->GetEnvironmentTag(); },
       "GetEnvironment", LogMetricsNoOpCallback());
   LOG(INFO) << "Retrieved environment: " << environment_;
-  ParameterFetcher parameter_fetcher(environment_, *parameter_client_);
+  const auto shard_num_status = instance_client_->GetShardNumTag();
+  if (!shard_num_status.ok()) {
+    return shard_num_status.status();
+  }
+  if (!absl::SimpleAtoi(*shard_num_status, &shard_num_)) {
+    std::string error =
+        absl::StrFormat("Failed converting shard id parameter: %s to int32.",
+                        *shard_num_status);
+    LOG(ERROR) << error;
+    return absl::InvalidArgumentError(error);
+  }
+  LOG(INFO) << "Retrieved shard num: " << shard_num_;
+
+  InitializeTelemetry(*parameter_client_, *instance_client_);
+
+  ParameterFetcher parameter_fetcher(
+      environment_, *parameter_client_,
+      std::move(LogStatusSafeMetricsFn<kGetParameterStatus>()),
+      server_safe_log_context_);
 
   int32_t number_of_workers =
       parameter_fetcher.GetInt32Parameter(kUdfNumWorkersParameterSuffix);
@@ -365,19 +384,6 @@ KeySharder GetKeySharder(const ParameterFetcher& parameter_fetcher) {
 }
 
 absl::Status Server::InitOnceInstancesAreCreated() {
-  const auto shard_num_status = instance_client_->GetShardNumTag();
-  if (!shard_num_status.ok()) {
-    return shard_num_status.status();
-  }
-  if (!absl::SimpleAtoi(*shard_num_status, &shard_num_)) {
-    std::string error =
-        absl::StrFormat("Failed converting shard id parameter: %s to int32.",
-                        *shard_num_status);
-    LOG(ERROR) << error;
-    return absl::InvalidArgumentError(error);
-  }
-  LOG(INFO) << "Retrieved shard num: " << shard_num_;
-  InitializeTelemetry(*parameter_client_, *instance_client_);
   InitializeKeyValueCache();
   auto span = GetTracer()->StartSpan("InitServer");
   auto scope = opentelemetry::trace::Scope(span);

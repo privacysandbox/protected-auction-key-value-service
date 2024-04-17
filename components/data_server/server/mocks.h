@@ -42,6 +42,10 @@ class MockInstanceClient : public InstanceClient {
               (DescribeInstanceGroupInput & input), (override));
   MOCK_METHOD(absl::StatusOr<std::vector<InstanceInfo>>, DescribeInstances,
               (const absl::flat_hash_set<std::string>&), (override));
+  MOCK_METHOD(void, UpdateLogContext,
+              (privacy_sandbox::server_common::log::RequestContext &
+               log_context),
+              (override));
 };
 
 class MockParameterClient : public ParameterClient {

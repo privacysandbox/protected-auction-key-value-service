@@ -85,8 +85,10 @@ InstanceServiceStatus GetInstanceServiceStatus(const std::string& status) {
 
 class GcpInstanceClient : public InstanceClient {
  public:
-  GcpInstanceClient()
-      : instance_client_(google::scp::cpio::InstanceClientFactory::Create()) {
+  GcpInstanceClient(
+      privacy_sandbox::server_common::log::RequestContext& log_context)
+      : instance_client_(google::scp::cpio::InstanceClientFactory::Create()),
+        log_context_(log_context) {
     instance_client_->Init();
   }
 
@@ -225,6 +227,11 @@ class GcpInstanceClient : public InstanceClient {
     return std::vector<InstanceInfo>{InstanceInfo{.id = *id}};
   }
 
+  void UpdateLogContext(privacy_sandbox::server_common::log::RequestContext&
+                            log_context) override {
+    log_context_ = log_context;
+  }
+
  private:
   absl::Status GetInstanceDetails() {
     absl::StatusOr<std::string> resource_name =
@@ -295,10 +302,12 @@ class GcpInstanceClient : public InstanceClient {
   std::unique_ptr<InstanceClientInterface> instance_client_;
   compute::InstancesClient client_ =
       compute::InstancesClient(compute::MakeInstancesConnectionRest());
+  privacy_sandbox::server_common::log::RequestContext& log_context_;
 };
 }  // namespace
 
-std::unique_ptr<InstanceClient> InstanceClient::Create() {
-  return std::make_unique<GcpInstanceClient>();
+std::unique_ptr<InstanceClient> InstanceClient::Create(
+    privacy_sandbox::server_common::log::RequestContext& log_context) {
+  return std::make_unique<GcpInstanceClient>(log_context);
 }
 }  // namespace kv_server

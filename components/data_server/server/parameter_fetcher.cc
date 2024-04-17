@@ -27,10 +27,12 @@ namespace kv_server {
 ParameterFetcher::ParameterFetcher(
     std::string environment, const ParameterClient& parameter_client,
     absl::AnyInvocable<void(const absl::Status& status, int count) const>
-        metrics_callback)
+        metrics_callback,
+    privacy_sandbox::server_common::log::RequestContext& log_context)
     : environment_(std::move(environment)),
       parameter_client_(parameter_client),
-      metrics_callback_(std::move(metrics_callback)) {}
+      metrics_callback_(std::move(metrics_callback)),
+      log_context_(log_context) {}
 
 std::string ParameterFetcher::GetParameter(
     std::string_view parameter_suffix,

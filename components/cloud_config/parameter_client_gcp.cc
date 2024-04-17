@@ -44,7 +44,10 @@ using google::scp::cpio::ParameterClientOptions;
 
 class GcpParameterClient : public ParameterClient {
  public:
-  explicit GcpParameterClient(ParameterClient::ClientOptions client_options) {
+  explicit GcpParameterClient(
+      ParameterClient::ClientOptions client_options,
+      privacy_sandbox::server_common::log::RequestContext& log_context)
+      : log_context_(log_context) {
     if (client_options.client_for_unit_testing_ == nullptr) {
       parameter_client_ =
           ParameterClientFactory::Create(ParameterClientOptions());
@@ -140,15 +143,23 @@ class GcpParameterClient : public ParameterClient {
     return parameter_bool;
   }
 
+  void UpdateLogContext(privacy_sandbox::server_common::log::RequestContext&
+                            log_context) override {
+    log_context_ = log_context;
+  }
+
  private:
   std::unique_ptr<ParameterClientInterface> parameter_client_;
+  privacy_sandbox::server_common::log::RequestContext& log_context_;
 };
 
 }  // namespace
 
 std::unique_ptr<ParameterClient> ParameterClient::Create(
-    ParameterClient::ClientOptions client_options) {
-  return std::make_unique<GcpParameterClient>(std::move(client_options));
+    ParameterClient::ClientOptions client_options,
+    privacy_sandbox::server_common::log::RequestContext& log_context) {
+  return std::make_unique<GcpParameterClient>(std::move(client_options),
+                                              log_context);
 }
 
 }  // namespace kv_server

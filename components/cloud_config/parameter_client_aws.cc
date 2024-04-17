@@ -109,8 +109,15 @@ class AwsParameterClient : public ParameterClient {
     return parameter_bool;
   };
 
-  explicit AwsParameterClient(ParameterClient::ClientOptions client_options)
-      : client_options_(std::move(client_options)) {
+  void UpdateLogContext(privacy_sandbox::server_common::log::RequestContext&
+                            log_context) override {
+    log_context_ = log_context;
+  }
+
+  explicit AwsParameterClient(
+      ParameterClient::ClientOptions client_options,
+      privacy_sandbox::server_common::log::RequestContext& log_context)
+      : client_options_(std::move(client_options)), log_context_(log_context) {
     if (client_options.client_for_unit_testing_ != nullptr) {
       ssm_client_.reset(
           (Aws::SSM::SSMClient*)client_options.client_for_unit_testing_);
@@ -122,13 +129,16 @@ class AwsParameterClient : public ParameterClient {
  private:
   ClientOptions client_options_;
   std::unique_ptr<Aws::SSM::SSMClient> ssm_client_;
+  privacy_sandbox::server_common::log::RequestContext& log_context_;
 };
 
 }  // namespace
 
 std::unique_ptr<ParameterClient> ParameterClient::Create(
-    ParameterClient::ClientOptions client_options) {
-  return std::make_unique<AwsParameterClient>(std::move(client_options));
+    ParameterClient::ClientOptions client_options,
+    privacy_sandbox::server_common::log::RequestContext& log_context) {
+  return std::make_unique<AwsParameterClient>(std::move(client_options),
+                                              log_context);
 }
 
 }  // namespace kv_server

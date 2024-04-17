@@ -54,6 +54,10 @@ class MockParameterClient : public ParameterClient {
               (std::string_view parameter_name), (const, override));
   MOCK_METHOD(absl::StatusOr<bool>, GetBoolParameter,
               (std::string_view parameter_name), (const, override));
+  MOCK_METHOD(void, UpdateLogContext,
+              (privacy_sandbox::server_common::log::RequestContext &
+               log_context),
+              (override));
 };
 
 class MockParameterFetcher : public ParameterFetcher {

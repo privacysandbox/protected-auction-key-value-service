@@ -227,6 +227,7 @@ void Server::InitOtelLogger(
   open_telemetry_sink_ = std::make_unique<OpenTelemetrySink>(
       log_provider_->GetLogger(kServiceName.data()));
   absl::AddLogSink(open_telemetry_sink_.get());
+  parameter_client_->UpdateLogContext(server_safe_log_context_);
 }
 
 void Server::InitializeTelemetry(const ParameterClient& parameter_client,
@@ -276,7 +277,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
 }
 
 absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
-    std::unique_ptr<const ParameterClient> parameter_client,
+    std::unique_ptr<ParameterClient> parameter_client,
     std::unique_ptr<InstanceClient> instance_client,
     std::unique_ptr<UdfClient> udf_client) {
   parameter_client_ = parameter_client == nullptr ? ParameterClient::Create()
@@ -323,10 +324,9 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
   return udf_client_or_status.status();
 }
 
-absl::Status Server::Init(
-    std::unique_ptr<const ParameterClient> parameter_client,
-    std::unique_ptr<InstanceClient> instance_client,
-    std::unique_ptr<UdfClient> udf_client) {
+absl::Status Server::Init(std::unique_ptr<ParameterClient> parameter_client,
+                          std::unique_ptr<InstanceClient> instance_client,
+                          std::unique_ptr<UdfClient> udf_client) {
   {
     absl::Status status = CreateDefaultInstancesIfNecessaryAndGetEnvironment(
         std::move(parameter_client), std::move(instance_client),
@@ -386,7 +386,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       LifecycleHeartbeat::Create(*instance_client_);
   ParameterFetcher parameter_fetcher(
       environment_, *parameter_client_,
-      std::move(LogStatusSafeMetricsFn<kGetParameterStatus>()));
+      std::move(LogStatusSafeMetricsFn<kGetParameterStatus>()),
+      server_safe_log_context_);
   if (absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
       status != absl::OkStatus()) {
     return status;

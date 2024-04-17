@@ -57,10 +57,9 @@ class Server {
 
   // Arguments that are nullptr will be created, they may be passed in for
   // unit testing purposes.
-  absl::Status Init(
-      std::unique_ptr<const ParameterClient> parameter_client = nullptr,
-      std::unique_ptr<InstanceClient> instance_client = nullptr,
-      std::unique_ptr<UdfClient> udf_client = nullptr);
+  absl::Status Init(std::unique_ptr<ParameterClient> parameter_client = nullptr,
+                    std::unique_ptr<InstanceClient> instance_client = nullptr,
+                    std::unique_ptr<UdfClient> udf_client = nullptr);
 
   // Wait for the server to shut down. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.
@@ -74,7 +73,7 @@ class Server {
  private:
   // If objects were not passed in for unit testing purposes then create them.
   absl::Status CreateDefaultInstancesIfNecessaryAndGetEnvironment(
-      std::unique_ptr<const ParameterClient> parameter_client,
+      std::unique_ptr<ParameterClient> parameter_client,
       std::unique_ptr<InstanceClient> instance_client,
       std::unique_ptr<UdfClient> udf_client);
 
@@ -111,7 +110,7 @@ class Server {
   // This must be first, otherwise the AWS SDK will crash when it's called:
   PlatformInitializer platform_initializer_;
 
-  std::unique_ptr<const ParameterClient> parameter_client_;
+  std::unique_ptr<ParameterClient> parameter_client_;
   std::unique_ptr<InstanceClient> instance_client_;
   std::string environment_;
   std::vector<std::unique_ptr<grpc::Service>> grpc_services_;

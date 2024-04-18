@@ -432,8 +432,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       shard_num_, *instance_client_, *cache_, parameter_fetcher, key_sharder);
   remote_lookup_ = server_initializer->CreateAndStartRemoteLookupServer();
   {
-    auto status_or_notifier =
-        BlobStorageChangeNotifier::Create(std::move(metadata));
+    auto status_or_notifier = BlobStorageChangeNotifier::Create(
+        std::move(metadata), server_safe_log_context_);
     if (!status_or_notifier.ok()) {
       // The ChangeNotifier is required to read delta files, if it's not
       // available that's a critical error and so return immediately.
@@ -692,9 +692,9 @@ std::unique_ptr<DeltaFileNotifier> Server::CreateDeltaFileNotifier(
   LOG(INFO) << "Retrieved " << kBackupPollFrequencySecsParameterSuffix
             << " parameter: " << backup_poll_frequency_secs;
 
-  return DeltaFileNotifier::Create(*blob_client_,
-                                   absl::Seconds(backup_poll_frequency_secs),
-                                   GetBlobPrefixAllowlist(parameter_fetcher));
+  return DeltaFileNotifier::Create(
+      *blob_client_, absl::Seconds(backup_poll_frequency_secs),
+      GetBlobPrefixAllowlist(parameter_fetcher), server_safe_log_context_);
 }
 
 }  // namespace kv_server

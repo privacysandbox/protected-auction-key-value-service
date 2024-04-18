@@ -37,17 +37,18 @@ using privacy_sandbox::server_common::SteadyClock;
 
 class DeltaFileNotifierImpl : public DeltaFileNotifier {
  public:
-  explicit DeltaFileNotifierImpl(BlobStorageClient& client,
-                                 const absl::Duration poll_frequency,
-                                 std::unique_ptr<SleepFor> sleep_for,
-                                 SteadyClock& clock,
-                                 BlobPrefixAllowlist blob_prefix_allowlist)
+  explicit DeltaFileNotifierImpl(
+      BlobStorageClient& client, const absl::Duration poll_frequency,
+      std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock,
+      BlobPrefixAllowlist blob_prefix_allowlist,
+      privacy_sandbox::server_common::log::RequestContext& log_context)
       : thread_manager_(ThreadManager::Create("Delta file notifier")),
         client_(client),
         poll_frequency_(poll_frequency),
         sleep_for_(std::move(sleep_for)),
         clock_(clock),
-        blob_prefix_allowlist_(std::move(blob_prefix_allowlist)) {}
+        blob_prefix_allowlist_(std::move(blob_prefix_allowlist)),
+        log_context_(log_context) {}
 
   absl::Status Start(
       BlobStorageChangeNotifier& change_notifier,
@@ -94,6 +95,7 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
   std::unique_ptr<SleepFor> sleep_for_;
   SteadyClock& clock_;
   BlobPrefixAllowlist blob_prefix_allowlist_;
+  privacy_sandbox::server_common::log::RequestContext& log_context_;
 };
 
 absl::StatusOr<std::string> DeltaFileNotifierImpl::WaitForNotification(
@@ -234,20 +236,22 @@ void DeltaFileNotifierImpl::Watch(
 
 std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
     BlobStorageClient& client, const absl::Duration poll_frequency,
-    BlobPrefixAllowlist blob_prefix_allowlist) {
+    BlobPrefixAllowlist blob_prefix_allowlist,
+    privacy_sandbox::server_common::log::RequestContext& log_context) {
   return std::make_unique<DeltaFileNotifierImpl>(
       client, poll_frequency, std::make_unique<SleepFor>(),
-      SteadyClock::RealClock(), std::move(blob_prefix_allowlist));
+      SteadyClock::RealClock(), std::move(blob_prefix_allowlist), log_context);
 }
 
 // For test only
 std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
     BlobStorageClient& client, const absl::Duration poll_frequency,
     std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock,
-    BlobPrefixAllowlist blob_prefix_allowlist) {
+    BlobPrefixAllowlist blob_prefix_allowlist,
+    privacy_sandbox::server_common::log::RequestContext& log_context) {
   return std::make_unique<DeltaFileNotifierImpl>(
       client, poll_frequency, std::move(sleep_for), clock,
-      std::move(blob_prefix_allowlist));
+      std::move(blob_prefix_allowlist), log_context);
 }
 
 }  // namespace kv_server

@@ -54,9 +54,12 @@ constexpr char kLastUpdatedTag[] = "last_updated";
 
 class AwsChangeNotifier : public ChangeNotifier {
  public:
-  explicit AwsChangeNotifier(AwsNotifierMetadata notifier_metadata)
+  explicit AwsChangeNotifier(
+      AwsNotifierMetadata notifier_metadata,
+      privacy_sandbox::server_common::log::RequestContext& log_context)
       : sns_arn_(std::move(notifier_metadata.sns_arn)),
-        queue_manager_(notifier_metadata.queue_manager) {
+        queue_manager_(notifier_metadata.queue_manager),
+        log_context_(log_context) {
     if (notifier_metadata.only_for_testing_sqs_client_ != nullptr) {
       sqs_.reset(notifier_metadata.only_for_testing_sqs_client_);
     } else {
@@ -207,13 +210,15 @@ class AwsChangeNotifier : public ChangeNotifier {
   const std::string sns_arn_;
   absl::Time last_updated_ = absl::InfinitePast();
   std::unique_ptr<Aws::SQS::SQSClient> sqs_;
+  privacy_sandbox::server_common::log::RequestContext& log_context_;
 };
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata,
+    privacy_sandbox::server_common::log::RequestContext& log_context) {
   return std::make_unique<AwsChangeNotifier>(
-      std::move(std::get<AwsNotifierMetadata>(notifier_metadata)));
+      std::move(std::get<AwsNotifierMetadata>(notifier_metadata)), log_context);
 }
 
 }  // namespace kv_server

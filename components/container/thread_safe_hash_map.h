@@ -21,8 +21,6 @@
 #include <memory>
 #include <utility>
 
-#include "absl/base/optimization.h"
-#include "absl/container/flat_hash_map.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/synchronization/mutex.h"
 
@@ -60,7 +58,7 @@ class ThreadSafeHashMap {
   // dereferencing `key()` and `value()`.
   using MutableLockedNode = LockedNode<absl::WriterMutexLock>;
 
-  ThreadSafeHashMap() : maps_mutex_(std::make_unique<absl::Mutex>()) {}
+  ThreadSafeHashMap() : nodes_map_mutex_(std::make_unique<absl::Mutex>()) {}
 
   // Returns a locked read-only view for `key` and it's associated value. If
   // `key` does not exist in the map, then: `ConstLockedNode.is_present()` is
@@ -98,32 +96,35 @@ class ThreadSafeHashMap {
   const_iterator end() ABSL_NO_THREAD_SAFETY_ANALYSIS;
 
  private:
-  using KeyValueMapType =
-      absl::flat_hash_map<const KeyT*, std::unique_ptr<ValueT>>;
-  using KeyMutexMapType =
-      absl::node_hash_map<KeyT, std::unique_ptr<absl::Mutex>>;
+  struct ValueNode {
+    template <typename Value>
+    explicit ValueNode(Value&& val)
+        : value(std::forward<Value>(val)),
+          mutex(std::make_unique<absl::Mutex>()) {}
+    ValueT value;
+    std::unique_ptr<absl::Mutex> mutex;
+  };
+  using KeyValueNodesMapType =
+      absl::node_hash_map<KeyT, std::unique_ptr<ValueNode>>;
 
   template <typename ValueLockT, typename NodeT, typename Key = KeyT>
   NodeT GetNode(Key&& key) const;
 
-  std::unique_ptr<absl::Mutex> maps_mutex_;
-  KeyValueMapType key_value_map_ ABSL_GUARDED_BY(*maps_mutex_);
-  KeyMutexMapType key_mutex_map_ ABSL_GUARDED_BY(*maps_mutex_);
+  std::unique_ptr<absl::Mutex> nodes_map_mutex_;
+  KeyValueNodesMapType key_value_nodes_map_ ABSL_GUARDED_BY(*nodes_map_mutex_);
 };
 
 template <typename KeyT, typename ValueT>
 template <typename ValueLockT, typename NodeT, typename Key>
 NodeT ThreadSafeHashMap<KeyT, ValueT>::GetNode(Key&& key) const {
-  absl::ReaderMutexLock maps_lock(maps_mutex_.get());
-  if (auto mutex_iter = key_mutex_map_.find(std::forward<Key>(key));
-      mutex_iter != key_mutex_map_.end()) {
-    if (auto value_iter = key_value_map_.find(&mutex_iter->first);
-        ABSL_PREDICT_TRUE(value_iter != key_value_map_.end())) {
-      return NodeT(&mutex_iter->first, value_iter->second.get(),
-                   std::make_unique<ValueLockT>(mutex_iter->second.get()));
-    }
+  absl::ReaderMutexLock map_lock(nodes_map_mutex_.get());
+  if (auto iter = key_value_nodes_map_.find(std::forward<Key>(key));
+      iter == key_value_nodes_map_.end()) {
+    return NodeT(nullptr, nullptr, nullptr);
+  } else {
+    return NodeT(&iter->first, &iter->second->value,
+                 std::make_unique<ValueLockT>(iter->second->mutex.get()));
   }
-  return NodeT(nullptr, nullptr, nullptr);
 }
 
 template <typename KeyT, typename ValueT>
@@ -146,28 +147,22 @@ template <typename KeyT, typename ValueT>
 template <typename Key, typename Value>
 std::pair<typename ThreadSafeHashMap<KeyT, ValueT>::MutableLockedNode, bool>
 ThreadSafeHashMap<KeyT, ValueT>::PutIfAbsent(Key&& key, Value&& value) {
-  absl::WriterMutexLock maps_lock(maps_mutex_.get());
-  if (auto mutex_iter = key_mutex_map_.find(key);
-      mutex_iter != key_mutex_map_.end()) {
-    if (auto value_iter = key_value_map_.find(&mutex_iter->first);
-        ABSL_PREDICT_TRUE(value_iter != key_value_map_.end())) {
-      return std::make_pair(
-          MutableLockedNode(&mutex_iter->first, value_iter->second.get(),
-                            std::make_unique<absl::WriterMutexLock>(
-                                mutex_iter->second.get())),
-          false);
-    }
+  absl::WriterMutexLock map_lock(nodes_map_mutex_.get());
+  if (auto iter = key_value_nodes_map_.find(key);
+      iter != key_value_nodes_map_.end()) {
+    return std::make_pair(
+        MutableLockedNode(
+            &iter->first, &iter->second->value,
+            std::make_unique<absl::WriterMutexLock>(iter->second->mutex.get())),
+        false);
   }
-  auto mutex_result = key_mutex_map_.try_emplace(
-      std::forward<Key>(key), std::make_unique<absl::Mutex>());
-  auto value_result = key_value_map_.insert_or_assign(
-      &mutex_result.first->first,
-      std::make_unique<ValueT>(std::forward<Value>(value)));
+  auto result = key_value_nodes_map_.emplace(
+      std::forward<Key>(key),
+      std::make_unique<ValueNode>(std::forward<Value>(value)));
   return std::make_pair(
-      MutableLockedNode(&mutex_result.first->first,
-                        value_result.first->second.get(),
+      MutableLockedNode(&result.first->first, &result.first->second->value,
                         std::make_unique<absl::WriterMutexLock>(
-                            mutex_result.first->second.get())),
+                            result.first->second->mutex.get())),
       true);
 }
 
@@ -175,24 +170,17 @@ template <typename KeyT, typename ValueT>
 template <typename Key>
 void ThreadSafeHashMap<KeyT, ValueT>::RemoveIf(
     Key&& key, std::function<bool(const ValueT&)> predicate) {
-  absl::WriterMutexLock maps_lock(maps_mutex_.get());
-  auto mutex_iter = key_mutex_map_.find(std::forward<Key>(key));
-  if (mutex_iter == key_mutex_map_.end()) {
+  absl::WriterMutexLock map_lock(nodes_map_mutex_.get());
+  auto iter = key_value_nodes_map_.find(std::forward<Key>(key));
+  if (iter == key_value_nodes_map_.end()) {
     return;
   }
-  auto value_iter = key_value_map_.find(&mutex_iter->first);
-  if (ABSL_PREDICT_FALSE(value_iter == key_value_map_.end())) {
-    return;
-  }
-  bool should_remove = false;
   {
-    absl::WriterMutexLock row_lock(mutex_iter->second.get());
-    if (should_remove = predicate(*value_iter->second); should_remove) {
-      key_value_map_.erase(value_iter);
-    }
+    // Wait for any current threads using the value to release their locks.
+    absl::WriterMutexLock value_lock(iter->second->mutex.get());
   }
-  if (should_remove) {
-    key_mutex_map_.erase(mutex_iter);
+  if (predicate(iter->second->value)) {
+    key_value_nodes_map_.erase(iter);
   }
 }
 
@@ -200,14 +188,14 @@ template <typename KeyT, typename ValueT>
 typename ThreadSafeHashMap<KeyT, ValueT>::const_iterator
 ThreadSafeHashMap<KeyT, ValueT>::begin() {
   return const_iterator(
-      std::make_unique<absl::ReaderMutexLock>(maps_mutex_.get()),
-      key_mutex_map_.begin(), *this);
+      std::make_unique<absl::ReaderMutexLock>(nodes_map_mutex_.get()),
+      key_value_nodes_map_.begin(), *this);
 }
 
 template <typename KeyT, typename ValueT>
 typename ThreadSafeHashMap<KeyT, ValueT>::const_iterator
 ThreadSafeHashMap<KeyT, ValueT>::end() {
-  return const_iterator(nullptr, key_mutex_map_.end(), *this);
+  return const_iterator(nullptr, key_value_nodes_map_.end(), *this);
 }
 
 template <typename KeyT, typename ValueT>
@@ -254,36 +242,38 @@ class ThreadSafeHashMap<KeyT, ValueT>::const_iterator {
   using reference = value_type&;
 
   reference operator*() ABSL_NO_THREAD_SAFETY_ANALYSIS {
-    auto value_iter = map_.key_value_map_.find(&mutex_iter_->first);
-    node_ = std::move(ConstLockedNode(
-        &mutex_iter_->first, value_iter->second.get(),
-        std::make_unique<absl::ReaderMutexLock>(mutex_iter_->second.get())));
-    return node_;
+    current_node_ = std::move(ConstLockedNode(
+        &nodes_map_iter_->first, &nodes_map_iter_->second->value,
+        std::make_unique<absl::ReaderMutexLock>(
+            nodes_map_iter_->second->mutex.get())));
+    return current_node_;
   }
   pointer operator->() { return &operator*(); }
   const_iterator& operator++() {
-    mutex_iter_++;
+    nodes_map_iter_++;
     return *this;
   }
   friend bool operator==(const const_iterator& a, const const_iterator& b) {
-    return a.mutex_iter_ == b.mutex_iter_;
+    return a.nodes_map_iter_ == b.nodes_map_iter_;
   }
   friend bool operator!=(const const_iterator& a, const const_iterator& b) {
     return !(a == b);
   }
 
  private:
-  const_iterator(std::unique_ptr<absl::ReaderMutexLock> maps_lock,
-                 typename KeyMutexMapType::iterator mutex_iter,
-                 ThreadSafeHashMap<KeyT, ValueT>& map)
-      : maps_lock_(std::move(maps_lock)), mutex_iter_(mutex_iter), map_(map) {}
+  const_iterator(std::unique_ptr<absl::ReaderMutexLock> nodes_map_lock,
+                 typename KeyValueNodesMapType::iterator nodes_map_iter,
+                 ThreadSafeHashMap<KeyT, ValueT>& map_instance)
+      : nodes_map_lock_(std::move(nodes_map_lock)),
+        nodes_map_iter_(nodes_map_iter),
+        map_instance_(map_instance) {}
 
   friend class ThreadSafeHashMap;
 
-  ConstLockedNode node_;
-  std::unique_ptr<absl::ReaderMutexLock> maps_lock_;
-  typename KeyMutexMapType::iterator mutex_iter_;
-  ThreadSafeHashMap& map_;
+  ConstLockedNode current_node_;
+  std::unique_ptr<absl::ReaderMutexLock> nodes_map_lock_;
+  typename KeyValueNodesMapType::iterator nodes_map_iter_;
+  ThreadSafeHashMap& map_instance_;
 };
 
 }  // namespace kv_server

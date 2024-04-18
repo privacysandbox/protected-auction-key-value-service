@@ -54,7 +54,7 @@ constexpr std::string_view
 constexpr std::string_view kPrimaryCoordinatorRegionParameterSuffix =
     "primary-coordinator-region";
 constexpr std::string_view
-    kSecondaryCoordinatoPrivateKeyEndpointParameterSuffix =
+    kSecondaryCoordinatorPrivateKeyEndpointParameterSuffix =
         "secondary-coordinator-private-key-endpoint";
 constexpr std::string_view kSecondaryCoordinatorRegionParameterSuffix =
     "secondary-coordinator-region";
@@ -135,7 +135,7 @@ CloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
     const ParameterFetcher& parameter_fetcher) const {
   return GetKeyFetchingEndpoint(
       parameter_fetcher, kSecondaryCoordinatorAccountIdentityParameterSuffix,
-      kPrimaryCoordinatorAccountIdentityParameterSuffix,
+      kSecondaryCoordinatorPrivateKeyEndpointParameterSuffix,
       kSecondaryCoordinatorRegionParameterSuffix);
 }
 

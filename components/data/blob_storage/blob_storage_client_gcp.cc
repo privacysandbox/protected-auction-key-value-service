@@ -116,7 +116,7 @@ class GcpBlobReader : public BlobReader {
 
 GcpBlobStorageClient::GcpBlobStorageClient(
     std::unique_ptr<google::cloud::storage::Client> client,
-    privacy_sandbox::server_common::log::RequestContext& log_context)
+    privacy_sandbox::server_common::log::PSLogContext& log_context)
     : client_(std::move(client)), log_context_(log_context) {}
 
 std::unique_ptr<BlobReader> GcpBlobStorageClient::GetBlobReader(
@@ -180,8 +180,7 @@ class GcpBlobStorageClientFactory : public BlobStorageClientFactory {
   ~GcpBlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
       BlobStorageClient::ClientOptions /*client_options*/,
-      privacy_sandbox::server_common::log::RequestContext& log_context)
-      override {
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
     return std::make_unique<GcpBlobStorageClient>(
         std::make_unique<google::cloud::storage::Client>(), log_context);
   }

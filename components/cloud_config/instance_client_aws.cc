@@ -329,13 +329,13 @@ class AwsInstanceClient : public InstanceClient {
     return instances;
   }
 
-  void UpdateLogContext(privacy_sandbox::server_common::log::RequestContext&
-                            log_context) override {
+  void UpdateLogContext(
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
     log_context_ = log_context;
   }
 
   AwsInstanceClient(
-      privacy_sandbox::server_common::log::RequestContext& log_context)
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : ec2_client_(std::make_unique<Aws::EC2::EC2Client>()),
         // EC2MetadataClient does not fall back to the default client
         // configuration, needs to specify it to
@@ -352,7 +352,7 @@ class AwsInstanceClient : public InstanceClient {
   std::unique_ptr<Aws::Internal::EC2MetadataClient> ec2_metadata_client_;
   std::unique_ptr<Aws::AutoScaling::AutoScalingClient> auto_scaling_client_;
   std::string machine_id_;
-  privacy_sandbox::server_common::log::RequestContext& log_context_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 
   absl::StatusOr<std::string> GetTag(std::string tag) {
     absl::StatusOr<std::string> instance_id = GetInstanceId();
@@ -392,7 +392,7 @@ class AwsInstanceClient : public InstanceClient {
 }  // namespace
 
 std::unique_ptr<InstanceClient> InstanceClient::Create(
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<AwsInstanceClient>(log_context);
 }
 

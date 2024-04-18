@@ -34,7 +34,7 @@ class LocalChangeNotifier : public ChangeNotifier {
  public:
   explicit LocalChangeNotifier(
       std::filesystem::path local_directory,
-      privacy_sandbox::server_common::log::RequestContext& log_context)
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : local_directory_(local_directory), log_context_(log_context) {
     VLOG(1) << "Building initial list of local files in directory: "
             << local_directory_.string();
@@ -114,14 +114,14 @@ class LocalChangeNotifier : public ChangeNotifier {
   // We can't store std::filesystem::path objects in the set because the paths
   // aren't guaranteed to be canonical so we store the string paths instead.
   absl::flat_hash_set<std::string> files_in_directory_;
-  privacy_sandbox::server_common::log::RequestContext& log_context_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
     NotifierMetadata notifier_metadata,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   std::error_code error_code;
   auto local_notifier_metadata =
       std::get<LocalNotifierMetadata>(notifier_metadata);

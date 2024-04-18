@@ -144,7 +144,7 @@ class ConcurrentStreamRecordReader : public StreamRecordReader {
           LOG(WARNING) << "Skipping over corrupted region: " << region;
           return true;
         };
-    privacy_sandbox::server_common::log::RequestContext& log_context =
+    privacy_sandbox::server_common::log::PSLogContext& log_context =
         const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
             privacy_sandbox::server_common::log::kNoOpContext);
   };

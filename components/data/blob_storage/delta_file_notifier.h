@@ -63,7 +63,7 @@ class DeltaFileNotifier {
       BlobStorageClient& client,
       const absl::Duration poll_frequency = absl::Minutes(5),
       BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""),
-      privacy_sandbox::server_common::log::RequestContext& log_context =
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
           const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
               privacy_sandbox::server_common::log::kNoOpContext));
 
@@ -73,7 +73,7 @@ class DeltaFileNotifier {
       std::unique_ptr<SleepFor> sleep_for,
       privacy_sandbox::server_common::SteadyClock& clock,
       BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""),
-      privacy_sandbox::server_common::log::RequestContext& log_context =
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
           const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
               privacy_sandbox::server_common::log::kNoOpContext));
 };

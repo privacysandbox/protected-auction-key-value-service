@@ -94,7 +94,7 @@ class AvroConcurrentStreamRecordReader : public StreamRecordReader {
   struct Options {
     int64_t num_worker_threads = std::thread::hardware_concurrency();
     int64_t min_byte_range_size_bytes = 8 * 1024 * 1024;  // 8MB
-    privacy_sandbox::server_common::log::RequestContext& log_context =
+    privacy_sandbox::server_common::log::PSLogContext& log_context =
         const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
             privacy_sandbox::server_common::log::kNoOpContext);
     Options() {}

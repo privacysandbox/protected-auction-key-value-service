@@ -34,7 +34,7 @@ class ParameterClient {
 
   static std::unique_ptr<ParameterClient> Create(
       ClientOptions client_options = ClientOptions(),
-      privacy_sandbox::server_common::log::RequestContext& log_context =
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
           const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
               privacy_sandbox::server_common::log::kNoOpContext));
 
@@ -54,7 +54,7 @@ class ParameterClient {
   // client. This function should be called after telemetry is initialized with
   // retrieved parameters.
   virtual void UpdateLogContext(
-      privacy_sandbox::server_common::log::RequestContext& log_context) = 0;
+      privacy_sandbox::server_common::log::PSLogContext& log_context) = 0;
 };
 }  // namespace kv_server
 

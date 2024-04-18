@@ -41,7 +41,7 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
       BlobStorageClient& client, const absl::Duration poll_frequency,
       std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock,
       BlobPrefixAllowlist blob_prefix_allowlist,
-      privacy_sandbox::server_common::log::RequestContext& log_context)
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : thread_manager_(ThreadManager::Create("Delta file notifier")),
         client_(client),
         poll_frequency_(poll_frequency),
@@ -95,7 +95,7 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
   std::unique_ptr<SleepFor> sleep_for_;
   SteadyClock& clock_;
   BlobPrefixAllowlist blob_prefix_allowlist_;
-  privacy_sandbox::server_common::log::RequestContext& log_context_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 absl::StatusOr<std::string> DeltaFileNotifierImpl::WaitForNotification(
@@ -237,7 +237,7 @@ void DeltaFileNotifierImpl::Watch(
 std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
     BlobStorageClient& client, const absl::Duration poll_frequency,
     BlobPrefixAllowlist blob_prefix_allowlist,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<DeltaFileNotifierImpl>(
       client, poll_frequency, std::make_unique<SleepFor>(),
       SteadyClock::RealClock(), std::move(blob_prefix_allowlist), log_context);
@@ -248,7 +248,7 @@ std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
     BlobStorageClient& client, const absl::Duration poll_frequency,
     std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock,
     BlobPrefixAllowlist blob_prefix_allowlist,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<DeltaFileNotifierImpl>(
       client, poll_frequency, std::move(sleep_for), clock,
       std::move(blob_prefix_allowlist), log_context);

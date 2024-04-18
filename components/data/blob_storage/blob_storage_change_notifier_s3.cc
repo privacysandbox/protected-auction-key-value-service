@@ -28,7 +28,7 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   explicit S3BlobStorageChangeNotifier(
       std::unique_ptr<ChangeNotifier> notifier,
-      privacy_sandbox::server_common::log::RequestContext& log_context)
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : change_notifier_(std::move(notifier)), log_context_(log_context) {}
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
@@ -99,7 +99,7 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
   }
 
   std::unique_ptr<ChangeNotifier> change_notifier_;
-  privacy_sandbox::server_common::log::RequestContext& log_context_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
@@ -107,7 +107,7 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
 absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>>
 BlobStorageChangeNotifier::Create(
     NotifierMetadata notifier_metadata,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto cloud_notifier_metadata =
       std::get<AwsNotifierMetadata>(notifier_metadata);
   cloud_notifier_metadata.queue_prefix = "BlobNotifier_";

@@ -57,7 +57,7 @@ using DescribeInstanceGroupInput =
 class InstanceClient {
  public:
   static std::unique_ptr<InstanceClient> Create(
-      privacy_sandbox::server_common::log::RequestContext& log_context =
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
           const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
               privacy_sandbox::server_common::log::kNoOpContext));
   virtual ~InstanceClient() = default;
@@ -98,7 +98,7 @@ class InstanceClient {
   // client. This function should be called after telemetry is initialized with
   // retrieved parameters.
   virtual void UpdateLogContext(
-      privacy_sandbox::server_common::log::RequestContext& log_context) = 0;
+      privacy_sandbox::server_common::log::PSLogContext& log_context) = 0;
 };
 
 }  // namespace kv_server

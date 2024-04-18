@@ -136,8 +136,7 @@ class LocalBlobStorageClientFactory : public BlobStorageClientFactory {
   ~LocalBlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
       BlobStorageClient::ClientOptions /*client_options*/,
-      privacy_sandbox::server_common::log::RequestContext& log_context)
-      override {
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
     return std::make_unique<FileBlobStorageClient>(log_context);
   }
 };

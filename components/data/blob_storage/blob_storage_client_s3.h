@@ -33,7 +33,7 @@ class S3BlobStorageClient : public BlobStorageClient {
  public:
   explicit S3BlobStorageClient(
       std::shared_ptr<Aws::S3::S3Client> client, int64_t max_range_bytes,
-      privacy_sandbox::server_common::log::RequestContext& log_context);
+      privacy_sandbox::server_common::log::PSLogContext& log_context);
 
   ~S3BlobStorageClient() = default;
 
@@ -53,6 +53,6 @@ class S3BlobStorageClient : public BlobStorageClient {
   std::shared_ptr<Aws::S3::S3Client> client_;
   std::shared_ptr<Aws::Transfer::TransferManager> transfer_manager_;
   int64_t max_range_bytes_;
-  privacy_sandbox::server_common::log::RequestContext& log_context_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 }  // namespace kv_server

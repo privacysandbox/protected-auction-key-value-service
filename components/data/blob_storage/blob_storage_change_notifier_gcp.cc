@@ -28,7 +28,7 @@ class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
   explicit GcpBlobStorageChangeNotifier(
       std::unique_ptr<ChangeNotifier> notifier,
-      privacy_sandbox::server_common::log::RequestContext& log_context)
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : notifier_(std::move(notifier)), log_context_(log_context) {}
 
   ~GcpBlobStorageChangeNotifier() override { sleep_for_.Stop(); }
@@ -47,7 +47,7 @@ class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  private:
   std::unique_ptr<ChangeNotifier> notifier_;
   SleepFor sleep_for_;
-  privacy_sandbox::server_common::log::RequestContext& log_context_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
@@ -55,7 +55,7 @@ class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
 absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>>
 BlobStorageChangeNotifier::Create(
     NotifierMetadata notifier_metadata,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> notifier =
       ChangeNotifier::Create(std::get<GcpNotifierMetadata>(notifier_metadata),
                              log_context);

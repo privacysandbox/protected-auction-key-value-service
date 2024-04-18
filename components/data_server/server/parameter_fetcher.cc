@@ -28,7 +28,7 @@ ParameterFetcher::ParameterFetcher(
     std::string environment, const ParameterClient& parameter_client,
     absl::AnyInvocable<void(const absl::Status& status, int count) const>
         metrics_callback,
-    privacy_sandbox::server_common::log::RequestContext& log_context)
+    privacy_sandbox::server_common::log::PSLogContext& log_context)
     : environment_(std::move(environment)),
       parameter_client_(parameter_client),
       metrics_callback_(std::move(metrics_callback)),

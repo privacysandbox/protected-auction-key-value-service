@@ -97,7 +97,7 @@ class BlobStorageClientFactory {
   virtual std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
       BlobStorageClient::ClientOptions client_options =
           BlobStorageClient::ClientOptions(),
-      privacy_sandbox::server_common::log::RequestContext& log_context =
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
           const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
               privacy_sandbox::server_common::log::kNoOpContext)) = 0;
   static std::unique_ptr<BlobStorageClientFactory> Create();

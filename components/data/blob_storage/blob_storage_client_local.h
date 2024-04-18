@@ -27,7 +27,7 @@ namespace kv_server {
 class FileBlobStorageClient : public BlobStorageClient {
  public:
   FileBlobStorageClient(
-      privacy_sandbox::server_common::log::RequestContext& log_context)
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : log_context_(log_context) {}
 
   ~FileBlobStorageClient() = default;
@@ -43,6 +43,6 @@ class FileBlobStorageClient : public BlobStorageClient {
 
  private:
   std::filesystem::path GetFullPath(const DataLocation& location);
-  privacy_sandbox::server_common::log::RequestContext& log_context_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 }  // namespace kv_server

@@ -45,35 +45,35 @@ class MockCache : public Cache {
                const absl::flat_hash_set<std::string_view>&),
               (const, override));
   MOCK_METHOD(void, UpdateKeyValue,
-              (privacy_sandbox::server_common::log::RequestContext&,
+              (privacy_sandbox::server_common::log::PSLogContext&,
                std::string_view, std::string_view, int64_t, std::string_view),
               (override));
   MOCK_METHOD(void, UpdateKeyValueSet,
-              (privacy_sandbox::server_common::log::RequestContext&,
+              (privacy_sandbox::server_common::log::PSLogContext&,
                std::string_view, absl::Span<std::string_view>, int64_t,
                std::string_view),
               (override));
   MOCK_METHOD(void, UpdateKeyValueSet,
-              (privacy_sandbox::server_common::log::RequestContext&,
+              (privacy_sandbox::server_common::log::PSLogContext&,
                std::string_view, absl::Span<uint32_t>, int64_t,
                std::string_view),
               (override));
   MOCK_METHOD(void, DeleteValuesInSet,
-              (privacy_sandbox::server_common::log::RequestContext&,
+              (privacy_sandbox::server_common::log::PSLogContext&,
                std::string_view, absl::Span<std::string_view>, int64_t,
                std::string_view),
               (override));
   MOCK_METHOD(void, DeleteValuesInSet,
-              (privacy_sandbox::server_common::log::RequestContext&,
+              (privacy_sandbox::server_common::log::PSLogContext&,
                std::string_view, absl::Span<uint32_t>, int64_t,
                std::string_view),
               (override));
   MOCK_METHOD(void, DeleteKey,
-              (privacy_sandbox::server_common::log::RequestContext&,
+              (privacy_sandbox::server_common::log::PSLogContext&,
                std::string_view, int64_t, std::string_view),
               (override));
   MOCK_METHOD(void, RemoveDeletedKeys,
-              (privacy_sandbox::server_common::log::RequestContext&, int64_t,
+              (privacy_sandbox::server_common::log::PSLogContext&, int64_t,
                std::string_view),
               (override));
 };

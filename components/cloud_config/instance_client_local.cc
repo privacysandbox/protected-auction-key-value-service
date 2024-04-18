@@ -31,7 +31,7 @@ namespace {
 class LocalInstanceClient : public InstanceClient {
  public:
   explicit LocalInstanceClient(
-      privacy_sandbox::server_common::log::RequestContext& log_context)
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : log_context_(log_context) {}
   absl::StatusOr<std::string> GetEnvironmentTag() override {
     return absl::GetFlag(FLAGS_environment);
@@ -79,19 +79,19 @@ class LocalInstanceClient : public InstanceClient {
     return std::vector<InstanceInfo>{InstanceInfo{.id = *id}};
   }
 
-  void UpdateLogContext(privacy_sandbox::server_common::log::RequestContext&
-                            log_context) override {
+  void UpdateLogContext(
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
     log_context_ = log_context;
   }
 
  private:
-  privacy_sandbox::server_common::log::RequestContext& log_context_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 std::unique_ptr<InstanceClient> InstanceClient::Create(
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<LocalInstanceClient>(log_context);
 }
 

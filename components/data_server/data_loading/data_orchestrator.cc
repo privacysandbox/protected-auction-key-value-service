@@ -78,7 +78,7 @@ void LogDataLoadingMetrics(std::string_view source,
 
 absl::Status ApplyUpdateMutation(
     std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   if (record.value_type() == Value::StringValue) {
     cache.UpdateKeyValue(log_context, record.key()->string_view(),
                          GetRecordValue<std::string_view>(record),
@@ -99,7 +99,7 @@ absl::Status ApplyUpdateMutation(
 
 absl::Status ApplyDeleteMutation(
     std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   if (record.value_type() == Value::StringValue) {
     cache.DeleteKey(log_context, record.key()->string_view(),
                     record.logical_commit_time(), prefix);
@@ -121,7 +121,7 @@ bool ShouldProcessRecord(
     const KeyValueMutationRecord& record, int64_t num_shards,
     int64_t server_shard_num, const KeySharder& key_sharder,
     DataLoadingStats& data_loading_stats,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   if (num_shards <= 1) {
     return true;
   }
@@ -143,7 +143,7 @@ bool ShouldProcessRecord(
 absl::Status ApplyKeyValueMutationToCache(
     std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
     int64_t& max_timestamp, DataLoadingStats& data_loading_stats,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   switch (record.mutation_type()) {
     case KeyValueMutationType::Update: {
       if (auto status = ApplyUpdateMutation(prefix, record, cache, log_context);
@@ -176,7 +176,7 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
     StreamRecordReader& record_reader, Cache& cache, int64_t& max_timestamp,
     const int32_t server_shard_num, const int32_t num_shards,
     UdfClient& udf_client, const KeySharder& key_sharder,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   DataLoadingStats data_loading_stats;
   const auto process_data_record_fn = [prefix, &cache, &max_timestamp,
                                        &data_loading_stats, server_shard_num,
@@ -482,7 +482,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
       std::string_view data_source, std::string_view prefix,
       StreamRecordReaderFactory& delta_stream_reader_factory,
       const std::string& record_string, Cache& cache,
-      privacy_sandbox::server_common::log::RequestContext& log_context) {
+      privacy_sandbox::server_common::log::PSLogContext& log_context) {
     std::istringstream is(record_string);
     int64_t max_timestamp = 0;
     auto record_reader = delta_stream_reader_factory.CreateReader(is);

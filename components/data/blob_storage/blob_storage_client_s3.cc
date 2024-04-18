@@ -137,7 +137,7 @@ class S3BlobReader : public BlobReader {
 
 S3BlobStorageClient::S3BlobStorageClient(
     std::shared_ptr<Aws::S3::S3Client> client, int64_t max_range_bytes,
-    privacy_sandbox::server_common::log::RequestContext& log_context)
+    privacy_sandbox::server_common::log::PSLogContext& log_context)
     : client_(client),
       max_range_bytes_(max_range_bytes),
       log_context_(log_context) {
@@ -228,8 +228,7 @@ class S3BlobStorageClientFactory : public BlobStorageClientFactory {
   ~S3BlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
       BlobStorageClient::ClientOptions client_options,
-      privacy_sandbox::server_common::log::RequestContext& log_context)
-      override {
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
     Aws::Client::ClientConfiguration config;
     config.maxConnections = client_options.max_connections;
     std::shared_ptr<Aws::S3::S3Client> client =

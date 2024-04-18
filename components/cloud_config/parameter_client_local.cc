@@ -80,7 +80,7 @@ namespace {
 class LocalParameterClient : public ParameterClient {
  public:
   LocalParameterClient(
-      privacy_sandbox::server_common::log::RequestContext& log_context)
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : log_context_(log_context) {
     string_flag_values_.insert(
         {"kv-server-local-directory", absl::GetFlag(FLAGS_delta_directory)});
@@ -179,8 +179,8 @@ class LocalParameterClient : public ParameterClient {
     }
   }
 
-  void UpdateLogContext(privacy_sandbox::server_common::log::RequestContext&
-                            log_context) override {
+  void UpdateLogContext(
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
     log_context_ = log_context;
   }
 
@@ -188,14 +188,14 @@ class LocalParameterClient : public ParameterClient {
   absl::flat_hash_map<std::string, int32_t> int32_t_flag_values_;
   absl::flat_hash_map<std::string, std::string> string_flag_values_;
   absl::flat_hash_map<std::string, bool> bool_flag_values_;
-  privacy_sandbox::server_common::log::RequestContext& log_context_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 std::unique_ptr<ParameterClient> ParameterClient::Create(
     ParameterClient::ClientOptions client_options,
-    privacy_sandbox::server_common::log::RequestContext& log_context) {
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<LocalParameterClient>(log_context);
 }
 

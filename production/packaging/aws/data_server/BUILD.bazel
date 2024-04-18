@@ -40,7 +40,7 @@ pkg_files(
         "@google_privacysandbox_servers_common//src/cpio/client_providers/kms_client_provider/aws:kms_cli",
     ],
     attributes = pkg_attributes(mode = "0555"),
-    prefix = "/cpio/bin",
+    prefix = "/",
 )
 
 pkg_files(
@@ -49,7 +49,7 @@ pkg_files(
         "@google_privacysandbox_servers_common//src/cpio/client_providers/kms_client_provider/aws:libnsm_so",
     ],
     attributes = pkg_attributes(mode = "0444"),
-    prefix = "/cpio/lib",
+    prefix = "/",
 )
 
 # Create a symlink between where kmstool_enclave_cli expects shell to be

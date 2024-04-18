@@ -30,13 +30,20 @@ namespace kv_server::application_pas {
 // Input strings must be JSON-compliant, i.e., for binary strings, they must be
 // base64 encoded.
 v2::GetValuesRequest BuildRetrievalRequest(
+    const privacy_sandbox::server_common::LogContext& log_context,
+    const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+        consented_debug_config,
     std::string protected_signals,
     absl::flat_hash_map<std::string, std::string> device_metadata,
     std::string contextual_signals,
     std::vector<std::string> optional_ad_ids = {});
 
 // Builds a GetValuesRequest. Stores the input arguments into the request.
-v2::GetValuesRequest BuildLookupRequest(std::vector<std::string> ad_ids);
+v2::GetValuesRequest BuildLookupRequest(
+    const privacy_sandbox::server_common::LogContext& log_context,
+    const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+        consented_debug_config,
+    std::vector<std::string> ad_ids);
 
 }  // namespace kv_server::application_pas
 

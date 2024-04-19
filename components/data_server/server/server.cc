@@ -211,10 +211,15 @@ void Server::InitializeKeyValueCache() {
       /*logical_commit_time = */ 1);
 }
 
-void Server::InitOtelLogger(
-    ::opentelemetry::sdk::resource::Resource server_info,
-    absl::optional<std::string> collector_endpoint,
-    const ParameterFetcher& parameter_fetcher) {
+void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
+                        absl::optional<std::string> collector_endpoint,
+                        const ParameterFetcher& parameter_fetcher) {
+  // updating verbosity level flag as early as we can, as it affects all logging
+  // downstream.
+  auto verbosity_level = parameter_fetcher.GetInt32Parameter(
+      kLoggingVerbosityLevelParameterSuffix);
+  absl::SetGlobalVLogLevel(verbosity_level);
+  privacy_sandbox::server_common::log::PS_VLOG_IS_ON(0, verbosity_level);
   const bool enable_otel_logger =
       parameter_fetcher.GetBoolParameter(kEnableOtelLoggerParameterSuffix);
   LOG(INFO) << "Retrieved " << kEnableOtelLoggerParameterSuffix
@@ -271,9 +276,9 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
       CreateKVAttributes(instance_id, std::to_string(shard_num_), environment_),
       metrics_collector_endpoint);
   ParameterFetcher parameter_fetcher(environment_, parameter_client);
-  InitOtelLogger(CreateKVAttributes(std::move(instance_id),
-                                    std::to_string(shard_num_), environment_),
-                 metrics_collector_endpoint, parameter_fetcher);
+  InitLogger(CreateKVAttributes(std::move(instance_id),
+                                std::to_string(shard_num_), environment_),
+             metrics_collector_endpoint, parameter_fetcher);
   LOG(INFO) << "Done init telemetry";
 }
 
@@ -316,10 +321,6 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
   int32_t udf_min_log_level =
       parameter_fetcher.GetInt32Parameter(kUdfMinLogLevelParameterSuffix);
 
-  // updating verbosity level flag as early as we can, as it affects all logging
-  // downstream.
-  absl::SetGlobalVLogLevel(parameter_fetcher.GetInt32Parameter(
-      kLoggingVerbosityLevelParameterSuffix));
   if (udf_client != nullptr) {
     udf_client_ = std::move(udf_client);
     return absl::OkStatus();

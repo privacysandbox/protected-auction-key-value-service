@@ -26,7 +26,7 @@ class KeyFetcherFactoryGcpNonProd : public NonprodCloudKeyFetcherFactory {
   PrivateKeyVendingEndpoint GetPrimaryKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const override {
     PrivateKeyVendingEndpoint endpoint =
-        NonprodCloudKeyFetcherFactory::GetPrimaryKeyFetchingEndpoint(
+        CloudKeyFetcherFactory::GetPrimaryKeyFetchingEndpoint(
             parameter_fetcher);
     UpdatePrimaryGcpEndpoint(endpoint, parameter_fetcher);
     return endpoint;
@@ -35,7 +35,7 @@ class KeyFetcherFactoryGcpNonProd : public NonprodCloudKeyFetcherFactory {
   PrivateKeyVendingEndpoint GetSecondaryKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const override {
     PrivateKeyVendingEndpoint endpoint =
-        NonprodCloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
+        CloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
             parameter_fetcher);
     UpdateSecondaryGcpEndpoint(endpoint, parameter_fetcher);
     return endpoint;

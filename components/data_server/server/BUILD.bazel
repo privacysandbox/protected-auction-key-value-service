@@ -287,6 +287,8 @@ cc_library(
         "//:gcp_platform": [
             "key_fetcher_utils_gcp.h",
         ],
+        "//conditions:default": [],
+    }) + select({
         "//:nonprod_mode": [
             "nonprod_key_fetcher_factory_cloud.h",
         ],

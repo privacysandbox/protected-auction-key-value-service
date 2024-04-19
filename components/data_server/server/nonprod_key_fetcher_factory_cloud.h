@@ -32,14 +32,8 @@ namespace kv_server {
 // implementation is only allowed in `nonprod` build mode.
 class NonprodCloudKeyFetcherFactory : public CloudKeyFetcherFactory {
  protected:
-  google::scp::cpio::PrivateKeyVendingEndpoint GetPrimaryKeyFetchingEndpoint(
-      const ParameterFetcher& parameter_fetcher) const override;
-  google::scp::cpio::PrivateKeyVendingEndpoint GetSecondaryKeyFetchingEndpoint(
-      const ParameterFetcher& parameter_fetcher) const override;
   std::vector<std::string> GetPublicKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const override;
-  ::privacy_sandbox::server_common::CloudPlatform GetCloudPlatform()
-      const override;
 };
 
 }  // namespace kv_server

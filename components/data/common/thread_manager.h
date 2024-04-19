@@ -21,6 +21,7 @@
 #include <string>
 
 #include "components/errors/retry.h"
+#include "src/logger/request_context_logger.h"
 
 namespace kv_server {
 
@@ -43,7 +44,11 @@ class ThreadManager {
 
   virtual bool ShouldStop() = 0;
 
-  static std::unique_ptr<ThreadManager> Create(std::string thread_name);
+  static std::unique_ptr<ThreadManager> Create(
+      std::string thread_name,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 };
 
 }  // namespace kv_server

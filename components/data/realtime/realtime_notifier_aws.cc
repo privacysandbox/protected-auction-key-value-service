@@ -35,10 +35,12 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
  public:
   explicit RealtimeNotifierImpl(
       std::unique_ptr<SleepFor> sleep_for,
-      std::unique_ptr<DeltaFileRecordChangeNotifier> change_notifier)
+      std::unique_ptr<DeltaFileRecordChangeNotifier> change_notifier,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : thread_manager_(ThreadManager::Create("Realtime notifier")),
         sleep_for_(std::move(sleep_for)),
-        change_notifier_(std::move(change_notifier)) {}
+        change_notifier_(std::move(change_notifier)),
+        log_context_(log_context) {}
 
   absl::Status Start(
       std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>
@@ -143,13 +145,15 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
   std::unique_ptr<ThreadManager> thread_manager_;
   std::unique_ptr<SleepFor> sleep_for_;
   std::unique_ptr<DeltaFileRecordChangeNotifier> change_notifier_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<RealtimeNotifier>> RealtimeNotifier::Create(
     NotifierMetadata notifier_metadata,
-    RealtimeNotifierMetadata realtime_notifier_metadata) {
+    RealtimeNotifierMetadata realtime_notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto options =
       std::get_if<AwsRealtimeNotifierMetadata>(&realtime_notifier_metadata);
   std::unique_ptr<DeltaFileRecordChangeNotifier>
@@ -173,7 +177,8 @@ absl::StatusOr<std::unique_ptr<RealtimeNotifier>> RealtimeNotifier::Create(
     sleep_for = std::make_unique<SleepFor>();
   }
   return std::make_unique<RealtimeNotifierImpl>(
-      std::move(sleep_for), std::move(delta_file_record_change_notifier));
+      std::move(sleep_for), std::move(delta_file_record_change_notifier),
+      log_context);
 }
 
 }  // namespace kv_server

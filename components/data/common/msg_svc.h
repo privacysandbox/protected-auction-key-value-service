@@ -26,6 +26,7 @@
 #include "absl/status/statusor.h"
 #include "components/data/common/msg_svc.h"
 #include "components/data/common/notifier_metadata.h"
+#include "src/logger/request_context_logger.h"
 
 namespace kv_server {
 struct AwsQueueMetadata {
@@ -58,7 +59,10 @@ class MessageService {
   virtual void Reset() = 0;
 
   static absl::StatusOr<std::unique_ptr<MessageService>> Create(
-      NotifierMetadata notifier_metadata);
+      NotifierMetadata notifier_metadata,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 };
 
 }  // namespace kv_server

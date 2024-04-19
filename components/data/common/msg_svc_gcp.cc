@@ -38,15 +38,17 @@ constexpr char kFilterPolicyTemplate[] = R"(attributes.shard_num="%d")";
 
 class GcpMessageService : public MessageService {
  public:
-  GcpMessageService(std::string prefix, std::string topic_id,
-                    std::string project_id,
-                    pubsub::SubscriptionAdminClient subscription_admin_client,
-                    std::optional<int32_t> shard_num)
+  GcpMessageService(
+      std::string prefix, std::string topic_id, std::string project_id,
+      pubsub::SubscriptionAdminClient subscription_admin_client,
+      std::optional<int32_t> shard_num,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : prefix_(std::move(prefix)),
         topic_id_(std::move(topic_id)),
         project_id_(project_id),
         subscription_admin_client_(subscription_admin_client),
-        shard_num_(shard_num) {}
+        shard_num_(shard_num),
+        log_context_(log_context) {}
 
   bool IsSetupComplete() const {
     absl::ReaderMutexLock lock(&mutex_);
@@ -111,12 +113,14 @@ class GcpMessageService : public MessageService {
 
   bool are_attributes_set_ = false;
   std::optional<int32_t> shard_num_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto metadata = std::get<GcpNotifierMetadata>(notifier_metadata);
   auto shard_num =
       (metadata.num_shards > 1 ? std::optional<int32_t>(metadata.shard_num)
@@ -127,6 +131,6 @@ absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
   return std::make_unique<GcpMessageService>(
       std::move(metadata.queue_prefix), std::move(metadata.topic_id),
       std::move(metadata.project_id), std::move(subscription_admin_client),
-      shard_num);
+      shard_num, log_context);
 }
 }  // namespace kv_server

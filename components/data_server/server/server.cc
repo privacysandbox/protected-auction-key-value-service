@@ -418,7 +418,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   key_fetcher_manager_ = factory->CreateKeyFetcherManager(parameter_fetcher);
   CreateGrpcServices(parameter_fetcher);
   auto metadata = parameter_fetcher.GetBlobStorageNotifierMetadata();
-  auto message_service_status = MessageService::Create(metadata);
+  auto message_service_status =
+      MessageService::Create(metadata, server_safe_log_context_);
   if (!message_service_status.ok()) {
     return message_service_status.status();
   }
@@ -444,8 +445,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   }
   auto realtime_notifier_metadata =
       parameter_fetcher.GetRealtimeNotifierMetadata(num_shards_, shard_num_);
-  auto realtime_message_service_status =
-      MessageService::Create(realtime_notifier_metadata);
+  auto realtime_message_service_status = MessageService::Create(
+      realtime_notifier_metadata, server_safe_log_context_);
   if (!realtime_message_service_status.ok()) {
     return realtime_message_service_status.status();
   }
@@ -456,7 +457,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   LOG(INFO) << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
             << " parameter: " << realtime_thread_numbers;
   auto maybe_realtime_thread_pool_manager = RealtimeThreadPoolManager::Create(
-      realtime_notifier_metadata, realtime_thread_numbers);
+      realtime_notifier_metadata, realtime_thread_numbers, {},
+      server_safe_log_context_);
   if (!maybe_realtime_thread_pool_manager.ok()) {
     return maybe_realtime_thread_pool_manager.status();
   }

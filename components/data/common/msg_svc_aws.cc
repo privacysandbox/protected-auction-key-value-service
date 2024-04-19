@@ -64,11 +64,13 @@ class AwsMessageService : public MessageService {
  public:
   // `prefix` is the prefix of randomly generated SQS Queue name.
   // The queue is subscribed to the topic at `sns_arn`.
-  AwsMessageService(std::string prefix, std::string sns_arn,
-                    std::optional<int32_t> shard_num)
+  AwsMessageService(
+      std::string prefix, std::string sns_arn, std::optional<int32_t> shard_num,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : prefix_(std::move(prefix)),
         sns_arn_(std::move(sns_arn)),
-        shard_num_(shard_num) {}
+        shard_num_(shard_num),
+        log_context_(log_context) {}
 
   bool IsSetupComplete() const {
     absl::ReaderMutexLock lock(&mutex_);
@@ -189,17 +191,20 @@ class AwsMessageService : public MessageService {
   std::string sqs_arn_;
   bool are_attributes_set_ = false;
   std::optional<int32_t> shard_num_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto metadata = std::get<AwsNotifierMetadata>(notifier_metadata);
   auto shard_num =
       (metadata.num_shards > 1 ? std::optional<int32_t>(metadata.shard_num)
                                : std::nullopt);
-  return std::make_unique<AwsMessageService>(
-      std::move(metadata.queue_prefix), std::move(metadata.sns_arn), shard_num);
+  return std::make_unique<AwsMessageService>(std::move(metadata.queue_prefix),
+                                             std::move(metadata.sns_arn),
+                                             shard_num, log_context);
 }
 }  // namespace kv_server

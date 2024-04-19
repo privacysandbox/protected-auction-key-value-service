@@ -25,6 +25,7 @@
 #include "components/data/realtime/realtime_notifier_metadata.h"
 #include "components/errors/retry.h"
 #include "components/util/sleepfor.h"
+#include "src/logger/request_context_logger.h"
 
 namespace kv_server {
 struct DataLoadingStats {
@@ -58,7 +59,10 @@ class RealtimeNotifier {
   static absl::StatusOr<std::unique_ptr<RealtimeNotifier>> Create(
       NotifierMetadata notifier_metadata,
       // This parameter allows overrides that are used for tests
-      RealtimeNotifierMetadata realtime_notifier_metadata = {});
+      RealtimeNotifierMetadata realtime_notifier_metadata = {},
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 };
 
 }  // namespace kv_server

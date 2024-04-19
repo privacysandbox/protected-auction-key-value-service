@@ -32,8 +32,10 @@ namespace kv_server {
 namespace {
 class ThreadManagerImpl : public ThreadManager {
  public:
-  explicit ThreadManagerImpl(std::string thread_name)
-      : thread_name_(std::move(thread_name)) {}
+  explicit ThreadManagerImpl(
+      std::string thread_name,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : thread_name_(std::move(thread_name)), log_context_(log_context) {}
 
   ~ThreadManagerImpl() {
     if (!IsRunning()) return;
@@ -74,12 +76,16 @@ class ThreadManagerImpl : public ThreadManager {
   std::unique_ptr<std::thread> thread_;
   std::atomic<bool> should_stop_ = false;
   std::string thread_name_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
-std::unique_ptr<ThreadManager> ThreadManager::Create(std::string thread_name) {
-  return std::make_unique<ThreadManagerImpl>(std::move(thread_name));
+std::unique_ptr<ThreadManager> ThreadManager::Create(
+    std::string thread_name,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<ThreadManagerImpl>(std::move(thread_name),
+                                             log_context);
 }
 
 }  // namespace kv_server

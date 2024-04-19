@@ -35,11 +35,14 @@ using ::google::cloud::pubsub::Subscriber;
 
 class RealtimeNotifierGcp : public RealtimeNotifier {
  public:
-  explicit RealtimeNotifierGcp(std::unique_ptr<Subscriber> gcp_subscriber,
-                               std::unique_ptr<SleepFor> sleep_for)
+  explicit RealtimeNotifierGcp(
+      std::unique_ptr<Subscriber> gcp_subscriber,
+      std::unique_ptr<SleepFor> sleep_for,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : thread_manager_(ThreadManager::Create("Realtime notifier")),
         sleep_for_(std::move(sleep_for)),
-        gcp_subscriber_(std::move(gcp_subscriber)) {}
+        gcp_subscriber_(std::move(gcp_subscriber)),
+        log_context_(log_context) {}
 
   ~RealtimeNotifierGcp() {
     if (const auto s = Stop(); !s.ok()) {
@@ -151,14 +154,16 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
   future<cloud::Status> session_ ABSL_GUARDED_BY(mutex_);
   std::unique_ptr<SleepFor> sleep_for_;
   std::unique_ptr<Subscriber> gcp_subscriber_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 absl::StatusOr<std::unique_ptr<Subscriber>> CreateSubscriber(
-    NotifierMetadata metadata) {
+    NotifierMetadata metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   GcpNotifierMetadata notifier_metadata =
       std::get<GcpNotifierMetadata>(metadata);
   auto realtime_message_service_status =
-      MessageService::Create(notifier_metadata);
+      MessageService::Create(notifier_metadata, log_context);
   if (!realtime_message_service_status.ok()) {
     return realtime_message_service_status.status();
   }
@@ -183,7 +188,8 @@ absl::StatusOr<std::unique_ptr<Subscriber>> CreateSubscriber(
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<RealtimeNotifier>> RealtimeNotifier::Create(
-    NotifierMetadata metadata, RealtimeNotifierMetadata realtime_metadata) {
+    NotifierMetadata metadata, RealtimeNotifierMetadata realtime_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto realtime_notifier_metadata =
       std::get_if<GcpRealtimeNotifierMetadata>(&realtime_metadata);
   std::unique_ptr<SleepFor> sleep_for;
@@ -199,14 +205,14 @@ absl::StatusOr<std::unique_ptr<RealtimeNotifier>> RealtimeNotifier::Create(
     gcp_subscriber.reset(
         realtime_notifier_metadata->gcp_subscriber_for_unit_testing);
   } else {
-    auto maybe_gcp_subscriber = CreateSubscriber(metadata);
+    auto maybe_gcp_subscriber = CreateSubscriber(metadata, log_context);
     if (!maybe_gcp_subscriber.ok()) {
       return maybe_gcp_subscriber.status();
     }
     gcp_subscriber = std::move(*maybe_gcp_subscriber);
   }
-  return std::make_unique<RealtimeNotifierGcp>(std::move(gcp_subscriber),
-                                               std::move(sleep_for));
+  return std::make_unique<RealtimeNotifierGcp>(
+      std::move(gcp_subscriber), std::move(sleep_for), log_context);
 }
 
 }  // namespace kv_server

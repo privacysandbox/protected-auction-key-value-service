@@ -20,7 +20,10 @@ namespace kv_server {
 namespace {
 class LocalMessageService : public MessageService {
  public:
-  explicit LocalMessageService(std::string local_directory) {}
+  explicit LocalMessageService(
+      std::string local_directory,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : log_context_(log_context) {}
   bool IsSetupComplete() const { return true; }
   const QueueMetadata GetQueueMetadata() const {
     AwsQueueMetadata metadata;
@@ -28,14 +31,16 @@ class LocalMessageService : public MessageService {
   }
   absl::Status SetupQueue() { return absl::OkStatus(); }
   void Reset() {}
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto metadata = std::get<LocalNotifierMetadata>(notifier_metadata);
   return std::make_unique<LocalMessageService>(
-      std::move(metadata.local_directory));
+      std::move(metadata.local_directory), log_context);
 }
 }  // namespace kv_server

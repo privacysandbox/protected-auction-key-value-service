@@ -84,7 +84,7 @@ class GetValuesV2Handler {
   // HPKE Configuration must be:
   // KEM: DHKEM(X25519, HKDF-SHA256) 0x0020
   // KDF: HKDF-SHA256 0x0001
-  // AEAD: AES-128-GCM 0X0001
+  // AEAD: AES-256-GCM 0X0002
   // (https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#encryption)
   grpc::Status ObliviousGetValues(const v2::ObliviousGetValuesRequest& request,
                                   google::api::HttpBody* response) const;

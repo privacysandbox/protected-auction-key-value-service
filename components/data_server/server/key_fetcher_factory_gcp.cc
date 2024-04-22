@@ -22,6 +22,12 @@ using ::google::scp::cpio::PrivateKeyVendingEndpoint;
 using ::privacy_sandbox::server_common::CloudPlatform;
 
 class KeyFetcherFactoryGcp : public CloudKeyFetcherFactory {
+ public:
+  explicit KeyFetcherFactoryGcp(
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : CloudKeyFetcherFactory(log_context) {}
+
+ protected:
   PrivateKeyVendingEndpoint GetPrimaryKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const override {
     PrivateKeyVendingEndpoint endpoint =
@@ -46,7 +52,8 @@ class KeyFetcherFactoryGcp : public CloudKeyFetcherFactory {
 };
 }  // namespace
 
-std::unique_ptr<KeyFetcherFactory> KeyFetcherFactory::Create() {
-  return std::make_unique<KeyFetcherFactoryGcp>();
+std::unique_ptr<KeyFetcherFactory> KeyFetcherFactory::Create(
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<KeyFetcherFactoryGcp>(log_context);
 }
 }  // namespace kv_server

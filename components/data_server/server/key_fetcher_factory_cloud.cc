@@ -65,6 +65,7 @@ constexpr absl::Duration kPrivateKeyCacheTtl = absl::Hours(24 * 45);  // 45 days
 constexpr absl::Duration kKeyRefreshFlowRunFrequency = absl::Hours(3);
 
 PrivateKeyVendingEndpoint GetKeyFetchingEndpoint(
+    privacy_sandbox::server_common::log::PSLogContext& log_context,
     const ParameterFetcher& parameter_fetcher,
     std::string_view account_identity_prefix,
     std::string_view private_key_endpoint_prefix,
@@ -96,12 +97,13 @@ CloudKeyFetcherFactory::CreateKeyFetcherManager(
   std::vector<std::string> endpoints =
       GetPublicKeyFetchingEndpoint(parameter_fetcher);
   std::unique_ptr<PublicKeyFetcherInterface> public_key_fetcher =
-      PublicKeyFetcherFactory::Create({{GetCloudPlatform(), endpoints}});
+      PublicKeyFetcherFactory::Create({{GetCloudPlatform(), endpoints}},
+                                      log_context_);
   auto primary = GetPrimaryKeyFetchingEndpoint(parameter_fetcher);
   auto secondary = GetSecondaryKeyFetchingEndpoint(parameter_fetcher);
   std::unique_ptr<PrivateKeyFetcherInterface> private_key_fetcher =
       PrivateKeyFetcherFactory::Create(primary, {secondary},
-                                       kPrivateKeyCacheTtl);
+                                       kPrivateKeyCacheTtl, log_context_);
   auto event_engine = std::make_unique<EventEngineExecutor>(
       grpc_event_engine::experimental::GetDefaultEventEngine());
   std::unique_ptr<KeyFetcherManagerInterface> manager =
@@ -125,7 +127,8 @@ std::vector<std::string> CloudKeyFetcherFactory::GetPublicKeyFetchingEndpoint(
 PrivateKeyVendingEndpoint CloudKeyFetcherFactory::GetPrimaryKeyFetchingEndpoint(
     const ParameterFetcher& parameter_fetcher) const {
   return GetKeyFetchingEndpoint(
-      parameter_fetcher, kPrimaryCoordinatorAccountIdentityParameterSuffix,
+      log_context_, parameter_fetcher,
+      kPrimaryCoordinatorAccountIdentityParameterSuffix,
       kPrimaryCoordinatorPrivateKeyEndpointParameterSuffix,
       kPrimaryCoordinatorRegionParameterSuffix);
 }
@@ -134,7 +137,8 @@ PrivateKeyVendingEndpoint
 CloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
     const ParameterFetcher& parameter_fetcher) const {
   return GetKeyFetchingEndpoint(
-      parameter_fetcher, kSecondaryCoordinatorAccountIdentityParameterSuffix,
+      log_context_, parameter_fetcher,
+      kSecondaryCoordinatorAccountIdentityParameterSuffix,
       kSecondaryCoordinatorPrivateKeyEndpointParameterSuffix,
       kSecondaryCoordinatorRegionParameterSuffix);
 }

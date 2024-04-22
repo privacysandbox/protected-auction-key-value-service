@@ -38,7 +38,10 @@ class KeyFetcherFactory {
       privacy_sandbox::server_common::KeyFetcherManagerInterface>
   CreateKeyFetcherManager(const ParameterFetcher& parameter_fetcher) const = 0;
   // Constructs a KeyFetcherFactory.
-  static std::unique_ptr<KeyFetcherFactory> Create();
+  static std::unique_ptr<KeyFetcherFactory> Create(
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 };
 
 // Constructs CloudKeyFetcherManager. CloudKeyFetcherManager has common logic
@@ -46,12 +49,16 @@ class KeyFetcherFactory {
 // should be used.
 class CloudKeyFetcherFactory : public KeyFetcherFactory {
  public:
+  explicit CloudKeyFetcherFactory(
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : log_context_(log_context) {}
   // Creates KeyFetcherManager.
   std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
   CreateKeyFetcherManager(
       const ParameterFetcher& parameter_fetcher) const override;
 
  protected:
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
   virtual google::scp::cpio::PrivateKeyVendingEndpoint
   GetPrimaryKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const;

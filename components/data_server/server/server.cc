@@ -232,9 +232,13 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
       parameter_fetcher.GetParameter(kConsentedDebugTokenSuffix, ""));
   log_provider_ = privacy_sandbox::server_common::ConfigurePrivateLogger(
       server_info, collector_endpoint);
+  // TODO(b/327001960): Remove open telemetry sink after PS_LOG and PS_VLOG
+  //  migrations are done
   open_telemetry_sink_ = std::make_unique<OpenTelemetrySink>(
       log_provider_->GetLogger(kServiceName.data()));
   absl::AddLogSink(open_telemetry_sink_.get());
+  privacy_sandbox::server_common::log::logger_private =
+      log_provider_->GetLogger(kServiceName.data()).get();
   parameter_client_->UpdateLogContext(server_safe_log_context_);
   instance_client_->UpdateLogContext(server_safe_log_context_);
 }
@@ -417,7 +421,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   delta_stream_reader_factory_ =
       CreateStreamRecordReaderFactory(parameter_fetcher);
   notifier_ = CreateDeltaFileNotifier(parameter_fetcher);
-  auto factory = KeyFetcherFactory::Create();
+  auto factory = KeyFetcherFactory::Create(server_safe_log_context_);
   key_fetcher_manager_ = factory->CreateKeyFetcherManager(parameter_fetcher);
   CreateGrpcServices(parameter_fetcher);
   auto metadata = parameter_fetcher.GetBlobStorageNotifierMetadata();

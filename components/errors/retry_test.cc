@@ -29,7 +29,12 @@ namespace {
 
 using ::testing::Return;
 
-TEST(RetryTest, RetryUntilOk) {
+class RetryTest : public ::testing::Test {
+ protected:
+  privacy_sandbox::server_common::log::NoOpContext log_context_;
+};
+
+TEST_F(RetryTest, RetryUntilOk) {
   testing::MockFunction<absl::StatusOr<int>()> func;
   EXPECT_CALL(func, Call)
       .Times(2)
@@ -43,13 +48,14 @@ TEST(RetryTest, RetryUntilOk) {
       status_count_metric_callback = [](const absl::Status&, int) {
         // no-op
       };
-  absl::StatusOr<int> v = RetryUntilOk(func.AsStdFunction(), "TestFunc",
-                                       status_count_metric_callback, sleep_for);
+  absl::StatusOr<int> v =
+      RetryUntilOk(func.AsStdFunction(), "TestFunc",
+                   status_count_metric_callback, log_context_, sleep_for);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
 
-TEST(RetryTest, RetryUnilOkStatusOnly) {
+TEST_F(RetryTest, RetryUnilOkStatusOnly) {
   testing::MockFunction<absl::Status()> func;
   EXPECT_CALL(func, Call)
       .Times(2)
@@ -64,10 +70,10 @@ TEST(RetryTest, RetryUnilOkStatusOnly) {
         // no-op
       };
   RetryUntilOk(func.AsStdFunction(), "TestFunc", status_count_metric_callback,
-               sleep_for);
+               log_context_, sleep_for);
 }
 
-TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
+TEST_F(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
   testing::MockFunction<absl::StatusOr<int>()> func;
   EXPECT_CALL(func, Call).Times(2).WillRepeatedly([] {
     return absl::InvalidArgumentError("whatever");
@@ -84,13 +90,14 @@ TEST(RetryTest, RetryWithMaxFailsWhenExceedingMax) {
       status_count_metric_callback = [](const absl::Status&, int) {
         // no-op
       };
-  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2,
-                                       status_count_metric_callback, sleep_for);
+  absl::StatusOr<int> v =
+      RetryWithMax(func.AsStdFunction(), "TestFunc", 2,
+                   status_count_metric_callback, sleep_for, log_context_);
   EXPECT_FALSE(v.ok());
   EXPECT_EQ(v.status(), absl::InvalidArgumentError("whatever"));
 }
 
-TEST(RetryTest, RetryWithMaxSucceedsOnMax) {
+TEST_F(RetryTest, RetryWithMaxSucceedsOnMax) {
   testing::MockFunction<absl::StatusOr<int>()> func;
   EXPECT_CALL(func, Call)
       .Times(2)
@@ -105,13 +112,14 @@ TEST(RetryTest, RetryWithMaxSucceedsOnMax) {
       status_count_metric_callback = [](const absl::Status&, int) {
         // no-op
       };
-  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 2,
-                                       status_count_metric_callback, sleep_for);
+  absl::StatusOr<int> v =
+      RetryWithMax(func.AsStdFunction(), "TestFunc", 2,
+                   status_count_metric_callback, sleep_for, log_context_);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }
 
-TEST(RetryTest, RetryWithMaxSucceedsEarly) {
+TEST_F(RetryTest, RetryWithMaxSucceedsEarly) {
   testing::MockFunction<absl::StatusOr<int>()> func;
   EXPECT_CALL(func, Call)
       .Times(2)
@@ -125,8 +133,9 @@ TEST(RetryTest, RetryWithMaxSucceedsEarly) {
       status_count_metric_callback = [](const absl::Status&, int) {
         // no-op
       };
-  absl::StatusOr<int> v = RetryWithMax(func.AsStdFunction(), "TestFunc", 300,
-                                       status_count_metric_callback, sleep_for);
+  absl::StatusOr<int> v =
+      RetryWithMax(func.AsStdFunction(), "TestFunc", 300,
+                   status_count_metric_callback, sleep_for, log_context_);
   EXPECT_TRUE(v.ok());
   EXPECT_EQ(v.value(), 1);
 }

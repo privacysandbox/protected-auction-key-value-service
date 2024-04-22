@@ -413,7 +413,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
                  .key = blob.key},
                 options_);
           },
-          "LoadNewFile", LogStatusSafeMetricsFn<kLoadNewFilesStatus>());
+          "LoadNewFile", LogStatusSafeMetricsFn<kLoadNewFilesStatus>(),
+          options_.log_context);
     }
   }
 

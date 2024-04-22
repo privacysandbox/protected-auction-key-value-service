@@ -43,7 +43,8 @@ class GcpClusterMappingsManager : public ClusterMappingsManager {
               describe_instance_group_input);
         },
         "DescribeInstanceGroupInstances",
-        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>());
+        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>(),
+        GetLogContext());
 
     return GroupInstancesToClusterMappings(instance_group_instances);
   }

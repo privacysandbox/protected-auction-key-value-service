@@ -42,7 +42,7 @@ std::string ParameterFetcher::GetParameter(
       [this, &param_name, &default_value] {
         return parameter_client_.GetParameter(param_name, default_value);
       },
-      "GetParameter", metrics_callback_, {{"param", param_name}});
+      "GetParameter", metrics_callback_, log_context_, {{"param", param_name}});
 }
 
 int32_t ParameterFetcher::GetInt32Parameter(
@@ -52,7 +52,7 @@ int32_t ParameterFetcher::GetInt32Parameter(
       [this, &param_name] {
         return parameter_client_.GetInt32Parameter(param_name);
       },
-      "GetParameter", metrics_callback_, {{"param", param_name}});
+      "GetParameter", metrics_callback_, log_context_, {{"param", param_name}});
 }
 
 bool ParameterFetcher::GetBoolParameter(
@@ -62,7 +62,7 @@ bool ParameterFetcher::GetBoolParameter(
       [this, &param_name] {
         return parameter_client_.GetBoolParameter(param_name);
       },
-      "GetParameter", metrics_callback_, {{"param", param_name}});
+      "GetParameter", metrics_callback_, log_context_, {{"param", param_name}});
 }
 
 std::string ParameterFetcher::GetParamName(

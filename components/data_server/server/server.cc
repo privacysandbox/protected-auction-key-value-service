@@ -468,7 +468,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   data_orchestrator_ = CreateDataOrchestrator(parameter_fetcher, key_sharder);
   TraceRetryUntilOk([this] { return data_orchestrator_->Start(); },
                     "StartDataOrchestrator",
-                    LogStatusSafeMetricsFn<kStartDataOrchestratorStatus>());
+                    LogStatusSafeMetricsFn<kStartDataOrchestratorStatus>(),
+                    server_safe_log_context_);
   if (num_shards_ > 1) {
     // At this point the server is healthy and the initialization is over.
     // The only missing piece is having a shard map, which is dependent on
@@ -630,7 +631,7 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
             .log_context = server_safe_log_context_,
         });
       },
-      "CreateDataOrchestrator", metrics_callback);
+      "CreateDataOrchestrator", metrics_callback, server_safe_log_context_);
 }
 
 void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {

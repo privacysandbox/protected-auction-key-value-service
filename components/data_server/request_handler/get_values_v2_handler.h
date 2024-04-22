@@ -17,6 +17,7 @@
 #ifndef COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_V2_HANDLER_H_
 #define COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_V2_HANDLER_H_
 
+#include <map>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -39,12 +40,19 @@ namespace kv_server {
 // Content Type Header Name. Can be set for bhttp request to proto or json
 // values below.
 inline constexpr std::string_view kContentTypeHeader = "content-type";
+// Header in clear text http request/response that indicates which format is
+// used by the payload. The more common "Content-Type" header is not used
+// because most importantly that has CORS implications, and in addition, may not
+// be forwarded by Envoy to gRPC.
+inline constexpr std::string_view kKVContentTypeHeader = "kv-content-type";
 // Protobuf Content Type Header Value.
 inline constexpr std::string_view kContentEncodingProtoHeaderValue =
     "application/protobuf";
 // Json Content Type Header Value.
 inline constexpr std::string_view kContentEncodingJsonHeaderValue =
     "application/json";
+inline constexpr std::string_view kContentEncodingBhttpHeaderValue =
+    "message/bhttp";
 
 // Handles the request family of *GetValues.
 // See the Service proto definition for details.
@@ -63,8 +71,10 @@ class GetValuesV2Handler {
             std::move(create_compression_group_concatenator)),
         key_fetcher_manager_(key_fetcher_manager) {}
 
-  grpc::Status GetValuesHttp(const v2::GetValuesHttpRequest& request,
-                             google::api::HttpBody* response) const;
+  grpc::Status GetValuesHttp(
+      const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
+      const v2::GetValuesHttpRequest& request,
+      google::api::HttpBody* response) const;
 
   grpc::Status GetValues(const v2::GetValuesRequest& request,
                          v2::GetValuesResponse* response) const;
@@ -86,16 +96,23 @@ class GetValuesV2Handler {
   // KDF: HKDF-SHA256 0x0001
   // AEAD: AES-256-GCM 0X0002
   // (https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#encryption)
-  grpc::Status ObliviousGetValues(const v2::ObliviousGetValuesRequest& request,
-                                  google::api::HttpBody* response) const;
+  grpc::Status ObliviousGetValues(
+      const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
+      const v2::ObliviousGetValuesRequest& request,
+      google::api::HttpBody* response) const;
 
  private:
   enum class ContentType {
     kJson = 0,
     kProto,
+    kBhttp,
   };
   ContentType GetContentType(
       const quiche::BinaryHttpRequest& deserialized_req) const;
+
+  ContentType GetContentType(
+      const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
+      ContentType default_content_type) const;
 
   absl::Status GetValuesHttp(
       std::string_view request, std::string& json_response,

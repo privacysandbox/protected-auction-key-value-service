@@ -49,8 +49,13 @@ grpc::ServerUnaryReactor* HandleRequest(
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValuesHttp(
     CallbackServerContext* context, const GetValuesHttpRequest* request,
     google::api::HttpBody* response) {
-  return HandleRequest(context, request, response, handler_,
-                       &GetValuesV2Handler::GetValuesHttp);
+  auto request_received_time = absl::Now();
+  grpc::Status status =
+      handler_.GetValuesHttp(context->client_metadata(), *request, response);
+  auto* reactor = context->DefaultReactor();
+  reactor->Finish(status);
+  LogRequestCommonSafeMetrics(request, response, status, request_received_time);
+  return reactor;
 }
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValues(
     grpc::CallbackServerContext* context, const v2::GetValuesRequest* request,
@@ -71,8 +76,13 @@ grpc::ServerUnaryReactor* KeyValueServiceV2Impl::ObliviousGetValues(
     CallbackServerContext* context,
     const v2::ObliviousGetValuesRequest* request,
     google::api::HttpBody* response) {
-  return HandleRequest(context, request, response, handler_,
-                       &GetValuesV2Handler::ObliviousGetValues);
+  auto request_received_time = absl::Now();
+  grpc::Status status = handler_.ObliviousGetValues(context->client_metadata(),
+                                                    *request, response);
+  auto* reactor = context->DefaultReactor();
+  reactor->Finish(status);
+  LogRequestCommonSafeMetrics(request, response, status, request_received_time);
+  return reactor;
 }
 
 }  // namespace kv_server

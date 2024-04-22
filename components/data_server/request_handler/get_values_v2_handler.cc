@@ -67,10 +67,12 @@ CompressionGroupConcatenator::CompressionType GetResponseCompressionType(
 }  // namespace
 
 grpc::Status GetValuesV2Handler::GetValuesHttp(
+    const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
     const GetValuesHttpRequest& request,
     google::api::HttpBody* response) const {
   return FromAbslStatus(
-      GetValuesHttp(request.raw_body().data(), *response->mutable_data()));
+      GetValuesHttp(request.raw_body().data(), *response->mutable_data(),
+                    GetContentType(headers, ContentType::kJson)));
 }
 
 absl::Status GetValuesV2Handler::GetValuesHttp(std::string_view request,
@@ -123,6 +125,30 @@ GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
   return ContentType::kJson;
 }
 
+GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
+    const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
+    ContentType default_content_type) const {
+  for (const auto& [header_name, header_value] : headers) {
+    if (absl::AsciiStrToLower(std::string_view(
+            header_name.data(), header_name.size())) == kKVContentTypeHeader) {
+      if (absl::AsciiStrToLower(
+              std::string_view(header_value.data(), header_value.size())) ==
+          kContentEncodingBhttpHeaderValue) {
+        return ContentType::kBhttp;
+      } else if (absl::AsciiStrToLower(std::string_view(header_value.data(),
+                                                        header_value.size())) ==
+                 kContentEncodingProtoHeaderValue) {
+        return ContentType::kProto;
+      } else if (absl::AsciiStrToLower(std::string_view(header_value.data(),
+                                                        header_value.size())) ==
+                 kContentEncodingJsonHeaderValue) {
+        return ContentType::kJson;
+      }
+    }
+  }
+  return default_content_type;
+}
+
 absl::StatusOr<quiche::BinaryHttpResponse>
 GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
     std::string_view bhttp_request_body) const {
@@ -165,6 +191,7 @@ absl::Status GetValuesV2Handler::BinaryHttpGetValues(
 }
 
 grpc::Status GetValuesV2Handler::ObliviousGetValues(
+    const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
     const ObliviousGetValuesRequest& oblivious_request,
     google::api::HttpBody* oblivious_response) const {
   VLOG(9) << "Received ObliviousGetValues request. ";
@@ -174,11 +201,19 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
   if (!maybe_plain_text.ok()) {
     return FromAbslStatus(maybe_plain_text.status());
   }
-  // Now process the binary http request
   std::string response;
-  if (const auto s = BinaryHttpGetValues(*maybe_plain_text, response);
-      !s.ok()) {
-    return FromAbslStatus(s);
+  auto content_type = GetContentType(headers, ContentType::kBhttp);
+  if (content_type == ContentType::kBhttp) {
+    // Now process the binary http request
+    if (const auto s = BinaryHttpGetValues(*maybe_plain_text, response);
+        !s.ok()) {
+      return FromAbslStatus(s);
+    }
+  } else {
+    if (const auto s = GetValuesHttp(*maybe_plain_text, response, content_type);
+        !s.ok()) {
+      return FromAbslStatus(s);
+    }
   }
   auto encrypted_response = encryptor.EncryptResponse(std::move(response));
   if (!encrypted_response.ok()) {

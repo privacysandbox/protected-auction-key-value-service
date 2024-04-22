@@ -239,9 +239,11 @@ class GetValuesHandlerTest
                                         GetValuesV2Handler* handler) {
     PlainRequest plain_request(std::move(request_body));
 
+    std::multimap<grpc::string_ref, grpc::string_ref> headers = {
+        {"kv-content-type", "application/json"}};
     if (IsUsing<ProtocolType::kPlain>()) {
       *bhttp_response_code = 200;
-      return handler->GetValuesHttp(plain_request.Build(), response);
+      return handler->GetValuesHttp(headers, plain_request.Build(), response);
     }
 
     BHTTPRequest bhttp_request(std::move(plain_request), IsProtobufContent());
@@ -260,7 +262,8 @@ class GetValuesHandlerTest
       // get ObliviousGetValuesRequest, OHTTPResponseUnwrapper
       auto [request, response_unwrapper] = ohttp_request.Build();
       if (const auto s = handler->ObliviousGetValues(
-              request, &response_unwrapper.RawResponse());
+              {{"kv-content-type", "message/bhttp"}}, request,
+              &response_unwrapper.RawResponse());
           !s.ok()) {
         LOG(ERROR) << "ObliviousGetValues failed: " << s.error_message();
         return s;

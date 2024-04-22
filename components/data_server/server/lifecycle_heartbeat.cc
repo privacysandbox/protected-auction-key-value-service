@@ -29,9 +29,13 @@ constexpr absl::Duration kLifecycleHeartbeatFrequency = absl::Seconds(30);
 
 class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
  public:
-  explicit LifecycleHeartbeatImpl(std::unique_ptr<PeriodicClosure> heartbeat,
-                                  InstanceClient& instance_client)
-      : heartbeat_(std::move(heartbeat)), instance_client_(instance_client) {}
+  explicit LifecycleHeartbeatImpl(
+      std::unique_ptr<PeriodicClosure> heartbeat,
+      InstanceClient& instance_client,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : heartbeat_(std::move(heartbeat)),
+        instance_client_(instance_client),
+        log_context_(log_context) {}
 
   ~LifecycleHeartbeatImpl() {
     if (is_running_) {
@@ -82,20 +86,22 @@ class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
   InstanceClient& instance_client_;
   std::string launch_hook_name_;
   bool is_running_ = false;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 std::unique_ptr<LifecycleHeartbeat> LifecycleHeartbeat::Create(
-    std::unique_ptr<PeriodicClosure> heartbeat,
-    InstanceClient& instance_client) {
+    std::unique_ptr<PeriodicClosure> heartbeat, InstanceClient& instance_client,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<LifecycleHeartbeatImpl>(std::move(heartbeat),
-                                                  instance_client);
+                                                  instance_client, log_context);
 }
 
 std::unique_ptr<LifecycleHeartbeat> LifecycleHeartbeat::Create(
-    InstanceClient& instance_client) {
+    InstanceClient& instance_client,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<LifecycleHeartbeatImpl>(PeriodicClosure::Create(),
-                                                  instance_client);
+                                                  instance_client, log_context);
 }
 }  // namespace kv_server

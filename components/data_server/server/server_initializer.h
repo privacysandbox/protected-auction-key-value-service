@@ -63,7 +63,10 @@ std::unique_ptr<ServerInitializer> GetServerInitializer(
         key_fetcher_manager,
     Lookup& local_lookup, std::string environment, int32_t current_shard_num,
     InstanceClient& instance_client, Cache& cache,
-    ParameterFetcher& parameter_fetcher, KeySharder key_sharder);
+    ParameterFetcher& parameter_fetcher, KeySharder key_sharder,
+    privacy_sandbox::server_common::log::PSLogContext& log_context =
+        const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+            privacy_sandbox::server_common::log::kNoOpContext));
 
 }  // namespace kv_server
 #endif  // COMPONENTS_DATA_SERVER_SERVER_INITIALIZER_H_

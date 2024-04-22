@@ -390,7 +390,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   auto scope = opentelemetry::trace::Scope(span);
   LOG(INFO) << "Creating lifecycle heartbeat...";
   std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
-      LifecycleHeartbeat::Create(*instance_client_);
+      LifecycleHeartbeat::Create(*instance_client_, server_safe_log_context_);
   ParameterFetcher parameter_fetcher(
       environment_, *parameter_client_,
       std::move(LogStatusSafeMetricsFn<kGetParameterStatus>()),
@@ -431,7 +431,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   auto key_sharder = GetKeySharder(parameter_fetcher);
   auto server_initializer = GetServerInitializer(
       num_shards_, *key_fetcher_manager_, *local_lookup_, environment_,
-      shard_num_, *instance_client_, *cache_, parameter_fetcher, key_sharder);
+      shard_num_, *instance_client_, *cache_, parameter_fetcher, key_sharder,
+      server_safe_log_context_);
   remote_lookup_ = server_initializer->CreateAndStartRemoteLookupServer();
   {
     auto status_or_notifier = BlobStorageChangeNotifier::Create(

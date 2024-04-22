@@ -46,6 +46,7 @@ class ClusterMappingsManager {
   ClusterMappingsManager(
       std::string environment, int32_t num_shards,
       InstanceClient& instance_client,
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
       std::unique_ptr<SleepFor> sleep_for = std::make_unique<SleepFor>(),
       int32_t update_interval_millis = 1000);
   // Retreives cluster mappings for the given `environment`, which are
@@ -60,15 +61,20 @@ class ClusterMappingsManager {
   bool IsRunning() const;
   static std::unique_ptr<ClusterMappingsManager> Create(
       std::string environment, int32_t num_shards,
-      InstanceClient& instance_client, ParameterFetcher& parameter_fetcher);
+      InstanceClient& instance_client, ParameterFetcher& parameter_fetcher,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 
  protected:
   void Watch(ShardManager& shard_manager);
+  privacy_sandbox::server_common::log::PSLogContext& GetLogContext() const;
 
   std::string environment_;
   int32_t num_shards_;
   InstanceClient& instance_client_;
   std::unique_ptr<ThreadManager> thread_manager_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
   std::unique_ptr<SleepFor> sleep_for_;
   int32_t update_interval_millis_;
 };

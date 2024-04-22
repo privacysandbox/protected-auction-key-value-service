@@ -23,12 +23,27 @@ package(default_visibility = [
 cc_library(
     name = "sets",
     srcs = [
+        "sets.cc",
     ],
     hdrs = [
         "sets.h",
     ],
     deps = [
         "@com_google_absl//absl/container:flat_hash_set",
+        "@roaring_bitmap//:c_roaring",
+    ],
+)
+
+cc_test(
+    name = "sets_test",
+    size = "small",
+    srcs = [
+        "sets_test.cc",
+    ],
+    deps = [
+        ":sets",
+        "@com_google_googletest//:gtest_main",
+        "@roaring_bitmap//:c_roaring",
     ],
 )
 

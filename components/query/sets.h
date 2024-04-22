@@ -21,6 +21,8 @@
 
 #include "absl/container/flat_hash_set.h"
 
+#include "roaring.hh"
+
 namespace kv_server {
 template <typename T>
 absl::flat_hash_set<T> Union(absl::flat_hash_set<T>&& left,
@@ -50,6 +52,14 @@ absl::flat_hash_set<T> Difference(absl::flat_hash_set<T>&& left,
   }
   return std::move(left);
 }
+
+roaring::Roaring Union(roaring::Roaring&& left, roaring::Roaring&& right);
+
+roaring::Roaring Intersection(roaring::Roaring&& left,
+                              roaring::Roaring&& right);
+
+// Subtracts `right` from `left`.
+roaring::Roaring Difference(roaring::Roaring&& left, roaring::Roaring&& right);
 
 }  // namespace kv_server
 #endif  // COMPONENTS_QUERY_SETS_H_

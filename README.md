@@ -1,5 +1,15 @@
+> [!IMPORTANT]
+>
+> The `main` branch hosts live code with latest changes. It is unstable and is used for development.
+> It is suitable for contribution and inspection of the latest code. The `release-*` branches are
+> stable releases that can be used to build and deploy the system.
+
+---
+
 > FLEDGE has been renamed to Protected Audience API. To learn more about the name change, see the
 > [blog post](https://privacysandbox.com/intl/en_us/news/protected-audience-api-our-new-name-for-fledge).
+
+---
 
 # ![Privacy Sandbox Logo](docs/assets/privacy_sandbox_logo.png) FLEDGE Key/Value service
 
@@ -40,23 +50,69 @@ moment, to load data, instead of calling the mutation API, you would place the d
 location that can be directly read by the server. See more details in the
 [data loading guide](/docs/data_loading/loading_data.md).
 
-Currently, this service can be deployed to 1 region of your choice with more regions to be added
-soon. Monitoring and alerts are currently unavailable.
+Currently, this service can be deployed to 1 region of your choice. Multi-region configuration is up
+to the service owner to configure.
 
-> **Attention**: The Key/Value Server is publicly queryable. It does not authenticate callers. That
-> is also true for the product end state. It is recommended to only store data you do not mind seen
-> by other entities.
+## Current features
 
-## How to use this repo
+### Build and deployment
 
-The `main` branch hosts live code with latest changes. It is unstable and is used for development.
-It is suitable for contribution and inspection of the latest code. The `release-*` branches are
-stable releases that can be used to build and deploy the system.
+-   Source code is available on Github
+-   Releases are done on a regular basis
+-   Binaries can be built from source code
+    -   C++ binary
+    -   [AWS & GCP] Docker container image
+    -   [AWS]: Nitro EIF
+    -   [AWS]: Reference AMI
+    -   Other tools
+-   Server can run as a standalone local process for testing without any cloud dependency or
+    TEE-related functionality
+-   Server can be deployed to AWS Nitro enclave
+-   Server can be deployed to GCP Confidential Space
+-   Reference terraform available for a clean and comprehensive deployment to AWS or GCP
+    -   Clean: assumes the cloud environment has no preset infrastructure
+    -   Comprehensive: deploys all dependencies and some recommended (but not necessarily required)
+        configuration
+    -   Many server behaviors can be configured by parameter flags without having to rebuild
+
+### Data loading
+
+-   Server loads key/value data from cloud file storage
+-   Server loads key/value data from cloud pub/sub services
+-   Server loads data into an in-RAM representation for query serving
+-   Server continuously monitors for new data and incrementally updates ("delta files") the in-RAM
+    representation
+-   Support independent data ingestion pipelining by monitoring directories in cloud file storage
+    independently
+-   Supports Flatbuffers as the data event format
+-   Supports Avro and Riegeli as the data file format
+-   Supports snapshot files for faster server start up
+-   Users can perform compactions of delta files into snapshot files in an offline path
+
+### Read request processing
+
+-   Support Protected Audience Key Value Server query spec: can be used as a BYOS server to serve
+    requests from Chrome
+-   Support simple key value lookups for queries
+-   Users can write "user defined functions" to execute custom logic to process queries
+-   User defined functions can be written in JavaScript or WASM
+-   User defined functions can call "GetValues" to look up key value from the dataset
+
+### Advanced features
+
+-   Set-as-a-value is supported
+    -   A key "value" pair in the dataset can be a key and a set of values
+-   UDF can call "RunQuery" API to run set operations on sets (intersection, union, difference)
+-   For GCP, Terraform supports deploying into an existing VPC, such as used by the Bidding and
+    Auction services Non-prod Server logs are persisted after server shutdown
+-   Data can be sharded and different servers may load and serve different shards (subset) of the
+    dataset.
+-   Sharding supports data locality, where the operator specifies "sharding key" for key value pairs
+    so different key value pairs can have the same sharding key.
 
 ## Breaking changes
 
-This codebase right now is in a very early stage. We expect frequent updates that may not be fully
-backward compatible.
+While we make efforts to not introduce breaking changes, we expect that to happen occasionally.
 
 The release version follows the `[major change]-[minor change]-[patch]` scheme. All 0.x.x versions
 may contain breaking changes without notice. Refer to the [release changelog](/CHANGELOG.md) for the

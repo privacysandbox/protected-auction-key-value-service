@@ -110,6 +110,7 @@ constexpr absl::string_view kEnableOtelLoggerParameterSuffix =
 constexpr std::string_view kDataLoadingBlobPrefixAllowlistSuffix =
     "data-loading-blob-prefix-allowlist";
 constexpr std::string_view kTelemetryConfigSuffix = "telemetry-config";
+constexpr std::string_view kConsentedDebugTokenSuffix = "consented-debug-token";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -227,6 +228,8 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
   if (!enable_otel_logger) {
     return;
   }
+  privacy_sandbox::server_common::log::ServerToken(
+      parameter_fetcher.GetParameter(kConsentedDebugTokenSuffix, ""));
   log_provider_ = privacy_sandbox::server_common::ConfigurePrivateLogger(
       server_info, collector_endpoint);
   open_telemetry_sink_ = std::make_unique<OpenTelemetrySink>(

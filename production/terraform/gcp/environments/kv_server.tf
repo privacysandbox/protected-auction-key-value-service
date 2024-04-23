@@ -107,5 +107,6 @@ module "kv_server" {
     enable-external-traffic                    = var.enable_external_traffic
     telemetry-config                           = var.telemetry_config
     data-loading-blob-prefix-allowlist         = var.data_loading_blob_prefix_allowlist
+    consented-debug-token                      = var.consented_debug_token
   }
 }

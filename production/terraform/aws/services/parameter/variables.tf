@@ -188,3 +188,8 @@ variable "public_key_endpoint_parameter_value" {
   description = "Public key endpoint. Can only be overriden in non-prod mode."
   type        = string
 }
+
+variable "consented_debug_token_parameter_value" {
+  description = "Consented debug token to enable the otel collection of consented logs. Empty token means no-op and no logs will be collected for consented requests. The token in the request's consented debug configuration needs to match this debug token to make the server treat the request as consented."
+  type        = string
+}

@@ -28,6 +28,12 @@
     If you want to import an existing public certificate into ACM, follow these steps to
     [import the certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html).
 
+-   **consented_debug_token**
+
+    Consented debug token to enable the otel collection of consented logs. Empty token means no-op
+    and no logs will be collected for consented requests. The token in the request's consented debug
+    configuration needs to match this debug token to make the server treat the request as consented.
+
 -   **data_loading_blob_prefix_allowlist**
 
     A comma separated list of prefixes (i.e., directories) where data is loaded from.

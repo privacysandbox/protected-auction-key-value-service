@@ -67,6 +67,7 @@ ABSL_FLAG(std::string, data_loading_prefix_allowlist, "",
           "Allowlist for blob prefixes.");
 ABSL_FLAG(bool, add_missing_keys_v1, false,
           "Whether to add missing keys for v1.");
+ABSL_FLAG(std::string, consented_debug_token, "", "Consented debug token");
 
 namespace kv_server {
 namespace {
@@ -97,6 +98,8 @@ class LocalParameterClient : public ParameterClient {
     string_flag_values_.insert(
         {"kv-server-local-data-loading-blob-prefix-allowlist",
          absl::GetFlag(FLAGS_data_loading_prefix_allowlist)});
+    string_flag_values_.insert({"kv-server-local-consented-debug-token",
+                                absl::GetFlag(FLAGS_consented_debug_token)});
     // Insert more string flag values here.
 
     int32_t_flag_values_.insert(

@@ -171,6 +171,7 @@ module "parameter" {
   primary_coordinator_region_parameter_value                 = var.primary_coordinator_region
   secondary_coordinator_region_parameter_value               = var.secondary_coordinator_region
   public_key_endpoint_parameter_value                        = var.public_key_endpoint
+  consented_debug_token_parameter_value                      = var.consented_debug_token
 
 
   data_loading_file_format_parameter_value = var.data_loading_file_format
@@ -252,6 +253,9 @@ module "iam_role_policies" {
     var.use_sharding_key_regex ? [
       module.parameter.sharding_key_regex_parameter_arn
     ] : []
+  )
+  consented_debug_token_arns = ((var.consented_debug_token != "") ? [
+    module.parameter.consented_debug_token_parameter_arn] : []
   )
 }
 

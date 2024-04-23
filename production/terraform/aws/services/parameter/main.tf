@@ -261,3 +261,11 @@ resource "aws_ssm_parameter" "data_loading_blob_prefix_allowlist" {
   value     = var.data_loading_blob_prefix_allowlist
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "consented_debug_token_parameter" {
+  count     = (var.consented_debug_token_parameter_value != "") ? 1 : 0
+  name      = "${var.service}-${var.environment}-consented-debug-token"
+  type      = "String"
+  value     = var.consented_debug_token_parameter_value
+  overwrite = true
+}

@@ -103,6 +103,7 @@ module "kv_server" {
   # Variables related to logging
   logging_verbosity_level = var.logging_verbosity_level
   enable_otel_logger      = var.enable_otel_logger
+  consented_debug_token   = var.consented_debug_token
 }
 
 output "kv_server_url" {

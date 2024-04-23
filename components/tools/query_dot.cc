@@ -14,12 +14,10 @@
 
 #include "components/tools/query_dot.h"
 
-#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/functional/any_invocable.h"
 #include "absl/strings/str_join.h"
 
 namespace kv_server::query_toy {
@@ -57,10 +55,10 @@ class ASTDotGraphLabelVisitor : public ASTStringVisitor {
   }
 
   virtual std::string Visit(const ValueNode& node) {
-    return absl::StrCat(ToString(node.Keys()), "->",
-                        ToString(Eval(node, [this](std::string_view key) {
-                          return lookup_fn_(key);
-                        })));
+    return absl::StrCat(
+        ToString(node.Keys()), "->",
+        ToString(Eval<absl::flat_hash_set<std::string_view>>(
+            node, [this](std::string_view key) { return lookup_fn_(key); })));
   }
 
  private:

@@ -41,7 +41,6 @@
   #include "components/query/parser.h"
   #include "components/query/driver.h"
   #include "components/query/scanner.h"
-  #include "absl/functional/bind_front.h"
 
   #undef yylex
   #define yylex(x) scanner.yylex(x)

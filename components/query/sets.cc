@@ -16,17 +16,56 @@
 
 #include "components/query/sets.h"
 
+#include <utility>
+
 namespace kv_server {
 
+template <>
+absl::flat_hash_set<std::string_view> Union(
+    absl::flat_hash_set<std::string_view>&& left,
+    absl::flat_hash_set<std::string_view>&& right) {
+  auto& small = left.size() <= right.size() ? left : right;
+  auto& big = left.size() <= right.size() ? right : left;
+  big.insert(small.begin(), small.end());
+  return std::move(big);
+}
+
+template <>
+absl::flat_hash_set<std::string_view> Intersection(
+    absl::flat_hash_set<std::string_view>&& left,
+    absl::flat_hash_set<std::string_view>&& right) {
+  auto& small = left.size() <= right.size() ? left : right;
+  const auto& big = left.size() <= right.size() ? right : left;
+  // Traverse the smaller set removing what is not in both.
+  absl::erase_if(small, [&big](const std::string_view& elem) {
+    return !big.contains(elem);
+  });
+  return std::move(small);
+}
+
+template <>
+absl::flat_hash_set<std::string_view> Difference(
+    absl::flat_hash_set<std::string_view>&& left,
+    absl::flat_hash_set<std::string_view>&& right) {
+  // Remove all elements in right from left.
+  for (const auto& element : right) {
+    left.erase(element);
+  }
+  return std::move(left);
+}
+
+template <>
 roaring::Roaring Union(roaring::Roaring&& left, roaring::Roaring&& right) {
   return left | right;
 }
 
+template <>
 roaring::Roaring Intersection(roaring::Roaring&& left,
                               roaring::Roaring&& right) {
   return left & right;
 }
 
+template <>
 roaring::Roaring Difference(roaring::Roaring&& left, roaring::Roaring&& right) {
   return left - right;
 }

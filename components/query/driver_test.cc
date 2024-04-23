@@ -19,6 +19,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/functional/bind_front.h"
 #include "absl/synchronization/notification.h"
 #include "components/query/scanner.h"
 #include "gmock/gmock.h"

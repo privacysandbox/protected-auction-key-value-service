@@ -16,6 +16,8 @@
 
 #include "components/query/sets.h"
 
+#include <utility>
+
 #include "gtest/gtest.h"
 
 namespace kv_server {

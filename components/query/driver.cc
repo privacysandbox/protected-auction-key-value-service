@@ -18,7 +18,6 @@
 #include <utility>
 
 #include "absl/container/flat_hash_set.h"
-#include "absl/functional/bind_front.h"
 #include "components/query/ast.h"
 
 namespace kv_server {
@@ -38,7 +37,8 @@ absl::StatusOr<absl::flat_hash_set<std::string_view>> Driver::GetResult()
   if (ast_ == nullptr) {
     return absl::flat_hash_set<std::string_view>();
   }
-  return Eval(*ast_, [this](std::string_view key) { return lookup_fn_(key); });
+  return Eval<KVSetView>(
+      *ast_, [this](std::string_view key) { return lookup_fn_(key); });
 }
 
 void Driver::SetError(std::string error) {

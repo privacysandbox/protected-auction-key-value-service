@@ -29,8 +29,6 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
-#include "absl/flags/usage.h"
-#include "absl/strings/str_join.h"
 #include "components/query/driver.h"
 #include "components/query/scanner.h"
 #include "components/tools/query_dot.h"
@@ -46,6 +44,8 @@ ABSL_FLAG(
     "query's abstract syntax tree."
     "Output is written to the provided, which can then be visualized.  See "
     "https://graphviz.org/ for details.");
+
+// TODO: Add a flag to allow using uin32_t sets.
 
 absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> kDb = {
     {"A", {"a", "b", "c"}},

@@ -48,6 +48,7 @@ cc_library(
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/logger:request_context_logger",
         "@google_privacysandbox_servers_common//src/roma/interface",
         "@google_privacysandbox_servers_common//src/roma/roma_service",
     ],

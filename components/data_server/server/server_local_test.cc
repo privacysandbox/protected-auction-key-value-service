@@ -200,7 +200,7 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
-  EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
+  EXPECT_CALL(*mock_udf_client, SetCodeObject(_, _))
       .WillOnce(testing::Return(absl::OkStatus()));
   EXPECT_CALL(
       *parameter_client,
@@ -271,7 +271,7 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
-  EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
+  EXPECT_CALL(*mock_udf_client, SetCodeObject(_, _))
       .WillOnce(testing::Return(absl::OkStatus()));
   EXPECT_CALL(
       *parameter_client,
@@ -346,7 +346,7 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
-  EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
+  EXPECT_CALL(*mock_udf_client, SetCodeObject(_, _))
       .WillOnce(testing::Return(absl::OkStatus()));
   EXPECT_CALL(
       *parameter_client,

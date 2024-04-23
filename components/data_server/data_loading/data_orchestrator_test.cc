@@ -413,7 +413,8 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeSuccess) {
 
   EXPECT_CALL(udf_client_, SetCodeObject(CodeConfig{.js = "function hello(){}",
                                                     .udf_handler_name = "hello",
-                                                    .logical_commit_time = 1}))
+                                                    .logical_commit_time = 1},
+                                         _))
       .WillOnce(Return(absl::OkStatus()));
   auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
   ASSERT_TRUE(maybe_orchestrator.ok());
@@ -465,7 +466,8 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeFails_OrchestratorContinues) {
 
   EXPECT_CALL(udf_client_, SetCodeObject(CodeConfig{.js = "function hello(){}",
                                                     .udf_handler_name = "hello",
-                                                    .logical_commit_time = 1}))
+                                                    .logical_commit_time = 1},
+                                         _))
       .WillOnce(Return(absl::UnknownError("Some error.")));
   auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
   ASSERT_TRUE(maybe_orchestrator.ok());

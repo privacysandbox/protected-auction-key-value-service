@@ -689,7 +689,8 @@ absl::Status Server::SetDefaultUdfCodeObject() {
       CodeConfig{.js = kDefaultUdfCodeSnippet,
                  .udf_handler_name = kDefaultUdfHandlerName,
                  .logical_commit_time = kDefaultLogicalCommitTime,
-                 .version = kDefaultVersion});
+                 .version = kDefaultVersion},
+      server_safe_log_context_);
   return status;
 }
 

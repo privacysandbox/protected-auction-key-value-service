@@ -28,6 +28,7 @@
 #include "components/util/request_context.h"
 #include "google/protobuf/message.h"
 #include "public/api_schema.pb.h"
+#include "src/logger/request_context_logger.h"
 #include "src/roma/config/config.h"
 #include "src/roma/interface/roma.h"
 
@@ -55,10 +56,18 @@ class UdfClient {
   virtual absl::Status Stop() = 0;
 
   // Sets the code object that will be used for UDF execution
-  virtual absl::Status SetCodeObject(CodeConfig code_config) = 0;
+  virtual absl::Status SetCodeObject(
+      CodeConfig code_config,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext)) = 0;
 
   // Sets the WASM code object that will be used for UDF execution
-  virtual absl::Status SetWasmCodeObject(CodeConfig code_config) = 0;
+  virtual absl::Status SetWasmCodeObject(
+      CodeConfig code_config,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext)) = 0;
 
   // Creates a UDF executor. This calls Roma::Init, which forks.
   static absl::StatusOr<std::unique_ptr<UdfClient>> Create(

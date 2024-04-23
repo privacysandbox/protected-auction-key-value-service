@@ -43,11 +43,15 @@ class NoopUdfClientImpl : public UdfClient {
 
   absl::Status Stop() { return absl::OkStatus(); }
 
-  absl::Status SetCodeObject(CodeConfig code_config) {
+  absl::Status SetCodeObject(
+      CodeConfig code_config,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) {
     return absl::OkStatus();
   }
 
-  absl::Status SetWasmCodeObject(CodeConfig code_config) {
+  absl::Status SetWasmCodeObject(
+      CodeConfig code_config,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) {
     return absl::OkStatus();
   }
 };

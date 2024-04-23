@@ -203,7 +203,8 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
           CodeConfig{.js = udf_config->code_snippet()->str(),
                      .udf_handler_name = udf_config->handler_name()->str(),
                      .logical_commit_time = udf_config->logical_commit_time(),
-                     .version = udf_config->version()});
+                     .version = udf_config->version()},
+          log_context);
     }
     return absl::InvalidArgumentError("Received unsupported record.");
   };

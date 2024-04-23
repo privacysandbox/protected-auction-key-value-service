@@ -182,7 +182,8 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   PS_RETURN_IF_ERROR(udf_client.status())
       << "Error starting UDF execution engine";
 
-  auto code_object_status = udf_client.value()->SetCodeObject(code_config);
+  auto code_object_status =
+      udf_client.value()->SetCodeObject(code_config, log_context);
   if (!code_object_status.ok()) {
     LOG(ERROR) << "Error setting UDF code object: " << code_object_status;
     ShutdownUdf(*udf_client.value());

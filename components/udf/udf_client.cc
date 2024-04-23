@@ -136,7 +136,9 @@ class UdfClientImpl : public UdfClient {
 
   absl::Status Stop() { return roma_service_.Stop(); }
 
-  absl::Status SetCodeObject(CodeConfig code_config) {
+  absl::Status SetCodeObject(
+      CodeConfig code_config,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) {
     // Only update code if logical commit time is larger.
     if (logical_commit_time_ >= code_config.logical_commit_time) {
       VLOG(1) << "Not updating code object. logical_commit_time "
@@ -181,8 +183,11 @@ class UdfClientImpl : public UdfClient {
     return absl::OkStatus();
   }
 
-  absl::Status SetWasmCodeObject(CodeConfig code_config) {
-    const auto code_object_status = SetCodeObject(std::move(code_config));
+  absl::Status SetWasmCodeObject(
+      CodeConfig code_config,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) {
+    const auto code_object_status =
+        SetCodeObject(std::move(code_config), log_context);
     if (!code_object_status.ok()) {
       return code_object_status;
     }

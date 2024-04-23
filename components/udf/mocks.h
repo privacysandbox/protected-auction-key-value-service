@@ -38,8 +38,12 @@ class MockUdfClient : public UdfClient {
                const google::protobuf::RepeatedPtrField<UDFArgument>&),
               (const, override));
   MOCK_METHOD((absl::Status), Stop, (), (override));
-  MOCK_METHOD((absl::Status), SetCodeObject, (CodeConfig), (override));
-  MOCK_METHOD((absl::Status), SetWasmCodeObject, (CodeConfig), (override));
+  MOCK_METHOD((absl::Status), SetCodeObject,
+              (CodeConfig, privacy_sandbox::server_common::log::PSLogContext&),
+              (override));
+  MOCK_METHOD((absl::Status), SetWasmCodeObject,
+              (CodeConfig, privacy_sandbox::server_common::log::PSLogContext&),
+              (override));
 };
 
 }  // namespace kv_server

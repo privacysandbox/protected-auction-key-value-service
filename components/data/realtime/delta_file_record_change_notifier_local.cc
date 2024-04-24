@@ -32,8 +32,9 @@ class LocalDeltaFileRecordChangeNotifier
     : public DeltaFileRecordChangeNotifier {
  public:
   explicit LocalDeltaFileRecordChangeNotifier(
-      std::unique_ptr<ChangeNotifier> notifier)
-      : notifier_(std::move(notifier)) {}
+      std::unique_ptr<ChangeNotifier> notifier,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : notifier_(std::move(notifier)), log_context_(log_context) {}
 
   absl::StatusOr<NotificationsContext> GetNotifications(
       absl::Duration max_wait,
@@ -60,15 +61,17 @@ class LocalDeltaFileRecordChangeNotifier
 
  private:
   std::unique_ptr<ChangeNotifier> notifier_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 std::unique_ptr<DeltaFileRecordChangeNotifier>
 DeltaFileRecordChangeNotifier::Create(
-    std::unique_ptr<ChangeNotifier> change_notifier) {
+    std::unique_ptr<ChangeNotifier> change_notifier,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<LocalDeltaFileRecordChangeNotifier>(
-      std::move(change_notifier));
+      std::move(change_notifier), log_context);
 }
 
 }  // namespace kv_server

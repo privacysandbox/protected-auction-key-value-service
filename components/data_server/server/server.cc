@@ -407,7 +407,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     return status;
   }
 
+  LOG(INFO) << "Setting default UDF.";
   if (absl::Status status = SetDefaultUdfCodeObject(); !status.ok()) {
+    LOG(ERROR) << status;
     return absl::InternalError(
         "Error setting default UDF. Please contact Google to fix the default "
         "UDF or retry starting the server.");

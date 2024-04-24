@@ -27,6 +27,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
 #include "absl/time/time.h"
+#include "components/errors/error_tag.h"
 #include "google/protobuf/util/json_util.h"
 #include "src/roma/config/config.h"
 #include "src/roma/interface/roma.h"
@@ -35,6 +36,12 @@
 namespace kv_server {
 
 namespace {
+
+enum class ErrorTag : int {
+  kCodeUpdateTimeoutError = 1,
+  kUdfExecutionTimeoutError = 2
+};
+
 using google::protobuf::json::MessageToJsonString;
 using google::scp::roma::CodeObject;
 using google::scp::roma::Config;
@@ -124,7 +131,10 @@ class UdfClientImpl : public UdfClient {
 
     notification->WaitForNotificationWithTimeout(udf_timeout_);
     if (!notification->HasBeenNotified()) {
-      return absl::InternalError("Timed out waiting for UDF result.");
+      return StatusWithErrorTag(
+          absl::Status(absl::StatusCode::kDeadlineExceeded,
+                       "Timed out waiting for UDF execution result."),
+          __FILE__, ErrorTag::kUdfExecutionTimeoutError);
     }
     if (!response_status->ok()) {
       LOG(ERROR) << "Error executing UDF: " << *response_status;
@@ -169,7 +179,10 @@ class UdfClientImpl : public UdfClient {
 
     notification->WaitForNotificationWithTimeout(kCodeUpdateTimeout);
     if (!notification->HasBeenNotified()) {
-      return absl::InternalError("Timed out setting UDF code object.");
+      return StatusWithErrorTag(
+          absl::Status(absl::StatusCode::kDeadlineExceeded,
+                       "Timed out setting UDF code object."),
+          __FILE__, ErrorTag::kCodeUpdateTimeoutError);
     }
     if (!response_status->ok()) {
       LOG(ERROR) << "Error compiling UDF code object. " << *response_status;

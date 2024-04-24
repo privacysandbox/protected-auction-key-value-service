@@ -239,6 +239,10 @@
 
     Total number of workers for UDF execution
 
+-   **udf_update_timeout_millis**
+
+    UDF update timeout in milliseconds. Default is 5000.
+
 -   **use_external_metrics_collector_endpoint**
 
     Whether to use external metrics collector endpoint. For AWS it is false because KV instance

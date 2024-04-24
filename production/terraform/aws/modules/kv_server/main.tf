@@ -160,6 +160,7 @@ module "parameter" {
   num_shards_parameter_value                                 = var.num_shards
   udf_num_workers_parameter_value                            = var.udf_num_workers
   udf_timeout_millis_parameter_value                         = var.udf_timeout_millis
+  udf_update_timeout_millis_parameter_value                  = var.udf_update_timeout_millis
   udf_min_log_level_parameter_value                          = var.udf_min_log_level
   route_v1_requests_to_v2_parameter_value                    = var.route_v1_requests_to_v2
   add_missing_keys_v1_parameter_value                        = var.add_missing_keys_v1
@@ -230,6 +231,7 @@ module "iam_role_policies" {
     module.parameter.use_real_coordinators_parameter_arn,
     module.parameter.use_sharding_key_regex_parameter_arn,
     module.parameter.udf_timeout_millis_parameter_arn,
+    module.parameter.udf_update_timeout_millis_parameter_arn,
     module.parameter.udf_min_log_level_parameter_arn,
     module.parameter.enable_otel_logger_parameter_arn,
   module.parameter.data_loading_blob_prefix_allowlist_parameter_arn]

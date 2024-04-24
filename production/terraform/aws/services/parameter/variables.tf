@@ -149,6 +149,11 @@ variable "udf_timeout_millis_parameter_value" {
   type        = number
 }
 
+variable "udf_update_timeout_millis_parameter_value" {
+  description = "UDF update timeout in milliseconds."
+  type        = number
+}
+
 variable "udf_min_log_level_parameter_value" {
   description = "Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for min_log_level and above. Default is 0(info)."
   type        = number

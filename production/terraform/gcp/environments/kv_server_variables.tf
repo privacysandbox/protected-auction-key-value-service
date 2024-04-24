@@ -174,6 +174,12 @@ variable "udf_timeout_millis" {
   description = "UDF execution timeout in milliseconds."
 }
 
+variable "udf_update_timeout_millis" {
+  type        = number
+  default     = 5000
+  description = "UDF update timeout in milliseconds."
+}
+
 variable "udf_min_log_level" {
   type        = number
   default     = 0

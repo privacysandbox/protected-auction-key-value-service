@@ -221,6 +221,10 @@
 
     Number of workers for UDF execution.
 
+-   **udf_update_timeout_millis**
+
+    UDF update timeout in milliseconds. Default is 5000.
+
 -   **use_confidential_space_debug_image**
 
     If true, use the Confidential space debug image. Else use the prod image, which does not allow

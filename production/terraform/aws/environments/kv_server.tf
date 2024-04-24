@@ -86,9 +86,10 @@ module "kv_server" {
   sharding_key_regex     = var.sharding_key_regex
 
   # Variables related to UDF execution.
-  udf_num_workers    = var.udf_num_workers
-  udf_timeout_millis = var.udf_timeout_millis
-  udf_min_log_level  = var.udf_min_log_level
+  udf_num_workers           = var.udf_num_workers
+  udf_timeout_millis        = var.udf_timeout_millis
+  udf_update_timeout_millis = var.udf_update_timeout_millis
+  udf_min_log_level         = var.udf_min_log_level
 
   # Variables related to coordinators
   use_real_coordinators                      = var.use_real_coordinators

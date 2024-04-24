@@ -81,6 +81,7 @@ module "kv_server" {
     num-shards                                 = var.num_shards
     udf-num-workers                            = var.udf_num_workers
     udf-timeout-millis                         = var.udf_timeout_millis
+    udf-update-timeout-millis                  = var.udf_update_timeout_millis
     udf-min-log-level                          = var.udf_min_log_level
     route-v1-to-v2                             = var.route_v1_to_v2
     add-missing-keys-v1                        = var.add_missing_keys_v1

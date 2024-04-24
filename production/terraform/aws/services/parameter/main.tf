@@ -241,6 +241,13 @@ resource "aws_ssm_parameter" "udf_timeout_millis_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "udf_update_timeout_millis_parameter" {
+  name      = "${var.service}-${var.environment}-udf-update-timeout-millis"
+  type      = "String"
+  value     = var.udf_update_timeout_millis_parameter_value
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "udf_min_log_level_parameter" {
   name      = "${var.service}-${var.environment}-udf-min-log-level"
   type      = "String"

@@ -312,8 +312,8 @@ absl::StatusOr<typename ConcurrentStreamRecordReader<RecordT>::ShardResult>
 ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
     const ShardRange& shard,
     const std::function<absl::Status(const RecordT&)>& record_callback) {
-  VLOG(2) << "Reading shard: "
-          << "[" << shard.start_pos << "," << shard.end_pos << "]";
+  VLOG(2) << "Reading shard: " << "[" << shard.start_pos << "," << shard.end_pos
+          << "]";
   ScopeLatencyMetricsRecorder<
       ServerSafeMetricsContext,
       kConcurrentStreamRecordReaderReadShardRecordsLatency>

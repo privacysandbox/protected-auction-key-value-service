@@ -153,9 +153,8 @@ AvroConcurrentStreamRecordReader::ReadByteRange(
     const ByteRange& byte_range,
     const std::function<absl::Status(const std::string_view&)>&
         record_callback) {
-  VLOG(2) << "Reading byte_range: "
-          << "[" << byte_range.begin_offset << "," << byte_range.end_offset
-          << "]";
+  VLOG(2) << "Reading byte_range: " << "[" << byte_range.begin_offset << ","
+          << byte_range.end_offset << "]";
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kConcurrentStreamRecordReaderReadByteRangeLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());

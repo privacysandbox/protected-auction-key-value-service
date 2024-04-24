@@ -155,7 +155,6 @@ class Server {
 
   std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
       key_fetcher_manager_;
-  std::unique_ptr<opentelemetry::logs::LoggerProvider> log_provider_;
   std::unique_ptr<OpenTelemetrySink> open_telemetry_sink_;
   KVServerSafeLogContext server_safe_log_context_;
 };

@@ -40,7 +40,7 @@ class RealtimeThreadPoolManagerAws : public RealtimeThreadPoolManager {
         std::string error_message =
             "Realtime realtime_notifier is nullptr, realtime data "
             "loading disabled.";
-        LOG(ERROR) << error_message;
+        PS_LOG(ERROR, log_context_) << error_message;
         return absl::InvalidArgumentError(std::move(error_message));
       }
       auto status = realtime_notifier->Start(callback);
@@ -55,14 +55,14 @@ class RealtimeThreadPoolManagerAws : public RealtimeThreadPoolManager {
     absl::Status status = absl::OkStatus();
     for (auto& realtime_notifier : realtime_notifiers_) {
       if (realtime_notifier == nullptr) {
-        LOG(ERROR) << "Realtime realtime_notifier is nullptr";
+        PS_LOG(ERROR, log_context_) << "Realtime realtime_notifier is nullptr";
         continue;
       }
       if (realtime_notifier->IsRunning()) {
         auto current_status = realtime_notifier->Stop();
         status.Update(current_status);
         if (!current_status.ok()) {
-          LOG(ERROR) << current_status.message();
+          PS_LOG(ERROR, log_context_) << current_status.message();
           // we still want to try to stop others
           continue;
         }

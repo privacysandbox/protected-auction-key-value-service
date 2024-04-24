@@ -154,7 +154,8 @@ absl::flat_hash_map<std::string, std::vector<std::string>> ListPrefixDeltaFiles(
     BlobStorageClient::DataLocation location,
     const BlobPrefixAllowlist& prefix_allowlist,
     const absl::flat_hash_map<std::string, std::string>& prefix_start_after_map,
-    BlobStorageClient& blob_client) {
+    BlobStorageClient& blob_client,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   absl::flat_hash_map<std::string, std::vector<std::string>> prefix_blobs_map;
   for (const auto& blob_prefix : prefix_allowlist.Prefixes()) {
     location.prefix = blob_prefix;
@@ -165,7 +166,8 @@ absl::flat_hash_map<std::string, std::vector<std::string>> ListPrefixDeltaFiles(
          .start_after =
              (iter == prefix_start_after_map.end()) ? "" : iter->second});
     if (!result.ok()) {
-      LOG(ERROR) << "Failed to list " << location << ": " << result.status();
+      PS_LOG(ERROR, log_context)
+          << "Failed to list " << location << ": " << result.status();
       continue;
     }
     if (result->empty()) {
@@ -185,7 +187,7 @@ void DeltaFileNotifierImpl::Watch(
     BlobStorageClient::DataLocation location,
     absl::flat_hash_map<std::string, std::string>&& prefix_start_after_map,
     std::function<void(const std::string& key)> callback) {
-  LOG(INFO) << "Started to watch " << location;
+  PS_LOG(INFO, log_context_) << "Started to watch " << location;
   // Flag starts expired, and forces an initial poll.
   ExpiringFlag expiring_flag(clock_);
   uint32_t sequential_failures = 0;
@@ -197,12 +199,12 @@ void DeltaFileNotifierImpl::Watch(
       const absl::Duration backoff_time =
           std::min(expiring_flag.GetTimeRemaining(),
                    ExponentialBackoffForRetry(sequential_failures));
-      LOG(ERROR) << "Failed to get delta file notifications: "
-                 << should_list_blobs.status() << ".  Waiting for "
-                 << backoff_time;
+      PS_LOG(ERROR, log_context_)
+          << "Failed to get delta file notifications: "
+          << should_list_blobs.status() << ".  Waiting for " << backoff_time;
       if (!sleep_for_->Duration(backoff_time)) {
-        LOG(ERROR) << "Failed to sleep for " << backoff_time
-                   << ".  SleepFor invalid.";
+        PS_LOG(ERROR, log_context_)
+            << "Failed to sleep for " << backoff_time << ".  SleepFor invalid.";
       }
       continue;
     }
@@ -214,8 +216,9 @@ void DeltaFileNotifierImpl::Watch(
     // Fake clock is moved forward in callback so flag must be set beforehand.
     expiring_flag.Set(poll_frequency_);
     int delta_file_count = 0;
-    auto prefix_blobs_map = ListPrefixDeltaFiles(
-        location, blob_prefix_allowlist_, prefix_start_after_map, client_);
+    auto prefix_blobs_map =
+        ListPrefixDeltaFiles(location, blob_prefix_allowlist_,
+                             prefix_start_after_map, client_, log_context_);
     for (const auto& [prefix, prefix_blobs] : prefix_blobs_map) {
       for (const auto& blob : prefix_blobs) {
         if (!IsDeltaFilename(blob)) {

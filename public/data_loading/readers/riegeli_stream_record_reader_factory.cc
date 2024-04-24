@@ -22,9 +22,11 @@ std::unique_ptr<StreamRecordReader>
 RiegeliStreamRecordReaderFactory::CreateReader(std::istream& data_input) const {
   return std::make_unique<RiegeliStreamReader<std::string_view>>(
       data_input,
-      [](const riegeli::SkippedRegion& skipped_region,
-         riegeli::RecordReaderBase& record_reader) {
-        LOG(WARNING) << "Skipping over corrupted region: " << skipped_region;
+      [log_context = &options_.log_context](
+          const riegeli::SkippedRegion& skipped_region,
+          riegeli::RecordReaderBase& record_reader) {
+        PS_LOG(WARNING, *log_context)
+            << "Skipping over corrupted region: " << skipped_region;
         return true;
       },
       options_.log_context);

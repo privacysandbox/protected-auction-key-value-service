@@ -158,8 +158,9 @@ absl::StatusOr<std::vector<std::string>> GcpBlobStorageClient::ListBlobs(
   }
   for (auto&& object_metadata : list_object_reader) {
     if (!object_metadata) {
-      LOG(ERROR) << "Blob error when listing blobs:"
-                 << std::move(object_metadata).status().message();
+      PS_LOG(ERROR, log_context_)
+          << "Blob error when listing blobs:"
+          << std::move(object_metadata).status().message();
       continue;
     }
     // Manually exclude the starting name as the StartOffset option is

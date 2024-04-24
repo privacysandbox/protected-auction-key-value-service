@@ -73,14 +73,14 @@ PrivateKeyVendingEndpoint GetKeyFetchingEndpoint(
   PrivateKeyVendingEndpoint endpoint;
   endpoint.account_identity =
       parameter_fetcher.GetParameter(account_identity_prefix);
-  LOG(INFO) << "Retrieved " << account_identity_prefix
-            << " parameter: " << endpoint.account_identity;
+  PS_LOG(INFO, log_context) << "Retrieved " << account_identity_prefix
+                            << " parameter: " << endpoint.account_identity;
   endpoint.private_key_vending_service_endpoint =
       parameter_fetcher.GetParameter(private_key_endpoint_prefix);
-  LOG(INFO) << "Service endpoint: "
-            << endpoint.private_key_vending_service_endpoint;
+  PS_LOG(INFO, log_context)
+      << "Service endpoint: " << endpoint.private_key_vending_service_endpoint;
   endpoint.service_region = parameter_fetcher.GetParameter(region_prefix);
-  LOG(INFO) << "Region: " << endpoint.service_region;
+  PS_LOG(INFO, log_context) << "Region: " << endpoint.service_region;
   return endpoint;
 }
 }  // namespace
@@ -90,8 +90,9 @@ CloudKeyFetcherFactory::CreateKeyFetcherManager(
     const ParameterFetcher& parameter_fetcher) const {
   if (!parameter_fetcher.GetBoolParameter(
           kUseRealCoordinatorsParameterSuffix)) {
-    LOG(INFO) << "Not using real coordinators. Using hardcoded unsafe public "
-                 "and private keys";
+    PS_LOG(INFO, log_context_)
+        << "Not using real coordinators. Using hardcoded unsafe public "
+           "and private keys";
     return std::make_unique<FakeKeyFetcherManager>();
   }
   std::vector<std::string> endpoints =
@@ -118,8 +119,8 @@ CloudKeyFetcherFactory::CreateKeyFetcherManager(
 std::vector<std::string> CloudKeyFetcherFactory::GetPublicKeyFetchingEndpoint(
     const ParameterFetcher& parameter_fetcher) const {
   auto publicKeyEndpointParameter = absl::GetFlag(FLAGS_public_key_endpoint);
-  LOG(INFO) << "Retrieved public_key_endpoint parameter: "
-            << publicKeyEndpointParameter;
+  PS_LOG(INFO, log_context_) << "Retrieved public_key_endpoint parameter: "
+                             << publicKeyEndpointParameter;
   std::vector<std::string> endpoints = {publicKeyEndpointParameter};
   return endpoints;
 }

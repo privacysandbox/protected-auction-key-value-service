@@ -40,8 +40,8 @@ class LocalChangeNotifier : public ChangeNotifier {
             << local_directory_.string();
     auto status_or = FindNewFiles({});
     if (!status_or.ok()) {
-      LOG(ERROR) << "Unable to build initial file list"
-                 << status_or.status().message();
+      PS_LOG(ERROR, log_context_) << "Unable to build initial file list"
+                                  << status_or.status().message();
     }
     files_in_directory_ = std::move(status_or.value());
     VLOG(1) << "Found " << files_in_directory_.size() << " files.";
@@ -52,8 +52,8 @@ class LocalChangeNotifier : public ChangeNotifier {
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
       const std::function<bool()>& should_stop_callback) override {
-    LOG(INFO) << "Watching for new files in directory: "
-              << local_directory_.string();
+    PS_LOG(INFO, log_context_)
+        << "Watching for new files in directory: " << local_directory_.string();
 
     while (true) {
       if (should_stop_callback()) {

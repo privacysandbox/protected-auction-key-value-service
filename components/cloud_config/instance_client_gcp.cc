@@ -120,7 +120,7 @@ class GcpInstanceClient : public InstanceClient {
 
   absl::Status RecordLifecycleHeartbeat(
       std::string_view lifecycle_hook_name) override {
-    LOG(INFO) << "Record lifecycle heartbeat.";
+    PS_LOG(INFO, log_context_) << "Record lifecycle heartbeat.";
     return absl::OkStatus();
   }
 
@@ -162,7 +162,7 @@ class GcpInstanceClient : public InstanceClient {
       std::string_view lifecycle_hook_name) override {
     PS_RETURN_IF_ERROR(SetInitializedLabel())
         << "Error setting the initialized label";
-    LOG(INFO) << "Complete lifecycle.";
+    PS_LOG(INFO, log_context_) << "Complete lifecycle.";
     return absl::OkStatus();
   }
 
@@ -258,8 +258,8 @@ class GcpInstanceClient : public InstanceClient {
             shard_number_ =
                 response.instance_details().labels().at(kShardNumberLabel);
           } else {
-            LOG(ERROR) << "Failed to get instance details: "
-                       << GetErrorMessage(result.status_code);
+            PS_LOG(ERROR, log_context_) << "Failed to get instance details: "
+                                        << GetErrorMessage(result.status_code);
           }
           done.Notify();
         });
@@ -278,8 +278,9 @@ class GcpInstanceClient : public InstanceClient {
           if (result.Successful()) {
             resource_name = std::string{response.instance_resource_name()};
           } else {
-            LOG(ERROR) << "Failed to get instance resource name: "
-                       << GetErrorMessage(result.status_code);
+            PS_LOG(ERROR, log_context_)
+                << "Failed to get instance resource name: "
+                << GetErrorMessage(result.status_code);
           }
 
           done.Notify();

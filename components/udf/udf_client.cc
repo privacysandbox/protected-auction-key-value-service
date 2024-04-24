@@ -184,7 +184,8 @@ class UdfClientImpl : public UdfClient {
           notification->Notify();
         });
     if (!load_status.ok()) {
-      LOG(ERROR) << "Error setting UDF Code object: " << load_status;
+      PS_LOG(ERROR, log_context)
+          << "Error setting UDF Code object: " << load_status;
       return load_status;
     }
 
@@ -196,7 +197,8 @@ class UdfClientImpl : public UdfClient {
           __FILE__, ErrorTag::kCodeUpdateTimeoutError);
     }
     if (!response_status->ok()) {
-      LOG(ERROR) << "Error compiling UDF code object. " << *response_status;
+      PS_LOG(ERROR, log_context)
+          << "Error compiling UDF code object. " << *response_status;
       return *response_status;
     }
     handler_name_ = std::move(code_config.udf_handler_name);

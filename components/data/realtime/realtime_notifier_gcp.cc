@@ -46,7 +46,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
 
   ~RealtimeNotifierGcp() {
     if (const auto s = Stop(); !s.ok()) {
-      LOG(ERROR) << "Realtime updater failed to stop: " << s;
+      PS_LOG(ERROR, log_context_) << "Realtime updater failed to stop: " << s;
     }
   }
 
@@ -61,7 +61,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
 
   absl::Status Stop() override {
     absl::Status status;
-    LOG(INFO) << "Realtime updater received stop signal.";
+    PS_LOG(INFO, log_context_) << "Realtime updater received stop signal.";
     {
       absl::MutexLock lock(&mutex_);
       if (session_.valid()) {
@@ -73,7 +73,7 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
       VLOG(8) << "Sleep for just called stop.";
     }
     status.Update(thread_manager_->Stop());
-    LOG(INFO) << "Thread manager just called stop.";
+    PS_LOG(INFO, log_context_) << "Thread manager just called stop.";
     return status;
   }
 
@@ -117,12 +117,14 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
     std::string string_decoded;
     if (!absl::Base64Unescape(m.data(), &string_decoded)) {
       LogServerErrorMetric(kRealtimeDecodeMessageFailure);
-      LOG(ERROR) << "The body of the message is not a base64 encoded string.";
+      PS_LOG(ERROR, log_context_)
+          << "The body of the message is not a base64 encoded string.";
       std::move(h).ack();
       return;
     }
     if (auto count = callback(string_decoded); !count.ok()) {
-      LOG(ERROR) << "Data loading callback failed: " << count.status();
+      PS_LOG(ERROR, log_context_)
+          << "Data loading callback failed: " << count.status();
       LogServerErrorMetric(kRealtimeMessageApplicationFailure);
     }
     RecordGcpSuppliedE2ELatency(m);
@@ -144,9 +146,9 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
             OnMessageReceived(m, std::move(h), callback);
           });
     }
-    LOG(INFO) << "Realtime updater initialized.";
+    PS_LOG(INFO, log_context_) << "Realtime updater initialized.";
     sleep_for_->Duration(absl::InfiniteDuration());
-    LOG(INFO) << "Realtime updater stopped watching.";
+    PS_LOG(INFO, log_context_) << "Realtime updater stopped watching.";
   }
 
   std::unique_ptr<ThreadManager> thread_manager_;
@@ -174,9 +176,10 @@ absl::StatusOr<std::unique_ptr<Subscriber>> CreateSubscriber(
   }
   auto queue_metadata =
       std::get<GcpQueueMetadata>(realtime_message_service->GetQueueMetadata());
-  LOG(INFO) << "Listening to queue_id " << queue_metadata.queue_id
-            << " project id " << notifier_metadata.project_id << " with "
-            << notifier_metadata.num_threads << " threads.";
+  PS_LOG(INFO, log_context)
+      << "Listening to queue_id " << queue_metadata.queue_id << " project id "
+      << notifier_metadata.project_id << " with "
+      << notifier_metadata.num_threads << " threads.";
   return std::make_unique<Subscriber>(pubsub::MakeSubscriberConnection(
       pubsub::Subscription(notifier_metadata.project_id,
                            queue_metadata.queue_id),

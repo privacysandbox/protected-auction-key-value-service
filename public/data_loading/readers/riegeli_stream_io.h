@@ -86,7 +86,7 @@ class RiegeliStreamReader : public StreamRecordReader {
       overall_status.Update(callback_status);
     }
     if (!overall_status.ok()) {
-      LOG(ERROR) << overall_status;
+      PS_LOG(ERROR, log_context_) << overall_status;
     }
     return reader_.status();
   }
@@ -140,16 +140,18 @@ class ConcurrentStreamRecordReader : public StreamRecordReader {
   struct Options {
     int64_t num_worker_threads = kDefaultNumWorkerThreads;
     int64_t min_shard_size_bytes = kDefaultMinShardSize;
-    std::function<bool(const riegeli::SkippedRegion&,
-                       riegeli::RecordReaderBase& record_reader)>
-        recovery_callback = [](const riegeli::SkippedRegion& region,
-                               riegeli::RecordReaderBase& record_reader) {
-          LOG(WARNING) << "Skipping over corrupted region: " << region;
-          return true;
-        };
     privacy_sandbox::server_common::log::PSLogContext& log_context =
         const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
             privacy_sandbox::server_common::log::kNoOpContext);
+    std::function<bool(const riegeli::SkippedRegion&,
+                       riegeli::RecordReaderBase& record_reader)>
+        recovery_callback = [log_context = &this->log_context](
+                                const riegeli::SkippedRegion& region,
+                                riegeli::RecordReaderBase& record_reader) {
+          PS_LOG(WARNING, *log_context)
+              << "Skipping over corrupted region: " << region;
+          return true;
+        };
   };
   ConcurrentStreamRecordReader(
       std::function<std::unique_ptr<RecordStream>()> stream_factory,
@@ -200,9 +202,11 @@ ConcurrentStreamRecordReader<RecordT>::GetKVFileMetadata() {
   auto record_stream = stream_factory_();
   RiegeliStreamReader<RecordT> metadata_reader(
       record_stream->Stream(),
-      [](const riegeli::SkippedRegion& region,
-         riegeli::RecordReaderBase& record_reader) {
-        LOG(WARNING) << "Skipping over corrupted region: " << region;
+      [log_context = &options_.log_context](
+          const riegeli::SkippedRegion& region,
+          riegeli::RecordReaderBase& record_reader) {
+        PS_LOG(WARNING, *log_context)
+            << "Skipping over corrupted region: " << region;
         return true;
       },
       options_.log_context);
@@ -345,8 +349,9 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
   // TODO: b/269119466 - Figure out how to handle this better. Maybe add
   // metrics to track callback failures (??).
   if (!overall_status.ok()) {
-    LOG(ERROR) << "Record callback failed to process some records with: "
-               << overall_status;
+    PS_LOG(ERROR, options_.log_context)
+        << "Record callback failed to process some records with: "
+        << overall_status;
   }
   if (!record_reader.ok()) {
     return record_reader.status();

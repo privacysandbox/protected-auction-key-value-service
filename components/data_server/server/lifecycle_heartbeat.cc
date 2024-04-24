@@ -50,15 +50,16 @@ class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
     }
     launch_hook_name_ =
         parameter_fetcher.GetParameter(kLaunchHookParameterSuffix);
-    LOG(INFO) << "Retrieved " << kLaunchHookParameterSuffix
-              << " parameter: " << launch_hook_name_;
+    PS_LOG(INFO, log_context_) << "Retrieved " << kLaunchHookParameterSuffix
+                               << " parameter: " << launch_hook_name_;
 
     absl::Status status =
         heartbeat_->StartDelayed(kLifecycleHeartbeatFrequency, [this] {
           if (const absl::Status status =
                   instance_client_.RecordLifecycleHeartbeat(launch_hook_name_);
               !status.ok()) {
-            LOG(WARNING) << "Failed to record lifecycle heartbeat: " << status;
+            PS_LOG(WARNING, log_context_)
+                << "Failed to record lifecycle heartbeat: " << status;
           }
         });
     if (status.ok()) {
@@ -78,7 +79,8 @@ class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
         },
         "CompleteLifecycle", LogStatusSafeMetricsFn<kCompleteLifecycleStatus>(),
         log_context_);
-    LOG(INFO) << "Completed lifecycle hook " << launch_hook_name_;
+    PS_LOG(INFO, log_context_)
+        << "Completed lifecycle hook " << launch_hook_name_;
   }
 
  private:

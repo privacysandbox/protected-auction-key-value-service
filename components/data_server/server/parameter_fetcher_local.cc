@@ -24,8 +24,8 @@ constexpr std::string_view kRealtimeDirectoryToWatch = "realtime-directory";
 
 NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
   std::string directory = GetParameter(kLocalDirectoryToWatch);
-  LOG(INFO) << "Retrieved " << kLocalDirectoryToWatch
-            << " parameter: " << directory;
+  PS_LOG(INFO, log_context_)
+      << "Retrieved " << kLocalDirectoryToWatch << " parameter: " << directory;
   return LocalNotifierMetadata{.local_directory = std::move(directory)};
 }
 
@@ -37,8 +37,8 @@ BlobStorageClient::ClientOptions ParameterFetcher::GetBlobStorageClientOptions()
 NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
     int32_t num_shards, int32_t shard_num) const {
   std::string directory = GetParameter(kRealtimeDirectoryToWatch);
-  LOG(INFO) << "Retrieved " << kRealtimeDirectoryToWatch
-            << " parameter: " << directory;
+  PS_LOG(INFO, log_context_) << "Retrieved " << kRealtimeDirectoryToWatch
+                             << " parameter: " << directory;
   return LocalNotifierMetadata{.local_directory = std::move(directory)};
 }
 

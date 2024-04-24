@@ -41,7 +41,7 @@ class ThreadManagerImpl : public ThreadManager {
     if (!IsRunning()) return;
     VLOG(8) << thread_name_ << " In destructor. Attempting to stop the thread.";
     if (const auto s = Stop(); !s.ok()) {
-      LOG(ERROR) << thread_name_ << " failed to stop: " << s;
+      PS_LOG(ERROR, log_context_) << thread_name_ << " failed to stop: " << s;
     }
   }
 
@@ -49,7 +49,8 @@ class ThreadManagerImpl : public ThreadManager {
     if (IsRunning()) {
       return absl::FailedPreconditionError("Already running");
     }
-    LOG(INFO) << thread_name_ << " Creating thread for processing";
+    PS_LOG(INFO, log_context_)
+        << thread_name_ << " Creating thread for processing";
     thread_ = std::make_unique<std::thread>(watch);
     return absl::OkStatus();
   }
@@ -57,7 +58,7 @@ class ThreadManagerImpl : public ThreadManager {
   absl::Status Stop() override {
     VLOG(8) << thread_name_ << "Stop called";
     if (!IsRunning()) {
-      LOG(ERROR) << thread_name_ << " not running";
+      PS_LOG(ERROR, log_context_) << thread_name_ << " not running";
       return absl::FailedPreconditionError("Not currently running");
     }
     should_stop_ = true;

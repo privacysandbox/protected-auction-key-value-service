@@ -43,13 +43,13 @@ class LocalInstanceClient : public InstanceClient {
 
   absl::Status RecordLifecycleHeartbeat(
       std::string_view lifecycle_hook_name) override {
-    LOG(INFO) << "Record lifecycle heartbeat.";
+    PS_LOG(INFO, log_context_) << "Record lifecycle heartbeat.";
     return absl::OkStatus();
   }
 
   absl::Status CompleteLifecycle(
       std::string_view lifecycle_hook_name) override {
-    LOG(INFO) << "Complete lifecycle.";
+    PS_LOG(INFO, log_context_) << "Complete lifecycle.";
     return absl::OkStatus();
   }
 

@@ -61,25 +61,25 @@ class GcpParameterClient : public ParameterClient {
 
   ~GcpParameterClient() {
     if (absl::Status status = parameter_client_->Stop(); !status.ok()) {
-      LOG(ERROR) << "Cannot stop parameter client!" << status;
+      PS_LOG(ERROR, log_context_) << "Cannot stop parameter client!" << status;
     }
   }
 
   absl::StatusOr<std::string> GetParameter(
       std::string_view parameter_name,
       std::optional<std::string> default_value = std::nullopt) const override {
-    LOG(INFO) << "Getting parameter: " << parameter_name;
+    PS_LOG(INFO, log_context_) << "Getting parameter: " << parameter_name;
     GetParameterRequest get_parameter_request;
     get_parameter_request.set_parameter_name(parameter_name);
     std::string param_value;
     absl::BlockingCounter counter(1);
     absl::Status status = parameter_client_->GetParameter(
         std::move(get_parameter_request),
-        [&param_value, &counter](const ExecutionResult result,
-                                 GetParameterResponse response) {
+        [&param_value, &counter, &log_context = log_context_](
+            const ExecutionResult result, GetParameterResponse response) {
           if (!result.Successful()) {
-            LOG(ERROR) << "GetParameter failed: "
-                       << GetErrorMessage(result.status_code);
+            PS_LOG(ERROR, log_context) << "GetParameter failed: "
+                                       << GetErrorMessage(result.status_code);
           } else {
             param_value = response.parameter_value() != "EMPTY_STRING"
                               ? response.parameter_value()
@@ -91,17 +91,19 @@ class GcpParameterClient : public ParameterClient {
     counter.Wait();
     if (!status.ok()) {
       if (default_value.has_value()) {
-        LOG(WARNING) << "Unable to get parameter: " << parameter_name
-                     << " with error: " << status
-                     << ", returning default value: " << *default_value;
+        PS_LOG(WARNING, log_context_)
+            << "Unable to get parameter: " << parameter_name
+            << " with error: " << status
+            << ", returning default value: " << *default_value;
         return *default_value;
       }
-      LOG(ERROR) << "Unable to get parameter: " << parameter_name
-                 << " with error: " << status;
+      PS_LOG(ERROR, log_context_)
+          << "Unable to get parameter: " << parameter_name
+          << " with error: " << status;
       return status;
     }
-    LOG(INFO) << "Got parameter: " << parameter_name
-              << " with value: " << param_value;
+    PS_LOG(INFO, log_context_) << "Got parameter: " << parameter_name
+                               << " with value: " << param_value;
     return param_value;
   }
 
@@ -116,7 +118,7 @@ class GcpParameterClient : public ParameterClient {
       const std::string error =
           absl::StrFormat("Failed converting %s parameter: %s to int32.",
                           parameter_name, *parameter);
-      LOG(ERROR) << error;
+      PS_LOG(ERROR, log_context_) << error;
       return absl::InvalidArgumentError(error);
     }
 
@@ -136,7 +138,7 @@ class GcpParameterClient : public ParameterClient {
       const std::string error =
           absl::StrFormat("Failed converting %s parameter: %s to bool.",
                           parameter_name, *parameter);
-      LOG(ERROR) << error;
+      PS_LOG(ERROR, log_context_) << error;
       return absl::InvalidArgumentError(error);
     }
 

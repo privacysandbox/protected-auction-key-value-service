@@ -99,8 +99,8 @@ class ShardedServerInitializer : public ServerInitializer {
         remoteLookupServerAddress, grpc::InsecureServerCredentials());
     remote_lookup_server_builder.RegisterService(
         remote_lookup.remote_lookup_service.get());
-    LOG(INFO) << "Remote lookup server listening on "
-              << remoteLookupServerAddress;
+    PS_LOG(INFO, log_context_)
+        << "Remote lookup server listening on " << remoteLookupServerAddress;
     remote_lookup.remote_lookup_server =
         remote_lookup_server_builder.BuildAndStart();
     return remote_lookup;

@@ -33,11 +33,15 @@ constexpr std::string_view kSecondaryKeyServiceCloudFunctionUrlSuffix =
 constexpr std::string_view kSecondaryWorkloadIdentityPoolProviderSuffix =
     "secondary-workload-identity-pool-provider";
 
-void UpdatePrimaryGcpEndpoint(PrivateKeyVendingEndpoint& endpoint,
-                              const ParameterFetcher& parameter_fetcher);
+void UpdatePrimaryGcpEndpoint(
+    PrivateKeyVendingEndpoint& endpoint,
+    const ParameterFetcher& parameter_fetcher,
+    privacy_sandbox::server_common::log::PSLogContext& log_context);
 
-void UpdateSecondaryGcpEndpoint(PrivateKeyVendingEndpoint& endpoint,
-                                const ParameterFetcher& parameter_fetcher);
+void UpdateSecondaryGcpEndpoint(
+    PrivateKeyVendingEndpoint& endpoint,
+    const ParameterFetcher& parameter_fetcher,
+    privacy_sandbox::server_common::log::PSLogContext& log_context);
 
 }  // namespace kv_server
 

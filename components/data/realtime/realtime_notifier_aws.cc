@@ -82,12 +82,13 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
         ++sequential_failures;
         const absl::Duration backoff_time =
             ExponentialBackoffForRetry(sequential_failures);
-        LOG(ERROR) << "Failed to get realtime notifications: "
-                   << updates.status() << ".  Waiting for " << backoff_time;
+        PS_LOG(ERROR, log_context_)
+            << "Failed to get realtime notifications: " << updates.status()
+            << ".  Waiting for " << backoff_time;
         LogServerErrorMetric(kRealtimeGetNotificationsFailure);
         if (!sleep_for_->Duration(backoff_time)) {
-          LOG(ERROR) << "Failed to sleep for " << backoff_time
-                     << ".  SleepFor invalid.";
+          PS_LOG(ERROR, log_context_) << "Failed to sleep for " << backoff_time
+                                      << ".  SleepFor invalid.";
           LogServerErrorMetric(kRealtimeSleepFailure);
         }
         continue;
@@ -97,7 +98,8 @@ class RealtimeNotifierImpl : public RealtimeNotifier {
       for (const auto& realtime_message : updates->realtime_messages) {
         if (auto count = callback(realtime_message.parsed_notification);
             !count.ok()) {
-          LOG(ERROR) << "Data loading callback failed: " << count.status();
+          PS_LOG(ERROR, log_context_)
+              << "Data loading callback failed: " << count.status();
           LogServerErrorMetric(kRealtimeMessageApplicationFailure);
         }
         auto e2e_cloud_provided_latency = absl::ToDoubleMicroseconds(

@@ -42,7 +42,7 @@ class RealtimeThreadPoolManagerGCP : public RealtimeThreadPoolManager {
     if (realtime_notifier_->IsRunning()) {
       auto status = realtime_notifier_->Stop();
       if (!status.ok()) {
-        LOG(ERROR) << status.message();
+        PS_LOG(ERROR, log_context_) << status.message();
       }
       return status;
     }

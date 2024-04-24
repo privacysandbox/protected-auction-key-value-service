@@ -50,9 +50,9 @@ class DeltaRecordStreamReader : public DeltaRecordReader {
               privacy_sandbox::server_common::log::kNoOpContext))
       : stream_reader_(RiegeliStreamReader<std::string_view>(
             src_stream,
-            [](const riegeli::SkippedRegion& region,
-               riegeli::RecordReaderBase& record_reader) {
-              LOG(ERROR) << "Failed to read region: " << region;
+            [&log_context](const riegeli::SkippedRegion& region,
+                           riegeli::RecordReaderBase& record_reader) {
+              PS_LOG(ERROR, log_context) << "Failed to read region: " << region;
               return true;
             },
             log_context)),

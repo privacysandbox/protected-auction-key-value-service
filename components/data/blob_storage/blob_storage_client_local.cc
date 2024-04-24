@@ -50,7 +50,7 @@ std::unique_ptr<BlobReader> FileBlobStorageClient::GetBlobReader(
       std::make_unique<FileBlobReader>(GetFullPath(location));
 
   if (!reader->Stream()) {
-    LOG(ERROR) << absl::ErrnoToStatus(
+    PS_LOG(ERROR, log_context_) << absl::ErrnoToStatus(
         errno,
         absl::StrCat("Unable to open file: ", GetFullPath(location).string()));
     return nullptr;

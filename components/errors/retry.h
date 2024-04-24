@@ -73,8 +73,9 @@ class RetryableWithMax {
       if (result.ok()) {
         return result;
       } else {
-        LOG(WARNING) << task_name_ << " failed with " << ToStatus(result)
-                     << " for Attempt " << i;
+        PS_LOG(WARNING, log_context_)
+            << task_name_ << " failed with " << ToStatus(result)
+            << " for Attempt " << i;
       }
       const absl::Duration backoff = ExponentialBackoffForRetry(i);
       if (!sleep_for_.Duration(backoff)) {

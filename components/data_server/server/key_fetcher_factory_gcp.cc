@@ -33,7 +33,7 @@ class KeyFetcherFactoryGcp : public CloudKeyFetcherFactory {
     PrivateKeyVendingEndpoint endpoint =
         CloudKeyFetcherFactory::GetPrimaryKeyFetchingEndpoint(
             parameter_fetcher);
-    UpdatePrimaryGcpEndpoint(endpoint, parameter_fetcher);
+    UpdatePrimaryGcpEndpoint(endpoint, parameter_fetcher, log_context_);
     return endpoint;
   }
 
@@ -42,7 +42,7 @@ class KeyFetcherFactoryGcp : public CloudKeyFetcherFactory {
     PrivateKeyVendingEndpoint endpoint =
         CloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
             parameter_fetcher);
-    UpdateSecondaryGcpEndpoint(endpoint, parameter_fetcher);
+    UpdateSecondaryGcpEndpoint(endpoint, parameter_fetcher, log_context_);
     return endpoint;
   }
 

@@ -75,12 +75,14 @@ class AwsChangeNotifier : public ChangeNotifier {
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
       const std::function<bool()>& should_stop_callback) override {
-    LOG(INFO) << "Getting notifications for topic " << sns_arn_;
+    PS_LOG(INFO, log_context_)
+        << "Getting notifications for topic " << sns_arn_;
     do {
       if (!queue_manager_->IsSetupComplete()) {
         absl::Status status = queue_manager_->SetupQueue();
         if (!status.ok()) {
-          LOG(ERROR) << "Could not set up queue for topic " << sns_arn_;
+          PS_LOG(ERROR, log_context_)
+              << "Could not set up queue for topic " << sns_arn_;
           LogServerErrorMetric(kAwsChangeNotifierQueueSetupFailure);
           return status;
         }
@@ -127,8 +129,9 @@ class AwsChangeNotifier : public ChangeNotifier {
       if (status.ok()) {
         last_updated_ = now;
       } else {
-        LOG(ERROR) << "Failed to TagQueue with " << kLastUpdatedTag << ": "
-                   << tag << " " << status;
+        PS_LOG(ERROR, log_context_)
+            << "Failed to TagQueue with " << kLastUpdatedTag << ": " << tag
+            << " " << status;
         LogServerErrorMetric(kAwsChangeNotifierTagFailure);
       }
     }
@@ -149,13 +152,13 @@ class AwsChangeNotifier : public ChangeNotifier {
     request.SetMaxNumberOfMessages(10);
     const auto outcome = sqs_->ReceiveMessage(request);
     if (!outcome.IsSuccess()) {
-      LOG(ERROR) << "Failed to receive message from SQS: "
-                 << outcome.GetError().GetMessage();
+      PS_LOG(ERROR, log_context_) << "Failed to receive message from SQS: "
+                                  << outcome.GetError().GetMessage();
       LogServerErrorMetric(kAwsChangeNotifierMessagesReceivingFailure);
       if (!outcome.GetError().ShouldRetry()) {
         // Handle case where recreating Queue will resolve the issue.
         // Example: Queue accidentally deleted.
-        LOG(INFO) << "Will create a new Queue";
+        PS_LOG(INFO, log_context_) << "Will create a new Queue";
         queue_manager_->Reset();
       }
       return absl::UnavailableError(outcome.GetError().GetMessage());
@@ -200,8 +203,8 @@ class AwsChangeNotifier : public ChangeNotifier {
     req.SetEntries(std::move(delete_message_batch_request_entries));
     const auto outcome = sqs_->DeleteMessageBatch(req);
     if (!outcome.IsSuccess()) {
-      LOG(ERROR) << "Failed to delete message from SQS: "
-                 << outcome.GetError().GetMessage();
+      PS_LOG(ERROR, log_context_) << "Failed to delete message from SQS: "
+                                  << outcome.GetError().GetMessage();
       LogServerErrorMetric(kAwsChangeNotifierMessagesDeletionFailure);
     }
   }

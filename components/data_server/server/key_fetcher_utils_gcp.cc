@@ -20,31 +20,38 @@
 
 namespace kv_server {
 
-void SetGcpSpecificParameters(PrivateKeyVendingEndpoint& endpoint,
-                              const ParameterFetcher& parameter_fetcher,
-                              const std::string_view cloudfunction_prefix,
-                              const std::string_view wip_provider) {
+void SetGcpSpecificParameters(
+    PrivateKeyVendingEndpoint& endpoint,
+    const ParameterFetcher& parameter_fetcher,
+    const std::string_view cloudfunction_prefix,
+    const std::string_view wip_provider,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   endpoint.gcp_private_key_vending_service_cloudfunction_url =
       parameter_fetcher.GetParameter(cloudfunction_prefix);
-  LOG(INFO) << "Retrieved " << cloudfunction_prefix << " parameter: "
-            << endpoint.gcp_private_key_vending_service_cloudfunction_url;
+  PS_LOG(INFO, log_context)
+      << "Retrieved " << cloudfunction_prefix << " parameter: "
+      << endpoint.gcp_private_key_vending_service_cloudfunction_url;
   endpoint.gcp_wip_provider = parameter_fetcher.GetParameter(wip_provider);
-  LOG(INFO) << "Retrieved " << wip_provider
-            << " parameter: " << endpoint.gcp_wip_provider;
+  PS_LOG(INFO, log_context) << "Retrieved " << wip_provider
+                            << " parameter: " << endpoint.gcp_wip_provider;
 }
 
-void UpdatePrimaryGcpEndpoint(PrivateKeyVendingEndpoint& endpoint,
-                              const ParameterFetcher& parameter_fetcher) {
-  SetGcpSpecificParameters(endpoint, parameter_fetcher,
-                           kPrimaryKeyServiceCloudFunctionUrlSuffix,
-                           kPrimaryWorkloadIdentityPoolProviderSuffix);
+void UpdatePrimaryGcpEndpoint(
+    PrivateKeyVendingEndpoint& endpoint,
+    const ParameterFetcher& parameter_fetcher,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  SetGcpSpecificParameters(
+      endpoint, parameter_fetcher, kPrimaryKeyServiceCloudFunctionUrlSuffix,
+      kPrimaryWorkloadIdentityPoolProviderSuffix, log_context);
 }
 
-void UpdateSecondaryGcpEndpoint(PrivateKeyVendingEndpoint& endpoint,
-                                const ParameterFetcher& parameter_fetcher) {
-  SetGcpSpecificParameters(endpoint, parameter_fetcher,
-                           kSecondaryKeyServiceCloudFunctionUrlSuffix,
-                           kSecondaryWorkloadIdentityPoolProviderSuffix);
+void UpdateSecondaryGcpEndpoint(
+    PrivateKeyVendingEndpoint& endpoint,
+    const ParameterFetcher& parameter_fetcher,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  SetGcpSpecificParameters(
+      endpoint, parameter_fetcher, kSecondaryKeyServiceCloudFunctionUrlSuffix,
+      kSecondaryWorkloadIdentityPoolProviderSuffix, log_context);
 }
 
 }  // namespace kv_server

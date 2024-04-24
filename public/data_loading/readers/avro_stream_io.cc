@@ -182,8 +182,9 @@ AvroConcurrentStreamRecordReader::ReadByteRange(
   // TODO: b/269119466 - Figure out how to handle this better. Maybe add
   // metrics to track callback failures (??).
   if (!overall_status.ok()) {
-    LOG(ERROR) << "Record callback failed to process some records with: "
-               << overall_status;
+    PS_LOG(ERROR, options_.log_context)
+        << "Record callback failed to process some records with: "
+        << overall_status;
     return overall_status;
   }
   VLOG(2) << "Done reading " << num_records_read << " records in byte_range: ["

@@ -186,18 +186,19 @@ class AwsInstanceClient : public InstanceClient {
       std::string_view lifecycle_hook_name) override {
     const absl::StatusOr<std::string> instance_id = GetInstanceId();
     if (!instance_id.ok()) {
-      LOG(ERROR) << "Failed to get instance_id: " << instance_id.status();
+      PS_LOG(ERROR, log_context_)
+          << "Failed to get instance_id: " << instance_id.status();
       return instance_id.status();
     }
-    LOG(INFO) << "Retrieved instance id: " << *instance_id;
+    PS_LOG(INFO, log_context_) << "Retrieved instance id: " << *instance_id;
 
     const absl::StatusOr<std::string> auto_scaling_group_name =
         GetAutoScalingGroupName(*auto_scaling_client_, *instance_id);
     if (!auto_scaling_group_name.ok()) {
       return auto_scaling_group_name.status();
     }
-    LOG(INFO) << "Retrieved auto scaling group name "
-              << *auto_scaling_group_name;
+    PS_LOG(INFO, log_context_)
+        << "Retrieved auto scaling group name " << *auto_scaling_group_name;
 
     Aws::AutoScaling::Model::RecordLifecycleActionHeartbeatRequest request;
     request.SetAutoScalingGroupName(*auto_scaling_group_name);
@@ -216,18 +217,19 @@ class AwsInstanceClient : public InstanceClient {
       std::string_view lifecycle_hook_name) override {
     const absl::StatusOr<std::string> instance_id = GetInstanceId();
     if (!instance_id.ok()) {
-      LOG(ERROR) << "Failed to get instance_id: " << instance_id.status();
+      PS_LOG(ERROR, log_context_)
+          << "Failed to get instance_id: " << instance_id.status();
       return instance_id.status();
     }
-    LOG(INFO) << "Retrieved instance id: " << *instance_id;
+    PS_LOG(INFO, log_context_) << "Retrieved instance id: " << *instance_id;
 
     const absl::StatusOr<std::string> auto_scaling_group_name =
         GetAutoScalingGroupName(*auto_scaling_client_, *instance_id);
     if (!auto_scaling_group_name.ok()) {
       return auto_scaling_group_name.status();
     }
-    LOG(INFO) << "Retrieved auto scaling group name "
-              << *auto_scaling_group_name;
+    PS_LOG(INFO, log_context_)
+        << "Retrieved auto scaling group name " << *auto_scaling_group_name;
 
     Aws::AutoScaling::Model::CompleteLifecycleActionRequest request;
     request.SetAutoScalingGroupName(*auto_scaling_group_name);
@@ -357,10 +359,11 @@ class AwsInstanceClient : public InstanceClient {
   absl::StatusOr<std::string> GetTag(std::string tag) {
     absl::StatusOr<std::string> instance_id = GetInstanceId();
     if (!instance_id.ok()) {
-      LOG(ERROR) << "Failed to get instance_id: " << instance_id.status();
+      PS_LOG(ERROR, log_context_)
+          << "Failed to get instance_id: " << instance_id.status();
       return instance_id;
     }
-    LOG(INFO) << "Retrieved instance id: " << *instance_id;
+    PS_LOG(INFO, log_context_) << "Retrieved instance id: " << *instance_id;
     Aws::EC2::Model::Filter resource_id_filter;
     resource_id_filter.SetName(kResourceIdFilter);
     resource_id_filter.AddValues(*instance_id);
@@ -371,18 +374,20 @@ class AwsInstanceClient : public InstanceClient {
     Aws::EC2::Model::DescribeTagsRequest request;
     request.SetFilters({resource_id_filter, key_filter});
 
-    LOG(INFO) << "Sending Aws::EC2::Model::DescribeTagsRequest to get tag: "
-              << tag;
+    PS_LOG(INFO, log_context_)
+        << "Sending Aws::EC2::Model::DescribeTagsRequest to get tag: " << tag;
     const auto outcome = ec2_client_->DescribeTags(request);
     if (!outcome.IsSuccess()) {
-      LOG(ERROR) << "Failed to get tag: " << outcome.GetError();
+      PS_LOG(ERROR, log_context_)
+          << "Failed to get tag: " << outcome.GetError();
       return AwsErrorToStatus(outcome.GetError());
     }
     if (outcome.GetResult().GetTags().size() != 1) {
       const std::string error_msg = absl::StrCat(
           "Could not get tag ", tag, " for instance ", *instance_id);
-      LOG(ERROR) << error_msg << "; Retrieved "
-                 << outcome.GetResult().GetTags().size() << " tags";
+      PS_LOG(ERROR, log_context_)
+          << error_msg << "; Retrieved " << outcome.GetResult().GetTags().size()
+          << " tags";
       return absl::NotFoundError(error_msg);
     }
     return outcome.GetResult().GetTags()[0].GetValue();

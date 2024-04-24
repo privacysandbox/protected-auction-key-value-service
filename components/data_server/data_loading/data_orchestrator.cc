@@ -237,7 +237,7 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
 absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
     const BlobStorageClient::DataLocation& location,
     const DataOrchestrator::Options& options) {
-  LOG(INFO) << "Loading " << location;
+  PS_LOG(INFO, options.log_context) << "Loading " << location;
   int64_t max_timestamp = 0;
   auto& cache = options.cache;
   auto record_reader =
@@ -250,10 +250,10 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
                       _ << "Blob " << location);
   if (metadata.has_sharding_metadata() &&
       metadata.sharding_metadata().shard_num() != options.shard_num) {
-    LOG(INFO) << "Blob " << location << " belongs to shard num "
-              << metadata.sharding_metadata().shard_num()
-              << " but server shard num is " << options.shard_num
-              << " Skipping it.";
+    PS_LOG(INFO, options.log_context)
+        << "Blob " << location << " belongs to shard num "
+        << metadata.sharding_metadata().shard_num()
+        << " but server shard num is " << options.shard_num << " Skipping it.";
     return DataLoadingStats{
         .total_updated_records = 0,
         .total_deleted_records = 0,
@@ -304,16 +304,18 @@ class DataOrchestratorImpl : public DataOrchestrator {
       absl::MutexLock l(&mu_);
       stop_ = true;
     }
-    LOG(INFO) << "Sent cancel signal to data loader thread";
-    LOG(INFO) << "Stopping loading new data from " << options_.data_bucket;
+    PS_LOG(INFO, options_.log_context)
+        << "Sent cancel signal to data loader thread";
+    PS_LOG(INFO, options_.log_context)
+        << "Stopping loading new data from " << options_.data_bucket;
     if (options_.delta_notifier.IsRunning()) {
       if (const auto s = options_.delta_notifier.Stop(); !s.ok()) {
-        LOG(ERROR) << "Failed to stop notify: " << s;
+        PS_LOG(ERROR, options_.log_context) << "Failed to stop notify: " << s;
       }
     }
-    LOG(INFO) << "Delta notifier stopped";
+    PS_LOG(INFO, options_.log_context) << "Delta notifier stopped";
     data_loader_thread_->join();
-    LOG(INFO) << "Stopped loading new data";
+    PS_LOG(INFO, options_.log_context) << "Stopped loading new data";
   }
 
   static absl::StatusOr<absl::flat_hash_map<std::string, std::string>> Init(
@@ -334,14 +336,16 @@ class DataOrchestratorImpl : public DataOrchestrator {
       if (!maybe_filenames.ok()) {
         return maybe_filenames.status();
       }
-      LOG(INFO) << "Initializing cache with " << maybe_filenames->size()
-                << " delta files from " << location;
+      PS_LOG(INFO, options.log_context)
+          << "Initializing cache with " << maybe_filenames->size()
+          << " delta files from " << location;
       for (auto&& basename : std::move(*maybe_filenames)) {
         auto blob = BlobStorageClient::DataLocation{
             .bucket = options.data_bucket, .prefix = prefix, .key = basename};
         if (!IsDeltaFilename(blob.key)) {
-          LOG(WARNING) << "Saw a file " << blob
-                       << " not in delta file format. Skipping it.";
+          PS_LOG(WARNING, options.log_context)
+              << "Saw a file " << blob
+              << " not in delta file format. Skipping it.";
           continue;
         }
         (*ending_delta_files)[prefix] = blob.key;
@@ -349,7 +353,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
             !s.ok()) {
           return s.status();
         }
-        LOG(INFO) << "Done loading " << blob;
+        PS_LOG(INFO, options.log_context) << "Done loading " << blob;
       }
     }
     return ending_delta_files;
@@ -359,7 +363,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
     if (data_loader_thread_) {
       return absl::OkStatus();
     }
-    LOG(INFO) << "Transitioning to state ContinuouslyLoadNewData";
+    PS_LOG(INFO, options_.log_context)
+        << "Transitioning to state ContinuouslyLoadNewData";
     auto prefix_last_basenames = prefix_last_basenames_;
     absl::Status status = options_.delta_notifier.Start(
         options_.change_notifier, {.bucket = options_.data_bucket},
@@ -393,7 +398,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
   // On failure, puts the file back to the end of the queue and retry at a
   // later point.
   void ProcessNewFiles() {
-    LOG(INFO) << "Thread for new file processing started";
+    PS_LOG(INFO, options_.log_context)
+        << "Thread for new file processing started";
     absl::Condition has_new_event(this,
                                   &DataOrchestratorImpl::HasNewEventToProcess);
     while (true) {
@@ -401,21 +407,23 @@ class DataOrchestratorImpl : public DataOrchestrator {
       {
         absl::MutexLock l(&mu_, has_new_event);
         if (stop_) {
-          LOG(INFO) << "Thread for new file processing stopped";
+          PS_LOG(INFO, options_.log_context)
+              << "Thread for new file processing stopped";
           return;
         }
         basename = std::move(unprocessed_basenames_.back());
         unprocessed_basenames_.pop_back();
       }
-      LOG(INFO) << "Loading " << basename;
+      PS_LOG(INFO, options_.log_context) << "Loading " << basename;
       auto blob = ParseBlobName(basename);
       if (!IsDeltaFilename(blob.key)) {
-        LOG(WARNING) << "Received file with invalid name: " << basename;
+        PS_LOG(WARNING, options_.log_context)
+            << "Received file with invalid name: " << basename;
         continue;
       }
       if (!options_.blob_prefix_allowlist.Contains(blob.prefix)) {
-        LOG(WARNING) << "Received file with prefix not allowlisted: "
-                     << basename;
+        PS_LOG(WARNING, options_.log_context)
+            << "Received file with prefix not allowlisted: " << basename;
         continue;
       }
       RetryUntilOk(
@@ -437,7 +445,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
   void EnqueueNewFilesToProcess(const std::string& basename) {
     absl::MutexLock l(&mu_);
     unprocessed_basenames_.push_front(basename);
-    LOG(INFO) << "queued " << basename << " for loading";
+    PS_LOG(INFO, options_.log_context)
+        << "queued " << basename << " for loading";
     // TODO: block if the queue is too large: consumption is too slow.
   }
 
@@ -449,8 +458,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
     for (const auto& prefix : options.blob_prefix_allowlist.Prefixes()) {
       auto location = BlobStorageClient::DataLocation{
           .bucket = options.data_bucket, .prefix = prefix};
-      LOG(INFO) << "Initializing cache with snapshot file(s) from: "
-                << location;
+      PS_LOG(INFO, options.log_context)
+          << "Initializing cache with snapshot file(s) from: " << location;
       PS_ASSIGN_OR_RETURN(
           auto snapshot_group,
           FindMostRecentFileGroup(
@@ -459,7 +468,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
                               .status = FileGroup::FileStatus::kComplete},
               options.blob_client));
       if (!snapshot_group.has_value()) {
-        LOG(INFO) << "No snapshot files found in: " << location;
+        PS_LOG(INFO, options.log_context)
+            << "No snapshot files found in: " << location;
         continue;
       }
       for (const auto& snapshot : snapshot_group->Filenames()) {
@@ -474,13 +484,15 @@ class DataOrchestratorImpl : public DataOrchestrator {
         PS_ASSIGN_OR_RETURN(auto metadata, record_reader->GetKVFileMetadata());
         if (metadata.has_sharding_metadata() &&
             metadata.sharding_metadata().shard_num() != options.shard_num) {
-          LOG(INFO) << "Snapshot " << snapshot_blob << " belongs to shard num "
-                    << metadata.sharding_metadata().shard_num()
-                    << " but server shard num is " << options.shard_num
-                    << ". Skipping it.";
+          PS_LOG(INFO, options.log_context)
+              << "Snapshot " << snapshot_blob << " belongs to shard num "
+              << metadata.sharding_metadata().shard_num()
+              << " but server shard num is " << options.shard_num
+              << ". Skipping it.";
           continue;
         }
-        LOG(INFO) << "Loading snapshot file: " << snapshot_blob;
+        PS_LOG(INFO, options.log_context)
+            << "Loading snapshot file: " << snapshot_blob;
         PS_ASSIGN_OR_RETURN(
             auto stats, TraceLoadCacheWithDataFromFile(snapshot_blob, options));
         if (auto iter = ending_delta_files.find(prefix);
@@ -488,7 +500,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
             metadata.snapshot().ending_delta_file() > iter->second) {
           ending_delta_files[prefix] = metadata.snapshot().ending_delta_file();
         }
-        LOG(INFO) << "Done loading snapshot file: " << snapshot_blob;
+        PS_LOG(INFO, options.log_context)
+            << "Done loading snapshot file: " << snapshot_blob;
       }
     }
     return ending_delta_files;

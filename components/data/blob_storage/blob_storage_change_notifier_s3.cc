@@ -47,8 +47,9 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
       const absl::StatusOr<std::string> parsedMessage =
           ParseObjectKeyFromJson(message);
       if (!parsedMessage.ok()) {
-        LOG(ERROR) << "Failed to parse JSON. Error: " << parsedMessage.status()
-                   << " Message:" << message;
+        PS_LOG(ERROR, log_context_)
+            << "Failed to parse JSON. Error: " << parsedMessage.status()
+            << " Message:" << message;
         LogServerErrorMetric(kAwsJsonParseError);
         continue;
       }

@@ -68,6 +68,7 @@ using privacy_sandbox::server_common::ConfigureTracer;
 using privacy_sandbox::server_common::GetTracer;
 using privacy_sandbox::server_common::InitTelemetry;
 using privacy_sandbox::server_common::TelemetryProvider;
+using privacy_sandbox::server_common::log::PSLogContext;
 using privacy_sandbox::server_common::telemetry::BuildDependentConfig;
 
 // TODO: Use config cpio client to get this from the environment
@@ -186,11 +187,12 @@ GetServerTelemetryConfig(const ParameterClient& parameter_client,
 }
 
 BlobPrefixAllowlist GetBlobPrefixAllowlist(
-    const ParameterFetcher& parameter_fetcher) {
+    const ParameterFetcher& parameter_fetcher, PSLogContext& log_context) {
   const auto prefix_allowlist = parameter_fetcher.GetParameter(
       kDataLoadingBlobPrefixAllowlistSuffix, /*default_value=*/"");
-  LOG(INFO) << "Retrieved " << kDataLoadingBlobPrefixAllowlistSuffix
-            << " parameter: " << prefix_allowlist;
+  PS_LOG(INFO, log_context)
+      << "Retrieved " << kDataLoadingBlobPrefixAllowlistSuffix
+      << " parameter: " << prefix_allowlist;
   return BlobPrefixAllowlist(prefix_allowlist);
 }
 
@@ -225,30 +227,20 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
       kLoggingVerbosityLevelParameterSuffix);
   absl::SetGlobalVLogLevel(verbosity_level);
   privacy_sandbox::server_common::log::PS_VLOG_IS_ON(0, verbosity_level);
-  const bool enable_otel_logger =
-      parameter_fetcher.GetBoolParameter(kEnableOtelLoggerParameterSuffix);
-  LOG(INFO) << "Retrieved " << kEnableOtelLoggerParameterSuffix
-            << " parameter: " << enable_otel_logger;
-  if (!enable_otel_logger) {
-    return;
-  }
+  static auto* log_provider =
+      privacy_sandbox::server_common::ConfigurePrivateLogger(server_info,
+                                                             collector_endpoint)
+          .release();
+  privacy_sandbox::server_common::log::logger_private =
+      log_provider->GetLogger(kServiceName.data()).get();
+  parameter_client_->UpdateLogContext(server_safe_log_context_);
+  instance_client_->UpdateLogContext(server_safe_log_context_);
   if (const bool enable_consented_log =
           parameter_fetcher.GetBoolParameter(kEnableConsentedLogSuffix);
       enable_consented_log) {
     privacy_sandbox::server_common::log::ServerToken(
         parameter_fetcher.GetParameter(kConsentedDebugTokenSuffix, ""));
   }
-  log_provider_ = privacy_sandbox::server_common::ConfigurePrivateLogger(
-      server_info, collector_endpoint);
-  // TODO(b/327001960): Remove open telemetry sink after PS_LOG and PS_VLOG
-  //  migrations are done
-  open_telemetry_sink_ = std::make_unique<OpenTelemetrySink>(
-      log_provider_->GetLogger(kServiceName.data()));
-  absl::AddLogSink(open_telemetry_sink_.get());
-  privacy_sandbox::server_common::log::logger_private =
-      log_provider_->GetLogger(kServiceName.data()).get();
-  parameter_client_->UpdateLogContext(server_safe_log_context_);
-  instance_client_->UpdateLogContext(server_safe_log_context_);
 }
 
 void Server::InitializeTelemetry(const ParameterClient& parameter_client,
@@ -256,8 +248,16 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
   std::string instance_id = RetryUntilOk(
       [&instance_client]() { return instance_client.GetInstanceId(); },
       "GetInstanceId", LogMetricsNoOpCallback());
-
-  InitTelemetry(std::string(kServiceName), std::string(BuildVersion()));
+  ParameterFetcher parameter_fetcher(environment_, parameter_client);
+  const bool enable_otel_logger =
+      parameter_fetcher.GetBoolParameter(kEnableOtelLoggerParameterSuffix);
+  LOG(INFO) << "Retrieved " << kEnableOtelLoggerParameterSuffix
+            << " parameter: " << enable_otel_logger;
+  BuildDependentConfig telemetry_config(
+      GetServerTelemetryConfig(parameter_client, environment_));
+  InitTelemetry(std::string(kServiceName), std::string(BuildVersion()),
+                telemetry_config.TraceAllowed(),
+                telemetry_config.MetricAllowed(), enable_otel_logger);
   auto metrics_options = GetMetricsOptions(parameter_client, environment_);
   auto metrics_collector_endpoint =
       GetMetricsCollectorEndPoint(parameter_client, environment_);
@@ -265,8 +265,6 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
     CheckMetricsCollectorEndPointConnection(metrics_collector_endpoint.value());
   }
   LOG(INFO) << "Done retrieving metrics collector endpoint";
-  BuildDependentConfig telemetry_config(
-      GetServerTelemetryConfig(parameter_client, environment_));
   auto* context_map = KVServerContextMap(
       telemetry_config,
       ConfigurePrivateMetrics(
@@ -281,20 +279,13 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
           CreateKVAttributes(instance_id, std::to_string(shard_num_),
                              environment_),
           metrics_options, metrics_collector_endpoint));
-
-  // TODO(b/300137699): Deprecate ConfigureMetrics once all metrics are migrated
-  // to new telemetry API
-  ConfigureMetrics(
-      CreateKVAttributes(instance_id, std::to_string(shard_num_), environment_),
-      metrics_options, metrics_collector_endpoint);
   ConfigureTracer(
       CreateKVAttributes(instance_id, std::to_string(shard_num_), environment_),
       metrics_collector_endpoint);
-  ParameterFetcher parameter_fetcher(environment_, parameter_client);
   InitLogger(CreateKVAttributes(std::move(instance_id),
                                 std::to_string(shard_num_), environment_),
              metrics_collector_endpoint, parameter_fetcher);
-  LOG(INFO) << "Done init telemetry";
+  PS_LOG(INFO, server_safe_log_context_) << "Done init telemetry";
 }
 
 absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
@@ -381,18 +372,21 @@ absl::Status Server::Init(std::unique_ptr<ParameterClient> parameter_client,
   return InitOnceInstancesAreCreated();
 }
 
-KeySharder GetKeySharder(const ParameterFetcher& parameter_fetcher) {
+KeySharder GetKeySharder(const ParameterFetcher& parameter_fetcher,
+                         PSLogContext& log_context) {
   const bool use_sharding_key_regex =
       parameter_fetcher.GetBoolParameter(kUseShardingKeyRegexParameterSuffix);
-  LOG(INFO) << "Retrieved " << kUseShardingKeyRegexParameterSuffix
-            << " parameter: " << use_sharding_key_regex;
+  PS_LOG(INFO, log_context)
+      << "Retrieved " << kUseShardingKeyRegexParameterSuffix
+      << " parameter: " << use_sharding_key_regex;
   ShardingFunction func(/*seed=*/"");
   std::optional<std::regex> shard_key_regex;
   if (use_sharding_key_regex) {
     std::string sharding_key_regex_value =
         parameter_fetcher.GetParameter(kShardingKeyRegexParameterSuffix);
-    LOG(INFO) << "Retrieved " << kShardingKeyRegexParameterSuffix
-              << " parameter: " << sharding_key_regex_value;
+    PS_LOG(INFO, log_context)
+        << "Retrieved " << kShardingKeyRegexParameterSuffix
+        << " parameter: " << sharding_key_regex_value;
     // https://en.cppreference.com/w/cpp/regex/syntax_option_type
     // optimize -- "Instructs the regular expression engine to make matching
     // faster, with the potential cost of making construction slower. For
@@ -408,7 +402,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   InitializeKeyValueCache();
   auto span = GetTracer()->StartSpan("InitServer");
   auto scope = opentelemetry::trace::Scope(span);
-  LOG(INFO) << "Creating lifecycle heartbeat...";
+  PS_LOG(INFO, server_safe_log_context_) << "Creating lifecycle heartbeat...";
   std::unique_ptr<LifecycleHeartbeat> lifecycle_heartbeat =
       LifecycleHeartbeat::Create(*instance_client_, server_safe_log_context_);
   ParameterFetcher parameter_fetcher(
@@ -420,17 +414,18 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     return status;
   }
 
-  LOG(INFO) << "Setting default UDF.";
+  PS_LOG(INFO, server_safe_log_context_) << "Setting default UDF.";
   if (absl::Status status = SetDefaultUdfCodeObject(); !status.ok()) {
-    LOG(ERROR) << status;
+    PS_LOG(ERROR, server_safe_log_context_) << status;
     return absl::InternalError(
         "Error setting default UDF. Please contact Google to fix the default "
         "UDF or retry starting the server.");
   }
 
   num_shards_ = parameter_fetcher.GetInt32Parameter(kNumShardsParameterSuffix);
-  LOG(INFO) << "Retrieved " << kNumShardsParameterSuffix
-            << " parameter: " << num_shards_;
+  PS_LOG(INFO, server_safe_log_context_)
+      << "Retrieved " << kNumShardsParameterSuffix
+      << " parameter: " << num_shards_;
 
   blob_client_ = CreateBlobClient(parameter_fetcher);
   delta_stream_reader_factory_ =
@@ -450,7 +445,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
 
   grpc_server_ = CreateAndStartGrpcServer();
   local_lookup_ = CreateLocalLookup(*cache_);
-  auto key_sharder = GetKeySharder(parameter_fetcher);
+  auto key_sharder = GetKeySharder(parameter_fetcher, server_safe_log_context_);
   auto server_initializer = GetServerInitializer(
       num_shards_, *key_fetcher_manager_, *local_lookup_, environment_,
       shard_num_, *instance_client_, *cache_, parameter_fetcher, key_sharder,
@@ -477,8 +472,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   SetQueueManager(realtime_notifier_metadata, message_service_realtime_.get());
   uint32_t realtime_thread_numbers = parameter_fetcher.GetInt32Parameter(
       kRealtimeUpdaterThreadNumberParameterSuffix);
-  LOG(INFO) << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
-            << " parameter: " << realtime_thread_numbers;
+  PS_LOG(INFO, server_safe_log_context_)
+      << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
+      << " parameter: " << realtime_thread_numbers;
   auto maybe_realtime_thread_pool_manager = RealtimeThreadPoolManager::Create(
       realtime_notifier_metadata, realtime_thread_numbers, {},
       server_safe_log_context_);
@@ -530,7 +526,8 @@ absl::Status Server::MaybeShutdownNotifiers() {
 }
 
 void Server::GracefulShutdown(absl::Duration timeout) {
-  LOG(INFO) << "Graceful gRPC server shutdown requested, timeout: " << timeout;
+  PS_LOG(INFO, server_safe_log_context_)
+      << "Graceful gRPC server shutdown requested, timeout: " << timeout;
   if (internal_lookup_server_) {
     internal_lookup_server_->Shutdown();
   }
@@ -540,12 +537,14 @@ void Server::GracefulShutdown(absl::Duration timeout) {
   if (grpc_server_) {
     grpc_server_->Shutdown(absl::ToChronoTime(absl::Now() + timeout));
   } else {
-    LOG(WARNING) << "Server was not started, cannot shut down.";
+    PS_LOG(WARNING, server_safe_log_context_)
+        << "Server was not started, cannot shut down.";
   }
   if (udf_client_) {
     const absl::Status status = udf_client_->Stop();
     if (!status.ok()) {
-      LOG(ERROR) << "Failed to stop UDF client: " << status;
+      PS_LOG(ERROR, server_safe_log_context_)
+          << "Failed to stop UDF client: " << status;
     }
   }
   if (shard_manager_state_.cluster_mappings_manager &&
@@ -553,17 +552,20 @@ void Server::GracefulShutdown(absl::Duration timeout) {
     const absl::Status status =
         shard_manager_state_.cluster_mappings_manager->Stop();
     if (!status.ok()) {
-      LOG(ERROR) << "Failed to stop cluster mappings manager: " << status;
+      PS_LOG(ERROR, server_safe_log_context_)
+          << "Failed to stop cluster mappings manager: " << status;
     }
   }
   const absl::Status status = MaybeShutdownNotifiers();
   if (!status.ok()) {
-    LOG(ERROR) << "Failed to shutdown notifiers.  Got status " << status;
+    PS_LOG(ERROR, server_safe_log_context_)
+        << "Failed to shutdown notifiers.  Got status " << status;
   }
 }
 
 void Server::ForceShutdown() {
-  LOG(WARNING) << "Immediate gRPC server shutdown requested";
+  PS_LOG(WARNING, server_safe_log_context_)
+      << "Immediate gRPC server shutdown requested";
   if (internal_lookup_server_) {
     internal_lookup_server_->Shutdown();
   }
@@ -573,16 +575,19 @@ void Server::ForceShutdown() {
   if (grpc_server_) {
     grpc_server_->Shutdown();
   } else {
-    LOG(WARNING) << "Server was not started, cannot shut down.";
+    PS_LOG(WARNING, server_safe_log_context_)
+        << "Server was not started, cannot shut down.";
   }
   const absl::Status status = MaybeShutdownNotifiers();
   if (!status.ok()) {
-    LOG(ERROR) << "Failed to shutdown notifiers.  Got status " << status;
+    PS_LOG(ERROR, server_safe_log_context_)
+        << "Failed to shutdown notifiers.  Got status " << status;
   }
   if (udf_client_) {
     const absl::Status status = udf_client_->Stop();
     if (!status.ok()) {
-      LOG(ERROR) << "Failed to stop UDF client: " << status;
+      PS_LOG(ERROR, server_safe_log_context_)
+          << "Failed to stop UDF client: " << status;
     }
   }
   if (shard_manager_state_.cluster_mappings_manager &&
@@ -590,7 +595,8 @@ void Server::ForceShutdown() {
     const absl::Status status =
         shard_manager_state_.cluster_mappings_manager->Stop();
     if (!status.ok()) {
-      LOG(ERROR) << "Failed to stop cluster mappings manager: " << status;
+      PS_LOG(ERROR, server_safe_log_context_)
+          << "Failed to stop cluster mappings manager: " << status;
     }
   }
 }
@@ -632,8 +638,9 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
     const ParameterFetcher& parameter_fetcher, KeySharder key_sharder) {
   const std::string data_bucket =
       parameter_fetcher.GetParameter(kDataBucketParameterSuffix);
-  LOG(INFO) << "Retrieved " << kDataBucketParameterSuffix
-            << " parameter: " << data_bucket;
+  PS_LOG(INFO, server_safe_log_context_)
+      << "Retrieved " << kDataBucketParameterSuffix
+      << " parameter: " << data_bucket;
   auto metrics_callback =
       LogStatusSafeMetricsFn<kCreateDataOrchestratorStatus>();
   return TraceRetryUntilOk(
@@ -650,7 +657,8 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
             .shard_num = shard_num_,
             .num_shards = num_shards_,
             .key_sharder = std::move(key_sharder),
-            .blob_prefix_allowlist = GetBlobPrefixAllowlist(parameter_fetcher),
+            .blob_prefix_allowlist = GetBlobPrefixAllowlist(
+                parameter_fetcher, server_safe_log_context_),
             .log_context = server_safe_log_context_,
         });
       },
@@ -661,7 +669,8 @@ void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
   const bool use_v2 = parameter_fetcher.GetBoolParameter(kRouteV1ToV2Suffix);
   const bool add_missing_keys_v1 =
       parameter_fetcher.GetBoolParameter(kAddMissingKeysV1Suffix);
-  LOG(INFO) << "Retrieved " << kRouteV1ToV2Suffix << " parameter: " << use_v2;
+  PS_LOG(INFO, server_safe_log_context_)
+      << "Retrieved " << kRouteV1ToV2Suffix << " parameter: " << use_v2;
   get_values_adapter_ =
       GetValuesAdapter::Create(std::make_unique<GetValuesV2Handler>(
           *udf_client_, *key_fetcher_manager_));
@@ -695,7 +704,8 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
     builder.RegisterService(service.get());
   }
   // Finally assemble the server.
-  LOG(INFO) << "Server listening on " << server_address << std::endl;
+  PS_LOG(INFO, server_safe_log_context_)
+      << "Server listening on " << server_address << std::endl;
   auto server = builder.BuildAndStart();
   server->GetHealthCheckService()->SetServingStatus(
       std::string(kAutoscalerHealthcheck), true);
@@ -718,12 +728,14 @@ std::unique_ptr<DeltaFileNotifier> Server::CreateDeltaFileNotifier(
     const ParameterFetcher& parameter_fetcher) {
   uint32_t backup_poll_frequency_secs = parameter_fetcher.GetInt32Parameter(
       kBackupPollFrequencySecsParameterSuffix);
-  LOG(INFO) << "Retrieved " << kBackupPollFrequencySecsParameterSuffix
-            << " parameter: " << backup_poll_frequency_secs;
+  PS_LOG(INFO, server_safe_log_context_)
+      << "Retrieved " << kBackupPollFrequencySecsParameterSuffix
+      << " parameter: " << backup_poll_frequency_secs;
 
   return DeltaFileNotifier::Create(
       *blob_client_, absl::Seconds(backup_poll_frequency_secs),
-      GetBlobPrefixAllowlist(parameter_fetcher), server_safe_log_context_);
+      GetBlobPrefixAllowlist(parameter_fetcher, server_safe_log_context_),
+      server_safe_log_context_);
 }
 
 }  // namespace kv_server

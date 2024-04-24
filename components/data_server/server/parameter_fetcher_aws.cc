@@ -39,8 +39,9 @@ constexpr std::string_view kS3ClientMaxRangeBytesParameterSuffix =
 NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
   std::string bucket_sns_arn =
       GetParameter(kDataLoadingFileChannelBucketSNSParameterSuffix);
-  LOG(INFO) << "Retrieved " << kDataLoadingFileChannelBucketSNSParameterSuffix
-            << " parameter: " << bucket_sns_arn;
+  PS_LOG(INFO, log_context_)
+      << "Retrieved " << kDataLoadingFileChannelBucketSNSParameterSuffix
+      << " parameter: " << bucket_sns_arn;
   return AwsNotifierMetadata{.queue_prefix = "BlobNotifier_",
                              .sns_arn = std::move(bucket_sns_arn),
                              .environment = environment_};
@@ -51,12 +52,14 @@ BlobStorageClient::ClientOptions ParameterFetcher::GetBlobStorageClientOptions()
   BlobStorageClient::ClientOptions client_options;
   client_options.max_connections =
       GetInt32Parameter(kS3ClientMaxConnectionsParameterSuffix);
-  LOG(INFO) << "Retrieved " << kS3ClientMaxConnectionsParameterSuffix
-            << " parameter: " << client_options.max_connections;
+  PS_LOG(INFO, log_context_)
+      << "Retrieved " << kS3ClientMaxConnectionsParameterSuffix
+      << " parameter: " << client_options.max_connections;
   client_options.max_range_bytes =
       GetInt32Parameter(kS3ClientMaxRangeBytesParameterSuffix);
-  LOG(INFO) << "Retrieved " << kS3ClientMaxRangeBytesParameterSuffix
-            << " parameter: " << client_options.max_range_bytes;
+  PS_LOG(INFO, log_context_)
+      << "Retrieved " << kS3ClientMaxRangeBytesParameterSuffix
+      << " parameter: " << client_options.max_range_bytes;
   return client_options;
 }
 
@@ -64,8 +67,9 @@ NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
     int32_t num_shards, int32_t shard_num) const {
   std::string realtime_sns_arn =
       GetParameter(kDataLoadingRealtimeChannelSNSParameterSuffix);
-  LOG(INFO) << "Retrieved " << kDataLoadingRealtimeChannelSNSParameterSuffix
-            << " parameter: " << realtime_sns_arn;
+  PS_LOG(INFO, log_context_)
+      << "Retrieved " << kDataLoadingRealtimeChannelSNSParameterSuffix
+      << " parameter: " << realtime_sns_arn;
   return AwsNotifierMetadata{"QueueNotifier_", std::move(realtime_sns_arn),
                              .num_shards = num_shards, .shard_num = shard_num,
                              .environment = environment_};

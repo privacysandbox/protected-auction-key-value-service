@@ -64,7 +64,7 @@ The data server provides the read API for the KV service.
     1. Build the server artifacts and copy them into the `dist/debian/` directory.
 
     ```sh
-    builders/tools/bazel-debian run //production/packaging/aws/data_server:copy_to_dist --config local_instance --//:platform=aws
+    builders/tools/bazel-debian run //production/packaging/aws/data_server:copy_to_dist --config=local_instance --config=aws_platform
     ```
 
 1.  Load the image into docker
@@ -107,7 +107,7 @@ docker run -it --rm --network host  bazel/testing/run_local:envoy_image
 For example:
 
 ```sh
-builders/tools/bazel-debian run //components/data_server/server:server --config local_instance --//:platform=aws -- --environment="dev"
+builders/tools/bazel-debian run //components/data_server/server:server --config=local_instance --config=aws_platform -- --environment="dev"
 ```
 
 We are currently developing this server for local testing and for use on AWS Nitro instances

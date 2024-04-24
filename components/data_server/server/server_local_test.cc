@@ -115,6 +115,10 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-udf-update-timeout-millis"))
+      .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-min-log-level"))
       .WillOnce(::testing::Return(0));
@@ -183,6 +187,10 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
       .WillOnce(::testing::Return(2));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
+      .WillOnce(::testing::Return(5000));
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-udf-update-timeout-millis"))
       .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-min-log-level"))
@@ -259,6 +267,10 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-udf-update-timeout-millis"))
+      .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-min-log-level"))
       .WillOnce(::testing::Return(0));
@@ -329,6 +341,10 @@ TEST(ServerLocalTest, ForceServerShutdown) {
       .WillOnce(::testing::Return(2));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
+      .WillOnce(::testing::Return(5000));
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-udf-update-timeout-millis"))
       .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-min-log-level"))

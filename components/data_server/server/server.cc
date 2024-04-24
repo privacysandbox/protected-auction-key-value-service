@@ -94,6 +94,8 @@ constexpr absl::string_view kLoggingVerbosityLevelParameterSuffix =
     "logging-verbosity-level";
 constexpr absl::string_view kUdfTimeoutMillisParameterSuffix =
     "udf-timeout-millis";
+constexpr absl::string_view kUdfUpdateTimeoutMillisParameterSuffix =
+    "udf-update-timeout-millis";
 constexpr absl::string_view kUdfMinLogLevelParameterSuffix =
     "udf-min-log-level";
 constexpr absl::string_view kUseShardingKeyRegexParameterSuffix =
@@ -325,6 +327,8 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
       parameter_fetcher.GetInt32Parameter(kUdfNumWorkersParameterSuffix);
   int32_t udf_timeout_ms =
       parameter_fetcher.GetInt32Parameter(kUdfTimeoutMillisParameterSuffix);
+  int32_t udf_update_timeout_ms = parameter_fetcher.GetInt32Parameter(
+      kUdfUpdateTimeoutMillisParameterSuffix);
   int32_t udf_min_log_level =
       parameter_fetcher.GetInt32Parameter(kUdfMinLogLevelParameterSuffix);
 
@@ -344,7 +348,8 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
                         .RegisterLoggingFunction()
                         .SetNumberOfWorkers(number_of_workers)
                         .Config()),
-          absl::Milliseconds(udf_timeout_ms), udf_min_log_level);
+          absl::Milliseconds(udf_timeout_ms),
+          absl::Milliseconds(udf_update_timeout_ms), udf_min_log_level);
   if (udf_client_or_status.ok()) {
     udf_client_ = std::move(*udf_client_or_status);
   }

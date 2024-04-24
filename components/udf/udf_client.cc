@@ -50,8 +50,6 @@ using google::scp::roma::kTimeoutDurationTag;
 using google::scp::roma::ResponseObject;
 using google::scp::roma::sandbox::roma_service::RomaService;
 
-constexpr absl::Duration kCodeUpdateTimeout = absl::Seconds(1);
-
 // Roma IDs and version numbers are required for execution.
 // We do not currently make use of IDs or the code version number, set them to
 // constants.
@@ -63,8 +61,11 @@ class UdfClientImpl : public UdfClient {
  public:
   explicit UdfClientImpl(
       Config<RequestContext>&& config = Config<RequestContext>(),
-      absl::Duration udf_timeout = absl::Seconds(5), int udf_min_log_level = 0)
+      absl::Duration udf_timeout = absl::Seconds(5),
+      absl::Duration udf_update_timeout = absl::Seconds(5),
+      int udf_min_log_level = 0)
       : udf_timeout_(udf_timeout),
+        udf_update_timeout_(udf_update_timeout),
         roma_service_(std::move(config)),
         udf_min_log_level_(udf_min_log_level) {}
 
@@ -177,7 +178,7 @@ class UdfClientImpl : public UdfClient {
       return load_status;
     }
 
-    notification->WaitForNotificationWithTimeout(kCodeUpdateTimeout);
+    notification->WaitForNotificationWithTimeout(udf_update_timeout_);
     if (!notification->HasBeenNotified()) {
       return StatusWithErrorTag(
           absl::Status(absl::StatusCode::kDeadlineExceeded,
@@ -232,6 +233,7 @@ class UdfClientImpl : public UdfClient {
   int64_t logical_commit_time_ = -1;
   int64_t version_ = 1;
   const absl::Duration udf_timeout_;
+  const absl::Duration udf_update_timeout_;
   int udf_min_log_level_;
   // Per b/299667930, RomaService has been extended to support metadata storage
   // as a side effect of RomaService::Execute(), making it no longer const.
@@ -247,9 +249,9 @@ class UdfClientImpl : public UdfClient {
 
 absl::StatusOr<std::unique_ptr<UdfClient>> UdfClient::Create(
     Config<RequestContext>&& config, absl::Duration udf_timeout,
-    int udf_min_log_level) {
+    absl::Duration udf_update_timeout, int udf_min_log_level) {
   auto udf_client = std::make_unique<UdfClientImpl>(
-      std::move(config), udf_timeout, udf_min_log_level);
+      std::move(config), udf_timeout, udf_update_timeout, udf_min_log_level);
   const auto init_status = udf_client->Init();
   if (!init_status.ok()) {
     return init_status;

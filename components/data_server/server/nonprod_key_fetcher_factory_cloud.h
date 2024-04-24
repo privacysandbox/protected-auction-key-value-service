@@ -31,6 +31,11 @@ namespace kv_server {
 // endpoint. This is a security risk for produciton build. Which is why this
 // implementation is only allowed in `nonprod` build mode.
 class NonprodCloudKeyFetcherFactory : public CloudKeyFetcherFactory {
+ public:
+  explicit NonprodCloudKeyFetcherFactory(
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : CloudKeyFetcherFactory(log_context) {}
+
  protected:
   std::vector<std::string> GetPublicKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const override;

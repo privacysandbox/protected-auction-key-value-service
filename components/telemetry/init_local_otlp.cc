@@ -20,8 +20,8 @@
 // To use Jaeger first run a local instance of the collector
 // https://www.jaegertracing.io/docs/1.42/getting-started/
 // Then build run server with flags for local and otlp.  Ex:
-// `bazel run //components/data_server/server:server --//:instance=local
-// --//:platform=aws
+// `bazel run //components/data_server/server:server --config=local_instance
+// --config=aws_platform
 // --@google_privacysandbox_servers_common//src/telemetry:local_otel_export=otlp
 // --
 // --environment="test"`

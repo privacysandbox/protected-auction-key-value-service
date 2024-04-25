@@ -138,7 +138,7 @@ bool IsSupportedCommand(std::string_view command) {
 //
 //   bazel run \
 //   //tools/data_cli:data_cli \
-//   --//:instance=local --//:platform=local -- \
+//   --config=local_instance --config=local_platform -- \
 //   format_data \
 //    --input_file=/data/DELTA_1689344645643610 \
 //    --input_format=DELTA \

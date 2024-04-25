@@ -69,7 +69,7 @@ cp $(builders/tools/bazel-debian aquery 'tools/udf/sample_word2vec:udf_delta' |
 Build the local server:
 
 ```sh
-./builders/tools/bazel-debian build //components/data_server/server:server --//:platform=local --//:instance=local
+./builders/tools/bazel-debian build //components/data_server/server:server --config=local_instance --config=local_platform
 ```
 
 Run the local server:

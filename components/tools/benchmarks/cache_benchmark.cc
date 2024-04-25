@@ -372,8 +372,8 @@ void RegisterWriteBenchmarks() {
 //
 //  bazel run -c opt \
 //    //components/tools/benchmarks:cache_benchmark \
-//    --//:instance=local \
-//    --//:platform=local -- \
+//    --config=local_instance \
+//    --config=local_platform -- \
 //    --benchmark_counters_tabular=true --stderrthreshold=0
 int main(int argc, char** argv) {
   absl::InitializeLog();

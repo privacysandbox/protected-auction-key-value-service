@@ -291,7 +291,7 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
 //
 // bazel run \
 //  components/tools/benchmarks:data_loading_benchmark \
-//    --//:instance=local --//:platform=local -- \
+//    --config=local_instance --config=local_platform -- \
 //    --benchmark_time_unit=ms \
 //    --benchmark_counters_tabular=true \
 //    --data_directory=/tmp/data \

@@ -19,8 +19,9 @@ load("@io_bazel_rules_go//go:def.bzl", "nogo")
 package(default_visibility = ["//:__subpackages__"])
 
 # Config settings to determine which platform the system will be built to run on
+# Use --config=VALUE_platform specified in .bazelrc instead of using this flag directly.
 # Example:
-# bazel build components/... --//:platform=aws
+# bazel build components/... --config=aws_platform
 string_flag(
     name = "platform",
     build_setting_default = "aws",
@@ -64,6 +65,10 @@ config_setting(
     ],
 )
 
+# Config settings to determine which instance the system will be built to run on
+# Use --configVALUE_instance specified in .bazelrc instead of using this flag directly.
+# Example:
+# bazel build components/... --config=aws_instance
 string_flag(
     name = "instance",
     build_setting_default = "aws",

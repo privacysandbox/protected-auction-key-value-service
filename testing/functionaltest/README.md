@@ -15,8 +15,8 @@ Docker Compose version v2.17.2
 
 ```sh
 builders/tools/bazel-debian run //production/packaging/aws/data_server:copy_to_dist \
-  --//:platform=local \
-  --//:instance=local
+  --config=local_instance \
+  --config=local_platform
 unzip -d dist/debian -j -u dist/debian/server_artifacts.zip server/bin/server
 touch dist/debian/server
 docker load -i dist/server_docker_image.tar
@@ -33,8 +33,8 @@ Generate data files for the functional test suites, using:
 
 ```sh
 builders/tools/bazel-debian run //testing/functionaltest:copy_to_dist \
-  --//:platform=local \
-  --//:instance=local
+  --config=local_instance \
+  --config=local_platform
 ```
 
 ### Direct execution mode

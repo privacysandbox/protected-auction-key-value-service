@@ -18,13 +18,13 @@
 
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
-#include "aws/core/Aws.h"
 #include "aws/sqs/SQSClient.h"
 #include "aws/sqs/model/DeleteMessageBatchRequest.h"
 #include "aws/sqs/model/ReceiveMessageRequest.h"
 #include "components/data/common/change_notifier.h"
 #include "components/data/common/msg_svc.h"
 #include "components/telemetry/server_definition.h"
+#include "components/util/platform_initializer.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -56,8 +56,6 @@ class MockSqsClient : public ::Aws::SQS::SQSClient {
 class ChangeNotifierAwsTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    options_.httpOptions.installSigPipeHandler = true;
-    Aws::InitAPI(options_);
     privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
     config_proto.set_mode(
         privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
@@ -65,10 +63,9 @@ class ChangeNotifierAwsTest : public ::testing::Test {
         privacy_sandbox::server_common::telemetry::BuildDependentConfig(
             config_proto));
   }
-  void TearDown() override { Aws::ShutdownAPI(options_); }
 
  private:
-  Aws::SDKOptions options_;
+  PlatformInitializer initializer_;
 };
 
 TEST_F(ChangeNotifierAwsTest, SmokeTest) {

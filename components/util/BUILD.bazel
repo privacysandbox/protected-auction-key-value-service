@@ -74,6 +74,10 @@ local_defines = select({
     ":local_otel_ostream": ["OTEL_EXPORT=\\\"ostream\\\""],
     ":local_otel_otlp": ["OTEL_EXPORT=\\\"otlp\\\""],
     "//conditions:default": ["OTEL_EXPORT=\\\"unknown\\\""],
+}) + select({
+    "//:nonprod_mode": ["MODE=\\\"non_prod\\\""],
+    "//:prod_mode": ["MODE=\\\"prod\\\""],
+    "//conditions:default": ["MODE=\\\"unknown\\\""],
 })
 
 genrule(

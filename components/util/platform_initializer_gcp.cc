@@ -43,17 +43,17 @@ google::scp::cpio::CpioOptions cpio_options_;
 PlatformInitializer::PlatformInitializer() {
   cpio_options_.log_option = LogOption::kConsoleLog;
   cpio_options_.project_id = absl::GetFlag(FLAGS_gcp_project_id);
-  auto execution_result = Cpio::InitCpio(cpio_options_);
-  CHECK(execution_result.Successful())
-      << "Failed to initialize CPIO: "
-      << GetErrorMessage(execution_result.status_code);
+  if (auto error = Cpio::InitCpio(cpio_options_); !error.Successful()) {
+    LOG(ERROR) << "Failed to initialize CPIO: "
+               << GetErrorMessage(error.status_code) << std::endl;
+  }
 }
 
 PlatformInitializer::~PlatformInitializer() {
-  auto execution_result = Cpio::ShutdownCpio(cpio_options_);
-  if (!execution_result.Successful()) {
+  if (auto error = Cpio::ShutdownCpio(cpio_options_); !error.Successful()) {
     LOG(ERROR) << "Failed to shutdown CPIO: "
-               << GetErrorMessage(execution_result.status_code);
+               << GetErrorMessage(error.status_code) << std::endl;
   }
 }
+
 }  // namespace kv_server

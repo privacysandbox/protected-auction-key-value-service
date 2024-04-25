@@ -15,9 +15,11 @@
 #include "absl/log/log.h"
 #include "aws/core/Aws.h"
 #include "components/util/platform_initializer.h"
+#include "src/public/core/interface/execution_result.h"
 #include "src/public/cpio/interface/cpio.h"
 
 namespace kv_server {
+using google::scp::core::errors::GetErrorMessage;
 using google::scp::cpio::Cpio;
 using google::scp::cpio::CpioOptions;
 using google::scp::cpio::LogOption;
@@ -36,16 +38,16 @@ PlatformInitializer::PlatformInitializer() {
   cpio_options_.log_option = LogOption::kConsoleLog;
   cpio_options_.cloud_init_option =
       google::scp::cpio::CloudInitOption::kNoInitInCpio;
-  auto result = Cpio::InitCpio(cpio_options_);
-  if (!result.Successful()) {
-    LOG(ERROR) << "Failed to initialize CPIO." << std::endl;
+  if (auto error = Cpio::InitCpio(cpio_options_); !error.Successful()) {
+    LOG(ERROR) << "Failed to initialize CPIO: "
+               << GetErrorMessage(error.status_code) << std::endl;
   }
 }
 
 PlatformInitializer::~PlatformInitializer() {
-  auto result = Cpio::ShutdownCpio(cpio_options_);
-  if (!result.Successful()) {
-    LOG(ERROR) << "Failed to shutdown CPIO." << std::endl;
+  if (auto error = Cpio::ShutdownCpio(cpio_options_); !error.Successful()) {
+    LOG(ERROR) << "Failed to shutdown CPIO: "
+               << GetErrorMessage(error.status_code) << std::endl;
   }
   Aws::ShutdownAPI(options_);
 }

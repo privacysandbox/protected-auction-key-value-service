@@ -140,6 +140,7 @@ cc_library(
         "//:aws_platform": [
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:core",
+            "@google_privacysandbox_servers_common//src/public/core/interface:execution_result",
             "@google_privacysandbox_servers_common//src/public/cpio/interface:cpio",
         ],
         "//:gcp_platform": [

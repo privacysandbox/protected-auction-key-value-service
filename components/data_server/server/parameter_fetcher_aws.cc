@@ -41,7 +41,9 @@ NotifierMetadata ParameterFetcher::GetBlobStorageNotifierMetadata() const {
       GetParameter(kDataLoadingFileChannelBucketSNSParameterSuffix);
   LOG(INFO) << "Retrieved " << kDataLoadingFileChannelBucketSNSParameterSuffix
             << " parameter: " << bucket_sns_arn;
-  return AwsNotifierMetadata{"BlobNotifier_", std::move(bucket_sns_arn)};
+  return AwsNotifierMetadata{.queue_prefix = "BlobNotifier_",
+                             .sns_arn = std::move(bucket_sns_arn),
+                             .environment = environment_};
 }
 
 BlobStorageClient::ClientOptions ParameterFetcher::GetBlobStorageClientOptions()
@@ -65,7 +67,8 @@ NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
   LOG(INFO) << "Retrieved " << kDataLoadingRealtimeChannelSNSParameterSuffix
             << " parameter: " << realtime_sns_arn;
   return AwsNotifierMetadata{"QueueNotifier_", std::move(realtime_sns_arn),
-                             .num_shards = num_shards, .shard_num = shard_num};
+                             .num_shards = num_shards, .shard_num = shard_num,
+                             .environment = environment_};
 }
 
 }  // namespace kv_server

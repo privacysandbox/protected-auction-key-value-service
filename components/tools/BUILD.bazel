@@ -66,6 +66,7 @@ cc_binary(
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/data_loading:data_orchestrator",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/udf:noop_udf_client",
         "//components/util:platform_initializer",
         "//public:base_types_cc_proto",
@@ -88,6 +89,7 @@ cc_binary(
     ],
     deps = [
         "//components/data/blob_storage:blob_storage_change_notifier",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/util:platform_initializer",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
@@ -114,6 +116,7 @@ cc_binary(
     deps = [
         ":blob_storage_commands",
         "//components/data/blob_storage:blob_storage_client",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/util:platform_initializer",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
@@ -130,6 +133,7 @@ cc_binary(
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",
         "//components/data/common:thread_manager",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/util:platform_initializer",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
@@ -144,6 +148,7 @@ cc_binary(
     ],
     deps = [
         "//components/data/realtime:delta_file_record_change_notifier",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/util:platform_initializer",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:filename_utils",
@@ -231,6 +236,7 @@ cc_library(
         ],
     }) + [
         "//components/data/common:message_service",
+        "//components/tools/util:configure_telemetry_tools",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
@@ -271,6 +277,7 @@ cc_binary(
     deps = [
         ":publisher_service",
         "//components/data/realtime:realtime_notifier",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/util:platform_initializer",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:filename_utils",

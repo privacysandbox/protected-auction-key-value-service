@@ -158,6 +158,7 @@ cc_library(
         "//components/data/blob_storage:delta_file_notifier",
         "//components/data/common:change_notifier",
         "//components/data/common:thread_manager",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/util:platform_initializer",
         "//components/util:version_linkstamp",
         "//public/data_loading/readers:riegeli_stream_io",

@@ -26,6 +26,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/udf/noop_udf_client.h"
 #include "components/util/platform_initializer.h"
 #include "public/base_types.pb.h"
@@ -147,7 +148,7 @@ std::vector<Operation> OperationsFromFlag() {
 absl::Status InitOnce(Operation operation) {
   DataLoadingAnalyzerLogContext log_context;
   std::unique_ptr<UdfClient> noop_udf_client = NewNoopUdfClient();
-  InitMetricsContextMap();
+  ConfigureTelemetryForTools();
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
 
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =

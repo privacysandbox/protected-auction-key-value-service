@@ -26,6 +26,7 @@ cc_binary(
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/internal_server:local_lookup",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/udf:udf_client",
         "//components/udf:udf_config_builder",
         "//components/udf/hooks:get_values_hook",

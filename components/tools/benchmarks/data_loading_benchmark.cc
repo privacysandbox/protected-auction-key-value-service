@@ -35,6 +35,7 @@
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/cache/noop_key_value_cache.h"
 #include "components/tools/benchmarks/benchmark_util.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/util/platform_initializer.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
@@ -314,7 +315,7 @@ int main(int argc, char** argv) {
     LOG(ERROR) << "Flag '--filename' must be not empty.";
     return -1;
   }
-  kv_server::InitMetricsContextMap();
+  kv_server::ConfigureTelemetryForTools();
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> blob_client =

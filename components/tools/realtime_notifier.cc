@@ -24,6 +24,7 @@
 #include "absl/strings/str_join.h"
 #include "components/data/common/msg_svc.h"
 #include "components/tools/publisher_service.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/util/platform_initializer.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
@@ -86,7 +87,7 @@ void Print(std::string string_decoded) {
 absl::Status Run() {
   PlatformInitializer initializer;
   NotifierMetadata metadata;
-  kv_server::InitMetricsContextMap();
+  kv_server::ConfigureTelemetryForTools();
 // TODO(b/299623229): Remove CLOUD_PLATFORM_LOCAL macro and extract to
 // publisher_service.
 #if defined(CLOUD_PLATFORM_LOCAL)

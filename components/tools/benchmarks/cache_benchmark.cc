@@ -35,6 +35,7 @@
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/cache/noop_key_value_cache.h"
 #include "components/tools/benchmarks/benchmark_util.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 
 ABSL_FLAG(std::vector<std::string>, record_size,
           std::vector<std::string>({"1"}),
@@ -394,7 +395,7 @@ int main(int argc, char** argv) {
   absl::InitializeLog();
   ::benchmark::Initialize(&argc, argv);
   absl::ParseCommandLine(argc, argv);
-  kv_server::InitMetricsContextMap();
+  kv_server::ConfigureTelemetryForTools();
   ::kv_server::RegisterReadBenchmarks();
   ::kv_server::RegisterWriteBenchmarks();
   ::benchmark::RunSpecifiedBenchmarks();

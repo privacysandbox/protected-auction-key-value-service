@@ -20,6 +20,7 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/common/thread_manager.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/util/platform_initializer.h"
 #include "src/telemetry/telemetry_provider.h"
 
@@ -46,7 +47,7 @@ int main(int argc, char** argv) {
     std::cerr << "Must specify sns_arn" << std::endl;
     return -1;
   }
-  kv_server::InitMetricsContextMap();
+  kv_server::ConfigureTelemetryForTools();
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> client =

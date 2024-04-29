@@ -27,6 +27,7 @@
 #include "components/data_server/request_handler/ohttp_client_encryptor.h"
 #include "components/data_server/server/key_fetcher_factory.h"
 #include "components/data_server/server/parameter_fetcher.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/util/platform_initializer.h"
 #include "public/applications/pa/response_utils.h"
 #include "public/query/cpp/grpc_client.h"
@@ -265,6 +266,7 @@ void Validate(
 int main(int argc, char** argv) {
   const std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
   absl::InitializeLog();
+  kv_server::ConfigureTelemetryForTools();
 
   // ptrs for validation with coordinators
   std::unique_ptr<kv_server::PlatformInitializer> platform_initializer;

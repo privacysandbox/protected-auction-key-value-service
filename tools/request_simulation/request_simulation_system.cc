@@ -22,6 +22,7 @@
 
 #include "absl/log/log.h"
 #include "components/tools/concurrent_publishing_engine.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "grpcpp/grpcpp.h"
 #include "opentelemetry/sdk/resource/resource.h"
 #include "opentelemetry/sdk/resource/semantic_conventions.h"
@@ -399,7 +400,7 @@ void RequestSimulationSystem::InitializeTelemetry() {
       {semantic_conventions::kHostArch, std::string(BuildPlatform())},
       {kTestingServer, server_address}};
   auto resource = Resource::Create(attributes);
-  kv_server::InitMetricsContextMap();
+  kv_server::ConfigureTelemetryForTools();
   privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
   config_proto.set_mode(
       privacy_sandbox::server_common::telemetry::TelemetryConfig::EXPERIMENT);

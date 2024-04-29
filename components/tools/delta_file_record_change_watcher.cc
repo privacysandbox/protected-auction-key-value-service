@@ -20,6 +20,7 @@
 #include "absl/strings/str_join.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/telemetry/server_definition.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/util/platform_initializer.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
@@ -104,7 +105,7 @@ int main(int argc, char** argv) {
     return -1;
   }
 
-  kv_server::InitMetricsContextMap();
+  kv_server::ConfigureTelemetryForTools();
   auto status_or_notifier =
       kv_server::ChangeNotifier::Create(kv_server::AwsNotifierMetadata{
           .queue_prefix = "QueueNotifier_",

@@ -26,6 +26,7 @@
 #include "components/data/common/msg_svc.h"
 #include "components/tools/concurrent_publishing_engine.h"
 #include "components/tools/publisher_service.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/util/platform_initializer.h"
 
 ABSL_FLAG(std::string, deltas_folder_path, "",
@@ -57,6 +58,7 @@ void PopulateQueue(const std::string& deltas_folder_path) {
 
 absl::Status Run() {
   PlatformInitializer initializer;
+  kv_server::ConfigureTelemetryForTools();
   auto maybe_notifier_metadata = PublisherService::GetNotifierMetadata();
   if (!maybe_notifier_metadata.ok()) {
     return maybe_notifier_metadata.status();

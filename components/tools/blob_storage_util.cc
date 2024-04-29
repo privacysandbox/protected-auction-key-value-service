@@ -20,6 +20,7 @@
 #include "absl/strings/match.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/tools/blob_storage_commands.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/util/platform_initializer.h"
 #include "src/telemetry/telemetry_provider.h"
 
@@ -90,7 +91,7 @@ bool CpObjects(std::string bucket, std::string source, std::string dest) {
 
 int main(int argc, char** argv) {
   kv_server::PlatformInitializer initializer;
-
+  kv_server::ConfigureTelemetryForTools();
   absl::SetProgramUsageMessage("[cat|cp|ls|rm]");
   std::vector<char*> commands = absl::ParseCommandLine(argc, argv);
   if (commands.size() < 2) {

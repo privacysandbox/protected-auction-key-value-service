@@ -22,6 +22,7 @@ cc_binary(
         "//components/data_server/request_handler:ohttp_client_encryptor",
         "//components/data_server/server:key_fetcher_factory",
         "//components/data_server/server:parameter_fetcher",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/util:platform_initializer",
         "//public/applications/pa:response_utils",
         "//public/query/cpp:grpc_client",

@@ -19,6 +19,7 @@
 #include "absl/flags/usage.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/telemetry/server_definition.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/util/platform_initializer.h"
 #include "src/telemetry/telemetry_provider.h"
 
@@ -37,12 +38,7 @@ int main(int argc, char** argv) {
     return -1;
   }
   // Initialize no-op telemetry
-  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
-  config_proto.set_mode(
-      privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
-  kv_server::KVServerContextMap(
-      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
-          config_proto));
+  kv_server::ConfigureTelemetryForTools();
   auto message_service_status = kv_server::MessageService::Create(
       kv_server::AwsNotifierMetadata{"BlobNotifier_", sns_arn});
 

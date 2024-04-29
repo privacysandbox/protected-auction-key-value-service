@@ -21,6 +21,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/internal_server/local_lookup.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/udf/udf_config_builder.h"
@@ -148,7 +149,7 @@ void ShutdownUdf(UdfClient& udf_client) {
 absl::Status TestUdf(const std::string& kv_delta_file_path,
                      const std::string& udf_delta_file_path,
                      const std::string& input_arguments) {
-  InitMetricsContextMap();
+  ConfigureTelemetryForTools();
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   UDFDeltaFileTestLogContext log_context;
@@ -222,7 +223,6 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
-
   const std::string kv_delta_file_path =
       absl::GetFlag(FLAGS_kv_delta_file_path);
   const std::string udf_delta_file_path =

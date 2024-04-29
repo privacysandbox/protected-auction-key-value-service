@@ -26,6 +26,10 @@ variable "commit_version" {
   type    = string
 }
 
+variable "build_mode" {
+  type    = string
+}
+
 # Directory path where the built artifacts appear
 variable "distribution_dir" {
   type = string
@@ -76,6 +80,7 @@ source "amazon-ebs" "dataserver" {
   }
   tags = {
     commit_version = var.commit_version
+    build_mode = var.build_mode
   }
   ssh_username = "ec2-user"
 }

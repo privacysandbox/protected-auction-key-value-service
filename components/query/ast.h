@@ -45,8 +45,7 @@ class Node {
   virtual absl::flat_hash_set<std::string_view> Keys() const = 0;
   // Uses the Visitor pattern for the concrete class
   // to mutate the stack accordingly for `Eval` (ValueNode vs. OpNode)
-  virtual void Accept(ASTStackVisitor& visitor,
-                      std::vector<KVSetView>& stack) const = 0;
+  virtual void Accept(ASTStackVisitor& visitor) const = 0;
   virtual std::string Accept(ASTStringVisitor& visitor) const = 0;
 };
 
@@ -56,8 +55,7 @@ class ValueNode : public Node {
   explicit ValueNode(std::string key);
   std::string_view Key() const { return key_; }
   absl::flat_hash_set<std::string_view> Keys() const override;
-  void Accept(ASTStackVisitor& visitor,
-              std::vector<KVSetView>& stack) const override;
+  void Accept(ASTStackVisitor& visitor) const override;
   std::string Accept(ASTStringVisitor& visitor) const override;
 
  private:
@@ -73,8 +71,7 @@ class OpNode : public Node {
   inline Node* Right() const override { return right_.get(); }
   // Computes the operation over the `left` and `right` nodes.
   virtual KVSetView Op(KVSetView left, KVSetView right) const = 0;
-  void Accept(ASTStackVisitor& visitor,
-              std::vector<KVSetView>& stack) const override;
+  void Accept(ASTStackVisitor& visitor) const override;
 
  private:
   std::unique_ptr<Node> left_;
@@ -111,6 +108,10 @@ class DifferenceNode : public OpNode {
   std::string Accept(ASTStringVisitor& visitor) const override;
 };
 
+// Traverses the binary tree starting at root and returns a vector of `Node`s in
+// post order. Represents the infix input as postfix which can then be more
+// easily evaluated.
+std::vector<const Node*> ComputePostfixOrder(const Node* root);
 // Creates execution plan and runs it.
 KVSetView Eval(const Node& node,
                absl::AnyInvocable<absl::flat_hash_set<std::string_view>(
@@ -122,21 +123,19 @@ KVSetView Eval(const Node& node,
 class ASTStackVisitor {
  public:
   explicit ASTStackVisitor(
-      absl::AnyInvocable<
-          absl::flat_hash_set<std::string_view>(std::string_view key) const>
-          lookup_fn)
+      absl::AnyInvocable<KVSetView(std::string_view key) const> lookup_fn)
       : lookup_fn_(std::move(lookup_fn)) {}
-
+  void ConductVisit(const Node& root);
   // Applies the operation to the top two values on the stack.
   // Replaces the top two values with the result.
-  void Visit(const OpNode& node, std::vector<KVSetView>& stack);
+  void Visit(const OpNode& node);
   // Pushes the result of `Lookup` to the stack.
-  void Visit(const ValueNode& node, std::vector<KVSetView>& stack);
+  void Visit(const ValueNode& node);
+  KVSetView Result() const;
 
  private:
-  absl::AnyInvocable<absl::flat_hash_set<std::string_view>(std::string_view key)
-                         const>
-      lookup_fn_;
+  absl::AnyInvocable<KVSetView(std::string_view key) const> lookup_fn_;
+  std::vector<KVSetView> stack_;
 };
 
 // General purpose Vistor capable of returning a string representation of a Node

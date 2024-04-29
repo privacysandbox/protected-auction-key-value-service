@@ -62,9 +62,6 @@ class Driver {
   void SetError(std::string error);
   void ClearError() { status_ = absl::OkStatus(); }
 
-  // Looks up the set which contains a view of the DB data.
-  absl::flat_hash_set<std::string_view> Lookup(std::string_view key) const;
-
  private:
   absl::AnyInvocable<absl::flat_hash_set<std::string_view>(std::string_view key)
                          const>

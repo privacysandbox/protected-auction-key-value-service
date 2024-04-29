@@ -125,7 +125,7 @@ void PromptForQuery(
     std::getline(std::cin, query);
     ProcessQuery(driver, query);
     if (dot_writer && driver.GetRootNode()) {
-      dot_writer->WriteAst(query, *driver.GetRootNode());
+      dot_writer->WriteAst(query, *driver.GetRootNode(), Lookup);
       dot_writer->Flush();
     }
   }
@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
   if (!query.empty()) {
     ProcessQuery(driver, query);
     if (dot_writer && driver.GetRootNode()) {
-      dot_writer->WriteAst(query, *driver.GetRootNode());
+      dot_writer->WriteAst(query, *driver.GetRootNode(), Lookup);
     }
     return 0;
   }

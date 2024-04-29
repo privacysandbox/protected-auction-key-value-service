@@ -28,11 +28,6 @@ Driver::Driver(absl::AnyInvocable<absl::flat_hash_set<std::string_view>(
                    lookup_fn)
     : lookup_fn_(std::move(lookup_fn)) {}
 
-absl::flat_hash_set<std::string_view> Driver::Lookup(
-    std::string_view key) const {
-  return lookup_fn_(key);
-}
-
 void Driver::SetAst(std::unique_ptr<Node> ast) { ast_ = std::move(ast); }
 
 absl::StatusOr<absl::flat_hash_set<std::string_view>> Driver::GetResult()
@@ -43,7 +38,7 @@ absl::StatusOr<absl::flat_hash_set<std::string_view>> Driver::GetResult()
   if (ast_ == nullptr) {
     return absl::flat_hash_set<std::string_view>();
   }
-  return Eval(*ast_);
+  return Eval(*ast_, [this](std::string_view key) { return lookup_fn_(key); });
 }
 
 void Driver::SetError(std::string error) {

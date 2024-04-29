@@ -53,16 +53,14 @@ class Node {
 // The value associated with a `ValueNode` is the set with its associated `key`.
 class ValueNode : public Node {
  public:
-  ValueNode(absl::AnyInvocable<KVSetView(std::string_view key) const> lookup_fn,
-            std::string key);
+  explicit ValueNode(std::string key);
+  std::string_view Key() const { return key_; }
   absl::flat_hash_set<std::string_view> Keys() const override;
-  KVSetView Lookup() const;
   void Accept(ASTStackVisitor& visitor,
               std::vector<KVSetView>& stack) const override;
   std::string Accept(ASTStringVisitor& visitor) const override;
 
  private:
-  absl::AnyInvocable<KVSetView() const> lookup_fn_;
   std::string key_;
 };
 
@@ -114,17 +112,31 @@ class DifferenceNode : public OpNode {
 };
 
 // Creates execution plan and runs it.
-KVSetView Eval(const Node& node);
+KVSetView Eval(const Node& node,
+               absl::AnyInvocable<absl::flat_hash_set<std::string_view>(
+                   std::string_view key) const>
+                   lookup_fn);
 
 // Responsible for mutating the stack with the given `Node`.
 // Avoids downcasting for subclass specific behaviors.
 class ASTStackVisitor {
  public:
+  explicit ASTStackVisitor(
+      absl::AnyInvocable<
+          absl::flat_hash_set<std::string_view>(std::string_view key) const>
+          lookup_fn)
+      : lookup_fn_(std::move(lookup_fn)) {}
+
   // Applies the operation to the top two values on the stack.
   // Replaces the top two values with the result.
   void Visit(const OpNode& node, std::vector<KVSetView>& stack);
   // Pushes the result of `Lookup` to the stack.
   void Visit(const ValueNode& node, std::vector<KVSetView>& stack);
+
+ private:
+  absl::AnyInvocable<absl::flat_hash_set<std::string_view>(std::string_view key)
+                         const>
+      lookup_fn_;
 };
 
 // General purpose Vistor capable of returning a string representation of a Node

@@ -83,7 +83,7 @@ exp: term {$$ = std::move($1);}
  | ERROR { driver.SetError("Invalid token: " + $1); YYERROR;}
  ;
 
-term: VAR { $$ = std::make_unique<ValueNode>(absl::bind_front(&Driver::Lookup, &driver), std::move($1)); }
+term: VAR { $$ = std::make_unique<ValueNode>(std::move($1)); }
  ;
 
 %%

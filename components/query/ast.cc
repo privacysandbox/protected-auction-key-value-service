@@ -60,12 +60,15 @@ void ASTStackVisitor::Visit(const OpNode& node, std::vector<KVSetView>& stack) {
 
 void ASTStackVisitor::Visit(const ValueNode& node,
                             std::vector<KVSetView>& stack) {
-  stack.emplace_back(node.Lookup());
+  stack.emplace_back(lookup_fn_(node.Key()));
 }
 
-KVSetView Compute(const std::vector<const Node*>& postorder) {
+KVSetView Compute(const std::vector<const Node*>& postorder,
+                  absl::AnyInvocable<absl::flat_hash_set<std::string_view>(
+                      std::string_view key) const>
+                      lookup_fn) {
   std::vector<KVSetView> stack;
-  ASTStackVisitor visitor;
+  ASTStackVisitor visitor(std::move(lookup_fn));
   // Apply the operations on the postorder stack
   for (const auto* node : postorder) {
     node->Accept(visitor, stack);
@@ -73,9 +76,12 @@ KVSetView Compute(const std::vector<const Node*>& postorder) {
   return stack.back();
 }
 
-KVSetView Eval(const Node& node) {
+KVSetView Eval(const Node& node,
+               absl::AnyInvocable<absl::flat_hash_set<std::string_view>(
+                   std::string_view key) const>
+                   lookup_fn) {
   std::vector<const Node*> postorder = PostOrderTraversal(&node);
-  return Compute(postorder);
+  return Compute(postorder, std::move(lookup_fn));
 }
 
 void OpNode::Accept(ASTStackVisitor& visitor,
@@ -118,11 +124,7 @@ absl::flat_hash_set<std::string_view> OpNode::Keys() const {
   return key_set;
 }
 
-ValueNode::ValueNode(
-    absl::AnyInvocable<KVSetView(std::string_view key) const> lookup_fn,
-    std::string key)
-    : lookup_fn_(absl::bind_front(std::move(lookup_fn), key)),
-      key_(std::move(key)) {}
+ValueNode::ValueNode(std::string key) : key_(std::move(key)) {}
 
 void ValueNode::Accept(ASTStackVisitor& visitor,
                        std::vector<KVSetView>& stack) const {
@@ -140,7 +142,5 @@ absl::flat_hash_set<std::string_view> ValueNode::Keys() const {
       {key_},
   };
 }
-
-KVSetView ValueNode::Lookup() const { return lookup_fn_(); }
 
 }  // namespace kv_server

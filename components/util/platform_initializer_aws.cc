@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <cstdlib>
+
+#include "absl/flags/flag.h"
 #include "absl/log/log.h"
 #include "aws/core/Aws.h"
 #include "components/util/platform_initializer.h"
@@ -38,6 +41,18 @@ PlatformInitializer::PlatformInitializer() {
   cpio_options_.log_option = LogOption::kConsoleLog;
   cpio_options_.cloud_init_option =
       google::scp::cpio::CloudInitOption::kNoInitInCpio;
+
+// TODO(b/338206801): Remove this aws region logic for aws local instance once
+// it's fixed on the CPIO side.
+#if defined(INSTANCE_LOCAL)
+  if (std::string aws_region = std::getenv("AWS_DEFAULT_REGION");
+      aws_region.empty()) {
+    LOG(WARNING) << "Failed to get environment variable 'AWS_DEFAULT_REGION' "
+                    "for PlatformInitializer.";
+  } else {
+    cpio_options_.region = aws_region;
+  }
+#endif
   if (auto error = Cpio::InitCpio(cpio_options_); !error.Successful()) {
     LOG(ERROR) << "Failed to initialize CPIO: "
                << GetErrorMessage(error.status_code) << std::endl;

@@ -129,6 +129,7 @@ cc_library(
     ],
     copts = select({
         "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
+        "//:local_instance": ["-DINSTANCE_LOCAL=1"],
         "//conditions:default": [],
     }),
     visibility = [

@@ -51,11 +51,13 @@ class RiegeliStreamReader : public StreamRecordReader {
       std::istream& data_input,
       std::function<bool(const riegeli::SkippedRegion&,
                          riegeli::RecordReaderBase& record_reader)>
-          recover)
+          recover,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : reader_(riegeli::RecordReader(
             riegeli::IStreamReader(&data_input),
             riegeli::RecordReaderBase::Options().set_recovery(
-                std::move(recover)))) {}
+                std::move(recover)))),
+        log_context_(log_context) {}
 
   absl::StatusOr<KVFileMetadata> GetKVFileMetadata() override {
     riegeli::RecordsMetadata metadata;
@@ -94,6 +96,7 @@ class RiegeliStreamReader : public StreamRecordReader {
 
  private:
   riegeli::RecordReader<riegeli::IStreamReader<>> reader_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 const int64_t kDefaultNumWorkerThreads = std::thread::hardware_concurrency();
@@ -196,11 +199,13 @@ absl::StatusOr<KVFileMetadata>
 ConcurrentStreamRecordReader<RecordT>::GetKVFileMetadata() {
   auto record_stream = stream_factory_();
   RiegeliStreamReader<RecordT> metadata_reader(
-      record_stream->Stream(), [](const riegeli::SkippedRegion& region,
-                                  riegeli::RecordReaderBase& record_reader) {
+      record_stream->Stream(),
+      [](const riegeli::SkippedRegion& region,
+         riegeli::RecordReaderBase& record_reader) {
         LOG(WARNING) << "Skipping over corrupted region: " << region;
         return true;
-      });
+      },
+      options_.log_context);
   return metadata_reader.GetKVFileMetadata();
 }
 template <typename RecordT>

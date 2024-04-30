@@ -72,6 +72,7 @@ cc_library(
     ],
     deps = [
         ":compression",
+        ":get_values_v2_status",
         ":ohttp_server_encryptor",
         "//components/data_server/cache",
         "//components/telemetry:server_definition",
@@ -289,5 +290,27 @@ cc_test(
         ":ohttp_server_encryptor",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/encryption/key_fetcher:fake_key_fetcher_manager",
+    ],
+)
+
+cc_library(
+    name = "get_values_v2_status",
+    srcs = select({
+        "//:nonprod_mode": [
+            "get_values_v2_status_nonprod.cc",
+        ],
+        "//:prod_mode": [
+            "get_values_v2_status.cc",
+        ],
+        "//conditions:default": [
+            "get_values_v2_status.cc",
+        ],
+    }),
+    hdrs = ["get_values_v2_status.h"],
+    deps = [
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )

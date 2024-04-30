@@ -24,6 +24,7 @@
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
+#include "components/data_server/request_handler/get_values_v2_status.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
 #include "components/telemetry/server_definition.h"
 #include "google/protobuf/util/json_util.h"
@@ -226,7 +227,7 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
   return grpc::Status::OK;
 }
 
-void GetValuesV2Handler::ProcessOnePartition(
+absl::Status GetValuesV2Handler::ProcessOnePartition(
     RequestContextFactory request_context_factory,
     const google::protobuf::Struct& req_metadata,
     const v2::RequestPartition& req_partition,
@@ -242,10 +243,11 @@ void GetValuesV2Handler::ProcessOnePartition(
         static_cast<int>(maybe_output_string.status().code()));
     resp_partition.mutable_status()->set_message(
         maybe_output_string.status().message());
-  } else {
-    VLOG(5) << "UDF output: " << maybe_output_string.value();
-    resp_partition.set_string_output(std::move(maybe_output_string).value());
+    return maybe_output_string.status();
   }
+  VLOG(5) << "UDF output: " << maybe_output_string.value();
+  resp_partition.set_string_output(std::move(maybe_output_string).value());
+  return absl::OkStatus();
 }
 
 grpc::Status GetValuesV2Handler::GetValues(
@@ -256,10 +258,10 @@ grpc::Status GetValuesV2Handler::GetValues(
   request_context->UpdateLogContext(request.log_context(),
                                     request.consented_debug_config());
   if (request.partitions().size() == 1) {
-    ProcessOnePartition(RequestContextFactory(request_context),
-                        request.metadata(), request.partitions(0),
-                        *response->mutable_single_partition());
-    return grpc::Status::OK;
+    const auto partition_status = ProcessOnePartition(
+        RequestContextFactory(request_context), request.metadata(),
+        request.partitions(0), *response->mutable_single_partition());
+    return GetExternalStatusForV2(partition_status);
   }
   if (request.partitions().empty()) {
     return grpc::Status(StatusCode::INTERNAL,

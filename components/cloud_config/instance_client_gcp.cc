@@ -250,7 +250,7 @@ class GcpInstanceClient : public InstanceClient {
             const ExecutionResult& result,
             const GetInstanceDetailsByResourceNameResponse& response) {
           if (result.Successful()) {
-            VLOG(2) << response.DebugString();
+            PS_VLOG(2, log_context_) << response.DebugString();
             instance_id_ =
                 std::string{response.instance_details().instance_id()};
             environment_ =

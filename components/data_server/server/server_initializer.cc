@@ -33,19 +33,23 @@ absl::Status InitializeUdfHooksInternal(
     std::function<std::unique_ptr<Lookup>()> get_lookup,
     GetValuesHook& string_get_values_hook,
     GetValuesHook& binary_get_values_hook,
-    RunSetQueryStringHook& run_query_hook) {
-  VLOG(9) << "Finishing getValues init";
+    RunSetQueryStringHook& run_query_hook,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  PS_VLOG(9, log_context) << "Finishing getValues init";
   string_get_values_hook.FinishInit(get_lookup());
-  VLOG(9) << "Finishing getValuesBinary init";
+  PS_VLOG(9, log_context) << "Finishing getValuesBinary init";
   binary_get_values_hook.FinishInit(get_lookup());
-  VLOG(9) << "Finishing runQuery init";
+  PS_VLOG(9, log_context) << "Finishing runQuery init";
   run_query_hook.FinishInit(get_lookup());
   return absl::OkStatus();
 }
 
 class NonshardedServerInitializer : public ServerInitializer {
  public:
-  explicit NonshardedServerInitializer(Cache& cache) : cache_(cache) {}
+  explicit NonshardedServerInitializer(
+      Cache& cache,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : cache_(cache), log_context_(log_context) {}
 
   RemoteLookup CreateAndStartRemoteLookupServer() override {
     RemoteLookup remote_lookup;
@@ -62,12 +66,13 @@ class NonshardedServerInitializer : public ServerInitializer {
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
-                               run_query_hook);
+                               run_query_hook, log_context_);
     return shard_manager_state;
   }
 
  private:
   Cache& cache_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 class ShardedServerInitializer : public ServerInitializer {
@@ -124,14 +129,14 @@ class ShardedServerInitializer : public ServerInitializer {
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
-                               run_set_query_string_hook);
+                               run_set_query_string_hook, log_context_);
     return std::move(*maybe_shard_state);
   }
 
  private:
   absl::StatusOr<ShardManagerState> CreateShardManager() {
     ShardManagerState shard_manager_state;
-    VLOG(10) << "Creating shard manager";
+    PS_VLOG(10, log_context_) << "Creating shard manager";
     shard_manager_state.cluster_mappings_manager =
         ClusterMappingsManager::Create(environment_, num_shards_,
                                        instance_client_, parameter_fetcher_,
@@ -181,7 +186,7 @@ std::unique_ptr<ServerInitializer> GetServerInitializer(
     privacy_sandbox::server_common::log::PSLogContext& log_context) {
   CHECK_GT(num_shards, 0) << "num_shards must be greater than 0";
   if (num_shards == 1) {
-    return std::make_unique<NonshardedServerInitializer>(cache);
+    return std::make_unique<NonshardedServerInitializer>(cache, log_context);
   }
 
   return std::make_unique<ShardedServerInitializer>(

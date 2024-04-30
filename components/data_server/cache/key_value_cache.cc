@@ -108,18 +108,19 @@ void KeyValueCache::UpdateKeyValue(
     std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext, kUpdateKeyValueLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
-  VLOG(9) << "Received update for [" << key << "] at " << logical_commit_time
-          << ". value will be set to: " << value;
+  PS_VLOG(9, log_context) << "Received update for [" << key << "] at "
+                          << logical_commit_time
+                          << ". value will be set to: " << value;
   absl::MutexLock lock(&mutex_);
 
   auto max_cleanup_logical_commit_time =
       max_cleanup_logical_commit_time_map_[prefix];
 
   if (logical_commit_time <= max_cleanup_logical_commit_time) {
-    VLOG(1) << "Skipping the update as its logical_commit_time: "
-            << logical_commit_time
-            << " is not newer than the current cutoff time:"
-            << max_cleanup_logical_commit_time;
+    PS_VLOG(1, log_context)
+        << "Skipping the update as its logical_commit_time: "
+        << logical_commit_time << " is not newer than the current cutoff time:"
+        << max_cleanup_logical_commit_time;
 
     return;
   }
@@ -128,10 +129,10 @@ void KeyValueCache::UpdateKeyValue(
 
   if (key_iter != map_.end() &&
       key_iter->second.last_logical_commit_time >= logical_commit_time) {
-    VLOG(1) << "Skipping the update as its logical_commit_time: "
-            << logical_commit_time
-            << " is not newer than the current value's time:"
-            << key_iter->second.last_logical_commit_time;
+    PS_VLOG(1, log_context)
+        << "Skipping the update as its logical_commit_time: "
+        << logical_commit_time << " is not newer than the current value's time:"
+        << key_iter->second.last_logical_commit_time;
     return;
   }
 
@@ -162,7 +163,8 @@ void KeyValueCache::UpdateKeyValueSet(
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kUpdateKeyValueSetLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
-  VLOG(9) << "Received update for [" << key << "] at " << logical_commit_time;
+  PS_VLOG(9, log_context) << "Received update for [" << key << "] at "
+                          << logical_commit_time;
   std::unique_ptr<absl::MutexLock> key_lock;
   absl::flat_hash_map<std::string, SetValueMeta>* existing_value_set;
   // The max cleanup time needs to be locked before doing this comparison
@@ -173,18 +175,19 @@ void KeyValueCache::UpdateKeyValueSet(
         set_cache_max_cleanup_logical_commit_time_[prefix];
 
     if (logical_commit_time <= max_cleanup_logical_commit_time) {
-      VLOG(1) << "Skipping the update as its logical_commit_time: "
-              << logical_commit_time
-              << " is older than the current cutoff time:"
-              << max_cleanup_logical_commit_time;
+      PS_VLOG(1, log_context)
+          << "Skipping the update as its logical_commit_time: "
+          << logical_commit_time << " is older than the current cutoff time:"
+          << max_cleanup_logical_commit_time;
       return;
     } else if (input_value_set.empty()) {
-      VLOG(1) << "Skipping the update as it has no value in the set.";
+      PS_VLOG(1, log_context)
+          << "Skipping the update as it has no value in the set.";
       return;
     }
     auto key_itr = key_to_value_set_map_.find(key);
     if (key_itr == key_to_value_set_map_.end()) {
-      VLOG(9) << key << " is a new key. Adding it";
+      PS_VLOG(9, log_context) << key << " is a new key. Adding it";
       // There is no existing value set for the given key,
       // simply insert the key value set to the map, no need to update deleted
       // set nodes

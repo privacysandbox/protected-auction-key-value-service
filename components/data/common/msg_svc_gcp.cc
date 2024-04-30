@@ -88,8 +88,9 @@ class GcpMessageService : public MessageService {
       subscription_builder.set_filter(
           absl::StrFormat(kFilterPolicyTemplate, shard_num_.value()));
     }
-    VLOG(1) << "Creating a subscription for project id " << project_id_
-            << " with subsciprition id " << subscription_id;
+    PS_VLOG(1, log_context_)
+        << "Creating a subscription for project id " << project_id_
+        << " with subsciprition id " << subscription_id;
     auto sub = subscription_admin_client_.CreateSubscription(
         Topic(project_id_, std::move(topic_id_)),
         Subscription(project_id_, subscription_id), subscription_builder);
@@ -98,7 +99,7 @@ class GcpMessageService : public MessageService {
     }
 
     sub_id_ = subscription_id;
-    VLOG(1) << "Subscription created " << sub_id_;
+    PS_VLOG(1, log_context_) << "Subscription created " << sub_id_;
     return subscription_id;
   }
 

@@ -65,12 +65,12 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
     {
       absl::MutexLock lock(&mutex_);
       if (session_.valid()) {
-        VLOG(8) << "Session valid.";
+        PS_VLOG(8, log_context_) << "Session valid.";
         session_.cancel();
-        VLOG(8) << "Session cancelled.";
+        PS_VLOG(8, log_context_) << "Session cancelled.";
       }
       status = sleep_for_->Stop();
-      VLOG(8) << "Sleep for just called stop.";
+      PS_VLOG(8, log_context_) << "Sleep for just called stop.";
     }
     status.Update(thread_manager_->Stop());
     PS_LOG(INFO, log_context_) << "Thread manager just called stop.";

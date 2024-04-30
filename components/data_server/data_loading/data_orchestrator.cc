@@ -211,8 +211,8 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
                Record::UserDefinedFunctionsConfig) {
       const auto* udf_config =
           data_record.record_as_UserDefinedFunctionsConfig();
-      VLOG(3) << "Setting UDF code snippet for version: "
-              << udf_config->version();
+      PS_VLOG(3, log_context)
+          << "Setting UDF code snippet for version: " << udf_config->version();
       return udf_client.SetCodeObject(
           CodeConfig{.js = udf_config->code_snippet()->str(),
                      .udf_handler_name = udf_config->handler_name()->str(),

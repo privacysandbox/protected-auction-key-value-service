@@ -70,7 +70,8 @@ class RiegeliStreamReader : public StreamRecordReader {
     }
 
     auto file_metadata = metadata.GetExtension(kv_file_metadata);
-    VLOG(2) << "File metadata: " << file_metadata.DebugString();
+    PS_VLOG(2, log_context_)
+        << "File metadata: " << file_metadata.DebugString();
     return file_metadata;
   }
 
@@ -310,9 +311,9 @@ absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     total_records_read += curr_shard_result->num_records_read;
     prev_shard_result = curr_shard_result;
   }
-  VLOG(2) << "Done reading " << total_records_read << " records in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+  PS_VLOG(2, options_.log_context)
+      << "Done reading " << total_records_read << " records in "
+      << absl::ToDoubleMilliseconds(latency_recorder.GetLatency()) << " ms.";
   return absl::OkStatus();
 }
 
@@ -321,8 +322,9 @@ absl::StatusOr<typename ConcurrentStreamRecordReader<RecordT>::ShardResult>
 ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
     const ShardRange& shard,
     const std::function<absl::Status(const RecordT&)>& record_callback) {
-  VLOG(2) << "Reading shard: " << "[" << shard.start_pos << "," << shard.end_pos
-          << "]";
+  PS_VLOG(2, options_.log_context)
+      << "Reading shard: " << "[" << shard.start_pos << "," << shard.end_pos
+      << "]";
   ScopeLatencyMetricsRecorder<
       ServerSafeMetricsContext,
       kConcurrentStreamRecordReaderReadShardRecordsLatency>
@@ -358,10 +360,10 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
   }
   shard_result.next_shard_first_record_pos = next_record_pos;
   shard_result.num_records_read = num_records_read;
-  VLOG(2) << "Done reading " << num_records_read << " records in shard: ["
-          << shard.start_pos << "," << shard.end_pos << "] in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+  PS_VLOG(2, options_.log_context)
+      << "Done reading " << num_records_read << " records in shard: ["
+      << shard.start_pos << "," << shard.end_pos << "] in "
+      << absl::ToDoubleMilliseconds(latency_recorder.GetLatency()) << " ms.";
   return shard_result;
 }
 

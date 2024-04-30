@@ -39,7 +39,8 @@ class ThreadManagerImpl : public ThreadManager {
 
   ~ThreadManagerImpl() {
     if (!IsRunning()) return;
-    VLOG(8) << thread_name_ << " In destructor. Attempting to stop the thread.";
+    PS_VLOG(8, log_context_)
+        << thread_name_ << " In destructor. Attempting to stop the thread.";
     if (const auto s = Stop(); !s.ok()) {
       PS_LOG(ERROR, log_context_) << thread_name_ << " failed to stop: " << s;
     }
@@ -56,14 +57,14 @@ class ThreadManagerImpl : public ThreadManager {
   }
 
   absl::Status Stop() override {
-    VLOG(8) << thread_name_ << "Stop called";
+    PS_VLOG(8, log_context_) << thread_name_ << "Stop called";
     if (!IsRunning()) {
       PS_LOG(ERROR, log_context_) << thread_name_ << " not running";
       return absl::FailedPreconditionError("Not currently running");
     }
     should_stop_ = true;
     thread_->join();
-    VLOG(8) << thread_name_ << " joined";
+    PS_VLOG(8, log_context_) << thread_name_ << " joined";
     thread_.reset();
     should_stop_ = false;
     return absl::OkStatus();

@@ -123,7 +123,7 @@ absl::StatusOr<bool> DeltaFileNotifierImpl::ShouldListBlobs(
     const absl::flat_hash_map<std::string, std::string>&
         prefix_start_after_map) {
   if (!expiring_flag.Get()) {
-    VLOG(5) << "Backup poll";
+    PS_VLOG(5, log_context_) << "Backup poll";
     return true;
   }
   absl::StatusOr<std::string> notification_key =
@@ -131,7 +131,7 @@ absl::StatusOr<bool> DeltaFileNotifierImpl::ShouldListBlobs(
   // Don't poll on error.  A backup poll will trigger if necessary.
   if (absl::IsDeadlineExceeded(notification_key.status())) {
     // Deadline exceeded while waiting, trigger backup poll
-    VLOG(5) << "Backup poll";
+    PS_VLOG(5, log_context_) << "Backup poll";
     return true;
   }
   if (!notification_key.ok()) {
@@ -230,7 +230,7 @@ void DeltaFileNotifierImpl::Watch(
       }
     }
     if (delta_file_count == 0) {
-      VLOG(2) << "No new file found";
+      PS_VLOG(2, log_context_) << "No new file found";
     }
   }
 }

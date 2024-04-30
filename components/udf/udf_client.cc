@@ -162,16 +162,17 @@ class UdfClientImpl : public UdfClient {
       privacy_sandbox::server_common::log::PSLogContext& log_context) {
     // Only update code if logical commit time is larger.
     if (logical_commit_time_ >= code_config.logical_commit_time) {
-      VLOG(1) << "Not updating code object. logical_commit_time "
-              << code_config.logical_commit_time
-              << " too small, should be greater than " << logical_commit_time_;
+      PS_VLOG(1, log_context)
+          << "Not updating code object. logical_commit_time "
+          << code_config.logical_commit_time
+          << " too small, should be greater than " << logical_commit_time_;
       return absl::OkStatus();
     }
     std::shared_ptr<absl::Status> response_status =
         std::make_shared<absl::Status>();
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();
-    VLOG(9) << "Setting UDF: " << code_config.js;
+    PS_VLOG(9, log_context) << "Setting UDF: " << code_config.js;
     CodeObject code_object =
         BuildCodeObject(std::move(code_config.js), std::move(code_config.wasm),
                         code_config.version);
@@ -204,8 +205,9 @@ class UdfClientImpl : public UdfClient {
     handler_name_ = std::move(code_config.udf_handler_name);
     logical_commit_time_ = code_config.logical_commit_time;
     version_ = code_config.version;
-    VLOG(5) << "Successfully set UDF code object with handler_name "
-            << handler_name_;
+    PS_VLOG(5, log_context)
+        << "Successfully set UDF code object with handler_name "
+        << handler_name_;
     return absl::OkStatus();
   }
 

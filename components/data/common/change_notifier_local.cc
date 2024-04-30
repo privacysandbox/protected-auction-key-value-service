@@ -36,15 +36,17 @@ class LocalChangeNotifier : public ChangeNotifier {
       std::filesystem::path local_directory,
       privacy_sandbox::server_common::log::PSLogContext& log_context)
       : local_directory_(local_directory), log_context_(log_context) {
-    VLOG(1) << "Building initial list of local files in directory: "
-            << local_directory_.string();
+    PS_VLOG(1, log_context_)
+        << "Building initial list of local files in directory: "
+        << local_directory_.string();
     auto status_or = FindNewFiles({});
     if (!status_or.ok()) {
       PS_LOG(ERROR, log_context_) << "Unable to build initial file list"
                                   << status_or.status().message();
     }
     files_in_directory_ = std::move(status_or.value());
-    VLOG(1) << "Found " << files_in_directory_.size() << " files.";
+    PS_VLOG(1, log_context_)
+        << "Found " << files_in_directory_.size() << " files.";
   }
 
   ~LocalChangeNotifier() { sleep_for_.Stop(); }
@@ -57,12 +59,13 @@ class LocalChangeNotifier : public ChangeNotifier {
 
     while (true) {
       if (should_stop_callback()) {
-        VLOG(1) << "Callback says to stop watching, stopping.";
+        PS_VLOG(1, log_context_) << "Callback says to stop watching, stopping.";
         return std::vector<std::string>{};
       }
 
       if (max_wait <= absl::ZeroDuration()) {
-        VLOG(1) << "No new files found within timeout, stopping.";
+        PS_VLOG(1, log_context_)
+            << "No new files found within timeout, stopping.";
         return absl::DeadlineExceededError("No messages found");
       }
 
@@ -71,7 +74,7 @@ class LocalChangeNotifier : public ChangeNotifier {
         return status_or.status();
       }
       if (!status_or->empty()) {
-        VLOG(1) << "Found new local files.";
+        PS_VLOG(1, log_context_) << "Found new local files.";
         // Add the new files to the running list so that they'll be ignored if
         // GetNotifications is called again.
         files_in_directory_.insert(status_or->begin(), status_or->end());
@@ -100,7 +103,7 @@ class LocalChangeNotifier : public ChangeNotifier {
       const std::string filename =
           std::filesystem::path(file).filename().string();
       if (previous_files.find(filename) == previous_files.end()) {
-        VLOG(1) << "Found new file: " << filename;
+        PS_VLOG(1, log_context_) << "Found new file: " << filename;
         new_files.emplace(filename);
       }
     }

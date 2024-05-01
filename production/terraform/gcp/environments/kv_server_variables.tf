@@ -363,3 +363,8 @@ variable "consented_debug_token" {
   description = "Consented debug token to enable the otel collection of consented logs. Empty token means no-op and no logs will be collected for consented requests. The token in the request's consented debug configuration needs to match this debug token to make the server treat the request as consented."
   type        = string
 }
+
+variable "enable_consented_log" {
+  description = "Enable the logging of consented requests. If it is set to true, the consented debug token parameter value must not be an empty string."
+  type        = bool
+}

@@ -113,6 +113,7 @@ constexpr std::string_view kDataLoadingBlobPrefixAllowlistSuffix =
     "data-loading-blob-prefix-allowlist";
 constexpr std::string_view kTelemetryConfigSuffix = "telemetry-config";
 constexpr std::string_view kConsentedDebugTokenSuffix = "consented-debug-token";
+constexpr std::string_view kEnableConsentedLogSuffix = "enable-consented-log";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -230,8 +231,12 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
   if (!enable_otel_logger) {
     return;
   }
-  privacy_sandbox::server_common::log::ServerToken(
-      parameter_fetcher.GetParameter(kConsentedDebugTokenSuffix, ""));
+  if (const bool enable_consented_log =
+          parameter_fetcher.GetBoolParameter(kEnableConsentedLogSuffix);
+      enable_consented_log) {
+    privacy_sandbox::server_common::log::ServerToken(
+        parameter_fetcher.GetParameter(kConsentedDebugTokenSuffix, ""));
+  }
   log_provider_ = privacy_sandbox::server_common::ConfigurePrivateLogger(
       server_info, collector_endpoint);
   // TODO(b/327001960): Remove open telemetry sink after PS_LOG and PS_VLOG

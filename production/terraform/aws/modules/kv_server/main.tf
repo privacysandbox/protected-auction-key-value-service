@@ -173,6 +173,7 @@ module "parameter" {
   secondary_coordinator_region_parameter_value               = var.secondary_coordinator_region
   public_key_endpoint_parameter_value                        = var.public_key_endpoint
   consented_debug_token_parameter_value                      = var.consented_debug_token
+  enable_consented_log_parameter_value                       = var.enable_consented_log
 
 
   data_loading_file_format_parameter_value = var.data_loading_file_format
@@ -234,6 +235,7 @@ module "iam_role_policies" {
     module.parameter.udf_update_timeout_millis_parameter_arn,
     module.parameter.udf_min_log_level_parameter_arn,
     module.parameter.enable_otel_logger_parameter_arn,
+    module.parameter.enable_consented_log_parameter_arn,
   module.parameter.data_loading_blob_prefix_allowlist_parameter_arn]
   coordinator_parameter_arns = (
     var.use_real_coordinators ? [
@@ -256,7 +258,7 @@ module "iam_role_policies" {
       module.parameter.sharding_key_regex_parameter_arn
     ] : []
   )
-  consented_debug_token_arns = ((var.consented_debug_token != "") ? [
+  consented_debug_token_arns = (var.enable_consented_log ? [
     module.parameter.consented_debug_token_parameter_arn] : []
   )
 }

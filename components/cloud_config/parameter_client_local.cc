@@ -69,6 +69,7 @@ ABSL_FLAG(std::string, data_loading_prefix_allowlist, "",
           "Allowlist for blob prefixes.");
 ABSL_FLAG(bool, add_missing_keys_v1, false,
           "Whether to add missing keys for v1.");
+ABSL_FLAG(bool, enable_consented_log, false, "Whether to enable consented log");
 ABSL_FLAG(std::string, consented_debug_token, "", "Consented debug token");
 
 namespace kv_server {
@@ -150,6 +151,8 @@ class LocalParameterClient : public ParameterClient {
     bool_flag_values_.insert({"kv-server-local-use-sharding-key-regex", false});
     bool_flag_values_.insert({"kv-server-local-enable-otel-logger",
                               absl::GetFlag(FLAGS_enable_otel_logger)});
+    bool_flag_values_.insert({"kv-server-local-enable-consented-log",
+                              absl::GetFlag(FLAGS_enable_consented_log)});
     // Insert more bool flag values here.
   }
 

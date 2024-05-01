@@ -50,6 +50,11 @@
 
     Number of parallel threads for reading and loading data files.
 
+-   **enable_consented_log**
+
+    Enable the logging of consented requests. If it is set to true, the consented debug token
+    parameter value must not be an empty string.
+
 -   **enable_external_traffic**
 
     Whether to serve external traffic. If disabled, only internal traffic via service mesh will be

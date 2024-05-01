@@ -48,6 +48,11 @@
     the number of concurrent threads used to read and load a single delta or snapshot file from blob
     storage.
 
+-   **enable_consented_log**
+
+    Enable the logging of consented requests. If it is set to true, the consented debug token
+    parameter value must not be an empty string.
+
 -   **enclave_cpu_count**
 
     Set how many CPUs the server will use.

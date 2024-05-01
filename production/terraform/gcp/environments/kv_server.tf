@@ -109,5 +109,6 @@ module "kv_server" {
     telemetry-config                           = var.telemetry_config
     data-loading-blob-prefix-allowlist         = var.data_loading_blob_prefix_allowlist
     consented-debug-token                      = var.consented_debug_token
+    enable-consented-log                       = var.enable_consented_log
   }
 }

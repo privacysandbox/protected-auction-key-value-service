@@ -61,23 +61,56 @@ class RequestLogContext {
 
 class RequestContext {
  public:
-  explicit RequestContext(const ScopeMetricsContext& metrics_context,
-                          RequestLogContext& request_log_context)
-      : udf_request_metrics_context_(
-            metrics_context.GetUdfRequestMetricsContext()),
+  explicit RequestContext(
+      std::string request_id = google::scp::core::common::ToString(
+          google::scp::core::common::Uuid::GenerateUuid()))
+      : request_id_(request_id),
+        udf_request_metrics_context_(KVServerContextMap()->Get(&request_id_)),
         internal_lookup_metrics_context_(
-            metrics_context.GetInternalLookupMetricsContext()),
-        request_log_context_(request_log_context) {}
+            InternalLookupServerContextMap()->Get(&request_id_)) {
+    request_log_context_ = std::make_unique<RequestLogContext>(
+        privacy_sandbox::server_common::LogContext(),
+        privacy_sandbox::server_common::ConsentedDebugConfiguration());
+  }
+  // Updates request log context with the new log context and consented debug
+  // configuration. This function is typically called after RequestContext is
+  // created and the consented debugging information is available after request
+  // is decrypted.
+  void UpdateLogContext(
+      const privacy_sandbox::server_common::LogContext& log_context,
+      const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+          consented_debug_config);
   UdfRequestMetricsContext& GetUdfRequestMetricsContext() const;
   InternalLookupMetricsContext& GetInternalLookupMetricsContext() const;
   RequestLogContext& GetRequestLogContext() const;
 
-  ~RequestContext() = default;
+  ~RequestContext() {
+    // Remove the metrics context for request_id, This is to ensure that
+    // metrics context has the same lifetime with RequestContext and be
+    // destroyed when RequestContext goes out of scope.
+    LogIfError(KVServerContextMap()->Remove(&request_id_),
+               "When removing Udf request metrics context");
+    LogIfError(InternalLookupServerContextMap()->Remove(&request_id_),
+               "When removing internal lookup metrics context");
+  }
 
  private:
+  const std::string request_id_;
   UdfRequestMetricsContext& udf_request_metrics_context_;
   InternalLookupMetricsContext& internal_lookup_metrics_context_;
-  RequestLogContext& request_log_context_;
+  std::unique_ptr<RequestLogContext> request_log_context_;
+};
+
+// Class that facilitates the passing of request context to public interfaces
+// while hiding the implementation details like wrapping the request context
+// with a smart pointer
+class RequestContextFactory {
+ public:
+  explicit RequestContextFactory(std::weak_ptr<RequestContext> request_context);
+  std::weak_ptr<RequestContext> Get();
+
+ private:
+  std::weak_ptr<RequestContext> request_context_;
 };
 
 }  // namespace kv_server

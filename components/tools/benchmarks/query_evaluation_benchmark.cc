@@ -100,11 +100,7 @@ void SetUpKeyValueCache(int64_t set_size, uint32_t range_min,
 
 template <typename SetLookupFn>
 auto GetSetResult(SetLookupFn&& lookup_fn) {
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  auto request_log_context = std::make_unique<RequestLogContext>(
-      privacy_sandbox::server_common::LogContext(),
-      privacy_sandbox::server_common::ConsentedDebugConfiguration());
-  RequestContext request_context(*scope_metrics_context, *request_log_context);
+  RequestContext request_context;
   return lookup_fn(request_context,
                    StringSet(kSetNames.begin(), kSetNames.end()));
 }

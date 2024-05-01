@@ -34,12 +34,13 @@ grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
     CallbackServerContext* context, const GetValuesRequest* request,
     GetValuesResponse* response) {
   auto request_received_time = absl::Now();
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  auto request_log_context = std::make_unique<RequestLogContext>(
+  std::shared_ptr<RequestContext> request_context =
+      std::make_shared<RequestContext>();
+  request_context->UpdateLogContext(
       privacy_sandbox::server_common::LogContext(),
       privacy_sandbox::server_common::ConsentedDebugConfiguration());
-  RequestContext request_context(*scope_metrics_context, *request_log_context);
-  grpc::Status status = handler_.GetValues(request_context, *request, response);
+  grpc::Status status =
+      handler_.GetValues(*request_context, *request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
   LogRequestCommonSafeMetrics(request, response, status, request_received_time);

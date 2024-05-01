@@ -18,6 +18,7 @@
 #define COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_V2_HANDLER_H_
 
 #include <map>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -133,7 +134,7 @@ class GetValuesV2Handler {
                                    std::string& response) const;
 
   // Invokes UDF to process one partition.
-  void ProcessOnePartition(RequestContext request_context,
+  void ProcessOnePartition(RequestContextFactory request_context_factory,
                            const google::protobuf::Struct& req_metadata,
                            const v2::RequestPartition& req_partition,
                            v2::ResponsePartition& resp_partition) const;

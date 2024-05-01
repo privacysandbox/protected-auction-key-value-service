@@ -75,10 +75,7 @@ void LookupServiceImpl::ProcessKeysetKeys(
 grpc::Status LookupServiceImpl::InternalLookup(
     grpc::ServerContext* context, const InternalLookupRequest* request,
     InternalLookupResponse* response) {
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  auto request_log_context = std::make_unique<RequestLogContext>(
-      request->log_context(), request->consented_debug_config());
-  RequestContext request_context(*scope_metrics_context, *request_log_context);
+  RequestContext request_context;
   if (context->IsCancelled()) {
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
@@ -91,13 +88,12 @@ grpc::Status LookupServiceImpl::SecureLookup(
     grpc::ServerContext* context,
     const SecureLookupRequest* secure_lookup_request,
     SecureLookupResponse* secure_response) {
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  LogIfError(scope_metrics_context->GetInternalLookupMetricsContext()
+  RequestContext request_context;
+  LogIfError(request_context.GetInternalLookupMetricsContext()
                  .AccumulateMetric<kSecureLookupRequestCount>(1));
   ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
                               kInternalSecureLookupLatencyInMicros>
-      latency_recorder(
-          scope_metrics_context->GetInternalLookupMetricsContext());
+      latency_recorder(request_context.GetInternalLookupMetricsContext());
   if (context->IsCancelled()) {
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
@@ -109,7 +105,7 @@ grpc::Status LookupServiceImpl::SecureLookup(
       encryptor.DecryptRequest(secure_lookup_request->ohttp_request());
   if (!padded_serialized_request_maybe.ok()) {
     return ToInternalGrpcStatus(
-        scope_metrics_context->GetInternalLookupMetricsContext(),
+        request_context.GetInternalLookupMetricsContext(),
         padded_serialized_request_maybe.status(), kRequestDecryptionFailure);
   }
 
@@ -118,7 +114,7 @@ grpc::Status LookupServiceImpl::SecureLookup(
       kv_server::Unpad(*padded_serialized_request_maybe);
   if (!serialized_request_maybe.ok()) {
     return ToInternalGrpcStatus(
-        scope_metrics_context->GetInternalLookupMetricsContext(),
+        request_context.GetInternalLookupMetricsContext(),
         serialized_request_maybe.status(), kRequestUnpaddingError);
   }
 
@@ -128,9 +124,8 @@ grpc::Status LookupServiceImpl::SecureLookup(
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         "Failed parsing incoming request");
   }
-  auto request_log_context = std::make_unique<RequestLogContext>(
-      request.log_context(), request.consented_debug_config());
-  RequestContext request_context(*scope_metrics_context, *request_log_context);
+  request_context.UpdateLogContext(request.log_context(),
+                                   request.consented_debug_config());
   auto payload_to_encrypt =
       GetPayload(request_context, request.lookup_sets(), request.keys());
   if (payload_to_encrypt.empty()) {
@@ -164,10 +159,7 @@ std::string LookupServiceImpl::GetPayload(
 grpc::Status LookupServiceImpl::InternalRunQuery(
     grpc::ServerContext* context, const InternalRunQueryRequest* request,
     InternalRunQueryResponse* response) {
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  auto request_log_context = std::make_unique<RequestLogContext>(
-      request->log_context(), request->consented_debug_config());
-  RequestContext request_context(*scope_metrics_context, *request_log_context);
+  RequestContext request_context;
   if (context->IsCancelled()) {
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");

@@ -600,6 +600,16 @@ inline void LogIfError(const absl::Status& s,
       << message << ": " << s;
 }
 
+template <typename T>
+inline void LogIfError(const absl::StatusOr<T>& s, std::string_view message,
+                       privacy_sandbox::server_common::SourceLocation location
+                           PS_LOC_CURRENT_DEFAULT_ARG) {
+  if (s.ok()) return;
+  ABSL_LOG_EVERY_N_SEC(WARNING, 60)
+          .AtLocation(location.file_name(), location.line())
+      << message << ": " << s.status();
+}
+
 template <const auto& definition>
 inline absl::AnyInvocable<void(const absl::Status&, int) const>
 LogStatusSafeMetricsFn() {
@@ -695,56 +705,6 @@ inline void LogRequestCommonSafeMetrics(
               privacy_sandbox::server_common::metrics::kServerTotalTimeMs>(
               duration_ms));
 }
-
-// ScopeMetricsContext provides metrics context ties to the request and
-// should have the same lifetime of the request.
-// The purpose of this class is to avoid explicit creating and deleting metrics
-// context from context map. The metrics context associated with the request
-// will be destroyed after ScopeMetricsContext goes out of scope.
-class ScopeMetricsContext {
- public:
-  explicit ScopeMetricsContext(
-      std::string request_id = google::scp::core::common::ToString(
-          google::scp::core::common::Uuid::GenerateUuid()))
-      : request_id_(std::move(request_id)) {
-    // Create a metrics context in the context map and
-    // associated it with request id
-    KVServerContextMap()->Get(&request_id_);
-    CHECK_OK([this]() {
-      // Remove the metrics context for request_id to transfer the ownership
-      // of metrics context to the ScopeMetricsContext. This is to ensure that
-      // metrics context has the same lifetime with RequestContext and be
-      // destroyed when ScopeMetricsContext goes out of scope.
-      PS_ASSIGN_OR_RETURN(udf_request_metrics_context_,
-                          KVServerContextMap()->Remove(&request_id_));
-      return absl::OkStatus();
-    }()) << "Udf request metrics context is not initialized";
-    InternalLookupServerContextMap()->Get(&request_id_);
-    CHECK_OK([this]() {
-      // Remove the metrics context for request_id to transfer the ownership
-      // of metrics context to the ScopeMetricsContext. This is to ensure that
-      // metrics context has the same lifetime with RequestContext and be
-      // destroyed when ScopeMetricsContext goes out of scope.
-      PS_ASSIGN_OR_RETURN(
-          internal_lookup_metrics_context_,
-          InternalLookupServerContextMap()->Remove(&request_id_));
-      return absl::OkStatus();
-    }()) << "Internal lookup metrics context is not initialized";
-  }
-  UdfRequestMetricsContext& GetUdfRequestMetricsContext() const {
-    return *udf_request_metrics_context_;
-  }
-  InternalLookupMetricsContext& GetInternalLookupMetricsContext() const {
-    return *internal_lookup_metrics_context_;
-  }
-
- private:
-  const std::string request_id_;
-  // Metrics context has the same lifetime of server request context
-  std::unique_ptr<UdfRequestMetricsContext> udf_request_metrics_context_;
-  std::unique_ptr<InternalLookupMetricsContext>
-      internal_lookup_metrics_context_;
-};
 
 // Measures the latency of a block of code. The latency is recorded in
 // microseconds as histogram metrics when the object of this class goes

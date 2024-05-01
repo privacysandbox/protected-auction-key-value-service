@@ -31,12 +31,13 @@ namespace kv_server {
 namespace {
 class NoopUdfClientImpl : public UdfClient {
  public:
-  absl::StatusOr<std::string> ExecuteCode(RequestContext request_context,
-                                          std::vector<std::string> keys) const {
+  absl::StatusOr<std::string> ExecuteCode(
+      RequestContextFactory request_context_factory,
+      std::vector<std::string> keys) const {
     return "";
   }
   absl::StatusOr<std::string> ExecuteCode(
-      RequestContext request_context, UDFExecutionMetadata&&,
+      RequestContextFactory request_context_factory, UDFExecutionMetadata&&,
       const google::protobuf::RepeatedPtrField<UDFArgument>& arguments) const {
     return "";
   }

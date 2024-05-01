@@ -227,7 +227,7 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
 }
 
 void GetValuesV2Handler::ProcessOnePartition(
-    RequestContext request_context,
+    RequestContextFactory request_context_factory,
     const google::protobuf::Struct& req_metadata,
     const v2::RequestPartition& req_partition,
     v2::ResponsePartition& resp_partition) const {
@@ -235,7 +235,7 @@ void GetValuesV2Handler::ProcessOnePartition(
   UDFExecutionMetadata udf_metadata;
   *udf_metadata.mutable_request_metadata() = req_metadata;
   const auto maybe_output_string = udf_client_.ExecuteCode(
-      std::move(request_context), std::move(udf_metadata),
+      std::move(request_context_factory), std::move(udf_metadata),
       req_partition.arguments());
   if (!maybe_output_string.ok()) {
     resp_partition.mutable_status()->set_code(
@@ -251,13 +251,13 @@ void GetValuesV2Handler::ProcessOnePartition(
 grpc::Status GetValuesV2Handler::GetValues(
     const v2::GetValuesRequest& request,
     v2::GetValuesResponse* response) const {
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  auto request_log_context = std::make_unique<RequestLogContext>(
-      request.log_context(), request.consented_debug_config());
-  RequestContext request_context(*scope_metrics_context, *request_log_context);
+  std::shared_ptr<RequestContext> request_context =
+      std::make_shared<RequestContext>();
+  request_context->UpdateLogContext(request.log_context(),
+                                    request.consented_debug_config());
   if (request.partitions().size() == 1) {
-    ProcessOnePartition(std::move(request_context), request.metadata(),
-                        request.partitions(0),
+    ProcessOnePartition(RequestContextFactory(request_context),
+                        request.metadata(), request.partitions(0),
                         *response->mutable_single_partition());
     return grpc::Status::OK;
   }

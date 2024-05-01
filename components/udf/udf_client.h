@@ -44,12 +44,14 @@ class UdfClient {
   // UDF signature.
   ABSL_DEPRECATED("Use ExecuteCode(metadata, arguments) instead")
   virtual absl::StatusOr<std::string> ExecuteCode(
-      RequestContext request_context, std::vector<std::string> keys) const = 0;
+      RequestContextFactory request_context_factory,
+      std::vector<std::string> keys) const = 0;
 
   // Executes the UDF. Code object must be set before making
   // this call.
   virtual absl::StatusOr<std::string> ExecuteCode(
-      RequestContext request_context, UDFExecutionMetadata&& execution_metadata,
+      RequestContextFactory request_context_factory,
+      UDFExecutionMetadata&& execution_metadata,
       const google::protobuf::RepeatedPtrField<UDFArgument>& arguments)
       const = 0;
 
@@ -71,8 +73,8 @@ class UdfClient {
 
   // Creates a UDF executor. This calls Roma::Init, which forks.
   static absl::StatusOr<std::unique_ptr<UdfClient>> Create(
-      google::scp::roma::Config<RequestContext>&& config =
-          google::scp::roma::Config<RequestContext>(),
+      google::scp::roma::Config<std::weak_ptr<RequestContext>>&& config =
+          google::scp::roma::Config<std::weak_ptr<RequestContext>>(),
       absl::Duration udf_timeout = absl::Seconds(5),
       absl::Duration udf_update_timeout = absl::Seconds(5),
       int udf_min_log_level = 0);

@@ -47,18 +47,14 @@ class GetValuesHandlerTest : public ::testing::Test {
  protected:
   GetValuesHandlerTest() {
     InitMetricsContextMap();
-    scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
-    request_log_context_ = std::make_unique<RequestLogContext>(
+    request_context_ = std::make_unique<RequestContext>();
+    request_context_->UpdateLogContext(
         privacy_sandbox::server_common::LogContext(),
         privacy_sandbox::server_common::ConsentedDebugConfiguration());
-    request_context_ = std::make_unique<RequestContext>(*scope_metrics_context_,
-                                                        *request_log_context_);
   }
   MockCache mock_cache_;
   MockGetValuesAdapter mock_get_values_adapter_;
   RequestContext& GetRequestContext() { return *request_context_; }
-  std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
-  std::unique_ptr<RequestLogContext> request_log_context_;
   std::unique_ptr<RequestContext> request_context_;
 };
 

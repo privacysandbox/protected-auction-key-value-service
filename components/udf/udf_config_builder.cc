@@ -39,14 +39,15 @@ constexpr char kStringGetValuesHookJsName[] = "getValues";
 constexpr char kBinaryGetValuesHookJsName[] = "getValuesBinary";
 constexpr char kRunQueryHookJsName[] = "runQuery";
 
-std::unique_ptr<FunctionBindingObjectV2<RequestContext>>
+std::unique_ptr<FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>
 GetValuesFunctionObject(GetValuesHook& get_values_hook,
                         std::string handler_name) {
-  auto get_values_function_object =
-      std::make_unique<FunctionBindingObjectV2<RequestContext>>();
+  auto get_values_function_object = std::make_unique<
+      FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>();
   get_values_function_object->function_name = std::move(handler_name);
   get_values_function_object->function =
-      [&get_values_hook](FunctionBindingPayload<RequestContext>& in) {
+      [&get_values_hook](
+          FunctionBindingPayload<std::weak_ptr<RequestContext>>& in) {
         get_values_hook(in);
       };
   return get_values_function_object;
@@ -70,11 +71,12 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterBinaryGetValuesHook(
 
 UdfConfigBuilder& UdfConfigBuilder::RegisterRunQueryHook(
     RunQueryHook& run_query_hook) {
-  auto run_query_function_object =
-      std::make_unique<FunctionBindingObjectV2<RequestContext>>();
+  auto run_query_function_object = std::make_unique<
+      FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>();
   run_query_function_object->function_name = kRunQueryHookJsName;
   run_query_function_object->function =
-      [&run_query_hook](FunctionBindingPayload<RequestContext>& in) {
+      [&run_query_hook](
+          FunctionBindingPayload<std::weak_ptr<RequestContext>>& in) {
         run_query_hook(in);
       };
   config_.RegisterFunctionBinding(std::move(run_query_function_object));
@@ -92,7 +94,8 @@ UdfConfigBuilder& UdfConfigBuilder::SetNumberOfWorkers(
   return *this;
 }
 
-google::scp::roma::Config<RequestContext>& UdfConfigBuilder::Config() {
+google::scp::roma::Config<std::weak_ptr<RequestContext>>&
+UdfConfigBuilder::Config() {
   return config_;
 }
 

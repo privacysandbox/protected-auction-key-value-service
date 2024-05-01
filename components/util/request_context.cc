@@ -32,7 +32,14 @@ InternalLookupMetricsContext& RequestContext::GetInternalLookupMetricsContext()
   return internal_lookup_metrics_context_;
 }
 RequestLogContext& RequestContext::GetRequestLogContext() const {
-  return request_log_context_;
+  return *request_log_context_;
+}
+void RequestContext::UpdateLogContext(
+    const privacy_sandbox::server_common::LogContext& log_context,
+    const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+        consented_debug_config) {
+  request_log_context_ =
+      std::make_unique<RequestLogContext>(log_context, consented_debug_config);
 }
 
 RequestLogContext::RequestLogContext(
@@ -60,5 +67,13 @@ absl::btree_map<std::string, std::string> RequestLogContext::GetContextMap(
     const privacy_sandbox::server_common::LogContext& log_context) {
   return {{kGenerationId, log_context.generation_id()},
           {kAdtechDebugId, log_context.adtech_debug_id()}};
+}
+RequestContextFactory::RequestContextFactory(
+    std::weak_ptr<RequestContext> request_context) {
+  request_context_ = request_context;
+}
+
+std::weak_ptr<RequestContext> RequestContextFactory::Get() {
+  return request_context_;
 }
 }  // namespace kv_server

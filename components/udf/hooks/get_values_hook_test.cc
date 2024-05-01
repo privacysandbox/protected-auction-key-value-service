@@ -42,17 +42,12 @@ class GetValuesHookTest : public ::testing::Test {
  protected:
   GetValuesHookTest() {
     InitMetricsContextMap();
-    scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
-    request_log_context_ = std::make_unique<RequestLogContext>(
-        privacy_sandbox::server_common::LogContext(),
-        privacy_sandbox::server_common::ConsentedDebugConfiguration());
-    request_context_ = std::make_unique<RequestContext>(*scope_metrics_context_,
-                                                        *request_log_context_);
+    request_context_ = std::make_shared<RequestContext>();
   }
-  RequestContext& GetRequestContext() { return *request_context_; }
-  std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
-  std::unique_ptr<RequestLogContext> request_log_context_;
-  std::unique_ptr<RequestContext> request_context_;
+  std::shared_ptr<RequestContext> GetRequestContext() {
+    return request_context_;
+  }
+  std::shared_ptr<RequestContext> request_context_;
 };
 
 TEST_F(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
@@ -77,7 +72,8 @@ TEST_F(GetValuesHookTest, StringOutput_SuccessfullyProcessesValue) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<RequestContext> payload{io, GetRequestContext()};
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
   (*get_values_hook)(payload);
 
   nlohmann::json result_json =
@@ -114,7 +110,8 @@ TEST_F(GetValuesHookTest, StringOutput_SuccessfullyProcessesResultsWithStatus) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<RequestContext> payload{io, GetRequestContext()};
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
   (*get_values_hook)(payload);
 
   nlohmann::json expected =
@@ -134,7 +131,8 @@ TEST_F(GetValuesHookTest, StringOutput_LookupReturnsError) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<RequestContext> payload{io, GetRequestContext()};
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
   (*get_values_hook)(payload);
 
   nlohmann::json expected = R"({"code":2,"message":"Some error"})"_json;
@@ -150,7 +148,8 @@ TEST_F(GetValuesHookTest, StringOutput_InputIsNotListOfStrings) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kString);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<RequestContext> payload{io, GetRequestContext()};
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
   (*get_values_hook)(payload);
 
   nlohmann::json expected =
@@ -181,7 +180,8 @@ TEST_F(GetValuesHookTest, BinaryOutput_SuccessfullyProcessesValue) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<RequestContext> payload{io, GetRequestContext()};
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
   (*get_values_hook)(payload);
 
   EXPECT_TRUE(io.has_output_bytes());
@@ -216,7 +216,8 @@ TEST_F(GetValuesHookTest, BinaryOutput_LookupReturnsError) {
   auto get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
   get_values_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<RequestContext> payload{io, GetRequestContext()};
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
   (*get_values_hook)(payload);
 
   EXPECT_TRUE(io.has_output_bytes());

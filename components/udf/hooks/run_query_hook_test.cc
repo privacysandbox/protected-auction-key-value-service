@@ -40,17 +40,15 @@ class RunQueryHookTest : public ::testing::Test {
  protected:
   RunQueryHookTest() {
     InitMetricsContextMap();
-    scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
-    request_log_context_ = std::make_unique<RequestLogContext>(
+    request_context_ = std::make_unique<RequestContext>();
+    request_context_->UpdateLogContext(
         privacy_sandbox::server_common::LogContext(),
         privacy_sandbox::server_common::ConsentedDebugConfiguration());
-    request_context_ = std::make_unique<RequestContext>(*scope_metrics_context_,
-                                                        *request_log_context_);
   }
-  RequestContext& GetRequestContext() { return *request_context_; }
-  std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
-  std::unique_ptr<RequestLogContext> request_log_context_;
-  std::unique_ptr<RequestContext> request_context_;
+  std::shared_ptr<RequestContext> GetRequestContext() {
+    return request_context_;
+  }
+  std::shared_ptr<RequestContext> request_context_;
 };
 
 TEST_F(RunQueryHookTest, SuccessfullyProcessesValue) {
@@ -66,7 +64,8 @@ TEST_F(RunQueryHookTest, SuccessfullyProcessesValue) {
   TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<RequestContext> payload{io, GetRequestContext()};
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
   (*run_query_hook)(payload);
   EXPECT_THAT(io.output_list_of_string().data(),
               UnorderedElementsAreArray({"a", "b"}));
@@ -82,7 +81,8 @@ TEST_F(RunQueryHookTest, RunQueryClientReturnsError) {
   TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<RequestContext> payload{io, GetRequestContext()};
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
   (*run_query_hook)(payload);
   EXPECT_TRUE(io.output_list_of_string().data().empty());
 }
@@ -95,7 +95,8 @@ TEST_F(RunQueryHookTest, InputIsNotString) {
                               &io);
   auto run_query_hook = RunQueryHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
-  FunctionBindingPayload<RequestContext> payload{io, GetRequestContext()};
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
   (*run_query_hook)(payload);
 
   EXPECT_THAT(

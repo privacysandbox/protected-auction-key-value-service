@@ -33,9 +33,9 @@ class UdfConfigBuilder {
 
   UdfConfigBuilder& SetNumberOfWorkers(int number_of_workers);
 
-  google::scp::roma::Config<RequestContext>& Config();
+  google::scp::roma::Config<std::weak_ptr<RequestContext>>& Config();
 
  private:
-  google::scp::roma::Config<RequestContext> config_;
+  google::scp::roma::Config<std::weak_ptr<RequestContext>> config_;
 };
 }  // namespace kv_server

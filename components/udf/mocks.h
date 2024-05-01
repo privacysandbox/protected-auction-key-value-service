@@ -17,6 +17,7 @@
 #ifndef COMPONENTS_UDF_MOCKS_H_
 #define COMPONENTS_UDF_MOCKS_H_
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -32,9 +33,10 @@ namespace kv_server {
 class MockUdfClient : public UdfClient {
  public:
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
-              (RequestContext, std::vector<std::string>), (const, override));
+              (RequestContextFactory, std::vector<std::string>),
+              (const, override));
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
-              (RequestContext, UDFExecutionMetadata&&,
+              (RequestContextFactory, UDFExecutionMetadata&&,
                const google::protobuf::RepeatedPtrField<UDFArgument>&),
               (const, override));
   MOCK_METHOD((absl::Status), Stop, (), (override));

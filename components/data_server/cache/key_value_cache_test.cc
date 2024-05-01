@@ -122,17 +122,10 @@ class CacheTest : public ::testing::Test {
  protected:
   CacheTest() {
     InitMetricsContextMap();
-    scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
-    request_log_context_ = std::make_unique<RequestLogContext>(
-        privacy_sandbox::server_common::LogContext(),
-        privacy_sandbox::server_common::ConsentedDebugConfiguration());
-    request_context_ = std::make_unique<RequestContext>(*scope_metrics_context_,
-                                                        *request_log_context_);
+    request_context_ = std::make_shared<RequestContext>();
   }
-  RequestContext& GetRequestContext() { return *request_context_; }
-  std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
-  std::unique_ptr<RequestLogContext> request_log_context_;
-  std::unique_ptr<RequestContext> request_context_;
+  const RequestContext& GetRequestContext() { return *request_context_; }
+  std::shared_ptr<RequestContext> request_context_;
   SafePathTestLogContext safe_path_log_context_;
 };
 
@@ -767,7 +760,7 @@ TEST_F(CacheTest, ConcurrentGetAndGet) {
   cache->UpdateKeyValueSet(safe_path_log_context_, "key2",
                            absl::Span<std::string_view>(values_for_key2), 1);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_fn = [&cache, &keys_lookup_request, &start, &request_context]() {
     start.WaitForNotification();
     auto result = cache->GetKeyValueSet(request_context, keys_lookup_request);
@@ -792,7 +785,7 @@ TEST_F(CacheTest, ConcurrentGetAndUpdateExpectNoUpdate) {
   cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                            absl::Span<std::string_view>(existing_values), 3);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_fn = [&cache, &keys, &start, &request_context]() {
     start.WaitForNotification();
     EXPECT_THAT(
@@ -824,7 +817,7 @@ TEST_F(CacheTest, ConcurrentGetAndUpdateExpectUpdate) {
   cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                            absl::Span<std::string_view>(existing_values), 1);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_fn = [&cache, &keys, &start, &request_context]() {
     start.WaitForNotification();
     EXPECT_THAT(
@@ -858,7 +851,7 @@ TEST_F(CacheTest, ConcurrentGetAndDeleteExpectNoDelete) {
   cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                            absl::Span<std::string_view>(existing_values), 3);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_fn = [&cache, &keys, &start, &request_context]() {
     start.WaitForNotification();
     EXPECT_THAT(
@@ -895,7 +888,7 @@ TEST_F(CacheTest, ConcurrentGetAndCleanUp) {
   cache->DeleteValuesInSet(safe_path_log_context_, "key2",
                            absl::Span<std::string_view>(existing_values), 2);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_fn = [&cache, &keys, &start, &request_context]() {
     start.WaitForNotification();
     EXPECT_THAT(
@@ -928,7 +921,7 @@ TEST_F(CacheTest, ConcurrentUpdateAndUpdateExpectUpdateBoth) {
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto update_key1 = [&cache, &keys, &values_for_key1, &start, &request_context,
                       this]() {
     start.WaitForNotification();
@@ -967,7 +960,7 @@ TEST_F(CacheTest, ConcurrentUpdateAndDelete) {
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto update_key1 = [&cache, &keys, &values_for_key1, &start, &request_context,
                       this]() {
     start.WaitForNotification();
@@ -1014,7 +1007,7 @@ TEST_F(CacheTest, ConcurrentUpdateAndCleanUp) {
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto update_fn = [&cache, &keys, &values_for_key1, &start, &request_context,
                     this]() {
     start.WaitForNotification();
@@ -1048,7 +1041,7 @@ TEST_F(CacheTest, ConcurrentDeleteAndCleanUp) {
   cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                            absl::Span<std::string_view>(values_for_key1), 1);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto delete_fn = [&cache, &keys, &values_for_key1, &start, &request_context,
                     this]() {
     start.WaitForNotification();
@@ -1107,7 +1100,7 @@ TEST_F(CacheTest, ConcurrentGetUpdateDeleteCleanUp) {
     start.WaitForNotification();
     KeyValueCacheTestPeer::CallCacheCleanup(safe_path_log_context_, *cache, 1);
   };
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_for_key1 = [&cache, &keys, &start, &request_context]() {
     start.WaitForNotification();
     EXPECT_THAT(
@@ -1354,7 +1347,7 @@ TEST_F(CacheTest, MultiplePrefixTimestampKeyValueSetCleanUps) {
 
 TEST_F(CacheTest, VerifyUpdatingUInt32Sets) {
   auto cache = KeyValueCache::Create();
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto keys = absl::flat_hash_set<std::string_view>({"set1", "set2"});
   {
     auto result = cache->GetUInt32ValueSet(request_context, keys);
@@ -1385,7 +1378,7 @@ TEST_F(CacheTest, VerifyUpdatingUInt32Sets) {
 
 TEST_F(CacheTest, VerifyDeletingUInt32Sets) {
   auto cache = KeyValueCache::Create();
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto keys = absl::flat_hash_set<std::string_view>({"set1", "set2"});
   auto delete_values = std::vector<uint32_t>({1, 2, 6, 7});
   {
@@ -1414,7 +1407,7 @@ TEST_F(CacheTest, VerifyDeletingUInt32Sets) {
 
 TEST_F(CacheTest, VerifyCleaningUpUInt32Sets) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto keys = absl::flat_hash_set<std::string_view>({"set1"});
   auto set1_values = std::vector<uint32_t>({1, 2, 3, 4, 5});
   auto delete_values = std::vector<uint32_t>({1, 2});

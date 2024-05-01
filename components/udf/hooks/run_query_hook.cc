@@ -39,7 +39,8 @@ class RunQueryHookImpl : public RunQueryHook {
     }
   }
 
-  void operator()(FunctionBindingPayload<RequestContext>& payload) {
+  void operator()(
+      FunctionBindingPayload<std::weak_ptr<RequestContext>>& payload) {
     if (lookup_ == nullptr) {
       nlohmann::json status;
       status["code"] = absl::StatusCode::kInternal;
@@ -61,8 +62,14 @@ class RunQueryHookImpl : public RunQueryHook {
     }
 
     VLOG(9) << "Calling internal run query client";
+    std::shared_ptr<RequestContext> request_context = payload.metadata.lock();
+    if (request_context == nullptr) {
+      VLOG(1) << "Request context is not available, the request might "
+                 "have been marked as complete";
+      return;
+    }
     absl::StatusOr<InternalRunQueryResponse> response_or_status =
-        lookup_->RunQuery(payload.metadata, payload.io_proto.input_string());
+        lookup_->RunQuery(*request_context, payload.io_proto.input_string());
 
     if (!response_or_status.ok()) {
       LOG(ERROR) << "Internal run query returned error: "

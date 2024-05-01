@@ -128,7 +128,8 @@ class GetValuesHookImpl : public GetValuesHook {
     }
   }
 
-  void operator()(FunctionBindingPayload<RequestContext>& payload) {
+  void operator()(
+      FunctionBindingPayload<std::weak_ptr<RequestContext>>& payload) {
     VLOG(9) << "Called getValues hook";
     if (lookup_ == nullptr) {
       SetStatus(absl::StatusCode::kInternal,
@@ -152,8 +153,14 @@ class GetValuesHookImpl : public GetValuesHook {
     }
 
     VLOG(9) << "Calling internal lookup client";
+    std::shared_ptr<RequestContext> request_context = payload.metadata.lock();
+    if (request_context == nullptr) {
+      VLOG(1) << "Request context is not available, the request might "
+                 "have been marked as complete";
+      return;
+    }
     absl::StatusOr<InternalLookupResponse> response_or_status =
-        lookup_->GetKeyValues(payload.metadata, keys);
+        lookup_->GetKeyValues(*request_context, keys);
     if (!response_or_status.ok()) {
       SetStatus(response_or_status.status().code(),
                 response_or_status.status().message(), payload.io_proto);

@@ -109,6 +109,7 @@ cc_binary(
         "//components/query:driver",
         "//components/query:scanner",
         "//components/query:sets",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/util:request_context",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",

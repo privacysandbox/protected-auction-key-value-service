@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include <algorithm>
-#include <limits>
 #include <sstream>
 #include <string_view>
 #include <vector>
@@ -31,17 +30,19 @@
 #include "components/query/scanner.h"
 #include "components/query/sets.h"
 #include "components/tools/benchmarks/benchmark_util.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 
 #include "roaring.hh"
 
 ABSL_FLAG(int64_t, set_size, 1000, "Number of elements in a set.");
 ABSL_FLAG(std::string, query, "(A - B) | (C & D)", "Query to evaluate");
-ABSL_FLAG(uint32_t, max_set_element, 65536, "Maximum element in a set");
+ABSL_FLAG(uint32_t, range_min, 0, "Minimum element in a set");
+ABSL_FLAG(uint32_t, range_max, 65536, "Maximum element in a set");
 
 namespace kv_server {
 namespace {
 
-using BitSet = roaring::Roaring;
+using RoaringBitSet = roaring::Roaring;
 using StringSet = absl::flat_hash_set<std::string_view>;
 
 constexpr std::array<std::string_view, 4> kSetNames = {"A", "B", "C", "D"};
@@ -58,7 +59,7 @@ StringSet Lookup(std::string_view key) {
 }
 
 template <>
-BitSet Lookup(std::string_view key) {
+RoaringBitSet Lookup(std::string_view key) {
   return UINT32_SET_RESULT->GetUInt32ValueSet(key)->GetValuesBitSet();
 }
 
@@ -73,15 +74,14 @@ Cache* GetKeyValueCache() {
   return cache;
 }
 
-void SetUpKeyValueCache(int64_t set_size, uint32_t max_set_element) {
+void SetUpKeyValueCache(int64_t set_size, uint32_t range_min,
+                        uint32_t range_max) {
   kv_server::benchmark::BenchmarkLogContext log_context;
   for (const auto& set_name : kSetNames) {
     auto nums = std::vector<uint32_t>();
     nums.reserve(set_size);
     for (int i = 0; i < set_size; i++) {
-      nums.push_back(
-          std::rand() %
-          std::min(max_set_element, std::numeric_limits<uint32_t>::max()));
+      nums.push_back(range_min + (std::rand() % range_max - range_min));
     }
     GetKeyValueCache()->UpdateKeyValueSet(log_context, set_name,
                                           absl::MakeSpan(nums), 1);
@@ -152,27 +152,27 @@ void BM_AstTreeEvaluation(::benchmark::State& state) {
     auto result = Eval<ValueT>(*ast_tree, Lookup<ValueT>);
     ::benchmark::DoNotOptimize(result);
   }
-  state.counters["Queries/s"] =
+  state.counters["QueryEvals/s"] =
       ::benchmark::Counter(state.iterations(), ::benchmark::Counter::kIsRate);
 }
 
 }  // namespace
 }  // namespace kv_server
 
-BENCHMARK(kv_server::BM_SetUnion<kv_server::BitSet>);
+BENCHMARK(kv_server::BM_SetUnion<kv_server::RoaringBitSet>);
 BENCHMARK(kv_server::BM_SetUnion<kv_server::StringSet>);
-BENCHMARK(kv_server::BM_SetDifference<kv_server::BitSet>);
+BENCHMARK(kv_server::BM_SetDifference<kv_server::RoaringBitSet>);
 BENCHMARK(kv_server::BM_SetDifference<kv_server::StringSet>);
-BENCHMARK(kv_server::BM_SetIntersection<kv_server::BitSet>);
+BENCHMARK(kv_server::BM_SetIntersection<kv_server::RoaringBitSet>);
 BENCHMARK(kv_server::BM_SetIntersection<kv_server::StringSet>);
-BENCHMARK(kv_server::BM_AstTreeEvaluation<kv_server::BitSet>);
+BENCHMARK(kv_server::BM_AstTreeEvaluation<kv_server::RoaringBitSet>);
 BENCHMARK(kv_server::BM_AstTreeEvaluation<kv_server::StringSet>);
 
-using kv_server::BitSet;
+using kv_server::ConfigureTelemetryForTools;
 using kv_server::GetKeyValueCache;
 using kv_server::GetSetResult;
-using kv_server::InitMetricsContextMap;
 using kv_server::RequestContext;
+using kv_server::RoaringBitSet;
 using kv_server::SetUpKeyValueCache;
 using kv_server::StringSet;
 
@@ -181,11 +181,16 @@ int main(int argc, char** argv) {
   absl::InitializeLog();
   ::benchmark::Initialize(&argc, argv);
   absl::ParseCommandLine(argc, argv);
-  InitMetricsContextMap();
-
+  ConfigureTelemetryForTools();
+  auto range_min = absl::GetFlag(FLAGS_range_min);
+  auto range_max = absl::GetFlag(FLAGS_range_max);
+  if (range_max <= range_min) {
+    ABSL_LOG(ERROR) << "range_max: " << range_max
+                    << " must be greater than range_min: " << range_min;
+    return -1;
+  }
   // Set up the cache and the ast tree.
-  SetUpKeyValueCache(absl::GetFlag(FLAGS_set_size),
-                     absl::GetFlag(FLAGS_max_set_element));
+  SetUpKeyValueCache(absl::GetFlag(FLAGS_set_size), range_min, range_max);
   kv_server::STRING_SET_RESULT = GetSetResult(
       [](const RequestContext& request_context, const StringSet& keys) {
         return GetKeyValueCache()->GetKeyValueSet(request_context, keys);

@@ -28,9 +28,9 @@
 #include "components/query/sets.h"
 
 namespace kv_server {
-// All set operations operate on a reference to the data in the DB
-// This means that the data in the DB must be locked throughout the lifetime of
-// the result.
+// All set operations using `KVSetView` operate on a reference to the data in
+// the DB This means that the data in the DB must be locked throughout the
+// lifetime of the result.
 using KVSetView = absl::flat_hash_set<std::string_view>;
 
 class ASTVisitor;
@@ -109,8 +109,11 @@ class ASTStringVisitor {
   virtual std::string Visit(const ValueNode&) = 0;
 };
 
+// Defines a general AST visitor interface which can be extended to implement
+// concrete ast algorithms, e.g., ast evaluation.
 class ASTVisitor {
  public:
+  // Entrypoint for running the visitor algorithm on a given AST tree, `root`.
   virtual void ConductVisit(const Node& root) = 0;
   virtual void Visit(const ValueNode& node) = 0;
   virtual void Visit(const UnionNode& node) = 0;
@@ -118,6 +121,7 @@ class ASTVisitor {
   virtual void Visit(const IntersectionNode& node) = 0;
 };
 
+// Implements AST tree evaluation using iterative post order processing.
 template <typename ValueT>
 class ASTPostOrderEvalVisitor final : public ASTVisitor {
  public:
@@ -166,7 +170,7 @@ class ASTPostOrderEvalVisitor final : public ASTVisitor {
   std::vector<ValueT> stack_;
 };
 
-// Creates execution plan and runs it.
+// Accepts an AST representing a set query, creates execution plan and runs it.
 template <typename ValueT>
 ValueT Eval(const Node& node,
             absl::AnyInvocable<ValueT(std::string_view) const> lookup_fn) {

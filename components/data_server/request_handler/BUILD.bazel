@@ -247,11 +247,6 @@ cc_library(
     hdrs = [
         "ohttp_client_encryptor.h",
     ],
-    copts = select({
-        "//:aws_platform": ["-DCLOUD_PLATFORM_AWS=1"],
-        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
-        "//conditions:default": [],
-    }),
     visibility = [
         "//components/data_server:__subpackages__",
         "//components/internal_server:__subpackages__",

@@ -194,6 +194,11 @@ cc_library(
     hdrs = [
         "remote_lookup_client.h",
     ],
+    copts = select({
+        "//:aws_platform": ["-DCLOUD_PLATFORM_AWS=1"],
+        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
+        "//conditions:default": [],
+    }),
     deps = [
         ":constants",
         ":internal_lookup_cc_grpc",

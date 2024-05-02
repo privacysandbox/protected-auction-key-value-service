@@ -56,7 +56,16 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
     ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
                                 kRemoteLookupGetValuesLatencyInMicros>
         latency_recorder(request_context.GetUdfRequestMetricsContext());
-    OhttpClientEncryptor encryptor(key_fetcher_manager_);
+    auto maybe_public_key =
+        key_fetcher_manager_.GetPublicKey(GetCloudPlatform());
+    if (!maybe_public_key.ok()) {
+      const std::string error =
+          absl::StrCat("Could not get public key to use for HPKE encryption:",
+                       maybe_public_key.status().message());
+      LOG(ERROR) << error;
+      return absl::InternalError(error);
+    }
+    OhttpClientEncryptor encryptor(maybe_public_key.value());
     auto encrypted_padded_serialized_request_maybe =
         encryptor.EncryptRequest(Pad(serialized_message, padding_length));
     if (!encrypted_padded_serialized_request_maybe.ok()) {
@@ -100,6 +109,14 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
   std::string_view GetIpAddress() const override { return ip_address_; }
 
  private:
+  privacy_sandbox::server_common::CloudPlatform GetCloudPlatform() const {
+#if defined(CLOUD_PLATFORM_AWS)
+    return privacy_sandbox::server_common::CloudPlatform::kAws;
+#elif defined(CLOUD_PLATFORM_GCP)
+    return privacy_sandbox::server_common::CloudPlatform::kGcp;
+#endif
+    return privacy_sandbox::server_common::CloudPlatform::kLocal;
+  }
   const std::string ip_address_;
   std::unique_ptr<InternalLookupService::Stub> stub_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&

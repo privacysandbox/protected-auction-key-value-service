@@ -17,6 +17,11 @@ load("@rules_cc//cc:defs.bzl", "cc_binary")
 cc_binary(
     name = "validator",
     srcs = ["validator.cc"],
+    copts = select({
+        "//:aws_platform": ["-DCLOUD_PLATFORM_AWS=1"],
+        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
+        "//conditions:default": [],
+    }),
     deps = [
         "//components/cloud_config:parameter_client",
         "//components/data_server/request_handler:ohttp_client_encryptor",

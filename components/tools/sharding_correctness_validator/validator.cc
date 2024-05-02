@@ -58,6 +58,15 @@ absl::BitGen bitgen;
 int total_failures = 0;
 int total_mismatches = 0;
 
+privacy_sandbox::server_common::CloudPlatform GetCloudPlatform() {
+#if defined(CLOUD_PLATFORM_AWS)
+  return privacy_sandbox::server_common::CloudPlatform::kAws;
+#elif defined(CLOUD_PLATFORM_GCP)
+  return privacy_sandbox::server_common::CloudPlatform::kGcp;
+#endif
+  return privacy_sandbox::server_common::CloudPlatform::kLocal;
+}
+
 int64_t Get(int64_t upper_bound) {
   return absl::Uniform(bitgen, 0, upper_bound);
 }
@@ -84,7 +93,17 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
         absl::StatusCode::kInternal,
         absl::StrCat(maybe_serialized_bhttp.status().message()));
   }
-  OhttpClientEncryptor encryptor(key_fetcher_manager);
+
+  auto maybe_public_key = key_fetcher_manager.GetPublicKey(GetCloudPlatform());
+  if (!maybe_public_key.ok()) {
+    const std::string error =
+        absl::StrCat("Could not get public key to use for HPKE encryption:",
+                     maybe_public_key.status().message());
+    LOG(ERROR) << error;
+    return absl::InternalError(error);
+  }
+  OhttpClientEncryptor encryptor(maybe_public_key.value());
+
   auto encrypted_serialized_request_maybe =
       encryptor.EncryptRequest(*maybe_serialized_bhttp);
   if (!encrypted_serialized_request_maybe.ok()) {

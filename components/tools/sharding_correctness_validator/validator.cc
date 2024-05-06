@@ -50,6 +50,10 @@ ABSL_FLAG(bool, use_coordinator, false,
 
 namespace kv_server {
 namespace {
+inline constexpr std::string_view kPublicKeyEndpointParameterSuffix =
+    "public-key-endpoint";
+inline constexpr std::string_view kUseRealCoordinatorsParameterSuffix =
+    "use-real-coordinators";
 inline constexpr std::string_view kContentTypeHeader = "content-type";
 inline constexpr std::string_view kContentEncodingProtoHeaderValue =
     "application/protobuf";
@@ -71,11 +75,52 @@ int64_t Get(int64_t upper_bound) {
   return absl::Uniform(bitgen, 0, upper_bound);
 }
 
+absl::StatusOr<google::cmrt::sdk::public_key_service::v1::PublicKey>
+GetPublicKey(std::unique_ptr<kv_server::ParameterFetcher>& parameter_fetcher) {
+  if (!parameter_fetcher->GetBoolParameter(
+          kUseRealCoordinatorsParameterSuffix)) {
+    // The key_fetcher_manager would just return hard coded public key without
+    // involving private key fetching
+    auto factory = kv_server::KeyFetcherFactory::Create();
+    auto key_fetcher_manager =
+        factory->CreateKeyFetcherManager(*parameter_fetcher);
+    auto maybe_public_key =
+        key_fetcher_manager->GetPublicKey(GetCloudPlatform());
+    if (!maybe_public_key.ok()) {
+      const std::string error =
+          absl::StrCat("Could not get public key to use for HPKE encryption:",
+                       maybe_public_key.status().message());
+      LOG(ERROR) << error;
+      return absl::InternalError(error);
+    }
+    return maybe_public_key.value();
+  }
+
+  auto publicKeyEndpointParameter =
+      parameter_fetcher->GetParameter(kPublicKeyEndpointParameterSuffix);
+  LOG(INFO) << "Retrieved public_key_endpoint parameter: "
+            << publicKeyEndpointParameter;
+  std::vector<std::string> endpoints = {publicKeyEndpointParameter};
+  auto public_key_fetcher =
+      privacy_sandbox::server_common::PublicKeyFetcherFactory::Create(
+          {{GetCloudPlatform(), endpoints}});
+  if (public_key_fetcher) {
+    absl::Status public_key_refresh_status = public_key_fetcher->Refresh();
+    if (!public_key_refresh_status.ok()) {
+      const std::string error = absl::StrCat(
+          "Public key refresh failed: ", public_key_refresh_status.message());
+      LOG(ERROR) << error;
+      return absl::InternalError(error);
+    }
+  }
+  return public_key_fetcher->GetKey(GetCloudPlatform());
+}
+
 absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
     const v2::GetValuesRequest& proto_req,
     std::unique_ptr<v2::KeyValueService::Stub>& stub,
-    privacy_sandbox::server_common::KeyFetcherManagerInterface&
-        key_fetcher_manager) {
+    std::unique_ptr<google::cmrt::sdk::public_key_service::v1::PublicKey>&
+        public_key) {
   std::string serialized_req;
   if (!proto_req.SerializeToString(&serialized_req)) {
     return absl::Status(absl::StatusCode::kUnknown,
@@ -94,15 +139,12 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
         absl::StrCat(maybe_serialized_bhttp.status().message()));
   }
 
-  auto maybe_public_key = key_fetcher_manager.GetPublicKey(GetCloudPlatform());
-  if (!maybe_public_key.ok()) {
-    const std::string error =
-        absl::StrCat("Could not get public key to use for HPKE encryption:",
-                     maybe_public_key.status().message());
+  if (!public_key) {
+    const std::string error = "public_key==nullptr, cannot proceed.";
     LOG(ERROR) << error;
     return absl::InternalError(error);
   }
-  OhttpClientEncryptor encryptor(maybe_public_key.value());
+  OhttpClientEncryptor encryptor(*public_key);
 
   auto encrypted_serialized_request_maybe =
       encryptor.EncryptRequest(*maybe_serialized_bhttp);
@@ -215,8 +257,8 @@ void ValidateResponse(absl::StatusOr<v2::GetValuesResponse> maybe_response,
 }
 
 void Validate(
-    std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>&
-        key_fetcher_manager) {
+    std::unique_ptr<google::cmrt::sdk::public_key_service::v1::PublicKey>&
+        public_key) {
   const std::string kv_endpoint = absl::GetFlag(FLAGS_kv_endpoint);
   const int inclusive_upper_bound = absl::GetFlag(FLAGS_inclusive_upper_bound);
   const int batch_size = absl::GetFlag(FLAGS_batch_size);
@@ -243,8 +285,7 @@ void Validate(
     auto req = GetRequest(keys);
     absl::StatusOr<v2::GetValuesResponse> get_value_response;
     if (absl::GetFlag(FLAGS_use_coordinator)) {
-      get_value_response =
-          GetValuesWithCoordinators(req, stub, *key_fetcher_manager);
+      get_value_response = GetValuesWithCoordinators(req, stub, public_key);
     } else {
       get_value_response = client.GetValues(req);
     }
@@ -291,8 +332,8 @@ int main(int argc, char** argv) {
   std::unique_ptr<kv_server::PlatformInitializer> platform_initializer;
   std::unique_ptr<kv_server::ParameterClient> parameter_client;
   std::unique_ptr<kv_server::ParameterFetcher> parameter_fetcher;
-  std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
-      key_fetcher_manager;
+  std::unique_ptr<google::cmrt::sdk::public_key_service::v1::PublicKey>
+      public_key;
 
   if (absl::GetFlag(FLAGS_use_coordinator)) {
     // Initializes GCP platform and its parameter client.
@@ -307,12 +348,19 @@ int main(int argc, char** argv) {
     }
 
     // Create parameter fetcher and key fetcher manager
-    parameter_fetcher = std::make_unique<kv_server::ParameterFetcher>(
+    auto parameter_fetcher = std::make_unique<kv_server::ParameterFetcher>(
         environment, *parameter_client);
-    auto factory = kv_server::KeyFetcherFactory::Create();
-    key_fetcher_manager = factory->CreateKeyFetcherManager(*parameter_fetcher);
+    auto maybe_public_key = kv_server::GetPublicKey(parameter_fetcher);
+    if (!maybe_public_key.ok()) {
+      LOG(ERROR) << "GetPublicKey failed with error: "
+                 << maybe_public_key.status().message();
+      return 1;
+    }
+    public_key =
+        std::make_unique<google::cmrt::sdk::public_key_service::v1::PublicKey>(
+            maybe_public_key.value());
   }
-  kv_server::Validate(key_fetcher_manager);
+  kv_server::Validate(public_key);
 
   if (kv_server::total_failures > 0 || kv_server::total_mismatches > 0) {
     LOG(ERROR) << "Validation failed with total_failures: "

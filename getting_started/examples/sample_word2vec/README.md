@@ -23,8 +23,8 @@ BUILD rules take care of generating the csv and piping them to the `data_cli` fo
 commands will build DELTA files for both embeddings and category DELTA files.
 
 ```sh
-builders/tools/bazel-debian build tools/udf/sample_word2vec:generate_categories_delta
-builders/tools/bazel-debian build tools/udf/sample_word2vec:generate_embeddings_delta
+builders/tools/bazel-debian build //getting_started/examples/sample_word2vec:generate_categories_delta
+builders/tools/bazel-debian build //getting_started/examples/sample_word2vec:generate_embeddings_delta
 ```
 
 generated csv data for categories looks like (key="catalyst"):
@@ -46,7 +46,7 @@ In this example you can see that the embedding is stored as a JSON string.
 Build the udf:
 
 ```sh
-builders/tools/bazel-debian build tools/udf/sample_word2vec:udf_delta
+builders/tools/bazel-debian build //getting_started/examples/sample_word2vec:udf_delta
 ```
 
 At this point there are 3 DELTA files:
@@ -61,7 +61,7 @@ Set up the data:
 
 ```sh
 mkdir /tmp/deltas
-cp $(builders/tools/bazel-debian aquery 'tools/udf/sample_word2vec:udf_delta' |
+cp $(builders/tools/bazel-debian aquery '//getting_started/examples/sample_word2vec:udf_delta' |
    sed -n 's/Outputs: \[\(.*\)\]/\1/p' |
    xargs dirname)/DELTA* /tmp/deltas
 ```
@@ -92,6 +92,6 @@ The UDF returns the top 5 results and their scores.
 
 ```sh
 grpc_cli call  localhost:50051 kv_server.v2.KeyValueService/GetValuesHttp  \
-  "raw_body: {data: $(tr -d '\n' < tools/udf/sample_word2vec/body.txt)}" \
+  "raw_body: {data: $(tr -d '\n' < getting_started/examples/sample_word2vec/body.txt)}" \
    --channel_creds_type=insecure
 ```

@@ -18,10 +18,10 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
-#include "absl/log/log.h"
+#include "absl/functional/any_invocable.h"
 #include "components/data_server/cache/cache.h"
+#include "components/data_server/cache/uint32_value_set.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/lookup.pb.h"
 #include "components/query/driver.h"
@@ -48,7 +48,41 @@ class LocalLookup : public Lookup {
 
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
       const RequestContext& request_context, std::string query) const override {
-    return ProcessQuery(request_context, query);
+    return ProcessQuery<InternalRunQueryResponse,
+                        absl::StatusOr<absl::flat_hash_set<std::string_view>>>(
+        request_context, std::move(query),
+        [](const RequestContext& request_context, const Driver& driver,
+           const Cache& cache) {
+          auto get_key_value_set_result = cache.GetKeyValueSet(
+              request_context, driver.GetRootNode()->Keys());
+          return driver.EvaluateQuery<absl::flat_hash_set<std::string_view>>(
+              [&get_key_value_set_result](std::string_view key) {
+                return get_key_value_set_result->GetValueSet(key);
+              });
+        });
+  }
+
+  absl::StatusOr<InternalRunSetQueryIntResponse> RunSetQueryInt(
+      const RequestContext& request_context, std::string query) const override {
+    return ProcessQuery<InternalRunSetQueryIntResponse,
+                        absl::StatusOr<absl::flat_hash_set<uint32_t>>>(
+        request_context, std::move(query),
+        [](const RequestContext& request_context, const Driver& driver,
+           const Cache& cache)
+            -> absl::StatusOr<absl::flat_hash_set<uint32_t>> {
+          auto get_key_value_set_result = cache.GetUInt32ValueSet(
+              request_context, driver.GetRootNode()->Keys());
+          auto query_eval_result = driver.EvaluateQuery<roaring::Roaring>(
+              [&get_key_value_set_result](std::string_view key) {
+                auto set = get_key_value_set_result->GetUInt32ValueSet(key);
+                return set == nullptr ? roaring::Roaring()
+                                      : set->GetValuesBitSet();
+              });
+          if (!query_eval_result.ok()) {
+            return query_eval_result.status();
+          }
+          return BitSetToUint32Set(*query_eval_result);
+        });
   }
 
  private:
@@ -107,39 +141,38 @@ class LocalLookup : public Lookup {
     return response;
   }
 
-  absl::StatusOr<InternalRunQueryResponse> ProcessQuery(
-      const RequestContext& request_context, std::string query) const {
+  template <typename ResponseType, typename QueryEvalResultType>
+  absl::StatusOr<ResponseType> ProcessQuery(
+      const RequestContext& request_context, std::string query,
+      absl::AnyInvocable<QueryEvalResultType(const RequestContext&,
+                                             const Driver&, const Cache&)>
+          query_eval_fn) const {
     ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
                                 kInternalRunQueryLatencyInMicros>
         latency_recorder(request_context.GetInternalLookupMetricsContext());
     if (query.empty()) return absl::OkStatus();
     kv_server::Driver driver;
-    std::istringstream stream(query);
+    std::istringstream stream(std::move(query));
     kv_server::Scanner scanner(stream);
     kv_server::Parser parse(driver, scanner);
-    int parse_result = parse();
-    if (parse_result) {
+    if (int parse_result = parse(); parse_result) {
       LogInternalLookupRequestErrorMetric(
           request_context.GetInternalLookupMetricsContext(),
           kLocalRunQueryParsingFailure);
       return absl::InvalidArgumentError("Parsing failure.");
     }
-    auto get_key_value_set_result =
-        cache_.GetKeyValueSet(request_context, driver.GetRootNode()->Keys());
-    auto result = driver.EvaluateQuery<absl::flat_hash_set<std::string_view>>(
-        [&get_key_value_set_result](std::string_view key) {
-          return get_key_value_set_result->GetValueSet(key);
-        });
+    auto result = query_eval_fn(request_context, driver, cache_);
     if (!result.ok()) {
       LogInternalLookupRequestErrorMetric(
           request_context.GetInternalLookupMetricsContext(),
           kLocalRunQueryFailure);
       return result.status();
     }
-    InternalRunQueryResponse response;
+    ResponseType response;
     response.mutable_elements()->Assign(result->begin(), result->end());
     return response;
   }
+
   const Cache& cache_;
 };
 

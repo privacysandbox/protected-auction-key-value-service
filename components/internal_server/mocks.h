@@ -51,6 +51,8 @@ class MockLookup : public Lookup {
               (const, override));
   MOCK_METHOD(absl::StatusOr<InternalRunQueryResponse>, RunQuery,
               (const RequestContext&, std::string query), (const, override));
+  MOCK_METHOD(absl::StatusOr<InternalRunSetQueryIntResponse>, RunSetQueryInt,
+              (const RequestContext&, std::string query), (const, override));
 };
 
 }  // namespace kv_server

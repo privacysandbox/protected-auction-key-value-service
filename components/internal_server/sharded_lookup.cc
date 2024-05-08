@@ -196,6 +196,12 @@ class ShardedLookup : public Lookup {
     return response;
   }
 
+  absl::StatusOr<InternalRunSetQueryIntResponse> RunSetQueryInt(
+      const RequestContext& request_context, std::string query) const override {
+    // TODO: Implement sharded lookup for bit sets.
+    return absl::OkStatus();
+  }
+
  private:
   // Keeps sharded keys and assosiated metdata.
   struct ShardLookupInput {

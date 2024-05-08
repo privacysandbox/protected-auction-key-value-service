@@ -43,6 +43,9 @@ class Lookup {
 
   virtual absl::StatusOr<InternalRunQueryResponse> RunQuery(
       const RequestContext& request_context, std::string query) const = 0;
+
+  virtual absl::StatusOr<InternalRunSetQueryIntResponse> RunSetQueryInt(
+      const RequestContext& request_context, std::string query) const = 0;
 };
 
 }  // namespace kv_server

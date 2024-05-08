@@ -206,6 +206,33 @@ TEST_F(LocalLookupTest, RunQuery_ParsingError_Error) {
   EXPECT_EQ(response.status().code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST_F(LocalLookupTest, Verify_RunSetQueryInt_Success) {
+  std::string query = "A";
+  UInt32ValueSet value_set;
+  auto values = std::vector<uint32_t>({10, 20, 30, 40, 50});
+  value_set.Add(absl::MakeSpan(values), 1);
+  auto mock_get_key_value_set_result =
+      std::make_unique<MockGetKeyValueSetResult>();
+  EXPECT_CALL(*mock_get_key_value_set_result, GetUInt32ValueSet("A"))
+      .WillOnce(Return(&value_set));
+  EXPECT_CALL(mock_cache_,
+              GetUInt32ValueSet(_, absl::flat_hash_set<std::string_view>{"A"}))
+      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response = local_lookup->RunSetQueryInt(GetRequestContext(), query);
+  ASSERT_TRUE(response.ok()) << response.status();
+  EXPECT_THAT(response.value().elements(),
+              testing::UnorderedElementsAreArray(values.begin(), values.end()));
+}
+
+TEST_F(LocalLookupTest, Verify_RunSetQueryInt_ParsingError_Error) {
+  std::string query = "someset|(";
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response = local_lookup->RunSetQueryInt(GetRequestContext(), query);
+  EXPECT_FALSE(response.ok());
+  EXPECT_EQ(response.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
 }  // namespace
 
 }  // namespace kv_server

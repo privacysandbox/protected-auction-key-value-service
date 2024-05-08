@@ -36,11 +36,11 @@ grpc::ServerUnaryReactor* HandleRequest(
     CallbackServerContext* context, const RequestT* request,
     ResponseT* response, const GetValuesV2Handler& handler,
     HandlerFunctionT<RequestT, ResponseT> handler_function) {
-  auto request_received_time = absl::Now();
+  privacy_sandbox::server_common::Stopwatch stopwatch;
   grpc::Status status = (handler.*handler_function)(*request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
-  LogRequestCommonSafeMetrics(request, response, status, request_received_time);
+  LogRequestCommonSafeMetrics(request, response, status, stopwatch);
   return reactor;
 }
 
@@ -49,12 +49,12 @@ grpc::ServerUnaryReactor* HandleRequest(
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValuesHttp(
     CallbackServerContext* context, const GetValuesHttpRequest* request,
     google::api::HttpBody* response) {
-  auto request_received_time = absl::Now();
+  privacy_sandbox::server_common::Stopwatch stopwatch;
   grpc::Status status =
       handler_.GetValuesHttp(context->client_metadata(), *request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
-  LogRequestCommonSafeMetrics(request, response, status, request_received_time);
+  LogRequestCommonSafeMetrics(request, response, status, stopwatch);
   return reactor;
 }
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValues(
@@ -76,12 +76,12 @@ grpc::ServerUnaryReactor* KeyValueServiceV2Impl::ObliviousGetValues(
     CallbackServerContext* context,
     const v2::ObliviousGetValuesRequest* request,
     google::api::HttpBody* response) {
-  auto request_received_time = absl::Now();
+  privacy_sandbox::server_common::Stopwatch stopwatch;
   grpc::Status status = handler_.ObliviousGetValues(context->client_metadata(),
                                                     *request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
-  LogRequestCommonSafeMetrics(request, response, status, request_received_time);
+  LogRequestCommonSafeMetrics(request, response, status, stopwatch);
   return reactor;
 }
 

@@ -33,7 +33,7 @@ using v1::KeyValueService;
 grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
     CallbackServerContext* context, const GetValuesRequest* request,
     GetValuesResponse* response) {
-  auto request_received_time = absl::Now();
+  privacy_sandbox::server_common::Stopwatch stopwatch;
   std::shared_ptr<RequestContext> request_context =
       std::make_shared<RequestContext>();
   request_context->UpdateLogContext(
@@ -43,7 +43,7 @@ grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
       handler_.GetValues(*request_context, *request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
-  LogRequestCommonSafeMetrics(request, response, status, request_received_time);
+  LogRequestCommonSafeMetrics(request, response, status, stopwatch);
   return reactor;
 }
 

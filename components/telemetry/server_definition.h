@@ -672,7 +672,7 @@ template <typename RequestT, typename ResponseT>
 inline void LogRequestCommonSafeMetrics(
     const RequestT* request, const ResponseT* response,
     const grpc::Status& grpc_request_status,
-    const absl::Time& request_received_time) {
+    const privacy_sandbox::server_common::Stopwatch& stopwatch) {
   LogIfError(
       KVServerContextMap()
           ->SafeMetric()
@@ -696,8 +696,7 @@ inline void LogRequestCommonSafeMetrics(
                  .template LogHistogram<
                      privacy_sandbox::server_common::metrics::kResponseByte>(
                      (int)response->ByteSizeLong()));
-  int duration_ms =
-      (absl::Now() - request_received_time) / absl::Milliseconds(1);
+  int duration_ms = (int)absl::ToInt64Milliseconds(stopwatch.GetElapsedTime());
   LogIfError(
       KVServerContextMap()
           ->SafeMetric()

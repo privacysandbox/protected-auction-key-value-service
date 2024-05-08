@@ -116,8 +116,9 @@ class UdfClientImpl : public UdfClient {
         std::make_shared<absl::Notification>();
     auto invocation_request =
         BuildInvocationRequest(request_context_factory, std::move(input));
-    VLOG(9) << "Executing UDF with input arg(s): "
-            << absl::StrJoin(invocation_request.input, ",");
+    PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+        << "Executing UDF with input arg(s): "
+        << absl::StrJoin(invocation_request.input, ",");
     const auto start = clock_.Now();
     const auto status = roma_service_.Execute(
         std::make_unique<InvocationStrRequest<std::weak_ptr<RequestContext>>>(
@@ -132,7 +133,8 @@ class UdfClientImpl : public UdfClient {
           notification->Notify();
         });
     if (!status.ok()) {
-      LOG(ERROR) << "Error sending UDF for execution: " << status;
+      PS_LOG(ERROR, request_context_factory.Get().GetPSLogContext())
+          << "Error sending UDF for execution: " << status;
       return status;
     }
 
@@ -144,7 +146,8 @@ class UdfClientImpl : public UdfClient {
           __FILE__, ErrorTag::kUdfExecutionTimeoutError);
     }
     if (!response_status->ok()) {
-      LOG(ERROR) << "Error executing UDF: " << *response_status;
+      PS_LOG(ERROR, request_context_factory.Get().GetPSLogContext())
+          << "Error executing UDF: " << *response_status;
       return *response_status;
     }
     // TOOD: waiting on b/338813575 and the K&B team. Once that's

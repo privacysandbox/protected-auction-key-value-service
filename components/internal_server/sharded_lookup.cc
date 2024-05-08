@@ -56,7 +56,8 @@ void UpdateResponse(
 }
 
 void SetRequestFailed(const std::vector<std::string_view>& key_list,
-                      InternalLookupResponse& response) {
+                      InternalLookupResponse& response,
+                      const RequestContext& request_context) {
   SingleLookupResult result;
   auto status = result.mutable_status();
   status->set_code(static_cast<int>(absl::StatusCode::kInternal));
@@ -64,7 +65,8 @@ void SetRequestFailed(const std::vector<std::string_view>& key_list,
   for (const auto& key : key_list) {
     (*response.mutable_kv_pairs())[key] = result;
   }
-  LOG(ERROR) << "Sharded lookup failed:" << response.DebugString();
+  PS_LOG(ERROR, request_context.GetPSLogContext())
+      << "Sharded lookup failed:" << response.DebugString();
 }
 
 class ShardedLookup : public Lookup {
@@ -169,8 +171,8 @@ class ShardedLookup : public Lookup {
         [&keysets, &request_context](std::string_view key) {
           const auto key_iter = keysets.find(key);
           if (key_iter == keysets.end()) {
-            VLOG(8) << "Driver can't find " << key
-                    << "key_set. Returning empty.";
+            PS_VLOG(8, request_context.GetPSLogContext())
+                << "Driver can't find " << key << "key_set. Returning empty.";
             LogUdfRequestErrorMetric(
                 request_context.GetUdfRequestMetricsContext(),
                 kShardedRunQueryMissingKeySet);
@@ -187,9 +189,11 @@ class ShardedLookup : public Lookup {
                                kShardedRunQueryFailure);
       return result.status();
     }
-    VLOG(8) << "Driver results for query " << query;
+    PS_VLOG(8, request_context.GetPSLogContext())
+        << "Driver results for query " << query;
     for (const auto& value : *result) {
-      VLOG(8) << "Value: " << value << "\n";
+      PS_VLOG(8, request_context.GetPSLogContext())
+          << "Value: " << value << "\n";
     }
 
     response.mutable_elements()->Assign(result->begin(), result->end());
@@ -216,15 +220,16 @@ class ShardedLookup : public Lookup {
   };
 
   std::vector<ShardLookupInput> BucketKeys(
+      const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const {
     ShardLookupInput sli;
     std::vector<ShardLookupInput> lookup_inputs(num_shards_, sli);
     for (const auto key : keys) {
       auto sharding_result = key_sharder_.GetShardNumForKey(key, num_shards_);
-      VLOG(9) << "key: " << key
-              << ", shard number: " << sharding_result.shard_num
-              << ", sharding_key (if regex is present): "
-              << sharding_result.sharding_key;
+      PS_VLOG(9, request_context.GetPSLogContext())
+          << "key: " << key << ", shard number: " << sharding_result.shard_num
+          << ", sharding_key (if regex is present): "
+          << sharding_result.sharding_key;
       lookup_inputs[sharding_result.shard_num].keys.emplace_back(key);
     }
     return lookup_inputs;
@@ -263,7 +268,7 @@ class ShardedLookup : public Lookup {
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys,
       bool lookup_sets) const {
-    auto lookup_inputs = BucketKeys(keys);
+    auto lookup_inputs = BucketKeys(request_context, keys);
     SerializeShardedRequests(request_context, lookup_inputs, lookup_sets);
     ComputePadding(lookup_inputs);
     return lookup_inputs;
@@ -360,7 +365,7 @@ class ShardedLookup : public Lookup {
         // mark all keys as internal failure
         LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                  kShardedKeyValueRequestFailure);
-        SetRequestFailed(shard_lookup_input.keys, response);
+        SetRequestFailed(shard_lookup_input.keys, response, request_context);
         continue;
       }
       auto kv_pairs = result->mutable_kv_pairs();
@@ -383,7 +388,8 @@ class ShardedLookup : public Lookup {
         case SingleLookupResult::kKeysetValuesFieldNumber:
           absl::flat_hash_set<std::string> value_set;
           for (auto& v : keyset_lookup_result.keyset_values().values()) {
-            VLOG(8) << "keyset name: " << key << " value: " << v;
+            PS_VLOG(8, request_context.GetPSLogContext())
+                << "keyset name: " << key << " value: " << v;
             value_set.emplace(std::move(v));
           }
           auto [_, inserted] =
@@ -392,8 +398,9 @@ class ShardedLookup : public Lookup {
             LogUdfRequestErrorMetric(
                 request_context.GetUdfRequestMetricsContext(),
                 kShardedKeyCollisionOnKeySetCollection);
-            LOG(ERROR) << "Key collision, when collecting results from shards: "
-                       << key;
+            PS_LOG(ERROR, request_context.GetPSLogContext())
+                << "Key collision, when collecting results from shards: "
+                << key;
           }
           break;
       }

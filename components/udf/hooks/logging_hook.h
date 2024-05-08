@@ -32,11 +32,13 @@ inline void LoggingFunction(absl::LogSeverity severity,
                             std::string_view msg) {
   std::shared_ptr<RequestContext> request_context = context.lock();
   if (request_context == nullptr) {
-    VLOG(1) << "Request context is not available, the request might "
-               "have been marked as complete";
+    PS_VLOG(1) << "Request context is not available, the request might "
+                  "have been marked as complete";
     return;
   }
-  LOG(LEVEL(severity)) << msg;
+  PS_VLOG(9, request_context->GetPSLogContext()) << "Called logging hook";
+  privacy_sandbox::server_common::log::LogWithPSLog(
+      severity, request_context->GetPSLogContext(), msg);
 }
 
 }  // namespace kv_server

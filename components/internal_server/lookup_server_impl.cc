@@ -94,7 +94,7 @@ grpc::Status LookupServiceImpl::SecureLookup(
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
   }
-  VLOG(9) << "SecureLookup incoming";
+  PS_VLOG(9, request_context.GetPSLogContext()) << "SecureLookup incoming";
 
   OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto padded_serialized_request_maybe =
@@ -105,7 +105,7 @@ grpc::Status LookupServiceImpl::SecureLookup(
         padded_serialized_request_maybe.status(), kRequestDecryptionFailure);
   }
 
-  VLOG(9) << "SecureLookup decrypted";
+  PS_VLOG(9, request_context.GetPSLogContext()) << "SecureLookup decrypted";
   auto serialized_request_maybe =
       kv_server::Unpad(*padded_serialized_request_maybe);
   if (!serialized_request_maybe.ok()) {
@@ -114,7 +114,7 @@ grpc::Status LookupServiceImpl::SecureLookup(
         serialized_request_maybe.status(), kRequestUnpaddingError);
   }
 
-  VLOG(9) << "SecureLookup unpadded";
+  PS_VLOG(9, request_context.GetPSLogContext()) << "SecureLookup unpadded";
   InternalLookupRequest request;
   if (!request.ParseFromString(*serialized_request_maybe)) {
     return grpc::Status(grpc::StatusCode::INTERNAL,

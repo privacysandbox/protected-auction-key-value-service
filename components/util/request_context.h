@@ -82,6 +82,7 @@ class RequestContext {
   UdfRequestMetricsContext& GetUdfRequestMetricsContext() const;
   InternalLookupMetricsContext& GetInternalLookupMetricsContext() const;
   RequestLogContext& GetRequestLogContext() const;
+  privacy_sandbox::server_common::log::ContextImpl& GetPSLogContext() const;
 
   ~RequestContext() {
     // Remove the metrics context for request_id, This is to ensure that

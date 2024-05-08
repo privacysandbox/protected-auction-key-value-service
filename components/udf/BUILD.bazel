@@ -117,6 +117,7 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/roma/interface",
         "@google_privacysandbox_servers_common//src/roma/roma_service",
+        "@io_opentelemetry_cpp//exporters/ostream:ostream_log_record_exporter",
     ],
 )
 

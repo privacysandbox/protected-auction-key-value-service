@@ -90,12 +90,13 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
     if (!request_proto.ParseFromString(request)) {
       auto error_message =
           "Cannot parse request as a valid serilized proto object.";
-      VLOG(4) << error_message;
+      PS_VLOG(4, request_context_factory.Get().GetPSLogContext())
+          << error_message;
       return absl::InvalidArgumentError(error_message);
     }
   }
-  VLOG(9) << "Converted the http request to proto: "
-          << request_proto.DebugString();
+  PS_VLOG(9) << "Converted the http request to proto: "
+             << request_proto.DebugString();
   v2::GetValuesResponse response_proto;
   PS_RETURN_IF_ERROR(
 
@@ -107,7 +108,8 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
   // content_type == proto
   if (!response_proto.SerializeToString(&response)) {
     auto error_message = "Cannot serialize the response as a proto.";
-    VLOG(4) << error_message;
+    PS_VLOG(4, request_context_factory.Get().GetPSLogContext())
+        << error_message;
     return absl::InvalidArgumentError(error_message);
   }
   return absl::OkStatus();
@@ -164,11 +166,12 @@ GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
     RequestContextFactory& request_context_factory,
     std::string_view bhttp_request_body,
     ExecutionMetadata& execution_metadata) const {
-  VLOG(9) << "Handling the binary http layer";
+  PS_VLOG(9) << "Handling the binary http layer";
   PS_ASSIGN_OR_RETURN(quiche::BinaryHttpRequest deserialized_req,
                       quiche::BinaryHttpRequest::Create(bhttp_request_body),
                       _ << "Failed to deserialize binary http request");
-  VLOG(3) << "BinaryHttpGetValues request: " << deserialized_req.DebugString();
+  PS_VLOG(3) << "BinaryHttpGetValues request: "
+             << deserialized_req.DebugString();
   std::string response;
   auto content_type = GetContentType(deserialized_req);
   PS_RETURN_IF_ERROR(GetValuesHttp(request_context_factory,
@@ -202,7 +205,7 @@ absl::Status GetValuesV2Handler::BinaryHttpGetValues(
                       bhttp_response->Serialize());
 
   response = std::move(serialized_bhttp_response);
-  VLOG(9) << "BinaryHttpGetValues finished successfully";
+  PS_VLOG(9) << "BinaryHttpGetValues finished successfully";
   return absl::OkStatus();
 }
 
@@ -212,7 +215,7 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
     const ObliviousGetValuesRequest& oblivious_request,
     google::api::HttpBody* oblivious_response,
     ExecutionMetadata& execution_metadata) const {
-  VLOG(9) << "Received ObliviousGetValues request. ";
+  PS_VLOG(9) << "Received ObliviousGetValues request. ";
   OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto maybe_plain_text =
       encryptor.DecryptRequest(oblivious_request.raw_body().data());
@@ -268,7 +271,8 @@ absl::Status GetValuesV2Handler::ProcessOnePartition(
         maybe_output_string.status().message());
     return maybe_output_string.status();
   }
-  VLOG(5) << "UDF output: " << maybe_output_string.value();
+  PS_VLOG(5, request_context_factory.Get().GetPSLogContext())
+      << "UDF output: " << maybe_output_string.value();
   resp_partition.set_string_output(std::move(maybe_output_string).value());
   return absl::OkStatus();
 }
@@ -277,8 +281,8 @@ grpc::Status GetValuesV2Handler::GetValues(
     RequestContextFactory& request_context_factory,
     const v2::GetValuesRequest& request, v2::GetValuesResponse* response,
     ExecutionMetadata& execution_metadata) const {
-  VLOG(9) << "Update log context " << request.log_context() << ";"
-          << request.consented_debug_config();
+  PS_VLOG(9) << "Update log context " << request.log_context() << ";"
+             << request.consented_debug_config();
   request_context_factory.UpdateLogContext(request.log_context(),
                                            request.consented_debug_config());
   if (request.partitions().size() == 1) {

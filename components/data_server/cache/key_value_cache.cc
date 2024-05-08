@@ -39,8 +39,9 @@ absl::flat_hash_map<std::string, std::string> KeyValueCache::GetKeyValuePairs(
     if (key_iter == map_.end() || key_iter->second.value == nullptr) {
       continue;
     } else {
-      VLOG(9) << "Get called for " << key
-              << ". returning value: " << *(key_iter->second.value);
+      PS_VLOG(9, request_context.GetPSLogContext())
+          << "Get called for " << key
+          << ". returning value: " << *(key_iter->second.value);
       kv_pairs.insert_or_assign(key, *(key_iter->second.value));
     }
   }
@@ -63,7 +64,7 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetKeyValueSet(
   auto result = GetKeyValueSetResult::Create();
   bool cache_hit = false;
   for (const auto& key : key_set) {
-    VLOG(8) << "Getting key: " << key;
+    PS_VLOG(8, request_context.GetPSLogContext()) << "Getting key: " << key;
     const auto key_itr = key_to_value_set_map_.find(key);
     if (key_itr != key_to_value_set_map_.end()) {
       absl::flat_hash_set<std::string_view> value_set;

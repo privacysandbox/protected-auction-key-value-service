@@ -62,7 +62,7 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
       const std::string error =
           absl::StrCat("Could not get public key to use for HPKE encryption:",
                        maybe_public_key.status().message());
-      LOG(ERROR) << error;
+      PS_LOG(ERROR, request_context.GetPSLogContext()) << error;
       return absl::InternalError(error);
     }
     OhttpClientEncryptor encryptor(maybe_public_key.value());
@@ -83,7 +83,8 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
     if (!status.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kRemoteSecureLookupFailure);
-      LOG(ERROR) << status.error_code() << ": " << status.error_message();
+      PS_LOG(ERROR, request_context.GetPSLogContext())
+          << status.error_code() << ": " << status.error_message();
       return absl::Status((absl::StatusCode)status.error_code(),
                           status.error_message());
     }

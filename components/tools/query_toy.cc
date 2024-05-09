@@ -86,25 +86,26 @@ absl::flat_hash_set<std::string_view> ToView(
   return result;
 }
 
-absl::StatusOr<absl::flat_hash_set<std::string_view>> Parse(
-    kv_server::Driver& driver, std::string query) {
-  std::istringstream stream(query);
-  kv_server::Scanner scanner(stream);
-  kv_server::Parser parse(driver, scanner);
-  int parse_result = parse();
-  auto result = driver.GetResult();
-  if (parse_result && result.ok()) {
-    std::cerr << "Unexpected failed parse result with an OK query result.";
-  }
-  return result;
-}
-
 absl::flat_hash_set<std::string_view> Lookup(std::string_view key) {
   const auto& it = kDb.find(key);
   if (it != kDb.end()) {
     return ToView(it->second);
   }
   return kEmptySet;
+}
+
+absl::StatusOr<absl::flat_hash_set<std::string_view>> Parse(
+    kv_server::Driver& driver, std::string query) {
+  std::istringstream stream(query);
+  kv_server::Scanner scanner(stream);
+  kv_server::Parser parse(driver, scanner);
+  int parse_result = parse();
+  auto result =
+      driver.EvaluateQuery<absl::flat_hash_set<std::string_view>>(Lookup);
+  if (parse_result && result.ok()) {
+    std::cerr << "Unexpected failed parse result with an OK query result.";
+  }
+  return result;
 }
 
 void ProcessQuery(kv_server::Driver& driver, std::string query) {
@@ -138,7 +139,7 @@ void SignalHandler(int signal) {
 
 int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
-  kv_server::Driver driver(Lookup);
+  kv_server::Driver driver;
   const std::string query = absl::GetFlag(FLAGS_query);
   const std::optional<std::string> dot_path = absl::GetFlag(FLAGS_dot_path);
   std::optional<kv_server::query_toy::QueryDotWriter> dot_writer =

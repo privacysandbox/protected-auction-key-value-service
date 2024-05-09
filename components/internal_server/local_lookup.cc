@@ -113,11 +113,7 @@ class LocalLookup : public Lookup {
                                 kInternalRunQueryLatencyInMicros>
         latency_recorder(request_context.GetInternalLookupMetricsContext());
     if (query.empty()) return absl::OkStatus();
-    std::unique_ptr<GetKeyValueSetResult> get_key_value_set_result;
-    kv_server::Driver driver([&get_key_value_set_result](std::string_view key) {
-      return get_key_value_set_result->GetValueSet(key);
-    });
-
+    kv_server::Driver driver;
     std::istringstream stream(query);
     kv_server::Scanner scanner(stream);
     kv_server::Parser parse(driver, scanner);
@@ -128,10 +124,12 @@ class LocalLookup : public Lookup {
           kLocalRunQueryParsingFailure);
       return absl::InvalidArgumentError("Parsing failure.");
     }
-    get_key_value_set_result =
+    auto get_key_value_set_result =
         cache_.GetKeyValueSet(request_context, driver.GetRootNode()->Keys());
-
-    auto result = driver.GetResult();
+    auto result = driver.EvaluateQuery<absl::flat_hash_set<std::string_view>>(
+        [&get_key_value_set_result](std::string_view key) {
+          return get_key_value_set_result->GetValueSet(key);
+        });
     if (!result.ok()) {
       LogInternalLookupRequestErrorMetric(
           request_context.GetInternalLookupMetricsContext(),

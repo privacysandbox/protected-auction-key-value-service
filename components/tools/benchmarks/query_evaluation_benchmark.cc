@@ -64,8 +64,7 @@ RoaringBitSet Lookup(std::string_view key) {
 }
 
 Driver* GetDriver() {
-  static auto* const driver =
-      std::make_unique<Driver>(Lookup<StringSet>).release();
+  static auto* const driver = std::make_unique<Driver>().release();
   return driver;
 }
 

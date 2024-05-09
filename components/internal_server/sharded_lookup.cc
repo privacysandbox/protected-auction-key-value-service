@@ -147,23 +147,7 @@ class ShardedLookup : public Lookup {
                                kShardedRunQueryEmptyQuery);
       return response;
     }
-
-    absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> keysets;
-    kv_server::Driver driver([&keysets, this,
-                              &request_context](std::string_view key) {
-      const auto key_iter = keysets.find(key);
-      if (key_iter == keysets.end()) {
-        VLOG(8) << "Driver can't find " << key << "key_set. Returning empty.";
-        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                                 kShardedRunQueryMissingKeySet);
-        absl::flat_hash_set<std::string_view> set;
-        return set;
-      } else {
-        absl::flat_hash_set<std::string_view> set(key_iter->second.begin(),
-                                                  key_iter->second.end());
-        return set;
-      }
-    });
+    kv_server::Driver driver;
     std::istringstream stream(query);
     kv_server::Scanner scanner(stream);
     kv_server::Parser parse(driver, scanner);
@@ -180,8 +164,24 @@ class ShardedLookup : public Lookup {
                                kShardedRunQueryKeySetRetrievalFailure);
       return get_key_value_set_result_maybe.status();
     }
-    keysets = std::move(*get_key_value_set_result_maybe);
-    auto result = driver.GetResult();
+    auto keysets = std::move(*get_key_value_set_result_maybe);
+    auto result = driver.EvaluateQuery<absl::flat_hash_set<std::string_view>>(
+        [&keysets, &request_context](std::string_view key) {
+          const auto key_iter = keysets.find(key);
+          if (key_iter == keysets.end()) {
+            VLOG(8) << "Driver can't find " << key
+                    << "key_set. Returning empty.";
+            LogUdfRequestErrorMetric(
+                request_context.GetUdfRequestMetricsContext(),
+                kShardedRunQueryMissingKeySet);
+            absl::flat_hash_set<std::string_view> set;
+            return set;
+          } else {
+            absl::flat_hash_set<std::string_view> set(key_iter->second.begin(),
+                                                      key_iter->second.end());
+            return set;
+          }
+        });
     if (!result.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kShardedRunQueryFailure);

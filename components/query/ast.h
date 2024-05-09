@@ -28,10 +28,10 @@
 #include "components/query/sets.h"
 
 namespace kv_server {
-// All set operations using `KVSetView` operate on a reference to the data in
-// the DB This means that the data in the DB must be locked throughout the
+// All set operations using `KVStringSetView` operate on a reference to the data
+// in the DB This means that the data in the DB must be locked throughout the
 // lifetime of the result.
-using KVSetView = absl::flat_hash_set<std::string_view>;
+using KVStringSetView = absl::flat_hash_set<std::string_view>;
 
 class ASTVisitor;
 class ASTStringVisitor;

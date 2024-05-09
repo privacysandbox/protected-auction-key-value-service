@@ -16,7 +16,6 @@
 
 #include <sstream>
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include "absl/strings/str_join.h"
@@ -26,16 +25,10 @@
 namespace kv_server {
 namespace {
 
-absl::flat_hash_set<std::string_view> NeverUsedLookup(std::string_view key) {
-  // Should never be called
-  assert(0);
-  return {};
-}
-
 TEST(ScannerTest, Empty) {
   std::istringstream stream("");
   Scanner scanner(stream);
-  Driver driver(NeverUsedLookup);
+  Driver driver;
   auto t = scanner.yylex(driver);
   ASSERT_EQ(t.token(), Parser::token::YYEOF);
 }
@@ -43,7 +36,7 @@ TEST(ScannerTest, Empty) {
 TEST(ScannerTest, Var) {
   std::istringstream stream("FOO foo Foo123");
   Scanner scanner(stream);
-  Driver driver(NeverUsedLookup);
+  Driver driver;
   // first token
   auto t1 = scanner.yylex(driver);
   ASSERT_EQ(t1.token(), Parser::token::VAR);
@@ -67,7 +60,7 @@ TEST(ScannerTest, Var) {
 TEST(ScannerTest, Parens) {
   std::istringstream stream("()");
   Scanner scanner(stream);
-  Driver driver(NeverUsedLookup);
+  Driver driver;
 
   auto t1 = scanner.yylex(driver);
   ASSERT_EQ(t1.token(), Parser::token::LPAREN);
@@ -80,7 +73,7 @@ TEST(ScannerTest, Parens) {
 TEST(ScannerTest, WhitespaceVar) {
   std::istringstream stream(" FOO ");
   Scanner scanner(stream);
-  Driver driver(NeverUsedLookup);
+  Driver driver;
   // first token
   auto t1 = scanner.yylex(driver);
   ASSERT_EQ(t1.token(), Parser::token::VAR);
@@ -94,7 +87,7 @@ TEST(ScannerTest, NotAlphaNumVar) {
   std::string token_list = absl::StrJoin(expected_vars, " ");
   std::istringstream stream(token_list);
   Scanner scanner(stream);
-  Driver driver(NeverUsedLookup);
+  Driver driver;
 
   for (const auto& expected_var : expected_vars) {
     auto token = scanner.yylex(driver);
@@ -109,7 +102,7 @@ TEST(ScannerTest, QuotedVar) {
   std::istringstream stream(
       " \"A1:Stuff\" \"A-B:C&D=E|F\" \"A+B\" \"A/B\" \"A\" ");
   Scanner scanner(stream);
-  Driver driver(NeverUsedLookup);
+  Driver driver;
 
   auto t1 = scanner.yylex(driver);
   ASSERT_EQ(t1.token(), Parser::token::VAR);
@@ -133,7 +126,7 @@ TEST(ScannerTest, QuotedVar) {
 TEST(ScannerTest, EmptyQuotedInvalid) {
   std::istringstream stream(" \"\" ");
   Scanner scanner(stream);
-  Driver driver(NeverUsedLookup);
+  Driver driver;
 
   // Since it there is no valid match, we have 2 errors
   // for each of the double quotes.
@@ -149,7 +142,7 @@ TEST(ScannerTest, EmptyQuotedInvalid) {
 TEST(ScannerTest, Operators) {
   std::istringstream stream("| UNION & INTERSECTION - DIFFERENCE");
   Scanner scanner(stream);
-  Driver driver(NeverUsedLookup);
+  Driver driver;
 
   auto t1 = scanner.yylex(driver);
   ASSERT_EQ(t1.token(), Parser::token::UNION);
@@ -173,7 +166,7 @@ TEST(ScannerTest, Operators) {
 TEST(ScannerTest, Error) {
   std::istringstream stream("!");
   Scanner scanner(stream);
-  Driver driver(NeverUsedLookup);
+  Driver driver;
 
   auto t1 = scanner.yylex(driver);
   ASSERT_EQ(t1.token(), Parser::token::ERROR);

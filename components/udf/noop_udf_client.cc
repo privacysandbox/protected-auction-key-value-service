@@ -33,13 +33,15 @@ class NoopUdfClientImpl : public UdfClient {
  public:
   absl::StatusOr<std::string> ExecuteCode(
       const RequestContextFactory& request_context_factory,
-      std::vector<std::string> keys) const {
+      std::vector<std::string> keys,
+      ExecutionMetadata& execution_metadata) const {
     return "";
   }
   absl::StatusOr<std::string> ExecuteCode(
       const RequestContextFactory& request_context_factory,
       UDFExecutionMetadata&&,
-      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments) const {
+      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments,
+      ExecutionMetadata& execution_metadata) const {
     return "";
   }
 

@@ -195,8 +195,10 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
     VLOG(7) << "Converting V1 request " << v1_request.DebugString()
             << " to v2 request " << v2_request.DebugString();
     v2::GetValuesResponse v2_response;
-    if (auto status = v2_handler_->GetValues(request_context_factory,
-                                             v2_request, &v2_response);
+    ExecutionMetadata execution_metadata;
+    if (auto status =
+            v2_handler_->GetValues(request_context_factory, v2_request,
+                                   &v2_response, execution_metadata);
         !status.ok()) {
       return status;
     }

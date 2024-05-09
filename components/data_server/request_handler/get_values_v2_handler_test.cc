@@ -238,21 +238,24 @@ class GetValuesHandlerTest
       google::api::HttpBody* response, int16_t* bhttp_response_code,
       GetValuesV2Handler* handler) {
     PlainRequest plain_request(std::move(request_body));
+    ExecutionMetadata execution_metadata;
+
     std::multimap<grpc::string_ref, grpc::string_ref> headers = {
         {"kv-content-type", "application/json"}};
     if (IsUsing<ProtocolType::kPlain>()) {
       *bhttp_response_code = 200;
       return handler->GetValuesHttp(request_context_factory, headers,
-                                    plain_request.Build(), response);
+                                    plain_request.Build(), response,
+                                    execution_metadata);
     }
 
     BHTTPRequest bhttp_request(std::move(plain_request), IsProtobufContent());
     BHTTPResponse bresponse;
 
     if (IsUsing<ProtocolType::kBinaryHttp>()) {
-      if (const auto s = handler->BinaryHttpGetValues(request_context_factory,
-                                                      bhttp_request.Build(),
-                                                      &bresponse.RawResponse());
+      if (const auto s = handler->BinaryHttpGetValues(
+              request_context_factory, bhttp_request.Build(),
+              &bresponse.RawResponse(), execution_metadata);
           !s.ok()) {
         LOG(ERROR) << "BinaryHttpGetValues failed: " << s.error_message();
         return s;
@@ -264,7 +267,7 @@ class GetValuesHandlerTest
       auto [request, response_unwrapper] = ohttp_request.Build();
       if (const auto s = handler->ObliviousGetValues(
               request_context_factory, {{"kv-content-type", "message/bhttp"}},
-              request, &response_unwrapper.RawResponse());
+              request, &response_unwrapper.RawResponse(), execution_metadata);
           !s.ok()) {
         LOG(ERROR) << "ObliviousGetValues failed: " << s.error_message();
         return s;
@@ -381,7 +384,8 @@ data {
   EXPECT_CALL(
       mock_udf_client_,
       ExecuteCode(_, EqualsProto(udf_metadata),
-                  testing::ElementsAre(EqualsProto(arg1), EqualsProto(arg2))))
+                  testing::ElementsAre(EqualsProto(arg1), EqualsProto(arg2)),
+                  _))
       .WillOnce(Return(output.dump()));
 
   std::string core_request_body = R"(
@@ -481,7 +485,7 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
 }
 
 TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, testing::IsEmpty()))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, testing::IsEmpty(), _))
       .WillOnce(Return(absl::InternalError("UDF execution error")));
 
   std::string core_request_body = R"(
@@ -531,6 +535,7 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
 
 TEST_F(GetValuesHandlerTest, PureGRPCTest) {
   v2::GetValuesRequest req;
+  ExecutionMetadata execution_metadata;
   TextFormat::ParseFromString(
       R"pb(partitions {
              id: 9
@@ -538,14 +543,16 @@ TEST_F(GetValuesHandlerTest, PureGRPCTest) {
            })pb",
       &req);
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, _,
-                          testing::ElementsAre(
-                              EqualsProto(req.partitions(0).arguments(0)))))
+  EXPECT_CALL(
+      mock_udf_client_,
+      ExecuteCode(
+          _, _,
+          testing::ElementsAre(EqualsProto(req.partitions(0).arguments(0))), _))
       .WillOnce(Return("ECHO"));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
-  const auto result = handler.GetValues(*request_context_factory, req, &resp);
+  const auto result = handler.GetValues(*request_context_factory, req, &resp,
+                                        execution_metadata);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -557,6 +564,7 @@ TEST_F(GetValuesHandlerTest, PureGRPCTest) {
 
 TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
   v2::GetValuesRequest req;
+  ExecutionMetadata execution_metadata;
   TextFormat::ParseFromString(
       R"pb(partitions {
              id: 9
@@ -564,14 +572,16 @@ TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
            })pb",
       &req);
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, _,
-                          testing::ElementsAre(
-                              EqualsProto(req.partitions(0).arguments(0)))))
+  EXPECT_CALL(
+      mock_udf_client_,
+      ExecuteCode(
+          _, _,
+          testing::ElementsAre(EqualsProto(req.partitions(0).arguments(0))), _))
       .WillOnce(Return(absl::InternalError("UDF execution error")));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
-  const auto result = handler.GetValues(*request_context_factory, req, &resp);
+  const auto result = handler.GetValues(*request_context_factory, req, &resp,
+                                        execution_metadata);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 

@@ -202,8 +202,10 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   auto request_context_factory = std::make_unique<RequestContextFactory>(
       privacy_sandbox::server_common::LogContext(),
       privacy_sandbox::server_common::ConsentedDebugConfiguration());
+  ExecutionMetadata execution_metadata;
   auto udf_result = udf_client.value()->ExecuteCode(
-      *request_context_factory, {}, req_partition.arguments());
+      *request_context_factory, {}, req_partition.arguments(),
+      execution_metadata);
   if (!udf_result.ok()) {
     LOG(ERROR) << "UDF execution failed: " << udf_result.status();
     ShutdownUdf(*udf_client.value());

@@ -32,6 +32,7 @@
 #include "src/roma/config/config.h"
 #include "src/roma/interface/roma.h"
 #include "src/roma/roma_service/roma_service.h"
+#include "src/util/duration.h"
 
 namespace kv_server {
 
@@ -73,7 +74,8 @@ class UdfClientImpl : public UdfClient {
   absl::StatusOr<std::string> ExecuteCode(
       const RequestContextFactory& request_context_factory,
       UDFExecutionMetadata&& execution_metadata,
-      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments) const {
+      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments,
+      ExecutionMetadata& metadata) const {
     execution_metadata.set_udf_interface_version(kUdfInterfaceVersion);
     std::vector<std::string> string_args;
     string_args.reserve(arguments.size() + 1);
@@ -100,12 +102,13 @@ class UdfClientImpl : public UdfClient {
       }
       string_args.push_back(json_arg);
     }
-    return ExecuteCode(request_context_factory, std::move(string_args));
+    return ExecuteCode(request_context_factory, std::move(string_args),
+                       metadata);
   }
 
   absl::StatusOr<std::string> ExecuteCode(
       const RequestContextFactory& request_context_factory,
-      std::vector<std::string> input) const {
+      std::vector<std::string> input, ExecutionMetadata& metadata) const {
     std::shared_ptr<absl::Status> response_status =
         std::make_shared<absl::Status>();
     std::shared_ptr<std::string> result = std::make_shared<std::string>();
@@ -115,6 +118,7 @@ class UdfClientImpl : public UdfClient {
         BuildInvocationRequest(request_context_factory, std::move(input));
     VLOG(9) << "Executing UDF with input arg(s): "
             << absl::StrJoin(invocation_request.input, ",");
+    const auto start = clock_.Now();
     const auto status = roma_service_.Execute(
         std::make_unique<InvocationStrRequest<std::weak_ptr<RequestContext>>>(
             std::move(invocation_request)),
@@ -143,6 +147,10 @@ class UdfClientImpl : public UdfClient {
       LOG(ERROR) << "Error executing UDF: " << *response_status;
       return *response_status;
     }
+    // TOOD: waiting on b/338813575 and the K&B team. Once that's
+    // implemented we should just use that number.
+    metadata.custom_code_total_execution_time_micros =
+        (clock_.Now() - start) / absl::Microseconds(1);
     return *result;
   }
   absl::Status Init() { return roma_service_.Init(); }
@@ -246,6 +254,8 @@ class UdfClientImpl : public UdfClient {
   // losing the thread-safety of usage within a const function is a lesser
   // concern.
   mutable RomaService<std::weak_ptr<RequestContext>> roma_service_;
+  privacy_sandbox::server_common::SteadyClock& clock_ =
+      privacy_sandbox::server_common::SteadyClock::RealClock();
 };
 
 }  // namespace

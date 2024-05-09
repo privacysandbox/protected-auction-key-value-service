@@ -34,6 +34,10 @@
 
 namespace kv_server {
 
+struct ExecutionMetadata {
+  std::optional<int64_t> custom_code_total_execution_time_micros;
+};
+
 // Client to execute UDF
 class UdfClient {
  public:
@@ -45,15 +49,16 @@ class UdfClient {
   ABSL_DEPRECATED("Use ExecuteCode(metadata, arguments) instead")
   virtual absl::StatusOr<std::string> ExecuteCode(
       const RequestContextFactory& request_context_factory,
-      std::vector<std::string> keys) const = 0;
+      std::vector<std::string> keys,
+      ExecutionMetadata& execution_metadata) const = 0;
 
   // Executes the UDF. Code object must be set before making
   // this call.
   virtual absl::StatusOr<std::string> ExecuteCode(
       const RequestContextFactory& request_context_factory,
       UDFExecutionMetadata&& execution_metadata,
-      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments)
-      const = 0;
+      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments,
+      ExecutionMetadata& metadata) const = 0;
 
   virtual absl::Status Stop() = 0;
 

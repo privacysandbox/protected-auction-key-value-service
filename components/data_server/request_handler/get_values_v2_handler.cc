@@ -70,16 +70,18 @@ CompressionGroupConcatenator::CompressionType GetResponseCompressionType(
 grpc::Status GetValuesV2Handler::GetValuesHttp(
     RequestContextFactory& request_context_factory,
     const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
-    const GetValuesHttpRequest& request,
-    google::api::HttpBody* response) const {
-  return FromAbslStatus(GetValuesHttp(
-      request_context_factory, request.raw_body().data(),
-      *response->mutable_data(), GetContentType(headers, ContentType::kJson)));
+    const GetValuesHttpRequest& request, google::api::HttpBody* response,
+    ExecutionMetadata& execution_metadata) const {
+  return FromAbslStatus(
+      GetValuesHttp(request_context_factory, request.raw_body().data(),
+                    *response->mutable_data(), execution_metadata,
+                    GetContentType(headers, ContentType::kJson)));
 }
 
 absl::Status GetValuesV2Handler::GetValuesHttp(
     RequestContextFactory& request_context_factory, std::string_view request,
-    std::string& response, ContentType content_type) const {
+    std::string& response, ExecutionMetadata& execution_metadata,
+    ContentType content_type) const {
   v2::GetValuesRequest request_proto;
   if (content_type == ContentType::kJson) {
     PS_RETURN_IF_ERROR(
@@ -96,7 +98,9 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
           << request_proto.DebugString();
   v2::GetValuesResponse response_proto;
   PS_RETURN_IF_ERROR(
-      GetValues(request_context_factory, request_proto, &response_proto));
+
+      GetValues(request_context_factory, request_proto, &response_proto,
+                execution_metadata));
   if (content_type == ContentType::kJson) {
     return MessageToJsonString(response_proto, &response);
   }
@@ -112,10 +116,11 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
 grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
     RequestContextFactory& request_context_factory,
     const v2::BinaryHttpGetValuesRequest& bhttp_request,
-    google::api::HttpBody* response) const {
-  return FromAbslStatus(BinaryHttpGetValues(request_context_factory,
-                                            bhttp_request.raw_body().data(),
-                                            *response->mutable_data()));
+    google::api::HttpBody* response,
+    ExecutionMetadata& execution_metadata) const {
+  return FromAbslStatus(BinaryHttpGetValues(
+      request_context_factory, bhttp_request.raw_body().data(),
+      *response->mutable_data(), execution_metadata));
 }
 
 GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
@@ -157,7 +162,8 @@ GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
 absl::StatusOr<quiche::BinaryHttpResponse>
 GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
     RequestContextFactory& request_context_factory,
-    std::string_view bhttp_request_body) const {
+    std::string_view bhttp_request_body,
+    ExecutionMetadata& execution_metadata) const {
   VLOG(9) << "Handling the binary http layer";
   PS_ASSIGN_OR_RETURN(quiche::BinaryHttpRequest deserialized_req,
                       quiche::BinaryHttpRequest::Create(bhttp_request_body),
@@ -167,7 +173,7 @@ GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
   auto content_type = GetContentType(deserialized_req);
   PS_RETURN_IF_ERROR(GetValuesHttp(request_context_factory,
                                    deserialized_req.body(), response,
-                                   content_type));
+                                   execution_metadata, content_type));
   quiche::BinaryHttpResponse bhttp_response(200);
   if (content_type == ContentType::kProto) {
     bhttp_response.AddHeaderField({
@@ -181,13 +187,14 @@ GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
 
 absl::Status GetValuesV2Handler::BinaryHttpGetValues(
     RequestContextFactory& request_context_factory,
-    std::string_view bhttp_request_body, std::string& response) const {
+    std::string_view bhttp_request_body, std::string& response,
+    ExecutionMetadata& execution_metadata) const {
   static quiche::BinaryHttpResponse const* kDefaultBhttpResponse =
       new quiche::BinaryHttpResponse(500);
   const quiche::BinaryHttpResponse* bhttp_response = kDefaultBhttpResponse;
   absl::StatusOr<quiche::BinaryHttpResponse> maybe_successful_bhttp_response =
-      BuildSuccessfulGetValuesBhttpResponse(request_context_factory,
-                                            bhttp_request_body);
+      BuildSuccessfulGetValuesBhttpResponse(
+          request_context_factory, bhttp_request_body, execution_metadata);
   if (maybe_successful_bhttp_response.ok()) {
     bhttp_response = &(maybe_successful_bhttp_response.value());
   }
@@ -203,7 +210,8 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
     RequestContextFactory& request_context_factory,
     const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
     const ObliviousGetValuesRequest& oblivious_request,
-    google::api::HttpBody* oblivious_response) const {
+    google::api::HttpBody* oblivious_response,
+    ExecutionMetadata& execution_metadata) const {
   VLOG(9) << "Received ObliviousGetValues request. ";
   OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto maybe_plain_text =
@@ -215,14 +223,16 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
   auto content_type = GetContentType(headers, ContentType::kBhttp);
   if (content_type == ContentType::kBhttp) {
     // Now process the binary http request
-    if (const auto s = BinaryHttpGetValues(request_context_factory,
-                                           *maybe_plain_text, response);
+    if (const auto s =
+            BinaryHttpGetValues(request_context_factory, *maybe_plain_text,
+                                response, execution_metadata);
         !s.ok()) {
       return FromAbslStatus(s);
     }
   } else {
-    if (const auto s = GetValuesHttp(request_context_factory, *maybe_plain_text,
-                                     response, content_type);
+    if (const auto s =
+            GetValuesHttp(request_context_factory, *maybe_plain_text, response,
+                          execution_metadata, content_type);
         !s.ok()) {
       return FromAbslStatus(s);
     }
@@ -242,13 +252,15 @@ absl::Status GetValuesV2Handler::ProcessOnePartition(
     const RequestContextFactory& request_context_factory,
     const google::protobuf::Struct& req_metadata,
     const v2::RequestPartition& req_partition,
-    v2::ResponsePartition& resp_partition) const {
+    v2::ResponsePartition& resp_partition,
+    ExecutionMetadata& execution_metadata) const {
   resp_partition.set_id(req_partition.id());
   UDFExecutionMetadata udf_metadata;
   *udf_metadata.mutable_request_metadata() = req_metadata;
+
   const auto maybe_output_string = udf_client_.ExecuteCode(
       std::move(request_context_factory), std::move(udf_metadata),
-      req_partition.arguments());
+      req_partition.arguments(), execution_metadata);
   if (!maybe_output_string.ok()) {
     resp_partition.mutable_status()->set_code(
         static_cast<int>(maybe_output_string.status().code()));
@@ -263,8 +275,8 @@ absl::Status GetValuesV2Handler::ProcessOnePartition(
 
 grpc::Status GetValuesV2Handler::GetValues(
     RequestContextFactory& request_context_factory,
-    const v2::GetValuesRequest& request,
-    v2::GetValuesResponse* response) const {
+    const v2::GetValuesRequest& request, v2::GetValuesResponse* response,
+    ExecutionMetadata& execution_metadata) const {
   VLOG(9) << "Update log context " << request.log_context() << ";"
           << request.consented_debug_config();
   request_context_factory.UpdateLogContext(request.log_context(),
@@ -272,7 +284,7 @@ grpc::Status GetValuesV2Handler::GetValues(
   if (request.partitions().size() == 1) {
     const auto partition_status = ProcessOnePartition(
         request_context_factory, request.metadata(), request.partitions(0),
-        *response->mutable_single_partition());
+        *response->mutable_single_partition(), execution_metadata);
     return GetExternalStatusForV2(partition_status);
   }
   if (request.partitions().empty()) {

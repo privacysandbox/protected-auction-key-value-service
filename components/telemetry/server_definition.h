@@ -491,6 +491,15 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         "SecureLookupRequestCount",
         "Number of secure lookup requests received from remote server");
 
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kTotalLatencyWithoutCustomCode("TotalLatencyWithoutCustomCode",
+                                   "Latency in deleting values in set",
+                                   kLatencyInMicroSecondsBoundaries,
+                                   kMicroSecondsUpperBound,
+                                   kMicroSecondsLowerBound);
+
 // KV server metrics list contains contains non request related safe metrics
 // and request metrics collected before stage of internal lookups
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
@@ -500,7 +509,7 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kShardedLookupGetKeyValuesLatencyInMicros,
         &kShardedLookupGetKeyValueSetLatencyInMicros,
         &kShardedLookupRunQueryLatencyInMicros,
-        &kRemoteLookupGetValuesLatencyInMicros,
+        &kRemoteLookupGetValuesLatencyInMicros, &kTotalLatencyWithoutCustomCode,
         // Safe metrics
         &kKVServerError,
         &privacy_sandbox::server_common::metrics::kTotalRequestCount,

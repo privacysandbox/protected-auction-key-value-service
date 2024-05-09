@@ -75,17 +75,19 @@ class GetValuesV2Handler {
   grpc::Status GetValuesHttp(
       RequestContextFactory& request_context_factory,
       const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
-      const v2::GetValuesHttpRequest& request,
-      google::api::HttpBody* response) const;
+      const v2::GetValuesHttpRequest& request, google::api::HttpBody* response,
+      ExecutionMetadata& execution_metadata) const;
 
   grpc::Status GetValues(RequestContextFactory& request_context_factory,
                          const v2::GetValuesRequest& request,
-                         v2::GetValuesResponse* response) const;
+                         v2::GetValuesResponse* response,
+                         ExecutionMetadata& execution_metadata) const;
 
   grpc::Status BinaryHttpGetValues(
       RequestContextFactory& request_context_factory,
       const v2::BinaryHttpGetValuesRequest& request,
-      google::api::HttpBody* response) const;
+      google::api::HttpBody* response,
+      ExecutionMetadata& execution_metadata) const;
 
   // Supports requests encrypted with a fixed key for debugging/demoing.
   // X25519 Secret key (priv key).
@@ -104,7 +106,8 @@ class GetValuesV2Handler {
       RequestContextFactory& request_context_factory,
       const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
       const v2::ObliviousGetValuesRequest& request,
-      google::api::HttpBody* response) const;
+      google::api::HttpBody* response,
+      ExecutionMetadata& execution_metadata) const;
 
  private:
   enum class ContentType {
@@ -121,7 +124,7 @@ class GetValuesV2Handler {
 
   absl::Status GetValuesHttp(
       RequestContextFactory& request_context_factory, std::string_view request,
-      std::string& json_response,
+      std::string& json_response, ExecutionMetadata& execution_metadata,
       ContentType content_type = ContentType::kJson) const;
 
   // On success, returns a BinaryHttpResponse with a successful response. The
@@ -131,21 +134,24 @@ class GetValuesV2Handler {
   absl::StatusOr<quiche::BinaryHttpResponse>
   BuildSuccessfulGetValuesBhttpResponse(
       RequestContextFactory& request_context_factory,
-      std::string_view bhttp_request_body) const;
+      std::string_view bhttp_request_body,
+      ExecutionMetadata& execution_metadata) const;
 
   // Returns error only if the response cannot be serialized into Binary HTTP
   // response. For all other failures, the error status will be inside the
   // Binary HTTP message.
   absl::Status BinaryHttpGetValues(
       RequestContextFactory& request_context_factory,
-      std::string_view bhttp_request_body, std::string& response) const;
+      std::string_view bhttp_request_body, std::string& response,
+      ExecutionMetadata& execution_metadata) const;
 
   // Invokes UDF to process one partition.
   absl::Status ProcessOnePartition(
       const RequestContextFactory& request_context_factory,
       const google::protobuf::Struct& req_metadata,
       const v2::RequestPartition& req_partition,
-      v2::ResponsePartition& resp_partition) const;
+      v2::ResponsePartition& resp_partition,
+      ExecutionMetadata& execution_metadata) const;
 
   const UdfClient& udf_client_;
   std::function<CompressionGroupConcatenator::FactoryFunctionType>

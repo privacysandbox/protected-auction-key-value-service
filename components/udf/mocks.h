@@ -33,11 +33,13 @@ namespace kv_server {
 class MockUdfClient : public UdfClient {
  public:
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
-              (const RequestContextFactory&, std::vector<std::string>),
+              (const RequestContextFactory&, std::vector<std::string>,
+               ExecutionMetadata& execution_metadata),
               (const, override));
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
               (const RequestContextFactory&, UDFExecutionMetadata&&,
-               const google::protobuf::RepeatedPtrField<UDFArgument>&),
+               const google::protobuf::RepeatedPtrField<UDFArgument>&,
+               ExecutionMetadata& execution_metadata),
               (const, override));
   MOCK_METHOD((absl::Status), Stop, (), (override));
   MOCK_METHOD((absl::Status), SetCodeObject,

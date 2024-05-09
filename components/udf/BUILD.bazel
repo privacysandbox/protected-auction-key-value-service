@@ -52,6 +52,7 @@ cc_library(
         "@google_privacysandbox_servers_common//src/logger:request_context_logger",
         "@google_privacysandbox_servers_common//src/roma/interface",
         "@google_privacysandbox_servers_common//src/roma/roma_service",
+        "@google_privacysandbox_servers_common//src/util:duration",
     ],
 )
 

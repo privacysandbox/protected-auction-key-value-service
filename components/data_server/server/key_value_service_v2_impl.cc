@@ -29,7 +29,22 @@ using v2::KeyValueService;
 
 template <typename RequestT, typename ResponseT>
 using HandlerFunctionT = grpc::Status (GetValuesV2Handler::*)(
-    RequestContextFactory&, const RequestT&, ResponseT*) const;
+    RequestContextFactory&, const RequestT&, ResponseT*,
+    ExecutionMetadata& execution_metadata) const;
+
+inline void LogTotalExecutionWithoutCustomCodeMetric(
+    const privacy_sandbox::server_common::Stopwatch& stopwatch,
+    std::optional<int64_t> custom_code_total_execution_time_micros,
+    RequestContextFactory& request_context_factory) {
+  auto duration_micros = absl::ToDoubleMicroseconds(stopwatch.GetElapsedTime());
+  if (custom_code_total_execution_time_micros.has_value()) {
+    duration_micros -= *custom_code_total_execution_time_micros;
+  }
+  UdfRequestMetricsContext& metrics_context =
+      request_context_factory.Get().GetUdfRequestMetricsContext();
+  LogIfError(metrics_context.LogHistogram<kTotalLatencyWithoutCustomCode>(
+      (duration_micros)));
+}
 
 template <typename RequestT, typename ResponseT>
 grpc::ServerUnaryReactor* HandleRequest(
@@ -38,11 +53,15 @@ grpc::ServerUnaryReactor* HandleRequest(
     ResponseT* response, const GetValuesV2Handler& handler,
     HandlerFunctionT<RequestT, ResponseT> handler_function) {
   privacy_sandbox::server_common::Stopwatch stopwatch;
-  grpc::Status status =
-      (handler.*handler_function)(request_context_factory, *request, response);
+  ExecutionMetadata execution_metadata;
+  grpc::Status status = (handler.*handler_function)(
+      request_context_factory, *request, response, execution_metadata);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
   LogRequestCommonSafeMetrics(request, response, status, stopwatch);
+  LogTotalExecutionWithoutCustomCodeMetric(
+      stopwatch, execution_metadata.custom_code_total_execution_time_micros,
+      request_context_factory);
   return reactor;
 }
 
@@ -53,11 +72,16 @@ grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValuesHttp(
     google::api::HttpBody* response) {
   privacy_sandbox::server_common::Stopwatch stopwatch;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
+  ExecutionMetadata execution_metadata;
   grpc::Status status = handler_.GetValuesHttp(
-      *request_context_factory, context->client_metadata(), *request, response);
+      *request_context_factory, context->client_metadata(), *request, response,
+      execution_metadata);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
   LogRequestCommonSafeMetrics(request, response, status, stopwatch);
+  LogTotalExecutionWithoutCustomCodeMetric(
+      stopwatch, execution_metadata.custom_code_total_execution_time_micros,
+      *request_context_factory);
   return reactor;
 }
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValues(
@@ -83,11 +107,16 @@ grpc::ServerUnaryReactor* KeyValueServiceV2Impl::ObliviousGetValues(
     google::api::HttpBody* response) {
   privacy_sandbox::server_common::Stopwatch stopwatch;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
+  ExecutionMetadata execution_metadata;
   grpc::Status status = handler_.ObliviousGetValues(
-      *request_context_factory, context->client_metadata(), *request, response);
+      *request_context_factory, context->client_metadata(), *request, response,
+      execution_metadata);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
   LogRequestCommonSafeMetrics(request, response, status, stopwatch);
+  LogTotalExecutionWithoutCustomCodeMetric(
+      stopwatch, execution_metadata.custom_code_total_execution_time_micros,
+      *request_context_factory);
   return reactor;
 }
 

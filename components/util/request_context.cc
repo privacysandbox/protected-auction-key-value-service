@@ -41,6 +41,18 @@ void RequestContext::UpdateLogContext(
   request_log_context_ =
       std::make_unique<RequestLogContext>(log_context, consented_debug_config);
 }
+RequestContext::RequestContext(
+    const privacy_sandbox::server_common::LogContext& log_context,
+    const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+        consented_debug_config,
+    std::string request_id)
+    : request_id_(request_id),
+      udf_request_metrics_context_(KVServerContextMap()->Get(&request_id_)),
+      internal_lookup_metrics_context_(
+          InternalLookupServerContextMap()->Get(&request_id_)) {
+  request_log_context_ =
+      std::make_unique<RequestLogContext>(log_context, consented_debug_config);
+}
 
 RequestLogContext::RequestLogContext(
     const privacy_sandbox::server_common::LogContext& log_context,
@@ -69,11 +81,17 @@ absl::btree_map<std::string, std::string> RequestLogContext::GetContextMap(
           {kAdtechDebugId, log_context.adtech_debug_id()}};
 }
 RequestContextFactory::RequestContextFactory(
-    std::weak_ptr<RequestContext> request_context) {
-  request_context_ = request_context;
+    const privacy_sandbox::server_common::LogContext& log_context,
+    const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+        consented_debug_config) {
+  request_context_ =
+      std::make_shared<RequestContext>(log_context, consented_debug_config);
 }
-
-std::weak_ptr<RequestContext> RequestContextFactory::Get() {
+std::weak_ptr<RequestContext> RequestContextFactory::GetWeakCopy() const {
   return request_context_;
 }
+const RequestContext& RequestContextFactory::Get() const {
+  return *request_context_;
+}
+
 }  // namespace kv_server

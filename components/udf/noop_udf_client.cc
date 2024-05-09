@@ -32,12 +32,13 @@ namespace {
 class NoopUdfClientImpl : public UdfClient {
  public:
   absl::StatusOr<std::string> ExecuteCode(
-      RequestContextFactory request_context_factory,
+      const RequestContextFactory& request_context_factory,
       std::vector<std::string> keys) const {
     return "";
   }
   absl::StatusOr<std::string> ExecuteCode(
-      RequestContextFactory request_context_factory, UDFExecutionMetadata&&,
+      const RequestContextFactory& request_context_factory,
+      UDFExecutionMetadata&&,
       const google::protobuf::RepeatedPtrField<UDFArgument>& arguments) const {
     return "";
   }

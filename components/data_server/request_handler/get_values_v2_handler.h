@@ -135,7 +135,7 @@ class GetValuesV2Handler {
 
   // Invokes UDF to process one partition.
   absl::Status ProcessOnePartition(
-      RequestContextFactory request_context_factory,
+      const RequestContextFactory& request_context_factory,
       const google::protobuf::Struct& req_metadata,
       const v2::RequestPartition& req_partition,
       v2::ResponsePartition& resp_partition) const;

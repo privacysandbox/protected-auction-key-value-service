@@ -44,13 +44,13 @@ class UdfClient {
   // UDF signature.
   ABSL_DEPRECATED("Use ExecuteCode(metadata, arguments) instead")
   virtual absl::StatusOr<std::string> ExecuteCode(
-      RequestContextFactory request_context_factory,
+      const RequestContextFactory& request_context_factory,
       std::vector<std::string> keys) const = 0;
 
   // Executes the UDF. Code object must be set before making
   // this call.
   virtual absl::StatusOr<std::string> ExecuteCode(
-      RequestContextFactory request_context_factory,
+      const RequestContextFactory& request_context_factory,
       UDFExecutionMetadata&& execution_metadata,
       const google::protobuf::RepeatedPtrField<UDFArgument>& arguments)
       const = 0;

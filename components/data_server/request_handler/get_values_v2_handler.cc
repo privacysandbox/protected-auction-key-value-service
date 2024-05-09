@@ -228,7 +228,7 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
 }
 
 absl::Status GetValuesV2Handler::ProcessOnePartition(
-    RequestContextFactory request_context_factory,
+    const RequestContextFactory& request_context_factory,
     const google::protobuf::Struct& req_metadata,
     const v2::RequestPartition& req_partition,
     v2::ResponsePartition& resp_partition) const {
@@ -253,14 +253,12 @@ absl::Status GetValuesV2Handler::ProcessOnePartition(
 grpc::Status GetValuesV2Handler::GetValues(
     const v2::GetValuesRequest& request,
     v2::GetValuesResponse* response) const {
-  std::shared_ptr<RequestContext> request_context =
-      std::make_shared<RequestContext>();
-  request_context->UpdateLogContext(request.log_context(),
-                                    request.consented_debug_config());
+  auto request_context_factory = std::make_unique<RequestContextFactory>(
+      request.log_context(), request.consented_debug_config());
   if (request.partitions().size() == 1) {
     const auto partition_status = ProcessOnePartition(
-        RequestContextFactory(request_context), request.metadata(),
-        request.partitions(0), *response->mutable_single_partition());
+        *request_context_factory, request.metadata(), request.partitions(0),
+        *response->mutable_single_partition());
     return GetExternalStatusForV2(partition_status);
   }
   if (request.partitions().empty()) {

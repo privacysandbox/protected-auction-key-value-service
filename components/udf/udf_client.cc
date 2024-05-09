@@ -71,7 +71,7 @@ class UdfClientImpl : public UdfClient {
 
   // Converts the arguments into plain JSON strings to pass to Roma.
   absl::StatusOr<std::string> ExecuteCode(
-      RequestContextFactory request_context_factory,
+      const RequestContextFactory& request_context_factory,
       UDFExecutionMetadata&& execution_metadata,
       const google::protobuf::RepeatedPtrField<UDFArgument>& arguments) const {
     execution_metadata.set_udf_interface_version(kUdfInterfaceVersion);
@@ -100,20 +100,19 @@ class UdfClientImpl : public UdfClient {
       }
       string_args.push_back(json_arg);
     }
-    return ExecuteCode(std::move(request_context_factory),
-                       std::move(string_args));
+    return ExecuteCode(request_context_factory, std::move(string_args));
   }
 
   absl::StatusOr<std::string> ExecuteCode(
-      RequestContextFactory request_context_factory,
+      const RequestContextFactory& request_context_factory,
       std::vector<std::string> input) const {
     std::shared_ptr<absl::Status> response_status =
         std::make_shared<absl::Status>();
     std::shared_ptr<std::string> result = std::make_shared<std::string>();
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();
-    auto invocation_request = BuildInvocationRequest(
-        std::move(request_context_factory), std::move(input));
+    auto invocation_request =
+        BuildInvocationRequest(request_context_factory, std::move(input));
     VLOG(9) << "Executing UDF with input arg(s): "
             << absl::StrJoin(invocation_request.input, ",");
     const auto status = roma_service_.Execute(
@@ -213,7 +212,7 @@ class UdfClientImpl : public UdfClient {
 
  private:
   InvocationStrRequest<std::weak_ptr<RequestContext>> BuildInvocationRequest(
-      RequestContextFactory request_context_factory,
+      const RequestContextFactory& request_context_factory,
       std::vector<std::string> input) const {
     return {.id = kInvocationRequestId,
             .version_string = absl::StrCat("v", version_),
@@ -221,7 +220,7 @@ class UdfClientImpl : public UdfClient {
             .tags = {{std::string(kTimeoutDurationTag),
                       FormatDuration(udf_timeout_)}},
             .input = std::move(input),
-            .metadata = std::move(request_context_factory.Get()),
+            .metadata = request_context_factory.GetWeakCopy(),
             .min_log_level = absl::LogSeverity(udf_min_log_level_)};
   }
 

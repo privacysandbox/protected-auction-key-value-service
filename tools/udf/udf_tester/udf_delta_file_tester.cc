@@ -199,10 +199,11 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   JsonStringToMessage(req_partition_json, &req_partition);
 
   LOG(INFO) << "Calling UDF for partition: " << req_partition.DebugString();
-  std::shared_ptr<RequestContext> request_context =
-      std::make_shared<RequestContext>();
+  auto request_context_factory = std::make_unique<RequestContextFactory>(
+      privacy_sandbox::server_common::LogContext(),
+      privacy_sandbox::server_common::ConsentedDebugConfiguration());
   auto udf_result = udf_client.value()->ExecuteCode(
-      RequestContextFactory(request_context), {}, req_partition.arguments());
+      *request_context_factory, {}, req_partition.arguments());
   if (!udf_result.ok()) {
     LOG(ERROR) << "UDF execution failed: " << udf_result.status();
     ShutdownUdf(*udf_client.value());

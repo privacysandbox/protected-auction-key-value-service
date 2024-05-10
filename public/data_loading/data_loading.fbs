@@ -10,7 +10,8 @@ table StringValue { value:string; }
 //     otherwise inserts the elements into the existing set.
 // (2) `Delete` mutation removes the elements from existing set.
 table StringSet { value:[string]; }
-union Value { StringValue, StringSet }
+table UInt32Set { value:[uint]; }
+union Value { StringValue, StringSet, UInt32Set }
 
 table KeyValueMutationRecord {
   // Required. For updates, the value will overwrite the previous value, if any.

@@ -92,6 +92,13 @@ absl::Status ApplyUpdateMutation(
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
+  if (record.value_type() == Value::UInt32Set) {
+    auto values = GetRecordValue<std::vector<uint32_t>>(record);
+    cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
+                            absl::MakeSpan(values),
+                            record.logical_commit_time(), prefix);
+    return absl::OkStatus();
+  }
   return absl::InvalidArgumentError(
       absl::StrCat("Record with key: ", record.key()->string_view(),
                    " has unsupported value type: ", record.value_type()));
@@ -107,6 +114,13 @@ absl::Status ApplyDeleteMutation(
   }
   if (record.value_type() == Value::StringSet) {
     auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    cache.DeleteValuesInSet(log_context, record.key()->string_view(),
+                            absl::MakeSpan(values),
+                            record.logical_commit_time(), prefix);
+    return absl::OkStatus();
+  }
+  if (record.value_type() == Value::UInt32Set) {
+    auto values = GetRecordValue<std::vector<uint32_t>>(record);
     cache.DeleteValuesInSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);

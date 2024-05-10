@@ -17,14 +17,11 @@
 #ifndef PUBLIC_DATA_LOADING_RECORDS_UTILS_H_
 #define PUBLIC_DATA_LOADING_RECORDS_UTILS_H_
 
-#include <string>
 #include <string_view>
-#include <utility>
 #include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/record_utils.h"
 
@@ -38,7 +35,7 @@ enum class DataRecordType : int {
 
 using KeyValueMutationRecordValueT =
     std::variant<std::monostate, std::string_view,
-                 std::vector<std::string_view>>;
+                 std::vector<std::string_view>, std::vector<uint32_t>>;
 
 struct KeyValueMutationRecordStruct {
   KeyValueMutationType mutation_type;
@@ -141,6 +138,8 @@ std::string_view GetRecordValue(const KeyValueMutationRecord& record);
 template <>
 std::vector<std::string_view> GetRecordValue(
     const KeyValueMutationRecord& record);
+template <>
+std::vector<uint32_t> GetRecordValue(const KeyValueMutationRecord& record);
 
 // Utility function to get the union record set on the `data_record`. Must
 // be called after checking the type of the union record using

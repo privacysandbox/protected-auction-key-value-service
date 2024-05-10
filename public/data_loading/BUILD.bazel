@@ -91,6 +91,7 @@ cc_test(
     size = "small",
     srcs = ["records_utils_test.cc"],
     deps = [
+        ":record_utils",
         ":records_utils",
         "@com_google_absl//absl/hash:hash_testing",
         "@com_google_googletest//:gtest_main",

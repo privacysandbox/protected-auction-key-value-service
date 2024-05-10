@@ -30,13 +30,17 @@ static_assert(FLATBUFFERS_VERSION_MAJOR == 2 &&
 
 namespace kv_server {
 
-struct String;
-struct StringBuilder;
-struct StringT;
+struct StringValue;
+struct StringValueBuilder;
+struct StringValueT;
 
 struct StringSet;
 struct StringSetBuilder;
 struct StringSetT;
+
+struct UInt32Set;
+struct UInt32SetBuilder;
+struct UInt32SetT;
 
 struct KeyValueMutationRecord;
 struct KeyValueMutationRecordBuilder;
@@ -53,6 +57,25 @@ struct ShardMappingRecordT;
 struct DataRecord;
 struct DataRecordBuilder;
 struct DataRecordT;
+
+bool operator==(const StringValueT& lhs, const StringValueT& rhs);
+bool operator!=(const StringValueT& lhs, const StringValueT& rhs);
+bool operator==(const StringSetT& lhs, const StringSetT& rhs);
+bool operator!=(const StringSetT& lhs, const StringSetT& rhs);
+bool operator==(const UInt32SetT& lhs, const UInt32SetT& rhs);
+bool operator!=(const UInt32SetT& lhs, const UInt32SetT& rhs);
+bool operator==(const KeyValueMutationRecordT& lhs,
+                const KeyValueMutationRecordT& rhs);
+bool operator!=(const KeyValueMutationRecordT& lhs,
+                const KeyValueMutationRecordT& rhs);
+bool operator==(const UserDefinedFunctionsConfigT& lhs,
+                const UserDefinedFunctionsConfigT& rhs);
+bool operator!=(const UserDefinedFunctionsConfigT& lhs,
+                const UserDefinedFunctionsConfigT& rhs);
+bool operator==(const ShardMappingRecordT& lhs, const ShardMappingRecordT& rhs);
+bool operator!=(const ShardMappingRecordT& lhs, const ShardMappingRecordT& rhs);
+bool operator==(const DataRecordT& lhs, const DataRecordT& rhs);
+bool operator!=(const DataRecordT& lhs, const DataRecordT& rhs);
 
 enum class KeyValueMutationType : int8_t {
   Update = 0,
@@ -82,24 +105,27 @@ inline const char* EnumNameKeyValueMutationType(KeyValueMutationType e) {
 
 enum class Value : uint8_t {
   NONE = 0,
-  String = 1,
+  StringValue = 1,
   StringSet = 2,
+  UInt32Set = 3,
   MIN = NONE,
-  MAX = StringSet
+  MAX = UInt32Set
 };
 
-inline const Value (&EnumValuesValue())[3] {
-  static const Value values[] = {Value::NONE, Value::String, Value::StringSet};
+inline const Value (&EnumValuesValue())[4] {
+  static const Value values[] = {Value::NONE, Value::StringValue,
+                                 Value::StringSet, Value::UInt32Set};
   return values;
 }
 
 inline const char* const* EnumNamesValue() {
-  static const char* const names[4] = {"NONE", "String", "StringSet", nullptr};
+  static const char* const names[5] = {"NONE", "StringValue", "StringSet",
+                                       "UInt32Set", nullptr};
   return names;
 }
 
 inline const char* EnumNameValue(Value e) {
-  if (flatbuffers::IsOutRange(e, Value::NONE, Value::StringSet)) return "";
+  if (flatbuffers::IsOutRange(e, Value::NONE, Value::UInt32Set)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesValue()[index];
 }
@@ -110,13 +136,18 @@ struct ValueTraits {
 };
 
 template <>
-struct ValueTraits<kv_server::String> {
-  static const Value enum_value = Value::String;
+struct ValueTraits<kv_server::StringValue> {
+  static const Value enum_value = Value::StringValue;
 };
 
 template <>
 struct ValueTraits<kv_server::StringSet> {
   static const Value enum_value = Value::StringSet;
+};
+
+template <>
+struct ValueTraits<kv_server::UInt32Set> {
+  static const Value enum_value = Value::UInt32Set;
 };
 
 template <typename T>
@@ -125,13 +156,18 @@ struct ValueUnionTraits {
 };
 
 template <>
-struct ValueUnionTraits<kv_server::StringT> {
-  static const Value enum_value = Value::String;
+struct ValueUnionTraits<kv_server::StringValueT> {
+  static const Value enum_value = Value::StringValue;
 };
 
 template <>
 struct ValueUnionTraits<kv_server::StringSetT> {
   static const Value enum_value = Value::StringSet;
+};
+
+template <>
+struct ValueUnionTraits<kv_server::UInt32SetT> {
+  static const Value enum_value = Value::UInt32Set;
 };
 
 struct ValueUnion {
@@ -176,13 +212,14 @@ struct ValueUnion {
       flatbuffers::FlatBufferBuilder& _fbb,
       const flatbuffers::rehasher_function_t* _rehasher = nullptr) const;
 
-  kv_server::StringT* AsString() {
-    return type == Value::String ? reinterpret_cast<kv_server::StringT*>(value)
-                                 : nullptr;
+  kv_server::StringValueT* AsStringValue() {
+    return type == Value::StringValue
+               ? reinterpret_cast<kv_server::StringValueT*>(value)
+               : nullptr;
   }
-  const kv_server::StringT* AsString() const {
-    return type == Value::String
-               ? reinterpret_cast<const kv_server::StringT*>(value)
+  const kv_server::StringValueT* AsStringValue() const {
+    return type == Value::StringValue
+               ? reinterpret_cast<const kv_server::StringValueT*>(value)
                : nullptr;
   }
   kv_server::StringSetT* AsStringSet() {
@@ -195,7 +232,45 @@ struct ValueUnion {
                ? reinterpret_cast<const kv_server::StringSetT*>(value)
                : nullptr;
   }
+  kv_server::UInt32SetT* AsUInt32Set() {
+    return type == Value::UInt32Set
+               ? reinterpret_cast<kv_server::UInt32SetT*>(value)
+               : nullptr;
+  }
+  const kv_server::UInt32SetT* AsUInt32Set() const {
+    return type == Value::UInt32Set
+               ? reinterpret_cast<const kv_server::UInt32SetT*>(value)
+               : nullptr;
+  }
 };
+
+inline bool operator==(const ValueUnion& lhs, const ValueUnion& rhs) {
+  if (lhs.type != rhs.type) return false;
+  switch (lhs.type) {
+    case Value::NONE: {
+      return true;
+    }
+    case Value::StringValue: {
+      return *(reinterpret_cast<const kv_server::StringValueT*>(lhs.value)) ==
+             *(reinterpret_cast<const kv_server::StringValueT*>(rhs.value));
+    }
+    case Value::StringSet: {
+      return *(reinterpret_cast<const kv_server::StringSetT*>(lhs.value)) ==
+             *(reinterpret_cast<const kv_server::StringSetT*>(rhs.value));
+    }
+    case Value::UInt32Set: {
+      return *(reinterpret_cast<const kv_server::UInt32SetT*>(lhs.value)) ==
+             *(reinterpret_cast<const kv_server::UInt32SetT*>(rhs.value));
+    }
+    default: {
+      return false;
+    }
+  }
+}
+
+inline bool operator!=(const ValueUnion& lhs, const ValueUnion& rhs) {
+  return !(lhs == rhs);
+}
 
 bool VerifyValue(flatbuffers::Verifier& verifier, const void* obj, Value type);
 bool VerifyValueVector(
@@ -378,6 +453,40 @@ struct RecordUnion {
   }
 };
 
+inline bool operator==(const RecordUnion& lhs, const RecordUnion& rhs) {
+  if (lhs.type != rhs.type) return false;
+  switch (lhs.type) {
+    case Record::NONE: {
+      return true;
+    }
+    case Record::KeyValueMutationRecord: {
+      return *(reinterpret_cast<const kv_server::KeyValueMutationRecordT*>(
+                 lhs.value)) ==
+             *(reinterpret_cast<const kv_server::KeyValueMutationRecordT*>(
+                 rhs.value));
+    }
+    case Record::UserDefinedFunctionsConfig: {
+      return *(reinterpret_cast<const kv_server::UserDefinedFunctionsConfigT*>(
+                 lhs.value)) ==
+             *(reinterpret_cast<const kv_server::UserDefinedFunctionsConfigT*>(
+                 rhs.value));
+    }
+    case Record::ShardMappingRecord: {
+      return *(reinterpret_cast<const kv_server::ShardMappingRecordT*>(
+                 lhs.value)) ==
+             *(reinterpret_cast<const kv_server::ShardMappingRecordT*>(
+                 rhs.value));
+    }
+    default: {
+      return false;
+    }
+  }
+}
+
+inline bool operator!=(const RecordUnion& lhs, const RecordUnion& rhs) {
+  return !(lhs == rhs);
+}
+
 bool VerifyRecord(flatbuffers::Verifier& verifier, const void* obj,
                   Record type);
 bool VerifyRecordVector(
@@ -385,14 +494,14 @@ bool VerifyRecordVector(
     const flatbuffers::Vector<flatbuffers::Offset<void>>* values,
     const flatbuffers::Vector<Record>* types);
 
-struct StringT : public flatbuffers::NativeTable {
-  typedef String TableType;
+struct StringValueT : public flatbuffers::NativeTable {
+  typedef StringValue TableType;
   std::string value{};
 };
 
-struct String FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef StringT NativeTableType;
-  typedef StringBuilder Builder;
+struct StringValue FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef StringValueT NativeTableType;
+  typedef StringValueBuilder Builder;
   struct Traits;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_VALUE = 4
@@ -404,53 +513,55 @@ struct String FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     return VerifyTableStart(verifier) && VerifyOffset(verifier, VT_VALUE) &&
            verifier.VerifyString(value()) && verifier.EndTable();
   }
-  StringT* UnPack(
+  StringValueT* UnPack(
       const flatbuffers::resolver_function_t* _resolver = nullptr) const;
-  void UnPackTo(StringT* _o, const flatbuffers::resolver_function_t* _resolver =
-                                 nullptr) const;
-  static flatbuffers::Offset<String> Pack(
-      flatbuffers::FlatBufferBuilder& _fbb, const StringT* _o,
+  void UnPackTo(
+      StringValueT* _o,
+      const flatbuffers::resolver_function_t* _resolver = nullptr) const;
+  static flatbuffers::Offset<StringValue> Pack(
+      flatbuffers::FlatBufferBuilder& _fbb, const StringValueT* _o,
       const flatbuffers::rehasher_function_t* _rehasher = nullptr);
 };
 
-struct StringBuilder {
-  typedef String Table;
+struct StringValueBuilder {
+  typedef StringValue Table;
   flatbuffers::FlatBufferBuilder& fbb_;
   flatbuffers::uoffset_t start_;
   void add_value(flatbuffers::Offset<flatbuffers::String> value) {
-    fbb_.AddOffset(String::VT_VALUE, value);
+    fbb_.AddOffset(StringValue::VT_VALUE, value);
   }
-  explicit StringBuilder(flatbuffers::FlatBufferBuilder& _fbb) : fbb_(_fbb) {
+  explicit StringValueBuilder(flatbuffers::FlatBufferBuilder& _fbb)
+      : fbb_(_fbb) {
     start_ = fbb_.StartTable();
   }
-  flatbuffers::Offset<String> Finish() {
+  flatbuffers::Offset<StringValue> Finish() {
     const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<String>(end);
+    auto o = flatbuffers::Offset<StringValue>(end);
     return o;
   }
 };
 
-inline flatbuffers::Offset<String> CreateString(
+inline flatbuffers::Offset<StringValue> CreateStringValue(
     flatbuffers::FlatBufferBuilder& _fbb,
     flatbuffers::Offset<flatbuffers::String> value = 0) {
-  StringBuilder builder_(_fbb);
+  StringValueBuilder builder_(_fbb);
   builder_.add_value(value);
   return builder_.Finish();
 }
 
-struct String::Traits {
-  using type = String;
-  static auto constexpr Create = CreateString;
+struct StringValue::Traits {
+  using type = StringValue;
+  static auto constexpr Create = CreateStringValue;
 };
 
-inline flatbuffers::Offset<String> CreateStringDirect(
+inline flatbuffers::Offset<StringValue> CreateStringValueDirect(
     flatbuffers::FlatBufferBuilder& _fbb, const char* value = nullptr) {
   auto value__ = value ? _fbb.CreateString(value) : 0;
-  return kv_server::CreateString(_fbb, value__);
+  return kv_server::CreateStringValue(_fbb, value__);
 }
 
-flatbuffers::Offset<String> CreateString(
-    flatbuffers::FlatBufferBuilder& _fbb, const StringT* _o,
+flatbuffers::Offset<StringValue> CreateStringValue(
+    flatbuffers::FlatBufferBuilder& _fbb, const StringValueT* _o,
     const flatbuffers::rehasher_function_t* _rehasher = nullptr);
 
 struct StringSetT : public flatbuffers::NativeTable {
@@ -535,6 +646,76 @@ flatbuffers::Offset<StringSet> CreateStringSet(
     flatbuffers::FlatBufferBuilder& _fbb, const StringSetT* _o,
     const flatbuffers::rehasher_function_t* _rehasher = nullptr);
 
+struct UInt32SetT : public flatbuffers::NativeTable {
+  typedef UInt32Set TableType;
+  std::vector<uint32_t> value{};
+};
+
+struct UInt32Set FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef UInt32SetT NativeTableType;
+  typedef UInt32SetBuilder Builder;
+  struct Traits;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_VALUE = 4
+  };
+  const flatbuffers::Vector<uint32_t>* value() const {
+    return GetPointer<const flatbuffers::Vector<uint32_t>*>(VT_VALUE);
+  }
+  bool Verify(flatbuffers::Verifier& verifier) const {
+    return VerifyTableStart(verifier) && VerifyOffset(verifier, VT_VALUE) &&
+           verifier.VerifyVector(value()) && verifier.EndTable();
+  }
+  UInt32SetT* UnPack(
+      const flatbuffers::resolver_function_t* _resolver = nullptr) const;
+  void UnPackTo(
+      UInt32SetT* _o,
+      const flatbuffers::resolver_function_t* _resolver = nullptr) const;
+  static flatbuffers::Offset<UInt32Set> Pack(
+      flatbuffers::FlatBufferBuilder& _fbb, const UInt32SetT* _o,
+      const flatbuffers::rehasher_function_t* _rehasher = nullptr);
+};
+
+struct UInt32SetBuilder {
+  typedef UInt32Set Table;
+  flatbuffers::FlatBufferBuilder& fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_value(flatbuffers::Offset<flatbuffers::Vector<uint32_t>> value) {
+    fbb_.AddOffset(UInt32Set::VT_VALUE, value);
+  }
+  explicit UInt32SetBuilder(flatbuffers::FlatBufferBuilder& _fbb) : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<UInt32Set> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<UInt32Set>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<UInt32Set> CreateUInt32Set(
+    flatbuffers::FlatBufferBuilder& _fbb,
+    flatbuffers::Offset<flatbuffers::Vector<uint32_t>> value = 0) {
+  UInt32SetBuilder builder_(_fbb);
+  builder_.add_value(value);
+  return builder_.Finish();
+}
+
+struct UInt32Set::Traits {
+  using type = UInt32Set;
+  static auto constexpr Create = CreateUInt32Set;
+};
+
+inline flatbuffers::Offset<UInt32Set> CreateUInt32SetDirect(
+    flatbuffers::FlatBufferBuilder& _fbb,
+    const std::vector<uint32_t>* value = nullptr) {
+  auto value__ = value ? _fbb.CreateVector<uint32_t>(*value) : 0;
+  return kv_server::CreateUInt32Set(_fbb, value__);
+}
+
+flatbuffers::Offset<UInt32Set> CreateUInt32Set(
+    flatbuffers::FlatBufferBuilder& _fbb, const UInt32SetT* _o,
+    const flatbuffers::rehasher_function_t* _rehasher = nullptr);
+
 struct KeyValueMutationRecordT : public flatbuffers::NativeTable {
   typedef KeyValueMutationRecord TableType;
   kv_server::KeyValueMutationType mutation_type =
@@ -572,14 +753,19 @@ struct KeyValueMutationRecord FLATBUFFERS_FINAL_CLASS
   const void* value() const { return GetPointer<const void*>(VT_VALUE); }
   template <typename T>
   const T* value_as() const;
-  const kv_server::String* value_as_String() const {
-    return value_type() == kv_server::Value::String
-               ? static_cast<const kv_server::String*>(value())
+  const kv_server::StringValue* value_as_StringValue() const {
+    return value_type() == kv_server::Value::StringValue
+               ? static_cast<const kv_server::StringValue*>(value())
                : nullptr;
   }
   const kv_server::StringSet* value_as_StringSet() const {
     return value_type() == kv_server::Value::StringSet
                ? static_cast<const kv_server::StringSet*>(value())
+               : nullptr;
+  }
+  const kv_server::UInt32Set* value_as_UInt32Set() const {
+    return value_type() == kv_server::Value::UInt32Set
+               ? static_cast<const kv_server::UInt32Set*>(value())
                : nullptr;
   }
   bool Verify(flatbuffers::Verifier& verifier) const {
@@ -602,15 +788,21 @@ struct KeyValueMutationRecord FLATBUFFERS_FINAL_CLASS
 };
 
 template <>
-inline const kv_server::String*
-KeyValueMutationRecord::value_as<kv_server::String>() const {
-  return value_as_String();
+inline const kv_server::StringValue*
+KeyValueMutationRecord::value_as<kv_server::StringValue>() const {
+  return value_as_StringValue();
 }
 
 template <>
 inline const kv_server::StringSet*
 KeyValueMutationRecord::value_as<kv_server::StringSet>() const {
   return value_as_StringSet();
+}
+
+template <>
+inline const kv_server::UInt32Set*
+KeyValueMutationRecord::value_as<kv_server::UInt32Set>() const {
+  return value_as_UInt32Set();
 }
 
 struct KeyValueMutationRecordBuilder {
@@ -1007,15 +1199,23 @@ flatbuffers::Offset<DataRecord> CreateDataRecord(
     flatbuffers::FlatBufferBuilder& _fbb, const DataRecordT* _o,
     const flatbuffers::rehasher_function_t* _rehasher = nullptr);
 
-inline StringT* String::UnPack(
+inline bool operator==(const StringValueT& lhs, const StringValueT& rhs) {
+  return (lhs.value == rhs.value);
+}
+
+inline bool operator!=(const StringValueT& lhs, const StringValueT& rhs) {
+  return !(lhs == rhs);
+}
+
+inline StringValueT* StringValue::UnPack(
     const flatbuffers::resolver_function_t* _resolver) const {
-  auto _o = std::make_unique<StringT>();
+  auto _o = std::make_unique<StringValueT>();
   UnPackTo(_o.get(), _resolver);
   return _o.release();
 }
 
-inline void String::UnPackTo(
-    StringT* _o, const flatbuffers::resolver_function_t* _resolver) const {
+inline void StringValue::UnPackTo(
+    StringValueT* _o, const flatbuffers::resolver_function_t* _resolver) const {
   (void)_o;
   (void)_resolver;
   {
@@ -1024,25 +1224,33 @@ inline void String::UnPackTo(
   }
 }
 
-inline flatbuffers::Offset<String> String::Pack(
-    flatbuffers::FlatBufferBuilder& _fbb, const StringT* _o,
+inline flatbuffers::Offset<StringValue> StringValue::Pack(
+    flatbuffers::FlatBufferBuilder& _fbb, const StringValueT* _o,
     const flatbuffers::rehasher_function_t* _rehasher) {
-  return CreateString(_fbb, _o, _rehasher);
+  return CreateStringValue(_fbb, _o, _rehasher);
 }
 
-inline flatbuffers::Offset<String> CreateString(
-    flatbuffers::FlatBufferBuilder& _fbb, const StringT* _o,
+inline flatbuffers::Offset<StringValue> CreateStringValue(
+    flatbuffers::FlatBufferBuilder& _fbb, const StringValueT* _o,
     const flatbuffers::rehasher_function_t* _rehasher) {
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs {
     flatbuffers::FlatBufferBuilder* __fbb;
-    const StringT* __o;
+    const StringValueT* __o;
     const flatbuffers::rehasher_function_t* __rehasher;
   } _va = {&_fbb, _o, _rehasher};
   (void)_va;
   auto _value = _o->value.empty() ? 0 : _fbb.CreateString(_o->value);
-  return kv_server::CreateString(_fbb, _value);
+  return kv_server::CreateStringValue(_fbb, _value);
+}
+
+inline bool operator==(const StringSetT& lhs, const StringSetT& rhs) {
+  return (lhs.value == rhs.value);
+}
+
+inline bool operator!=(const StringSetT& lhs, const StringSetT& rhs) {
+  return !(lhs == rhs);
 }
 
 inline StringSetT* StringSet::UnPack(
@@ -1086,6 +1294,69 @@ inline flatbuffers::Offset<StringSet> CreateStringSet(
   (void)_va;
   auto _value = _o->value.size() ? _fbb.CreateVectorOfStrings(_o->value) : 0;
   return kv_server::CreateStringSet(_fbb, _value);
+}
+
+inline bool operator==(const UInt32SetT& lhs, const UInt32SetT& rhs) {
+  return (lhs.value == rhs.value);
+}
+
+inline bool operator!=(const UInt32SetT& lhs, const UInt32SetT& rhs) {
+  return !(lhs == rhs);
+}
+
+inline UInt32SetT* UInt32Set::UnPack(
+    const flatbuffers::resolver_function_t* _resolver) const {
+  auto _o = std::make_unique<UInt32SetT>();
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void UInt32Set::UnPackTo(
+    UInt32SetT* _o, const flatbuffers::resolver_function_t* _resolver) const {
+  (void)_o;
+  (void)_resolver;
+  {
+    auto _e = value();
+    if (_e) {
+      _o->value.resize(_e->size());
+      for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) {
+        _o->value[_i] = _e->Get(_i);
+      }
+    }
+  }
+}
+
+inline flatbuffers::Offset<UInt32Set> UInt32Set::Pack(
+    flatbuffers::FlatBufferBuilder& _fbb, const UInt32SetT* _o,
+    const flatbuffers::rehasher_function_t* _rehasher) {
+  return CreateUInt32Set(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<UInt32Set> CreateUInt32Set(
+    flatbuffers::FlatBufferBuilder& _fbb, const UInt32SetT* _o,
+    const flatbuffers::rehasher_function_t* _rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs {
+    flatbuffers::FlatBufferBuilder* __fbb;
+    const UInt32SetT* __o;
+    const flatbuffers::rehasher_function_t* __rehasher;
+  } _va = {&_fbb, _o, _rehasher};
+  (void)_va;
+  auto _value = _o->value.size() ? _fbb.CreateVector(_o->value) : 0;
+  return kv_server::CreateUInt32Set(_fbb, _value);
+}
+
+inline bool operator==(const KeyValueMutationRecordT& lhs,
+                       const KeyValueMutationRecordT& rhs) {
+  return (lhs.mutation_type == rhs.mutation_type) &&
+         (lhs.logical_commit_time == rhs.logical_commit_time) &&
+         (lhs.key == rhs.key) && (lhs.value == rhs.value);
+}
+
+inline bool operator!=(const KeyValueMutationRecordT& lhs,
+                       const KeyValueMutationRecordT& rhs) {
+  return !(lhs == rhs);
 }
 
 inline KeyValueMutationRecordT* KeyValueMutationRecord::UnPack(
@@ -1148,6 +1419,20 @@ inline flatbuffers::Offset<KeyValueMutationRecord> CreateKeyValueMutationRecord(
   auto _value = _o->value.Pack(_fbb);
   return kv_server::CreateKeyValueMutationRecord(
       _fbb, _mutation_type, _logical_commit_time, _key, _value_type, _value);
+}
+
+inline bool operator==(const UserDefinedFunctionsConfigT& lhs,
+                       const UserDefinedFunctionsConfigT& rhs) {
+  return (lhs.language == rhs.language) &&
+         (lhs.code_snippet == rhs.code_snippet) &&
+         (lhs.handler_name == rhs.handler_name) &&
+         (lhs.logical_commit_time == rhs.logical_commit_time) &&
+         (lhs.version == rhs.version);
+}
+
+inline bool operator!=(const UserDefinedFunctionsConfigT& lhs,
+                       const UserDefinedFunctionsConfigT& rhs) {
+  return !(lhs == rhs);
 }
 
 inline UserDefinedFunctionsConfigT* UserDefinedFunctionsConfig::UnPack(
@@ -1215,6 +1500,17 @@ CreateUserDefinedFunctionsConfig(
       _version);
 }
 
+inline bool operator==(const ShardMappingRecordT& lhs,
+                       const ShardMappingRecordT& rhs) {
+  return (lhs.logical_shard == rhs.logical_shard) &&
+         (lhs.physical_shard == rhs.physical_shard);
+}
+
+inline bool operator!=(const ShardMappingRecordT& lhs,
+                       const ShardMappingRecordT& rhs) {
+  return !(lhs == rhs);
+}
+
 inline ShardMappingRecordT* ShardMappingRecord::UnPack(
     const flatbuffers::resolver_function_t* _resolver) const {
   auto _o = std::make_unique<ShardMappingRecordT>();
@@ -1258,6 +1554,14 @@ inline flatbuffers::Offset<ShardMappingRecord> CreateShardMappingRecord(
   auto _physical_shard = _o->physical_shard;
   return kv_server::CreateShardMappingRecord(_fbb, _logical_shard,
                                              _physical_shard);
+}
+
+inline bool operator==(const DataRecordT& lhs, const DataRecordT& rhs) {
+  return (lhs.record == rhs.record);
+}
+
+inline bool operator!=(const DataRecordT& lhs, const DataRecordT& rhs) {
+  return !(lhs == rhs);
 }
 
 inline DataRecordT* DataRecord::UnPack(
@@ -1311,12 +1615,16 @@ inline bool VerifyValue(flatbuffers::Verifier& verifier, const void* obj,
     case Value::NONE: {
       return true;
     }
-    case Value::String: {
-      auto ptr = reinterpret_cast<const kv_server::String*>(obj);
+    case Value::StringValue: {
+      auto ptr = reinterpret_cast<const kv_server::StringValue*>(obj);
       return verifier.VerifyTable(ptr);
     }
     case Value::StringSet: {
       auto ptr = reinterpret_cast<const kv_server::StringSet*>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case Value::UInt32Set: {
+      auto ptr = reinterpret_cast<const kv_server::UInt32Set*>(obj);
       return verifier.VerifyTable(ptr);
     }
     default:
@@ -1343,12 +1651,16 @@ inline void* ValueUnion::UnPack(
     const flatbuffers::resolver_function_t* resolver) {
   (void)resolver;
   switch (type) {
-    case Value::String: {
-      auto ptr = reinterpret_cast<const kv_server::String*>(obj);
+    case Value::StringValue: {
+      auto ptr = reinterpret_cast<const kv_server::StringValue*>(obj);
       return ptr->UnPack(resolver);
     }
     case Value::StringSet: {
       auto ptr = reinterpret_cast<const kv_server::StringSet*>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case Value::UInt32Set: {
+      auto ptr = reinterpret_cast<const kv_server::UInt32Set*>(obj);
       return ptr->UnPack(resolver);
     }
     default:
@@ -1361,13 +1673,17 @@ inline flatbuffers::Offset<void> ValueUnion::Pack(
     const flatbuffers::rehasher_function_t* _rehasher) const {
   (void)_rehasher;
   switch (type) {
-    case Value::String: {
-      auto ptr = reinterpret_cast<const kv_server::StringT*>(value);
-      return CreateString(_fbb, ptr, _rehasher).Union();
+    case Value::StringValue: {
+      auto ptr = reinterpret_cast<const kv_server::StringValueT*>(value);
+      return CreateStringValue(_fbb, ptr, _rehasher).Union();
     }
     case Value::StringSet: {
       auto ptr = reinterpret_cast<const kv_server::StringSetT*>(value);
       return CreateStringSet(_fbb, ptr, _rehasher).Union();
+    }
+    case Value::UInt32Set: {
+      auto ptr = reinterpret_cast<const kv_server::UInt32SetT*>(value);
+      return CreateUInt32Set(_fbb, ptr, _rehasher).Union();
     }
     default:
       return 0;
@@ -1377,14 +1693,19 @@ inline flatbuffers::Offset<void> ValueUnion::Pack(
 inline ValueUnion::ValueUnion(const ValueUnion& u)
     : type(u.type), value(nullptr) {
   switch (type) {
-    case Value::String: {
-      value = new kv_server::StringT(
-          *reinterpret_cast<kv_server::StringT*>(u.value));
+    case Value::StringValue: {
+      value = new kv_server::StringValueT(
+          *reinterpret_cast<kv_server::StringValueT*>(u.value));
       break;
     }
     case Value::StringSet: {
       value = new kv_server::StringSetT(
           *reinterpret_cast<kv_server::StringSetT*>(u.value));
+      break;
+    }
+    case Value::UInt32Set: {
+      value = new kv_server::UInt32SetT(
+          *reinterpret_cast<kv_server::UInt32SetT*>(u.value));
       break;
     }
     default:
@@ -1394,13 +1715,18 @@ inline ValueUnion::ValueUnion(const ValueUnion& u)
 
 inline void ValueUnion::Reset() {
   switch (type) {
-    case Value::String: {
-      auto ptr = reinterpret_cast<kv_server::StringT*>(value);
+    case Value::StringValue: {
+      auto ptr = reinterpret_cast<kv_server::StringValueT*>(value);
       delete ptr;
       break;
     }
     case Value::StringSet: {
       auto ptr = reinterpret_cast<kv_server::StringSetT*>(value);
+      delete ptr;
+      break;
+    }
+    case Value::UInt32Set: {
+      auto ptr = reinterpret_cast<kv_server::UInt32SetT*>(value);
       delete ptr;
       break;
     }

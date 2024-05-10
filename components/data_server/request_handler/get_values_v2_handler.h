@@ -73,14 +73,17 @@ class GetValuesV2Handler {
         key_fetcher_manager_(key_fetcher_manager) {}
 
   grpc::Status GetValuesHttp(
+      RequestContextFactory& request_context_factory,
       const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
       const v2::GetValuesHttpRequest& request,
       google::api::HttpBody* response) const;
 
-  grpc::Status GetValues(const v2::GetValuesRequest& request,
+  grpc::Status GetValues(RequestContextFactory& request_context_factory,
+                         const v2::GetValuesRequest& request,
                          v2::GetValuesResponse* response) const;
 
   grpc::Status BinaryHttpGetValues(
+      RequestContextFactory& request_context_factory,
       const v2::BinaryHttpGetValuesRequest& request,
       google::api::HttpBody* response) const;
 
@@ -98,6 +101,7 @@ class GetValuesV2Handler {
   // AEAD: AES-256-GCM 0X0002
   // (https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#encryption)
   grpc::Status ObliviousGetValues(
+      RequestContextFactory& request_context_factory,
       const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
       const v2::ObliviousGetValuesRequest& request,
       google::api::HttpBody* response) const;
@@ -116,7 +120,8 @@ class GetValuesV2Handler {
       ContentType default_content_type) const;
 
   absl::Status GetValuesHttp(
-      std::string_view request, std::string& json_response,
+      RequestContextFactory& request_context_factory, std::string_view request,
+      std::string& json_response,
       ContentType content_type = ContentType::kJson) const;
 
   // On success, returns a BinaryHttpResponse with a successful response. The
@@ -125,13 +130,15 @@ class GetValuesV2Handler {
   // this function fails, the final grpc code may still be ok.
   absl::StatusOr<quiche::BinaryHttpResponse>
   BuildSuccessfulGetValuesBhttpResponse(
+      RequestContextFactory& request_context_factory,
       std::string_view bhttp_request_body) const;
 
   // Returns error only if the response cannot be serialized into Binary HTTP
   // response. For all other failures, the error status will be inside the
   // Binary HTTP message.
-  absl::Status BinaryHttpGetValues(std::string_view bhttp_request_body,
-                                   std::string& response) const;
+  absl::Status BinaryHttpGetValues(
+      RequestContextFactory& request_context_factory,
+      std::string_view bhttp_request_body, std::string& response) const;
 
   // Invokes UDF to process one partition.
   absl::Status ProcessOnePartition(

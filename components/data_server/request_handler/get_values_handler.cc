@@ -91,32 +91,33 @@ void ProcessKeys(
 
 }  // namespace
 
-grpc::Status GetValuesHandler::GetValues(const RequestContext& request_context,
-                                         const GetValuesRequest& request,
-                                         GetValuesResponse* response) const {
+grpc::Status GetValuesHandler::GetValues(
+    RequestContextFactory& request_context_factory,
+    const GetValuesRequest& request, GetValuesResponse* response) const {
   if (use_v2_) {
     VLOG(5) << "Using V2 adapter for " << request.DebugString();
-    return adapter_.CallV2Handler(request, *response);
+    return adapter_.CallV2Handler(request_context_factory, request, *response);
   }
   if (!request.kv_internal().empty()) {
     VLOG(5) << "Processing kv_internal for " << request.DebugString();
-    ProcessKeys(request_context, request.kv_internal(), cache_,
+    ProcessKeys(request_context_factory.Get(), request.kv_internal(), cache_,
                 *response->mutable_kv_internal(), add_missing_keys_v1_);
   }
   if (!request.keys().empty()) {
     VLOG(5) << "Processing keys for " << request.DebugString();
-    ProcessKeys(request_context, request.keys(), cache_,
+    ProcessKeys(request_context_factory.Get(), request.keys(), cache_,
                 *response->mutable_keys(), add_missing_keys_v1_);
   }
   if (!request.render_urls().empty()) {
     VLOG(5) << "Processing render_urls for " << request.DebugString();
-    ProcessKeys(request_context, request.render_urls(), cache_,
+    ProcessKeys(request_context_factory.Get(), request.render_urls(), cache_,
                 *response->mutable_render_urls(), add_missing_keys_v1_);
   }
   if (!request.ad_component_render_urls().empty()) {
     VLOG(5) << "Processing ad_component_render_urls for "
             << request.DebugString();
-    ProcessKeys(request_context, request.ad_component_render_urls(), cache_,
+    ProcessKeys(request_context_factory.Get(),
+                request.ad_component_render_urls(), cache_,
                 *response->mutable_ad_component_render_urls(),
                 add_missing_keys_v1_);
   }

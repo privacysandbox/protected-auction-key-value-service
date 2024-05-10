@@ -233,24 +233,25 @@ class GetValuesHandlerTest
 
   // For Non-plain protocols, test request and response data are converted
   // to/from the corresponding request/responses.
-  grpc::Status GetValuesBasedOnProtocol(std::string request_body,
-                                        google::api::HttpBody* response,
-                                        int16_t* bhttp_response_code,
-                                        GetValuesV2Handler* handler) {
+  grpc::Status GetValuesBasedOnProtocol(
+      RequestContextFactory& request_context_factory, std::string request_body,
+      google::api::HttpBody* response, int16_t* bhttp_response_code,
+      GetValuesV2Handler* handler) {
     PlainRequest plain_request(std::move(request_body));
-
     std::multimap<grpc::string_ref, grpc::string_ref> headers = {
         {"kv-content-type", "application/json"}};
     if (IsUsing<ProtocolType::kPlain>()) {
       *bhttp_response_code = 200;
-      return handler->GetValuesHttp(headers, plain_request.Build(), response);
+      return handler->GetValuesHttp(request_context_factory, headers,
+                                    plain_request.Build(), response);
     }
 
     BHTTPRequest bhttp_request(std::move(plain_request), IsProtobufContent());
     BHTTPResponse bresponse;
 
     if (IsUsing<ProtocolType::kBinaryHttp>()) {
-      if (const auto s = handler->BinaryHttpGetValues(bhttp_request.Build(),
+      if (const auto s = handler->BinaryHttpGetValues(request_context_factory,
+                                                      bhttp_request.Build(),
                                                       &bresponse.RawResponse());
           !s.ok()) {
         LOG(ERROR) << "BinaryHttpGetValues failed: " << s.error_message();
@@ -262,8 +263,8 @@ class GetValuesHandlerTest
       // get ObliviousGetValuesRequest, OHTTPResponseUnwrapper
       auto [request, response_unwrapper] = ohttp_request.Build();
       if (const auto s = handler->ObliviousGetValues(
-              {{"kv-content-type", "message/bhttp"}}, request,
-              &response_unwrapper.RawResponse());
+              request_context_factory, {{"kv-content-type", "message/bhttp"}},
+              request, &response_unwrapper.RawResponse());
           !s.ok()) {
         LOG(ERROR) << "ObliviousGetValues failed: " << s.error_message();
         return s;
@@ -427,9 +428,10 @@ data {
                     .ok());
     ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
   }
-
-  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
-                                               &bhttp_response_code, &handler);
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result =
+      GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
+                               &response, &bhttp_response_code, &handler);
   ASSERT_EQ(bhttp_response_code, 200);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
@@ -465,8 +467,10 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
                     .ok());
     ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
   }
-  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
-                                               &bhttp_response_code, &handler);
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result =
+      GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
+                               &response, &bhttp_response_code, &handler);
   if (IsUsing<ProtocolType::kPlain>()) {
     ASSERT_FALSE(result.ok());
     EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
@@ -501,9 +505,10 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
                     .ok());
     ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
   }
-
-  const auto result = GetValuesBasedOnProtocol(core_request_body, &response,
-                                               &bhttp_response_code, &handler);
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result =
+      GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
+                               &response, &bhttp_response_code, &handler);
   ASSERT_EQ(bhttp_response_code, 200);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
@@ -539,7 +544,8 @@ TEST_F(GetValuesHandlerTest, PureGRPCTest) {
                               EqualsProto(req.partitions(0).arguments(0)))))
       .WillOnce(Return("ECHO"));
   v2::GetValuesResponse resp;
-  const auto result = handler.GetValues(req, &resp);
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result = handler.GetValues(*request_context_factory, req, &resp);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -564,7 +570,8 @@ TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
                               EqualsProto(req.partitions(0).arguments(0)))))
       .WillOnce(Return(absl::InternalError("UDF execution error")));
   v2::GetValuesResponse resp;
-  const auto result = handler.GetValues(req, &resp);
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result = handler.GetValues(*request_context_factory, req, &resp);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 

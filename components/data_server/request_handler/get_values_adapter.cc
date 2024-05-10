@@ -188,13 +188,15 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
   explicit GetValuesAdapterImpl(std::unique_ptr<GetValuesV2Handler> v2_handler)
       : v2_handler_(std::move(v2_handler)) {}
 
-  grpc::Status CallV2Handler(const v1::GetValuesRequest& v1_request,
+  grpc::Status CallV2Handler(RequestContextFactory& request_context_factory,
+                             const v1::GetValuesRequest& v1_request,
                              v1::GetValuesResponse& v1_response) const {
     v2::GetValuesRequest v2_request = BuildV2Request(v1_request);
     VLOG(7) << "Converting V1 request " << v1_request.DebugString()
             << " to v2 request " << v2_request.DebugString();
     v2::GetValuesResponse v2_response;
-    if (auto status = v2_handler_->GetValues(v2_request, &v2_response);
+    if (auto status = v2_handler_->GetValues(request_context_factory,
+                                             v2_request, &v2_response);
         !status.ok()) {
       return status;
     }

@@ -94,4 +94,11 @@ const RequestContext& RequestContextFactory::Get() const {
   return *request_context_;
 }
 
+void RequestContextFactory::UpdateLogContext(
+    const privacy_sandbox::server_common::LogContext& log_context,
+    const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+        consented_debug_config) {
+  request_context_->UpdateLogContext(log_context, consented_debug_config);
+}
+
 }  // namespace kv_server

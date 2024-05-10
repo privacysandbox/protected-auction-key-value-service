@@ -105,6 +105,10 @@ class RequestContext {
 // the request context with a smart pointer
 class RequestContextFactory {
  public:
+  RequestContextFactory()
+      : RequestContextFactory(
+            privacy_sandbox::server_common::LogContext(),
+            privacy_sandbox::server_common::ConsentedDebugConfiguration()) {}
   explicit RequestContextFactory(
       const privacy_sandbox::server_common::LogContext& log_context,
       const privacy_sandbox::server_common::ConsentedDebugConfiguration&
@@ -115,6 +119,14 @@ class RequestContextFactory {
   std::weak_ptr<RequestContext> GetWeakCopy() const;
   // Provide access to RequestContext via const reference
   const RequestContext& Get() const;
+  // Updates request log context with the new log context and consented debug
+  // configuration. This function is typically called after RequestContext is
+  // created and the consented debugging information is available after request
+  // is decrypted.
+  void UpdateLogContext(
+      const privacy_sandbox::server_common::LogContext& log_context,
+      const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+          consented_debug_config);
   // Not movable and copyable to prevent making unnecessary
   // copies of underlying shared_ptr of request context, and moving of
   // shared ownership of request context

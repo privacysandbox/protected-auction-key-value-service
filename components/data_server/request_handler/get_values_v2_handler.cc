@@ -68,17 +68,18 @@ CompressionGroupConcatenator::CompressionType GetResponseCompressionType(
 }  // namespace
 
 grpc::Status GetValuesV2Handler::GetValuesHttp(
+    RequestContextFactory& request_context_factory,
     const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
     const GetValuesHttpRequest& request,
     google::api::HttpBody* response) const {
-  return FromAbslStatus(
-      GetValuesHttp(request.raw_body().data(), *response->mutable_data(),
-                    GetContentType(headers, ContentType::kJson)));
+  return FromAbslStatus(GetValuesHttp(
+      request_context_factory, request.raw_body().data(),
+      *response->mutable_data(), GetContentType(headers, ContentType::kJson)));
 }
 
-absl::Status GetValuesV2Handler::GetValuesHttp(std::string_view request,
-                                               std::string& response,
-                                               ContentType content_type) const {
+absl::Status GetValuesV2Handler::GetValuesHttp(
+    RequestContextFactory& request_context_factory, std::string_view request,
+    std::string& response, ContentType content_type) const {
   v2::GetValuesRequest request_proto;
   if (content_type == ContentType::kJson) {
     PS_RETURN_IF_ERROR(
@@ -94,7 +95,8 @@ absl::Status GetValuesV2Handler::GetValuesHttp(std::string_view request,
   VLOG(9) << "Converted the http request to proto: "
           << request_proto.DebugString();
   v2::GetValuesResponse response_proto;
-  PS_RETURN_IF_ERROR(GetValues(request_proto, &response_proto));
+  PS_RETURN_IF_ERROR(
+      GetValues(request_context_factory, request_proto, &response_proto));
   if (content_type == ContentType::kJson) {
     return MessageToJsonString(response_proto, &response);
   }
@@ -108,9 +110,11 @@ absl::Status GetValuesV2Handler::GetValuesHttp(std::string_view request,
 }
 
 grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
+    RequestContextFactory& request_context_factory,
     const v2::BinaryHttpGetValuesRequest& bhttp_request,
     google::api::HttpBody* response) const {
-  return FromAbslStatus(BinaryHttpGetValues(bhttp_request.raw_body().data(),
+  return FromAbslStatus(BinaryHttpGetValues(request_context_factory,
+                                            bhttp_request.raw_body().data(),
                                             *response->mutable_data()));
 }
 
@@ -152,6 +156,7 @@ GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
 
 absl::StatusOr<quiche::BinaryHttpResponse>
 GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
+    RequestContextFactory& request_context_factory,
     std::string_view bhttp_request_body) const {
   VLOG(9) << "Handling the binary http layer";
   PS_ASSIGN_OR_RETURN(quiche::BinaryHttpRequest deserialized_req,
@@ -160,8 +165,9 @@ GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
   VLOG(3) << "BinaryHttpGetValues request: " << deserialized_req.DebugString();
   std::string response;
   auto content_type = GetContentType(deserialized_req);
-  PS_RETURN_IF_ERROR(
-      GetValuesHttp(deserialized_req.body(), response, content_type));
+  PS_RETURN_IF_ERROR(GetValuesHttp(request_context_factory,
+                                   deserialized_req.body(), response,
+                                   content_type));
   quiche::BinaryHttpResponse bhttp_response(200);
   if (content_type == ContentType::kProto) {
     bhttp_response.AddHeaderField({
@@ -174,12 +180,14 @@ GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
 }
 
 absl::Status GetValuesV2Handler::BinaryHttpGetValues(
+    RequestContextFactory& request_context_factory,
     std::string_view bhttp_request_body, std::string& response) const {
   static quiche::BinaryHttpResponse const* kDefaultBhttpResponse =
       new quiche::BinaryHttpResponse(500);
   const quiche::BinaryHttpResponse* bhttp_response = kDefaultBhttpResponse;
   absl::StatusOr<quiche::BinaryHttpResponse> maybe_successful_bhttp_response =
-      BuildSuccessfulGetValuesBhttpResponse(bhttp_request_body);
+      BuildSuccessfulGetValuesBhttpResponse(request_context_factory,
+                                            bhttp_request_body);
   if (maybe_successful_bhttp_response.ok()) {
     bhttp_response = &(maybe_successful_bhttp_response.value());
   }
@@ -192,6 +200,7 @@ absl::Status GetValuesV2Handler::BinaryHttpGetValues(
 }
 
 grpc::Status GetValuesV2Handler::ObliviousGetValues(
+    RequestContextFactory& request_context_factory,
     const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
     const ObliviousGetValuesRequest& oblivious_request,
     google::api::HttpBody* oblivious_response) const {
@@ -206,12 +215,14 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
   auto content_type = GetContentType(headers, ContentType::kBhttp);
   if (content_type == ContentType::kBhttp) {
     // Now process the binary http request
-    if (const auto s = BinaryHttpGetValues(*maybe_plain_text, response);
+    if (const auto s = BinaryHttpGetValues(request_context_factory,
+                                           *maybe_plain_text, response);
         !s.ok()) {
       return FromAbslStatus(s);
     }
   } else {
-    if (const auto s = GetValuesHttp(*maybe_plain_text, response, content_type);
+    if (const auto s = GetValuesHttp(request_context_factory, *maybe_plain_text,
+                                     response, content_type);
         !s.ok()) {
       return FromAbslStatus(s);
     }
@@ -251,13 +262,16 @@ absl::Status GetValuesV2Handler::ProcessOnePartition(
 }
 
 grpc::Status GetValuesV2Handler::GetValues(
+    RequestContextFactory& request_context_factory,
     const v2::GetValuesRequest& request,
     v2::GetValuesResponse* response) const {
-  auto request_context_factory = std::make_unique<RequestContextFactory>(
-      request.log_context(), request.consented_debug_config());
+  VLOG(9) << "Update log context " << request.log_context() << ";"
+          << request.consented_debug_config();
+  request_context_factory.UpdateLogContext(request.log_context(),
+                                           request.consented_debug_config());
   if (request.partitions().size() == 1) {
     const auto partition_status = ProcessOnePartition(
-        *request_context_factory, request.metadata(), request.partitions(0),
+        request_context_factory, request.metadata(), request.partitions(0),
         *response->mutable_single_partition());
     return GetExternalStatusForV2(partition_status);
   }

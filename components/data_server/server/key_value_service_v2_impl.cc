@@ -28,16 +28,18 @@ using v2::GetValuesHttpRequest;
 using v2::KeyValueService;
 
 template <typename RequestT, typename ResponseT>
-using HandlerFunctionT = grpc::Status (GetValuesV2Handler::*)(const RequestT&,
-                                                              ResponseT*) const;
+using HandlerFunctionT = grpc::Status (GetValuesV2Handler::*)(
+    RequestContextFactory&, const RequestT&, ResponseT*) const;
 
 template <typename RequestT, typename ResponseT>
 grpc::ServerUnaryReactor* HandleRequest(
+    RequestContextFactory& request_context_factory,
     CallbackServerContext* context, const RequestT* request,
     ResponseT* response, const GetValuesV2Handler& handler,
     HandlerFunctionT<RequestT, ResponseT> handler_function) {
   privacy_sandbox::server_common::Stopwatch stopwatch;
-  grpc::Status status = (handler.*handler_function)(*request, response);
+  grpc::Status status =
+      (handler.*handler_function)(request_context_factory, *request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
   LogRequestCommonSafeMetrics(request, response, status, stopwatch);
@@ -50,8 +52,9 @@ grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValuesHttp(
     CallbackServerContext* context, const GetValuesHttpRequest* request,
     google::api::HttpBody* response) {
   privacy_sandbox::server_common::Stopwatch stopwatch;
-  grpc::Status status =
-      handler_.GetValuesHttp(context->client_metadata(), *request, response);
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  grpc::Status status = handler_.GetValuesHttp(
+      *request_context_factory, context->client_metadata(), *request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
   LogRequestCommonSafeMetrics(request, response, status, stopwatch);
@@ -60,16 +63,18 @@ grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValuesHttp(
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValues(
     grpc::CallbackServerContext* context, const v2::GetValuesRequest* request,
     v2::GetValuesResponse* response) {
-  return HandleRequest(context, request, response, handler_,
-                       &GetValuesV2Handler::GetValues);
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  return HandleRequest(*request_context_factory, context, request, response,
+                       handler_, &GetValuesV2Handler::GetValues);
 }
 
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::BinaryHttpGetValues(
     CallbackServerContext* context,
     const v2::BinaryHttpGetValuesRequest* request,
     google::api::HttpBody* response) {
-  return HandleRequest(context, request, response, handler_,
-                       &GetValuesV2Handler::BinaryHttpGetValues);
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  return HandleRequest(*request_context_factory, context, request, response,
+                       handler_, &GetValuesV2Handler::BinaryHttpGetValues);
 }
 
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::ObliviousGetValues(
@@ -77,8 +82,9 @@ grpc::ServerUnaryReactor* KeyValueServiceV2Impl::ObliviousGetValues(
     const v2::ObliviousGetValuesRequest* request,
     google::api::HttpBody* response) {
   privacy_sandbox::server_common::Stopwatch stopwatch;
-  grpc::Status status = handler_.ObliviousGetValues(context->client_metadata(),
-                                                    *request, response);
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  grpc::Status status = handler_.ObliviousGetValues(
+      *request_context_factory, context->client_metadata(), *request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
   LogRequestCommonSafeMetrics(request, response, status, stopwatch);

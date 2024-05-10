@@ -34,13 +34,10 @@ grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
     CallbackServerContext* context, const GetValuesRequest* request,
     GetValuesResponse* response) {
   privacy_sandbox::server_common::Stopwatch stopwatch;
-  std::shared_ptr<RequestContext> request_context =
-      std::make_shared<RequestContext>();
-  request_context->UpdateLogContext(
-      privacy_sandbox::server_common::LogContext(),
-      privacy_sandbox::server_common::ConsentedDebugConfiguration());
+  std::unique_ptr<RequestContextFactory> request_context_factory =
+      std::make_unique<RequestContextFactory>();
   grpc::Status status =
-      handler_.GetValues(*request_context, *request, response);
+      handler_.GetValues(*request_context_factory, *request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
   LogRequestCommonSafeMetrics(request, response, status, stopwatch);

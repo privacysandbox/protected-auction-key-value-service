@@ -28,7 +28,10 @@ namespace kv_server {
 std::vector<std::string> GenerateRandomKeys(int number_of_keys, int key_size);
 
 // Creates KV DSP request body in json
-std::string CreateKVDSPRequestBodyInJson(const std::vector<std::string>& keys);
+std::string CreateKVDSPRequestBodyInJson(
+    const std::vector<std::string>& keys,
+    std::string_view consented_debug_token,
+    std::optional<std::string> generation_id_override = std::nullopt);
 
 // Creates proto message from request body in json
 kv_server::RawRequest CreatePlainTextRequest(

@@ -24,7 +24,7 @@ namespace kv_server {
 // external configure file
 
 constexpr std::string_view kKVV2KeyValueDSPRequestBodyFormat = R"json(
-{"metadata": {},"partitions": [{ "id": 0, "compressionGroupId": 0,"arguments": [{ "tags": [ "custom", "keys" ],"data": [ %s ] }] }] })json";
+{"metadata": {}, "log_context": {"generation_id": "%s", "adtech_debug_id": "debug_id"}, "consented_debug_config": {"is_consented": true, "token": "%s"}, "partitions": [{ "id": 0, "compressionGroupId": 0,"arguments": [{ "tags": [ "custom", "keys" ],"data": [ %s ] }] }] })json";
 
 std::vector<std::string> GenerateRandomKeys(int number_of_keys, int key_size) {
   std::vector<std::string> result;
@@ -34,12 +34,19 @@ std::vector<std::string> GenerateRandomKeys(int number_of_keys, int key_size) {
   return result;
 }
 
-std::string CreateKVDSPRequestBodyInJson(const std::vector<std::string>& keys) {
+std::string CreateKVDSPRequestBodyInJson(
+    const std::vector<std::string>& keys,
+    std::string_view consented_debug_token,
+    std::optional<std::string> generation_id_override) {
   const std::string comma_seperated_keys =
       absl::StrJoin(keys, ",", [](std::string* out, const std::string& key) {
         absl::StrAppend(out, "\"", key, "\"");
       });
-  return absl::StrFormat(kKVV2KeyValueDSPRequestBodyFormat,
+  const std::string generation_id = generation_id_override.has_value()
+                                        ? generation_id_override.value()
+                                        : std::to_string(std::rand());
+  return absl::StrFormat(kKVV2KeyValueDSPRequestBodyFormat, generation_id,
+                         std::string(consented_debug_token),
                          comma_seperated_keys);
 }
 

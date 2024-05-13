@@ -93,6 +93,9 @@ ABSL_FLAG(int32_t, realtime_publisher_insertion_num_threads, 1,
           "Number of threads used to write to pubsub in parallel.");
 ABSL_FLAG(int32_t, realtime_publisher_files_insertion_rate, 15,
           "Number of messages sent per insertion thread to pubsub per second");
+ABSL_FLAG(std::string, consented_debug_token, "",
+          "Consented debug token, if non-empty value is provided,"
+          "consented requests will be sent to the test server");
 
 namespace kv_server {
 
@@ -134,6 +137,7 @@ absl::Status RequestSimulationSystem::Init(
     std::unique_ptr<MetricsCollector> metrics_collector) {
   server_address_ = absl::GetFlag(FLAGS_server_address);
   server_method_ = absl::GetFlag(FLAGS_server_method);
+  consented_debug_token_ = absl::GetFlag(FLAGS_consented_debug_token);
   concurrent_number_of_requests_ = absl::GetFlag(FLAGS_concurrency);
   synthetic_request_gen_option_.number_of_keys_per_request =
       absl::GetFlag(FLAGS_number_of_keys_per_request);
@@ -168,7 +172,8 @@ absl::Status RequestSimulationSystem::Init(
         const auto keys = kv_server::GenerateRandomKeys(
             synthetic_request_gen_option_.number_of_keys_per_request,
             synthetic_request_gen_option_.key_size_in_bytes);
-        return kv_server::CreateKVDSPRequestBodyInJson(keys);
+        return kv_server::CreateKVDSPRequestBodyInJson(keys,
+                                                       consented_debug_token_);
       });
 
   // Telemetry must be initialized before initializing metrics collector
@@ -381,8 +386,9 @@ RequestSimulationSystem::CreateStreamRecordReaderFactory() {
 }
 absl::AnyInvocable<std::string(std::string_view)>
 RequestSimulationSystem::CreateRequestFromKeyFn() {
-  return [](std::string_view key) {
-    return kv_server::CreateKVDSPRequestBodyInJson({std::string(key)});
+  return [this](std::string_view key) {
+    return kv_server::CreateKVDSPRequestBodyInJson({std::string(key)},
+                                                   consented_debug_token_);
   };
 }
 void RequestSimulationSystem::InitializeTelemetry() {

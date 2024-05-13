@@ -74,7 +74,8 @@ BlobStorageClient::DataLocation GetTestLocation(
 
 absl::AnyInvocable<std::string(std::string_view)> GetRequestGenFn() {
   return [](std::string_view key) {
-    return kv_server::CreateKVDSPRequestBodyInJson({std::string(key)});
+    return kv_server::CreateKVDSPRequestBodyInJson(
+        {std::string(key)}, "debug_token", "generation_id");
   };
 }
 
@@ -146,7 +147,8 @@ TEST_F(GenerateRequestsFromDeltaFilesTest, LoadingDataFromDeltaFiles) {
   auto message_in_the_queue = message_queue_.Pop();
   EXPECT_TRUE(message_in_the_queue.ok());
   EXPECT_EQ(message_in_the_queue.value(),
-            kv_server::CreateKVDSPRequestBodyInJson({std::string("key")}));
+            kv_server::CreateKVDSPRequestBodyInJson(
+                {std::string("key")}, "debug_token", "generation_id"));
 }
 
 }  // namespace

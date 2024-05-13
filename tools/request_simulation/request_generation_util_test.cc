@@ -25,7 +25,7 @@ namespace {
 TEST(TestCreateMessage, ProtoMessageMatchJson) {
   const auto keys = kv_server::GenerateRandomKeys(10, 3);
   const std::string request_in_json =
-      kv_server::CreateKVDSPRequestBodyInJson(keys);
+      kv_server::CreateKVDSPRequestBodyInJson(keys, "debug_token");
   const auto request = kv_server::CreatePlainTextRequest(request_in_json);
   EXPECT_EQ(request_in_json, request.raw_body().data());
   std::string encoded_request_body;

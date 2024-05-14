@@ -40,6 +40,12 @@ void RequestContext::UpdateLogContext(
         consented_debug_config) {
   request_log_context_ =
       std::make_unique<RequestLogContext>(log_context, consented_debug_config);
+  if (request_log_context_->GetRequestLoggingContext().is_consented()) {
+    udf_request_metrics_context_.SetConsented(
+        request_log_context_->GetLogContext().generation_id());
+    internal_lookup_metrics_context_.SetConsented(
+        request_log_context_->GetLogContext().generation_id());
+  }
 }
 RequestContext::RequestContext(
     const privacy_sandbox::server_common::LogContext& log_context,

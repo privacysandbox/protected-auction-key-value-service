@@ -22,9 +22,6 @@
 #include <vector>
 
 #include "absl/log/log.h"
-#include "absl/strings/str_replace.h"
-#include "absl/strings/str_split.h"
-#include "public/constants.h"
 #include "components/data_server/request_handler/v2_response_data.pb.h"
 #include "google/protobuf/util/json_util.h"
 #include "public/api_schema.pb.h"
@@ -54,10 +51,7 @@ UDFArgument BuildArgument(const RepeatedPtrField<std::string>& keys,
   arg.mutable_tags()->add_values()->set_string_value(namespace_tag);
   auto* key_list = arg.mutable_data()->mutable_list_value();
   for (const auto& key : keys) {
-    for (absl::string_view individual_key :
-         absl::StrSplit(key, kQueryArgDelimiter)) {
-      key_list->add_values()->set_string_value(individual_key);
-    }
+    key_list->add_values()->set_string_value(key);
   }
   return arg;
 }

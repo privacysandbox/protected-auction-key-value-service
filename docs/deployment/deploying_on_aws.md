@@ -99,8 +99,16 @@ The main branch is under active development. For a more stable experience, pleas
 
 From the Key/Value server repo folder, execute the following command:
 
+prod_mode (default mode)
+
 ```sh
 production/packaging/aws/build_and_test --with-ami us-east-1 --with-ami us-west-1
+```
+
+nonprod_mode
+
+```sh
+production/packaging/aws/build_and_test --with-ami us-east-1 --with-ami us-west-1 --mode nonprod
 ```
 
 The script will build the Enclave Image File (EIF), store it in an AMI, and upload the AMI. If the
@@ -388,11 +396,15 @@ You should see an output similar to the following:
 
 ## Read the server log
 
-Most recent server logs can be read by executing the following command:
+Most recent server (`nonprod_mode`) console logs can be read by executing the following command:
 
 ```sh
 ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID"); [ "$ENCLAVE_ID" != "null" ] && nitro-cli console --enclave-id ${ENCLAVE_ID}
 ```
+
+If `enable_otel_logger` parameter is set to true, KV server also exports server logs to Cloudwatch
+via otel collector, located at Cloudwatch log group `kv-server-log-group` More details about logging
+in `prod mode` and `nonprod mode` in ![developing the server](/docs/developing_the_server.md).
 
 ## Start the server
 

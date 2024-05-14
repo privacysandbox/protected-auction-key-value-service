@@ -44,7 +44,8 @@ From the Key/Value server repo folder, execute the following command:
 ```sh
 ./builders/tools/bazel-debian build //components/data_server/server:server \
   --config=local_instance \
-  --config=local_platform
+  --config=local_platform \
+  --config=nonprod_mode
 ```
 
 ## Generate UDF delta file

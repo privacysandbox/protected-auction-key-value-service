@@ -105,8 +105,16 @@ The main branch is under active development. For a more stable experience, pleas
 
 From the Key/Value server repo folder, execute the following command:
 
+prod_mode(default mode)
+
 ```sh
 ./production/packaging/gcp/build_and_test
+```
+
+nonprod_mode
+
+```sh
+./production/packaging/gcp/build_and_test --mode nonprod
 ```
 
 This script will build a Docker image and store it locally under `/dist`.
@@ -239,7 +247,13 @@ listed to the right. Instances associated with your Kv-server have the name star
 
 In the instance details page, under `Logs`, you can access server logs in both `Logging` and
 `Serial port (console)`. The `Logging` option is more powerful with better filtering and query
-support.
+support on `Logs Explorer`.
+
+The console log is located under resource type `VM Instance`. When server is running in prod mode,
+the console log will not be available. However, if parameter `enable_otel_logger` is set to true, KV
+server will export selective server logs to `Logs Explorer` under resource type `Generic Task`. More
+details about logging in `prod mode` and `nonprod mode` in
+![developing the server](/docs/developing_the_server.md).
 
 ![how to access GCP instance logs](../assets/gcp_instance_logs.png)
 

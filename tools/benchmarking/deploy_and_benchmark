@@ -171,7 +171,14 @@ function set_server_address() {
   SERVER_ENDPOINT="${SERVER_URL}/v1/getvalues?keys=hi"
   # Build gRPC server address from tf output
   SERVER_HOSTNAME=$([[ "${SERVER_URL}" =~ https://(.*) ]] && echo "${BASH_REMATCH[1]}")
-  SERVER_ADDRESS="${SERVER_HOSTNAME}:8443"
+  if [[ "${CLOUD_PROVIDER}" == "aws" ]]; then
+    SERVER_ADDRESS="${SERVER_HOSTNAME}:8443"
+  elif [[ "${CLOUD_PROVIDER}" == "gcp" ]]; then
+    SERVER_ADDRESS="${SERVER_HOSTNAME}:443"
+  else
+    echo "Cloud provider not supported"
+    exit 1
+  fi
 }
 
 function upload_file_to_bucket() {

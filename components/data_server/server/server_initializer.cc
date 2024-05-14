@@ -32,7 +32,8 @@ using privacy_sandbox::server_common::KeyFetcherManagerInterface;
 absl::Status InitializeUdfHooksInternal(
     std::function<std::unique_ptr<Lookup>()> get_lookup,
     GetValuesHook& string_get_values_hook,
-    GetValuesHook& binary_get_values_hook, RunQueryHook& run_query_hook) {
+    GetValuesHook& binary_get_values_hook,
+    RunSetQueryStringHook& run_query_hook) {
   VLOG(9) << "Finishing getValues init";
   string_get_values_hook.FinishInit(get_lookup());
   VLOG(9) << "Finishing getValuesBinary init";
@@ -54,7 +55,7 @@ class NonshardedServerInitializer : public ServerInitializer {
   absl::StatusOr<ShardManagerState> InitializeUdfHooks(
       GetValuesHook& string_get_values_hook,
       GetValuesHook& binary_get_values_hook,
-      RunQueryHook& run_query_hook) override {
+      RunSetQueryStringHook& run_query_hook) override {
     ShardManagerState shard_manager_state;
     auto lookup_supplier = [&cache = cache_]() {
       return CreateLocalLookup(cache);
@@ -102,13 +103,13 @@ class ShardedServerInitializer : public ServerInitializer {
               << remoteLookupServerAddress;
     remote_lookup.remote_lookup_server =
         remote_lookup_server_builder.BuildAndStart();
-    return std::move(remote_lookup);
+    return remote_lookup;
   }
 
   absl::StatusOr<ShardManagerState> InitializeUdfHooks(
       GetValuesHook& string_get_values_hook,
       GetValuesHook& binary_get_values_hook,
-      RunQueryHook& run_query_hook) override {
+      RunSetQueryStringHook& run_set_query_string_hook) override {
     auto maybe_shard_state = CreateShardManager();
     if (!maybe_shard_state.ok()) {
       return maybe_shard_state.status();
@@ -123,7 +124,7 @@ class ShardedServerInitializer : public ServerInitializer {
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
-                               run_query_hook);
+                               run_set_query_string_hook);
     return std::move(*maybe_shard_state);
   }
 

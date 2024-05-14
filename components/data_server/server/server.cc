@@ -167,7 +167,7 @@ absl::optional<std::string> GetMetricsCollectorEndPoint(
               << " parameter: " << metrics_collector_endpoint_value;
     metrics_collection_endpoint = std::move(metrics_collector_endpoint_value);
   }
-  return std::move(metrics_collection_endpoint);
+  return metrics_collection_endpoint;
 }
 
 privacy_sandbox::server_common::telemetry::TelemetryConfig
@@ -201,7 +201,8 @@ Server::Server()
           GetValuesHook::Create(GetValuesHook::OutputType::kString)),
       binary_get_values_hook_(
           GetValuesHook::Create(GetValuesHook::OutputType::kBinary)),
-      run_query_hook_(RunQueryHook::Create()) {}
+      run_set_query_int_hook_(RunSetQueryIntHook::Create()),
+      run_set_query_string_hook_(RunSetQueryStringHook::Create()) {}
 
 // Because the cache relies on telemetry, this function needs to be
 // called right after telemetry has been initialized but before anything that
@@ -346,13 +347,15 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
   // can be removed and we can own the unique ptr to the hooks.
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
       UdfClient::Create(
-          std::move(config_builder
-                        .RegisterStringGetValuesHook(*string_get_values_hook_)
-                        .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
-                        .RegisterRunQueryHook(*run_query_hook_)
-                        .RegisterLoggingFunction()
-                        .SetNumberOfWorkers(number_of_workers)
-                        .Config()),
+          std::move(
+              config_builder
+                  .RegisterStringGetValuesHook(*string_get_values_hook_)
+                  .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
+                  .RegisterRunSetQueryIntHook(*run_set_query_int_hook_)
+                  .RegisterRunSetQueryStringHook(*run_set_query_string_hook_)
+                  .RegisterLoggingFunction()
+                  .SetNumberOfWorkers(number_of_workers)
+                  .Config()),
           absl::Milliseconds(udf_timeout_ms),
           absl::Milliseconds(udf_update_timeout_ms), udf_min_log_level);
   if (udf_client_or_status.ok()) {
@@ -497,7 +500,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
     lifecycle_heartbeat->Finish();
   }
   auto maybe_shard_state = server_initializer->InitializeUdfHooks(
-      *string_get_values_hook_, *binary_get_values_hook_, *run_query_hook_);
+      *string_get_values_hook_, *binary_get_values_hook_,
+      *run_set_query_string_hook_);
   if (!maybe_shard_state.ok()) {
     return maybe_shard_state.status();
   }

@@ -38,6 +38,7 @@ using google::scp::roma::FunctionBindingPayload;
 constexpr char kStringGetValuesHookJsName[] = "getValues";
 constexpr char kBinaryGetValuesHookJsName[] = "getValuesBinary";
 constexpr char kRunQueryHookJsName[] = "runQuery";
+constexpr char kRunSetQueryIntHookJsName[] = "runSetQueryInt";
 
 std::unique_ptr<FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>
 GetValuesFunctionObject(GetValuesHook& get_values_hook,
@@ -69,8 +70,8 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterBinaryGetValuesHook(
   return *this;
 }
 
-UdfConfigBuilder& UdfConfigBuilder::RegisterRunQueryHook(
-    RunQueryHook& run_query_hook) {
+UdfConfigBuilder& UdfConfigBuilder::RegisterRunSetQueryStringHook(
+    RunSetQueryStringHook& run_query_hook) {
   auto run_query_function_object = std::make_unique<
       FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>();
   run_query_function_object->function_name = kRunQueryHookJsName;
@@ -78,6 +79,20 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterRunQueryHook(
       [&run_query_hook](
           FunctionBindingPayload<std::weak_ptr<RequestContext>>& in) {
         run_query_hook(in);
+      };
+  config_.RegisterFunctionBinding(std::move(run_query_function_object));
+  return *this;
+}
+
+UdfConfigBuilder& UdfConfigBuilder::RegisterRunSetQueryIntHook(
+    RunSetQueryIntHook& run_set_query_int_hook) {
+  auto run_query_function_object = std::make_unique<
+      FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>();
+  run_query_function_object->function_name = kRunSetQueryIntHookJsName;
+  run_query_function_object->function =
+      [&run_set_query_int_hook](
+          FunctionBindingPayload<std::weak_ptr<RequestContext>>& in) {
+        run_set_query_int_hook(in);
       };
   config_.RegisterFunctionBinding(std::move(run_query_function_object));
   return *this;

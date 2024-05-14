@@ -395,11 +395,11 @@ TEST_F(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
   TextFormat::ParseFromString(R"pb(elements: "a")pb", &response);
   ON_CALL(*mock_lookup, RunQuery(_, _)).WillByDefault(Return(response));
 
-  auto run_query_hook = RunQueryHook::Create();
+  auto run_query_hook = RunSetQueryStringHook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
-      std::move(config_builder.RegisterRunQueryHook(*run_query_hook)
+      std::move(config_builder.RegisterRunSetQueryStringHook(*run_query_hook)
                     .SetNumberOfWorkers(1)
                     .Config()));
   EXPECT_TRUE(udf_client.ok());

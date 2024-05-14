@@ -54,7 +54,8 @@ class ServerInitializer {
   virtual RemoteLookup CreateAndStartRemoteLookupServer() = 0;
   virtual absl::StatusOr<ShardManagerState> InitializeUdfHooks(
       GetValuesHook& string_get_values_hook,
-      GetValuesHook& binary_get_values_hook, RunQueryHook& run_query_hook) = 0;
+      GetValuesHook& binary_get_values_hook,
+      RunSetQueryStringHook& run_set_query_string_hook) = 0;
 };
 
 std::unique_ptr<ServerInitializer> GetServerInitializer(

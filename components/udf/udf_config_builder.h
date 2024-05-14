@@ -27,7 +27,11 @@ class UdfConfigBuilder {
 
   UdfConfigBuilder& RegisterBinaryGetValuesHook(GetValuesHook& get_values_hook);
 
-  UdfConfigBuilder& RegisterRunQueryHook(RunQueryHook& run_query_hook);
+  UdfConfigBuilder& RegisterRunSetQueryStringHook(
+      RunSetQueryStringHook& run_query_hook);
+
+  UdfConfigBuilder& RegisterRunSetQueryIntHook(
+      RunSetQueryIntHook& run_set_query_int_hook);
 
   UdfConfigBuilder& RegisterLoggingFunction();
 

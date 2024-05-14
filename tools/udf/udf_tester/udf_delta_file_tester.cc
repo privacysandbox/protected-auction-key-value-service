@@ -170,13 +170,13 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   auto binary_get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
   binary_get_values_hook->FinishInit(CreateLocalLookup(*cache));
-  auto run_query_hook = RunQueryHook::Create();
-  run_query_hook->FinishInit(CreateLocalLookup(*cache));
+  auto run_set_query_string_hook = RunSetQueryStringHook::Create();
+  run_set_query_string_hook->FinishInit(CreateLocalLookup(*cache));
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
       UdfClient::Create(std::move(
           config_builder.RegisterStringGetValuesHook(*string_get_values_hook)
               .RegisterBinaryGetValuesHook(*binary_get_values_hook)
-              .RegisterRunQueryHook(*run_query_hook)
+              .RegisterRunSetQueryStringHook(*run_set_query_string_hook)
               .RegisterLoggingFunction()
               .SetNumberOfWorkers(1)
               .Config()));

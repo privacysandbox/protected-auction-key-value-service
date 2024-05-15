@@ -37,7 +37,8 @@ absl::StatusOr<uint8_t> StringToUint8(absl::string_view str) {
 }  // namespace
 
 absl::StatusOr<std::string> OhttpClientEncryptor::EncryptRequest(
-    std::string payload) {
+    std::string payload,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto key_id = StringToUint8(public_key_.key_id());
   if (!key_id.ok()) {
     return key_id.status();
@@ -48,9 +49,9 @@ absl::StatusOr<std::string> OhttpClientEncryptor::EncryptRequest(
     return absl::InternalError(std::string(maybe_config.status().message()));
   }
   std::string public_key_string;
-  VLOG(9) << "Encrypting with public key id: " << public_key_.key_id()
-          << " uint8 key id " << *key_id << "public key "
-          << public_key_.public_key();
+  PS_VLOG(9, log_context) << "Encrypting with public key id: "
+                          << public_key_.key_id() << " uint8 key id " << *key_id
+                          << "public key " << public_key_.public_key();
   absl::Base64Unescape(public_key_.public_key(), &public_key_string);
   auto http_client_maybe =
       quiche::ObliviousHttpClient::Create(public_key_string, *maybe_config);
@@ -71,7 +72,8 @@ absl::StatusOr<std::string> OhttpClientEncryptor::EncryptRequest(
 }
 
 absl::StatusOr<std::string> OhttpClientEncryptor::DecryptResponse(
-    std::string encrypted_payload) {
+    std::string encrypted_payload,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   if (!http_client_.has_value() || !http_request_context_.has_value()) {
     return absl::InternalError(
         "Emtpy `http_client_` or `http_request_context_`. You should call "

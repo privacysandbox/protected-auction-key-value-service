@@ -98,7 +98,8 @@ grpc::Status LookupServiceImpl::SecureLookup(
 
   OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto padded_serialized_request_maybe =
-      encryptor.DecryptRequest(secure_lookup_request->ohttp_request());
+      encryptor.DecryptRequest(secure_lookup_request->ohttp_request(),
+                               request_context.GetPSLogContext());
   if (!padded_serialized_request_maybe.ok()) {
     return ToInternalGrpcStatus(
         request_context.GetInternalLookupMetricsContext(),
@@ -129,8 +130,8 @@ grpc::Status LookupServiceImpl::SecureLookup(
     // to pad responses, so this branch will never be hit.
     return grpc::Status::OK;
   }
-  auto encrypted_response_payload =
-      encryptor.EncryptResponse(payload_to_encrypt);
+  auto encrypted_response_payload = encryptor.EncryptResponse(
+      payload_to_encrypt, request_context.GetPSLogContext());
   if (!encrypted_response_payload.ok()) {
     return ToInternalGrpcStatus(
         request_context.GetInternalLookupMetricsContext(),

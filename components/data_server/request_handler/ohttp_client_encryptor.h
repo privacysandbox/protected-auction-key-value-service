@@ -34,10 +34,18 @@ class OhttpClientEncryptor {
       google::cmrt::sdk::public_key_service::v1::PublicKey& public_key)
       : public_key_(public_key) {}
   // Encrypts ougoing request.
-  absl::StatusOr<std::string> EncryptRequest(std::string payload);
+  absl::StatusOr<std::string> EncryptRequest(
+      std::string payload,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
   // Decrypts incoming reponse. Since OHTTP is stateful, this method should be
   // called after EncryptRequest.
-  absl::StatusOr<std::string> DecryptResponse(std::string encrypted_payload);
+  absl::StatusOr<std::string> DecryptResponse(
+      std::string encrypted_payload,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 
  private:
   std::optional<quiche::ObliviousHttpClient> http_client_;

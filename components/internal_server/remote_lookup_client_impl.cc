@@ -67,7 +67,8 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
     }
     OhttpClientEncryptor encryptor(maybe_public_key.value());
     auto encrypted_padded_serialized_request_maybe =
-        encryptor.EncryptRequest(Pad(serialized_message, padding_length));
+        encryptor.EncryptRequest(Pad(serialized_message, padding_length),
+                                 request_context.GetPSLogContext());
     if (!encrypted_padded_serialized_request_maybe.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kRemoteRequestEncryptionFailure);
@@ -95,7 +96,8 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
       return response;
     }
     auto decrypted_response_maybe =
-        encryptor.DecryptResponse(std::move(secure_response.ohttp_response()));
+        encryptor.DecryptResponse(std::move(secure_response.ohttp_response()),
+                                  request_context.GetPSLogContext());
     if (!decrypted_response_maybe.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kResponseEncryptionFailure);

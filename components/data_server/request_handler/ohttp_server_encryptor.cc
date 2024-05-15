@@ -21,7 +21,8 @@
 
 namespace kv_server {
 absl::StatusOr<absl::string_view> OhttpServerEncryptor::DecryptRequest(
-    absl::string_view encrypted_payload) {
+    absl::string_view encrypted_payload,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   const absl::StatusOr<uint8_t> maybe_req_key_id =
       quiche::ObliviousHttpHeaderKeyConfig::
           ParseKeyIdFromObliviousHttpRequestPayload(encrypted_payload);
@@ -37,12 +38,13 @@ absl::StatusOr<absl::string_view> OhttpServerEncryptor::DecryptRequest(
   }
   auto private_key_id = std::to_string(*maybe_req_key_id);
 
-  VLOG(9) << "Decrypting for the public key id: " << private_key_id;
+  PS_VLOG(9, log_context) << "Decrypting for the public key id: "
+                          << private_key_id;
   auto private_key = key_fetcher_manager_.GetPrivateKey(private_key_id);
   if (!private_key.has_value()) {
     const std::string error = absl::StrCat(
         "Unable to retrieve private key for key ID: ", *maybe_req_key_id);
-    LOG(ERROR) << error;
+    PS_LOG(ERROR, log_context) << error;
     return absl::InternalError(error);
   }
 
@@ -62,7 +64,8 @@ absl::StatusOr<absl::string_view> OhttpServerEncryptor::DecryptRequest(
 }
 
 absl::StatusOr<std::string> OhttpServerEncryptor::EncryptResponse(
-    std::string payload) {
+    std::string payload,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   if (!ohttp_gateway_.has_value() || !decrypted_request_.has_value()) {
     return absl::InternalError(
         "Emtpy `ohttp_gateway_` or `decrypted_request_`. You should call "

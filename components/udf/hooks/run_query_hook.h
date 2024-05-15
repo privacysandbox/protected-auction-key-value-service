@@ -90,29 +90,32 @@ template <typename ResponseType>
 void RunSetQueryHook<ResponseType>::operator()(
     google::scp::roma::FunctionBindingPayload<std::weak_ptr<RequestContext>>&
         payload) {
+  std::shared_ptr<RequestContext> request_context = payload.metadata.lock();
+  if (request_context == nullptr) {
+    PS_VLOG(1) << "Request context is not available, the request might "
+                  "have been marked as complete";
+    return;
+  }
   if (lookup_ == nullptr) {
     ReportErrorStatus(absl::StatusCode::kInternal,
                       absl::StrCat(HookName(), " has not been initialized yet"),
                       payload);
-    LOG(ERROR) << absl::StrCat(
+    PS_LOG(ERROR, request_context->GetPSLogContext()) << absl::StrCat(
         HookName(), " hook is not initialized properly: lookup is nullptr");
     return;
   }
-  VLOG(9) << HookName() << " request: " << payload.io_proto.DebugString();
+  PS_VLOG(9, request_context->GetPSLogContext())
+      << HookName() << " request: " << payload.io_proto.DebugString();
   if (!payload.io_proto.has_input_string()) {
     ReportErrorStatus(absl::StatusCode::kInvalidArgument,
                       absl::StrCat(HookName(), " input must be a string"),
                       payload);
-    VLOG(1) << HookName() << " result: " << payload.io_proto.DebugString();
+    PS_VLOG(1, request_context->GetPSLogContext())
+        << HookName() << " result: " << payload.io_proto.DebugString();
     return;
   }
-  VLOG(9) << "Calling internal " << HookName() << " client";
-  std::shared_ptr<RequestContext> request_context = payload.metadata.lock();
-  if (request_context == nullptr) {
-    VLOG(1) << "Request context is not available, the request might "
-               "have been marked as complete";
-    return;
-  }
+  PS_VLOG(9, request_context->GetPSLogContext())
+      << "Calling internal " << HookName() << " client";
   absl::StatusOr<ResponseType> response_or_status;
   if constexpr (std::is_same_v<ResponseType, InternalRunQueryResponse>) {
     response_or_status =
@@ -123,17 +126,20 @@ void RunSetQueryHook<ResponseType>::operator()(
         *request_context, payload.io_proto.input_string());
   }
   if (!response_or_status.ok()) {
-    LOG(ERROR) << "Internal " << HookName()
-               << " returned error: " << response_or_status.status();
+    PS_LOG(ERROR, request_context->GetPSLogContext())
+        << "Internal " << HookName()
+        << " returned error: " << response_or_status.status();
     const auto& status = response_or_status.status();
     ReportErrorStatus(
         status.code(),
         absl::StrCat(HookName(), " failed with error: ", status.message()),
         payload);
-    VLOG(1) << HookName() << " result: " << payload.io_proto.DebugString();
+    PS_VLOG(1, request_context->GetPSLogContext())
+        << HookName() << " result: " << payload.io_proto.DebugString();
     return;
   }
-  VLOG(9) << "Processing internal " << HookName() << " response";
+  PS_VLOG(9, request_context->GetPSLogContext())
+      << "Processing internal " << HookName() << " response";
   if constexpr (std::is_same_v<ResponseType, InternalRunQueryResponse>) {
     *payload.io_proto.mutable_output_list_of_string()->mutable_data() =
         std::move(*response_or_status.value().mutable_elements());
@@ -144,7 +150,8 @@ void RunSetQueryHook<ResponseType>::operator()(
     buffer.resize(size);
     response_or_status->SerializeToArray(&buffer[0], size);
   }
-  VLOG(9) << HookName() << " result: " << payload.io_proto.DebugString();
+  PS_VLOG(9, request_context->GetPSLogContext())
+      << HookName() << " result: " << payload.io_proto.DebugString();
 }
 
 template <typename ResponseType>

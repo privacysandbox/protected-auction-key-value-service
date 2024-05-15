@@ -218,7 +218,8 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
   PS_VLOG(9) << "Received ObliviousGetValues request. ";
   OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto maybe_plain_text =
-      encryptor.DecryptRequest(oblivious_request.raw_body().data());
+      encryptor.DecryptRequest(oblivious_request.raw_body().data(),
+                               request_context_factory.Get().GetPSLogContext());
   if (!maybe_plain_text.ok()) {
     return FromAbslStatus(maybe_plain_text.status());
   }
@@ -240,7 +241,8 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
       return FromAbslStatus(s);
     }
   }
-  auto encrypted_response = encryptor.EncryptResponse(std::move(response));
+  auto encrypted_response = encryptor.EncryptResponse(
+      std::move(response), request_context_factory.Get().GetPSLogContext());
   if (!encrypted_response.ok()) {
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         absl::StrCat(encrypted_response.status().code(), " : ",

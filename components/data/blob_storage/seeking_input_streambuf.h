@@ -20,6 +20,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "src/logger/request_context_logger.h"
 #include "src/telemetry/telemetry_provider.h"
 
 #ifndef COMPONENTS_DATA_BLOB_STORAGE_SEEKING_INPUT_STREAMBUF_H_
@@ -69,6 +70,9 @@ class SeekingInputStreambuf : public std::streambuf {
     // underlying source which can be painfully slow and expensive.
     std::int64_t buffer_size = 8 * 1024 * 1024;  // 8MB
     std::function<void(absl::Status)> error_callback = [](absl::Status) {};
+    privacy_sandbox::server_common::log::PSLogContext& log_context =
+        const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+            privacy_sandbox::server_common::log::kNoOpContext);
   };
 
   explicit SeekingInputStreambuf(Options options = Options());

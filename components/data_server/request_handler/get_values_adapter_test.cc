@@ -170,6 +170,90 @@ data {
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
 }
 
+TEST_F(GetValuesAdapterTest, V1RequestSeparatesTwoKeysReturnsOk) {
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
+  UDFArgument arg;
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key1"
+    }
+    values {
+      string_value: "key2"
+    }
+  }
+})",
+                              &arg);
+  application_pa::KeyGroupOutputs key_group_outputs;
+  TextFormat::ParseFromString(R"(
+  key_group_outputs: {
+    tags: "custom"
+    tags: "keys"
+    key_values: {
+      key: "key1"
+      value: {
+        value: {
+          string_value: "value1"
+        }
+      }
+    }
+    key_values: {
+      key: "key2"
+      value: {
+        value: {
+          string_value: "value2"
+        }
+      }
+    }
+  }
+)",
+                              &key_group_outputs);
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(testing::_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg)), testing::_))
+      .WillOnce(Return(
+          application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
+
+  v1::GetValuesRequest v1_request;
+  v1_request.add_keys("key1,key2");
+  v1::GetValuesResponse v1_response;
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
+  EXPECT_TRUE(status.ok());
+  v1::GetValuesResponse v1_expected;
+  TextFormat::ParseFromString(
+      R"pb(
+        keys {
+        key: "key1"
+        value {
+          value {
+            string_value: "value1"
+          }
+        }
+      }
+      keys {
+        key: "key2"
+        value {
+          value {
+            string_value: "value2"
+          }
+        }
+      }
+      })pb",
+      &v1_expected);
+  EXPECT_THAT(v1_response, EqualsProto(v1_expected));
+}
+
 TEST_F(GetValuesAdapterTest, V1RequestWithTwoKeyGroupsReturnsOk) {
   UDFExecutionMetadata udf_metadata;
   TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);

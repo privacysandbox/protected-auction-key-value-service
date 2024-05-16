@@ -30,12 +30,27 @@ using v1::GetValuesRequest;
 using v1::GetValuesResponse;
 using v1::KeyValueService;
 
+namespace {
+// The V1 request API should have no concept of consented debugging, default
+// all V1 requests to consented requests
+privacy_sandbox::server_common::ConsentedDebugConfiguration
+GetDefaultConsentedDebugConfigForV1Request() {
+  privacy_sandbox::server_common::ConsentedDebugConfiguration config;
+  config.set_is_consented(true);
+  config.set_token(privacy_sandbox::server_common::log::ServerToken());
+  return config;
+}
+}  // namespace
+
 grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
     CallbackServerContext* context, const GetValuesRequest* request,
     GetValuesResponse* response) {
   privacy_sandbox::server_common::Stopwatch stopwatch;
   std::unique_ptr<RequestContextFactory> request_context_factory =
       std::make_unique<RequestContextFactory>();
+  request_context_factory->UpdateLogContext(
+      privacy_sandbox::server_common::LogContext(),
+      GetDefaultConsentedDebugConfigForV1Request());
   grpc::Status status =
       handler_.GetValues(*request_context_factory, *request, response);
   auto* reactor = context->DefaultReactor();

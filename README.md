@@ -110,6 +110,164 @@ to the service owner to configure.
 -   Sharding supports data locality, where the operator specifies "sharding key" for key value pairs
     so different key value pairs can have the same sharding key.
 
+## **Timeline and roadmap**
+
+The following sections include the timelines for the Trusted Key Value Server for Protected
+Auctions. Protected Auctions refer to Protected Audiences and Protected App Signals ad targeting
+products.
+
+### **Timelines**
+
+<!-- markdownlint-disable no-inline-html -->
+<!-- markdownlint-disable line-length -->
+<table>
+  <tr>
+   <td>
+   </td>
+   <td><strong>Beta testing</strong>
+   </td>
+   <td><strong>General availability</strong>
+   </td>
+   <td><strong>Enforcement</strong>
+   </td>
+  </tr>
+  <tr>
+   <td>For Protected Audience
+<p>
+(web browser on desktop)
+   </td>
+   <td>July 2024
+<p>
+The Privacy-Sandbox-provided Key Value Server implementation can<ul>
+
+<li>run as a BYOS KV server
+<li>support production scale traffic and common functionalities</li></ul>
+
+   </td>
+   <td>Q4 2024
+<p>
+Opt-in TEE mode will be available to the Adtechs. Opt-in guidance will be published in early Q4 2024.
+   </td>
+   <td><a href="https://developers.google.com/privacy-sandbox/relevance/protected-audience-api/feature-status#feature_availability_timeline">No sooner than Q3 2025</a>
+   </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+   <td>
+   </td>
+   <td><strong>Beta testing</strong>
+   </td>
+   <td><strong>General availability</strong>
+   </td>
+  </tr>
+  <tr>
+   <td>For Protected Audience
+<p>
+(With Bidding & Auction services for Chrome or Android)
+   </td>
+   <td>July 2024
+<p>
+The Privacy-Sandbox-provided Key Value Server implementation can be used with the Bidding and Auction services and<ul>
+
+<li>run as a BYOS KV server
+<li>support production scale traffic and common functionalities</li></ul>
+
+   </td>
+   <td>Dec 2024
+<p>
+The Privacy-Sandbox-provided Key Value Server implementation can be used with the Bidding and Auction services and adtechs can opt-in TEE mode
+   </td>
+  </tr>
+  <tr>
+   <td>For Protected App Signals
+   </td>
+   <td>June 2024
+<p>
+The Privacy-Sandbox-provided Key Value Server implementation supports Ad retrieval server functionality and protected communication for live traffic testing
+   </td>
+   <td>Dec 2024
+<p>
+The implementation supports live traffic at scale
+   </td>
+  </tr>
+</table>
+<!-- markdownlint-enable no-inline-html -->
+<!-- markdownlint-enable line-length -->
+
+### **Roadmap**
+
+#### June 2024 Beta release
+
+##### Deployment and Setup
+
+-   For AWS, Terraform supports deploying into an existing VPC, such as the one that is used by the
+    Bidding and Auction services
+-   Internal load balancer is used for servers to send metrics to OpenTelemetry collector
+    -   In v0.16, the communication goes through a public load balancer
+
+##### Integration with the Bidding & Auction services
+
+-   The Bidding and Auction services can send encrypted requests to the Key Value Server for
+    Protected App Signals
+
+##### Debugging support
+
+-   [Consented Debugging](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/debugging_protected_audience_api_services.md#adtech-consented-debugging)
+    is supported
+-   Diagnose tool to check the cloud environment to warn for potential setup errors before the
+    system is deployed
+-   Operational playbook
+-   Introduction of unsafe metrics
+    -   Unsafe metrics have privacy protections such as differential privacy noises
+    -   More metrics for comprehensive SLO monitoring
+
+##### Runtime features
+
+-   Data loading error handling
+    -   The system can be configured to use different error handling strategy for different dataset
+
+##### Performance/Cost
+
+-   Benchmarking tools
+-   Cost explainer
+-   Sets-as-values will switch to using bitsets to represent sets for faster RunQuery performance.
+
+##### Support process
+
+-   Commitment to support window for active releases
+
+#### Q4 2024 Chrome-PA GA
+
+##### Chrome integration
+
+-   Update to V2 protocol to support the hybrid mode of BYOS & Opt-in TEE
+-   Chrome and Key Value server can communicate in the updated V2 protocol
+-   Chrome can send full publisher URL to TEE KV server under V2 protocol
+
+#### H2 2024 Android-PA GA, PAS GA
+
+##### User Defined Functions
+
+-   UDF can perform Key/Value lookup asynchronously
+-   Flags can be passed from the server parameters into UDF
+-   One Key Value Server system can be used for multiple use cases. Multiple UDFs can be loaded.
+    Different UDF can be selected based on the request type.
+-   Canaring support for UDF: canary version UDF can be staged in machines with specific tags.
+
+##### Customization support
+
+-   First class support for customization of the system (without violating the trust model)
+
+##### Debugging support
+
+-   Diagnose tool to collect standard and necessary debug information for troubleshooting requests
+
+##### Documentation
+
+-   Complete end to end example as a template to set up the service
+
 ## Breaking changes
 
 While we make efforts to not introduce breaking changes, we expect that to happen occasionally.
@@ -118,9 +276,8 @@ The release version follows the `[major change]-[minor change]-[patch]` scheme. 
 may contain breaking changes without notice. Refer to the [release changelog](/CHANGELOG.md) for the
 details of the breaking changes.
 
-Once the codebase is in a more stable state that is version 1.0.0, we will establish additional
-channels for announcing breaking changes and major version will always be incremented for breaking
-changes.
+At GA the version will become 1.0.0, we will establish additional channels for announcing breaking
+changes and major version will always be incremented for breaking changes.
 
 # Key documents
 

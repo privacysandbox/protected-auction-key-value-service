@@ -212,6 +212,7 @@ cc_binary(
     deps = [
         ":key_fetcher_factory",
         ":server_lib",
+        ":server_log_init",
         "//components/sharding:shard_manager",
         "//components/util:version_linkstamp",
         "@com_google_absl//absl/debugging:failure_signal_handler",
@@ -350,4 +351,26 @@ cc_library(
         ":parameter_fetcher",
         "@google_privacysandbox_servers_common//src/encryption/key_fetcher:key_fetcher_manager",
     ],
+)
+
+cc_library(
+    name = "server_log_init",
+    srcs = select({
+        "//:nonprod_mode": [
+            "nonprod_server_log_init.cc",
+        ],
+        "//conditions:default": [
+            "prod_server_log_init.cc",
+        ],
+    }),
+    hdrs = ["server_log_init.h"],
+    deps =
+        select({
+            "//:nonprod_mode": [
+                "@google_privacysandbox_servers_common//src/logger:request_context_logger",
+            ],
+            "//conditions:default": [],
+        }) + [
+            "@com_google_absl//absl/log:initialize",
+        ],
 )

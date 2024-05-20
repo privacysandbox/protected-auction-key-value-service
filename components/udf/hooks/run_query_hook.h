@@ -145,10 +145,9 @@ void RunSetQueryHook<ResponseType>::operator()(
         std::move(*response_or_status.value().mutable_elements());
   }
   if constexpr (std::is_same_v<ResponseType, InternalRunSetQueryIntResponse>) {
-    std::string& buffer = *payload.io_proto.mutable_output_bytes();
-    auto size = response_or_status->ByteSizeLong();
-    buffer.resize(size);
-    response_or_status->SerializeToArray(&buffer[0], size);
+    const auto& elements = response_or_status->elements();
+    payload.io_proto.set_output_bytes(elements.data(),
+                                      elements.size() * sizeof(uint32_t));
   }
   PS_VLOG(9, request_context->GetPSLogContext())
       << HookName() << " result: " << payload.io_proto.DebugString();

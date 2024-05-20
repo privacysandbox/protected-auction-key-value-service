@@ -434,6 +434,44 @@ TEST_F(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
   EXPECT_TRUE(stop.ok());
 }
 
+TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
+  auto mock_lookup = std::make_unique<MockLookup>();
+  InternalRunSetQueryIntResponse response;
+  TextFormat::ParseFromString(R"pb(elements: 1000 elements: 1001)pb",
+                              &response);
+  ON_CALL(*mock_lookup, RunSetQueryInt(_, _)).WillByDefault(Return(response));
+  auto run_query_hook = RunSetQueryIntHook::Create();
+  run_query_hook->FinishInit(std::move(mock_lookup));
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      std::move(config_builder.RegisterRunSetQueryIntHook(*run_query_hook)
+                    .SetNumberOfWorkers(1)
+                    .Config()));
+  EXPECT_TRUE(udf_client.ok());
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(input) {
+          let keys = input.keys;
+          let bytes = runSetQueryInt(keys[0]);
+          if (bytes instanceof Uint8Array) {
+            return Array.from(new Uint32Array(bytes.buffer));
+          }
+          return "runSetQueryInt failed.";
+        }
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_EQ(*result, R"([1000,1001])");
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
 TEST_F(UdfClientTest, JsCallsLoggingFunctionLogForConsentedRequests) {
   std::stringstream log_ss;
   auto* logger_provider =

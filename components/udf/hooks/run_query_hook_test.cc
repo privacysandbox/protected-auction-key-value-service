@@ -85,8 +85,10 @@ TEST_F(RunQueryHookTest, VerifyProcessingIntSetsSuccessfully) {
   (*run_query_hook)(payload);
   ASSERT_TRUE(io.has_output_bytes());
   InternalRunSetQueryIntResponse actual_response;
-  actual_response.ParseFromArray(io.output_bytes().data(),
-                                 io.output_bytes().size());
+  actual_response.mutable_elements()->Resize(
+      io.output_bytes().size() / sizeof(uint32_t), 0);
+  std::memcpy(actual_response.mutable_elements()->mutable_data(),
+              io.output_bytes().data(), io.output_bytes().size());
   EXPECT_THAT(actual_response, EqualsProto(run_query_response));
 }
 

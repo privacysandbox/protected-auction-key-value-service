@@ -1,0 +1,12 @@
+'{
+   "partitions":[
+      {
+        "id":0,
+        "arguments":[
+          {
+            "data": "{ \\"metadataKeys\\":[ \\"animals\\", \\"garden\\", \\"dinner\\", \\"hotels\\" ], \\"signal\\" : \\"food\\" }"
+          }
+         ]
+      }
+   ]
+}'

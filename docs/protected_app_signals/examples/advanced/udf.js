@@ -79,21 +79,22 @@ function associateCosineSimilarity(wordEmbeddings, embedding) {
 }
 
 /**
- * Computes the set union of all `metadata` keys and scores their similarity agains the `signal` word.
- * The words and scores of the top 10 most similar words are returned, in order of similarity.
+ * Computes the set union of all `metadata` keys and scores their similarity against the `signal` word.
+ * The words and scores of the top 5 most similar words are returned, in order of similarity.
  *
  * @param metadataKeys Keys into the set data which do a UNION of all entries.
  * @param signal Orders unioned data by similarity to signal word.
- * @returns A sorted list of top 10 words and their scores.
+ * @returns A sorted list of top 5 words and their scores.
  */
-function HandleRequest(executionMetadata, metadataKeys, signal) {
+function HandleRequest(requestMetadata, protectedSignals, deviceMetadata, contextualSignals, contextualAdIds) {
+  const parsedProtectedSignals = JSON.parse(protectedSignals);
   results = [];
-  if (metadataKeys.length) {
+  if (parsedProtectedSignals.metadataKeys.length) {
     // Union all of the sets of the given metadata category
-    results = runQuery(metadataKeys.join('|'));
+    results = runQuery(parsedProtectedSignals.metadataKeys.join('|'));
   }
   wordSimilarity = {};
-  embedding = getWordEmbedding(signal);
+  embedding = getWordEmbedding(parsedProtectedSignals.signal);
   if (embedding != null) {
     wordSimilarity = associateCosineSimilarity(associateEmbeddings(results), embedding);
   }

@@ -1,12 +1,24 @@
-# The word2vec sample
+# Protected App Signals, Advanced Ad Retrieval developer guide
+
+This is an advanced part of the
+[Ad Retreival dev guide](/docs/protected_app_signals/onboarding_dev_guide.md)
+
+It illustrates the points made in the
+[use case overview](/docs/protected_app_signals/ad_retrieval_overview.md#use-case-overview).
+![alt_text](../assets/ad_retrieval_filter_funnel.png 'image_tooltip')
 
 This sample demonstrates how key->set(set queries) and key->value(value lookups) data can be loaded
 into a server and used together. In this case the key->set data is categorized groups of words. The
-key->value data is a word to embedding mapping. An embedding is a vector of numbers. vectors for a
-set of words.
+key->value data is a word to embedding mapping. An embedding is a vector of numbers.
 
 The sample will demonstrate how you can query for a set of words, and sort them based on scoring
 criteria defined by word similarities, using embeddings.
+
+## Word2vec
+
+We are using [word2vec](https://en.wikipedia.org/wiki/Word2vec) technique here. It is an NLP
+technique for obtaining vector representations of words. These vectors capture information about the
+meaning of the word based on the surrounding words.
 
 ## Generating DELTA files
 
@@ -23,8 +35,8 @@ BUILD rules take care of generating the csv and piping them to the `data_cli` fo
 commands will build DELTA files for both embeddings and category DELTA files.
 
 ```sh
-builders/tools/bazel-debian build //getting_started/examples/sample_word2vec:generate_categories_delta
-builders/tools/bazel-debian build //getting_started/examples/sample_word2vec:generate_embeddings_delta
+builders/tools/bazel-debian build //docs/protected_app_signals/examples/advanced:generate_categories_delta
+builders/tools/bazel-debian build //docs/protected_app_signals/examples/advanced:generate_embeddings_delta
 ```
 
 generated csv data for categories looks like (key="catalyst"):
@@ -46,7 +58,7 @@ In this example you can see that the embedding is stored as a JSON string.
 Build the udf:
 
 ```sh
-builders/tools/bazel-debian build //getting_started/examples/sample_word2vec:udf_delta
+builders/tools/bazel-debian build //docs/protected_app_signals/examples/advanced:udf_delta
 ```
 
 At this point there are 3 DELTA files:
@@ -61,7 +73,7 @@ Set up the data:
 
 ```sh
 mkdir /tmp/deltas
-cp $(builders/tools/bazel-debian aquery '//getting_started/examples/sample_word2vec:udf_delta' |
+cp $(builders/tools/bazel-debian aquery '//docs/protected_app_signals/examples/advanced:udf_delta' |
    sed -n 's/Outputs: \[\(.*\)\]/\1/p' |
    xargs dirname)/DELTA* /tmp/deltas
 ```
@@ -92,6 +104,6 @@ The UDF returns the top 5 results and their scores.
 
 ```sh
 grpc_cli call  localhost:50051 kv_server.v2.KeyValueService/GetValuesHttp  \
-  "raw_body: {data: $(tr -d '\n' < getting_started/examples/sample_word2vec/body.txt)}" \
+  "raw_body: {data: $(tr -d '\n' < docs/protected_app_signals/examples/advanced/body.txt)}" \
    --channel_creds_type=insecure
 ```

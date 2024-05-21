@@ -212,12 +212,16 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
       const auto* udf_config =
           data_record.record_as_UserDefinedFunctionsConfig();
       PS_VLOG(3, log_context)
-          << "Setting UDF code snippet for version: " << udf_config->version();
+          << "Setting UDF code snippet for version: " << udf_config->version()
+          << ", handler: " << udf_config->handler_name()->str()
+          << ", code length: " << udf_config->code_snippet()->str().size();
       return udf_client.SetCodeObject(
-          CodeConfig{.js = udf_config->code_snippet()->str(),
-                     .udf_handler_name = udf_config->handler_name()->str(),
-                     .logical_commit_time = udf_config->logical_commit_time(),
-                     .version = udf_config->version()},
+          CodeConfig{
+              .js = udf_config->code_snippet()->str(),
+              .udf_handler_name = udf_config->handler_name()->str(),
+              .logical_commit_time = udf_config->logical_commit_time(),
+              .version = udf_config->version(),
+          },
           log_context);
     }
     return absl::InvalidArgumentError("Received unsupported record.");

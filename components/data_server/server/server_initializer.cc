@@ -34,6 +34,7 @@ absl::Status InitializeUdfHooksInternal(
     GetValuesHook& string_get_values_hook,
     GetValuesHook& binary_get_values_hook,
     RunSetQueryStringHook& run_query_hook,
+    RunSetQueryIntHook& run_set_query_int_hook,
     privacy_sandbox::server_common::log::PSLogContext& log_context) {
   PS_VLOG(9, log_context) << "Finishing getValues init";
   string_get_values_hook.FinishInit(get_lookup());
@@ -41,6 +42,8 @@ absl::Status InitializeUdfHooksInternal(
   binary_get_values_hook.FinishInit(get_lookup());
   PS_VLOG(9, log_context) << "Finishing runQuery init";
   run_query_hook.FinishInit(get_lookup());
+  PS_VLOG(9, log_context) << "Finishing runSetQueryInt init";
+  run_set_query_int_hook.FinishInit(get_lookup());
   return absl::OkStatus();
 }
 
@@ -59,14 +62,16 @@ class NonshardedServerInitializer : public ServerInitializer {
   absl::StatusOr<ShardManagerState> InitializeUdfHooks(
       GetValuesHook& string_get_values_hook,
       GetValuesHook& binary_get_values_hook,
-      RunSetQueryStringHook& run_query_hook) override {
+      RunSetQueryStringHook& run_query_hook,
+      RunSetQueryIntHook& run_set_query_int_hook) override {
     ShardManagerState shard_manager_state;
     auto lookup_supplier = [&cache = cache_]() {
       return CreateLocalLookup(cache);
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
-                               run_query_hook, log_context_);
+                               run_query_hook, run_set_query_int_hook,
+                               log_context_);
     return shard_manager_state;
   }
 
@@ -114,7 +119,8 @@ class ShardedServerInitializer : public ServerInitializer {
   absl::StatusOr<ShardManagerState> InitializeUdfHooks(
       GetValuesHook& string_get_values_hook,
       GetValuesHook& binary_get_values_hook,
-      RunSetQueryStringHook& run_set_query_string_hook) override {
+      RunSetQueryStringHook& run_set_query_string_hook,
+      RunSetQueryIntHook& run_set_query_int_hook) override {
     auto maybe_shard_state = CreateShardManager();
     if (!maybe_shard_state.ok()) {
       return maybe_shard_state.status();
@@ -129,7 +135,8 @@ class ShardedServerInitializer : public ServerInitializer {
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
-                               run_set_query_string_hook, log_context_);
+                               run_set_query_string_hook,
+                               run_set_query_int_hook, log_context_);
     return std::move(*maybe_shard_state);
   }
 

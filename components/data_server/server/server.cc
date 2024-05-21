@@ -497,7 +497,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   }
   auto maybe_shard_state = server_initializer->InitializeUdfHooks(
       *string_get_values_hook_, *binary_get_values_hook_,
-      *run_set_query_string_hook_);
+      *run_set_query_string_hook_, *run_set_query_int_hook_);
   if (!maybe_shard_state.ok()) {
     return maybe_shard_state.status();
   }

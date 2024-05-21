@@ -22,6 +22,7 @@ namespace kv_server {
 namespace {
 constexpr char kGenerationId[] = "generationId";
 constexpr char kAdtechDebugId[] = "adtechDebugId";
+constexpr char kDefaultConsentedGenerationId[] = "consented";
 }  // namespace
 
 UdfRequestMetricsContext& RequestContext::GetUdfRequestMetricsContext() const {
@@ -41,10 +42,12 @@ void RequestContext::UpdateLogContext(
   request_log_context_ =
       std::make_unique<RequestLogContext>(log_context, consented_debug_config);
   if (request_log_context_->GetRequestLoggingContext().is_consented()) {
-    udf_request_metrics_context_.SetConsented(
-        request_log_context_->GetLogContext().generation_id());
-    internal_lookup_metrics_context_.SetConsented(
-        request_log_context_->GetLogContext().generation_id());
+    const std::string generation_id =
+        request_log_context_->GetLogContext().generation_id().empty()
+            ? kDefaultConsentedGenerationId
+            : request_log_context_->GetLogContext().generation_id();
+    udf_request_metrics_context_.SetConsented(generation_id);
+    internal_lookup_metrics_context_.SetConsented(generation_id);
   }
 }
 RequestContext::RequestContext(

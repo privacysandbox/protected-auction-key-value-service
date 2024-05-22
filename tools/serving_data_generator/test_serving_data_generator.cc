@@ -61,6 +61,8 @@ using kv_server::ToDeltaFileName;
 using kv_server::ToFlatBufferBuilder;
 using kv_server::ToStringView;
 
+const std::array<std::string, 3> kSetOps = {" - ", " | ", " & "};
+
 void WriteKeyValueRecord(std::string_view key, std::string_view value,
                          int64_t logical_commit_time,
                          riegeli::RecordWriterBase& writer) {
@@ -109,6 +111,7 @@ void WriteKeyValueSetRecords(const std::vector<std::string>& keys,
     std::vector<std::string> string_set;
     for (int j = 0; j < num_values_in_set; ++j) {
       // Add a random element
+      std::srand(absl::GetCurrentTimeNanos());
       auto element = absl::GetFlag(FLAGS_range_min) +
                      (std::rand() % (absl::GetFlag(FLAGS_range_max) -
                                      absl::GetFlag(FLAGS_range_min)));
@@ -142,7 +145,8 @@ void WriteKeyValueSetRecords(const std::vector<std::string>& keys,
       writer.WriteRecord(ToStringView(
           ToFlatBufferBuilder(DataRecordStruct{.record = std::move(record)})));
     }
-    absl::StrAppend(&query, set_value_key, " | ");
+    absl::StrAppend(&query, set_value_key,
+                    kSetOps[std::rand() % kSetOps.size()]);
   }
   LOG(INFO) << "Example set query for all keys" << query;
   LOG(INFO) << "write done for set records";

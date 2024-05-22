@@ -96,6 +96,11 @@ ABSL_FLAG(int32_t, realtime_publisher_files_insertion_rate, 15,
 ABSL_FLAG(std::string, consented_debug_token, "",
           "Consented debug token, if non-empty value is provided,"
           "consented requests will be sent to the test server");
+ABSL_FLAG(bool, use_default_generation_id, true,
+          "Whether to send consented requests with default generation_id,"
+          "which is a constant for all consented requests. This value should "
+          "be set to true if sending high volume of consented traffic to the "
+          "server.");
 
 namespace kv_server {
 
@@ -103,6 +108,7 @@ constexpr char* kServiceName = "request-simulation";
 constexpr char* kTestingServer = "testing.server";
 constexpr int kMetricsExportIntervalInMs = 5000;
 constexpr int kMetricsExportTimeoutInMs = 500;
+constexpr char* kDefaultGenerationIdForConsentedRequests = "consented";
 
 using opentelemetry::sdk::resource::Resource;
 using opentelemetry::sdk::resource::ResourceAttributes;
@@ -138,6 +144,9 @@ absl::Status RequestSimulationSystem::Init(
   server_address_ = absl::GetFlag(FLAGS_server_address);
   server_method_ = absl::GetFlag(FLAGS_server_method);
   consented_debug_token_ = absl::GetFlag(FLAGS_consented_debug_token);
+  if (absl::GetFlag(FLAGS_use_default_generation_id)) {
+    generation_id_override_ = kDefaultGenerationIdForConsentedRequests;
+  }
   concurrent_number_of_requests_ = absl::GetFlag(FLAGS_concurrency);
   synthetic_request_gen_option_.number_of_keys_per_request =
       absl::GetFlag(FLAGS_number_of_keys_per_request);
@@ -172,8 +181,8 @@ absl::Status RequestSimulationSystem::Init(
         const auto keys = kv_server::GenerateRandomKeys(
             synthetic_request_gen_option_.number_of_keys_per_request,
             synthetic_request_gen_option_.key_size_in_bytes);
-        return kv_server::CreateKVDSPRequestBodyInJson(keys,
-                                                       consented_debug_token_);
+        return kv_server::CreateKVDSPRequestBodyInJson(
+            keys, consented_debug_token_, generation_id_override_);
       });
 
   // Telemetry must be initialized before initializing metrics collector
@@ -387,8 +396,8 @@ RequestSimulationSystem::CreateStreamRecordReaderFactory() {
 absl::AnyInvocable<std::string(std::string_view)>
 RequestSimulationSystem::CreateRequestFromKeyFn() {
   return [this](std::string_view key) {
-    return kv_server::CreateKVDSPRequestBodyInJson({std::string(key)},
-                                                   consented_debug_token_);
+    return kv_server::CreateKVDSPRequestBodyInJson(
+        {std::string(key)}, consented_debug_token_, generation_id_override_);
   };
 }
 void RequestSimulationSystem::InitializeTelemetry() {

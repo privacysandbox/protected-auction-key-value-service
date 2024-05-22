@@ -142,6 +142,7 @@ class RequestSimulationSystem {
   std::string server_address_;
   std::string server_method_;
   std::string consented_debug_token_;
+  std::optional<std::string> generation_id_override_;
   int concurrent_number_of_requests_;
   int64_t synthetic_requests_fill_qps_;
   SyntheticRequestGenOption synthetic_request_gen_option_;

@@ -148,6 +148,7 @@ cc_test(
         "//components/udf:udf_client",
         "//public/query/v2:get_values_v2_cc_grpc",
         "//public/test_util:proto_matcher",
+        "//public/test_util:request_example",
         "@com_github_google_quiche//quiche:binary_http_unstable_api",
         "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
         "@com_github_grpc_grpc//:grpc++",

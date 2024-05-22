@@ -110,6 +110,7 @@ cc_test(
         "//components/udf/hooks:run_query_hook",
         "//public/query/v2:get_values_v2_cc_proto",
         "//public/test_util:proto_matcher",
+        "//public/test_util:request_example",
         "//public/udf:constants",
         "@com_google_absl//absl/log:scoped_mock_log",
         "@com_google_absl//absl/status",

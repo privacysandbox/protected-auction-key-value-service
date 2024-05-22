@@ -30,6 +30,7 @@
 #include "nlohmann/json.hpp"
 #include "public/constants.h"
 #include "public/test_util/proto_matcher.h"
+#include "public/test_util/request_example.h"
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
@@ -57,13 +58,19 @@ enum class ProtocolType {
 struct TestingParameters {
   ProtocolType protocol_type;
   const std::string_view content_type;
+  const std::string_view core_request_body;
+  const bool is_consented;
 };
 
 class GetValuesHandlerTest
     : public ::testing::Test,
       public ::testing::WithParamInterface<TestingParameters> {
  protected:
-  void SetUp() override { InitMetricsContextMap(); }
+  void SetUp() override {
+    privacy_sandbox::server_common::log::ServerToken(
+        kExampleConsentedDebugToken);
+    InitMetricsContextMap();
+  }
   template <ProtocolType protocol_type>
   bool IsUsing() {
     auto param = GetParam();
@@ -73,6 +80,16 @@ class GetValuesHandlerTest
   bool IsProtobufContent() {
     auto param = GetParam();
     return param.content_type == kContentEncodingProtoHeaderValue;
+  }
+
+  bool IsRequestExpectConsented() {
+    auto param = GetParam();
+    return param.is_consented;
+  }
+
+  std::string GetTestRequestBody() {
+    auto param = GetParam();
+    return std::string(param.core_request_body);
   }
 
   class PlainRequest {
@@ -291,22 +308,97 @@ INSTANTIATE_TEST_SUITE_P(
         TestingParameters{
             .protocol_type = ProtocolType::kPlain,
             .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body = kv_server::kExampleV2RequestInJson,
+            .is_consented = false,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kPlain,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body = kv_server::kExampleConsentedV2RequestInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kPlain,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body =
+                kv_server::kExampleConsentedV2RequestWithLogContextInJson,
+            .is_consented = true,
         },
         TestingParameters{
             .protocol_type = ProtocolType::kBinaryHttp,
             .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body = kv_server::kExampleV2RequestInJson,
+            .is_consented = false,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kBinaryHttp,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body = kv_server::kExampleConsentedV2RequestInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kBinaryHttp,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body =
+                kv_server::kExampleConsentedV2RequestWithLogContextInJson,
+            .is_consented = true,
         },
         TestingParameters{
             .protocol_type = ProtocolType::kObliviousHttp,
             .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body = kv_server::kExampleV2RequestInJson,
+            .is_consented = false,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body = kv_server::kExampleConsentedV2RequestInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body =
+                kv_server::kExampleConsentedV2RequestWithLogContextInJson,
+            .is_consented = true,
         },
         TestingParameters{
             .protocol_type = ProtocolType::kBinaryHttp,
             .content_type = kContentEncodingProtoHeaderValue,
+            .core_request_body = kv_server::kExampleV2RequestInJson,
+            .is_consented = false,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kBinaryHttp,
+            .content_type = kContentEncodingProtoHeaderValue,
+            .core_request_body = kv_server::kExampleConsentedV2RequestInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kBinaryHttp,
+            .content_type = kContentEncodingProtoHeaderValue,
+            .core_request_body =
+                kv_server::kExampleConsentedV2RequestWithLogContextInJson,
+            .is_consented = true,
         },
         TestingParameters{
             .protocol_type = ProtocolType::kObliviousHttp,
             .content_type = kContentEncodingProtoHeaderValue,
+            .core_request_body = kv_server::kExampleV2RequestInJson,
+            .is_consented = false,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingProtoHeaderValue,
+            .core_request_body = kv_server::kExampleConsentedV2RequestInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingProtoHeaderValue,
+            .core_request_body =
+                kv_server::kExampleConsentedV2RequestWithLogContextInJson,
+            .is_consented = true,
         }));
 
 TEST_P(GetValuesHandlerTest, Success) {
@@ -388,40 +480,7 @@ data {
                   _))
       .WillOnce(Return(output.dump()));
 
-  std::string core_request_body = R"(
-{
-    "metadata": {
-        "hostname": "example.com"
-    },
-    "partitions": [
-        {
-            "id": 0,
-            "compressionGroupId": 0,
-            "arguments": [
-                {
-                    "tags": [
-                        "structured",
-                        "groupNames"
-                    ],
-                    "data": [
-                        "hello"
-                    ]
-                },
-                {
-                    "tags": [
-                        "custom",
-                        "keys"
-                    ],
-                    "data": [
-                        "key1"
-                    ]
-                }
-            ]
-        }
-    ]
-}
-  )";
-
+  std::string core_request_body = GetTestRequestBody();
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
   int16_t bhttp_response_code = 0;
@@ -431,6 +490,8 @@ data {
                                                             &request_proto)
                     .ok());
     ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
+    EXPECT_EQ(request_proto.consented_debug_config().is_consented(),
+              IsRequestExpectConsented());
   }
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   const auto result =

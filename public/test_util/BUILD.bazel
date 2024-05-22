@@ -36,3 +36,9 @@ cc_library(
         "@com_google_googletest//:gtest",
     ],
 )
+
+cc_library(
+    name = "request_example",
+    testonly = 1,
+    hdrs = ["request_example.h"],
+)

@@ -36,6 +36,7 @@
 #include "opentelemetry/sdk/logs/simple_log_record_processor_factory.h"
 #include "opentelemetry/sdk/resource/resource.h"
 #include "public/query/v2/get_values_v2.pb.h"
+#include "public/test_util/request_example.h"
 #include "public/udf/constants.h"
 #include "src/roma/config/config.h"
 #include "src/roma/interface/roma.h"
@@ -50,9 +51,6 @@ using testing::Return;
 
 namespace kv_server {
 namespace {
-
-constexpr std::string_view kConsentedDebugToken = "debug_token";
-
 absl::StatusOr<std::unique_ptr<UdfClient>> CreateUdfClient() {
   Config<std::weak_ptr<RequestContext>> config;
   config.number_of_workers = 1;
@@ -62,7 +60,8 @@ absl::StatusOr<std::unique_ptr<UdfClient>> CreateUdfClient() {
 class UdfClientTest : public ::testing::Test {
  protected:
   UdfClientTest() {
-    privacy_sandbox::server_common::log::ServerToken(kConsentedDebugToken);
+    privacy_sandbox::server_common::log::ServerToken(
+        kExampleConsentedDebugToken);
     InitMetricsContextMap();
     request_context_factory_ = std::make_unique<RequestContextFactory>(
         privacy_sandbox::server_common::LogContext(),
@@ -506,7 +505,7 @@ TEST_F(UdfClientTest, JsCallsLoggingFunctionLogForConsentedRequests) {
   privacy_sandbox::server_common::ConsentedDebugConfiguration
       consented_debug_configuration;
   consented_debug_configuration.set_is_consented(true);
-  consented_debug_configuration.set_token(kConsentedDebugToken);
+  consented_debug_configuration.set_token(kExampleConsentedDebugToken);
   privacy_sandbox::server_common::LogContext log_context;
   request_context_factory_->UpdateLogContext(log_context,
                                              consented_debug_configuration);

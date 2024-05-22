@@ -24,6 +24,7 @@ function install_clang() {
   /build/llvm.sh ${CLANG_VER}
   apt-get --quiet install -y --no-install-recommends libc++-${CLANG_VER}-dev
   update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${CLANG_VER} 100
+  update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${CLANG_VER} 100
   rm -f llvm.sh
 
   clang --version

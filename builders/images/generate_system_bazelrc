@@ -22,14 +22,12 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --user-root-name)
       USER_ROOT_NAME="$2"
-      shift
-      shift
+      shift 2 || usage
       ;;
     -h | --help) usage 0 ;;
     *)
       printf "unrecognized arg: %s\n" "$1"
       usage
-      break
       ;;
   esac
 done

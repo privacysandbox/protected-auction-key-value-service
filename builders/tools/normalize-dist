@@ -19,13 +19,40 @@
 set -o pipefail
 set -o errexit
 
+declare TOP_LEVEL_DIR=dist
+
+function usage() {
+  local exitval=${1-1}
+  cat &>/dev/stderr <<USAGE
+usage:
+  $0 <options>
+    --dir <path>               directory to normalize recursively. Default: ${TOP_LEVEL_DIR}
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dir)
+      TOP_LEVEL_DIR="$2"
+      shift 2 || usage
+      ;;
+    -h | --help) usage 0 ;;
+    *)
+      printf "unrecognized arg: %s\n" "$1"
+      usage
+      ;;
+  esac
+done
+
 trap _cleanup EXIT
 function _cleanup() {
   local -r -i STATUS=$?
   if [[ ${STATUS} -eq 0 ]]; then
-    printf "normalize-dist completed successfully\n" &>/dev/stderr
+    printf "normalize-dist [%s] completed successfully\n" "${TOP_LEVEL_DIR}" &>/dev/stderr
   else
-    printf "Error: normalize-dist completed with status code: %s\n" "${STATUS}" &>/dev/stderr
+    printf "Error: normalize-dist [%s] completed with status code: %s\n" "${TOP_LEVEL_DIR}" "${STATUS}" &>/dev/stderr
   fi
   exit 0
 }
@@ -40,9 +67,7 @@ readonly GROUP
 USER="$(builder::id u)"
 readonly USER
 
-readonly TOP_LEVEL_DIRS="dist"
-
-printf "Setting file ownership [%s], group [%s] in dirs [%s]\n" "${USER}" "${GROUP}" "${TOP_LEVEL_DIRS}"
+printf "Setting file ownership [%s], group [%s] in dirs [%s]\n" "${USER}" "${GROUP}" "${TOP_LEVEL_DIR}"
 declare -a runner=()
 if [[ -f /.dockerenv ]]; then
   runner+=(bash -c)
@@ -51,11 +76,9 @@ else
 fi
 
 "${runner[@]}" "
-for TOP_LEVEL_DIR in ${TOP_LEVEL_DIRS}; do
-  find \${TOP_LEVEL_DIR} -type f ! -executable -exec chmod 644 {} \;
-  find \${TOP_LEVEL_DIR} -type f -executable -exec chmod 755 {} \;
-  find \${TOP_LEVEL_DIR} -type d -exec chmod 755 {} \;
-  chgrp --recursive ${GROUP} \${TOP_LEVEL_DIR}
-  chown --recursive ${USER} \${TOP_LEVEL_DIR}
-done
+find ${TOP_LEVEL_DIR} -type f ! -executable -exec chmod 644 {} \;
+find ${TOP_LEVEL_DIR} -type f -executable -exec chmod 755 {} \;
+find ${TOP_LEVEL_DIR} -type d -exec chmod 755 {} \;
+chgrp --recursive ${GROUP} ${TOP_LEVEL_DIR}
+chown --recursive ${USER} ${TOP_LEVEL_DIR}
 "

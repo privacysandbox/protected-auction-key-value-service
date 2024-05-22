@@ -18,7 +18,7 @@ ARG BASE_IMAGE=ubuntu:20.04
 # hadolint ignore=DL3006
 FROM ${BASE_IMAGE} as libprofiler-builder
 ENV CC=clang \
-    CXX=clang
+    CXX=clang++
 ADD https://github.com/gperftools/gperftools/releases/download/gperftools-2.13/gperftools-2.13.tar.gz /build/gperftools.tar.gz
 ADD https://apt.llvm.org/llvm.sh /build/llvm.sh
 COPY compile_libprofiler /scripts/

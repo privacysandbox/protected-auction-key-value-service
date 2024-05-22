@@ -82,4 +82,5 @@ DOCKER_RUN_ARGS+=(
 # shellcheck disable=SC2068
 docker run \
   "${DOCKER_RUN_ARGS[@]}" \
-  ${IMAGE_TAGGED} "$@"
+  "${IMAGE_TAGGED}" \
+  "$@"

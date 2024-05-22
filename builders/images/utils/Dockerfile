@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine:3.16
+FROM alpine:3.19
 
 RUN apk --no-cache add \
   unzip~=6.0 \

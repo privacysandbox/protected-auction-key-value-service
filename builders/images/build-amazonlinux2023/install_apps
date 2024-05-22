@@ -22,14 +22,8 @@ while [[ $# -gt 0 ]]; do
       VERBOSE=1
       shift
       ;;
-    -h | --help)
-      usage 0
-      break
-      ;;
-    *)
-      usage
-      break
-      ;;
+    -h | --help) usage 0 ;;
+    *) usage ;;
   esac
 done
 

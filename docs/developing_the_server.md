@@ -19,6 +19,8 @@ To make a request consented, the ConsentedDebugConfiguration proto in the
 [V2 request API](/public/query/v2/get_values_v2.proto) need to be set to:
 `"consented_debug_config": {"is_consented": true, "token": <string that matches the server's consented_debug_token>}`
 
+Example consented V2 requests in json can be found in [here](/public/test_util/request_example.h);
+
 More background information about consented debugging can be found in
 [Debugging Protected Audience API Services](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/debugging_protected_audience_api_services.md)
 

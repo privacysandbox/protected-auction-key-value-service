@@ -19,9 +19,9 @@ variable "environment" {
   type        = string
 }
 
-variable "collector_ip_address" {
-  description = "Collector IP address"
-  type        = string
+variable "subnets" {
+  description = "All service subnets."
+  type        = any
 }
 
 variable "collector_instance_groups" {

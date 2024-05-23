@@ -89,12 +89,18 @@ message SingleLookupResult {
     string value = 1;
     google.rpc.Status status = 2;
     KeysetValues keyset_values = 3;
+    UInt32SetValues uintset_values = 4;
   }
 }
 
 // Keyset values.
 message KeysetValues {
   repeated string values = 1;
+}
+
+// UInt32 set values
+message UInt32SetValues {
+  repeated uint32 values = 1;
 }
 
 // Run Query request.

@@ -143,6 +143,46 @@ TEST_F(LocalLookupTest, GetKeyValueSets_KeysFound_Success) {
               testing::UnorderedElementsAreArray(expected_resulting_set));
 }
 
+TEST_F(LocalLookupTest, GetUInt32ValueSets_KeysFound_Success) {
+  auto values = std::vector<uint32_t>({1000, 1001});
+  UInt32ValueSet value_set;
+  value_set.Add(absl::MakeSpan(values), 1);
+  auto mock_get_key_value_set_result =
+      std::make_unique<MockGetKeyValueSetResult>();
+  EXPECT_CALL(*mock_get_key_value_set_result, GetUInt32ValueSet("key1"))
+      .WillOnce(Return(&value_set));
+  EXPECT_CALL(mock_cache_, GetUInt32ValueSet(_, _))
+      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response =
+      local_lookup->GetUInt32ValueSet(GetRequestContext(), {"key1"});
+  ASSERT_TRUE(response.ok());
+  EXPECT_THAT(response.value().kv_pairs().at("key1").uintset_values().values(),
+              testing::UnorderedElementsAreArray(values));
+}
+
+TEST_F(LocalLookupTest, GetUInt32ValueSets_SetEmpty_Success) {
+  auto mock_get_key_value_set_result =
+      std::make_unique<MockGetKeyValueSetResult>();
+  EXPECT_CALL(*mock_get_key_value_set_result, GetUInt32ValueSet("key1"))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(mock_cache_, GetUInt32ValueSet(_, _))
+      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response =
+      local_lookup->GetUInt32ValueSet(GetRequestContext(), {"key1"});
+  ASSERT_TRUE(response.ok());
+  InternalLookupResponse expected;
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key1"
+             value { status { code: 5 message: "Key not found: key1" } }
+           }
+      )pb",
+      &expected);
+  EXPECT_THAT(response.value(), EqualsProto(expected));
+}
+
 TEST_F(LocalLookupTest, GetKeyValueSets_SetEmpty_Success) {
   auto mock_get_key_value_set_result =
       std::make_unique<MockGetKeyValueSetResult>();

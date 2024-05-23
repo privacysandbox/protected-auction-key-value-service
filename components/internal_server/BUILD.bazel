@@ -141,6 +141,7 @@ cc_library(
         ":lookup",
         "//components/data_server/cache",
         "//components/data_server/cache:uint32_value_set",
+        "//components/errors:error_tag",
         "//components/query:driver",
         "//components/query:scanner",
         "@com_google_absl//absl/functional:any_invocable",

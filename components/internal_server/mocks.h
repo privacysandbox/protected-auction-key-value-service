@@ -49,6 +49,10 @@ class MockLookup : public Lookup {
               (const RequestContext&,
                const absl::flat_hash_set<std::string_view>&),
               (const, override));
+  MOCK_METHOD(absl::StatusOr<InternalLookupResponse>, GetUInt32ValueSet,
+              (const RequestContext&,
+               const absl::flat_hash_set<std::string_view>&),
+              (const, override));
   MOCK_METHOD(absl::StatusOr<InternalRunQueryResponse>, RunQuery,
               (const RequestContext&, std::string query), (const, override));
   MOCK_METHOD(absl::StatusOr<InternalRunSetQueryIntResponse>, RunSetQueryInt,

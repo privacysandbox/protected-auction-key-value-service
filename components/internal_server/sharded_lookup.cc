@@ -138,6 +138,13 @@ class ShardedLookup : public Lookup {
     return response;
   }
 
+  absl::StatusOr<InternalLookupResponse> GetUInt32ValueSet(
+      const RequestContext& request_context,
+      const absl::flat_hash_set<std::string_view>& key_set) const override {
+    // TODO: Add lookup logic for uint32 sets.
+    return absl::OkStatus();
+  }
+
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
       const RequestContext& request_context, std::string query) const override {
     ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,

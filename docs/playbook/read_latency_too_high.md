@@ -27,9 +27,25 @@ Check out the
 and see if it's outside of the expected range.
 
 [AWS Request Latency](https://github.com/privacysandbox/protected-auction-key-value-service/blob/552934a1e1e8d1a8beed4474408127104cdf3207/production/terraform/aws/services/dashboard/main.tf#L110)
+
 [GCP Request Latency](https://github.com/privacysandbox/protected-auction-key-value-service/blob/552934a1e1e8d1a8beed4474408127104cdf3207/production/terraform/gcp/services/dashboards/main.tf#L148)
 
 ## Troubleshooting and solution
+
+### Look at the subcomponents
+
+Server overhead without the UDF custom code execution.
+
+[TotalLatencyWithoutCustomCode](https://github.com/privacysandbox/protected-auction-key-value-service/blob/9e6e38979bb95822a0a4c4004bb455324ddc6c90/components/telemetry/server_definition.h#L494)
+
+Check out how long key lookups outside of UDF sandbox takes.
+
+[InternalGetKeyValuesLatencyInMicros](https://github.com/privacysandbox/protected-auction-key-value-service/blob/9a60180f9d6f52a4ca805e5463ecc9e5e80e88f9/components/telemetry/server_definition.h#L162)
+
+If you're using set intersections, you can check out how long that part of the request takes outside
+of the UDF sandbox.
+
+[InternalRunQueryLatencyInMicros](https://github.com/privacysandbox/protected-auction-key-value-service/blob/9a60180f9d6f52a4ca805e5463ecc9e5e80e88f9/components/telemetry/server_definition.h#L156)
 
 ### Not enough capacity
 

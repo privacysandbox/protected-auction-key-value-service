@@ -250,7 +250,9 @@ class GcpInstanceClient : public InstanceClient {
             const ExecutionResult& result,
             const GetInstanceDetailsByResourceNameResponse& response) {
           if (result.Successful()) {
-            PS_VLOG(2, log_context_) << response.DebugString();
+            // TODO(b/342614468): Temporarily turn off this vlog until
+            // verbosity setting API in the common repo is fixed
+            // PS_VLOG(2, log_context_) << response.DebugString();
             instance_id_ =
                 std::string{response.instance_details().instance_id()};
             environment_ =

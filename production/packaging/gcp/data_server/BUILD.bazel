@@ -136,7 +136,7 @@ container_image(
     env = {
         "GRPC_DNS_RESOLVER": "native",
     },
-    labels = {"tee.launch_policy.log_redirect": "always"},
+    labels = {"tee.launch_policy.log_redirect": "debugonly"},
     layers = [
         ":server_binary_layer",
         ":envoy_distroless_layer",

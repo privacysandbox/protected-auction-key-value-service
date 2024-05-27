@@ -29,12 +29,12 @@ follow the instructions for
 ## Get the source code from GitHub
 
 The code for the FLEDGE Key/Value server is released on
-[GitHub](https://github.com/privacysandbox/fledge-key-value-service).
+[GitHub](https://github.com/privacysandbox/protected-auction-key-value-service).
 
 Using Git, clone the repository into a folder:
 
 ```sh
-git clone https://github.com/privacysandbox/fledge-key-value-service.git
+git clone https://github.com/privacysandbox/protected-auction-key-value-service.git
 ```
 
 ## Build the local binary

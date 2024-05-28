@@ -51,7 +51,7 @@ declare -r DOCKER_SNAPSHOT_DIR="/tmp/benchmarking/deploy_and_benchmark/snapshots
 
 # run_benchmarks writes output to this directory
 CSV_SUMMARY_INPUT_DIR="${WORKSPACE}/dist/tools/benchmarking/output"
-DOCKER_INPUT_DIR="/tmp/benchmarking/output"
+DOCKER_INPUT_DIR="/tmp/benchmarking/summaries/"
 readonly DOCKER_INPUT_DIR
 
 DESTROY_INSTANCES=0

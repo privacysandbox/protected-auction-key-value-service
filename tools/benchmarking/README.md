@@ -2,17 +2,6 @@
 
 ## Requirements
 
--   Install ghz
-
-The `run_benchmarks` script uses [ghz](https://ghz.sh/docs/intro).
-
-Follow instructions to [install ghz](https://ghz.sh/docs/install) and make sure it is installed
-correctly:
-
-```sh
-ghz -v
-```
-
 -   Follow deployment guides
 
 To use the tool you will need to have a complete deployment setup.

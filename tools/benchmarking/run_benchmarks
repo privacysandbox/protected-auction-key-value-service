@@ -83,31 +83,43 @@ function generate_requests() {
 }
 
 function run_ghz_for_requests() {
-  # Iterate through the generated request.json files and call `ghz` to benchmark server at ${SERVER_ADDRESS}
-  for N in "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}"; do
-    DIR="${OUTPUT_DIR}/n=${N}"
-    REQUEST_JSON="${DIR}"/request.json
-    if [[ ! -f "${REQUEST_JSON}" ]]; then
-      continue
-    fi
+  # Iterate through the generated request.json files and
+  # call `ghz` to benchmark server at ${SERVER_ADDRESS}
+  for SNAPSHOT_CSV_FILE in "${SNAPSHOT_CSV_DIR}"/*; do
+    SNAPSHOT_CSV_FILENAME=$(basename "${SNAPSHOT_CSV_FILE}")
+    REQUEST_JSON_DOCKER_OUTPUT_DIR="${DOCKER_OUTPUT_DIR}/${SNAPSHOT_CSV_FILENAME}"
+    REQUEST_JSON_BASE_OUTPUT_DIR="${BASE_OUTPUT_DIR}/${SNAPSHOT_CSV_FILENAME}"
 
-    printf "Running ghz for number of keys %s\n" "${N}"
-    BASE_GHZ_TAGS='{"number_of_lookup_keys": "'"${N}"'", "keys_from_file": "'"${SNAPSHOT_CSV_FILENAME}"'"}'
-    REQUEST_METADATA_TAGS=$(echo "${REQUEST_METADATA}" | jq 'with_entries(.key |= "request_metadata."+.) | with_entries( .value |= @json)')
-    TAGS=$(echo "${GHZ_TAGS} ${BASE_GHZ_TAGS} ${REQUEST_METADATA_TAGS} ${FILTER_BY_SETS_JSON}" | jq -s -c 'add')
-    GHZ_OUTPUT_JSON_FILE="${DIR}/ghz_output.json"
-    ghz --protoset "${WORKSPACE}/dist/query_api_descriptor_set.pb" \
-      -D "${REQUEST_JSON}" \
-      --duration="${BENCHMARK_DURATION}" \
-      --skipFirst=100 \
-      --concurrency=100 \
-      --format=pretty \
-      --tags "${TAGS}" \
-      --output "${GHZ_OUTPUT_JSON_FILE}" \
-      --call kv_server.v2.KeyValueService/GetValuesHttp \
-      "${SERVER_ADDRESS}"
-    # In case the server hangs from previous requests, wait before sending next batch
-    sleep 30
+    for N in "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}"; do
+      DIR="${REQUEST_JSON_DOCKER_OUTPUT_DIR}/n=${N}"
+      REQUEST_JSON_DOCKER="${DIR}"/request.json
+      REQUEST_JSON_BASE="${REQUEST_JSON_BASE_OUTPUT_DIR}/n=${N}"/request.json
+      if [[ ! -f "${REQUEST_JSON_BASE}" ]]; then
+        continue
+      fi
+
+      printf "Running ghz for number of keys %s\n" "${N}"
+      BASE_GHZ_TAGS=$(
+        jq -n --arg n "${N}" --arg f "${SNAPSHOT_CSV_FILENAME}" \
+        '{"number_of_lookup_keys": $n, "keys_from_file": $f}'
+      )
+      REQUEST_METADATA_TAGS=$(echo "${REQUEST_METADATA}" | jq 'with_entries(.key |= "request_metadata."+.) | with_entries( .value |= @json)')
+      TAGS=$(echo "${GHZ_TAGS} ${BASE_GHZ_TAGS} ${REQUEST_METADATA_TAGS} ${FILTER_BY_SETS_JSON}" | jq -s -c 'add')
+      GHZ_OUTPUT_JSON_FILE="${DIR}/ghz_output.json"
+      EXTRA_DOCKER_RUN_ARGS+=" --volume ${BASE_OUTPUT_DIR}:${DOCKER_OUTPUT_DIR} --volume ${WORKSPACE}:/src/workspace" \
+      builders/tools/ghz --protoset /src/workspace/dist/query_api_descriptor_set.pb \
+        -D "${REQUEST_JSON_DOCKER}" \
+        --duration="${BENCHMARK_DURATION}" \
+        --skipFirst=100 \
+        --concurrency=100 \
+        --format=pretty \
+        --tags "${TAGS}" \
+        --output "${GHZ_OUTPUT_JSON_FILE}" \
+        --call kv_server.v2.KeyValueService/GetValuesHttp \
+        "${SERVER_ADDRESS}"
+      # In case the server hangs from previous requests, wait before sending next batch
+      sleep 30
+    done
   done
 }
 
@@ -177,14 +189,7 @@ else
   generate_requests
 fi
 
-# Iterate through each snapshot file and
-#   1. create requests under dist/tools/benchmarking/output/${START}/${SNAPSHOT_FILENAME}
-#   2. for each request, run benchmarks with ghz
-for SNAPSHOT_CSV_FILE in "${SNAPSHOT_CSV_DIR}"/*; do
-  SNAPSHOT_CSV_FILENAME=$(basename "${SNAPSHOT_CSV_FILE}")
-  OUTPUT_DIR="${BASE_OUTPUT_DIR}/${SNAPSHOT_CSV_FILENAME}"
-  run_ghz_for_requests
-done
+run_ghz_for_requests
 
 # Go through all the ghz results in dist/tools/benchmarking/output/${START}
 # and collect the summary in a csv

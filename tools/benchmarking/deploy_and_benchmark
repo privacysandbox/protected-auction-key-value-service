@@ -384,16 +384,22 @@ else
   # Each row defines a set of overrides for terraform variables.
   # Pass the overrides to deploy_and_benchmark function and set
   # them as tags in the ghz call.
+  TF_OVERRIDES_LIST=()
   while IFS=',' read -ra VARS; do
+    TF_OVERRIDES_LIST+=( "${VARS[*]}" )
+  done < "${TF_OVERRIDES}"
+
+  for TF_OVERRIDES in "${TF_OVERRIDES_LIST[@]}"; do
+    VAR_LIST=("${TF_OVERRIDES}")
     declare -a VAR_OVERRIDES=()
     DEPLOYMENT_GHZ_TAGS="{}"
-    for VAR in "${VARS[@]}"; do
+    for VAR in "${VAR_LIST[@]}"; do
       VAR_OVERRIDES+=(-var "${VAR}")
       OVERRIDE_VAR_GHZ_TAG=$(echo "${VAR}" | jq -s -R 'split("\n") | .[0] | split("=") | {(.[0]): .[1]}')
       DEPLOYMENT_GHZ_TAGS=$(echo "${DEPLOYMENT_GHZ_TAGS} ${OVERRIDE_VAR_GHZ_TAG}" | jq -s -c 'add')
     done
     deploy_and_benchmark
-  done <"${TF_OVERRIDES}"
+  done
 fi
 
 # Benchmarks done, merge CSVs

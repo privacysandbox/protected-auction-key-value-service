@@ -527,6 +527,29 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                 },
                 "title": "system.cpu.total_cores [MEAN]"
             }
+        },
+        {
+           "height": 10,
+            "width": 12,
+            "y": 110,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "AWS/Lambda", "Errors", "FunctionName", "kv-server-${var.environment}-sqs-cleanup", { "id": "errors", "stat": "Sum", "color": "#d13212" } ],
+                    [ ".", "Invocations", ".", ".", { "id": "invocations", "stat": "Sum", "visible": false } ],
+                    [ { "expression": "100 - 100 * errors / MAX([errors, invocations])", "label": "Success rate (%)", "id": "availability", "yAxis": "right" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${var.region}",
+                "yAxis": {
+                  "right": {
+                      "max": 100
+                  }
+                },
+                "title": "Sqs cleanup job error count and success rate (%)"
+            }
         }
     ]
 }

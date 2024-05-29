@@ -390,7 +390,7 @@ else
   done < "${TF_OVERRIDES}"
 
   for TF_OVERRIDES in "${TF_OVERRIDES_LIST[@]}"; do
-    VAR_LIST=("${TF_OVERRIDES}")
+    IFS=" " read -ra VAR_LIST <<< "${TF_OVERRIDES}"
     declare -a VAR_OVERRIDES=()
     DEPLOYMENT_GHZ_TAGS="{}"
     for VAR in "${VAR_LIST[@]}"; do

@@ -22,7 +22,6 @@
 #include <vector>
 
 #include "absl/log/check.h"
-#include "absl/log/log.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/lookup.pb.h"
 #include "components/internal_server/remote_lookup_client.h"
@@ -30,12 +29,9 @@
 #include "components/query/scanner.h"
 #include "components/sharding/shard_manager.h"
 #include "components/util/request_context.h"
-#include "pir/hashing/sha256_hash_family.h"
 
 namespace kv_server {
 namespace {
-
-using google::protobuf::RepeatedPtrField;
 
 void UpdateResponse(
     const std::vector<std::string_view>& key_list,
@@ -103,46 +99,13 @@ class ShardedLookup : public Lookup {
   absl::StatusOr<InternalLookupResponse> GetKeyValueSet(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const override {
-    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
-                                kShardedLookupGetKeyValueSetLatencyInMicros>
-        latency_recorder(request_context.GetUdfRequestMetricsContext());
-    InternalLookupResponse response;
-    if (keys.empty()) {
-      return response;
-    }
-    absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> key_sets;
-    auto get_key_value_set_result_maybe =
-        GetShardedKeyValueSet(request_context, keys);
-    if (!get_key_value_set_result_maybe.ok()) {
-      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                               kShardedGetKeyValueSetKeySetRetrievalFailure);
-      return get_key_value_set_result_maybe.status();
-    }
-    key_sets = *std::move(get_key_value_set_result_maybe);
-
-    for (const auto& key : keys) {
-      SingleLookupResult result;
-      const auto key_iter = key_sets.find(key);
-      if (key_iter == key_sets.end()) {
-        auto status = result.mutable_status();
-        status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
-        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                                 kShardedGetKeyValueSetKeySetNotFound);
-      } else {
-        auto keyset_values = result.mutable_keyset_values();
-        keyset_values->mutable_values()->Add(key_iter->second.begin(),
-                                             key_iter->second.end());
-      }
-      (*response.mutable_kv_pairs())[key] = std::move(result);
-    }
-    return response;
+    return GetKeyValueSets<std::string>(request_context, keys);
   }
 
   absl::StatusOr<InternalLookupResponse> GetUInt32ValueSet(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override {
-    // TODO: Add lookup logic for uint32 sets.
-    return absl::OkStatus();
+    return GetKeyValueSets<uint32_t>(request_context, key_set);
   }
 
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
@@ -166,8 +129,8 @@ class ShardedLookup : public Lookup {
                                kShardedRunQueryParsingFailure);
       return absl::InvalidArgumentError("Parsing failure.");
     }
-    auto get_key_value_set_result_maybe =
-        GetShardedKeyValueSet(request_context, driver.GetRootNode()->Keys());
+    auto get_key_value_set_result_maybe = GetShardedKeyValueSet<std::string>(
+        request_context, driver.GetRootNode()->Keys());
     if (!get_key_value_set_result_maybe.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kShardedRunQueryKeySetRetrievalFailure);
@@ -320,31 +283,26 @@ class ShardedLookup : public Lookup {
     return responses;
   }
 
-  absl::StatusOr<InternalLookupResponse> GetLocalValues(
-      const RequestContext& request_context,
-      const std::vector<std::string_view>& key_list) const {
-    InternalLookupResponse response;
-    absl::flat_hash_set<std::string_view> keys(key_list.begin(),
-                                               key_list.end());
-    return local_lookup_.GetKeyValues(request_context, keys);
-  }
-
-  absl::StatusOr<InternalLookupResponse> GetLocalKeyValuesSet(
+  // Local lookups will go away once we split the server into UDF and Data
+  // servers.
+  template <SingleLookupResult::SingleLookupResultCase result_type>
+  absl::StatusOr<InternalLookupResponse> GetLocalLookupResponse(
       const RequestContext& request_context,
       const std::vector<std::string_view>& key_list) const {
     if (key_list.empty()) {
-      InternalLookupResponse response;
-      return response;
+      return InternalLookupResponse();
     }
-
-    // We have this conversion, because of the inconsistency how we look up
-    // keys in Cache -- GetKeyValuePairs vs GetKeyValueSet. GetKeyValuePairs
-    // should be refactored to flat_hash_set, and then this can be fixed.
-    // Additionally, this whole local branch will go away once we have a
-    // a sepration between UDF and Data servers.
-    absl::flat_hash_set<std::string_view> key_list_set(key_list.begin(),
-                                                       key_list.end());
-    return local_lookup_.GetKeyValueSet(request_context, key_list_set);
+    absl::flat_hash_set<std::string_view> keys(key_list.begin(),
+                                               key_list.end());
+    if constexpr (result_type == SingleLookupResult::kValue) {
+      return local_lookup_.GetKeyValues(request_context, keys);
+    }
+    if constexpr (result_type == SingleLookupResult::kKeysetValues) {
+      return local_lookup_.GetKeyValueSet(request_context, keys);
+    }
+    if constexpr (result_type == SingleLookupResult::kUintsetValues) {
+      return local_lookup_.GetUInt32ValueSet(request_context, keys);
+    }
   }
 
   absl::StatusOr<InternalLookupResponse> ProcessShardedKeys(
@@ -355,12 +313,13 @@ class ShardedLookup : public Lookup {
       return response;
     }
     const auto shard_lookup_inputs = ShardKeys(request_context, keys, false);
-    auto responses =
-        GetLookupFutures(request_context, shard_lookup_inputs,
-                         [this, &request_context](
-                             const std::vector<std::string_view>& key_list) {
-                           return GetLocalValues(request_context, key_list);
-                         });
+    auto responses = GetLookupFutures(
+        request_context, shard_lookup_inputs,
+        [this,
+         &request_context](const std::vector<std::string_view>& key_list) {
+          return GetLocalLookupResponse<SingleLookupResult::kValue>(
+              request_context, key_list);
+        });
     if (!responses.ok()) {
       return responses.status();
     }
@@ -381,41 +340,52 @@ class ShardedLookup : public Lookup {
     return response;
   }
 
+  template <typename SetElementType>
   void CollectKeySets(
       const RequestContext& request_context,
-      absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>&
+      absl::flat_hash_map<std::string, absl::flat_hash_set<SetElementType>>&
           key_sets,
       InternalLookupResponse& keysets_lookup_response) const {
     for (auto& [key, keyset_lookup_result] :
          (*(keysets_lookup_response.mutable_kv_pairs()))) {
-      switch (keyset_lookup_result.single_lookup_result_case()) {
-        case SingleLookupResult::kStatusFieldNumber:
-          // this means it wasn't found, no need to insert an empty set.
-          break;
-        case SingleLookupResult::kKeysetValuesFieldNumber:
-          absl::flat_hash_set<std::string> value_set;
+      absl::flat_hash_set<SetElementType> value_set;
+      if constexpr (std::is_same_v<SetElementType, std::string>) {
+        if (keyset_lookup_result.single_lookup_result_case() ==
+            SingleLookupResult::kKeysetValues) {
           for (auto& v : keyset_lookup_result.keyset_values().values()) {
             PS_VLOG(8, request_context.GetPSLogContext())
                 << "keyset name: " << key << " value: " << v;
             value_set.emplace(std::move(v));
           }
-          auto [_, inserted] =
-              key_sets.insert_or_assign(key, std::move(value_set));
-          if (!inserted) {
-            LogUdfRequestErrorMetric(
-                request_context.GetUdfRequestMetricsContext(),
-                kShardedKeyCollisionOnKeySetCollection);
-            PS_LOG(ERROR, request_context.GetPSLogContext())
-                << "Key collision, when collecting results from shards: "
-                << key;
+        }
+      }
+      if constexpr (std::is_same_v<SetElementType, uint32_t>) {
+        if (keyset_lookup_result.single_lookup_result_case() ==
+            SingleLookupResult::kUintsetValues) {
+          for (auto& v : keyset_lookup_result.uintset_values().values()) {
+            PS_VLOG(8, request_context.GetPSLogContext())
+                << "keyset name: " << key << " value: " << v;
+            value_set.emplace(std::move(v));
           }
-          break;
+        }
+      }
+      if (!value_set.empty()) {
+        if (auto [_, inserted] =
+                key_sets.insert_or_assign(key, std::move(value_set));
+            !inserted) {
+          LogUdfRequestErrorMetric(
+              request_context.GetUdfRequestMetricsContext(),
+              kShardedKeyCollisionOnKeySetCollection);
+          PS_LOG(ERROR, request_context.GetPSLogContext())
+              << "Key collision, when collecting results from shards: " << key;
+        }
       }
     }
   }
 
+  template <typename SetElementType>
   absl::StatusOr<
-      absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>>
+      absl::flat_hash_map<std::string, absl::flat_hash_set<SetElementType>>>
   GetShardedKeyValueSet(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const {
@@ -424,7 +394,14 @@ class ShardedLookup : public Lookup {
         request_context, shard_lookup_inputs,
         [this,
          &request_context](const std::vector<std::string_view>& key_list) {
-          return GetLocalKeyValuesSet(request_context, key_list);
+          if constexpr (std::is_same_v<SetElementType, std::string>) {
+            return GetLocalLookupResponse<SingleLookupResult::kKeysetValues>(
+                request_context, key_list);
+          }
+          if constexpr (std::is_same_v<SetElementType, uint32_t>) {
+            return GetLocalLookupResponse<SingleLookupResult::kUintsetValues>(
+                request_context, key_list);
+          }
         });
     if (!responses.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
@@ -432,9 +409,9 @@ class ShardedLookup : public Lookup {
       return responses.status();
     }
     // process responses
-    absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>> key_sets;
+    absl::flat_hash_map<std::string, absl::flat_hash_set<SetElementType>>
+        key_sets;
     for (int shard_num = 0; shard_num < num_shards_; shard_num++) {
-      auto& shard_lookup_input = shard_lookup_inputs[shard_num];
       auto result = (*responses)[shard_num].get();
       if (!result.ok()) {
         LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
@@ -444,6 +421,54 @@ class ShardedLookup : public Lookup {
       CollectKeySets(request_context, key_sets, *result);
     }
     return key_sets;
+  }
+
+  template <typename SetElementType>
+  absl::StatusOr<InternalLookupResponse> GetKeyValueSets(
+      const RequestContext& request_context,
+      const absl::flat_hash_set<std::string_view>& keys) const {
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupGetKeyValueSetLatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
+    InternalLookupResponse response;
+    if (keys.empty()) {
+      return response;
+    }
+    absl::flat_hash_map<std::string, absl::flat_hash_set<SetElementType>>
+        key_sets;
+    auto get_key_value_set_result_maybe =
+        GetShardedKeyValueSet<SetElementType>(request_context, keys);
+    if (!get_key_value_set_result_maybe.ok()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedGetKeyValueSetKeySetRetrievalFailure);
+      return get_key_value_set_result_maybe.status();
+    }
+    key_sets = *std::move(get_key_value_set_result_maybe);
+    for (const auto& key : keys) {
+      SingleLookupResult result;
+      if (const auto key_iter = key_sets.find(key);
+          key_iter == key_sets.end()) {
+        auto status = result.mutable_status();
+        status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                                 kShardedGetKeyValueSetKeySetNotFound);
+      } else {
+        if constexpr (std::is_same_v<SetElementType, std::string>) {
+          auto* keyset_values = result.mutable_keyset_values();
+          keyset_values->mutable_values()->Reserve(key_iter->second.size());
+          keyset_values->mutable_values()->Add(key_iter->second.begin(),
+                                               key_iter->second.end());
+        }
+        if constexpr (std::is_same_v<SetElementType, uint32_t>) {
+          auto* uint32set_values = result.mutable_uintset_values();
+          uint32set_values->mutable_values()->Reserve(key_iter->second.size());
+          uint32set_values->mutable_values()->Add(key_iter->second.begin(),
+                                                  key_iter->second.end());
+        }
+      }
+      (*response.mutable_kv_pairs())[key] = std::move(result);
+    }
+    return response;
   }
 
   const Lookup& local_lookup_;

@@ -17,9 +17,16 @@
 #ifndef COMPONENTS_DATA_SERVER_SERVER_SERVER_LOG_INIT_H_H_
 #define COMPONENTS_DATA_SERVER_SERVER_SERVER_LOG_INIT_H_H_
 
+#include <optional>
+#include <string>
+
+#include "components/cloud_config/parameter_client.h"
+
 namespace kv_server {
 
 void InitLog();
+absl::optional<std::string> GetMetricsCollectorEndPoint(
+    const ParameterClient& parameter_client, const std::string& environment);
 
 }  // namespace kv_server
 

@@ -31,6 +31,7 @@
 #include "components/data_server/server/key_fetcher_factory.h"
 #include "components/data_server/server/key_value_service_impl.h"
 #include "components/data_server/server/key_value_service_v2_impl.h"
+#include "components/data_server/server/server_log_init.h"
 #include "components/errors/retry.h"
 #include "components/internal_server/constants.h"
 #include "components/internal_server/local_lookup.h"
@@ -75,10 +76,6 @@ using privacy_sandbox::server_common::telemetry::BuildDependentConfig;
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
 constexpr absl::string_view kBackupPollFrequencySecsParameterSuffix =
     "backup-poll-frequency-secs";
-constexpr absl::string_view kUseExternalMetricsCollectorEndpointSuffix =
-    "use-external-metrics-collector-endpoint";
-constexpr absl::string_view kMetricsCollectorEndpointSuffix =
-    "metrics-collector-endpoint";
 constexpr absl::string_view kMetricsExportIntervalMillisParameterSuffix =
     "metrics-export-interval-millis";
 constexpr absl::string_view kMetricsExportTimeoutMillisParameterSuffix =
@@ -147,28 +144,12 @@ void CheckMetricsCollectorEndPointConnection(
   RetryUntilOk(
       [channel]() {
         if (channel->GetState(true) != GRPC_CHANNEL_READY) {
+          LOG(INFO) << "Metrics collector endpoint is not ready. Will retry.";
           return absl::UnavailableError("metrics collector is not connected");
         }
         return absl::OkStatus();
       },
       "Checking connection to metrics collector", LogMetricsNoOpCallback());
-}
-
-absl::optional<std::string> GetMetricsCollectorEndPoint(
-    const ParameterClient& parameter_client, const std::string& environment) {
-  absl::optional<std::string> metrics_collection_endpoint;
-  ParameterFetcher parameter_fetcher(environment, parameter_client);
-  auto should_connect_to_external_metrics_collector =
-      parameter_fetcher.GetBoolParameter(
-          kUseExternalMetricsCollectorEndpointSuffix);
-  if (should_connect_to_external_metrics_collector) {
-    std::string metrics_collector_endpoint_value =
-        parameter_fetcher.GetParameter(kMetricsCollectorEndpointSuffix);
-    LOG(INFO) << "Retrieved " << kMetricsCollectorEndpointSuffix
-              << " parameter: " << metrics_collector_endpoint_value;
-    metrics_collection_endpoint = std::move(metrics_collector_endpoint_value);
-  }
-  return metrics_collection_endpoint;
 }
 
 privacy_sandbox::server_common::telemetry::TelemetryConfig

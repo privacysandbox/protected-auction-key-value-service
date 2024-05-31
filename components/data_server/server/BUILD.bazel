@@ -132,6 +132,7 @@ cc_library(
         ":lifecycle_heartbeat",
         ":parameter_fetcher",
         ":server_initializer",
+        ":server_log_init",
         "//components/cloud_config:instance_client",
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_client",
@@ -356,13 +357,21 @@ cc_library(
 cc_library(
     name = "server_log_init",
     srcs = select({
-        "//:nonprod_mode": [
-            "nonprod_server_log_init.cc",
-        ],
-        "//conditions:default": [
-            "prod_server_log_init.cc",
-        ],
-    }),
+               "//:nonprod_mode": [
+                   "nonprod_server_log_init.cc",
+               ],
+               "//conditions:default": [
+                   "prod_server_log_init.cc",
+               ],
+           }) +
+           select({
+               "//:local_instance": [
+                   "local_server_log_init.cc",
+               ],
+               "//conditions:default": [
+                   "cloud_server_log_init.cc",
+               ],
+           }),
     hdrs = ["server_log_init.h"],
     deps =
         select({
@@ -371,6 +380,8 @@ cc_library(
             ],
             "//conditions:default": [],
         }) + [
+            ":parameter_fetcher",
+            "//components/cloud_config:parameter_client",
             "@com_google_absl//absl/log:initialize",
         ],
 )

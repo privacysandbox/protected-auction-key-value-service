@@ -34,9 +34,6 @@ using privacy_sandbox::server_common::ConfigureMetrics;
 using testing::_;
 
 void RegisterRequiredTelemetryExpectations(MockParameterClient& client) {
-  EXPECT_CALL(client, GetBoolParameter("kv-server-environment-use-external-"
-                                       "metrics-collector-endpoint"))
-      .WillOnce(::testing::Return(false));
   EXPECT_CALL(
       client,
       GetInt32Parameter("kv-server-environment-metrics-export-interval-millis"))

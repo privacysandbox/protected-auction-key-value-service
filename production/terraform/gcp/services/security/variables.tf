@@ -38,3 +38,8 @@ variable "collector_service_port" {
   description = "The grpc port that receives traffic destined for the OpenTelemetry collector."
   type        = number
 }
+
+variable "proxy_subnets" {
+  description = "A list of all envoy proxy subnets. Used to allow ingress into the collectors."
+  type        = any
+}

@@ -14,13 +14,21 @@
  * limitations under the License.
  */
 
-resource "google_compute_backend_service" "mesh_collector" {
+
+###############################################################
+#
+#                         Collector LB
+#
+# The internal lb uses HTTP/2 (gRPC) with no TLS.
+###############################################################
+
+resource "google_compute_backend_service" "collector" {
   name     = "${var.environment}-${var.collector_service_name}-service"
   provider = google-beta
 
   port_name             = "otlp"
   protocol              = "TCP"
-  load_balancing_scheme = "EXTERNAL"
+  load_balancing_scheme = "INTERNAL_MANAGED"
   timeout_sec           = 10
   health_checks         = [google_compute_health_check.collector.id]
 
@@ -36,22 +44,26 @@ resource "google_compute_backend_service" "mesh_collector" {
 
 resource "google_compute_target_tcp_proxy" "collector" {
   name            = "${var.environment}-${var.collector_service_name}-lb-proxy"
-  backend_service = google_compute_backend_service.mesh_collector.id
+  backend_service = google_compute_backend_service.collector.id
 }
 
-resource "google_compute_global_forwarding_rule" "collector" {
-  name     = "${var.environment}-${var.collector_service_name}-forwarding-rule"
-  provider = google-beta
+resource "google_compute_global_forwarding_rule" "collectors" {
+  for_each = var.subnets
+
+  name = "${var.environment}-${var.collector_service_name}-${each.value.region}-ilb-rule"
 
   ip_protocol           = "TCP"
   port_range            = var.collector_service_port
-  load_balancing_scheme = "EXTERNAL"
+  load_balancing_scheme = "INTERNAL_MANAGED"
   target                = google_compute_target_tcp_proxy.collector.id
-  ip_address            = var.collector_ip_address
+  subnetwork            = each.value.id
 
   labels = {
     service = var.collector_service_name
+    region  = each.value.region
   }
+
+  depends_on = [var.proxy_subnets]
 }
 
 resource "google_dns_record_set" "collector" {
@@ -59,17 +71,22 @@ resource "google_dns_record_set" "collector" {
   managed_zone = var.collector_dns_zone
   type         = "A"
   ttl          = 10
-  rrdatas = [
-    var.collector_ip_address
-  ]
+  routing_policy {
+    dynamic "geo" {
+      for_each = google_compute_global_forwarding_rule.collectors
+      content {
+        location = geo.value.labels.region
+        rrdatas  = [geo.value.ip_address]
+      }
+    }
+  }
 }
 
 resource "google_compute_health_check" "collector" {
   name = "${var.environment}-${var.collector_service_name}-lb-hc"
 
-  tcp_health_check {
-    port_name = "otlp"
-    port      = var.collector_service_port
+  grpc_health_check {
+    port = var.collector_service_port
   }
 
   timeout_sec         = 3

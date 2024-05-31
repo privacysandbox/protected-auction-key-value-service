@@ -35,7 +35,8 @@ class RequestLogContext {
       const privacy_sandbox::server_common::ConsentedDebugConfiguration&
           consented_debug_config);
 
-  privacy_sandbox::server_common::log::ContextImpl& GetRequestLoggingContext();
+  privacy_sandbox::server_common::log::ContextImpl<>&
+  GetRequestLoggingContext();
 
   const privacy_sandbox::server_common::LogContext& GetLogContext() const;
 
@@ -50,7 +51,7 @@ class RequestLogContext {
   const privacy_sandbox::server_common::LogContext log_context_;
   const privacy_sandbox::server_common::ConsentedDebugConfiguration
       consented_debug_config_;
-  privacy_sandbox::server_common::log::ContextImpl request_logging_context_;
+  privacy_sandbox::server_common::log::ContextImpl<> request_logging_context_;
 };
 
 // RequestContext holds the reference of udf request metrics context,
@@ -82,7 +83,7 @@ class RequestContext {
   UdfRequestMetricsContext& GetUdfRequestMetricsContext() const;
   InternalLookupMetricsContext& GetInternalLookupMetricsContext() const;
   RequestLogContext& GetRequestLogContext() const;
-  privacy_sandbox::server_common::log::ContextImpl& GetPSLogContext() const;
+  privacy_sandbox::server_common::log::ContextImpl<>& GetPSLogContext() const;
 
   ~RequestContext() {
     // Remove the metrics context for request_id, This is to ensure that

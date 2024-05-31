@@ -63,7 +63,7 @@ RequestContext::RequestContext(
       std::make_unique<RequestLogContext>(log_context, consented_debug_config);
 }
 
-privacy_sandbox::server_common::log::ContextImpl&
+privacy_sandbox::server_common::log::ContextImpl<>&
 RequestContext::GetPSLogContext() const {
   return request_log_context_->GetRequestLoggingContext();
 }
@@ -77,7 +77,7 @@ RequestLogContext::RequestLogContext(
       request_logging_context_(GetContextMap(log_context),
                                consented_debug_config) {}
 
-privacy_sandbox::server_common::log::ContextImpl&
+privacy_sandbox::server_common::log::ContextImpl<>&
 RequestLogContext::GetRequestLoggingContext() {
   return request_logging_context_;
 }

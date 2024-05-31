@@ -15,7 +15,7 @@
  */
 
 output "collector_forwarding_rule" {
-  value = google_compute_global_forwarding_rule.collectors
+  value = google_compute_global_forwarding_rule.collector
 }
 
 output "collector_tcp_proxy" {

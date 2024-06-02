@@ -144,6 +144,15 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kShardedLookupRunSetQueryIntLatencyInMicros(
+        "ShardedLookupRunSetQueryIntLatencyInMicros",
+        "Latency in executing RunQuery in the sharded lookup",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kRemoteLookupGetValuesLatencyInMicros(
         "RemoteLookupGetValuesLatencyInMicros",
         "Latency in get values in the remote lookup",
@@ -509,6 +518,7 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kShardedLookupGetKeyValuesLatencyInMicros,
         &kShardedLookupGetKeyValueSetLatencyInMicros,
         &kShardedLookupRunQueryLatencyInMicros,
+        &kShardedLookupRunSetQueryIntLatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros, &kTotalLatencyWithoutCustomCode,
         // Safe metrics
         &kKVServerError,

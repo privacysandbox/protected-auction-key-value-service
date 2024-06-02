@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "absl/log/check.h"
+#include "components/data_server/cache/uint32_value_set.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/lookup.pb.h"
 #include "components/internal_server/remote_lookup_client.h"
@@ -119,41 +120,9 @@ class ShardedLookup : public Lookup {
                                kShardedRunQueryEmptyQuery);
       return response;
     }
-    kv_server::Driver driver;
-    std::istringstream stream(query);
-    kv_server::Scanner scanner(stream);
-    kv_server::Parser parse(driver, scanner);
-    int parse_result = parse();
-    if (parse_result) {
-      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                               kShardedRunQueryParsingFailure);
-      return absl::InvalidArgumentError("Parsing failure.");
-    }
-    auto get_key_value_set_result_maybe = GetShardedKeyValueSet<std::string>(
-        request_context, driver.GetRootNode()->Keys());
-    if (!get_key_value_set_result_maybe.ok()) {
-      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                               kShardedRunQueryKeySetRetrievalFailure);
-      return get_key_value_set_result_maybe.status();
-    }
-    auto keysets = std::move(*get_key_value_set_result_maybe);
-    auto result = driver.EvaluateQuery<absl::flat_hash_set<std::string_view>>(
-        [&keysets, &request_context](std::string_view key) {
-          const auto key_iter = keysets.find(key);
-          if (key_iter == keysets.end()) {
-            PS_VLOG(8, request_context.GetPSLogContext())
-                << "Driver can't find " << key << "key_set. Returning empty.";
-            LogUdfRequestErrorMetric(
-                request_context.GetUdfRequestMetricsContext(),
-                kShardedRunQueryMissingKeySet);
-            absl::flat_hash_set<std::string_view> set;
-            return set;
-          } else {
-            absl::flat_hash_set<std::string_view> set(key_iter->second.begin(),
-                                                      key_iter->second.end());
-            return set;
-          }
-        });
+    auto result =
+        RunSetQuery<absl::flat_hash_set<std::string_view>, std::string>(
+            request_context, query);
     if (!result.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kShardedRunQueryFailure);
@@ -165,15 +134,38 @@ class ShardedLookup : public Lookup {
       PS_VLOG(8, request_context.GetPSLogContext())
           << "Value: " << value << "\n";
     }
-
     response.mutable_elements()->Assign(result->begin(), result->end());
     return response;
   }
 
   absl::StatusOr<InternalRunSetQueryIntResponse> RunSetQueryInt(
       const RequestContext& request_context, std::string query) const override {
-    // TODO: Implement sharded lookup for bit sets.
-    return absl::OkStatus();
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupRunSetQueryIntLatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
+    InternalRunSetQueryIntResponse response;
+    if (query.empty()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunQueryEmptyQuery);
+      return response;
+    }
+    auto result =
+        RunSetQuery<roaring::Roaring, uint32_t>(request_context, query);
+    if (!result.ok()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunQueryFailure);
+      return result.status();
+    }
+    PS_VLOG(8, request_context.GetPSLogContext())
+        << "Driver results for query " << query;
+    for (const auto& value : *result) {
+      PS_VLOG(8, request_context.GetPSLogContext())
+          << "Value: " << value << "\n";
+    }
+    auto uint32_set = BitSetToUint32Set(*result);
+    response.mutable_elements()->Reserve(uint32_set.size());
+    response.mutable_elements()->Assign(uint32_set.begin(), uint32_set.end());
+    return response;
   }
 
  private:
@@ -469,6 +461,53 @@ class ShardedLookup : public Lookup {
       (*response.mutable_kv_pairs())[key] = std::move(result);
     }
     return response;
+  }
+
+  template <typename SetType, typename SetElementType>
+  absl::StatusOr<SetType> RunSetQuery(const RequestContext& request_context,
+                                      std::string query) const {
+    kv_server::Driver driver;
+    std::istringstream stream(query);
+    kv_server::Scanner scanner(stream);
+    kv_server::Parser parse(driver, scanner);
+    int parse_result = parse();
+    if (parse_result) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunQueryParsingFailure);
+      return absl::InvalidArgumentError("Parsing failure.");
+    }
+    auto get_key_value_set_result_maybe = GetShardedKeyValueSet<SetElementType>(
+        request_context, driver.GetRootNode()->Keys());
+    if (!get_key_value_set_result_maybe.ok()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunQueryKeySetRetrievalFailure);
+      return get_key_value_set_result_maybe.status();
+    }
+    auto keysets = std::move(*get_key_value_set_result_maybe);
+    return driver.EvaluateQuery<SetType>([&keysets, &request_context](
+                                             std::string_view key) {
+      const auto key_iter = keysets.find(key);
+      if (key_iter == keysets.end()) {
+        PS_VLOG(8, request_context.GetPSLogContext())
+            << "Driver can't find " << key << "key_set. Returning empty.";
+        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                                 kShardedRunQueryMissingKeySet);
+        return SetType();
+      }
+      if constexpr (std::is_same_v<SetType,
+                                   absl::flat_hash_set<std::string_view>>) {
+        return absl::flat_hash_set<std::string_view>(key_iter->second.begin(),
+                                                     key_iter->second.end());
+      }
+      if constexpr (std::is_same_v<SetType, roaring::Roaring>) {
+        roaring::Roaring bitset;
+        for (const auto& element : key_iter->second) {
+          bitset.add(element);
+        }
+        bitset.runOptimize();
+        return bitset;
+      }
+    });
   }
 
   const Lookup& local_lookup_;

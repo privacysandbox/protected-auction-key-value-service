@@ -160,6 +160,7 @@ cc_library(
         ":internal_lookup_cc_proto",
         ":local_lookup",
         ":remote_lookup_client_impl",
+        "//components/data_server/cache:uint32_value_set",
         "//components/query:driver",
         "//components/query:scanner",
         "//components/sharding:shard_manager",

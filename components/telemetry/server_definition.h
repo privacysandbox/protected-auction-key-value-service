@@ -91,7 +91,9 @@ inline constexpr std::string_view kCacheAccessEvents[] = {
     kKeyValueSetCacheMiss};
 
 inline constexpr privacy_sandbox::server_common::metrics::PrivacyBudget
-    privacy_total_budget{/*epsilon*/ 5};
+    privacy_total_budget = {
+        .epsilon = 5,
+};
 
 // Metric definitions for request level metrics that are privacy impacting
 // and should be logged unsafe with DP(differential privacy) noises.

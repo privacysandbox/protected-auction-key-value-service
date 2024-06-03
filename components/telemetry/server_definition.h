@@ -23,6 +23,7 @@
 
 #include "absl/time/time.h"
 #include "components/telemetry/error_code.h"
+#include "opentelemetry/metrics/provider.h"
 #include "src/core/common/uuid/uuid.h"
 #include "src/metric/context_map.h"
 #include "src/util/duration.h"

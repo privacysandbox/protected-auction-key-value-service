@@ -38,14 +38,15 @@ ABSL_FLAG(int64_t, set_size, 1000, "Number of elements in a set.");
 ABSL_FLAG(std::string, query, "(A - B) | (C & D)", "Query to evaluate");
 ABSL_FLAG(uint32_t, range_min, 0, "Minimum element in a set");
 ABSL_FLAG(uint32_t, range_max, 65536, "Maximum element in a set");
+ABSL_FLAG(std::vector<std::string>, set_names,
+          std::vector<std::string>({"A", "B", "C", "D"}),
+          "Set names used in benchmarking query.");
 
 namespace kv_server {
 namespace {
 
 using RoaringBitSet = roaring::Roaring;
 using StringSet = absl::flat_hash_set<std::string_view>;
-
-constexpr std::array<std::string_view, 4> kSetNames = {"A", "B", "C", "D"};
 
 std::unique_ptr<GetKeyValueSetResult> STRING_SET_RESULT = nullptr;
 std::unique_ptr<GetKeyValueSetResult> UINT32_SET_RESULT = nullptr;
@@ -74,13 +75,15 @@ Cache* GetKeyValueCache() {
 }
 
 void SetUpKeyValueCache(int64_t set_size, uint32_t range_min,
-                        uint32_t range_max) {
+                        uint32_t range_max,
+                        const std::vector<std::string>& set_names) {
   kv_server::benchmark::BenchmarkLogContext log_context;
-  for (const auto& set_name : kSetNames) {
+  std::srand(absl::GetCurrentTimeNanos());
+  for (const auto& set_name : set_names) {
     auto nums = std::vector<uint32_t>();
     nums.reserve(set_size);
     for (int i = 0; i < set_size; i++) {
-      nums.push_back(range_min + (std::rand() % range_max - range_min));
+      nums.push_back(range_min + (std::rand() % (range_max - range_min)));
     }
     GetKeyValueCache()->UpdateKeyValueSet(log_context, set_name,
                                           absl::MakeSpan(nums), 1);
@@ -95,13 +98,6 @@ void SetUpKeyValueCache(int64_t set_size, uint32_t range_min,
     GetKeyValueCache()->UpdateKeyValueSet(log_context, set_name,
                                           absl::MakeSpan(string_views), 1);
   }
-}
-
-template <typename SetLookupFn>
-auto GetSetResult(SetLookupFn&& lookup_fn) {
-  RequestContext request_context;
-  return lookup_fn(request_context,
-                   StringSet(kSetNames.begin(), kSetNames.end()));
 }
 
 template <typename ValueT>
@@ -165,12 +161,21 @@ BENCHMARK(kv_server::BM_AstTreeEvaluation<kv_server::StringSet>);
 
 using kv_server::ConfigureTelemetryForTools;
 using kv_server::GetKeyValueCache;
-using kv_server::GetSetResult;
 using kv_server::RequestContext;
 using kv_server::RoaringBitSet;
 using kv_server::SetUpKeyValueCache;
 using kv_server::StringSet;
 
+// Sample run:
+//
+// bazel run -c opt //components/tools/benchmarks:query_evaluation_benchmark \
+// -- --benchmark_counters_tabular=true \
+//    --benchmark_time_unit=us \
+//    --benchmark_filter="*" \
+//    --range_min=1000000 --range_max=2000000 \
+//    --set_size=10000 \
+//    --query="A & B - C | D" \
+//    --set_names="A,B,C,D"
 int main(int argc, char** argv) {
   // Initialize the environment and flags
   absl::InitializeLog();
@@ -185,21 +190,20 @@ int main(int argc, char** argv) {
     return -1;
   }
   // Set up the cache and the ast tree.
-  SetUpKeyValueCache(absl::GetFlag(FLAGS_set_size), range_min, range_max);
-  kv_server::STRING_SET_RESULT = GetSetResult(
-      [](const RequestContext& request_context, const StringSet& keys) {
-        return GetKeyValueCache()->GetKeyValueSet(request_context, keys);
-      });
-  kv_server::UINT32_SET_RESULT = GetSetResult(
-      [](const RequestContext& request_context, const StringSet& keys) {
-        return GetKeyValueCache()->GetUInt32ValueSet(request_context, keys);
-      });
-
+  auto set_names = absl::GetFlag(FLAGS_set_names);
+  SetUpKeyValueCache(absl::GetFlag(FLAGS_set_size), range_min, range_max,
+                     set_names);
+  RequestContext request_context;
+  kv_server::STRING_SET_RESULT = GetKeyValueCache()->GetKeyValueSet(
+      request_context, absl::flat_hash_set<std::string_view>(set_names.begin(),
+                                                             set_names.end()));
+  kv_server::UINT32_SET_RESULT = GetKeyValueCache()->GetUInt32ValueSet(
+      request_context, absl::flat_hash_set<std::string_view>(set_names.begin(),
+                                                             set_names.end()));
   std::istringstream stream(absl::GetFlag(FLAGS_query));
   kv_server::Scanner scanner(stream);
   kv_server::Parser parser(*kv_server::GetDriver(), scanner);
   parser();
-
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();
   return 0;

@@ -81,7 +81,7 @@ cp $(builders/tools/bazel-debian aquery '//docs/protected_app_signals/examples/a
 Build the local server:
 
 ```sh
-./builders/tools/bazel-debian build //components/data_server/server:server --config=local_instance --config=local_platform
+./builders/tools/bazel-debian build //components/data_server/server:server --config=local_instance --config=local_platform --config=nonprod_mode
 ```
 
 Run the local server:

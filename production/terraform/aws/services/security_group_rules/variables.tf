@@ -66,3 +66,8 @@ variable "ssh_source_cidr_blocks" {
   description = "Source ips allowed to send ssh traffic to the ssh instance."
   type        = set(string)
 }
+
+variable "use_existing_vpc" {
+  description = "Whether to use existing VPC. If true, only internal traffic via mesh will be served; variable vpc_operator and vpc_environment will be requried."
+  type        = bool
+}

@@ -53,6 +53,11 @@
     Enable the logging of consented requests. If it is set to true, the consented debug token
     parameter value must not be an empty string.
 
+-   **enable_external_traffic**
+
+    Whether to serve external traffic. If disabled, only internal traffic under existing VPC will be
+    served.
+
 -   **enclave_cpu_count**
 
     Set how many CPUs the server will use.
@@ -73,6 +78,14 @@
     The value can be any arbitrary unique string (there is a length limit of ~10), and for example,
     strings like `staging` and `prod` can be used to represent the environment that the Key/Value
     server will run in.
+
+-   **existing_vpc_environment**
+
+    Environment of the existing VPC. Ingored if use_existing_vpc is false.
+
+-   **existing_vpc_operator**
+
+    Operator of the existing VPC. Ingored if use_existing_vpc is false.
 
 -   **healthcheck_healthy_threshold**
 
@@ -247,6 +260,11 @@
 -   **udf_update_timeout_millis**
 
     UDF update timeout in milliseconds. Default is 30000.
+
+-   **use_existing_vpc**
+
+    Whether to use existing VPC. If true, only internal traffic via mesh will be served; variable
+    vpc_operator and vpc_environment will be requried.
 
 -   **use_external_metrics_collector_endpoint**
 

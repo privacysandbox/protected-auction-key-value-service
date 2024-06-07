@@ -14,6 +14,20 @@
  * limitations under the License.
  */
 
+# Existing aws_vpc_endpoint from existing VPC
+data "aws_vpc_endpoint" "existing_vpc_gateway_endpoint" {
+  count        = var.use_existing_vpc ? 1 : 0
+  service_name = "com.amazonaws.${var.region}.s3"
+  filter {
+    name   = "tag:operator"
+    values = [var.existing_vpc_operator]
+  }
+  filter {
+    name   = "tag:environment"
+    values = [var.existing_vpc_environment]
+  }
+}
+
 # Restrict VPC endpoint access only to instances in this environment and service.
 data "aws_iam_policy_document" "vpce_policy_doc" {
   statement {
@@ -35,31 +49,31 @@ data "aws_iam_policy_document" "vpce_policy_doc" {
 
 # Create gateway endpoints for accessing AWS services.
 resource "aws_vpc_endpoint" "vpc_gateway_endpoint" {
-  for_each = toset([
-    "s3"
-  ])
-  service_name      = "com.amazonaws.${var.region}.${each.key}"
+  count             = var.use_existing_vpc ? 0 : 1
+  service_name      = "com.amazonaws.${var.region}.s3"
   vpc_id            = var.vpc_id
   vpc_endpoint_type = "Gateway"
   route_table_ids   = var.vpc_endpoint_route_table_ids
   policy            = data.aws_iam_policy_document.vpce_policy_doc.json
 
   tags = {
-    Name = "${var.service}-${var.environment}-${each.key}-endpoint"
+    Name = "${var.service}-${var.environment}-s3-endpoint"
   }
 }
 
 # Create interface endpoints for accessing AWS services.
 resource "aws_vpc_endpoint" "vpc_interface_endpoint" {
   for_each = toset(concat([
-    "ec2",
-    "ssm",
     "sns",
     "sqs",
-    "autoscaling",
-    "xray",
     "logs",
-  ], var.prometheus_service_region == var.region ? ["aps-workspaces"] : []))
+    ], var.prometheus_service_region == var.region ? ["aps-workspaces"] : []
+    , var.use_existing_vpc ? [] : [
+      "ec2",
+      "ssm",
+      "autoscaling",
+      "xray",
+  ]))
   service_name        = "com.amazonaws.${var.region}.${each.key}"
   vpc_id              = var.vpc_id
   vpc_endpoint_type   = "Interface"

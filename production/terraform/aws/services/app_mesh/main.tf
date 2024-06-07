@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
-output "ssh_users_group_name" {
-  value = var.use_existing_vpc ? data.aws_iam_group.existing_ssh_users_group[0].group_name : aws_iam_group.ssh_users_group[0].name
+data "aws_appmesh_mesh" "existing_app_mesh" {
+  name = "${var.existing_vpc_operator}-${var.existing_vpc_environment}-app-mesh"
+}
+
+data "aws_service_discovery_dns_namespace" "existing_cloud_map_private_dns_namespace" {
+  name = "${var.existing_vpc_operator}-${var.existing_vpc_environment}-cloud-map-private-dns-namespace"
+  type = "DNS_PRIVATE"
 }

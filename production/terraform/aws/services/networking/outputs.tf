@@ -15,17 +15,17 @@
  */
 
 output "vpc_id" {
-  value = aws_vpc.vpc.id
+  value = var.use_existing_vpc ? data.aws_vpc.existing_vpc[0].id : aws_vpc.vpc[0].id
 }
 
 output "public_subnet_ids" {
-  value = [for subnet in aws_subnet.public_subnet : subnet.id]
+  value = var.use_existing_vpc ? data.aws_subnets.existing_public_subnet.ids : [for subnet in aws_subnet.public_subnet : subnet.id]
 }
 
 output "private_subnet_ids" {
-  value = [for subnet in aws_subnet.private_subnet : subnet.id]
+  value = var.use_existing_vpc ? data.aws_subnets.existing_private_subnet.ids : [for subnet in aws_subnet.private_subnet : subnet.id]
 }
 
 output "private_route_table_ids" {
-  value = [for rt in aws_route_table.private_rt : rt.id]
+  value = var.use_existing_vpc ? data.aws_route_tables.existing_private_rt.ids : [for rt in aws_route_table.private_rt : rt.id]
 }

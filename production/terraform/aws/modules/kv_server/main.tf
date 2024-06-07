@@ -19,15 +19,21 @@ locals {
 }
 
 module "iam_roles" {
-  source      = "../../services/iam_roles"
-  environment = var.environment
-  service     = local.service
+  source                   = "../../services/iam_roles"
+  environment              = var.environment
+  service                  = local.service
+  use_existing_vpc         = var.use_existing_vpc
+  existing_vpc_operator    = var.existing_vpc_operator
+  existing_vpc_environment = var.existing_vpc_environment
 }
 
 module "iam_groups" {
-  source      = "../../services/iam_groups"
-  environment = var.environment
-  service     = local.service
+  source                   = "../../services/iam_groups"
+  environment              = var.environment
+  service                  = local.service
+  use_existing_vpc         = var.use_existing_vpc
+  existing_vpc_operator    = var.existing_vpc_operator
+  existing_vpc_environment = var.existing_vpc_environment
 }
 
 module "data_storage" {
@@ -51,17 +57,23 @@ module "sqs_cleanup" {
 }
 
 module "networking" {
-  source         = "../../services/networking"
-  service        = local.service
-  environment    = var.environment
-  vpc_cidr_block = var.vpc_cidr_block
+  source                   = "../../services/networking"
+  service                  = local.service
+  environment              = var.environment
+  vpc_cidr_block           = var.vpc_cidr_block
+  use_existing_vpc         = var.use_existing_vpc
+  existing_vpc_operator    = var.existing_vpc_operator
+  existing_vpc_environment = var.existing_vpc_environment
 }
 
 module "security_groups" {
-  source      = "../../services/security_groups"
-  environment = var.environment
-  service     = local.service
-  vpc_id      = module.networking.vpc_id
+  source                   = "../../services/security_groups"
+  environment              = var.environment
+  service                  = local.service
+  vpc_id                   = module.networking.vpc_id
+  use_existing_vpc         = var.use_existing_vpc
+  existing_vpc_operator    = var.existing_vpc_operator
+  existing_vpc_environment = var.existing_vpc_environment
 }
 
 module "backend_services" {
@@ -76,6 +88,9 @@ module "backend_services" {
   server_instance_role_arn     = module.iam_roles.instance_role_arn
   ssh_instance_role_arn        = module.iam_roles.ssh_instance_role_arn
   prometheus_service_region    = var.prometheus_service_region
+  use_existing_vpc             = var.use_existing_vpc
+  existing_vpc_operator        = var.existing_vpc_operator
+  existing_vpc_environment     = var.existing_vpc_environment
 }
 
 module "telemetry" {
@@ -86,7 +101,21 @@ module "telemetry" {
   prometheus_service_region = var.prometheus_service_region
 }
 
+module "mesh_service" {
+  count                     = var.use_existing_vpc ? 1 : 0
+  source                    = "../../services/mesh_service"
+  environment               = var.environment
+  service                   = local.service
+  root_domain               = var.root_domain
+  service_port              = 50051
+  server_instance_role_name = module.iam_roles.instance_role_name
+  root_domain_zone_id       = var.root_domain_zone_id
+  existing_vpc_operator     = var.existing_vpc_operator
+  existing_vpc_environment  = var.existing_vpc_environment
+}
+
 module "load_balancing" {
+  count                           = var.enable_external_traffic ? 1 : 0
   source                          = "../../services/load_balancing"
   environment                     = var.environment
   service                         = local.service
@@ -113,7 +142,7 @@ module "autoscaling" {
   instance_ami_id              = var.instance_ami_id
   instance_security_group_id   = module.security_groups.instance_security_group_id
   instance_type                = var.instance_type
-  target_group_arns            = module.load_balancing.target_group_arns
+  target_group_arns            = var.enable_external_traffic ? module.load_balancing[0].target_group_arns : []
   autoscaling_desired_capacity = var.autoscaling_desired_capacity
   autoscaling_max_size         = var.autoscaling_max_size
   autoscaling_min_size         = var.autoscaling_min_size
@@ -129,6 +158,9 @@ module "autoscaling" {
   prometheus_workspace_id      = var.prometheus_workspace_id != "" ? var.prometheus_workspace_id : module.telemetry.prometheus_workspace_id
   shard_num                    = count.index
   run_server_outside_tee       = var.run_server_outside_tee
+  cloud_map_service_id         = var.use_existing_vpc ? module.mesh_service[0].cloud_map_service_id : ""
+  app_mesh_name                = var.use_existing_vpc ? module.mesh_service[0].app_mesh_name : ""
+  virtual_node_name            = var.use_existing_vpc ? module.mesh_service[0].virtual_node_name : ""
 }
 
 module "ssh" {
@@ -197,6 +229,7 @@ module "security_group_rules" {
   vpce_security_group_id            = module.security_groups.vpc_endpoint_security_group_id
   gateway_endpoints_prefix_list_ids = module.backend_services.gateway_endpoints_prefix_list_ids
   ssh_source_cidr_blocks            = var.ssh_source_cidr_blocks
+  use_existing_vpc                  = var.use_existing_vpc
 }
 
 module "iam_role_policies" {

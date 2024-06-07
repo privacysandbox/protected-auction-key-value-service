@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
-output "ssh_users_group_name" {
-  value = var.use_existing_vpc ? data.aws_iam_group.existing_ssh_users_group[0].group_name : aws_iam_group.ssh_users_group[0].name
+variable "existing_vpc_operator" {
+  description = "Operator of the existing VPC. Required if use_existing_vpc is true."
+  type        = string
+}
+
+variable "existing_vpc_environment" {
+  description = "Environment of the existing VPC. Required if use_existing_vpc is true."
+  type        = string
 }

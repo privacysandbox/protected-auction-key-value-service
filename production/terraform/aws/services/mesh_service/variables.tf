@@ -1,5 +1,5 @@
 /**
- * Copyright 2022 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,24 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-variable "service" {
-  description = "Assigned name of the KV server."
-  type        = string
-}
 
 variable "environment" {
   description = "Assigned environment name to group related resources."
   type        = string
 }
 
-variable "vpc_id" {
-  description = "VPC id where security groups will be created."
+variable "service" {
+  description = "One of: bidding, auction, bfe, sfe"
   type        = string
-}
-
-variable "use_existing_vpc" {
-  description = "Whether to use existing VPC. If true, only internal traffic via mesh will be served; variable vpc_operator and vpc_environment will be requried."
-  type        = bool
 }
 
 variable "existing_vpc_operator" {
@@ -40,5 +31,25 @@ variable "existing_vpc_operator" {
 
 variable "existing_vpc_environment" {
   description = "Environment of the existing VPC. Ingored if use_existing_vpc is false."
+  type        = string
+}
+
+variable "root_domain" {
+  description = "Root domain for APIs."
+  type        = string
+}
+
+variable "service_port" {
+  description = "Port on which this service recieves outbound traffic"
+  type        = number
+}
+
+variable "root_domain_zone_id" {
+  description = "Zone id for the root domain."
+  type        = string
+}
+
+variable "server_instance_role_name" {
+  description = "Role for server EC2 instance profile."
   type        = string
 }

@@ -42,7 +42,7 @@ variable "server_port" {
 }
 
 variable "certificate_arn" {
-  description = "ARN for an ACM managed certificate."
+  description = "ARN for an ACM managed certificate. Ingored if enable_external_traffic is false."
   type        = string
 }
 
@@ -324,5 +324,25 @@ variable "consented_debug_token" {
 
 variable "enable_consented_log" {
   description = "Enable the logging of consented requests. If it is set to true, the consented debug token parameter value must not be an empty string."
+  type        = bool
+}
+
+variable "use_existing_vpc" {
+  description = "Whether to use existing VPC. If true, only internal traffic via mesh will be served; variable vpc_operator and vpc_environment will be requried."
+  type        = bool
+}
+
+variable "existing_vpc_operator" {
+  description = "Operator of the existing VPC. Ingored if use_existing_vpc is false."
+  type        = string
+}
+
+variable "existing_vpc_environment" {
+  description = "Environment of the existing VPC. Ingored if use_existing_vpc is false."
+  type        = string
+}
+
+variable "enable_external_traffic" {
+  description = "Whether to serve external traffic. If disabled, only internal traffic under existing VPC will be served. "
   type        = bool
 }

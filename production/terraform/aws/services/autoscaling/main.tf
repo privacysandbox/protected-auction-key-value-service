@@ -44,6 +44,10 @@ resource "aws_launch_template" "instance_launch_template" {
       prometheus_service_region = var.prometheus_service_region
       prometheus_workspace_id   = var.prometheus_workspace_id
       run_server_outside_tee    = var.run_server_outside_tee
+      cloud_map_service_id      = var.cloud_map_service_id
+      app_mesh_name             = var.app_mesh_name
+      virtual_node_name         = var.virtual_node_name
+
   }))
 
   # Enforce IMDSv2.

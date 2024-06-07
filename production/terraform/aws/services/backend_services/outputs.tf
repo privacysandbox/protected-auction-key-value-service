@@ -15,5 +15,5 @@
  */
 
 output "gateway_endpoints_prefix_list_ids" {
-  value = [for ep in aws_vpc_endpoint.vpc_gateway_endpoint : ep.prefix_list_id]
+  value = var.use_existing_vpc ? [data.aws_vpc_endpoint.existing_vpc_gateway_endpoint[0].prefix_list_id] : [aws_vpc_endpoint.vpc_gateway_endpoint[0].prefix_list_id]
 }

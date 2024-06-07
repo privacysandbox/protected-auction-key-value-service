@@ -63,3 +63,18 @@ variable "prometheus_service_region" {
   description = "Region where prometheus service runs that other services deployed by this file should interact with."
   type        = string
 }
+
+variable "use_existing_vpc" {
+  description = "Whether to use existing VPC. If true, only internal traffic via mesh will be served; variable vpc_operator and vpc_environment will be requried."
+  type        = bool
+}
+
+variable "existing_vpc_operator" {
+  description = "Operator of the existing VPC. Ingored if use_existing_vpc is false."
+  type        = string
+}
+
+variable "existing_vpc_environment" {
+  description = "Environment of the existing VPC. Ingored if use_existing_vpc is false."
+  type        = string
+}

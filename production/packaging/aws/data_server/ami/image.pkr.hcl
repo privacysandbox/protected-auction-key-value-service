@@ -121,6 +121,10 @@ build {
     source      = join("/", [var.distribution_dir, "otel_collector_config.yaml"])
     destination = "/home/ec2-user/otel_collector_config.yaml"
   }
+  provisioner "file" {
+    source      = join("/", [var.workspace, "production/packaging/aws/data_server/ami/envoy_networking.sh"])
+    destination = "/home/ec2-user/envoy_networking.sh"
+  }
   provisioner "shell" {
     script = join("/", [var.workspace, "production/packaging/aws/data_server/ami/setup.sh"])
   }

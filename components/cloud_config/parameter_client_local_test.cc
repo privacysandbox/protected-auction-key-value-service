@@ -108,7 +108,7 @@ TEST(ParameterClientLocal, ExpectedFlagDefaultsArePresent) {
     const auto statusor =
         client->GetInt32Parameter("kv-server-local-udf-update-timeout-millis");
     ASSERT_TRUE(statusor.ok());
-    EXPECT_EQ(5000, *statusor);
+    EXPECT_EQ(30000, *statusor);
   }
   {
     const auto statusor =

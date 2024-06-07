@@ -81,7 +81,7 @@ class UdfClient {
       google::scp::roma::Config<std::weak_ptr<RequestContext>>&& config =
           google::scp::roma::Config<std::weak_ptr<RequestContext>>(),
       absl::Duration udf_timeout = absl::Seconds(5),
-      absl::Duration udf_update_timeout = absl::Seconds(5),
+      absl::Duration udf_update_timeout = absl::Seconds(30),
       int udf_min_log_level = 0);
 };
 

@@ -228,7 +228,7 @@
 
 -   **udf_update_timeout_millis**
 
-    UDF update timeout in milliseconds. Default is 5000.
+    UDF update timeout in milliseconds. Default is 30000.
 
 -   **use_confidential_space_debug_image**
 

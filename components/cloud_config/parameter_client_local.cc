@@ -57,7 +57,7 @@ ABSL_FLAG(std::int32_t, logging_verbosity_level, 0,
           "Loggging verbosity level.");
 ABSL_FLAG(absl::Duration, udf_timeout, absl::Seconds(5),
           "Timeout for one UDF invocation");
-ABSL_FLAG(absl::Duration, udf_update_timeout, absl::Seconds(5),
+ABSL_FLAG(absl::Duration, udf_update_timeout, absl::Seconds(30),
           "Timeout for UDF code update");
 ABSL_FLAG(int32_t, udf_min_log_level, 0,
           "Minimum logging level for UDFs. Info=0, Warn=1, Error=2. Default is "

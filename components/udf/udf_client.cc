@@ -63,7 +63,7 @@ class UdfClientImpl : public UdfClient {
   explicit UdfClientImpl(Config<std::weak_ptr<RequestContext>>&& config =
                              Config<std::weak_ptr<RequestContext>>(),
                          absl::Duration udf_timeout = absl::Seconds(5),
-                         absl::Duration udf_update_timeout = absl::Seconds(5),
+                         absl::Duration udf_update_timeout = absl::Seconds(30),
                          int udf_min_log_level = 0)
       : udf_timeout_(udf_timeout),
         udf_update_timeout_(udf_update_timeout),

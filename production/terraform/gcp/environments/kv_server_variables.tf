@@ -176,7 +176,7 @@ variable "udf_timeout_millis" {
 
 variable "udf_update_timeout_millis" {
   type        = number
-  default     = 5000
+  default     = 30000
   description = "UDF update timeout in milliseconds."
 }
 

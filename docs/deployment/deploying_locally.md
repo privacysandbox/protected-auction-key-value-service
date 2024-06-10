@@ -83,6 +83,32 @@ their contents on startup and continue to watch them while it is running.
 The server will start up and begin listening for new delta and realtime files in the directories
 provided.
 
+# Build and run Key/Value server locally in docker
+
+You can also build and run KV server locally in docker.
+
+## Build the docker image
+
+```sh
+builders/tools/bazel-debian run //production/packaging/local/data_server:copy_to_dist \
+ --config=local_instance --config=local_platform --config=nonprod_mode
+```
+
+## Load the image
+
+```sh
+docker load -i dist/server_docker_image.tar
+```
+
+## Run the server in docker
+
+```sh
+docker run -it --network=host -entrypoint=/server --init --rm \
+--volume=/tmp/deltas:/tmp/deltas --volume=/tmp/realtime:/tmp/realtime \
+--security-opt=seccomp=unconfined bazel/production/packaging/local/data_server:server_docker_image \
+--port 50051 -stderrthreshold=0 -delta_directory=/tmp/deltas -realtime_directory=/tmp/realtime
+```
+
 # Common operations
 
 ## Query the server

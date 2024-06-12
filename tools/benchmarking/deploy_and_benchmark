@@ -84,7 +84,10 @@ usage:
   [--tf-var-file]                     (Required) Full path to tfvars.json file.
   [--tf-backend-config]               (Required) Full path to tf backend.conf file.
   [--server-url]                      (Required) URL of deployed server.
-  [--snapshot-dir]                    (Required) Full path to a directory of snapshot files.
+  [--snapshot-dir] OR                 (Required) Full path to a directory of snapshot files
+  [--lookup-keys-file]                 or a file with lookup keys.
+                                       The lookup-keys-file should have one lookup key per line
+                                       and ignores the filter-snapshot-by-sets option.
   [--csv-output]                      (Optional) Path to output file for summary of benchmarks.
   [--tf-overrides]                    (Optional) Path to file with terraform variable overrides.
   [--udf-delta-dir]                   (Optional) Full path to directory of udf delta files.
@@ -108,12 +111,12 @@ function convert_snapshots_to_csvs() {
   for SNAPSHOT_FILE in "${SNAPSHOT_DIR}"/*; do
     SNAPSHOT_FILENAME=$(basename "${SNAPSHOT_FILE}")
     EXTRA_DOCKER_RUN_ARGS+=" --volume ${SNAPSHOT_CSV_DIR}:${DOCKER_SNAPSHOT_CSV_DIR} --volume ${SNAPSHOT_DIR}:${DOCKER_SNAPSHOT_DIR} " \
-    builders/tools/bazel-debian run //tools/data_cli:data_cli format_data \
-    -- \
-    --input_file "${DOCKER_SNAPSHOT_DIR}/${SNAPSHOT_FILENAME}" \
-    --input_format DELTA \
-    --output_file  "${DOCKER_SNAPSHOT_CSV_DIR}/${SNAPSHOT_FILENAME}.csv" \
-    --output_format CSV
+      builders/tools/bazel-debian run //tools/data_cli:data_cli format_data \
+      -- \
+      --input_file "${DOCKER_SNAPSHOT_DIR}/${SNAPSHOT_FILENAME}" \
+      --input_format DELTA \
+      --output_file "${DOCKER_SNAPSHOT_CSV_DIR}/${SNAPSHOT_FILENAME}.csv" \
+      --output_format CSV
   done
 }
 
@@ -126,9 +129,17 @@ function set_benchmark_args() {
     --number-of-lookup-keys-list "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}"
     --server-address "${SERVER_ADDRESS}"
     --ghz-tags "${RUN_BENCHMARK_GHZ_TAGS}"
-    --snapshot-csv-dir "${SNAPSHOT_CSV_DIR}"
     --benchmark-duration "${BENCHMARK_DURATION}"
   )
+  if [[ -f "${LOOKUP_KEYS_FILE}" ]]; then
+    RUN_BENCHMARK_ARGS+=(
+      --lookup-keys-file "${LOOKUP_KEYS_FILE}"
+    )
+  else
+    RUN_BENCHMARK_ARGS+=(
+      --snapshot-csv-dir "${SNAPSHOT_CSV_DIR}"
+    )
+  fi
   if [[ -v "${REQUEST_METADATA_JSON}" ]]; then
     RUN_BENCHMARK_ARGS+=(
       --request-metadata-json "${REQUEST_METADATA_JSON}"
@@ -161,7 +172,7 @@ function run_benchmarks() {
       BENCHMARK_CSVS+=(
         "$(echo "${BENCHMARK_OUTPUT}" | tail -n 1 2>&1 | tee /dev/tty)"
       )
-    done < "${REQUEST_METADATA_JSON_FILE}"
+    done <"${REQUEST_METADATA_JSON_FILE}"
   fi
 }
 
@@ -184,7 +195,7 @@ function set_server_address() {
 function upload_file_to_bucket() {
   if [[ "${CLOUD_PROVIDER}" == "aws" ]]; then
     EXTRA_DOCKER_RUN_ARGS+=" --volume ${1}:/tmp/deltas/${1}" \
-    builders/tools/aws-cli s3 cp "/tmp/deltas/${1}" "${2}"
+      builders/tools/aws-cli s3 cp "/tmp/deltas/${1}" "${2}"
   elif [[ "${CLOUD_PROVIDER}" == "gcp" ]]; then
     gcloud storage cp "${1}" "${2}"
   else
@@ -294,6 +305,10 @@ while [[ $# -gt 0 ]]; do
     SNAPSHOT_DIR="$2"
     shift 2
     ;;
+  --lookup-keys-file)
+    LOOKUP_KEYS_FILE="$2"
+    shift 2
+    ;;
   --udf-delta-dir)
     UDF_DELTA_DIR="$2"
     shift 2
@@ -357,9 +372,10 @@ if [[ -z "${SERVER_URL}" ]]; then
   exit 1
 fi
 
-# Check for SNAPSHOT_DIR. If not available, exit.
-if [[ -z "${SNAPSHOT_DIR}" || ! -d "${SNAPSHOT_DIR}" ]]; then
+# Check for SNAPSHOT_DIR or LOOKUP_KEYS_FILE. If not available, exit.
+if [[ (-z "${SNAPSHOT_DIR}" || ! -d "${SNAPSHOT_DIR}") && (-z "${LOOKUP_KEYS_FILE}" || ! -f "${LOOKUP_KEYS_FILE}") ]]; then
   printf "snapshot-dir not found:%s\n" "${SNAPSHOT_DIR}"
+  printf "lookup-keys-file not found:%s\n" "${LOOKUP_KEYS_FILE}"
   exit 1
 fi
 
@@ -374,7 +390,9 @@ if [[ -v "${REQUEST_METADATA_JSON_FILE}" && ! -r "${REQUEST_METADATA_JSON_FILE}"
   exit 1
 fi
 
-convert_snapshots_to_csvs
+if [[ -d "${SNAPSHOT_DIR}" ]]; then
+  convert_snapshots_to_csvs
+fi
 
 # No terraform variable overrides, deploy and benchmark without overrides
 if [[ -z "${TF_OVERRIDES}" ]]; then
@@ -386,11 +404,11 @@ else
   # them as tags in the ghz call.
   TF_OVERRIDES_LIST=()
   while IFS=',' read -ra VARS; do
-    TF_OVERRIDES_LIST+=( "${VARS[*]}" )
-  done < "${TF_OVERRIDES}"
+    TF_OVERRIDES_LIST+=("${VARS[*]}")
+  done <"${TF_OVERRIDES}"
 
   for TF_OVERRIDES in "${TF_OVERRIDES_LIST[@]}"; do
-    IFS=" " read -ra VAR_LIST <<< "${TF_OVERRIDES}"
+    IFS=" " read -ra VAR_LIST <<<"${TF_OVERRIDES}"
     declare -a VAR_OVERRIDES=()
     DEPLOYMENT_GHZ_TAGS="{}"
     for VAR in "${VAR_LIST[@]}"; do

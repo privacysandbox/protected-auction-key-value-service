@@ -16,9 +16,12 @@ import os
 import csv
 import argparse
 import json
+
 import base64
 
 from pathlib import Path
+from itertools import islice
+
 from typing import Any, Iterator
 
 """
@@ -82,7 +85,7 @@ def _ReadCsv(snapshot_csv_file: str) -> Iterator[str]:
             yield row
 
 
-def ReadKeys(
+def ReadKeysFromDelta(
     snapshot_csv_file: str, max_number_of_keys: int, filter_by_sets: bool
 ) -> list[str]:
     """Read keys from CSV file. Only include update and string type mutations.
@@ -106,6 +109,27 @@ def ReadKeys(
             if len(keys) >= max_number_of_keys:
                 break
     return list(keys)
+
+
+def ReadKeysFromFile(lookup_keys_file: str, max_number_of_keys: int) -> list[str]:
+    """Read keys from a file.
+
+    Args:
+      lookup_keys_file: Path to file with keys.
+      max_number_of_keys: Maximum number of keys to read.
+
+    Returns:
+      List of unique set of keys.
+    """
+    keys = []
+    with open(lookup_keys_file, "r") as f:
+        for _ in range(max_number_of_keys):
+            try:
+                key = next(f).rstrip("\n")
+                keys.append(key)
+            except StopIteration:
+                break
+    return keys
 
 
 def Main():
@@ -143,13 +167,26 @@ def Main():
         action="store_true",
         help="Whether to only use keys of sets from the input to build the requests",
     )
+    parser.add_argument(
+        "--lookup-keys-file",
+        dest="lookup_keys_file",
+        type=str,
+        help="Path to file with keys to use in request. If set, snapshot-csv-dir is ignored.",
+    )
     args = parser.parse_args()
     metadata = json.loads(args.metadata)
     if not isinstance(metadata, dict):
         raise ValueError("metadata is not a JSON object")
+    if args.lookup_keys_file is not None:
+        keys = ReadKeysFromFile(args.lookup_keys_file, max(args.number_of_keys_list))
+        keys_filename = os.path.basename(args.lookup_keys_file)
+        output_dir = os.path.join(args.output_dir, keys_filename)
+        WriteRequests(keys, args.number_of_keys_list, output_dir, metadata)
+        return
+
     for filename in os.listdir(args.snapshot_csv_dir):
         snapshot_csv_file = os.path.join(args.snapshot_csv_dir, filename)
-        keys = ReadKeys(
+        keys = ReadKeysFromDelta(
             snapshot_csv_file, max(args.number_of_keys_list), args.filter_by_sets
         )
         output_dir_for_snapshot = os.path.join(args.output_dir, filename)

@@ -216,6 +216,12 @@ variable "collector_service_port" {
   type        = number
 }
 
+variable "collector_startup_script_path" {
+  description = "Relative path from main.tf to collector service startup script."
+  type        = string
+  default     = "../../services/metrics_collector_autoscaling/collector_startup.sh"
+}
+
 variable "collector_domain_name" {
   description = "Google Cloud domain name for OpenTelemetry collector"
   type        = string

@@ -73,6 +73,7 @@ module "metrics_collector_autoscaling" {
   collector_machine_type          = var.collector_machine_type
   collector_service_name          = var.collector_service_name
   collector_service_port          = var.collector_service_port
+  collector_startup_script_path   = "${path.module}/${var.collector_startup_script_path}"
   max_replicas_per_service_region = var.max_replicas_per_service_region
 }
 

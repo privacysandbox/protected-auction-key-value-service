@@ -65,6 +65,11 @@ variable "collector_service_port" {
   type        = number
 }
 
+variable "collector_startup_script_path" {
+  description = "Path to collector service startup script."
+  type        = string
+}
+
 variable "max_replicas_per_service_region" {
   description = "Maximum amount of replicas per each service region (a single managed instance group)."
   type        = number

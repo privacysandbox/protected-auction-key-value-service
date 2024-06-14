@@ -33,6 +33,7 @@
 #include "public/query/cpp/grpc_client.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 #include "quiche/binary_http/binary_http_message.h"
+#include "src/communication/encoding_utils.h"
 
 ABSL_DECLARE_FLAG(std::string, gcp_project_id);
 
@@ -168,8 +169,14 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
     LOG(ERROR) << "ohttp response decryption failed!";
     return decrypted_ohttp_response_maybe.status();
   }
+  auto deframed_req = privacy_sandbox::server_common::DecodeRequestPayload(
+      *decrypted_ohttp_response_maybe);
+  if (!deframed_req.ok()) {
+    LOG(ERROR) << "unpadding response failed!";
+    return deframed_req.status();
+  }
   const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
-      quiche::BinaryHttpResponse::Create(*decrypted_ohttp_response_maybe);
+      quiche::BinaryHttpResponse::Create(deframed_req->compressed_data);
   if (!maybe_res_bhttp_layer.ok()) {
     LOG(ERROR) << "Failed to create bhttp resonse layer!";
     return maybe_res_bhttp_layer.status();

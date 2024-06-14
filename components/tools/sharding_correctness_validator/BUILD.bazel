@@ -39,5 +39,6 @@ cc_binary(
         "@com_google_absl//absl/log:initialize",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/communication:encoding_utils",
     ],
 )

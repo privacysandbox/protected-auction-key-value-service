@@ -34,6 +34,7 @@
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
+#include "src/communication/encoding_utils.h"
 #include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
 
 namespace kv_server {
@@ -143,18 +144,38 @@ class GetValuesHandlerTest
   class BHTTPResponse {
    public:
     google::api::HttpBody& RawResponse() { return response_; }
-    int16_t ResponseCode() const {
+    int16_t ResponseCode(bool is_using_bhttp) const {
+      std::string response;
+      if (is_using_bhttp) {
+        response = response_.data();
+      } else {
+        auto deframed_req =
+            privacy_sandbox::server_common::DecodeRequestPayload(
+                response_.data());
+        EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
+        response = deframed_req->compressed_data;
+      }
       const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
-          quiche::BinaryHttpResponse::Create(response_.data());
+          quiche::BinaryHttpResponse::Create(response);
       EXPECT_TRUE(maybe_res_bhttp_layer.ok())
           << "quiche::BinaryHttpResponse::Create failed: "
           << maybe_res_bhttp_layer.status();
       return maybe_res_bhttp_layer->status_code();
     }
 
-    std::string Unwrap(bool is_protobuf_content) const {
+    std::string Unwrap(bool is_protobuf_content, bool is_using_bhttp) const {
+      std::string response;
+      if (is_using_bhttp) {
+        response = response_.data();
+      } else {
+        auto deframed_req =
+            privacy_sandbox::server_common::DecodeRequestPayload(
+                response_.data());
+        EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
+        response = deframed_req->compressed_data;
+      }
       const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
-          quiche::BinaryHttpResponse::Create(response_.data());
+          quiche::BinaryHttpResponse::Create(response);
       EXPECT_TRUE(maybe_res_bhttp_layer.ok())
           << "quiche::BinaryHttpResponse::Create failed: "
           << maybe_res_bhttp_layer.status();
@@ -277,7 +298,7 @@ class GetValuesHandlerTest
         LOG(ERROR) << "BinaryHttpGetValues failed: " << s.error_message();
         return s;
       }
-      *bhttp_response_code = bresponse.ResponseCode();
+      *bhttp_response_code = bresponse.ResponseCode(true);
     } else if (IsUsing<ProtocolType::kObliviousHttp>()) {
       OHTTPRequest ohttp_request(std::move(bhttp_request));
       // get ObliviousGetValuesRequest, OHTTPResponseUnwrapper
@@ -290,10 +311,11 @@ class GetValuesHandlerTest
         return s;
       }
       bresponse = response_unwrapper.Unwrap();
-      *bhttp_response_code = bresponse.ResponseCode();
+      *bhttp_response_code = bresponse.ResponseCode(false);
     }
 
-    response->set_data(bresponse.Unwrap(IsProtobufContent()));
+    response->set_data(bresponse.Unwrap(IsProtobufContent(),
+                                        IsUsing<ProtocolType::kBinaryHttp>()));
     return grpc::Status::OK;
   }
 

@@ -72,6 +72,7 @@ cc_library(
     ],
     deps = [
         ":compression",
+        ":framing_utils",
         ":get_values_v2_status",
         ":ohttp_server_encryptor",
         "//components/data_server/cache",
@@ -88,8 +89,34 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/communication:encoding_utils",
         "@google_privacysandbox_servers_common//src/telemetry",
         "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
+    ],
+)
+
+cc_library(
+    name = "framing_utils",
+    srcs = [
+        "framing_utils.cc",
+    ],
+    hdrs = [
+        "framing_utils.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/numeric:bits",
+    ],
+)
+
+cc_test(
+    name = "framing_utils_test",
+    size = "small",
+    srcs = [
+        "framing_utils_test.cc",
+    ],
+    deps = [
+        ":framing_utils",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -154,6 +181,7 @@ cc_test(
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/communication:encoding_utils",
         "@google_privacysandbox_servers_common//src/encryption/key_fetcher:fake_key_fetcher_manager",
         "@nlohmann_json//:lib",
     ],

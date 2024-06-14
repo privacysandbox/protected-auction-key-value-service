@@ -24,6 +24,7 @@
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
+#include "components/data_server/request_handler/framing_utils.h"
 #include "components/data_server/request_handler/get_values_v2_status.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
 #include "components/telemetry/server_definition.h"
@@ -35,6 +36,7 @@
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
+#include "src/communication/encoding_utils.h"
 #include "src/telemetry/telemetry.h"
 #include "src/util/status_macro/status_macros.h"
 
@@ -241,8 +243,17 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
       return FromAbslStatus(s);
     }
   }
+  auto encoded_data_size = GetEncodedDataSize(response.size());
+  auto maybe_padded_response =
+      privacy_sandbox::server_common::EncodeResponsePayload(
+          privacy_sandbox::server_common::CompressionType::kUncompressed,
+          std::move(response), encoded_data_size);
+  if (!maybe_padded_response.ok()) {
+    return FromAbslStatus(maybe_padded_response.status());
+  }
   auto encrypted_response = encryptor.EncryptResponse(
-      std::move(response), request_context_factory.Get().GetPSLogContext());
+      std::move(*maybe_padded_response),
+      request_context_factory.Get().GetPSLogContext());
   if (!encrypted_response.ok()) {
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         absl::StrCat(encrypted_response.status().code(), " : ",

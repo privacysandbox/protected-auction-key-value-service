@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@google_privacysandbox_servers_common//build_defs/cc:wasm.bzl", "inline_wasm_cc_binary")
+load("@google_privacysandbox_servers_common//build_defs/cc:wasm.bzl", "cc_inline_wasm_udf_js", "inline_wasm_cc_binary")
 load("//tools/udf/inline_wasm:wasm.bzl", "cc_inline_wasm_udf_delta", "inline_wasm_udf_delta")
 
 inline_wasm_cc_binary(
@@ -44,4 +44,16 @@ cc_inline_wasm_udf_delta(
     custom_udf_js = "my_udf.js",
     output_file_name = "DELTA_0000000000000007",
     tags = ["manual"],
+)
+
+# builders/tools/bazel-debian run --config=emscripten \
+# //tools/udf/inline_wasm/examples/hello_world:hello_wasm_js
+#
+# Creates a JS file with inline WASM + emscripten generated glue JS.
+# Custom JS needs to be appended and call `const module = await getModule();`
+# See tools/udf/inline_wasm/examples/hello_world/my_udf.js for a custom JS
+# that loads the WASM module.
+cc_inline_wasm_udf_js(
+    name = "hello_wasm_js",
+    srcs = ["hello.cc"],
 )

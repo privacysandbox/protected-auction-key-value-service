@@ -25,8 +25,8 @@
 namespace kv_server {
 namespace {
 
-using UInt32ValueSetNode =
-    ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNode;
+using UInt32ValueSetNodePtr =
+    ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr;
 
 // Class that holds the data retrieved from cache lookup and read locks for
 // the lookup keys
@@ -69,14 +69,14 @@ class GetKeyValueSetResultImpl : public GetKeyValueSetResult {
   }
 
   void AddUInt32ValueSet(std::string_view key,
-                         UInt32ValueSetNode value_set_node) override {
-    uin32t_sets_map_.emplace(key, std::move(value_set_node));
+                         UInt32ValueSetNodePtr value_set_ptr) override {
+    uin32t_sets_map_.emplace(key, std::move(value_set_ptr));
   }
 
   std::vector<std::unique_ptr<absl::ReaderMutexLock>> read_locks_;
   absl::flat_hash_map<std::string_view, absl::flat_hash_set<std::string_view>>
       data_map_;
-  absl::flat_hash_map<std::string_view, UInt32ValueSetNode> uin32t_sets_map_;
+  absl::flat_hash_map<std::string_view, UInt32ValueSetNodePtr> uin32t_sets_map_;
 };
 }  // namespace
 

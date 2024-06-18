@@ -45,7 +45,7 @@ class GetKeyValueSetResult {
       std::unique_ptr<absl::ReaderMutexLock> key_lock) = 0;
   virtual void AddUInt32ValueSet(
       std::string_view key,
-      ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNode
+      ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr
           value_set_node) = 0;
 
   static std::unique_ptr<GetKeyValueSetResult> Create();

@@ -91,7 +91,7 @@ class MockGetKeyValueSetResult : public GetKeyValueSetResult {
   MOCK_METHOD(
       void, AddUInt32ValueSet,
       (std::string_view,
-       (ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNode)),
+       (ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr)),
       (override));
 };
 

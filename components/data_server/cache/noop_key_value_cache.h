@@ -84,7 +84,7 @@ class NoOpKeyValueCache : public Cache {
         std::unique_ptr<absl::ReaderMutexLock> key_lock) override {}
     void AddUInt32ValueSet(
         std::string_view key,
-        ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNode
+        ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr
             value_set_node) override {}
   };
 };

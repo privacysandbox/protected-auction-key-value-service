@@ -33,7 +33,7 @@ resource "google_compute_subnetwork" "kv_server" {
 resource "google_compute_subnetwork" "proxy_subnets" {
   for_each = { for index, region in tolist(var.regions) : index => region }
 
-  ip_cidr_range = "10.${129 + each.key}.0.0/23"
+  ip_cidr_range = "10.${139 + each.key}.0.0/23"
   name          = "${var.service}-${var.environment}-${each.value}-collector-proxy-subnet"
   network       = var.use_existing_vpc ? var.existing_vpc_id : google_compute_network.kv_server[0].id
   purpose       = "GLOBAL_MANAGED_PROXY"

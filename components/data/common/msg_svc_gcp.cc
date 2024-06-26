@@ -34,18 +34,21 @@ using ::google::cloud::pubsub::Subscription;
 using ::google::cloud::pubsub::SubscriptionBuilder;
 using ::google::cloud::pubsub::Topic;
 
+constexpr char kEnvironmentTag[] = "environment";
 constexpr char kFilterPolicyTemplate[] = R"(attributes.shard_num="%d")";
 
 class GcpMessageService : public MessageService {
  public:
   GcpMessageService(
       std::string prefix, std::string topic_id, std::string project_id,
+      std::string environment,
       pubsub::SubscriptionAdminClient subscription_admin_client,
       std::optional<int32_t> shard_num,
       privacy_sandbox::server_common::log::PSLogContext& log_context)
       : prefix_(std::move(prefix)),
         topic_id_(std::move(topic_id)),
         project_id_(project_id),
+        environment_(environment),
         subscription_admin_client_(subscription_admin_client),
         shard_num_(shard_num),
         log_context_(log_context) {}
@@ -84,6 +87,7 @@ class GcpMessageService : public MessageService {
   absl::StatusOr<std::string> CreateQueue() {
     std::string subscription_id = GenerateQueueName(prefix_);
     SubscriptionBuilder subscription_builder;
+    subscription_builder.add_label(kEnvironmentTag, environment_);
     if (prefix_ == "QueueNotifier_" && shard_num_.has_value()) {
       subscription_builder.set_filter(
           absl::StrFormat(kFilterPolicyTemplate, shard_num_.value()));
@@ -107,6 +111,7 @@ class GcpMessageService : public MessageService {
   const std::string prefix_;
   const std::string topic_id_;
   const std::string project_id_;
+  const std::string environment_;
   bool is_set_up_ = false;
   std::string sub_id_;
 
@@ -131,7 +136,7 @@ absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
 
   return std::make_unique<GcpMessageService>(
       std::move(metadata.queue_prefix), std::move(metadata.topic_id),
-      std::move(metadata.project_id), std::move(subscription_admin_client),
-      shard_num, log_context);
+      std::move(metadata.project_id), std::move(metadata.environment),
+      std::move(subscription_admin_client), shard_num, log_context);
 }
 }  // namespace kv_server

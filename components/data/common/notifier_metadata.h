@@ -53,6 +53,7 @@ struct GcpNotifierMetadata {
   std::string queue_prefix;
   std::string project_id;
   std::string topic_id;
+  std::string environment;
   int32_t num_threads = 1;
   int32_t num_shards = 1;
   int32_t shard_num;

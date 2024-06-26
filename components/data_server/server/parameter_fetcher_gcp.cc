@@ -55,6 +55,7 @@ NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
       .queue_prefix = "QueueNotifier_",
       .project_id = project_id,
       .topic_id = topic_id,
+      .environment = environment,
       .num_threads = realtime_thread_numbers,
       .num_shards = num_shards,
       .shard_num = shard_num,

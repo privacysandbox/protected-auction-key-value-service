@@ -512,6 +512,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
                                    kMicroSecondsUpperBound,
                                    kMicroSecondsLowerBound);
 
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kBlobStorageReadBytes(
+        "BlobStorageReadBytes", "Size of data read from blob storage in bytes",
+        privacy_sandbox::server_common::metrics::kSizeHistogram);
+
 // KV server metrics list contains contains non request related safe metrics
 // and request metrics collected before stage of internal lookups
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
@@ -548,7 +555,8 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kUpdateUInt32ValueSetLatency, &kDeleteKeyLatency,
         &kDeleteValuesInSetLatency, &kDeleteUInt32ValueSetLatency,
         &kRemoveDeletedKeyLatency, &kCleanUpKeyValueMapLatency,
-        &kCleanUpKeyValueSetMapLatency, &kCleanUpUInt32SetMapLatency};
+        &kCleanUpKeyValueSetMapLatency, &kCleanUpUInt32SetMapLatency,
+        &kBlobStorageReadBytes};
 
 // Internal lookup service metrics list contains metrics collected in the
 // internal lookup server. This separation from KV metrics list allows all

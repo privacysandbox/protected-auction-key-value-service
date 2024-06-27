@@ -152,6 +152,10 @@ std::streambuf::int_type SeekingInputStreambuf::underflow() {
     buffer_.resize(total_bytes_read);
   }
   setg(buffer_.data(), buffer_.data(), buffer_.data() + buffer_.length());
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .template LogHistogram<kBlobStorageReadBytes>((int)total_bytes_read));
   MaybeVerboseLogLatency(kUnderflowEventName, latency_recorder.GetLatency(),
                          options_.log_context);
   return traits_type::to_int_type(buffer_[0]);

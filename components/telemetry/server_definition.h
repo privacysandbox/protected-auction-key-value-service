@@ -41,21 +41,24 @@ constexpr std::string_view kInternalLookupServiceName = "InternalLookupServer";
 // metric monitoring set up.
 // TODO(b/307362951): Tune the upper bound and lower bound for different
 // unsafe metrics.
-constexpr int kCounterDPLowerBound = 1;
-constexpr int kCounterDPUpperBound = 10;
+inline constexpr int kCounterDPLowerBound = 1;
+inline constexpr int kCounterDPUpperBound = 10;
 
-constexpr int kErrorCounterDPLowerBound = 0;
-constexpr int kErrorCounterDPUpperBound = 1;
-constexpr int kErrorMaxPartitionsContributed = 1;
-constexpr double kErrorMinNoiseToOutput = 0.99;
+inline constexpr int kErrorCounterDPLowerBound = 0;
+inline constexpr int kErrorCounterDPUpperBound = 1;
+inline constexpr int kErrorMaxPartitionsContributed = 1;
+inline constexpr double kErrorMinNoiseToOutput = 0.99;
 
-constexpr int kMicroSecondsLowerBound = 1;
-constexpr int kMicroSecondsUpperBound = 2'000'000'000;
+inline constexpr int kMicroSecondsLowerBound = 1;
+// 2 seconds
+inline constexpr int kMicroSecondsUpperBound = 2'000'000'000;
 
 inline constexpr double kLatencyInMicroSecondsBoundaries[] = {
-    160,     220,       280,       320,       640,       1'200,         2'500,
-    5'000,   10'000,    20'000,    40'000,    80'000,    160'000,       320'000,
-    640'000, 1'000'000, 1'300'000, 2'600'000, 5'000'000, 10'000'000'000};
+    160,       220,       280,       320,       640,
+    1'200,     2'500,     5'000,     10'000,    20'000,
+    40'000,    80'000,    160'000,   320'000,   640'000,
+    1'000'000, 1'300'000, 2'600'000, 5'000'000, 10'000'000'000,
+};
 
 // String literals for absl status partition, the string list and literals match
 // those implemented in the absl::StatusCodeToString method
@@ -372,6 +375,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kBlobStorageReadBytes(
+        "BlobStorageReadBytes", "Size of data read from blob storage in bytes",
+        privacy_sandbox::server_common::metrics::kSizeHistogram);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
     kTotalRowsDroppedInDataLoading(
@@ -506,20 +516,56 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
-    kTotalLatencyWithoutCustomCode("TotalLatencyWithoutCustomCode",
-                                   "Latency in deleting values in set",
-                                   kLatencyInMicroSecondsBoundaries,
-                                   kMicroSecondsUpperBound,
-                                   kMicroSecondsLowerBound);
+    kTotalV2LatencyWithoutCustomCode(
+        "TotalV2LatencyWithoutCustomCode",
+        "Latency for running V2 request without UDF execution time",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kTotalRequestCountV1("request.v1.count",
+                         "Total number of V1 requests received by the server");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kRequestFailedCountByStatusV1(
+        "request.v1.failed_count_by_status",
+        "Total number of V1 requests that resulted in failure partitioned by "
+        "Error Code",
+        "error_code", kAbslStatusStrings);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
-    kBlobStorageReadBytes(
-        "BlobStorageReadBytes", "Size of data read from blob storage in bytes",
-        privacy_sandbox::server_common::metrics::kSizeHistogram);
+    kServerTotalTimeMsV1(
+        "request.v1.duration_ms",
+        "Total time taken by the server to execute the request",
+        privacy_sandbox::server_common::metrics::kTimeHistogram);
 
-// KV server metrics list contains contains non request related safe metrics
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kResponseByteV1("response.v1.size_bytes", "V1 response size in bytes",
+                    privacy_sandbox::server_common::metrics::kSizeHistogram);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kRequestByteV1("request.v1.size_bytes", "V1 request size in bytes",
+                   privacy_sandbox::server_common::metrics::kSizeHistogram);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kGetValuesAdapterLatency(
+        "GetValuesAdapterLatencyMs",
+        "GetValues adapter latency in milliseconds",
+        privacy_sandbox::server_common::metrics::kTimeHistogram);
+
+// KV server metrics list contains non request related safe metrics
 // and request metrics collected before stage of internal lookups
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
@@ -529,18 +575,21 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kShardedLookupGetKeyValueSetLatencyInMicros,
         &kShardedLookupRunQueryLatencyInMicros,
         &kShardedLookupRunSetQueryIntLatencyInMicros,
-        &kRemoteLookupGetValuesLatencyInMicros, &kTotalLatencyWithoutCustomCode,
+        &kRemoteLookupGetValuesLatencyInMicros,
+        &kTotalV2LatencyWithoutCustomCode,
         // Safe metrics
         &kKVServerError,
         &privacy_sandbox::server_common::metrics::kTotalRequestCount,
         &privacy_sandbox::server_common::metrics::kServerTotalTimeMs,
         &privacy_sandbox::server_common::metrics::kRequestByte,
         &privacy_sandbox::server_common::metrics::kResponseByte,
-        &kRequestFailedCountByStatus, &kGetParameterStatus,
-        &kCompleteLifecycleStatus, &kCreateDataOrchestratorStatus,
-        &kStartDataOrchestratorStatus, &kLoadNewFilesStatus,
-        &kGetShardManagerStatus, &kDescribeInstanceGroupInstancesStatus,
-        &kDescribeInstancesStatus,
+        &kTotalRequestCountV1, &kServerTotalTimeMsV1, &kRequestByteV1,
+        &kResponseByteV1, &kRequestFailedCountByStatusV1,
+        &kRequestFailedCountByStatus, &kGetValuesAdapterLatency,
+        &kGetParameterStatus, &kCompleteLifecycleStatus,
+        &kCreateDataOrchestratorStatus, &kStartDataOrchestratorStatus,
+        &kLoadNewFilesStatus, &kGetShardManagerStatus,
+        &kDescribeInstanceGroupInstancesStatus, &kDescribeInstancesStatus,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
         &kAwsSqsReceiveMessageLatency, &kSeekingInputStreambufSeekoffLatency,
@@ -697,7 +746,7 @@ inline void LogServerErrorMetric(std::string_view error_code) {
           {{std::string(error_code), 1}}));
 }
 
-// Logs common safe request metrics
+// Logs common safe request metrics for V2 request path
 template <typename RequestT, typename ResponseT>
 inline void LogRequestCommonSafeMetrics(
     const RequestT* request, const ResponseT* response,
@@ -716,23 +765,52 @@ inline void LogRequestCommonSafeMetrics(
                    .LogUpDownCounter<kRequestFailedCountByStatus>(
                        {{absl::StatusCodeToString(request_status.code()), 1}}));
   }
-  LogIfError(KVServerContextMap()
-                 ->SafeMetric()
-                 .template LogHistogram<
-                     privacy_sandbox::server_common::metrics::kRequestByte>(
-                     (int)request->ByteSizeLong()));
-  LogIfError(KVServerContextMap()
-                 ->SafeMetric()
-                 .template LogHistogram<
-                     privacy_sandbox::server_common::metrics::kResponseByte>(
-                     (int)response->ByteSizeLong()));
-  int duration_ms = (int)absl::ToInt64Milliseconds(stopwatch.GetElapsedTime());
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<privacy_sandbox::server_common::metrics::kRequestByte>(
+              static_cast<int>(request->ByteSizeLong())));
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<privacy_sandbox::server_common::metrics::kResponseByte>(
+              static_cast<int>(response->ByteSizeLong())));
+  int duration_ms =
+      static_cast<int>(absl::ToInt64Milliseconds(stopwatch.GetElapsedTime()));
   LogIfError(
       KVServerContextMap()
           ->SafeMetric()
           .LogHistogram<
               privacy_sandbox::server_common::metrics::kServerTotalTimeMs>(
               duration_ms));
+}
+
+// Logs safe V1 request metrics
+template <typename RequestT, typename ResponseT>
+inline void LogV1RequestCommonSafeMetrics(
+    const RequestT* request, const ResponseT* response,
+    const grpc::Status& grpc_request_status,
+    const privacy_sandbox::server_common::Stopwatch& stopwatch) {
+  LogIfError(
+      KVServerContextMap()->SafeMetric().LogUpDownCounter<kTotalRequestCountV1>(
+          1));
+  if (auto request_status =
+          privacy_sandbox::server_common::ToAbslStatus(grpc_request_status);
+      !request_status.ok()) {
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogUpDownCounter<kRequestFailedCountByStatusV1>(
+                       {{absl::StatusCodeToString(request_status.code()), 1}}));
+  }
+  LogIfError(KVServerContextMap()->SafeMetric().LogHistogram<kRequestByteV1>(
+      static_cast<int>(request->ByteSizeLong())));
+  LogIfError(KVServerContextMap()->SafeMetric().LogHistogram<kResponseByteV1>(
+      static_cast<int>(response->ByteSizeLong())));
+  int duration_ms =
+      static_cast<int>(absl::ToInt64Milliseconds(stopwatch.GetElapsedTime()));
+  LogIfError(
+      KVServerContextMap()->SafeMetric().LogHistogram<kServerTotalTimeMsV1>(
+          duration_ms));
 }
 
 // Measures the latency of a block of code. The latency is recorded in

@@ -42,7 +42,7 @@ inline void LogTotalExecutionWithoutCustomCodeMetric(
   }
   UdfRequestMetricsContext& metrics_context =
       request_context_factory.Get().GetUdfRequestMetricsContext();
-  LogIfError(metrics_context.LogHistogram<kTotalLatencyWithoutCustomCode>(
+  LogIfError(metrics_context.LogHistogram<kTotalV2LatencyWithoutCustomCode>(
       (duration_micros)));
 }
 

@@ -197,6 +197,7 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
   grpc::Status CallV2Handler(RequestContextFactory& request_context_factory,
                              const v1::GetValuesRequest& v1_request,
                              v1::GetValuesResponse& v1_response) const {
+    privacy_sandbox::server_common::Stopwatch stopwatch;
     v2::GetValuesRequest v2_request = BuildV2Request(v1_request);
     PS_VLOG(7, request_context_factory.Get().GetPSLogContext())
         << "Converting V1 request " << v1_request.DebugString()
@@ -209,6 +210,11 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
         !status.ok()) {
       return status;
     }
+    int duration_ms =
+        static_cast<int>(absl::ToInt64Milliseconds(stopwatch.GetElapsedTime()));
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogHistogram<kGetValuesAdapterLatency>(duration_ms));
     PS_VLOG(7, request_context_factory.Get().GetPSLogContext())
         << "Received v2 response: " << v2_response.DebugString();
     return privacy_sandbox::server_common::FromAbslStatus(

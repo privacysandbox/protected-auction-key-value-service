@@ -55,7 +55,7 @@ grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
       handler_.GetValues(*request_context_factory, *request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
-  LogRequestCommonSafeMetrics(request, response, status, stopwatch);
+  LogV1RequestCommonSafeMetrics(request, response, status, stopwatch);
   return reactor;
 }
 

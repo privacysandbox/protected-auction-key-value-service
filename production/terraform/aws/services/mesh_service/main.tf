@@ -35,6 +35,9 @@ resource "aws_service_discovery_service" "cloud_map_service" {
       type = "A"
     }
   }
+  health_check_custom_config {
+    failure_threshold = 1
+  }
 }
 
 resource "aws_appmesh_virtual_node" "appmesh_virtual_node" {
@@ -49,10 +52,10 @@ resource "aws_appmesh_virtual_node" "appmesh_virtual_node" {
 
       health_check {
         protocol            = "grpc"
-        healthy_threshold   = 2
-        unhealthy_threshold = 2
-        timeout_millis      = 5000
-        interval_millis     = 7000
+        healthy_threshold   = var.healthcheck_healthy_threshold
+        unhealthy_threshold = var.healthcheck_unhealthy_threshold
+        timeout_millis      = var.healthcheck_timeout_sec * 1000
+        interval_millis     = var.healthcheck_interval_sec * 1000
       }
     }
 

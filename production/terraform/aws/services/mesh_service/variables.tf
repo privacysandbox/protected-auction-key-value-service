@@ -53,3 +53,23 @@ variable "server_instance_role_name" {
   description = "Role for server EC2 instance profile."
   type        = string
 }
+
+variable "healthcheck_interval_sec" {
+  description = "Amount of time between health check intervals in seconds."
+  type        = number
+}
+
+variable "healthcheck_healthy_threshold" {
+  description = "Consecutive health check successes required to be considered healthy."
+  type        = number
+}
+
+variable "healthcheck_unhealthy_threshold" {
+  description = "Consecutive health check failures required to be considered unhealthy."
+  type        = number
+}
+
+variable "healthcheck_timeout_sec" {
+  description = "Amount of time to wait for a health check response in seconds."
+  type        = number
+}

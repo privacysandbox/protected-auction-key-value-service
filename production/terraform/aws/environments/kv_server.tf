@@ -62,6 +62,8 @@ module "kv_server" {
   healthcheck_healthy_threshold   = var.healthcheck_healthy_threshold
   healthcheck_interval_sec        = var.healthcheck_interval_sec
   healthcheck_unhealthy_threshold = var.healthcheck_unhealthy_threshold
+  healthcheck_timeout_sec         = var.healthcheck_timeout_sec
+  healthcheck_grace_period_sec    = var.healthcheck_grace_period_sec
 
   # Variables related to SSH
   ssh_source_cidr_blocks = var.ssh_source_cidr_blocks

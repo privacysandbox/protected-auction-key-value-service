@@ -125,6 +125,14 @@ build {
     source      = join("/", [var.workspace, "production/packaging/aws/data_server/ami/envoy_networking.sh"])
     destination = "/home/ec2-user/envoy_networking.sh"
   }
+  provisioner "file" {
+    source      = join("/", [var.workspace, "production/packaging/aws/data_server/ami/hc.bash"])
+    destination = "/home/ec2-user/hc.bash"
+  }
+  provisioner "file" {
+    source      = join("/", [var.workspace, "components/health_check/health.proto"])
+    destination = "/home/ec2-user/health.proto"
+  }
   provisioner "shell" {
     script = join("/", [var.workspace, "production/packaging/aws/data_server/ami/setup.sh"])
   }

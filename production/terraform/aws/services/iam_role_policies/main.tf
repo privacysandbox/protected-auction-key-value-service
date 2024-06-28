@@ -126,6 +126,16 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     ]
     resources = ["*"]
   }
+  statement {
+    sid = "AllowInstancesToSetInstanceHealthForASGandCloudMap"
+    actions = [
+      "autoscaling:SetInstanceHealth",
+      "servicediscovery:UpdateInstanceCustomHealthStatus",
+      "servicediscovery:DeregisterInstance",
+    ]
+    effect    = "Allow"
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_policy" "instance_policy" {

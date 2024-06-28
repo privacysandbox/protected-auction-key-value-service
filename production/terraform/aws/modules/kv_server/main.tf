@@ -102,16 +102,20 @@ module "telemetry" {
 }
 
 module "mesh_service" {
-  count                     = var.use_existing_vpc ? 1 : 0
-  source                    = "../../services/mesh_service"
-  environment               = var.environment
-  service                   = local.service
-  root_domain               = var.root_domain
-  service_port              = 50051
-  server_instance_role_name = module.iam_roles.instance_role_name
-  root_domain_zone_id       = var.root_domain_zone_id
-  existing_vpc_operator     = var.existing_vpc_operator
-  existing_vpc_environment  = var.existing_vpc_environment
+  count                           = var.use_existing_vpc ? 1 : 0
+  source                          = "../../services/mesh_service"
+  environment                     = var.environment
+  service                         = local.service
+  root_domain                     = var.root_domain
+  service_port                    = 50051
+  server_instance_role_name       = module.iam_roles.instance_role_name
+  root_domain_zone_id             = var.root_domain_zone_id
+  existing_vpc_operator           = var.existing_vpc_operator
+  existing_vpc_environment        = var.existing_vpc_environment
+  healthcheck_interval_sec        = var.healthcheck_interval_sec
+  healthcheck_timeout_sec         = var.healthcheck_timeout_sec
+  healthcheck_healthy_threshold   = var.healthcheck_healthy_threshold
+  healthcheck_unhealthy_threshold = var.healthcheck_unhealthy_threshold
 }
 
 module "load_balancing" {
@@ -133,34 +137,39 @@ module "load_balancing" {
 }
 
 module "autoscaling" {
-  count                        = var.num_shards
-  source                       = "../../services/autoscaling"
-  environment                  = var.environment
-  region                       = var.region
-  service                      = local.service
-  autoscaling_subnet_ids       = module.networking.private_subnet_ids
-  instance_ami_id              = var.instance_ami_id
-  instance_security_group_id   = module.security_groups.instance_security_group_id
-  instance_type                = var.instance_type
-  target_group_arns            = var.enable_external_traffic ? module.load_balancing[0].target_group_arns : []
-  autoscaling_desired_capacity = var.autoscaling_desired_capacity
-  autoscaling_max_size         = var.autoscaling_max_size
-  autoscaling_min_size         = var.autoscaling_min_size
-  wait_for_capacity_timeout    = var.autoscaling_wait_for_capacity_timeout
-  instance_profile_arn         = module.iam_roles.instance_profile_arn
-  enclave_cpu_count            = var.enclave_cpu_count
-  enclave_memory_mib           = var.enclave_memory_mib
-  enclave_enable_debug_mode    = var.enclave_enable_debug_mode
-  server_port                  = var.server_port
-  launch_hook_name             = module.parameter.launch_hook_parameter_value
-  depends_on                   = [module.iam_role_policies.instance_role_policy_attachment]
-  prometheus_service_region    = var.prometheus_service_region
-  prometheus_workspace_id      = var.prometheus_workspace_id != "" ? var.prometheus_workspace_id : module.telemetry.prometheus_workspace_id
-  shard_num                    = count.index
-  run_server_outside_tee       = var.run_server_outside_tee
-  cloud_map_service_id         = var.use_existing_vpc ? module.mesh_service[0].cloud_map_service_id : ""
-  app_mesh_name                = var.use_existing_vpc ? module.mesh_service[0].app_mesh_name : ""
-  virtual_node_name            = var.use_existing_vpc ? module.mesh_service[0].virtual_node_name : ""
+  count                           = var.num_shards
+  source                          = "../../services/autoscaling"
+  environment                     = var.environment
+  region                          = var.region
+  service                         = local.service
+  autoscaling_subnet_ids          = module.networking.private_subnet_ids
+  instance_ami_id                 = var.instance_ami_id
+  instance_security_group_id      = module.security_groups.instance_security_group_id
+  instance_type                   = var.instance_type
+  target_group_arns               = var.enable_external_traffic ? module.load_balancing[0].target_group_arns : []
+  autoscaling_desired_capacity    = var.autoscaling_desired_capacity
+  autoscaling_max_size            = var.autoscaling_max_size
+  autoscaling_min_size            = var.autoscaling_min_size
+  wait_for_capacity_timeout       = var.autoscaling_wait_for_capacity_timeout
+  instance_profile_arn            = module.iam_roles.instance_profile_arn
+  enclave_cpu_count               = var.enclave_cpu_count
+  enclave_memory_mib              = var.enclave_memory_mib
+  enclave_enable_debug_mode       = var.enclave_enable_debug_mode
+  server_port                     = var.server_port
+  launch_hook_name                = module.parameter.launch_hook_parameter_value
+  depends_on                      = [module.iam_role_policies.instance_role_policy_attachment]
+  prometheus_service_region       = var.prometheus_service_region
+  prometheus_workspace_id         = var.prometheus_workspace_id != "" ? var.prometheus_workspace_id : module.telemetry.prometheus_workspace_id
+  shard_num                       = count.index
+  run_server_outside_tee          = var.run_server_outside_tee
+  cloud_map_service_id            = var.use_existing_vpc ? module.mesh_service[0].cloud_map_service_id : ""
+  app_mesh_name                   = var.use_existing_vpc ? module.mesh_service[0].app_mesh_name : ""
+  virtual_node_name               = var.use_existing_vpc ? module.mesh_service[0].virtual_node_name : ""
+  healthcheck_interval_sec        = var.healthcheck_interval_sec
+  healthcheck_timeout_sec         = var.healthcheck_timeout_sec
+  healthcheck_healthy_threshold   = var.healthcheck_healthy_threshold
+  healthcheck_unhealthy_threshold = var.healthcheck_unhealthy_threshold
+  healthcheck_grace_period_sec    = var.healthcheck_grace_period_sec
 }
 
 module "ssh" {

@@ -87,6 +87,11 @@
 
     Operator of the existing VPC. Ingored if use_existing_vpc is false.
 
+-   **healthcheck_grace_period_sec**
+
+    Amount of time to wait for service inside enclave to start up before starting health checks, in
+    seconds.
+
 -   **healthcheck_healthy_threshold**
 
     Consecutive health check successes required to be considered healthy
@@ -94,6 +99,10 @@
 -   **healthcheck_interval_sec**
 
     Amount of time between health check intervals in seconds.
+
+-   **healthcheck_timeout_sec**
+
+    Amount of time to wait for a health check response in seconds.
 
 -   **healthcheck_unhealthy_threshold**
 

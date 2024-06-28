@@ -29,7 +29,11 @@ OTEL_COL_CONF=/opt/aws/aws-otel-collector/etc/otel_collector_config.yaml
 sudo mkdir -p "$(dirname "${OTEL_COL_CONF}")"
 sudo cp /home/ec2-user/otel_collector_config.yaml "${OTEL_COL_CONF}"
 sudo cp /home/ec2-user/envoy_networking.sh /opt/privacysandbox/envoy_networking.sh
+sudo cp /home/ec2-user/hc.bash /opt/privacysandbox/hc.bash
+sudo cp /home/ec2-user/health.proto /opt/privacysandbox/health.proto
 sudo chmod 555 /opt/privacysandbox/envoy_networking.sh
+sudo chmod 555 /opt/privacysandbox/hc.bash
+sudo chmod 555 /opt/privacysandbox/health.proto
 
 # Install necessary dependencies
 sudo yum update -y

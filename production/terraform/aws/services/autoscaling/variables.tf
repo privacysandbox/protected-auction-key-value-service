@@ -140,3 +140,28 @@ variable "virtual_node_name" {
   description = "Name of the App Mesh Virtual Node of which instance in this ASG will be a part."
   type        = string
 }
+
+variable "healthcheck_interval_sec" {
+  description = "Amount of time between health check intervals in seconds."
+  type        = number
+}
+
+variable "healthcheck_healthy_threshold" {
+  description = "Consecutive health check successes required to be considered healthy."
+  type        = number
+}
+
+variable "healthcheck_unhealthy_threshold" {
+  description = "Consecutive health check failures required to be considered unhealthy."
+  type        = number
+}
+
+variable "healthcheck_timeout_sec" {
+  description = "Amount of time to wait for a health check response in seconds."
+  type        = number
+}
+
+variable "healthcheck_grace_period_sec" {
+  description = "Amount of time to wait for service inside enclave to start up before starting health checks, in seconds."
+  type        = number
+}

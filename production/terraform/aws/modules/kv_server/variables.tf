@@ -127,6 +127,16 @@ variable "healthcheck_unhealthy_threshold" {
   type        = number
 }
 
+variable "healthcheck_timeout_sec" {
+  description = "Amount of time to wait for a health check response in seconds."
+  type        = number
+}
+
+variable "healthcheck_grace_period_sec" {
+  description = "Amount of time to wait for service inside enclave to start up before starting health checks, in seconds."
+  type        = number
+}
+
 variable "ssh_source_cidr_blocks" {
   description = "Source ips allowed to send ssh traffic to the ssh instance."
   type        = set(string)

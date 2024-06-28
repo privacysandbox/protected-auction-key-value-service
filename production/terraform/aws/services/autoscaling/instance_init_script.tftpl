@@ -45,7 +45,7 @@ aws ecr get-login-password \
 
 # Start the App Mesh Envoy container.
 sudo docker run --detach --env APPMESH_RESOURCE_ARN=mesh/${app_mesh_name}/virtualNode/${virtual_node_name}  \
---env ENVOY_LOG_LEVEL=debug --env ENVOY_ADMIN_ACCESS_LOG_FILE=/tmp/envoy_access.log -v /tmp:/tmp \
+-v /tmp:/tmp \
 -u 1337 --network host public.ecr.aws/appmesh/aws-appmesh-envoy:v1.29.4.0-prod
 fi
 
@@ -119,13 +119,22 @@ else
   --entrypoint=/init_server_basic bazel/production/packaging/aws/data_server:server_docker_image &
 fi
 
-echo "Will wait for service to come up"
+SECONDS_TRIED=0
+
+echo "Will wait for ${healthcheck_grace_period_sec} seconds for the service to come up"
 while ! grpcurl --plaintext localhost:50051 list; do
   echo "Service/Vsock proxy is not reachable.. will retry in 1 second"
+  ((SECONDS_TRIED++))
+  if (( SECONDS_TRIED > ${healthcheck_grace_period_sec} ))
+  then
+    echo "Timing out: tried for ${healthcheck_grace_period_sec} seconds and the service and its vsock proxy are still not reachable."
+    break
+  fi
   sleep 1
 done
 
 if [[ -n "${app_mesh_name}" && -n "${virtual_node_name}" && -n "${cloud_map_service_id}" && -n "${region}" ]]; then
-echo "Setting up iptables to route traffic via service mesh / envoy"
-sudo bash -x /opt/privacysandbox/envoy_networking.sh
+  bash /opt/privacysandbox/hc.bash -p /opt/privacysandbox -n health.proto -a localhost:50051 -i ${healthcheck_interval_sec} -t ${healthcheck_timeout_sec} -h ${healthcheck_healthy_threshold} -u ${healthcheck_unhealthy_threshold} -e $INSTANCE_ID -g 0 -r ${region} -s ${cloud_map_service_id} &
+  echo "Setting up iptables to route traffic via service mesh / envoy"
+  sudo bash -x /opt/privacysandbox/envoy_networking.sh
 fi

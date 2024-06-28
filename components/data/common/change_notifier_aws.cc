@@ -174,9 +174,22 @@ class AwsChangeNotifier : public ChangeNotifier {
                            absl::Now() - receive_message_request_started)));
 
     std::vector<std::string> keys;
+    keys.reserve(messages.size());
+    size_t total_message_size;
     for (const auto& message : messages) {
       keys.push_back(message.GetBody());
+      total_message_size += message.GetBody().size();
     }
+    LogIfError(
+        KVServerContextMap()
+            ->SafeMetric()
+            .template LogHistogram<kReceivedLowLatencyNotificationsBytes>(
+                static_cast<int>(total_message_size)));
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogUpDownCounter<kReceivedLowLatencyNotificationsCount>(
+                       static_cast<int>(messages.size())));
+
     DeleteMessages(GetSqsUrl(), messages);
     if (keys.empty()) {
       LogServerErrorMetric(kAwsChangeNotifierMessagesDataLoss);

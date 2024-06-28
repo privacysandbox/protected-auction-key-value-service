@@ -115,6 +115,14 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
           callback) {
     auto start = absl::Now();
     std::string string_decoded;
+    size_t message_size = m.data().size();
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogHistogram<kReceivedLowLatencyNotificationsBytes>(
+                       static_cast<int>(message_size)));
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogUpDownCounter<kReceivedLowLatencyNotificationsCount>(1));
     if (!absl::Base64Unescape(m.data(), &string_decoded)) {
       LogServerErrorMetric(kRealtimeDecodeMessageFailure);
       PS_LOG(ERROR, log_context_)

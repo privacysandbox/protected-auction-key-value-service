@@ -339,6 +339,21 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kReceivedLowLatencyNotificationsBytes(
+        "ReceivedLowLatencyNotificationsBytes",
+        "Size of messages received through pub/sub",
+        privacy_sandbox::server_common::metrics::kSizeHistogram);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kReceivedLowLatencyNotificationsCount(
+        "kReceivedLowLatencyNotificationsCount",
+        "Count of messages received through pub/sub");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kAwsSqsReceiveMessageLatency("AwsSqsReceiveMessageLatency",
@@ -592,7 +607,9 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kDescribeInstanceGroupInstancesStatus, &kDescribeInstancesStatus,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
-        &kAwsSqsReceiveMessageLatency, &kSeekingInputStreambufSeekoffLatency,
+        &kReceivedLowLatencyNotificationsBytes,
+        &kReceivedLowLatencyNotificationsCount, &kAwsSqsReceiveMessageLatency,
+        &kSeekingInputStreambufSeekoffLatency,
         &kSeekingInputStreambufSizeLatency,
         &kSeekingInputStreambufUnderflowLatency,
         &kTotalRowsDroppedInDataLoading, &kTotalRowsUpdatedInDataLoading,

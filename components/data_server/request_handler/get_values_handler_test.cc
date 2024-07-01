@@ -332,5 +332,34 @@ TEST_F(GetValuesHandlerTest, CallsV2Adapter) {
   EXPECT_THAT(response, EqualsProto(adapter_response));
 }
 
+TEST_F(GetValuesHandlerTest, ReturnsPerInterestGroupData) {
+  EXPECT_CALL(mock_cache_, GetKeyValuePairs(_, UnorderedElementsAre("my_key")))
+      .Times(2)
+      .WillRepeatedly(Return(absl::flat_hash_map<std::string, std::string>{
+          {"my_key", "my_value"}}));
+  GetValuesRequest request;
+  request.add_interest_group_names("my_key");
+  GetValuesResponse response;
+  GetValuesHandler handler(mock_cache_, mock_get_values_adapter_,
+                           /*use_v2=*/false);
+  const auto result =
+      handler.GetValues(GetRequestContextFactory(), request, &response);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  GetValuesResponse expected;
+  TextFormat::ParseFromString(
+      R"pb(per_interest_group_data {
+             key: "my_key"
+             value { value { string_value: "my_value" } }
+           })pb",
+      &expected);
+  EXPECT_THAT(response, EqualsProto(expected));
+
+  ASSERT_TRUE(
+      handler.GetValues(GetRequestContextFactory(), request, &response).ok());
+  EXPECT_THAT(response, EqualsProto(expected));
+}
+
 }  // namespace
 }  // namespace kv_server

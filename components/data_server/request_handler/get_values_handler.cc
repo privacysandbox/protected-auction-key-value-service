@@ -112,6 +112,13 @@ grpc::Status GetValuesHandler::GetValues(
     ProcessKeys(request_context, request.keys(), cache_,
                 *response->mutable_keys(), add_missing_keys_v1_);
   }
+  if (!request.interest_group_names().empty()) {
+    PS_VLOG(5, request_context.GetPSLogContext())
+        << "Processing interest_group_names for " << request.DebugString();
+    ProcessKeys(request_context, request.interest_group_names(), cache_,
+                *response->mutable_per_interest_group_data(),
+                add_missing_keys_v1_);
+  }
   if (!request.render_urls().empty()) {
     PS_VLOG(5, request_context.GetPSLogContext())
         << "Processing render_urls for " << request.DebugString();

@@ -41,6 +41,7 @@ using google::protobuf::util::JsonStringToMessage;
 
 constexpr char kKeysTag[] = "keys";
 constexpr char kRenderUrlsTag[] = "renderUrls";
+constexpr char kInterestGroupNamesTag[] = "interestGroupNames";
 constexpr char kAdComponentRenderUrlsTag[] = "adComponentRenderUrls";
 constexpr char kKvInternalTag[] = "kvInternal";
 constexpr char kCustomTag[] = "custom";
@@ -70,6 +71,10 @@ v2::GetValuesRequest BuildV2Request(const v1::GetValuesRequest& v1_request) {
 
   if (v1_request.keys_size() > 0) {
     *partition->add_arguments() = BuildArgument(v1_request.keys(), kKeysTag);
+  }
+  if (v1_request.interest_group_names_size() > 0) {
+    *partition->add_arguments() = BuildArgument(
+        v1_request.interest_group_names(), kInterestGroupNamesTag);
   }
   if (v1_request.render_urls_size() > 0) {
     *partition->add_arguments() =
@@ -145,6 +150,10 @@ void ProcessKeyGroupOutput(application_pa::KeyGroupOutput key_group_output,
   }
   if (tag_namespace_status_or.value() == kKeysTag) {
     ProcessKeyValues(std::move(key_group_output), *v1_response.mutable_keys());
+  }
+  if (tag_namespace_status_or.value() == kInterestGroupNamesTag) {
+    ProcessKeyValues(std::move(key_group_output),
+                     *v1_response.mutable_per_interest_group_data());
   }
   if (tag_namespace_status_or.value() == kRenderUrlsTag) {
     ProcessKeyValues(std::move(key_group_output),

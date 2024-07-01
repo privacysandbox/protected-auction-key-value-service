@@ -624,5 +624,98 @@ TEST_F(GetValuesAdapterTest, ValueWithStatusSuccess) {
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
 }
 
+TEST_F(GetValuesAdapterTest, V1RequestWithInterestGroupNamesReturnsOk) {
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
+  UDFArgument arg;
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "interestGroupNames"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "interestGroup1"
+    }
+    values {
+      string_value: "interestGroup2"
+    }
+  }
+})",
+                              &arg);
+  application_pa::KeyGroupOutputs key_group_outputs;
+  TextFormat::ParseFromString(R"(
+  key_group_outputs: {
+    tags: "custom"
+    tags: "interestGroupNames"
+    key_values: {
+      key: "interestGroup1"
+      value: {
+        value: {
+          string_value: "value1"
+        }
+      }
+    }
+    key_values: {
+      key: "interestGroup2"
+      value: {
+        value: {
+          string_value: "{\"priorityVector\":{\"signal1\":1}}"
+        }
+      }
+    }
+  }
+)",
+                              &key_group_outputs);
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(testing::_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg)), testing::_))
+      .WillOnce(Return(
+          application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
+
+  v1::GetValuesRequest v1_request;
+  v1_request.add_interest_group_names("interestGroup1");
+  v1_request.add_interest_group_names("interestGroup2");
+  v1::GetValuesResponse v1_response;
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
+  EXPECT_TRUE(status.ok());
+  v1::GetValuesResponse v1_expected;
+  TextFormat::ParseFromString(
+      R"pb(
+        per_interest_group_data {
+          key: "interestGroup1"
+          value { value { string_value: "value1" } }
+        }
+        per_interest_group_data {
+          key: "interestGroup2"
+          value {
+            value {
+              struct_value {
+                fields {
+                  key: "priorityVector"
+                  value {
+                    struct_value {
+                      fields {
+                        key: "signal1"
+                        value { number_value: 1 }
+                      }
+
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })pb",
+      &v1_expected);
+  EXPECT_THAT(v1_response, EqualsProto(v1_expected));
+}
+
 }  // namespace
 }  // namespace kv_server

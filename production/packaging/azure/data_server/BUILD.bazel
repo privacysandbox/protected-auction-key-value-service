@@ -1,0 +1,178 @@
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load(
+    "@io_bazel_rules_docker//container:container.bzl",
+    "container_flatten",
+    "container_image",
+    "container_layer",
+)
+load(
+    "@rules_pkg//pkg:mappings.bzl",
+    "pkg_attributes",
+    "pkg_files",
+)
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
+
+package(default_visibility = [
+    "//production/packaging:__subpackages__",
+])
+
+pkg_files(
+    name = "server_executables",
+    srcs = [
+        "//components/data_server/server",
+        "//production/packaging/gcp/data_server/bin:init_server_basic",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/",
+)
+
+server_binaries = [
+    ":server_executables",
+]
+
+pkg_zip(
+    name = "server_binaries",
+    srcs = server_binaries,
+)
+
+pkg_tar(
+    name = "server_binaries_tar",
+    srcs = server_binaries,
+)
+
+container_layer(
+    name = "server_binary_layer",
+    directory = "/",
+    tars = [
+        ":server_binaries_tar",
+    ],
+)
+
+pkg_files(
+    name = "etc_envoy_files",
+    srcs = [
+        "envoy/envoy.yaml",
+        "//public/query:query_api_descriptor_set",
+    ],
+    attributes = pkg_attributes(mode = "0444"),
+    prefix = "/etc/envoy",
+    visibility = [
+        "//production/packaging:__subpackages__",
+    ],
+)
+
+pkg_tar(
+    name = "envoy_config_tar",
+    srcs = [
+        ":etc_envoy_files",
+    ],
+)
+
+container_layer(
+    name = "envoy_config_layer",
+    directory = "/",
+    tars = [
+        ":envoy_config_tar",
+    ],
+    visibility = [
+        "//production/packaging:__subpackages__",
+        "//services:__subpackages__",
+    ],
+)
+
+container_flatten(
+    name = "envoy_distroless_flat",
+    image = select({
+        "@platforms//cpu:arm64": "@envoy-distroless-arm64//image",
+        "@platforms//cpu:x86_64": "@envoy-distroless-amd64//image",
+    }),
+)
+
+container_layer(
+    name = "envoy_distroless_layer",
+    tars = [
+        ":envoy_distroless_flat.tar",
+    ],
+    visibility = [
+        "//components:__subpackages__",
+        "//production/packaging:__subpackages__",
+    ],
+)
+
+# This image target is meant for testing running the server in an enclave using.
+#
+# See project README.md on how to run the image.
+container_image(
+    name = "server_docker_image",
+    architecture = select({
+        "@platforms//cpu:arm64": "arm64",
+        "@platforms//cpu:x86_64": "amd64",
+    }),
+    base = select({
+        "@platforms//cpu:arm64": "@runtime-debian-debug-root-arm64//image",
+        "@platforms//cpu:x86_64": "@runtime-debian-debug-root-amd64//image",
+    }),
+    entrypoint = [
+        "/init_server_basic",
+        # These affect PCR0, so changing these would result in the loss of ability to communicate with
+        # the downstream components
+        "--public_key_endpoint=https://publickeyservice-a.pa-3.gcp.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
+        "--stderrthreshold=0",
+    ],
+    env = {
+        "GRPC_DNS_RESOLVER": "native",
+    },
+    labels = {"tee.launch_policy.log_redirect": "always"},
+    layers = [
+        ":server_binary_layer",
+        ":envoy_distroless_layer",
+        ":envoy_config_layer",
+    ],
+    ports = [
+        "50050",
+        "50051",
+        "50100",
+        "51052",
+    ],
+)
+
+# server artifacts
+pkg_zip(
+    name = "server_artifacts",
+    srcs = server_binaries,
+)
+
+genrule(
+    name = "copy_to_dist",
+    srcs = [
+        ":server_artifacts",
+        ":server_docker_image.tar",
+        "//public/query:query_api_descriptor_set",
+    ],
+    outs = ["copy_to_dist.bin"],
+    cmd_bash = """cat << EOF > '$@'
+mkdir -p dist/debian
+cp $(execpath :server_artifacts) dist/debian
+cp $(execpath :server_docker_image.tar) $(execpath //public/query:query_api_descriptor_set) dist
+# retain previous server_docker_image.tar location as a symlink
+ln -rsf dist/server_docker_image.tar dist/debian/server_docker_image.tar
+builders/tools/normalize-dist
+EOF""",
+    executable = True,
+    local = True,
+    message = "copying server artifacts to dist/debian directory",
+)

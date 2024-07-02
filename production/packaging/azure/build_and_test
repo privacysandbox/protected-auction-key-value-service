@@ -1,0 +1,106 @@
+#!/bin/bash
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -o pipefail
+set -o errexit
+
+START=$(date +%s)
+readonly START
+
+trap _print_runtime EXIT
+function _print_runtime() {
+  local -r -i STATUS=$?
+  local -r -i END=$(date +%s)
+  /usr/bin/env LC_ALL=en_US.UTF-8 printf "\nlocal/build_and_test_all runtime: %'ds\n" $((END - START)) &>/dev/stderr
+  if [[ ${STATUS} -eq 0 ]]; then
+    printf "local/build_and_test completed successfully\n" &>/dev/stderr
+  else
+    printf "Error: local/build_and_test completed with status code: %s\n" "${STATUS}" &>/dev/stderr
+  fi
+  exit ${STATUS}
+}
+
+function usage() {
+  local exitval=${1-1}
+  cat &>/dev/stderr <<USAGE
+usage:
+  $0 <options>
+    --without-shared-cache       Containers will not mount ${HOME}/.cache/bazel
+    --no-precommit               Skip precommit checks
+    --with-tests                 Also runs tests before building
+
+environment variables (all optional):
+    WORKSPACE                    Set the path to the workspace (repo root)
+    BAZEL_STARTUP_ARGS           Additional startup arguments to pass to bazel invocations
+    BAZEL_EXTRA_ARGS             Additional command arguments to pass to bazel invocations
+    CBUILD_ARGS                  Additional command-line arguments to cbuild
+USAGE
+  # shellcheck disable=SC2086
+  exit ${exitval}
+}
+
+declare -a BUILD_AND_TEST_ARGS
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-precommit)
+      BUILD_AND_TEST_ARGS+=("--no-precommit")
+      shift
+      ;;
+    --with-tests)
+      BUILD_AND_TEST_ARGS+=("--with-tests")
+      shift
+      ;;
+    --verbose)
+      BUILD_AND_TEST_ARGS+=("--verbose")
+      set -o xtrace
+      shift
+      ;;
+    -h | --help) usage 0 ;;
+    *) usage ;;
+  esac
+done
+
+function arr_to_string_list() {
+  declare -r -n arr=$1
+  printf -v joined '"%s",' "${arr[@]}"
+  printf "[%s]" "${joined%,}"
+}
+
+# Exit 1 on any error before pushing to origin.
+function fail() {
+  printf "\n\n[ERROR]: Failure: %s\n\n" "$@"
+  sleep 5s  # Make sure that stdout has time to be written
+  exit 1
+}
+
+printf "==== Sourcing builder.sh =====\n"
+# We can't use $WORKSPACE here as it may not be set - it'll be created
+# by builder.sh if it's empty.
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+readonly SCRIPT_DIR
+BUILDER="${SCRIPT_DIR}"/../../../builders/tools/builder.sh
+readonly BUILDER
+if [[ ! -f ${BUILDER} ]]; then
+  ERROR_MESSAGE=$(printf "builder.sh file does not exist, expected at: %s\n"  "${BUILDER}")
+  fail "$ERROR_MESSAGE"
+fi
+# shellcheck source=builders/tools/builder.sh
+source "${BUILDER}" || fail "Failed to source builder.sh"
+
+printf "==== Running build_and_test_all_in_docker =====\n"
+if ! "${WORKSPACE}"/production/packaging/build_and_test_all_in_docker "${BUILD_AND_TEST_ARGS[@]}" --instance local --platform local; then
+  fail "Failed to run build_and_test_all_in_docker"
+fi

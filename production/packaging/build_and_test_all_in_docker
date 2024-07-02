@@ -160,8 +160,10 @@ if [[ ${PLATFORM} == gcp ]]; then
   bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/gcp/data_server:copy_to_dist
 elif [[ ${PLATFORM} == local ]]; then
   bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/local/data_server:copy_to_dist
-else
+elif [[ ${PLATFORM} == aws ]]; then
   bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/aws/data_server:copy_to_dist
+elif [[ ${PLATFORM} == azure ]]; then
+  bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/azure/data_server:copy_to_dist
 fi
 bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //testing/functionaltest:copy_to_dist
 "

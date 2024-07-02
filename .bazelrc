@@ -11,6 +11,9 @@ build --config=noexcept
 # Disable some ROMA error checking
 build --per_file_copt=.*sandboxed_api.*@-Wno-return-type
 
+#use local data-plane-shared-libraries
+build --override_repository=google_privacysandbox_servers_common=data-plane-shared-libraries
+
 build:run_all_tests --cache_test_results=no
 test:run_all_tests --test_verbose_timeout_warnings
 
@@ -103,6 +106,10 @@ build:aws_instance --@google_privacysandbox_servers_common//:instance=aws
 build:gcp_instance --//:instance=gcp
 build:gcp_instance --@google_privacysandbox_servers_common//:instance=gcp
 
+# --config azure_instance: builds assuming the instance is on Azure
+build:instance_azure --//:instance=azure
+build:instance_azure --@google_privacysandbox_servers_common//:instance=azure
+
 # --config local_platform: builds the service to run locally
 build:local_platform --//:platform=local
 
@@ -113,6 +120,10 @@ build:aws_platform --@google_privacysandbox_servers_common//:platform=aws
 # --config gcp_platform: builds the service to run with GCP
 build:gcp_platform --//:platform=gcp
 build:gcp_platform --@google_privacysandbox_servers_common//:platform=gcp
+
+# --config azure_platform: builds the service to run with Azure
+build:platform_azure --//:platform=azure
+build:platform_azure --@google_privacysandbox_servers_common//:platform=azure
 
 # --config prod_mode: builds the service in prod mode
 build:prod_mode --//:mode=prod

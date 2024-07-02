@@ -90,8 +90,6 @@ static_resources:
               - kv_server.v1.KeyValueService
               - kv_server.v2.KeyValueService
               - grpc.health.v1.Health
-              ignored_query_parameters:
-              - "interestGroupNames"
               print_options:
                 add_whitespace: true
                 always_print_primitive_fields: true

@@ -62,8 +62,6 @@ static_resources:
               services:
               - kv_server.v1.KeyValueService
               - kv_server.v2.KeyValueService
-              ignored_query_parameters:
-              - "interestGroupNames"
               print_options:
                 add_whitespace: true
                 always_print_primitive_fields: true

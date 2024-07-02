@@ -1,0 +1,73 @@
+#!/bin/bash
+# Copyright 2023 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+set -o pipefail
+set -o errexit
+export PS5='+\t ' # xtrace prompt
+
+START=$(date +%s)
+
+trap _print_runtime EXIT
+function _print_runtime() {
+  local -r -i STATUS=$?
+  local -i END
+  END=$(date +%s)
+  /usr/bin/env LC_ALL=en_US.UTF-8 printf "\ngcp/build_and_test runtime: %'ds\n" $((END - START)) >/dev/stderr
+  # shellcheck disable=SC2086
+  exit ${STATUS}
+}
+
+function usage() {
+  local exitval=${1-1}
+  cat >&2 << USAGE
+usage:
+  $0 <options>
+    --azure-image-tag   [REQUIRED] (All lowercase) Used to identify the image.
+    --azure-image-repo  [REQUIRED] Used to identify the target repo for image upload.
+USAGE
+  exit "${exitval}"
+}
+
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --azure-image-repo)
+      AZURE_IMAGE_REPO="$2"
+      shift 2 || usage
+      ;;
+    --azure-image-tag)
+      AZURE__IMAGE_TAG="$2"
+      shift 2 || usage
+      ;;
+    --verbose)
+      set -o xtrace
+      shift
+      ;;
+    -h | --help) usage 0 ;;
+    *) usage ;;
+  esac
+done
+
+
+
+IMAGE_URI=bazel/production/packaging/azure/data_server:server_docker_image
+TAGGED_IMAGE_URI=${AZURE_IMAGE_REPO}:${AZURE__IMAGE_TAG}
+
+docker load -i dist/server_docker_image.tar
+docker tag ${IMAGE_URI} "${TAGGED_IMAGE_URI}"
+# docker push "${TAGGED_IMAGE_URI}"
+
+# Before using this script, please make sure that the docker image is already prepared using the folloing command (from the kv-server root repo):
+# ./production/packaging/gcp/build_and_test

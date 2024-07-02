@@ -26,6 +26,7 @@ string_flag(
     build_setting_default = "aws",
     values = [
         "aws",
+        "azure",
         "gcp",
         "local",
     ],
@@ -41,6 +42,16 @@ config_setting(
         "//tools:__subpackages__",
     ],
 )
+
+config_setting(
+    name = "azure_platform",
+    flag_values = {
+        ":platform": "azure",
+    },
+    visibility = ["//visibility:private"],
+)
+
+
 
 config_setting(
     name = "gcp_platform",
@@ -69,6 +80,7 @@ string_flag(
     build_setting_default = "aws",
     values = [
         "aws",
+        "azure",
         "gcp",
         "local",
     ],
@@ -83,6 +95,14 @@ config_setting(
         "//components:__subpackages__",
         "//tools:__subpackages__",
     ],
+)
+
+config_setting(
+    name = "azure_instance",
+    flag_values = {
+        ":instance": "azure",
+    },
+    visibility = ["//visibility:public"],
 )
 
 config_setting(
@@ -151,6 +171,22 @@ selects.config_setting_group(
     name = "aws_nonprod",
     match_all = [
         "//:aws_platform",
+        "//:nonprod_mode",
+    ],
+)
+
+selects.config_setting_group(
+    name = "azure_prod",
+    match_all = [
+        "//:azure_platform",
+        "//:prod_mode",
+    ],
+)
+
+selects.config_setting_group(
+    name = "azure_nonprod",
+    match_all = [
+        "//:azure_platform",
         "//:nonprod_mode",
     ],
 )

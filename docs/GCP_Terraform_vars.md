@@ -28,6 +28,10 @@
 
     The grpc port that receives traffic destined for the OpenTelemetry collector
 
+-   **collector_startup_script_path**
+
+    Relative path from main.tf to collector service startup script.
+
 -   **consented_debug_token**
 
     Consented debug token to enable the otel collection of consented logs. Empty token means no-op

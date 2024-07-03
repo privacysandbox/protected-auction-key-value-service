@@ -17,6 +17,7 @@
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "flatbuffers/flatbuffer_builder.h"
 
 namespace kv_server {
 namespace {

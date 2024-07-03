@@ -63,7 +63,6 @@ ABSL_FLAG(uint16_t, port, 50051,
 namespace kv_server {
 namespace {
 
-using privacy_sandbox::server_common::ConfigureMetrics;
 using privacy_sandbox::server_common::ConfigurePrivateMetrics;
 using privacy_sandbox::server_common::ConfigureTracer;
 using privacy_sandbox::server_common::GetTracer;

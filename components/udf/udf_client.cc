@@ -119,7 +119,7 @@ class UdfClientImpl : public UdfClient {
     PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
         << "Executing UDF with input arg(s): "
         << absl::StrJoin(invocation_request.input, ",");
-    const auto start = clock_.Now();
+    privacy_sandbox::server_common::Stopwatch stopwatch;
     const auto status = roma_service_.Execute(
         std::make_unique<InvocationStrRequest<std::weak_ptr<RequestContext>>>(
             std::move(invocation_request)),
@@ -150,10 +150,15 @@ class UdfClientImpl : public UdfClient {
           << "Error executing UDF: " << *response_status;
       return *response_status;
     }
-    // TOOD: waiting on b/338813575 and the K&B team. Once that's
+    // TODO(b/338813575): waiting on the K&B team. Once that's
     // implemented we should just use that number.
+    const auto udf_execution_time = stopwatch.GetElapsedTime();
     metadata.custom_code_total_execution_time_micros =
-        (clock_.Now() - start) / absl::Microseconds(1);
+        absl::ToInt64Milliseconds(udf_execution_time);
+    LogIfError(request_context_factory.Get()
+                   .GetUdfRequestMetricsContext()
+                   .LogHistogram<kUDFExecutionLatencyInMicros>(
+                       absl::ToDoubleMicroseconds(udf_execution_time)));
     return *result;
   }
   absl::Status Init() { return roma_service_.Init(); }
@@ -261,8 +266,6 @@ class UdfClientImpl : public UdfClient {
   // losing the thread-safety of usage within a const function is a lesser
   // concern.
   mutable RomaService<std::weak_ptr<RequestContext>> roma_service_;
-  privacy_sandbox::server_common::SteadyClock& clock_ =
-      privacy_sandbox::server_common::SteadyClock::RealClock();
 };
 
 }  // namespace

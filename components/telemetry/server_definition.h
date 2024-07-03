@@ -538,6 +538,15 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kMicroSecondsLowerBound);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kUDFExecutionLatencyInMicros("UDFExecutionLatencyInMicros",
+                                 "UDF execution time",
+                                 kLatencyInMicroSecondsBoundaries,
+                                 kMicroSecondsUpperBound,
+                                 kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
     kTotalRequestCountV1("request.v1.count",
@@ -591,7 +600,7 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kShardedLookupRunQueryLatencyInMicros,
         &kShardedLookupRunSetQueryIntLatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros,
-        &kTotalV2LatencyWithoutCustomCode,
+        &kTotalV2LatencyWithoutCustomCode, &kUDFExecutionLatencyInMicros,
         // Safe metrics
         &kKVServerError,
         &privacy_sandbox::server_common::metrics::kTotalRequestCount,

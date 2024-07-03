@@ -36,7 +36,6 @@ function usage() {
 usage:
   $0 <options>
     --cmd <string>             bash command string to execute within the docker container
-    --cmd-profiler             enable profiler for the command
     --image <string>           Image name for the build runtime. Valid names:
 USAGE
 
@@ -56,6 +55,11 @@ USAGE
     --docker-network <value>   Specify docker network type or name, value passed to docker run --network. Default: ${DOCKER_NETWORK}
     --seccomp-unconfined       Run docker container without a seccomp profile
     --verbose                  Enable verbose output
+
+  Profiler flags:
+    --cmd-profiler                  enable profiler for the command
+    --cpu-profiler-signal <int>     unix signal to use to trigger profiler output. Default: ${CPU_PROFILER_SIGNAL}
+    --cpu-profiler-filename <path>  path for the cpu profiler output. Default: ${CPU_PROFILER_FILENAME}
 
 Environment variables (all optional):
     WORKSPACE                  Full path to the workspace (repo root)
@@ -79,6 +83,8 @@ DOCKER_NETWORK="${DOCKER_NETWORK:-bridge}"
 declare -i DOCKER_SECCOMP_UNCONFINED=0
 declare -i KEEP_CONTAINER_RUNNING=0
 declare LONG_RUNNING_CONTAINER_TIMEOUT=8h
+declare CPU_PROFILER_FILENAME=benchmark.prof
+declare -i CPU_PROFILER_SIGNAL=12
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -89,6 +95,14 @@ while [[ $# -gt 0 ]]; do
     --cmd-profiler)
       WITH_CMD_PROFILER=1
       shift
+      ;;
+    --cpu-profiler-filename)
+      CPU_PROFILER_FILENAME="$2"
+      shift 2 || usage
+      ;;
+    --cpu-profiler-signal)
+      CPU_PROFILER_SIGNAL=$2
+      shift 2 || usage
       ;;
     --env)
       ENV_VARS+=("$2")
@@ -199,7 +213,8 @@ if [[ ${WITH_CMD_PROFILER} -eq 1 ]]; then
   fi
   DOCKER_RUN_ARGS+=(
     "--env=CMD_PROFILER=LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libprofiler.so"
-    "--env=CPUPROFILE=benchmark.prof"
+    "--env=CPUPROFILE=${CPU_PROFILER_FILENAME}"
+    "--env=CPUPROFILESIGNAL=${CPU_PROFILER_SIGNAL}"
   )
 fi
 
@@ -252,8 +267,8 @@ function running_container_for() {
   declare -r name="$1"
   declare -a docker_args=(
     container ls
-    --filter "name=${name}"
-    --format "{{print .Names}}"
+    "--filter=name=^${name}$"
+    "--format={{print .Names}}"
   )
   local -r exited="$(docker "${docker_args[@]}" --all --filter "status=exited")"
   if [[ -n ${exited} ]]; then
@@ -269,13 +284,7 @@ function long_running_container() {
   local -r docker_running_container="$(running_container_for "${container_name}")"
   if [[ -z ${docker_running_container} ]]; then
     printf "starting a new container [%s]\n" "${container_name}" &>/dev/stderr
-    if [[ -z ${CMD} ]]; then
-      # shellcheck disable=SC2068
-      docker run \
-        ${DOCKER_RUN_ARGS[@]} \
-        "${DOCKER_EXEC_RUN_ARGS[@]}" \
-        "${IMAGE_TAGGED}"
-    else
+    if [[ -n ${CMD} ]]; then
       # shellcheck disable=SC2068
       docker run \
         ${DOCKER_RUN_ARGS[@]} \
@@ -293,11 +302,26 @@ timeout ${LONG_RUNNING_CONTAINER_TIMEOUT} tail --pid=\${pid} -f /dev/null
 }
 
 if [[ ${KEEP_CONTAINER_RUNNING} -eq 1 ]]; then
-  DOCKER_RUNNING_CONTAINER="$(long_running_container "${DOCKER_CONTAINER_NAME}")"
-  docker exec \
-    "${DOCKER_EXEC_RUN_ARGS[@]}" \
-    "${DOCKER_RUNNING_CONTAINER}" \
-    /bin/bash -c "${CMD}"
+  if [[ -z ${CMD} ]]; then
+    # shellcheck disable=SC2068
+    docker run \
+      ${DOCKER_RUN_ARGS[@]} \
+      "${DOCKER_EXEC_RUN_ARGS[@]}" \
+      "${IMAGE_TAGGED}"
+  else
+    DOCKER_RUNNING_CONTAINER="$(long_running_container "${DOCKER_CONTAINER_NAME}")"
+    if [[ ${WITH_CMD_PROFILER} -eq 1 ]]; then
+      docker exec \
+        "${DOCKER_EXEC_RUN_ARGS[@]}" \
+        "${DOCKER_RUNNING_CONTAINER}" \
+        /bin/bash -c "'${TOOLS_RELDIR}'/normalize-bazel-symlinks; env \${CMD_PROFILER} ${CMD:-/bin/sh}"
+    else
+      docker exec \
+        "${DOCKER_EXEC_RUN_ARGS[@]}" \
+        "${DOCKER_RUNNING_CONTAINER}" \
+        /bin/bash -c "${CMD:-/bin/sh}"
+    fi
+  fi
 else
   if [[ -z ${CMD} ]]; then
     # shellcheck disable=SC2068
@@ -319,6 +343,6 @@ else
       ${DOCKER_RUN_ARGS[@]} \
       "${DOCKER_EXEC_RUN_ARGS[@]}" \
       "${IMAGE_TAGGED}" \
-      --login -c "$CMD"
+      --login -c "${CMD}"
   fi
 fi

@@ -14,7 +14,7 @@
 
 FROM ubuntu:24.04
 
-COPY install_apps install_go.sh .pre-commit-config.yaml /scripts/
+COPY install_apps install_go.sh install_golang_apps .bazelversion .pre-commit-config.yaml /scripts/
 COPY gitconfig /etc
 
 ARG PRE_COMMIT_VENV_DIR=/usr/pre-commit-venv
@@ -28,6 +28,7 @@ ENV BUILD_ARCH="${TARGETARCH}" \
 RUN  \
   chmod 644 /etc/gitconfig && \
   /usr/bin/env -v PRE_COMMIT_VENV_DIR=${PRE_COMMIT_VENV_DIR} /scripts/install_apps && \
+  /scripts/install_golang_apps && \
   rm -rf /scripts
 
 ENV PATH="${PATH}:/usr/local/go/bin"

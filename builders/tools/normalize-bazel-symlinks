@@ -43,14 +43,11 @@ if [[ -f /.dockerenv ]]; then
   _normalize_fn=normalize_symlink_docker
 fi
 
-declare -a -r LINK_DIRS=(
-  bazel-bin
-  bazel-out
-  bazel-testlogs
-  bazel-workspace
-)
-for link in "${LINK_DIRS[@]}"; do
-  if [[ -L ${link} ]]; then
-    ${_normalize_fn} "${link}"
-  fi
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"/builder.sh
+cd "${WORKSPACE}" || true
+
+declare -a links
+mapfile -t links < <(find . -maxdepth 1 -type l -name "bazel-*" -exec basename {} \;)
+for link in "${links[@]}"; do
+  ${_normalize_fn} "${link}"
 done

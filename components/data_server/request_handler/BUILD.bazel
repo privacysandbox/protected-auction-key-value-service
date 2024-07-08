@@ -198,6 +198,7 @@ cc_library(
     deps = [
         ":get_values_v2_handler",
         ":v2_response_data_cc_proto",
+        "//components/errors:error_tag",
         "//public:api_schema_cc_proto",
         "//public/applications/pa:api_overlay_cc_proto",
         "//public/applications/pa:response_utils",

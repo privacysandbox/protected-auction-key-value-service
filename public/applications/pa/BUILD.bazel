@@ -36,6 +36,7 @@ cc_library(
     hdrs = ["response_utils.h"],
     deps = [
         "api_overlay_cc_proto",
+        "//components/errors:error_tag",
         "@com_google_absl//absl/status:statusor",
         "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],

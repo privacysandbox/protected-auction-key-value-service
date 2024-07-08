@@ -22,30 +22,24 @@ load(
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 go_library(
-    name = "diagnostic_lib",
-    srcs = ["diagnostic.go"],
+    name = "common",
+    srcs = ["common.go"],
+    importpath = "tools/server_diagnostic/common",
+    visibility = ["//tools/server_diagnostic:__subpackages__"],
+)
+
+go_library(
+    name = "diagnostic_aws_lib",
+    srcs = ["diagnostic_aws.go"],
     importpath = "tools/server_diagnostic",
-    visibility = ["//visibility:private"],
+    visibility = ["//tools/server_diagnostic:__subpackages__"],
+    deps = [":common"],
 )
 
 go_binary(
-    name = "diagnostic",
-    embed = [":diagnostic_lib"],
-    visibility = ["//visibility:public"],
-)
-
-pkg_files(
     name = "diagnostic_cli",
-    srcs = [
-        ":diagnostic",
-    ],
-    attributes = pkg_attributes(mode = "0555"),
-    prefix = "/tools/diagnostic_cli",
-)
-
-pkg_tar(
-    name = "diagnostic_tar",
-    srcs = [":diagnostic_cli"],
+    embed = [":diagnostic_aws_lib"],
+    visibility = ["//visibility:public"],
 )
 
 pkg_files(
@@ -122,11 +116,10 @@ pkg_files(
 
 [
     oci_image(
-        name = "diagnostic_tools_image_{}".format(arch),
+        name = "diagnostic_tool_box_image_{}".format(arch),
         base = "@runtime-ubuntu-fulldist-debug-root-{}//image".format(arch),
         tars = [
             ":helloworld_server_binaries_tar",
-            ":diagnostic_tar",
             ":query_api_descriptor_set_tar",
             ":grpcurl_tar_{}".format(arch),
         ],
@@ -139,9 +132,9 @@ pkg_files(
 
 [
     oci_tarball(
-        name = "diagnostic_tools_docker_image_{}".format(arch),
-        image = ":diagnostic_tools_image_{}".format(arch),
-        repo_tags = ["bazel/tools/server_diagnostic:diagnostic_tools_docker_image"],
+        name = "diagnostic_tool_box_docker_image_{}".format(arch),
+        image = ":diagnostic_tool_box_image_{}".format(arch),
+        repo_tags = ["bazel/tools/server_diagnostic:diagnostic_tool_box_docker_image"],
     )
     for arch in [
         "arm64",
@@ -152,18 +145,20 @@ pkg_files(
 genrule(
     name = "copy_to_dist",
     srcs = [
-        ":diagnostic_tools_docker_image_arm64",
-        ":diagnostic_tools_docker_image_amd64",
+        ":diagnostic_cli",
+        ":diagnostic_tool_box_docker_image_arm64",
+        ":diagnostic_tool_box_docker_image_amd64",
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
-mkdir -p dist/tools/arm64/server_diagnostic
-cp $(execpath :diagnostic_tools_docker_image_arm64) dist/tools/arm64/server_diagnostic/diagnostic_tools_docker_image_arm64.tar
-mkdir -p dist/tools/amd64/server_diagnostic
-cp $(execpath :diagnostic_tools_docker_image_amd64) dist/tools/amd64/server_diagnostic/diagnostic_tools_docker_image_amd64.tar
+mkdir -p dist/tools/server_diagnostic/arm64
+cp $(execpath :diagnostic_tool_box_docker_image_arm64) dist/tools/server_diagnostic/arm64/diagnostic_tool_box_docker_image_arm64.tar
+mkdir -p dist/tools/server_diagnostic/amd64
+cp $(execpath :diagnostic_tool_box_docker_image_amd64) dist/tools/server_diagnostic/amd64/diagnostic_tool_box_docker_image_amd64.tar
+cp $(execpath :diagnostic_cli) dist/tools/server_diagnostic/diagnostic_cli
 builders/tools/normalize-dist
 EOF""",
     executable = True,
     local = True,
-    message = "Copying server diagnostic artifacts to dist/tools/arm64/server_diagnostic and dist/tools/amd64/server_diagnostic directories",
+    message = "Copying server diagnostic artifacts to dist/tools/server_diagnostic",
 )

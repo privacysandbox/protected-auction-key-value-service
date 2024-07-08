@@ -48,10 +48,10 @@ config_setting(
     flag_values = {
         ":platform": "azure",
     },
-    visibility = ["//visibility:private"],
+    visibility = [
+        "//visibility:public",
+    ],
 )
-
-
 
 config_setting(
     name = "gcp_platform",

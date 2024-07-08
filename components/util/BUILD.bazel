@@ -113,6 +113,9 @@ cc_library(
         "//:aws_platform": [
             "platform_initializer_aws.cc",
         ],
+        "//:azure_platform": [
+            "platform_initializer_local.cc",
+        ],
         "//:gcp_platform": [
             "platform_initializer_gcp.cc",
         ],

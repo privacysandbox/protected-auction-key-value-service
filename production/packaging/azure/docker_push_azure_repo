@@ -67,7 +67,7 @@ TAGGED_IMAGE_URI=${AZURE_IMAGE_REPO}:${AZURE__IMAGE_TAG}
 
 docker load -i dist/server_docker_image.tar
 docker tag ${IMAGE_URI} "${TAGGED_IMAGE_URI}"
-# docker push "${TAGGED_IMAGE_URI}"
+docker push "${TAGGED_IMAGE_URI}"
 
 # Before using this script, please make sure that the docker image is already prepared using the folloing command (from the kv-server root repo):
 # ./production/packaging/gcp/build_and_test

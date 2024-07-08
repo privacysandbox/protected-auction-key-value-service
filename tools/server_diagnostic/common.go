@@ -51,13 +51,13 @@ func (s *Status) Error() string {
 }
 
 // Checks if a given process is listening to a given port
-func CheckProcessListeningToPort(process string, port string) Status {
-	output, err := ExecuteBashCommand(fmt.Sprintf("sudo netstat -nlp | grep :%s | grep %s", port, process))
+func CheckProcessListeningToPort(process string, port int) Status {
+	output, err := ExecuteBashCommand(fmt.Sprintf("sudo netstat -nlp | grep :%d | grep %s", port, process))
 	if err != nil {
 		return Status{false, err}
 	}
 	if len(output) == 0 {
-		return Status{false, fmt.Errorf("no process %s is listening to the port %s", process, port)}
+		return Status{false, fmt.Errorf("no process %s is listening to the port %d", process, port)}
 	}
 	return Status{true, nil}
 }
@@ -80,7 +80,7 @@ func ExecuteBashCommand(cmd string) (string, error) {
 // and returns output and error if any
 func ExecuteShellCommand(command string, args []string) (string, error) {
 	cmd := exec.Command(command, args...)
-	fmt.Println(fmt.Sprintf("Executing command: %s \n", cmd.String()))
+	fmt.Println(fmt.Sprintf("\nExecuting command: %s \n", cmd.String()))
 	var stdBuffer bytes.Buffer
 	writer := io.MultiWriter(os.Stdout, &stdBuffer)
 	cmd.Stdout = writer

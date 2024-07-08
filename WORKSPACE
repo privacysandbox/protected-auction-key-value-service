@@ -125,15 +125,12 @@ python_repositories()
 
 # Load the starlark macro, which will define your dependencies.
 load("@latency_benchmark//:requirements.bzl", latency_benchmark_install_deps = "install_deps")
-load("@perfgate_preprocessor//:requirements.bzl", perfgate_preprocessor_deps = "install_deps")  # copybara:strip(perfgate)
 load("@word2vec//:requirements.bzl", word2vec_install_deps = "install_deps")
 
 # Call it to define repos for your requirements.
 latency_benchmark_install_deps()
 
 word2vec_install_deps()
-
-perfgate_preprocessor_deps()  # copybara:strip(perfgate)
 
 # Use nogo to run `go vet` with bazel
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")

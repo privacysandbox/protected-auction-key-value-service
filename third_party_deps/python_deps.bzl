@@ -24,10 +24,3 @@ def python_repositories():
         name = "latency_benchmark",
         requirements_lock = "//third_party_deps:latency_benchmark_requirements.txt",
     )
-
-    # copybara:strip_begin(perfgate)
-    pip_parse(
-        name = "perfgate_preprocessor",
-        requirements_lock = "//google_internal/kokoro/gcp_ubuntu/perfgate/preprocessor:requirements.txt",
-    )
-    # copybara:strip_end

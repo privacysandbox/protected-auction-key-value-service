@@ -33,6 +33,7 @@ class GetValuesAdapter {
   // Calls the V2 GetValues Handler for a V1 GetValuesRequest. Converts between
   // V1 and V2 request/responses.
   virtual grpc::Status CallV2Handler(
+      RequestContextFactory& request_context_factory,
       const v1::GetValuesRequest& v1_request,
       v1::GetValuesResponse& v1_response) const = 0;
 

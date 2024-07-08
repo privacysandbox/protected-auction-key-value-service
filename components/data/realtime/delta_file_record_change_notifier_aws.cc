@@ -43,8 +43,10 @@ struct ParsedBody {
 class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
  public:
   explicit AwsDeltaFileRecordChangeNotifier(
-      std::unique_ptr<ChangeNotifier> change_notifier)
-      : change_notifier_(std::move(change_notifier)) {}
+      std::unique_ptr<ChangeNotifier> change_notifier,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : change_notifier_(std::move(change_notifier)),
+        log_context_(log_context) {}
 
   absl::StatusOr<NotificationsContext> GetNotifications(
       absl::Duration max_wait,
@@ -63,8 +65,8 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
     for (const auto& message : *notifications) {
       const auto parsedMessage = ParseObjectKeyFromJson(message);
       if (!parsedMessage.ok()) {
-        LOG(ERROR) << "Failed to parse JSON: " << message
-                   << ", error: " << parsedMessage.status();
+        PS_LOG(ERROR, log_context_) << "Failed to parse JSON: " << message
+                                    << ", error: " << parsedMessage.status();
         LogServerErrorMetric(kDeltaFileRecordChangeNotifierParsingFailure);
         continue;
       }
@@ -127,14 +129,16 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
   }
 
   std::unique_ptr<ChangeNotifier> change_notifier_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 }  // namespace
 
 std::unique_ptr<DeltaFileRecordChangeNotifier>
 DeltaFileRecordChangeNotifier::Create(
-    std::unique_ptr<ChangeNotifier> change_notifier) {
+    std::unique_ptr<ChangeNotifier> change_notifier,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<AwsDeltaFileRecordChangeNotifier>(
-      std::move(change_notifier));
+      std::move(change_notifier), log_context);
 }
 
 }  // namespace kv_server

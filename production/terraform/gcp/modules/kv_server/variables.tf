@@ -121,6 +121,11 @@ variable "collector_service_port" {
   type        = number
 }
 
+variable "collector_startup_script_path" {
+  description = "Relative path from main.tf to collector service startup script."
+  type        = string
+}
+
 variable "collector_machine_type" {
   description = "Machine type for the collector service."
   type        = string

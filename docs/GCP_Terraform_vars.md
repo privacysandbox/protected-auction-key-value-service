@@ -28,6 +28,12 @@
 
     The grpc port that receives traffic destined for the OpenTelemetry collector
 
+-   **consented_debug_token**
+
+    Consented debug token to enable the otel collection of consented logs. Empty token means no-op
+    and no logs will be collected for consented requests. The token in the request's consented debug
+    configuration needs to match this debug token to make the server treat the request as consented.
+
 -   **cpu_utilization_percent**
 
     CPU utilization percentage across an instance group required for autoscaler to add instances.
@@ -43,6 +49,11 @@
 -   **data_loading_num_threads**
 
     Number of parallel threads for reading and loading data files.
+
+-   **enable_consented_log**
+
+    Enable the logging of consented requests. If it is set to true, the consented debug token
+    parameter value must not be an empty string.
 
 -   **enable_external_traffic**
 
@@ -214,6 +225,10 @@
 -   **udf_num_workers**
 
     Number of workers for UDF execution.
+
+-   **udf_update_timeout_millis**
+
+    UDF update timeout in milliseconds. Default is 30000.
 
 -   **use_confidential_space_debug_image**
 

@@ -37,17 +37,18 @@ using privacy_sandbox::server_common::SteadyClock;
 
 class DeltaFileNotifierImpl : public DeltaFileNotifier {
  public:
-  explicit DeltaFileNotifierImpl(BlobStorageClient& client,
-                                 const absl::Duration poll_frequency,
-                                 std::unique_ptr<SleepFor> sleep_for,
-                                 SteadyClock& clock,
-                                 BlobPrefixAllowlist blob_prefix_allowlist)
+  explicit DeltaFileNotifierImpl(
+      BlobStorageClient& client, const absl::Duration poll_frequency,
+      std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock,
+      BlobPrefixAllowlist blob_prefix_allowlist,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : thread_manager_(ThreadManager::Create("Delta file notifier")),
         client_(client),
         poll_frequency_(poll_frequency),
         sleep_for_(std::move(sleep_for)),
         clock_(clock),
-        blob_prefix_allowlist_(std::move(blob_prefix_allowlist)) {}
+        blob_prefix_allowlist_(std::move(blob_prefix_allowlist)),
+        log_context_(log_context) {}
 
   absl::Status Start(
       BlobStorageChangeNotifier& change_notifier,
@@ -94,6 +95,7 @@ class DeltaFileNotifierImpl : public DeltaFileNotifier {
   std::unique_ptr<SleepFor> sleep_for_;
   SteadyClock& clock_;
   BlobPrefixAllowlist blob_prefix_allowlist_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 absl::StatusOr<std::string> DeltaFileNotifierImpl::WaitForNotification(
@@ -121,7 +123,7 @@ absl::StatusOr<bool> DeltaFileNotifierImpl::ShouldListBlobs(
     const absl::flat_hash_map<std::string, std::string>&
         prefix_start_after_map) {
   if (!expiring_flag.Get()) {
-    VLOG(5) << "Backup poll";
+    PS_VLOG(5, log_context_) << "Backup poll";
     return true;
   }
   absl::StatusOr<std::string> notification_key =
@@ -129,7 +131,7 @@ absl::StatusOr<bool> DeltaFileNotifierImpl::ShouldListBlobs(
   // Don't poll on error.  A backup poll will trigger if necessary.
   if (absl::IsDeadlineExceeded(notification_key.status())) {
     // Deadline exceeded while waiting, trigger backup poll
-    VLOG(5) << "Backup poll";
+    PS_VLOG(5, log_context_) << "Backup poll";
     return true;
   }
   if (!notification_key.ok()) {
@@ -152,7 +154,8 @@ absl::flat_hash_map<std::string, std::vector<std::string>> ListPrefixDeltaFiles(
     BlobStorageClient::DataLocation location,
     const BlobPrefixAllowlist& prefix_allowlist,
     const absl::flat_hash_map<std::string, std::string>& prefix_start_after_map,
-    BlobStorageClient& blob_client) {
+    BlobStorageClient& blob_client,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   absl::flat_hash_map<std::string, std::vector<std::string>> prefix_blobs_map;
   for (const auto& blob_prefix : prefix_allowlist.Prefixes()) {
     location.prefix = blob_prefix;
@@ -163,7 +166,8 @@ absl::flat_hash_map<std::string, std::vector<std::string>> ListPrefixDeltaFiles(
          .start_after =
              (iter == prefix_start_after_map.end()) ? "" : iter->second});
     if (!result.ok()) {
-      LOG(ERROR) << "Failed to list " << location << ": " << result.status();
+      PS_LOG(ERROR, log_context)
+          << "Failed to list " << location << ": " << result.status();
       continue;
     }
     if (result->empty()) {
@@ -183,7 +187,7 @@ void DeltaFileNotifierImpl::Watch(
     BlobStorageClient::DataLocation location,
     absl::flat_hash_map<std::string, std::string>&& prefix_start_after_map,
     std::function<void(const std::string& key)> callback) {
-  LOG(INFO) << "Started to watch " << location;
+  PS_LOG(INFO, log_context_) << "Started to watch " << location;
   // Flag starts expired, and forces an initial poll.
   ExpiringFlag expiring_flag(clock_);
   uint32_t sequential_failures = 0;
@@ -195,12 +199,12 @@ void DeltaFileNotifierImpl::Watch(
       const absl::Duration backoff_time =
           std::min(expiring_flag.GetTimeRemaining(),
                    ExponentialBackoffForRetry(sequential_failures));
-      LOG(ERROR) << "Failed to get delta file notifications: "
-                 << should_list_blobs.status() << ".  Waiting for "
-                 << backoff_time;
+      PS_LOG(ERROR, log_context_)
+          << "Failed to get delta file notifications: "
+          << should_list_blobs.status() << ".  Waiting for " << backoff_time;
       if (!sleep_for_->Duration(backoff_time)) {
-        LOG(ERROR) << "Failed to sleep for " << backoff_time
-                   << ".  SleepFor invalid.";
+        PS_LOG(ERROR, log_context_)
+            << "Failed to sleep for " << backoff_time << ".  SleepFor invalid.";
       }
       continue;
     }
@@ -212,8 +216,9 @@ void DeltaFileNotifierImpl::Watch(
     // Fake clock is moved forward in callback so flag must be set beforehand.
     expiring_flag.Set(poll_frequency_);
     int delta_file_count = 0;
-    auto prefix_blobs_map = ListPrefixDeltaFiles(
-        location, blob_prefix_allowlist_, prefix_start_after_map, client_);
+    auto prefix_blobs_map =
+        ListPrefixDeltaFiles(location, blob_prefix_allowlist_,
+                             prefix_start_after_map, client_, log_context_);
     for (const auto& [prefix, prefix_blobs] : prefix_blobs_map) {
       for (const auto& blob : prefix_blobs) {
         if (!IsDeltaFilename(blob)) {
@@ -225,7 +230,7 @@ void DeltaFileNotifierImpl::Watch(
       }
     }
     if (delta_file_count == 0) {
-      VLOG(2) << "No new file found";
+      PS_VLOG(2, log_context_) << "No new file found";
     }
   }
 }
@@ -234,20 +239,22 @@ void DeltaFileNotifierImpl::Watch(
 
 std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
     BlobStorageClient& client, const absl::Duration poll_frequency,
-    BlobPrefixAllowlist blob_prefix_allowlist) {
+    BlobPrefixAllowlist blob_prefix_allowlist,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<DeltaFileNotifierImpl>(
       client, poll_frequency, std::make_unique<SleepFor>(),
-      SteadyClock::RealClock(), std::move(blob_prefix_allowlist));
+      SteadyClock::RealClock(), std::move(blob_prefix_allowlist), log_context);
 }
 
 // For test only
 std::unique_ptr<DeltaFileNotifier> DeltaFileNotifier::Create(
     BlobStorageClient& client, const absl::Duration poll_frequency,
     std::unique_ptr<SleepFor> sleep_for, SteadyClock& clock,
-    BlobPrefixAllowlist blob_prefix_allowlist) {
+    BlobPrefixAllowlist blob_prefix_allowlist,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<DeltaFileNotifierImpl>(
       client, poll_frequency, std::move(sleep_for), clock,
-      std::move(blob_prefix_allowlist));
+      std::move(blob_prefix_allowlist), log_context);
 }
 
 }  // namespace kv_server

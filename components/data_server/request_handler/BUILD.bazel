@@ -72,6 +72,8 @@ cc_library(
     ],
     deps = [
         ":compression",
+        ":framing_utils",
+        ":get_values_v2_status",
         ":ohttp_server_encryptor",
         "//components/data_server/cache",
         "//components/telemetry:server_definition",
@@ -87,8 +89,34 @@ cc_library(
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/communication:encoding_utils",
         "@google_privacysandbox_servers_common//src/telemetry",
         "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
+    ],
+)
+
+cc_library(
+    name = "framing_utils",
+    srcs = [
+        "framing_utils.cc",
+    ],
+    hdrs = [
+        "framing_utils.h",
+    ],
+    deps = [
+        "@com_google_absl//absl/numeric:bits",
+    ],
+)
+
+cc_test(
+    name = "framing_utils_test",
+    size = "small",
+    srcs = [
+        "framing_utils_test.cc",
+    ],
+    deps = [
+        ":framing_utils",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -147,11 +175,13 @@ cc_test(
         "//components/udf:udf_client",
         "//public/query/v2:get_values_v2_cc_grpc",
         "//public/test_util:proto_matcher",
+        "//public/test_util:request_example",
         "@com_github_google_quiche//quiche:binary_http_unstable_api",
         "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/log",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/communication:encoding_utils",
         "@google_privacysandbox_servers_common//src/encryption/key_fetcher:fake_key_fetcher_manager",
         "@nlohmann_json//:lib",
     ],
@@ -247,11 +277,11 @@ cc_library(
     hdrs = [
         "ohttp_client_encryptor.h",
     ],
-    copts = select({
-        "//:aws_platform": ["-DCLOUD_PLATFORM_AWS=1"],
-        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
-        "//conditions:default": [],
-    }),
+    visibility = [
+        "//components/data_server:__subpackages__",
+        "//components/internal_server:__subpackages__",
+        "//components/tools:__subpackages__",
+    ],
     deps = [
         "//public:constants",
         "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
@@ -289,5 +319,27 @@ cc_test(
         ":ohttp_server_encryptor",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/encryption/key_fetcher:fake_key_fetcher_manager",
+    ],
+)
+
+cc_library(
+    name = "get_values_v2_status",
+    srcs = select({
+        "//:nonprod_mode": [
+            "get_values_v2_status_nonprod.cc",
+        ],
+        "//:prod_mode": [
+            "get_values_v2_status.cc",
+        ],
+        "//conditions:default": [
+            "get_values_v2_status.cc",
+        ],
+    }),
+    hdrs = ["get_values_v2_status.h"],
+    deps = [
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )

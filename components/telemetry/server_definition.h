@@ -23,6 +23,7 @@
 
 #include "absl/time/time.h"
 #include "components/telemetry/error_code.h"
+#include "opentelemetry/metrics/provider.h"
 #include "src/core/common/uuid/uuid.h"
 #include "src/metric/context_map.h"
 #include "src/util/duration.h"
@@ -40,21 +41,24 @@ constexpr std::string_view kInternalLookupServiceName = "InternalLookupServer";
 // metric monitoring set up.
 // TODO(b/307362951): Tune the upper bound and lower bound for different
 // unsafe metrics.
-constexpr int kCounterDPLowerBound = 1;
-constexpr int kCounterDPUpperBound = 10;
+inline constexpr int kCounterDPLowerBound = 1;
+inline constexpr int kCounterDPUpperBound = 10;
 
-constexpr int kErrorCounterDPLowerBound = 0;
-constexpr int kErrorCounterDPUpperBound = 1;
-constexpr int kErrorMaxPartitionsContributed = 1;
-constexpr double kErrorMinNoiseToOutput = 0.99;
+inline constexpr int kErrorCounterDPLowerBound = 0;
+inline constexpr int kErrorCounterDPUpperBound = 1;
+inline constexpr int kErrorMaxPartitionsContributed = 1;
+inline constexpr double kErrorMinNoiseToOutput = 0.99;
 
-constexpr int kMicroSecondsLowerBound = 1;
-constexpr int kMicroSecondsUpperBound = 2'000'000'000;
+inline constexpr int kMicroSecondsLowerBound = 1;
+// 2 seconds
+inline constexpr int kMicroSecondsUpperBound = 2'000'000'000;
 
 inline constexpr double kLatencyInMicroSecondsBoundaries[] = {
-    160,     220,       280,       320,       640,       1'200,         2'500,
-    5'000,   10'000,    20'000,    40'000,    80'000,    160'000,       320'000,
-    640'000, 1'000'000, 1'300'000, 2'600'000, 5'000'000, 10'000'000'000};
+    160,       220,       280,       320,       640,
+    1'200,     2'500,     5'000,     10'000,    20'000,
+    40'000,    80'000,    160'000,   320'000,   640'000,
+    1'000'000, 1'300'000, 2'600'000, 5'000'000, 10'000'000'000,
+};
 
 // String literals for absl status partition, the string list and literals match
 // those implemented in the absl::StatusCodeToString method
@@ -90,7 +94,9 @@ inline constexpr std::string_view kCacheAccessEvents[] = {
     kKeyValueSetCacheMiss};
 
 inline constexpr privacy_sandbox::server_common::metrics::PrivacyBudget
-    privacy_total_budget{/*epsilon*/ 5};
+    privacy_total_budget = {
+        .epsilon = 5,
+};
 
 // Metric definitions for request level metrics that are privacy impacting
 // and should be logged unsafe with DP(differential privacy) noises.
@@ -137,6 +143,15 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kShardedLookupRunQueryLatencyInMicros(
         "ShardedLookupRunQueryLatencyInMicros",
+        "Latency in executing RunQuery in the sharded lookup",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kShardedLookupRunSetQueryIntLatencyInMicros(
+        "ShardedLookupRunSetQueryIntLatencyInMicros",
         "Latency in executing RunQuery in the sharded lookup",
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
@@ -212,6 +227,15 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     kGetKeyValueSetLatencyInMicros(
         "GetKeyValueSetLatencyInMicros",
         "Latency in executing GetKeyValueSet in cache",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kGetUInt32ValueSetLatencyInMicros(
+        "GetUInt32ValueSetLatencyInMicros",
+        "Latency in executing GetUInt32ValueSet in cache",
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
 
@@ -315,6 +339,21 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kReceivedLowLatencyNotificationsBytes(
+        "ReceivedLowLatencyNotificationsBytes",
+        "Size of messages received through pub/sub",
+        privacy_sandbox::server_common::metrics::kSizeHistogram);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kReceivedLowLatencyNotificationsCount(
+        "kReceivedLowLatencyNotificationsCount",
+        "Count of messages received through pub/sub");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kAwsSqsReceiveMessageLatency("AwsSqsReceiveMessageLatency",
@@ -349,6 +388,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         "SeekingInputStreambufSeekoffLatency",
         "Latency in seeking input streambuf seekoff",
         kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kBlobStorageReadBytes(
+        "BlobStorageReadBytes", "Size of data read from blob storage in bytes",
+        privacy_sandbox::server_common::metrics::kSizeHistogram);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
@@ -421,6 +467,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kUpdateUInt32ValueSetLatency("UpdateUInt32ValueSetLatency",
+                                 "Latency in uint32 key value set update",
+                                 kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kDeleteKeyLatency("DeleteKeyLatency", "Latency in deleting key",
                       kLatencyInMicroSecondsBoundaries);
 
@@ -430,6 +483,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     kDeleteValuesInSetLatency("DeleteValuesInSetLatency",
                               "Latency in deleting values in set",
                               kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kDeleteUInt32ValueSetLatency("DeleteUInt32ValueSetLatency",
+                                 "Latency in deleting values in an uint32 set",
+                                 kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
@@ -454,13 +514,82 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
                                   kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kCleanUpUInt32SetMapLatency(
+        "CleanUpUInt32SetMapMapLatency",
+        "Latency in cleaning up key value uint32 set map",
+        kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
     kSecureLookupRequestCount(
         "SecureLookupRequestCount",
         "Number of secure lookup requests received from remote server");
 
-// KV server metrics list contains contains non request related safe metrics
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kTotalV2LatencyWithoutCustomCode(
+        "TotalV2LatencyWithoutCustomCode",
+        "Latency for running V2 request without UDF execution time",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kUDFExecutionLatencyInMicros("UDFExecutionLatencyInMicros",
+                                 "UDF execution time",
+                                 kLatencyInMicroSecondsBoundaries,
+                                 kMicroSecondsUpperBound,
+                                 kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kTotalRequestCountV1("request.v1.count",
+                         "Total number of V1 requests received by the server");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kRequestFailedCountByStatusV1(
+        "request.v1.failed_count_by_status",
+        "Total number of V1 requests that resulted in failure partitioned by "
+        "Error Code",
+        "error_code", kAbslStatusStrings);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kServerTotalTimeMsV1(
+        "request.v1.duration_ms",
+        "Total time taken by the server to execute the request",
+        privacy_sandbox::server_common::metrics::kTimeHistogram);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kResponseByteV1("response.v1.size_bytes", "V1 response size in bytes",
+                    privacy_sandbox::server_common::metrics::kSizeHistogram);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kRequestByteV1("request.v1.size_bytes", "V1 request size in bytes",
+                   privacy_sandbox::server_common::metrics::kSizeHistogram);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kGetValuesAdapterLatency(
+        "GetValuesAdapterLatencyMs",
+        "GetValues adapter latency in milliseconds",
+        privacy_sandbox::server_common::metrics::kTimeHistogram);
+
+// KV server metrics list contains non request related safe metrics
 // and request metrics collected before stage of internal lookups
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
     kKVServerMetricList[] = {
@@ -469,21 +598,27 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kShardedLookupGetKeyValuesLatencyInMicros,
         &kShardedLookupGetKeyValueSetLatencyInMicros,
         &kShardedLookupRunQueryLatencyInMicros,
+        &kShardedLookupRunSetQueryIntLatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros,
+        &kTotalV2LatencyWithoutCustomCode, &kUDFExecutionLatencyInMicros,
         // Safe metrics
         &kKVServerError,
         &privacy_sandbox::server_common::metrics::kTotalRequestCount,
         &privacy_sandbox::server_common::metrics::kServerTotalTimeMs,
         &privacy_sandbox::server_common::metrics::kRequestByte,
         &privacy_sandbox::server_common::metrics::kResponseByte,
-        &kRequestFailedCountByStatus, &kGetParameterStatus,
-        &kCompleteLifecycleStatus, &kCreateDataOrchestratorStatus,
-        &kStartDataOrchestratorStatus, &kLoadNewFilesStatus,
-        &kGetShardManagerStatus, &kDescribeInstanceGroupInstancesStatus,
-        &kDescribeInstancesStatus,
+        &kTotalRequestCountV1, &kServerTotalTimeMsV1, &kRequestByteV1,
+        &kResponseByteV1, &kRequestFailedCountByStatusV1,
+        &kRequestFailedCountByStatus, &kGetValuesAdapterLatency,
+        &kGetParameterStatus, &kCompleteLifecycleStatus,
+        &kCreateDataOrchestratorStatus, &kStartDataOrchestratorStatus,
+        &kLoadNewFilesStatus, &kGetShardManagerStatus,
+        &kDescribeInstanceGroupInstancesStatus, &kDescribeInstancesStatus,
         &kReceivedLowLatencyNotificationsE2ECloudProvided,
         &kReceivedLowLatencyNotificationsE2E, &kReceivedLowLatencyNotifications,
-        &kAwsSqsReceiveMessageLatency, &kSeekingInputStreambufSeekoffLatency,
+        &kReceivedLowLatencyNotificationsBytes,
+        &kReceivedLowLatencyNotificationsCount, &kAwsSqsReceiveMessageLatency,
+        &kSeekingInputStreambufSeekoffLatency,
         &kSeekingInputStreambufSizeLatency,
         &kSeekingInputStreambufUnderflowLatency,
         &kTotalRowsDroppedInDataLoading, &kTotalRowsUpdatedInDataLoading,
@@ -491,9 +626,12 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kConcurrentStreamRecordReaderReadShardRecordsLatency,
         &kConcurrentStreamRecordReaderReadStreamRecordsLatency,
         &kConcurrentStreamRecordReaderReadByteRangeLatency,
-        &kUpdateKeyValueLatency, &kUpdateKeyValueSetLatency, &kDeleteKeyLatency,
-        &kDeleteValuesInSetLatency, &kRemoveDeletedKeyLatency,
-        &kCleanUpKeyValueMapLatency, &kCleanUpKeyValueSetMapLatency};
+        &kUpdateKeyValueLatency, &kUpdateKeyValueSetLatency,
+        &kUpdateUInt32ValueSetLatency, &kDeleteKeyLatency,
+        &kDeleteValuesInSetLatency, &kDeleteUInt32ValueSetLatency,
+        &kRemoveDeletedKeyLatency, &kCleanUpKeyValueMapLatency,
+        &kCleanUpKeyValueSetMapLatency, &kCleanUpUInt32SetMapLatency,
+        &kBlobStorageReadBytes};
 
 // Internal lookup service metrics list contains metrics collected in the
 // internal lookup server. This separation from KV metrics list allows all
@@ -510,7 +648,8 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kInternalGetKeyValuesLatencyInMicros,
         &kInternalGetKeyValueSetLatencyInMicros,
         &kInternalSecureLookupLatencyInMicros, &kGetValuePairsLatencyInMicros,
-        &kGetKeyValueSetLatencyInMicros, &kCacheAccessEventCount};
+        &kGetKeyValueSetLatencyInMicros, &kGetUInt32ValueSetLatencyInMicros,
+        &kCacheAccessEventCount};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>
@@ -564,6 +703,16 @@ inline void LogIfError(const absl::Status& s,
   ABSL_LOG_EVERY_N_SEC(WARNING, 60)
           .AtLocation(location.file_name(), location.line())
       << message << ": " << s;
+}
+
+template <typename T>
+inline void LogIfError(const absl::StatusOr<T>& s, std::string_view message,
+                       privacy_sandbox::server_common::SourceLocation location
+                           PS_LOC_CURRENT_DEFAULT_ARG) {
+  if (s.ok()) return;
+  ABSL_LOG_EVERY_N_SEC(WARNING, 60)
+          .AtLocation(location.file_name(), location.line())
+      << message << ": " << s.status();
 }
 
 template <const auto& definition>
@@ -623,12 +772,12 @@ inline void LogServerErrorMetric(std::string_view error_code) {
           {{std::string(error_code), 1}}));
 }
 
-// Logs common safe request metrics
+// Logs common safe request metrics for V2 request path
 template <typename RequestT, typename ResponseT>
 inline void LogRequestCommonSafeMetrics(
     const RequestT* request, const ResponseT* response,
     const grpc::Status& grpc_request_status,
-    const absl::Time& request_received_time) {
+    const privacy_sandbox::server_common::Stopwatch& stopwatch) {
   LogIfError(
       KVServerContextMap()
           ->SafeMetric()
@@ -642,18 +791,18 @@ inline void LogRequestCommonSafeMetrics(
                    .LogUpDownCounter<kRequestFailedCountByStatus>(
                        {{absl::StatusCodeToString(request_status.code()), 1}}));
   }
-  LogIfError(KVServerContextMap()
-                 ->SafeMetric()
-                 .template LogHistogram<
-                     privacy_sandbox::server_common::metrics::kRequestByte>(
-                     (int)request->ByteSizeLong()));
-  LogIfError(KVServerContextMap()
-                 ->SafeMetric()
-                 .template LogHistogram<
-                     privacy_sandbox::server_common::metrics::kResponseByte>(
-                     (int)response->ByteSizeLong()));
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<privacy_sandbox::server_common::metrics::kRequestByte>(
+              static_cast<int>(request->ByteSizeLong())));
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .LogHistogram<privacy_sandbox::server_common::metrics::kResponseByte>(
+              static_cast<int>(response->ByteSizeLong())));
   int duration_ms =
-      (absl::Now() - request_received_time) / absl::Milliseconds(1);
+      static_cast<int>(absl::ToInt64Milliseconds(stopwatch.GetElapsedTime()));
   LogIfError(
       KVServerContextMap()
           ->SafeMetric()
@@ -662,55 +811,33 @@ inline void LogRequestCommonSafeMetrics(
               duration_ms));
 }
 
-// ScopeMetricsContext provides metrics context ties to the request and
-// should have the same lifetime of the request.
-// The purpose of this class is to avoid explicit creating and deleting metrics
-// context from context map. The metrics context associated with the request
-// will be destroyed after ScopeMetricsContext goes out of scope.
-class ScopeMetricsContext {
- public:
-  explicit ScopeMetricsContext(
-      std::string request_id = google::scp::core::common::ToString(
-          google::scp::core::common::Uuid::GenerateUuid()))
-      : request_id_(std::move(request_id)) {
-    // Create a metrics context in the context map and
-    // associated it with request id
-    KVServerContextMap()->Get(&request_id_);
-    CHECK_OK([this]() {
-      // Remove the metrics context for request_id to transfer the ownership
-      // of metrics context to the ScopeMetricsContext. This is to ensure that
-      // metrics context has the same lifetime with RequestContext and be
-      // destroyed when ScopeMetricsContext goes out of scope.
-      PS_ASSIGN_OR_RETURN(udf_request_metrics_context_,
-                          KVServerContextMap()->Remove(&request_id_));
-      return absl::OkStatus();
-    }()) << "Udf request metrics context is not initialized";
-    InternalLookupServerContextMap()->Get(&request_id_);
-    CHECK_OK([this]() {
-      // Remove the metrics context for request_id to transfer the ownership
-      // of metrics context to the ScopeMetricsContext. This is to ensure that
-      // metrics context has the same lifetime with RequestContext and be
-      // destroyed when ScopeMetricsContext goes out of scope.
-      PS_ASSIGN_OR_RETURN(
-          internal_lookup_metrics_context_,
-          InternalLookupServerContextMap()->Remove(&request_id_));
-      return absl::OkStatus();
-    }()) << "Internal lookup metrics context is not initialized";
+// Logs safe V1 request metrics
+template <typename RequestT, typename ResponseT>
+inline void LogV1RequestCommonSafeMetrics(
+    const RequestT* request, const ResponseT* response,
+    const grpc::Status& grpc_request_status,
+    const privacy_sandbox::server_common::Stopwatch& stopwatch) {
+  LogIfError(
+      KVServerContextMap()->SafeMetric().LogUpDownCounter<kTotalRequestCountV1>(
+          1));
+  if (auto request_status =
+          privacy_sandbox::server_common::ToAbslStatus(grpc_request_status);
+      !request_status.ok()) {
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogUpDownCounter<kRequestFailedCountByStatusV1>(
+                       {{absl::StatusCodeToString(request_status.code()), 1}}));
   }
-  UdfRequestMetricsContext& GetUdfRequestMetricsContext() const {
-    return *udf_request_metrics_context_;
-  }
-  InternalLookupMetricsContext& GetInternalLookupMetricsContext() const {
-    return *internal_lookup_metrics_context_;
-  }
-
- private:
-  const std::string request_id_;
-  // Metrics context has the same lifetime of server request context
-  std::unique_ptr<UdfRequestMetricsContext> udf_request_metrics_context_;
-  std::unique_ptr<InternalLookupMetricsContext>
-      internal_lookup_metrics_context_;
-};
+  LogIfError(KVServerContextMap()->SafeMetric().LogHistogram<kRequestByteV1>(
+      static_cast<int>(request->ByteSizeLong())));
+  LogIfError(KVServerContextMap()->SafeMetric().LogHistogram<kResponseByteV1>(
+      static_cast<int>(response->ByteSizeLong())));
+  int duration_ms =
+      static_cast<int>(absl::ToInt64Milliseconds(stopwatch.GetElapsedTime()));
+  LogIfError(
+      KVServerContextMap()->SafeMetric().LogHistogram<kServerTotalTimeMsV1>(
+          duration_ms));
+}
 
 // Measures the latency of a block of code. The latency is recorded in
 // microseconds as histogram metrics when the object of this class goes

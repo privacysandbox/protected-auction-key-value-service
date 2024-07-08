@@ -71,9 +71,9 @@ More [details](../data_loading/loading_data.md#upload-data-files-to-gcp)
 Note that this is a simplistic example created for an illustrative purpose. The retrieval case can
 get more complicated.
 
-See this [example](/getting_started/examples/sample_word2vec/). The sample demonstrates how you can
-query for a set of words, taking advantage of the native set query support, and sort them based on
-scoring criteria defined by word similarities, using embeddings.
+[Advanced_onboarding_dev_guide](/docs/protected_app_signals/advanced_onboarding_dev_guide.md)
+demonstrates how you can query for a set of words, taking advantage of the native set query support,
+and sort them based on scoring criteria defined by word similarities, using embeddings.
 
 ### UDF
 

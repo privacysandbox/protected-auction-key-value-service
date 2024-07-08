@@ -34,6 +34,7 @@
 #include "components/telemetry/server_definition.h"
 #include "public/data_loading/readers/stream_record_reader.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
+#include "src/logger/request_context_logger.h"
 #include "src/telemetry/telemetry_provider.h"
 
 namespace kv_server {
@@ -93,6 +94,9 @@ class AvroConcurrentStreamRecordReader : public StreamRecordReader {
   struct Options {
     int64_t num_worker_threads = std::thread::hardware_concurrency();
     int64_t min_byte_range_size_bytes = 8 * 1024 * 1024;  // 8MB
+    privacy_sandbox::server_common::log::PSLogContext& log_context =
+        const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+            privacy_sandbox::server_common::log::kNoOpContext);
     Options() {}
   };
   AvroConcurrentStreamRecordReader(

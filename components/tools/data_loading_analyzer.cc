@@ -26,6 +26,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/data_loading/data_orchestrator.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/udf/noop_udf_client.h"
 #include "components/util/platform_initializer.h"
 #include "public/base_types.pb.h"
@@ -42,6 +43,12 @@ ABSL_FLAG(std::string, bucket, "performance-test-data-bucket",
 
 namespace kv_server {
 namespace {
+
+class DataLoadingAnalyzerLogContext
+    : public privacy_sandbox::server_common::log::SafePathContext {
+ public:
+  DataLoadingAnalyzerLogContext() = default;
+};
 
 class NoopBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
@@ -139,8 +146,9 @@ std::vector<Operation> OperationsFromFlag() {
 }
 
 absl::Status InitOnce(Operation operation) {
+  DataLoadingAnalyzerLogContext log_context;
   std::unique_ptr<UdfClient> noop_udf_client = NewNoopUdfClient();
-  InitMetricsContextMap();
+  ConfigureTelemetryForTools();
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
 
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
@@ -184,6 +192,7 @@ absl::Status InitOnce(Operation operation) {
       .realtime_thread_pool_manager = realtime_thread_pool_manager,
       .udf_client = *noop_udf_client,
       .key_sharder = KeySharder(ShardingFunction{/*seed=*/""}),
+      .log_context = log_context,
   });
   absl::Time end_time = absl::Now();
   LOG(INFO) << "Init used " << (end_time - start_time);

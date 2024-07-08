@@ -28,6 +28,12 @@ sudo cp /home/ec2-user/server_enclave_image.eif /opt/privacysandbox/server_encla
 OTEL_COL_CONF=/opt/aws/aws-otel-collector/etc/otel_collector_config.yaml
 sudo mkdir -p "$(dirname "${OTEL_COL_CONF}")"
 sudo cp /home/ec2-user/otel_collector_config.yaml "${OTEL_COL_CONF}"
+sudo cp /home/ec2-user/envoy_networking.sh /opt/privacysandbox/envoy_networking.sh
+sudo cp /home/ec2-user/hc.bash /opt/privacysandbox/hc.bash
+sudo cp /home/ec2-user/health.proto /opt/privacysandbox/health.proto
+sudo chmod 555 /opt/privacysandbox/envoy_networking.sh
+sudo chmod 555 /opt/privacysandbox/hc.bash
+sudo chmod 555 /opt/privacysandbox/health.proto
 
 # Install necessary dependencies
 sudo yum update -y
@@ -43,3 +49,8 @@ sudo docker pull envoyproxy/envoy-distroless:v1.24.1
 
 sudo mkdir /etc/envoy
 sudo chown ec2-user:ec2-user /etc/envoy
+
+# Install grpcurl
+cd /tmp
+wget -q https://github.com/fullstorydev/grpcurl/releases/download/v1.9.1/grpcurl_1.9.1_linux_amd64.rpm
+sudo rpm -i grpcurl_1.9.1_linux_amd64.rpm

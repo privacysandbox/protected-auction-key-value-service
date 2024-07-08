@@ -23,8 +23,9 @@ output "subnets" {
   value       = google_compute_subnetwork.kv_server
 }
 
-output "collector_ip_address" {
-  value = google_compute_global_address.collector.address
+output "proxy_subnets" {
+  description = "All service proxy subnets."
+  value       = google_compute_subnetwork.proxy_subnets
 }
 
 output "server_ip_address" {

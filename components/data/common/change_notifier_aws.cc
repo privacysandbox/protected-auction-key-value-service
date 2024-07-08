@@ -54,9 +54,12 @@ constexpr char kLastUpdatedTag[] = "last_updated";
 
 class AwsChangeNotifier : public ChangeNotifier {
  public:
-  explicit AwsChangeNotifier(AwsNotifierMetadata notifier_metadata)
+  explicit AwsChangeNotifier(
+      AwsNotifierMetadata notifier_metadata,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : sns_arn_(std::move(notifier_metadata.sns_arn)),
-        queue_manager_(notifier_metadata.queue_manager) {
+        queue_manager_(notifier_metadata.queue_manager),
+        log_context_(log_context) {
     if (notifier_metadata.only_for_testing_sqs_client_ != nullptr) {
       sqs_.reset(notifier_metadata.only_for_testing_sqs_client_);
     } else {
@@ -72,12 +75,14 @@ class AwsChangeNotifier : public ChangeNotifier {
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
       const std::function<bool()>& should_stop_callback) override {
-    LOG(INFO) << "Getting notifications for topic " << sns_arn_;
+    PS_LOG(INFO, log_context_)
+        << "Getting notifications for topic " << sns_arn_;
     do {
       if (!queue_manager_->IsSetupComplete()) {
         absl::Status status = queue_manager_->SetupQueue();
         if (!status.ok()) {
-          LOG(ERROR) << "Could not set up queue for topic " << sns_arn_;
+          PS_LOG(ERROR, log_context_)
+              << "Could not set up queue for topic " << sns_arn_;
           LogServerErrorMetric(kAwsChangeNotifierQueueSetupFailure);
           return status;
         }
@@ -124,8 +129,9 @@ class AwsChangeNotifier : public ChangeNotifier {
       if (status.ok()) {
         last_updated_ = now;
       } else {
-        LOG(ERROR) << "Failed to TagQueue with " << kLastUpdatedTag << ": "
-                   << tag << " " << status;
+        PS_LOG(ERROR, log_context_)
+            << "Failed to TagQueue with " << kLastUpdatedTag << ": " << tag
+            << " " << status;
         LogServerErrorMetric(kAwsChangeNotifierTagFailure);
       }
     }
@@ -146,13 +152,13 @@ class AwsChangeNotifier : public ChangeNotifier {
     request.SetMaxNumberOfMessages(10);
     const auto outcome = sqs_->ReceiveMessage(request);
     if (!outcome.IsSuccess()) {
-      LOG(ERROR) << "Failed to receive message from SQS: "
-                 << outcome.GetError().GetMessage();
+      PS_LOG(ERROR, log_context_) << "Failed to receive message from SQS: "
+                                  << outcome.GetError().GetMessage();
       LogServerErrorMetric(kAwsChangeNotifierMessagesReceivingFailure);
       if (!outcome.GetError().ShouldRetry()) {
         // Handle case where recreating Queue will resolve the issue.
         // Example: Queue accidentally deleted.
-        LOG(INFO) << "Will create a new Queue";
+        PS_LOG(INFO, log_context_) << "Will create a new Queue";
         queue_manager_->Reset();
       }
       return absl::UnavailableError(outcome.GetError().GetMessage());
@@ -168,9 +174,22 @@ class AwsChangeNotifier : public ChangeNotifier {
                            absl::Now() - receive_message_request_started)));
 
     std::vector<std::string> keys;
+    keys.reserve(messages.size());
+    size_t total_message_size;
     for (const auto& message : messages) {
       keys.push_back(message.GetBody());
+      total_message_size += message.GetBody().size();
     }
+    LogIfError(
+        KVServerContextMap()
+            ->SafeMetric()
+            .template LogHistogram<kReceivedLowLatencyNotificationsBytes>(
+                static_cast<int>(total_message_size)));
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogUpDownCounter<kReceivedLowLatencyNotificationsCount>(
+                       static_cast<int>(messages.size())));
+
     DeleteMessages(GetSqsUrl(), messages);
     if (keys.empty()) {
       LogServerErrorMetric(kAwsChangeNotifierMessagesDataLoss);
@@ -197,8 +216,8 @@ class AwsChangeNotifier : public ChangeNotifier {
     req.SetEntries(std::move(delete_message_batch_request_entries));
     const auto outcome = sqs_->DeleteMessageBatch(req);
     if (!outcome.IsSuccess()) {
-      LOG(ERROR) << "Failed to delete message from SQS: "
-                 << outcome.GetError().GetMessage();
+      PS_LOG(ERROR, log_context_) << "Failed to delete message from SQS: "
+                                  << outcome.GetError().GetMessage();
       LogServerErrorMetric(kAwsChangeNotifierMessagesDeletionFailure);
     }
   }
@@ -207,13 +226,15 @@ class AwsChangeNotifier : public ChangeNotifier {
   const std::string sns_arn_;
   absl::Time last_updated_ = absl::InfinitePast();
   std::unique_ptr<Aws::SQS::SQSClient> sqs_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<AwsChangeNotifier>(
-      std::move(std::get<AwsNotifierMetadata>(notifier_metadata)));
+      std::move(std::get<AwsNotifierMetadata>(notifier_metadata)), log_context);
 }
 
 }  // namespace kv_server

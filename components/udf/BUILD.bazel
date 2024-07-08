@@ -39,6 +39,7 @@ cc_library(
     ],
     deps = [
         ":code_config",
+        "//components/errors:error_tag",
         "//components/errors:retry",
         "//components/udf/hooks:get_values_hook",
         "//components/udf/hooks:run_query_hook",
@@ -48,8 +49,10 @@ cc_library(
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/logger:request_context_logger",
         "@google_privacysandbox_servers_common//src/roma/interface",
         "@google_privacysandbox_servers_common//src/roma/roma_service",
+        "@google_privacysandbox_servers_common//src/util:duration",
     ],
 )
 
@@ -107,6 +110,7 @@ cc_test(
         "//components/udf/hooks:run_query_hook",
         "//public/query/v2:get_values_v2_cc_proto",
         "//public/test_util:proto_matcher",
+        "//public/test_util:request_example",
         "//public/udf:constants",
         "@com_google_absl//absl/log:scoped_mock_log",
         "@com_google_absl//absl/status",
@@ -114,6 +118,7 @@ cc_test(
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/roma/interface",
         "@google_privacysandbox_servers_common//src/roma/roma_service",
+        "@io_opentelemetry_cpp//exporters/ostream:ostream_log_record_exporter",
     ],
 )
 

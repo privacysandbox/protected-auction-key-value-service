@@ -35,15 +35,18 @@ using ::google::cloud::pubsub::Subscriber;
 
 class RealtimeNotifierGcp : public RealtimeNotifier {
  public:
-  explicit RealtimeNotifierGcp(std::unique_ptr<Subscriber> gcp_subscriber,
-                               std::unique_ptr<SleepFor> sleep_for)
+  explicit RealtimeNotifierGcp(
+      std::unique_ptr<Subscriber> gcp_subscriber,
+      std::unique_ptr<SleepFor> sleep_for,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : thread_manager_(ThreadManager::Create("Realtime notifier")),
         sleep_for_(std::move(sleep_for)),
-        gcp_subscriber_(std::move(gcp_subscriber)) {}
+        gcp_subscriber_(std::move(gcp_subscriber)),
+        log_context_(log_context) {}
 
   ~RealtimeNotifierGcp() {
     if (const auto s = Stop(); !s.ok()) {
-      LOG(ERROR) << "Realtime updater failed to stop: " << s;
+      PS_LOG(ERROR, log_context_) << "Realtime updater failed to stop: " << s;
     }
   }
 
@@ -58,19 +61,19 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
 
   absl::Status Stop() override {
     absl::Status status;
-    LOG(INFO) << "Realtime updater received stop signal.";
+    PS_LOG(INFO, log_context_) << "Realtime updater received stop signal.";
     {
       absl::MutexLock lock(&mutex_);
       if (session_.valid()) {
-        VLOG(8) << "Session valid.";
+        PS_VLOG(8, log_context_) << "Session valid.";
         session_.cancel();
-        VLOG(8) << "Session cancelled.";
+        PS_VLOG(8, log_context_) << "Session cancelled.";
       }
       status = sleep_for_->Stop();
-      VLOG(8) << "Sleep for just called stop.";
+      PS_VLOG(8, log_context_) << "Sleep for just called stop.";
     }
     status.Update(thread_manager_->Stop());
-    LOG(INFO) << "Thread manager just called stop.";
+    PS_LOG(INFO, log_context_) << "Thread manager just called stop.";
     return status;
   }
 
@@ -112,14 +115,24 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
           callback) {
     auto start = absl::Now();
     std::string string_decoded;
+    size_t message_size = m.data().size();
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogHistogram<kReceivedLowLatencyNotificationsBytes>(
+                       static_cast<int>(message_size)));
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogUpDownCounter<kReceivedLowLatencyNotificationsCount>(1));
     if (!absl::Base64Unescape(m.data(), &string_decoded)) {
       LogServerErrorMetric(kRealtimeDecodeMessageFailure);
-      LOG(ERROR) << "The body of the message is not a base64 encoded string.";
+      PS_LOG(ERROR, log_context_)
+          << "The body of the message is not a base64 encoded string.";
       std::move(h).ack();
       return;
     }
     if (auto count = callback(string_decoded); !count.ok()) {
-      LOG(ERROR) << "Data loading callback failed: " << count.status();
+      PS_LOG(ERROR, log_context_)
+          << "Data loading callback failed: " << count.status();
       LogServerErrorMetric(kRealtimeMessageApplicationFailure);
     }
     RecordGcpSuppliedE2ELatency(m);
@@ -141,9 +154,9 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
             OnMessageReceived(m, std::move(h), callback);
           });
     }
-    LOG(INFO) << "Realtime updater initialized.";
+    PS_LOG(INFO, log_context_) << "Realtime updater initialized.";
     sleep_for_->Duration(absl::InfiniteDuration());
-    LOG(INFO) << "Realtime updater stopped watching.";
+    PS_LOG(INFO, log_context_) << "Realtime updater stopped watching.";
   }
 
   std::unique_ptr<ThreadManager> thread_manager_;
@@ -151,14 +164,16 @@ class RealtimeNotifierGcp : public RealtimeNotifier {
   future<cloud::Status> session_ ABSL_GUARDED_BY(mutex_);
   std::unique_ptr<SleepFor> sleep_for_;
   std::unique_ptr<Subscriber> gcp_subscriber_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 absl::StatusOr<std::unique_ptr<Subscriber>> CreateSubscriber(
-    NotifierMetadata metadata) {
+    NotifierMetadata metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   GcpNotifierMetadata notifier_metadata =
       std::get<GcpNotifierMetadata>(metadata);
   auto realtime_message_service_status =
-      MessageService::Create(notifier_metadata);
+      MessageService::Create(notifier_metadata, log_context);
   if (!realtime_message_service_status.ok()) {
     return realtime_message_service_status.status();
   }
@@ -169,9 +184,10 @@ absl::StatusOr<std::unique_ptr<Subscriber>> CreateSubscriber(
   }
   auto queue_metadata =
       std::get<GcpQueueMetadata>(realtime_message_service->GetQueueMetadata());
-  LOG(INFO) << "Listening to queue_id " << queue_metadata.queue_id
-            << " project id " << notifier_metadata.project_id << " with "
-            << notifier_metadata.num_threads << " threads.";
+  PS_LOG(INFO, log_context)
+      << "Listening to queue_id " << queue_metadata.queue_id << " project id "
+      << notifier_metadata.project_id << " with "
+      << notifier_metadata.num_threads << " threads.";
   return std::make_unique<Subscriber>(pubsub::MakeSubscriberConnection(
       pubsub::Subscription(notifier_metadata.project_id,
                            queue_metadata.queue_id),
@@ -183,7 +199,8 @@ absl::StatusOr<std::unique_ptr<Subscriber>> CreateSubscriber(
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<RealtimeNotifier>> RealtimeNotifier::Create(
-    NotifierMetadata metadata, RealtimeNotifierMetadata realtime_metadata) {
+    NotifierMetadata metadata, RealtimeNotifierMetadata realtime_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto realtime_notifier_metadata =
       std::get_if<GcpRealtimeNotifierMetadata>(&realtime_metadata);
   std::unique_ptr<SleepFor> sleep_for;
@@ -199,14 +216,14 @@ absl::StatusOr<std::unique_ptr<RealtimeNotifier>> RealtimeNotifier::Create(
     gcp_subscriber.reset(
         realtime_notifier_metadata->gcp_subscriber_for_unit_testing);
   } else {
-    auto maybe_gcp_subscriber = CreateSubscriber(metadata);
+    auto maybe_gcp_subscriber = CreateSubscriber(metadata, log_context);
     if (!maybe_gcp_subscriber.ok()) {
       return maybe_gcp_subscriber.status();
     }
     gcp_subscriber = std::move(*maybe_gcp_subscriber);
   }
-  return std::make_unique<RealtimeNotifierGcp>(std::move(gcp_subscriber),
-                                               std::move(sleep_for));
+  return std::make_unique<RealtimeNotifierGcp>(
+      std::move(gcp_subscriber), std::move(sleep_for), log_context);
 }
 
 }  // namespace kv_server

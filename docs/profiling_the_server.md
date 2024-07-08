@@ -20,7 +20,7 @@ following command from workspace root:
     --dynamic_mode=off -c opt --copt=-gmlt \
     --copt=-fno-omit-frame-pointer \
     production/packaging/local/data_server:server_profiling_docker_image.tar \
-    --//:instance=local --//:platform=local
+    --config=local_instance --config=local_platform --config=nonprod_mode
 ```
 
 The `--dynamic_mode=off -c opt --copt=-gmlt` flags are needed to generate a server binary that is

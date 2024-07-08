@@ -27,15 +27,19 @@ class UdfConfigBuilder {
 
   UdfConfigBuilder& RegisterBinaryGetValuesHook(GetValuesHook& get_values_hook);
 
-  UdfConfigBuilder& RegisterRunQueryHook(RunQueryHook& run_query_hook);
+  UdfConfigBuilder& RegisterRunSetQueryStringHook(
+      RunSetQueryStringHook& run_query_hook);
+
+  UdfConfigBuilder& RegisterRunSetQueryIntHook(
+      RunSetQueryIntHook& run_set_query_int_hook);
 
   UdfConfigBuilder& RegisterLoggingFunction();
 
   UdfConfigBuilder& SetNumberOfWorkers(int number_of_workers);
 
-  google::scp::roma::Config<RequestContext>& Config();
+  google::scp::roma::Config<std::weak_ptr<RequestContext>>& Config();
 
  private:
-  google::scp::roma::Config<RequestContext> config_;
+  google::scp::roma::Config<std::weak_ptr<RequestContext>> config_;
 };
 }  // namespace kv_server

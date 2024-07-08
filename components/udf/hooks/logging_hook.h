@@ -17,6 +17,7 @@
 #ifndef COMPONENTS_UDF_LOGGING_HOOK_H_
 #define COMPONENTS_UDF_LOGGING_HOOK_H_
 
+#include <memory>
 #include <string>
 #include <tuple>
 
@@ -27,9 +28,17 @@ namespace kv_server {
 
 // Logging function to register with Roma.
 inline void LoggingFunction(absl::LogSeverity severity,
-                            const RequestContext& context,
+                            const std::weak_ptr<RequestContext>& context,
                             std::string_view msg) {
-  LOG(LEVEL(severity)) << msg;
+  std::shared_ptr<RequestContext> request_context = context.lock();
+  if (request_context == nullptr) {
+    PS_VLOG(1) << "Request context is not available, the request might "
+                  "have been marked as complete";
+    return;
+  }
+  PS_VLOG(9, request_context->GetPSLogContext()) << "Called logging hook";
+  privacy_sandbox::server_common::log::LogWithPSLog(
+      severity, request_context->GetPSLogContext(), msg);
 }
 
 }  // namespace kv_server

@@ -25,8 +25,10 @@ namespace {
 class RealtimeThreadPoolManagerAws : public RealtimeThreadPoolManager {
  public:
   explicit RealtimeThreadPoolManagerAws(
-      std::vector<std::unique_ptr<RealtimeNotifier>> realtime_notifiers)
-      : realtime_notifiers_(std::move(realtime_notifiers)) {}
+      std::vector<std::unique_ptr<RealtimeNotifier>> realtime_notifiers,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : realtime_notifiers_(std::move(realtime_notifiers)),
+        log_context_(log_context) {}
 
   ~RealtimeThreadPoolManagerAws() override { Stop(); }
 
@@ -38,7 +40,7 @@ class RealtimeThreadPoolManagerAws : public RealtimeThreadPoolManager {
         std::string error_message =
             "Realtime realtime_notifier is nullptr, realtime data "
             "loading disabled.";
-        LOG(ERROR) << error_message;
+        PS_LOG(ERROR, log_context_) << error_message;
         return absl::InvalidArgumentError(std::move(error_message));
       }
       auto status = realtime_notifier->Start(callback);
@@ -53,14 +55,14 @@ class RealtimeThreadPoolManagerAws : public RealtimeThreadPoolManager {
     absl::Status status = absl::OkStatus();
     for (auto& realtime_notifier : realtime_notifiers_) {
       if (realtime_notifier == nullptr) {
-        LOG(ERROR) << "Realtime realtime_notifier is nullptr";
+        PS_LOG(ERROR, log_context_) << "Realtime realtime_notifier is nullptr";
         continue;
       }
       if (realtime_notifier->IsRunning()) {
         auto current_status = realtime_notifier->Stop();
         status.Update(current_status);
         if (!current_status.ok()) {
-          LOG(ERROR) << current_status.message();
+          PS_LOG(ERROR, log_context_) << current_status.message();
           // we still want to try to stop others
           continue;
         }
@@ -71,13 +73,15 @@ class RealtimeThreadPoolManagerAws : public RealtimeThreadPoolManager {
 
  private:
   std::vector<std::unique_ptr<RealtimeNotifier>> realtime_notifiers_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<RealtimeThreadPoolManager>>
 RealtimeThreadPoolManager::Create(
     NotifierMetadata notifier_metadata, int32_t num_threads,
-    std::vector<RealtimeNotifierMetadata> realtime_notifier_metadata) {
+    std::vector<RealtimeNotifierMetadata> realtime_notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   std::vector<std::unique_ptr<RealtimeNotifier>> realtime_notifier;
   for (int i = 0; i < num_threads; i++) {
     RealtimeNotifierMetadata realtime_notifier_metadatum =
@@ -85,14 +89,14 @@ RealtimeThreadPoolManager::Create(
             ? RealtimeNotifierMetadata{}
             : std::move(realtime_notifier_metadata[i]);
     auto maybe_realtime_notifier = RealtimeNotifier::Create(
-        notifier_metadata, std::move(realtime_notifier_metadatum));
+        notifier_metadata, std::move(realtime_notifier_metadatum), log_context);
     if (!maybe_realtime_notifier.ok()) {
       return maybe_realtime_notifier.status();
     }
     realtime_notifier.push_back(std::move(*maybe_realtime_notifier));
   }
   return std::make_unique<RealtimeThreadPoolManagerAws>(
-      std::move(realtime_notifier));
+      std::move(realtime_notifier), log_context);
 }
 
 }  // namespace kv_server

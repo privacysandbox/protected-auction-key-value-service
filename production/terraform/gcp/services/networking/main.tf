@@ -30,6 +30,20 @@ resource "google_compute_subnetwork" "kv_server" {
   ip_cidr_range = tolist(var.regions_cidr_blocks)[each.key]
 }
 
+resource "google_compute_subnetwork" "proxy_subnets" {
+  for_each = { for index, region in tolist(var.regions) : index => region }
+
+  ip_cidr_range = "10.${139 + each.key}.0.0/23"
+  name          = "${var.service}-${var.environment}-${each.value}-collector-proxy-subnet"
+  network       = var.use_existing_vpc ? var.existing_vpc_id : google_compute_network.kv_server[0].id
+  purpose       = "GLOBAL_MANAGED_PROXY"
+  region        = each.value
+  role          = "ACTIVE"
+  lifecycle {
+    ignore_changes = [ipv6_access_type]
+  }
+}
+
 resource "google_compute_router" "kv_server" {
   for_each = var.regions
 
@@ -54,11 +68,6 @@ resource "google_compute_router_nat" "kv_server" {
     enable = true
     filter = "ERRORS_ONLY"
   }
-}
-
-resource "google_compute_global_address" "collector" {
-  name       = "${var.collector_service_name}-${var.environment}-lb"
-  ip_version = "IPV4"
 }
 
 resource "google_compute_global_address" "kv_server" {

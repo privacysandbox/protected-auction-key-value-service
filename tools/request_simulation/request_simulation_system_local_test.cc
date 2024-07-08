@@ -99,7 +99,6 @@ class SimulationSystemTest : public ::testing::Test {
   }
   std::unique_ptr<FakeKeyValueServiceImpl> fake_get_value_service_;
   std::unique_ptr<grpc::Server> server_;
-  MockMetricsRecorder metrics_recorder_;
   //  std::unique_ptr<MockMetricsCollector> metrics_collector_;
   SimulatedSteadyClock sim_clock_;
   std::unique_ptr<MockSleepFor> sleep_for_request_generator_;
@@ -144,7 +143,7 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
       .WillRepeatedly(Return(true));
 
   auto metrics_collector = std::make_unique<MockMetricsCollector>(
-      metrics_recorder_, std::move(sleep_for_metrics_collector_));
+      std::move(sleep_for_metrics_collector_));
 
   EXPECT_CALL(*metrics_collector, Start())
       .WillRepeatedly(Return(absl::OkStatus()));
@@ -170,7 +169,7 @@ TEST_F(SimulationSystemTest, TestSimulationSystemRunning) {
       .WillRepeatedly(Return(
           LocalNotifierMetadata{.local_directory = ::testing::TempDir()}));
   RequestSimulationSystem system(
-      metrics_recorder_, sim_clock_, channel_creation_fn,
+      sim_clock_, channel_creation_fn,
       std::move(mock_request_simulation_parameter_fetcher_));
   EXPECT_TRUE(system
                   .Init(std::move(sleep_for_request_generator_),

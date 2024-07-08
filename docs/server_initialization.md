@@ -6,18 +6,18 @@ Sequence diagrams below outline initilization steps for AWS/GCP Sharded/Non shar
 
 ### Non sharded
 
-![GCP Non sharded initialization](assets/gcp_sharded_init.png)
+![GCP Non sharded initialization](assets/gcp_nonsharded_init.svg)
 
 ### Sharded
 
-![GCP Sharded initialization](assets/gcp_sharded_init.png)
+![GCP Sharded initialization](assets/gcp_sharded_init.svg)
 
 ## AWS
 
 ### Non sharded
 
-![AWS Non sharded initialization](assets/aws_nonsharded_init.png)
+![AWS Non sharded initialization](assets/aws_nonsharded_init.svg)
 
 ### Sharded
 
-![AWS Sharded initialization](assets/aws_sharded_init.png)
+![AWS Sharded initialization](assets/aws_sharded_init.svg)

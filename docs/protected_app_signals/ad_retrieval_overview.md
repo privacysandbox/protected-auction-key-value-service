@@ -1,3 +1,7 @@
+!! This workflow works only for
+[Protected App Signals (PAS)](https://developers.google.com/privacy-sandbox/relevance/protected-audience/android/protected-app-signals).
+It does not support Protected Audience (PA), since the UDF and Server API is different.!!
+
 ## Background
 
 This document provides a detailed overview of the Ad Retrieval server, which is a server-side

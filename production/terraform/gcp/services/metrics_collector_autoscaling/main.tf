@@ -57,7 +57,7 @@ resource "google_compute_instance_template" "collector" {
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
   metadata = {
-    startup-script = templatefile("${path.module}/collector_startup.sh", {
+    startup-script = templatefile(var.collector_startup_script_path, {
       collector_port = var.collector_service_port,
     })
   }

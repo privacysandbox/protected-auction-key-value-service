@@ -35,7 +35,6 @@
 #include "public/sharding/key_sharder.h"
 
 namespace kv_server {
-
 // Coordinate data loading.
 //
 // This class is intended to be used in a single thread.
@@ -58,6 +57,7 @@ class DataOrchestrator {
     const int32_t num_shards = 1;
     const KeySharder key_sharder;
     BlobPrefixAllowlist blob_prefix_allowlist;
+    privacy_sandbox::server_common::log::PSLogContext& log_context;
   };
 
   // Creates initial state. Scans the bucket and initializes the cache with data

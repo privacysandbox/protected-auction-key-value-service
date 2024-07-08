@@ -84,8 +84,10 @@ class BlobStorageChangeNotifierS3Test : public ::testing::Test {
         .WillOnce(::testing::Return(outcome));
   }
 
-  PlatformInitializer initializer_;
   MockMessageService mock_message_service_;
+
+ private:
+  PlatformInitializer initializer_;
 };
 
 TEST_F(BlobStorageChangeNotifierS3Test, AwsSqsUnavailable) {

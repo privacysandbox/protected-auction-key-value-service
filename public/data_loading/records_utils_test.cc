@@ -14,9 +14,9 @@
 
 #include "public/data_loading/records_utils.h"
 
-#include "absl/hash/hash_testing.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "public/data_loading/record_utils.h"
 
 namespace kv_server {
 namespace {
@@ -40,10 +40,6 @@ UserDefinedFunctionsConfigStruct GetUdfConfigStruct(
   udf_config_struct.logical_commit_time = 1234567890;
   udf_config_struct.version = 1;
   return udf_config_struct;
-}
-
-ShardMappingRecordStruct GetShardMappingRecordStruct() {
-  return ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0};
 }
 
 DataRecordStruct GetDataRecord(RecordT record) {
@@ -128,6 +124,11 @@ void ExpectEqual(const KeyValueMutationRecordStruct& record,
     EXPECT_THAT(std::get<std::vector<std::string_view>>(record.value),
                 testing::ContainerEq(
                     GetRecordValue<std::vector<std::string_view>>(fbs_record)));
+  }
+  if (fbs_record.value_type() == Value::UInt32Set) {
+    EXPECT_THAT(std::get<std::vector<uint32_t>>(record.value),
+                testing::ContainerEq(
+                    GetRecordValue<std::vector<uint32_t>>(fbs_record)));
   }
 }
 
@@ -238,6 +239,22 @@ TEST(DataRecordTest,
 }
 
 TEST(DataRecordTest,
+     DeserializeDataRecord_ToFbsRecord_KVMutation_UInt32VectorValue_Success) {
+  std::vector<uint32_t> values({1000, 1001, 1002});
+  auto data_record_struct = GetDataRecord(GetKeyValueMutationRecord(values));
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .WillOnce([&data_record_struct](const DataRecord& data_record_fbs) {
+        ExpectEqual(data_record_struct, data_record_fbs);
+        return absl::OkStatus();
+      });
+  auto status = DeserializeDataRecord(
+      ToStringView(ToFlatBufferBuilder(data_record_struct)),
+      record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(DataRecordTest,
      DeserializeDataRecord_ToFbsRecord_KVMutation_KeyNotSet_Failure) {
   flatbuffers::FlatBufferBuilder builder;
   const auto kv_mutation_fbs = CreateKeyValueMutationRecordDirect(
@@ -330,6 +347,29 @@ TEST(
   EXPECT_EQ(status.message(), "StringSet value not set.");
 }
 
+TEST(
+    DataRecordTest,
+    DeserializeDataRecord_ToFbsRecord_KVMutation_UInt32SetValueNotSet_Failure) {
+  flatbuffers::FlatBufferBuilder builder;
+  const auto kv_mutation_fbs = CreateKeyValueMutationRecordDirect(
+      builder,
+      /*mutation_type=*/KeyValueMutationType::Update,
+      /*logical_commit_time=*/0,
+      /*key=*/"key",
+      /*value_type=*/Value::UInt32Set,
+      /*value=*/CreateUInt32Set(builder).Union());
+  const auto data_record_fbs =
+      CreateDataRecord(builder, /*record_type=*/Record::KeyValueMutationRecord,
+                       kv_mutation_fbs.Union());
+  builder.Finish(data_record_fbs);
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status = DeserializeDataRecord(ToStringView(builder),
+                                      record_callback.AsStdFunction());
+  ASSERT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
+}
+
 TEST(DataRecordTest, DeserializeDataRecord_ToFbsRecord_UdfConfig_Success) {
   auto data_record_struct = GetDataRecord(GetUdfConfigStruct());
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
@@ -408,6 +448,22 @@ TEST(DataRecordTest,
 TEST(DataRecordTest,
      DeserializeDataRecord_ToStruct_KVMutation_VectorStringValue_Success) {
   std::vector<std::string_view> values({"value1", "value2"});
+  auto data_record_struct = GetDataRecord(GetKeyValueMutationRecord(values));
+  testing::MockFunction<absl::Status(const DataRecordStruct&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .WillOnce([&data_record_struct](const DataRecordStruct& actual_record) {
+        EXPECT_EQ(data_record_struct, actual_record);
+        return absl::OkStatus();
+      });
+  auto status = DeserializeDataRecord(
+      ToStringView(ToFlatBufferBuilder(data_record_struct)),
+      record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(DataRecordTest,
+     DeserializeDataRecord_ToStruct_KVMutation_Uint32VectorValue_Success) {
+  std::vector<uint32_t> values({1000, 1001, 1002});
   auto data_record_struct = GetDataRecord(GetKeyValueMutationRecord(values));
   testing::MockFunction<absl::Status(const DataRecordStruct&)> record_callback;
   EXPECT_CALL(record_callback, Call)

@@ -18,22 +18,75 @@
 #define TOOLS_REQUEST_SIMULATION_METRICS_COLLECTOR_H_
 
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "absl/flags/flag.h"
 #include "components/data/common/thread_manager.h"
 #include "components/util/sleepfor.h"
-#include "src/telemetry/metrics_recorder.h"
 #include "test/core/util/histogram.h"
 
 namespace kv_server {
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kPartitionedCounter>
+    kServerResponseStatus(
+        "ServerResponseStatus", "Server responses partitioned by status",
+        "status",
+        privacy_sandbox::server_common::metrics::kEmptyPublicPartition);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kRequestsSent("RequestsSent",
+                  "Total number of requests sent to the server");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
+    kEstimatedQPS("EstimatedQPS", "Estimated QPS");
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kP50GrpcLatencyMs("P50GrpcLatency", "P50 Grpc request latency",
+                      privacy_sandbox::server_common::metrics::kTimeHistogram);
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kP90GrpcLatencyMs("P90GrpcLatency", "P50 Grpc request latency",
+                      privacy_sandbox::server_common::metrics::kTimeHistogram);
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kP99GrpcLatencyMs("P99GrpcLatency", "P50 Grpc request latency",
+                      privacy_sandbox::server_common::metrics::kTimeHistogram);
+
+inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
+    kRequestSimulationMetricsList[] = {
+        &kRequestsSent,     &kServerResponseStatus, &kEstimatedQPS,
+        &kP50GrpcLatencyMs, &kP90GrpcLatencyMs,     &kP99GrpcLatencyMs};
+inline constexpr absl::Span<
+    const privacy_sandbox::server_common::metrics::DefinitionName* const>
+    kRequestSimulationMetricsSpan = kRequestSimulationMetricsList;
+
+inline auto* RequestSimulationContextMap(
+    std::optional<
+        privacy_sandbox::server_common::telemetry::BuildDependentConfig>
+        config = std::nullopt,
+    std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
+    absl::string_view service = "Request-simulation",
+    absl::string_view version = "") {
+  return privacy_sandbox::server_common::metrics::GetContextMap<
+      const std::string, kRequestSimulationMetricsSpan>(
+      std::move(config), std::move(provider), service, version, {});
+}
 // MetricsCollector periodically collects metrics
 // periodically prints metrics to the log and publishes metrics to
-// MetricsRecorder
+// Otel
 class MetricsCollector {
  public:
-  MetricsCollector(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-      std::unique_ptr<SleepFor> sleep_for);
+  explicit MetricsCollector(std::unique_ptr<SleepFor> sleep_for);
   // Increments server response status event
   virtual void IncrementServerResponseStatusEvent(const absl::Status& status);
   // Increments requests sent counter for the current interval
@@ -78,7 +131,6 @@ class MetricsCollector {
   mutable std::atomic<int64_t> requests_with_error_response_per_interval_;
   absl::Duration report_interval_;
   std::unique_ptr<ThreadManager> report_thread_manager_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   std::unique_ptr<SleepFor> sleep_for_;
   grpc_histogram* histogram_per_interval_ ABSL_GUARDED_BY(mutex_);
   friend class MetricsCollectorPeer;

@@ -17,6 +17,7 @@
 namespace kv_server {
 
 const std::string_view kVersionBuildFlavor =
-    "instance:" INSTANCE " platform:" PLATFORM " otel_export:" OTEL_EXPORT;
+    "instance:" INSTANCE " platform:" PLATFORM " otel_export:" OTEL_EXPORT
+    " mode:" MODE;
 
 }  // namespace kv_server

@@ -41,25 +41,27 @@ class AwsParameterClient : public ParameterClient {
   absl::StatusOr<std::string> GetParameter(
       std::string_view parameter_name,
       std::optional<std::string> default_value = std::nullopt) const override {
-    LOG(INFO) << "Getting parameter: " << parameter_name;
+    PS_LOG(INFO, log_context_) << "Getting parameter: " << parameter_name;
     Aws::SSM::Model::GetParameterRequest request;
     request.SetName(std::string(parameter_name));
     const auto outcome = ssm_client_->GetParameter(request);
     if (!outcome.IsSuccess()) {
       if (default_value.has_value()) {
-        LOG(WARNING) << "Unable to get parameter: " << parameter_name
-                     << " with error: " << outcome.GetError()
-                     << ", returning default value: " << *default_value;
+        PS_LOG(WARNING, log_context_)
+            << "Unable to get parameter: " << parameter_name
+            << " with error: " << outcome.GetError()
+            << ", returning default value: " << *default_value;
         return *default_value;
       } else {
-        LOG(ERROR) << "Unable to get parameter: " << parameter_name
-                   << " with error: " << outcome.GetError();
+        PS_LOG(ERROR, log_context_)
+            << "Unable to get parameter: " << parameter_name
+            << " with error: " << outcome.GetError();
       }
       return AwsErrorToStatus(outcome.GetError());
     }
     std::string result = outcome.GetResult().GetParameter().GetValue();
-    LOG(INFO) << "Got parameter: " << parameter_name
-              << " with value: " << result;
+    PS_LOG(INFO, log_context_)
+        << "Got parameter: " << parameter_name << " with value: " << result;
     return result;
   };
 
@@ -79,7 +81,7 @@ class AwsParameterClient : public ParameterClient {
       const std::string error =
           absl::StrFormat("Failed converting %s parameter: %s to int32.",
                           parameter_name, *parameter);
-      LOG(ERROR) << error;
+      PS_LOG(ERROR, log_context_) << error;
       return absl::InvalidArgumentError(error);
     }
 
@@ -102,15 +104,22 @@ class AwsParameterClient : public ParameterClient {
       const std::string error =
           absl::StrFormat("Failed converting %s parameter: %s to bool.",
                           parameter_name, *parameter);
-      LOG(ERROR) << error;
+      PS_LOG(ERROR, log_context_) << error;
       return absl::InvalidArgumentError(error);
     }
 
     return parameter_bool;
   };
 
-  explicit AwsParameterClient(ParameterClient::ClientOptions client_options)
-      : client_options_(std::move(client_options)) {
+  void UpdateLogContext(
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
+    log_context_ = log_context;
+  }
+
+  explicit AwsParameterClient(
+      ParameterClient::ClientOptions client_options,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : client_options_(std::move(client_options)), log_context_(log_context) {
     if (client_options.client_for_unit_testing_ != nullptr) {
       ssm_client_.reset(
           (Aws::SSM::SSMClient*)client_options.client_for_unit_testing_);
@@ -122,13 +131,16 @@ class AwsParameterClient : public ParameterClient {
  private:
   ClientOptions client_options_;
   std::unique_ptr<Aws::SSM::SSMClient> ssm_client_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 std::unique_ptr<ParameterClient> ParameterClient::Create(
-    ParameterClient::ClientOptions client_options) {
-  return std::make_unique<AwsParameterClient>(std::move(client_options));
+    ParameterClient::ClientOptions client_options,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<AwsParameterClient>(std::move(client_options),
+                                              log_context);
 }
 
 }  // namespace kv_server

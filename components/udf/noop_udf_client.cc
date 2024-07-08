@@ -31,23 +31,31 @@ namespace kv_server {
 namespace {
 class NoopUdfClientImpl : public UdfClient {
  public:
-  absl::StatusOr<std::string> ExecuteCode(RequestContext request_context,
-                                          std::vector<std::string> keys) const {
+  absl::StatusOr<std::string> ExecuteCode(
+      const RequestContextFactory& request_context_factory,
+      std::vector<std::string> keys,
+      ExecutionMetadata& execution_metadata) const {
     return "";
   }
   absl::StatusOr<std::string> ExecuteCode(
-      RequestContext request_context, UDFExecutionMetadata&&,
-      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments) const {
+      const RequestContextFactory& request_context_factory,
+      UDFExecutionMetadata&&,
+      const google::protobuf::RepeatedPtrField<UDFArgument>& arguments,
+      ExecutionMetadata& execution_metadata) const {
     return "";
   }
 
   absl::Status Stop() { return absl::OkStatus(); }
 
-  absl::Status SetCodeObject(CodeConfig code_config) {
+  absl::Status SetCodeObject(
+      CodeConfig code_config,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) {
     return absl::OkStatus();
   }
 
-  absl::Status SetWasmCodeObject(CodeConfig code_config) {
+  absl::Status SetWasmCodeObject(
+      CodeConfig code_config,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) {
     return absl::OkStatus();
   }
 };

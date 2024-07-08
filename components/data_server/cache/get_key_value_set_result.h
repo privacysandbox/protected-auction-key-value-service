@@ -18,10 +18,11 @@
 #define COMPONENTS_DATA_SERVER_CACHE_GET_KEY_VALUE_SET_RESULT_H_
 
 #include <memory>
-#include <utility>
-#include <vector>
+#include <string>
 
 #include "absl/container/flat_hash_set.h"
+#include "components/container/thread_safe_hash_map.h"
+#include "components/data_server/cache/uint32_value_set.h"
 
 namespace kv_server {
 // Class that holds the data retrieved from cache lookup and read locks for
@@ -33,6 +34,8 @@ class GetKeyValueSetResult {
   // Looks up and returns key-value set result for the given key set.
   virtual absl::flat_hash_set<std::string_view> GetValueSet(
       std::string_view key) const = 0;
+  virtual const UInt32ValueSet* GetUInt32ValueSet(
+      std::string_view key) const = 0;
 
  private:
   // Adds key, value_set to the result data map, mantains the lock on `key`
@@ -40,6 +43,10 @@ class GetKeyValueSetResult {
   virtual void AddKeyValueSet(
       std::string_view key, absl::flat_hash_set<std::string_view> value_set,
       std::unique_ptr<absl::ReaderMutexLock> key_lock) = 0;
+  virtual void AddUInt32ValueSet(
+      std::string_view key,
+      ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr
+          value_set_node) = 0;
 
   static std::unique_ptr<GetKeyValueSetResult> Create();
 

@@ -15,8 +15,9 @@
 #include "components/data_server/server/key_fetcher_factory.h"
 
 namespace kv_server {
-std::unique_ptr<KeyFetcherFactory> KeyFetcherFactory::Create() {
-  return std::make_unique<CloudKeyFetcherFactory>();
+std::unique_ptr<KeyFetcherFactory> KeyFetcherFactory::Create(
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<CloudKeyFetcherFactory>(log_context);
 }
 
 }  // namespace kv_server

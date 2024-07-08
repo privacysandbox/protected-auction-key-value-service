@@ -42,7 +42,7 @@ exporters:
         # https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/googlecloudexporter/README.md
         - regex: .*
     log:
-      default_log_name: kv-server-metrics
+      default_log_name: kv-server-logs
 
 service:
   pipelines:

@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM alpine:3.18 as slowhttptest_builder
+FROM alpine:3.19 as slowhttptest_builder
 # hadolint ignore=DL3018
 RUN apk add --no-cache autoconf automake build-base git openssl-dev
 WORKDIR /build
 ADD https://github.com/shekyan/slowhttptest/archive/refs/tags/v1.9.0.tar.gz /build/src.tar.gz
 RUN tar xz --strip-components 1 -f src.tar.gz && ./configure && make
 
-FROM alpine:3.18 as wrk_builder
+FROM alpine:3.19 as wrk_builder
 ARG TARGETARCH
 ENV BUILD_ARCH="${TARGETARCH}"
 COPY build_wrk /build/
@@ -27,14 +27,14 @@ WORKDIR /build
 ADD https://github.com/giltene/wrk2/archive/44a94c17d8e6a0bac8559b53da76848e430cb7a7.tar.gz /build/src.tar.gz
 RUN /build/build_wrk
 
-FROM golang:1.21-alpine3.18 AS golang
+FROM golang:1.22-alpine3.19 AS golang
 ENV GOBIN=/usr/local/go/bin
 COPY build_golang_apps /scripts/
 RUN /scripts/build_golang_apps
 
-FROM fullstorydev/grpcurl:v1.8.9-alpine AS grpcurl
+FROM fullstorydev/grpcurl:v1.9.1-alpine AS grpcurl
 
-FROM alpine:3.18
+FROM alpine:3.19
 COPY --from=golang /usr/local/go/bin/* /usr/local/bin/
 COPY --from=grpcurl /bin/grpcurl /usr/local/bin/
 ARG TARGETARCH

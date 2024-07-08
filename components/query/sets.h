@@ -17,39 +17,46 @@
 #ifndef COMPONENTS_QUERY_SETS_H_
 #define COMPONENTS_QUERY_SETS_H_
 
-#include <utility>
-
 #include "absl/container/flat_hash_set.h"
 
+#include "roaring.hh"
+
 namespace kv_server {
-template <typename T>
-absl::flat_hash_set<T> Union(absl::flat_hash_set<T>&& left,
-                             absl::flat_hash_set<T>&& right) {
-  auto& small = left.size() <= right.size() ? left : right;
-  auto& big = left.size() <= right.size() ? right : left;
-  big.insert(small.begin(), small.end());
-  return std::move(big);
-}
 
-template <typename T>
-absl::flat_hash_set<T> Intersection(absl::flat_hash_set<T>&& left,
-                                    absl::flat_hash_set<T>&& right) {
-  auto& small = left.size() <= right.size() ? left : right;
-  const auto& big = left.size() <= right.size() ? right : left;
-  // Traverse the smaller set removing what is not in both.
-  absl::erase_if(small, [&big](const T& elem) { return !big.contains(elem); });
-  return std::move(small);
-}
+template <typename SetT>
+SetT Union(SetT&&, SetT&&);
 
-template <typename T>
-absl::flat_hash_set<T> Difference(absl::flat_hash_set<T>&& left,
-                                  absl::flat_hash_set<T>&& right) {
-  // Remove all elements in right from left.
-  for (const auto& element : right) {
-    left.erase(element);
-  }
-  return std::move(left);
-}
+template <typename SetT>
+SetT Intersection(SetT&&, SetT&&);
+
+template <typename SetT>
+SetT Difference(SetT&&, SetT&&);
+
+template <>
+absl::flat_hash_set<std::string_view> Union(
+    absl::flat_hash_set<std::string_view>&& left,
+    absl::flat_hash_set<std::string_view>&& right);
+
+template <>
+absl::flat_hash_set<std::string_view> Intersection(
+    absl::flat_hash_set<std::string_view>&& left,
+    absl::flat_hash_set<std::string_view>&& right);
+
+template <>
+absl::flat_hash_set<std::string_view> Difference(
+    absl::flat_hash_set<std::string_view>&& left,
+    absl::flat_hash_set<std::string_view>&& right);
+
+template <>
+roaring::Roaring Union(roaring::Roaring&& left, roaring::Roaring&& right);
+
+template <>
+roaring::Roaring Intersection(roaring::Roaring&& left,
+                              roaring::Roaring&& right);
+
+// Subtracts `right` from `left`.
+template <>
+roaring::Roaring Difference(roaring::Roaring&& left, roaring::Roaring&& right);
 
 }  // namespace kv_server
 #endif  // COMPONENTS_QUERY_SETS_H_

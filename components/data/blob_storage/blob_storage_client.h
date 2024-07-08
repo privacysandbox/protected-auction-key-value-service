@@ -27,6 +27,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "src/logger/request_context_logger.h"
 
 namespace kv_server {
 
@@ -95,7 +96,10 @@ class BlobStorageClientFactory {
   virtual ~BlobStorageClientFactory() = default;
   virtual std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
       BlobStorageClient::ClientOptions client_options =
-          BlobStorageClient::ClientOptions()) = 0;
+          BlobStorageClient::ClientOptions(),
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext)) = 0;
   static std::unique_ptr<BlobStorageClientFactory> Create();
 };
 

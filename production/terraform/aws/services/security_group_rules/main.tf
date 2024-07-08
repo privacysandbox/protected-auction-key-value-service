@@ -16,6 +16,7 @@
 
 # Ingress and egress rules for the load balancer listener.
 resource "aws_security_group_rule" "allow_all_elb_ingress" {
+  count             = var.use_existing_vpc ? 0 : 1
   from_port         = 443
   protocol          = "TCP"
   security_group_id = var.elb_security_group_id
@@ -44,6 +45,7 @@ resource "aws_security_group_rule" "allow_elb_to_ec2_egress" {
 
 # Ingress and egress rules for SSH.
 resource "aws_security_group_rule" "allow_all_ssh_ingress" {
+  count             = var.use_existing_vpc ? 0 : 1
   from_port         = 22
   protocol          = "TCP"
   security_group_id = var.ssh_security_group_id
@@ -53,6 +55,7 @@ resource "aws_security_group_rule" "allow_all_ssh_ingress" {
 }
 
 resource "aws_security_group_rule" "allow_ssh_to_ec2_egress" {
+  count                    = var.use_existing_vpc ? 0 : 1
   from_port                = 22
   protocol                 = "TCP"
   security_group_id        = var.ssh_security_group_id
@@ -62,6 +65,7 @@ resource "aws_security_group_rule" "allow_ssh_to_ec2_egress" {
 }
 
 resource "aws_security_group_rule" "allow_ssh_secure_tcp_egress" {
+  count             = var.use_existing_vpc ? 0 : 1
   from_port         = 443
   protocol          = "TCP"
   security_group_id = var.ssh_security_group_id
@@ -81,6 +85,7 @@ resource "aws_security_group_rule" "allow_elb_to_ec2_ingress" {
 }
 
 resource "aws_security_group_rule" "allow_ssh_to_ec2_ingress" {
+  count                    = var.use_existing_vpc ? 0 : 1
   from_port                = 22
   protocol                 = "TCP"
   security_group_id        = var.instances_security_group_id
@@ -90,6 +95,7 @@ resource "aws_security_group_rule" "allow_ssh_to_ec2_ingress" {
 }
 
 resource "aws_security_group_rule" "allow_ec2_to_vpc_endpoint_egress" {
+  count                    = var.use_existing_vpc ? 0 : 1
   from_port                = 443
   protocol                 = "TCP"
   security_group_id        = var.instances_security_group_id
@@ -99,6 +105,7 @@ resource "aws_security_group_rule" "allow_ec2_to_vpc_endpoint_egress" {
 }
 
 resource "aws_security_group_rule" "allow_ec2_to_vpc_ge_egress" {
+  count             = var.use_existing_vpc ? 0 : 1
   from_port         = 443
   protocol          = "TCP"
   security_group_id = var.instances_security_group_id
@@ -113,6 +120,7 @@ data "aws_ip_ranges" "ec2_instance_connect_ip_ranges" {
 }
 
 resource "aws_security_group_rule" "allow_ec2_instance_connect_ingress" {
+  count             = var.use_existing_vpc ? 0 : 1
   from_port         = 22
   protocol          = "TCP"
   security_group_id = var.instances_security_group_id
@@ -123,6 +131,7 @@ resource "aws_security_group_rule" "allow_ec2_instance_connect_ingress" {
 
 # Ingress and egress rules for backend vpc interface endpoints.
 resource "aws_security_group_rule" "allow_ec2_to_vpce_ingress" {
+  count                    = var.use_existing_vpc ? 0 : 1
   from_port                = 443
   protocol                 = "TCP"
   security_group_id        = var.vpce_security_group_id
@@ -132,6 +141,7 @@ resource "aws_security_group_rule" "allow_ec2_to_vpce_ingress" {
 }
 
 resource "aws_security_group_rule" "allow_ssh_instance_to_vpce_ingress" {
+  count                    = var.use_existing_vpc ? 0 : 1
   from_port                = 443
   protocol                 = "TCP"
   security_group_id        = var.vpce_security_group_id
@@ -159,6 +169,7 @@ resource "aws_security_group_rule" "allow_ec2_to_ec2_endpoint_ingress" {
 }
 
 resource "aws_security_group_rule" "allow_ec2_secure_tcp_egress" {
+  count             = var.use_existing_vpc ? 0 : 1
   from_port         = 443
   protocol          = "TCP"
   security_group_id = var.instances_security_group_id

@@ -21,6 +21,7 @@
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/internal_server/local_lookup.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/udf/udf_config_builder.h"
@@ -40,30 +41,39 @@ ABSL_FLAG(std::string, input_arguments, "",
           "be equivalent to a UDFArgument.");
 
 namespace kv_server {
+namespace {
+class UDFDeltaFileTestLogContext
+    : public privacy_sandbox::server_common::log::SafePathContext {
+ public:
+  UDFDeltaFileTestLogContext() = default;
+};
+}  // namespace
 
 using google::protobuf::util::JsonStringToMessage;
 
 // If the arg is const&, the Span construction complains about converting const
 // string_view to non-const string_view. Since this tool is for simple testing,
 // the current solution is to pass by value.
-absl::Status LoadCacheFromKVMutationRecord(KeyValueMutationRecordStruct record,
-                                           Cache& cache) {
+absl::Status LoadCacheFromKVMutationRecord(
+    UDFDeltaFileTestLogContext& log_context,
+    KeyValueMutationRecordStruct record, Cache& cache) {
   switch (record.mutation_type) {
     case KeyValueMutationType::Update: {
       LOG(INFO) << "Updating cache with key " << record.key
                 << ", logical commit time " << record.logical_commit_time;
       std::visit(
-          [&cache, &record](auto& value) {
+          [&cache, &record, &log_context](auto& value) {
             using VariantT = std::decay_t<decltype(value)>;
             if constexpr (std::is_same_v<VariantT, std::string_view>) {
-              cache.UpdateKeyValue(record.key, value,
+              cache.UpdateKeyValue(log_context, record.key, value,
                                    record.logical_commit_time);
               return;
             }
             constexpr bool is_list =
                 (std::is_same_v<VariantT, std::vector<std::string_view>>);
             if constexpr (is_list) {
-              cache.UpdateKeyValueSet(record.key, absl::MakeSpan(value),
+              cache.UpdateKeyValueSet(log_context, record.key,
+                                      absl::MakeSpan(value),
                                       record.logical_commit_time);
               return;
             }
@@ -72,7 +82,7 @@ absl::Status LoadCacheFromKVMutationRecord(KeyValueMutationRecordStruct record,
       break;
     }
     case KeyValueMutationType::Delete: {
-      cache.DeleteKey(record.key, record.logical_commit_time);
+      cache.DeleteKey(log_context, record.key, record.logical_commit_time);
       break;
     }
     default:
@@ -83,15 +93,17 @@ absl::Status LoadCacheFromKVMutationRecord(KeyValueMutationRecordStruct record,
   return absl::OkStatus();
 }
 
-absl::Status LoadCacheFromFile(std::string file_path, Cache& cache) {
+absl::Status LoadCacheFromFile(UDFDeltaFileTestLogContext& log_context,
+                               std::string file_path, Cache& cache) {
   std::ifstream delta_file(file_path);
   DeltaRecordStreamReader record_reader(delta_file);
-  absl::Status status =
-      record_reader.ReadRecords([&cache](const DataRecordStruct& data_record) {
+  absl::Status status = record_reader.ReadRecords(
+      [&cache, &log_context](const DataRecordStruct& data_record) {
         // Only load KVMutationRecords into cache.
         if (std::holds_alternative<KeyValueMutationRecordStruct>(
                 data_record.record)) {
           return LoadCacheFromKVMutationRecord(
+              log_context,
               std::get<KeyValueMutationRecordStruct>(data_record.record),
               cache);
         }
@@ -137,10 +149,11 @@ void ShutdownUdf(UdfClient& udf_client) {
 absl::Status TestUdf(const std::string& kv_delta_file_path,
                      const std::string& udf_delta_file_path,
                      const std::string& input_arguments) {
-  InitMetricsContextMap();
+  ConfigureTelemetryForTools();
   LOG(INFO) << "Loading cache from delta file: " << kv_delta_file_path;
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  PS_RETURN_IF_ERROR(LoadCacheFromFile(kv_delta_file_path, *cache))
+  UDFDeltaFileTestLogContext log_context;
+  PS_RETURN_IF_ERROR(LoadCacheFromFile(log_context, kv_delta_file_path, *cache))
       << "Error loading cache from file";
 
   LOG(INFO) << "Loading udf code config from delta file: "
@@ -157,20 +170,21 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   auto binary_get_values_hook =
       GetValuesHook::Create(GetValuesHook::OutputType::kBinary);
   binary_get_values_hook->FinishInit(CreateLocalLookup(*cache));
-  auto run_query_hook = RunQueryHook::Create();
-  run_query_hook->FinishInit(CreateLocalLookup(*cache));
+  auto run_set_query_string_hook = RunSetQueryStringHook::Create();
+  run_set_query_string_hook->FinishInit(CreateLocalLookup(*cache));
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
       UdfClient::Create(std::move(
           config_builder.RegisterStringGetValuesHook(*string_get_values_hook)
               .RegisterBinaryGetValuesHook(*binary_get_values_hook)
-              .RegisterRunQueryHook(*run_query_hook)
+              .RegisterRunSetQueryStringHook(*run_set_query_string_hook)
               .RegisterLoggingFunction()
               .SetNumberOfWorkers(1)
               .Config()));
   PS_RETURN_IF_ERROR(udf_client.status())
       << "Error starting UDF execution engine";
 
-  auto code_object_status = udf_client.value()->SetCodeObject(code_config);
+  auto code_object_status =
+      udf_client.value()->SetCodeObject(code_config, log_context);
   if (!code_object_status.ok()) {
     LOG(ERROR) << "Error setting UDF code object: " << code_object_status;
     ShutdownUdf(*udf_client.value());
@@ -185,9 +199,13 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
   JsonStringToMessage(req_partition_json, &req_partition);
 
   LOG(INFO) << "Calling UDF for partition: " << req_partition.DebugString();
-  auto metrics_context = std::make_unique<ScopeMetricsContext>();
+  auto request_context_factory = std::make_unique<RequestContextFactory>(
+      privacy_sandbox::server_common::LogContext(),
+      privacy_sandbox::server_common::ConsentedDebugConfiguration());
+  ExecutionMetadata execution_metadata;
   auto udf_result = udf_client.value()->ExecuteCode(
-      RequestContext(*metrics_context), {}, req_partition.arguments());
+      *request_context_factory, {}, req_partition.arguments(),
+      execution_metadata);
   if (!udf_result.ok()) {
     LOG(ERROR) << "UDF execution failed: " << udf_result.status();
     ShutdownUdf(*udf_client.value());
@@ -205,7 +223,6 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
-
   const std::string kv_delta_file_path =
       absl::GetFlag(FLAGS_kv_delta_file_path);
   const std::string udf_delta_file_path =

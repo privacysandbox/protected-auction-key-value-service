@@ -5,7 +5,7 @@ build --output_filter='^//((?!(third_party):).)*$'`
 build --color=yes
 build --@io_bazel_rules_docker//transitions:enable=false
 build --workspace_status_command="bash tools/get_workspace_status"
-build --copt=-Werror=thread-safety-analysis
+build --copt=-Werror=thread-safety
 build --config=clang
 build --config=noexcept
 # Disable some ROMA error checking
@@ -118,7 +118,7 @@ build:gcp_platform --@google_privacysandbox_servers_common//:platform=gcp
 build:prod_mode --//:mode=prod
 build:prod_mode --@google_privacysandbox_servers_common//:build_flavor=prod
 
-# --config prod_mode: builds the service in prod mode
+# --config nonprod_mode: builds the service in nonprod mode
 build:nonprod_mode --//:mode=nonprod
 build:nonprod_mode --@google_privacysandbox_servers_common//:build_flavor=non_prod
 

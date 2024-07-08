@@ -55,7 +55,7 @@ TEST_F(TestSyntheticRequestGeneratorTest, TestGenerateRequestsAtFixedRate) {
       requests_per_second, [option]() {
         const auto keys = kv_server::GenerateRandomKeys(
             option.number_of_keys_per_request, option.key_size_in_bytes);
-        return kv_server::CreateKVDSPRequestBodyInJson(keys);
+        return kv_server::CreateKVDSPRequestBodyInJson(keys, "debug_token");
       });
   sim_clock_.AdvanceTime(absl::Seconds(1));
   EXPECT_TRUE(request_generator.Start().ok());
@@ -83,7 +83,7 @@ TEST_F(TestSyntheticRequestGeneratorTest,
       message_queue, rate_limiter, std::move(sleep_for_request_generator_),
       requests_per_second, [num_of_keys, key_size]() {
         const auto keys = kv_server::GenerateRandomKeys(num_of_keys, key_size);
-        return kv_server::CreateKVDSPRequestBodyInJson(keys);
+        return kv_server::CreateKVDSPRequestBodyInJson(keys, "debug_token");
       });
   sim_clock_.AdvanceTime(absl::Seconds(1));
   EXPECT_TRUE(request_generator.Start().ok());

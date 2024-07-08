@@ -25,6 +25,7 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "components/internal_server/remote_lookup_client.h"
+#include "src/logger/request_context_logger.h"
 
 namespace kv_server {
 // This class is useful for testing ShardManager
@@ -54,13 +55,19 @@ class ShardManager {
       int32_t num_shards,
       privacy_sandbox::server_common::KeyFetcherManagerInterface&
           key_fetcher_manager,
-      const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings);
+      const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
   static absl::StatusOr<std::unique_ptr<ShardManager>> Create(
       int32_t num_shards,
       const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings,
       std::unique_ptr<RandomGenerator> random_generator,
       std::function<std::unique_ptr<RemoteLookupClient>(const std::string& ip)>
-          client_factory);
+          client_factory,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 };
 }  // namespace kv_server
 #endif  // COMPONENTS_SHARDING_SHARD_MANAGER_H_

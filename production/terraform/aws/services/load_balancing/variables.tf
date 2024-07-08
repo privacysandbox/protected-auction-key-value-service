@@ -35,7 +35,7 @@ variable "elb_subnet_ids" {
 }
 
 variable "certificate_arn" {
-  description = "ARN for a certificate to be attached to the NLB listener."
+  description = "ARN for a certificate to be attached to the NLB listener. Ingored if enable_external_traffic is false."
   type        = string
 }
 

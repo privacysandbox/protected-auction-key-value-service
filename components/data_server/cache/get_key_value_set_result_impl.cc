@@ -25,11 +25,20 @@
 namespace kv_server {
 namespace {
 
+using UInt32ValueSetNodePtr =
+    ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr;
+
 // Class that holds the data retrieved from cache lookup and read locks for
 // the lookup keys
 class GetKeyValueSetResultImpl : public GetKeyValueSetResult {
  public:
   GetKeyValueSetResultImpl() {}
+
+  GetKeyValueSetResultImpl(const GetKeyValueSetResultImpl&) = delete;
+  GetKeyValueSetResultImpl& operator=(const GetKeyValueSetResultImpl&) = delete;
+  GetKeyValueSetResultImpl(GetKeyValueSetResultImpl&& other) = default;
+  GetKeyValueSetResultImpl& operator=(GetKeyValueSetResultImpl&& other) =
+      default;
 
   // Looks up the key in the data map and returns value set. If the value_set
   // for the key is missing, returns empty set.
@@ -41,17 +50,15 @@ class GetKeyValueSetResultImpl : public GetKeyValueSetResult {
     return key_itr == data_map_.end() ? *kEmptySet : key_itr->second;
   }
 
-  GetKeyValueSetResultImpl(const GetKeyValueSetResultImpl&) = delete;
-  GetKeyValueSetResultImpl& operator=(const GetKeyValueSetResultImpl&) = delete;
-  GetKeyValueSetResultImpl(GetKeyValueSetResultImpl&& other) = default;
-  GetKeyValueSetResultImpl& operator=(GetKeyValueSetResultImpl&& other) =
-      default;
+  const UInt32ValueSet* GetUInt32ValueSet(std::string_view key) const override {
+    if (auto iter = uin32t_sets_map_.find(key);
+        iter != uin32t_sets_map_.end() && iter->second.is_present()) {
+      return iter->second.value();
+    }
+    return nullptr;
+  }
 
  private:
-  std::vector<std::unique_ptr<absl::ReaderMutexLock>> read_locks_;
-  absl::flat_hash_map<std::string_view, absl::flat_hash_set<std::string_view>>
-      data_map_;
-
   // Adds key, value_set to the result data map, creates a read lock for
   // the key mutex
   void AddKeyValueSet(
@@ -60,6 +67,16 @@ class GetKeyValueSetResultImpl : public GetKeyValueSetResult {
     read_locks_.push_back(std::move(key_lock));
     data_map_.emplace(key, std::move(value_set));
   }
+
+  void AddUInt32ValueSet(std::string_view key,
+                         UInt32ValueSetNodePtr value_set_ptr) override {
+    uin32t_sets_map_.emplace(key, std::move(value_set_ptr));
+  }
+
+  std::vector<std::unique_ptr<absl::ReaderMutexLock>> read_locks_;
+  absl::flat_hash_map<std::string_view, absl::flat_hash_set<std::string_view>>
+      data_map_;
+  absl::flat_hash_map<std::string_view, UInt32ValueSetNodePtr> uin32t_sets_map_;
 };
 }  // namespace
 

@@ -14,10 +14,36 @@
  * limitations under the License.
  */
 
-####################################################
-# Create EC2 instance profile.
-####################################################
+
+################################################################################
+# If use_existing_vpc is true, we need to use existing iam roles.
+################################################################################
+
+data "aws_iam_role" "existing_instance_role" {
+  count = var.use_existing_vpc ? 1 : 0
+  name  = format("%s-%s-InstanceRole", var.existing_vpc_operator, var.existing_vpc_environment)
+}
+
+data "aws_iam_instance_profile" "existing_instance_profile" {
+  count = var.use_existing_vpc ? 1 : 0
+  name  = format("%s-%s-InstanceProfile", var.existing_vpc_operator, var.existing_vpc_environment)
+}
+
+data "aws_iam_role" "existing_ssh_instance_role" {
+  count = var.use_existing_vpc ? 1 : 0
+  name  = format("%s-%s-sshInstanceRole", var.existing_vpc_operator, var.existing_vpc_environment)
+}
+
+data "aws_iam_instance_profile" "existing_ssh_instance_profile" {
+  count = var.use_existing_vpc ? 1 : 0
+  name  = format("%s-%s-sshInstanceProfile", var.existing_vpc_operator, var.existing_vpc_environment)
+}
+
+################################################################################
+# If use_existing_vpc is false, create EC2 instance profile.
+################################################################################
 data "aws_iam_policy_document" "ec2_assume_role_policy" {
+  count = var.use_existing_vpc ? 0 : 1
   statement {
     actions = [
       "sts:AssumeRole"
@@ -32,8 +58,9 @@ data "aws_iam_policy_document" "ec2_assume_role_policy" {
 }
 
 resource "aws_iam_role" "instance_role" {
+  count              = var.use_existing_vpc ? 0 : 1
   name               = format("%s-%s-InstanceRole", var.service, var.environment)
-  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy[0].json
 
   tags = {
     Name = format("%s-%s-InstanceRole", var.service, var.environment)
@@ -41,20 +68,22 @@ resource "aws_iam_role" "instance_role" {
 }
 
 resource "aws_iam_instance_profile" "instance_profile" {
-  name = format("%s-%s-InstanceProfile", var.service, var.environment)
-  role = aws_iam_role.instance_role.name
+  count = var.use_existing_vpc ? 0 : 1
+  name  = format("%s-%s-InstanceProfile", var.service, var.environment)
+  role  = aws_iam_role.instance_role[0].name
 
   tags = {
     Name = format("%s-%s-InstanceProfile", var.service, var.environment)
   }
 }
 
-####################################################
-# Create SSH role for using EC2 instance connect.
-####################################################
+################################################################################
+# If use_existing_vpc is false, create SSH role for using EC2 instance connect.
+################################################################################
 resource "aws_iam_role" "ssh_instance_role" {
+  count              = var.use_existing_vpc ? 0 : 1
   name               = format("%s-%s-sshInstanceRole", var.service, var.environment)
-  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy.json
+  assume_role_policy = data.aws_iam_policy_document.ec2_assume_role_policy[0].json
 
   tags = {
     Name = format("%s-%s-sshInstanceRole", var.service, var.environment)
@@ -62,8 +91,9 @@ resource "aws_iam_role" "ssh_instance_role" {
 }
 
 resource "aws_iam_instance_profile" "ssh_instance_profile" {
-  name = format("%s-%s-sshInstanceProfile", var.service, var.environment)
-  role = aws_iam_role.ssh_instance_role.name
+  count = var.use_existing_vpc ? 0 : 1
+  name  = format("%s-%s-sshInstanceProfile", var.service, var.environment)
+  role  = aws_iam_role.ssh_instance_role[0].name
 
   tags = {
     Name = format("%s-%s-sshInstanceProfile", var.service, var.environment)

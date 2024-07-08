@@ -56,13 +56,12 @@ class ParameterClientGcpTest : public ::testing::Test {
     std::unique_ptr<MockParameterClient> mock_parameter_client =
         std::make_unique<MockParameterClient>();
     EXPECT_CALL(*mock_parameter_client, Init)
-        .WillOnce(Return(SuccessExecutionResult()));
-    EXPECT_CALL(*mock_parameter_client, Run)
-        .WillOnce(Return(SuccessExecutionResult()));
+        .WillOnce(Return(absl::OkStatus()));
+    EXPECT_CALL(*mock_parameter_client, Run).WillOnce(Return(absl::OkStatus()));
     EXPECT_CALL(*mock_parameter_client, GetParameter)
         .WillRepeatedly(
             [this](GetParameterRequest get_param_req,
-                   Callback<GetParameterResponse> callback) -> ExecutionResult {
+                   Callback<GetParameterResponse> callback) -> absl::Status {
               // async reading parameter like the real case
               bool param_not_found = false;
               if (expected_param_values_.find(get_param_req.parameter_name()) ==
@@ -83,11 +82,9 @@ class ParameterClientGcpTest : public ::testing::Test {
                       cb(SuccessExecutionResult(), response);
                     }
                   }));
-              if (param_not_found) {
-                return FailureExecutionResult(5);
-              } else {
-                return SuccessExecutionResult();
-              }
+              return param_not_found
+                         ? absl::NotFoundError("Parameter not found.")
+                         : absl::OkStatus();
             });
 
     ParameterClient::ClientOptions client_options;

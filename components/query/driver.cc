@@ -14,37 +14,13 @@
 
 #include "components/query/driver.h"
 
-#include <string_view>
 #include <utility>
 
-#include "absl/container/flat_hash_set.h"
-#include "absl/functional/bind_front.h"
 #include "components/query/ast.h"
 
 namespace kv_server {
 
-Driver::Driver(absl::AnyInvocable<absl::flat_hash_set<std::string_view>(
-                   std::string_view key) const>
-                   lookup_fn)
-    : lookup_fn_(std::move(lookup_fn)) {}
-
-absl::flat_hash_set<std::string_view> Driver::Lookup(
-    std::string_view key) const {
-  return lookup_fn_(key);
-}
-
 void Driver::SetAst(std::unique_ptr<Node> ast) { ast_ = std::move(ast); }
-
-absl::StatusOr<absl::flat_hash_set<std::string_view>> Driver::GetResult()
-    const {
-  if (!status_.ok()) {
-    return status_;
-  }
-  if (ast_ == nullptr) {
-    return absl::flat_hash_set<std::string_view>();
-  }
-  return Eval(*ast_);
-}
 
 void Driver::SetError(std::string error) {
   status_ = absl::InvalidArgumentError(std::move(error));

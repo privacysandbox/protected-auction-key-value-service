@@ -22,11 +22,14 @@
 #include <vector>
 
 #include "absl/log/log.h"
+#include "absl/strings/str_replace.h"
+#include "absl/strings/str_split.h"
 #include "components/data_server/request_handler/v2_response_data.pb.h"
 #include "google/protobuf/util/json_util.h"
 #include "public/api_schema.pb.h"
 #include "public/applications/pa/api_overlay.pb.h"
 #include "public/applications/pa/response_utils.h"
+#include "public/constants.h"
 #include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
@@ -38,6 +41,7 @@ using google::protobuf::util::JsonStringToMessage;
 
 constexpr char kKeysTag[] = "keys";
 constexpr char kRenderUrlsTag[] = "renderUrls";
+constexpr char kInterestGroupNamesTag[] = "interestGroupNames";
 constexpr char kAdComponentRenderUrlsTag[] = "adComponentRenderUrls";
 constexpr char kKvInternalTag[] = "kvInternal";
 constexpr char kCustomTag[] = "custom";
@@ -51,7 +55,10 @@ UDFArgument BuildArgument(const RepeatedPtrField<std::string>& keys,
   arg.mutable_tags()->add_values()->set_string_value(namespace_tag);
   auto* key_list = arg.mutable_data()->mutable_list_value();
   for (const auto& key : keys) {
-    key_list->add_values()->set_string_value(key);
+    for (absl::string_view individual_key :
+         absl::StrSplit(key, kQueryArgDelimiter)) {
+      key_list->add_values()->set_string_value(individual_key);
+    }
   }
   return arg;
 }
@@ -64,6 +71,10 @@ v2::GetValuesRequest BuildV2Request(const v1::GetValuesRequest& v1_request) {
 
   if (v1_request.keys_size() > 0) {
     *partition->add_arguments() = BuildArgument(v1_request.keys(), kKeysTag);
+  }
+  if (v1_request.interest_group_names_size() > 0) {
+    *partition->add_arguments() = BuildArgument(
+        v1_request.interest_group_names(), kInterestGroupNamesTag);
   }
   if (v1_request.render_urls_size() > 0) {
     *partition->add_arguments() =
@@ -140,6 +151,10 @@ void ProcessKeyGroupOutput(application_pa::KeyGroupOutput key_group_output,
   if (tag_namespace_status_or.value() == kKeysTag) {
     ProcessKeyValues(std::move(key_group_output), *v1_response.mutable_keys());
   }
+  if (tag_namespace_status_or.value() == kInterestGroupNamesTag) {
+    ProcessKeyValues(std::move(key_group_output),
+                     *v1_response.mutable_per_interest_group_data());
+  }
   if (tag_namespace_status_or.value() == kRenderUrlsTag) {
     ProcessKeyValues(std::move(key_group_output),
                      *v1_response.mutable_render_urls());
@@ -188,17 +203,29 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
   explicit GetValuesAdapterImpl(std::unique_ptr<GetValuesV2Handler> v2_handler)
       : v2_handler_(std::move(v2_handler)) {}
 
-  grpc::Status CallV2Handler(const v1::GetValuesRequest& v1_request,
+  grpc::Status CallV2Handler(RequestContextFactory& request_context_factory,
+                             const v1::GetValuesRequest& v1_request,
                              v1::GetValuesResponse& v1_response) const {
+    privacy_sandbox::server_common::Stopwatch stopwatch;
     v2::GetValuesRequest v2_request = BuildV2Request(v1_request);
-    VLOG(7) << "Converting V1 request " << v1_request.DebugString()
-            << " to v2 request " << v2_request.DebugString();
+    PS_VLOG(7, request_context_factory.Get().GetPSLogContext())
+        << "Converting V1 request " << v1_request.DebugString()
+        << " to v2 request " << v2_request.DebugString();
     v2::GetValuesResponse v2_response;
-    if (auto status = v2_handler_->GetValues(v2_request, &v2_response);
+    ExecutionMetadata execution_metadata;
+    if (auto status =
+            v2_handler_->GetValues(request_context_factory, v2_request,
+                                   &v2_response, execution_metadata);
         !status.ok()) {
       return status;
     }
-    VLOG(7) << "Received v2 response: " << v2_response.DebugString();
+    int duration_ms =
+        static_cast<int>(absl::ToInt64Milliseconds(stopwatch.GetElapsedTime()));
+    LogIfError(KVServerContextMap()
+                   ->SafeMetric()
+                   .LogHistogram<kGetValuesAdapterLatency>(duration_ms));
+    PS_VLOG(7, request_context_factory.Get().GetPSLogContext())
+        << "Received v2 response: " << v2_response.DebugString();
     return privacy_sandbox::server_common::FromAbslStatus(
         ConvertToV1Response(v2_response, v1_response));
   }

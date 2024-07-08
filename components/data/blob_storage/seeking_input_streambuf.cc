@@ -35,11 +35,14 @@ constexpr std::string_view kUnderflowEventName =
     "SeekingInputStreambuf::underflow";
 constexpr std::string_view kSeekoffEventName = "SeekingInputStreambuf::seekoff";
 
-void MaybeVerboseLogLatency(std::string_view event_name, absl::Duration latency,
-                            double sampling_threshold = 0.05) {
+void MaybeVerboseLogLatency(
+    std::string_view event_name, absl::Duration latency,
+    privacy_sandbox::server_common::log::PSLogContext& log_context,
+    double sampling_threshold = 0.05) {
   if ((double)std::rand() / RAND_MAX <= sampling_threshold) {
-    VLOG(3) << event_name << " latency: " << absl::ToDoubleMilliseconds(latency)
-            << " ms.";
+    PS_VLOG(3, log_context)
+        << event_name << " latency: " << absl::ToDoubleMilliseconds(latency)
+        << " ms.";
   }
 }
 }  // namespace
@@ -107,7 +110,8 @@ std::streampos SeekingInputStreambuf::seekoff(std::streamoff off,
          buffer_.data() + (new_position - BufferStartPosition()),
          buffer_.data() + buffer_.length());
   }
-  MaybeVerboseLogLatency(kSeekoffEventName, latency_recorder.GetLatency());
+  MaybeVerboseLogLatency(kSeekoffEventName, latency_recorder.GetLatency(),
+                         options_.log_context);
   return std::streampos(std::streamoff(new_position));
 }
 
@@ -148,7 +152,12 @@ std::streambuf::int_type SeekingInputStreambuf::underflow() {
     buffer_.resize(total_bytes_read);
   }
   setg(buffer_.data(), buffer_.data(), buffer_.data() + buffer_.length());
-  MaybeVerboseLogLatency(kUnderflowEventName, latency_recorder.GetLatency());
+  LogIfError(
+      KVServerContextMap()
+          ->SafeMetric()
+          .template LogHistogram<kBlobStorageReadBytes>((int)total_bytes_read));
+  MaybeVerboseLogLatency(kUnderflowEventName, latency_recorder.GetLatency(),
+                         options_.log_context);
   return traits_type::to_int_type(buffer_[0]);
 }
 
@@ -180,7 +189,8 @@ absl::StatusOr<int64_t> SeekingInputStreambuf::Size() {
     return size.status();
   }
   src_cached_size_ = *size;
-  MaybeVerboseLogLatency(kSizeEventName, latency_recorder.GetLatency());
+  MaybeVerboseLogLatency(kSizeEventName, latency_recorder.GetLatency(),
+                         options_.log_context);
   return *size;
 }
 

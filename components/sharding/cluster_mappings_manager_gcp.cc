@@ -26,11 +26,12 @@ constexpr std::string_view kInitializedTag = "initialized";
 
 class GcpClusterMappingsManager : public ClusterMappingsManager {
  public:
-  GcpClusterMappingsManager(std::string environment, int32_t num_shards,
-                            InstanceClient& instance_client,
-                            std::string project_id)
+  GcpClusterMappingsManager(
+      std::string environment, int32_t num_shards,
+      InstanceClient& instance_client, std::string project_id,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : ClusterMappingsManager(std::move(environment), num_shards,
-                               instance_client),
+                               instance_client, log_context),
         project_id_{project_id} {}
 
   std::vector<absl::flat_hash_set<std::string>> GetClusterMappings() override {
@@ -42,7 +43,8 @@ class GcpClusterMappingsManager : public ClusterMappingsManager {
               describe_instance_group_input);
         },
         "DescribeInstanceGroupInstances",
-        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>());
+        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>(),
+        GetLogContext());
 
     return GroupInstancesToClusterMappings(instance_group_instances);
   }
@@ -92,11 +94,13 @@ class GcpClusterMappingsManager : public ClusterMappingsManager {
 
 std::unique_ptr<ClusterMappingsManager> ClusterMappingsManager::Create(
     std::string environment, int32_t num_shards,
-    InstanceClient& instance_client, ParameterFetcher& parameter_fetcher) {
+    InstanceClient& instance_client, ParameterFetcher& parameter_fetcher,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   std::string project_id =
       parameter_fetcher.GetParameter(kProjectIdParameterName);
   return std::make_unique<GcpClusterMappingsManager>(
-      environment, num_shards, instance_client, std::move(project_id));
+      environment, num_shards, instance_client, std::move(project_id),
+      log_context);
 }
 
 }  // namespace kv_server

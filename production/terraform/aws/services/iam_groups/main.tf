@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+data "aws_iam_group" "existing_ssh_users_group" {
+  count      = var.use_existing_vpc ? 1 : 0
+  group_name = format("%s-%s-ssh-users", var.existing_vpc_operator, var.existing_vpc_environment)
+}
+
 resource "aws_iam_group" "ssh_users_group" {
-  name = format("%s-%s-ssh-users", var.service, var.environment)
+  count = var.use_existing_vpc ? 0 : 1
+  name  = format("%s-%s-ssh-users", var.service, var.environment)
 }

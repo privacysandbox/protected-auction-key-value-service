@@ -33,6 +33,7 @@ cc_library(
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/logger:request_context_logger",
     ],
 )
 
@@ -80,6 +81,7 @@ cc_library(
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/logger:request_context_logger",
     ],
 )
 

@@ -30,7 +30,9 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.count\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.count\" Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Sum', 60))", "id": "e1", "visible": false, "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ],
+                      [ { "expression": "e1 / 60"} ]
+
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -41,7 +43,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                         "showUnits": false
                     }
                 },
-                "title": "request.count [MEAN]"
+                "title": "request.count per second [MEAN]"
             }
         },
         {
@@ -52,7 +54,8 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"SecureLookupRequestCount\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"SecureLookupRequestCount\" Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Sum', 60))", "id": "e1", "visible": false, "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ],
+                      [ { "expression": "e1 / 60"} ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -63,7 +66,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                         "showUnits": false
                     }
                 },
-                "title": "Secure lookup request count [MEAN]"
+                "title": "Secure lookup request count per second [MEAN]"
             }
         },
         {
@@ -74,7 +77,8 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.failed_count_by_status\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.error_code')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.failed_count_by_status\" Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Sum', 60))", "id": "e1", "visible": false, "label": "$${PROP('Dim.Noise')} $${PROP('Dim.error_code')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ],
+                      [ { "expression": "e1 / 60"} ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -85,7 +89,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                         "showUnits": false
                     }
                 },
-                "title": "request.failed_count_by_status [MEAN]"
+                "title": "request.failed_count_by_status per second [MEAN]"
             }
         },
         {
@@ -96,7 +100,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.duration_ms\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.duration_ms\" Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -118,7 +122,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.size_bytes\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"request.size_bytes\" Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -140,7 +144,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"response.size_bytes\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"response.size_bytes\" Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -162,7 +166,8 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"KVUdfRequestError\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.error_code')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"KVUdfRequestError\" Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Sum', 60))", "id": "e1", "visible": false, "label": "$${PROP('Dim.Noise')} $${PROP('Dim.error_code')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ],
+                      [ { "expression": "e1 / 60"} ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -173,7 +178,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                         "showUnits": false
                     }
                 },
-                "title": "Request Errors [MEAN]"
+                "title": "Request Errors Per Second [MEAN]"
             }
         },
         {
@@ -184,7 +189,8 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"InternalLookupRequestError\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.error_code')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"InternalLookupRequestError\" Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Sum', 60))", "id": "e1", "visible": false, "label": "$${PROP('Dim.Noise')} $${PROP('Dim.error_code')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ],
+                      [ { "expression": "e1 / 60"} ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -195,7 +201,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                         "showUnits": false
                     }
                 },
-                "title": "Internal Request Errors [MEAN]"
+                "title": "Internal Request Errors Per Second [MEAN]"
             }
         },
         {
@@ -228,7 +234,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"ShardedLookupGetKeyValuesLatencyInMicros\" OR \"ShardedLookupGetKeyValueSetLatencyInMicros\" OR \"ShardedLookupRunQueryLatencyInMicros\") Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"ShardedLookupGetKeyValuesLatencyInMicros\" OR \"ShardedLookupGetKeyValueSetLatencyInMicros\" OR \"ShardedLookupRunQueryLatencyInMicros\") Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -250,7 +256,8 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"ShardedLookupKeyCountByShard\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.key_shard_num')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"ShardedLookupKeyCountByShard\" Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Sum', 60))", "id": "e1", "visible": false, "label": "$${PROP('Dim.Noise')} $${PROP('Dim.key_shard_num')}" } ],
+                      [ { "expression": "e1 / 60"} ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -261,7 +268,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                         "showUnits": false
                     }
                 },
-                "title": "Sharded Lookup Key Count By Shard [MEAN]"
+                "title": "Sharded Lookup Key Count By Shard Per Second [MEAN]"
             }
         },
         {
@@ -272,7 +279,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"InternalGetKeyValuesLatencyInMicros\" OR \"InternalGetKeyValueSetLatencyInMicros\" OR \"InternalRunQueryLatencyInMicros\") Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"InternalGetKeyValuesLatencyInMicros\" OR \"InternalGetKeyValueSetLatencyInMicros\" OR \"InternalRunQueryLatencyInMicros\") Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -294,7 +301,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"GetValuePairsLatencyInMicros\" OR \"GetKeyValueSetLatencyInMicros\") Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=(\"GetValuePairsLatencyInMicros\" OR \"GetKeyValueSetLatencyInMicros\") Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('MetricName')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -316,7 +323,8 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
             "type": "metric",
             "properties": {
                 "metrics": [
-                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"CacheAccessEventCount\" Noise=(\"Raw\" OR \"Noised\")', 'Average', 60))", "id": "e1", "label": "$${PROP('Dim.Noise')} $${PROP('Dim.cache_access')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')}" } ]
+                      [ { "expression": "REMOVE_EMPTY(SEARCH('service.name=\"kv-server\" deployment.environment=${var.environment} MetricName=\"CacheAccessEventCount\" Noise=(\"Raw\" OR \"Noised\") generation_id=(\"consented\" OR \"not_consented\")', 'Sum', 60))", "id": "e1", "visible": false, "label": "$${PROP('Dim.Noise')} $${PROP('Dim.cache_access')} $${PROP('Dim.service.instance.id')} $${PROP('Dim.shard_number')} $${PROP('Dim.generation_id')}" } ],
+                      [ { "expression": "e1 / 60"} ]
                 ],
                 "region": "${var.region}",
                 "view": "timeSeries",
@@ -327,7 +335,7 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                         "showUnits": false
                     }
                 },
-                "title": "Cache Access Event Count [MEAN]"
+                "title": "Cache Access Event Count Per Second [MEAN]"
             }
         },
         {
@@ -526,6 +534,29 @@ resource "aws_cloudwatch_dashboard" "environment_dashboard" {
                     }
                 },
                 "title": "system.cpu.total_cores [MEAN]"
+            }
+        },
+        {
+           "height": 10,
+            "width": 12,
+            "y": 110,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "metrics": [
+                    [ "AWS/Lambda", "Errors", "FunctionName", "kv-server-${var.environment}-sqs-cleanup", { "id": "errors", "stat": "Sum", "color": "#d13212" } ],
+                    [ ".", "Invocations", ".", ".", { "id": "invocations", "stat": "Sum", "visible": false } ],
+                    [ { "expression": "100 - 100 * errors / MAX([errors, invocations])", "label": "Success rate (%)", "id": "availability", "yAxis": "right" } ]
+                ],
+                "view": "timeSeries",
+                "stacked": false,
+                "region": "${var.region}",
+                "yAxis": {
+                  "right": {
+                      "max": 100
+                  }
+                },
+                "title": "Sqs cleanup job error count and success rate (%)"
             }
         }
     ]

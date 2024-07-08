@@ -10,7 +10,7 @@ To learn more about FLEDGE and the Key/Value server, take a look at the followin
 
 -   [FLEDGE Key/Value server explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md)
 -   [FLEDGE Key/Value server trust model](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_trust_model.md)
--   [FLEDGE explainer](https://developer.chrome.com/en/docs/privacy-sandbox/fledge/)
+-   [FLEDGE explainer](https://developer.chrome.com/en/docs/privacy-sandbox/protected-audience/)
 -   [FLEDGE API developer guide](https://developer.chrome.com/blog/fledge-api/)
 
     > The instructions written in this document are for running a test Key/Value server that does
@@ -90,17 +90,25 @@ run into any Docker access errors, follow the instructions for
 ## Get the source code from GitHub
 
 The code for the FLEDGE Key/Value server is released on
-[GitHub](https://github.com/privacysandbox/fledge-key-value-service).
+[GitHub](https://github.com/privacysandbox/protected-auction-key-value-service).
 
 The main branch is under active development. For a more stable experience, please use the
-[latest release branch](https://github.com/privacysandbox/fledge-key-value-service/releases).
+[latest release branch](https://github.com/privacysandbox/protected-auction-key-value-service/releases).
 
 ## Build the Amazon Machine Image (AMI)
 
 From the Key/Value server repo folder, execute the following command:
 
+prod_mode (default mode)
+
 ```sh
 production/packaging/aws/build_and_test --with-ami us-east-1 --with-ami us-west-1
+```
+
+nonprod_mode
+
+```sh
+production/packaging/aws/build_and_test --with-ami us-east-1 --with-ami us-west-1 --mode nonprod
 ```
 
 The script will build the Enclave Image File (EIF), store it in an AMI, and upload the AMI. If the
@@ -388,11 +396,15 @@ You should see an output similar to the following:
 
 ## Read the server log
 
-Most recent server logs can be read by executing the following command:
+Most recent server (`nonprod_mode`) console logs can be read by executing the following command:
 
 ```sh
 ENCLAVE_ID=$(nitro-cli describe-enclaves | jq -r ".[0].EnclaveID"); [ "$ENCLAVE_ID" != "null" ] && nitro-cli console --enclave-id ${ENCLAVE_ID}
 ```
+
+If `enable_otel_logger` parameter is set to true, KV server also exports server logs to Cloudwatch
+via otel collector, located at Cloudwatch log group `kv-server-log-group` More details about logging
+in `prod mode` and `nonprod mode` in ![developing the server](/docs/developing_the_server.md).
 
 ## Start the server
 

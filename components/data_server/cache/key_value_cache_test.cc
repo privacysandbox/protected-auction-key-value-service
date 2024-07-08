@@ -51,6 +51,16 @@ class KeyValueCacheTestPeer {
     return c.map_;
   }
 
+  static const auto& ReadUint32Nodes(KeyValueCache& cache,
+                                     std::string_view prefix = "") {
+    return cache.uint32_sets_map_;
+  }
+
+  static const auto& ReadDeletedUint32Nodes(KeyValueCache& cache,
+                                            std::string_view prefix = "") {
+    return cache.deleted_uint32_sets_map_;
+  }
+
   static int GetDeletedSetNodesMapSize(const KeyValueCache& c,
                                        std::string prefix = "") {
     absl::MutexLock lock(&c.set_map_mutex_);
@@ -89,8 +99,10 @@ class KeyValueCacheTestPeer {
     return iter->second->second.size();
   }
 
-  static void CallCacheCleanup(KeyValueCache& c, int64_t logical_commit_time) {
-    c.RemoveDeletedKeys(logical_commit_time);
+  static void CallCacheCleanup(
+      privacy_sandbox::server_common::log::SafePathContext& log_context,
+      KeyValueCache& c, int64_t logical_commit_time) {
+    c.RemoveDeletedKeys(log_context, logical_commit_time);
   }
 };
 
@@ -98,23 +110,28 @@ namespace {
 
 using privacy_sandbox::server_common::TelemetryProvider;
 using testing::UnorderedElementsAre;
+using testing::UnorderedElementsAreArray;
+
+class SafePathTestLogContext
+    : public privacy_sandbox::server_common::log::SafePathContext {
+ public:
+  SafePathTestLogContext() = default;
+};
 
 class CacheTest : public ::testing::Test {
  protected:
   CacheTest() {
     InitMetricsContextMap();
-    scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
-    request_context_ =
-        std::make_unique<RequestContext>(*scope_metrics_context_);
+    request_context_ = std::make_shared<RequestContext>();
   }
-  RequestContext& GetRequestContext() { return *request_context_; }
-  std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
-  std::unique_ptr<RequestContext> request_context_;
+  const RequestContext& GetRequestContext() { return *request_context_; }
+  std::shared_ptr<RequestContext> request_context_;
+  SafePathTestLogContext safe_path_log_context_;
 };
 
 TEST_F(CacheTest, RetrievesMatchingEntry) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->UpdateKeyValue("my_key", "my_value", 1);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 1);
   absl::flat_hash_set<std::string_view> keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(), keys);
@@ -126,9 +143,9 @@ TEST_F(CacheTest, RetrievesMatchingEntry) {
 
 TEST_F(CacheTest, GetWithMultipleKeysReturnsMatchingValues) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->UpdateKeyValue("key1", "value1", 1);
-  cache->UpdateKeyValue("key2", "value2", 2);
-  cache->UpdateKeyValue("key3", "value3", 3);
+  cache->UpdateKeyValue(safe_path_log_context_, "key1", "value1", 1);
+  cache->UpdateKeyValue(safe_path_log_context_, "key2", "value2", 2);
+  cache->UpdateKeyValue(safe_path_log_context_, "key3", "value3", 3);
 
   absl::flat_hash_set<std::string_view> full_keys = {"key1", "key2"};
 
@@ -141,7 +158,7 @@ TEST_F(CacheTest, GetWithMultipleKeysReturnsMatchingValues) {
 
 TEST_F(CacheTest, GetAfterUpdateReturnsNewValue) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->UpdateKeyValue("my_key", "my_value", 1);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 1);
 
   absl::flat_hash_set<std::string_view> keys = {"my_key"};
 
@@ -149,7 +166,7 @@ TEST_F(CacheTest, GetAfterUpdateReturnsNewValue) {
       cache->GetKeyValuePairs(GetRequestContext(), keys);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 
-  cache->UpdateKeyValue("my_key", "my_new_value", 2);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_new_value", 2);
 
   kv_pairs = cache->GetKeyValuePairs(GetRequestContext(), keys);
   EXPECT_EQ(kv_pairs.size(), 1);
@@ -159,8 +176,8 @@ TEST_F(CacheTest, GetAfterUpdateReturnsNewValue) {
 
 TEST_F(CacheTest, GetAfterUpdateDifferentKeyReturnsSameValue) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->UpdateKeyValue("my_key", "my_value", 1);
-  cache->UpdateKeyValue("new_key", "new_value", 2);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 1);
+  cache->UpdateKeyValue(safe_path_log_context_, "new_key", "new_value", 2);
 
   absl::flat_hash_set<std::string_view> keys = {"my_key"};
 
@@ -180,7 +197,8 @@ TEST_F(CacheTest, GetForEmptyCacheReturnsEmptyList) {
 TEST_F(CacheTest, GetForCacheReturnsValueSet) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   std::vector<std::string_view> values = {"v1", "v2"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
   absl::flat_hash_set<std::string_view> value_set =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key"})
           ->GetValueSet("my_key");
@@ -190,7 +208,8 @@ TEST_F(CacheTest, GetForCacheReturnsValueSet) {
 TEST_F(CacheTest, GetForCacheMissingKeyReturnsEmptySet) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   std::vector<std::string_view> values = {"v1", "v2"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
   auto get_key_value_set_result =
       cache->GetKeyValueSet(GetRequestContext(), {"missing_key", "my_key"});
   EXPECT_EQ(get_key_value_set_result->GetValueSet("missing_key").size(), 0);
@@ -200,8 +219,8 @@ TEST_F(CacheTest, GetForCacheMissingKeyReturnsEmptySet) {
 
 TEST_F(CacheTest, DeleteKeyTestRemovesKeyEntry) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->UpdateKeyValue("my_key", "my_value", 1);
-  cache->DeleteKey("my_key", 2);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 1);
+  cache->DeleteKey(safe_path_log_context_, "my_key", 2);
   absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(), full_keys);
@@ -210,8 +229,8 @@ TEST_F(CacheTest, DeleteKeyTestRemovesKeyEntry) {
 
 TEST_F(CacheTest, DeleteKeyValueSetWrongkeyDoesNotRemoveEntry) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->UpdateKeyValue("my_key", "my_value", 1);
-  cache->DeleteKey("wrong_key", 1);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 1);
+  cache->DeleteKey(safe_path_log_context_, "wrong_key", 1);
   absl::flat_hash_set<std::string_view> keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(), keys);
@@ -222,8 +241,9 @@ TEST_F(CacheTest, DeleteKeyValueSetRemovesValueEntry) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1", "v2", "v3"};
   std::vector<std::string_view> values_to_delete = {"v1", "v2"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
-  cache->DeleteValuesInSet("my_key",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
                            absl::Span<std::string_view>(values_to_delete), 2);
   absl::flat_hash_set<std::string_view> value_set =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key"})
@@ -249,8 +269,9 @@ TEST_F(CacheTest, DeleteKeyValueSetWrongKeyDoesNotRemoveKeyValueEntry) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1", "v2", "v3"};
   std::vector<std::string_view> values_to_delete = {"v1"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
-  cache->DeleteValuesInSet("wrong_key",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
+  cache->DeleteValuesInSet(safe_path_log_context_, "wrong_key",
                            absl::Span<std::string_view>(values_to_delete), 2);
   std::unique_ptr<GetKeyValueSetResult> result =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key", "wrong_key"});
@@ -279,8 +300,9 @@ TEST_F(CacheTest, DeleteKeyValueSetWrongValueDoesNotRemoveEntry) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1", "v2", "v3"};
   std::vector<std::string_view> values_to_delete = {"v4"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
-  cache->DeleteValuesInSet("my_key",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
                            absl::Span<std::string_view>(values_to_delete), 2);
   absl::flat_hash_set<std::string_view> value_set =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key"})
@@ -303,7 +325,7 @@ TEST_F(CacheTest, DeleteKeyValueSetWrongValueDoesNotRemoveEntry) {
 
 TEST_F(CacheTest, OutOfOrderUpdateAfterUpdateWorks) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->UpdateKeyValue("my_key", "my_value", 2);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 2);
 
   absl::flat_hash_set<std::string_view> keys = {"my_key"};
 
@@ -311,7 +333,7 @@ TEST_F(CacheTest, OutOfOrderUpdateAfterUpdateWorks) {
       cache->GetKeyValuePairs(GetRequestContext(), keys);
   EXPECT_THAT(kv_pairs, UnorderedElementsAre(KVPairEq("my_key", "my_value")));
 
-  cache->UpdateKeyValue("my_key", "my_new_value", 1);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_new_value", 1);
 
   kv_pairs = cache->GetKeyValuePairs(GetRequestContext(), keys);
   EXPECT_EQ(kv_pairs.size(), 1);
@@ -320,8 +342,8 @@ TEST_F(CacheTest, OutOfOrderUpdateAfterUpdateWorks) {
 
 TEST_F(CacheTest, DeleteKeyOutOfOrderDeleteAfterUpdateWorks) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->DeleteKey("my_key", 2);
-  cache->UpdateKeyValue("my_key", "my_value", 1);
+  cache->DeleteKey(safe_path_log_context_, "my_key", 2);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 1);
   absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(), full_keys);
@@ -330,8 +352,8 @@ TEST_F(CacheTest, DeleteKeyOutOfOrderDeleteAfterUpdateWorks) {
 
 TEST_F(CacheTest, DeleteKeyOutOfOrderUpdateAfterDeleteWorks) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->UpdateKeyValue("my_key", "my_value", 2);
-  cache->DeleteKey("my_key", 1);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 2);
+  cache->DeleteKey(safe_path_log_context_, "my_key", 1);
   absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(), full_keys);
@@ -341,8 +363,8 @@ TEST_F(CacheTest, DeleteKeyOutOfOrderUpdateAfterDeleteWorks) {
 
 TEST_F(CacheTest, DeleteKeyInOrderUpdateAfterDeleteWorks) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->DeleteKey("my_key", 1);
-  cache->UpdateKeyValue("my_key", "my_value", 2);
+  cache->DeleteKey(safe_path_log_context_, "my_key", 1);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 2);
   absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(), full_keys);
@@ -352,8 +374,8 @@ TEST_F(CacheTest, DeleteKeyInOrderUpdateAfterDeleteWorks) {
 
 TEST_F(CacheTest, DeleteKeyInOrderDeleteAfterUpdateWorks) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
-  cache->UpdateKeyValue("my_key", "my_value", 1);
-  cache->DeleteKey("my_key", 2);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 1);
+  cache->DeleteKey(safe_path_log_context_, "my_key", 2);
   absl::flat_hash_set<std::string_view> full_keys = {"my_key"};
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(), full_keys);
@@ -363,8 +385,10 @@ TEST_F(CacheTest, DeleteKeyInOrderDeleteAfterUpdateWorks) {
 TEST_F(CacheTest, UpdateSetTestUpdateAfterUpdateWithSameValue) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 2);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 2);
   absl::flat_hash_set<std::string_view> value_set =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key"})
           ->GetValueSet("my_key");
@@ -379,10 +403,10 @@ TEST_F(CacheTest, UpdateSetTestUpdateAfterUpdateWithDifferentValue) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> first_value = {"v1"};
   std::vector<std::string_view> second_value = {"v2"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(first_value),
-                           1);
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(second_value),
-                           2);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(first_value), 1);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(second_value), 2);
   absl::flat_hash_set<std::string_view> value_set =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key"})
           ->GetValueSet("my_key");
@@ -400,8 +424,10 @@ TEST_F(CacheTest, UpdateSetTestUpdateAfterUpdateWithDifferentValue) {
 TEST_F(CacheTest, InOrderUpdateSetInsertAfterDeleteExpectInsert) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 1);
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 2);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 2);
   absl::flat_hash_set<std::string_view> value_set =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key"})
           ->GetValueSet("my_key");
@@ -415,8 +441,10 @@ TEST_F(CacheTest, InOrderUpdateSetInsertAfterDeleteExpectInsert) {
 TEST_F(CacheTest, InOrderUpdateSetDeleteAfterInsert) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 2);
   absl::flat_hash_set<std::string_view> value_set =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key"})
           ->GetValueSet("my_key");
@@ -430,8 +458,10 @@ TEST_F(CacheTest, InOrderUpdateSetDeleteAfterInsert) {
 TEST_F(CacheTest, OutOfOrderUpdateSetInsertAfterDeleteExpectNoInsert) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 2);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
   absl::flat_hash_set<std::string_view> value_set =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key"})
           ->GetValueSet("my_key");
@@ -445,8 +475,10 @@ TEST_F(CacheTest, OutOfOrderUpdateSetInsertAfterDeleteExpectNoInsert) {
 TEST_F(CacheTest, OutOfOrderUpdateSetDeleteAfterInsertExpectNoDelete) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 2);
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 1);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 2);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
   absl::flat_hash_set<std::string_view> value_set =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key"})
           ->GetValueSet("my_key");
@@ -459,7 +491,7 @@ TEST_F(CacheTest, OutOfOrderUpdateSetDeleteAfterInsertExpectNoDelete) {
 
 TEST_F(CacheTest, CleanupTimestampsInsertAKeyDoesntUpdateDeletedNodes) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
-  cache->UpdateKeyValue("my_key", "my_value", 1);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 1);
 
   auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
   EXPECT_EQ(deleted_nodes.size(), 0);
@@ -467,10 +499,10 @@ TEST_F(CacheTest, CleanupTimestampsInsertAKeyDoesntUpdateDeletedNodes) {
 
 TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeysRemovesOldRecords) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
-  cache->UpdateKeyValue("my_key", "my_value", 1);
-  cache->DeleteKey("my_key", 2);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 1);
+  cache->DeleteKey(safe_path_log_context_, "my_key", 2);
 
-  cache->RemoveDeletedKeys(3);
+  cache->RemoveDeletedKeys(safe_path_log_context_, 3);
 
   auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
   EXPECT_EQ(deleted_nodes.size(), 0);
@@ -481,10 +513,10 @@ TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeysRemovesOldRecords) {
 
 TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeysDoesntAffectNewRecords) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
-  cache->UpdateKeyValue("my_key", "my_value", 5);
-  cache->DeleteKey("my_key", 6);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key", "my_value", 5);
+  cache->DeleteKey(safe_path_log_context_, "my_key", 6);
 
-  cache->RemoveDeletedKeys(2);
+  cache->RemoveDeletedKeys(safe_path_log_context_, 2);
 
   auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
   EXPECT_EQ(deleted_nodes.size(), 1);
@@ -496,18 +528,18 @@ TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeysDoesntAffectNewRecords) {
 TEST_F(CacheTest,
        CleanupRemoveDeletedKeysRemovesOldRecordsDoesntAffectNewRecords) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
-  cache->UpdateKeyValue("my_key1", "my_value", 1);
-  cache->UpdateKeyValue("my_key2", "my_value", 2);
-  cache->UpdateKeyValue("my_key3", "my_value", 3);
-  cache->UpdateKeyValue("my_key4", "my_value", 4);
-  cache->UpdateKeyValue("my_key5", "my_value", 5);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key1", "my_value", 1);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key2", "my_value", 2);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key3", "my_value", 3);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key4", "my_value", 4);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key5", "my_value", 5);
 
-  cache->DeleteKey("my_key3", 8);
-  cache->DeleteKey("key_tombstone", 8);
-  cache->DeleteKey("my_key1", 6);
-  cache->DeleteKey("my_key2", 7);
+  cache->DeleteKey(safe_path_log_context_, "my_key3", 8);
+  cache->DeleteKey(safe_path_log_context_, "key_tombstone", 8);
+  cache->DeleteKey(safe_path_log_context_, "my_key1", 6);
+  cache->DeleteKey(safe_path_log_context_, "my_key2", 7);
 
-  cache->RemoveDeletedKeys(7);
+  cache->RemoveDeletedKeys(safe_path_log_context_, 7);
 
   auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
   EXPECT_EQ(deleted_nodes.size(), 2);
@@ -530,14 +562,14 @@ TEST_F(CacheTest,
 
 TEST_F(CacheTest, CleanupTimestampsCantInsertOldRecordsAfterCleanup) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
-  cache->UpdateKeyValue("my_key1", "my_value", 10);
-  cache->DeleteKey("my_key1", 12);
-  cache->RemoveDeletedKeys(13);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key1", "my_value", 10);
+  cache->DeleteKey(safe_path_log_context_, "my_key1", 12);
+  cache->RemoveDeletedKeys(safe_path_log_context_, 13);
 
   auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
   EXPECT_EQ(deleted_nodes.size(), 0);
 
-  cache->UpdateKeyValue("my_key1", "my_value", 10);
+  cache->UpdateKeyValue(safe_path_log_context_, "my_key1", "my_value", 10);
 
   absl::flat_hash_set<std::string_view> keys = {"my_key1"};
 
@@ -549,7 +581,8 @@ TEST_F(CacheTest, CleanupTimestampsCantInsertOldRecordsAfterCleanup) {
 TEST_F(CacheTest, CleanupTimestampsInsertKeyValueSetDoesntUpdateDeletedNodes) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
   int deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
   EXPECT_EQ(deleted_nodes_map_size, 0);
@@ -558,9 +591,10 @@ TEST_F(CacheTest, CleanupTimestampsInsertKeyValueSetDoesntUpdateDeletedNodes) {
 TEST_F(CacheTest, CleanupTimestampsDeleteKeyValueSetExpectUpdateDeletedNodes) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 1);
-  cache->DeleteValuesInSet("another_key", absl::Span<std::string_view>(values),
-                           1);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
+  cache->DeleteValuesInSet(safe_path_log_context_, "another_key",
+                           absl::Span<std::string_view>(values), 1);
   int deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
   EXPECT_EQ(deleted_nodes_map_size, 1);
@@ -577,13 +611,15 @@ TEST_F(CacheTest, CleanupTimestampsDeleteKeyValueSetExpectUpdateDeletedNodes) {
 TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeyValuesRemovesOldRecords) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 2);
   int deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
   EXPECT_EQ(deleted_nodes_map_size, 1);
 
-  cache->RemoveDeletedKeys(3);
+  cache->RemoveDeletedKeys(safe_path_log_context_, 3);
   deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
   EXPECT_EQ(deleted_nodes_map_size, 0);
@@ -594,10 +630,12 @@ TEST_F(CacheTest,
        CleanupTimestampsRemoveDeletedKeyValuesDoesntAffectNewRecords) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 5);
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 6);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 5);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 6);
 
-  cache->RemoveDeletedKeys(2);
+  cache->RemoveDeletedKeys(safe_path_log_context_, 2);
 
   int deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
@@ -614,19 +652,23 @@ TEST_F(
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1", "v2"};
   std::vector<std::string_view> values_to_delete = {"v1"};
-  cache->UpdateKeyValueSet("my_key1", absl::Span<std::string_view>(values), 1);
-  cache->UpdateKeyValueSet("my_key2", absl::Span<std::string_view>(values), 2);
-  cache->UpdateKeyValueSet("my_key3", absl::Span<std::string_view>(values), 3);
-  cache->UpdateKeyValueSet("my_key4", absl::Span<std::string_view>(values), 4);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key1",
+                           absl::Span<std::string_view>(values), 1);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key2",
+                           absl::Span<std::string_view>(values), 2);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key3",
+                           absl::Span<std::string_view>(values), 3);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key4",
+                           absl::Span<std::string_view>(values), 4);
 
-  cache->DeleteValuesInSet("my_key3",
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key3",
                            absl::Span<std::string_view>(values_to_delete), 4);
-  cache->DeleteValuesInSet("my_key1",
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key1",
                            absl::Span<std::string_view>(values_to_delete), 5);
-  cache->DeleteValuesInSet("my_key2",
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key2",
                            absl::Span<std::string_view>(values_to_delete), 6);
 
-  cache->RemoveDeletedKeys(5);
+  cache->RemoveDeletedKeys(safe_path_log_context_, 5);
 
   int deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
@@ -648,16 +690,19 @@ TEST_F(
 TEST_F(CacheTest, CleanupTimestampsSetCacheCantInsertOldRecordsAfterCleanup) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
-  cache->RemoveDeletedKeys(3);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 2);
+  cache->RemoveDeletedKeys(safe_path_log_context_, 3);
 
   int deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
   EXPECT_EQ(deleted_nodes_map_size, 0);
   EXPECT_EQ(KeyValueCacheTestPeer::GetCacheKeyValueSetMapSize(*cache), 0);
 
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 2);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 2);
 
   absl::flat_hash_set<std::string_view> kv_set =
       cache->GetKeyValueSet(GetRequestContext(), {"my_key"})
@@ -668,9 +713,11 @@ TEST_F(CacheTest, CleanupTimestampsSetCacheCantInsertOldRecordsAfterCleanup) {
 TEST_F(CacheTest, CleanupTimestampsCantAddOldDeletedRecordsAfterCleanup) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"my_value"};
-  cache->UpdateKeyValueSet("my_key", absl::Span<std::string_view>(values), 1);
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
-  cache->RemoveDeletedKeys(3);
+  cache->UpdateKeyValueSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 1);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 2);
+  cache->RemoveDeletedKeys(safe_path_log_context_, 3);
 
   int deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
@@ -678,14 +725,16 @@ TEST_F(CacheTest, CleanupTimestampsCantAddOldDeletedRecordsAfterCleanup) {
   EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache), 0);
 
   // Old delete
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 2);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 2);
   deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
   EXPECT_EQ(deleted_nodes_map_size, 0);
   EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache), 0);
 
   // New delete
-  cache->DeleteValuesInSet("my_key", absl::Span<std::string_view>(values), 4);
+  cache->DeleteValuesInSet(safe_path_log_context_, "my_key",
+                           absl::Span<std::string_view>(values), 4);
   deleted_nodes_map_size =
       KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache);
   EXPECT_EQ(deleted_nodes_map_size, 1);
@@ -706,12 +755,12 @@ TEST_F(CacheTest, ConcurrentGetAndGet) {
   absl::flat_hash_set<std::string_view> keys_lookup_request = {"key1", "key2"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   std::vector<std::string_view> values_for_key2 = {"v2"};
-  cache->UpdateKeyValueSet("key1",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                            absl::Span<std::string_view>(values_for_key1), 1);
-  cache->UpdateKeyValueSet("key2",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "key2",
                            absl::Span<std::string_view>(values_for_key2), 1);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_fn = [&cache, &keys_lookup_request, &start, &request_context]() {
     start.WaitForNotification();
     auto result = cache->GetKeyValueSet(request_context, keys_lookup_request);
@@ -733,10 +782,10 @@ TEST_F(CacheTest, ConcurrentGetAndUpdateExpectNoUpdate) {
   auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   std::vector<std::string_view> existing_values = {"v1"};
-  cache->UpdateKeyValueSet("key1",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                            absl::Span<std::string_view>(existing_values), 3);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_fn = [&cache, &keys, &start, &request_context]() {
     start.WaitForNotification();
     EXPECT_THAT(
@@ -744,10 +793,10 @@ TEST_F(CacheTest, ConcurrentGetAndUpdateExpectNoUpdate) {
         UnorderedElementsAre("v1"));
   };
   std::vector<std::string_view> new_values = {"v1"};
-  auto update_fn = [&cache, &new_values, &start]() {
+  auto update_fn = [&cache, &new_values, &start, this]() {
     start.WaitForNotification();
-    cache->UpdateKeyValueSet("key1", absl::Span<std::string_view>(new_values),
-                             1);
+    cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
+                             absl::Span<std::string_view>(new_values), 1);
   };
   std::vector<std::thread> threads;
   for (int i = 0; i < std::min(20, (int)std::thread::hardware_concurrency());
@@ -765,10 +814,10 @@ TEST_F(CacheTest, ConcurrentGetAndUpdateExpectUpdate) {
   auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> existing_values = {"v1"};
-  cache->UpdateKeyValueSet("key1",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                            absl::Span<std::string_view>(existing_values), 1);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_fn = [&cache, &keys, &start, &request_context]() {
     start.WaitForNotification();
     EXPECT_THAT(
@@ -776,11 +825,12 @@ TEST_F(CacheTest, ConcurrentGetAndUpdateExpectUpdate) {
         UnorderedElementsAre("v1"));
   };
   std::vector<std::string_view> new_values_for_key2 = {"v2"};
-  auto update_fn = [&cache, &new_values_for_key2, &start]() {
+  auto update_fn = [&cache, &new_values_for_key2, &start, this]() {
     // expect new value is inserted for key2
     start.WaitForNotification();
-    cache->UpdateKeyValueSet(
-        "key2", absl::Span<std::string_view>(new_values_for_key2), 2);
+    cache->UpdateKeyValueSet(safe_path_log_context_, "key2",
+                             absl::Span<std::string_view>(new_values_for_key2),
+                             2);
   };
   std::vector<std::thread> threads;
   for (int i = 0; i < std::min(20, (int)std::thread::hardware_concurrency());
@@ -798,10 +848,10 @@ TEST_F(CacheTest, ConcurrentGetAndDeleteExpectNoDelete) {
   auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   std::vector<std::string_view> existing_values = {"v1"};
-  cache->UpdateKeyValueSet("key1",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                            absl::Span<std::string_view>(existing_values), 3);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_fn = [&cache, &keys, &start, &request_context]() {
     start.WaitForNotification();
     EXPECT_THAT(
@@ -809,10 +859,10 @@ TEST_F(CacheTest, ConcurrentGetAndDeleteExpectNoDelete) {
         UnorderedElementsAre("v1"));
   };
   std::vector<std::string_view> delete_values = {"v1"};
-  auto delete_fn = [&cache, &delete_values, &start]() {
+  auto delete_fn = [&cache, &delete_values, &start, this]() {
     // expect no delete
     start.WaitForNotification();
-    cache->DeleteValuesInSet("key1",
+    cache->DeleteValuesInSet(safe_path_log_context_, "key1",
                              absl::Span<std::string_view>(delete_values), 1);
   };
   std::vector<std::thread> threads;
@@ -831,14 +881,14 @@ TEST_F(CacheTest, ConcurrentGetAndCleanUp) {
   auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> existing_values = {"v1"};
-  cache->UpdateKeyValueSet("key1",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                            absl::Span<std::string_view>(existing_values), 3);
-  cache->UpdateKeyValueSet("key2",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "key2",
                            absl::Span<std::string_view>(existing_values), 1);
-  cache->DeleteValuesInSet("key2",
+  cache->DeleteValuesInSet(safe_path_log_context_, "key2",
                            absl::Span<std::string_view>(existing_values), 2);
   absl::Notification start;
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_fn = [&cache, &keys, &start, &request_context]() {
     start.WaitForNotification();
     EXPECT_THAT(
@@ -849,10 +899,10 @@ TEST_F(CacheTest, ConcurrentGetAndCleanUp) {
                   .size(),
               0);
   };
-  auto cleanup_fn = [&cache, &start]() {
+  auto cleanup_fn = [&cache, &start, this]() {
     // clean up old records
     start.WaitForNotification();
-    KeyValueCacheTestPeer::CallCacheCleanup(*cache, 3);
+    KeyValueCacheTestPeer::CallCacheCleanup(safe_path_log_context_, *cache, 3);
   };
   std::vector<std::thread> threads;
   for (int i = 0; i < std::min(20, (int)std::thread::hardware_concurrency());
@@ -871,23 +921,23 @@ TEST_F(CacheTest, ConcurrentUpdateAndUpdateExpectUpdateBoth) {
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   absl::Notification start;
-  auto request_context = GetRequestContext();
-  auto update_key1 = [&cache, &keys, &values_for_key1, &start,
-                      &request_context]() {
+  auto& request_context = GetRequestContext();
+  auto update_key1 = [&cache, &keys, &values_for_key1, &start, &request_context,
+                      this]() {
     start.WaitForNotification();
     // expect new value is inserted for key1
-    cache->UpdateKeyValueSet("key1",
+    cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                              absl::Span<std::string_view>(values_for_key1), 1);
     EXPECT_THAT(
         cache->GetKeyValueSet(request_context, keys)->GetValueSet("key1"),
         UnorderedElementsAre("v1"));
   };
   std::vector<std::string_view> values_for_key2 = {"v2"};
-  auto update_key2 = [&cache, &keys, &values_for_key2, &start,
-                      &request_context]() {
+  auto update_key2 = [&cache, &keys, &values_for_key2, &start, &request_context,
+                      this]() {
     // expect new value is inserted for key2
     start.WaitForNotification();
-    cache->UpdateKeyValueSet("key2",
+    cache->UpdateKeyValueSet(safe_path_log_context_, "key2",
                              absl::Span<std::string_view>(values_for_key2), 2);
     EXPECT_THAT(
         cache->GetKeyValueSet(request_context, keys)->GetValueSet("key2"),
@@ -910,12 +960,12 @@ TEST_F(CacheTest, ConcurrentUpdateAndDelete) {
   absl::flat_hash_set<std::string_view> keys = {"key1", "key2"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   absl::Notification start;
-  auto request_context = GetRequestContext();
-  auto update_key1 = [&cache, &keys, &values_for_key1, &start,
-                      &request_context]() {
+  auto& request_context = GetRequestContext();
+  auto update_key1 = [&cache, &keys, &values_for_key1, &start, &request_context,
+                      this]() {
     start.WaitForNotification();
     // expect new value is inserted for key1
-    cache->UpdateKeyValueSet("key1",
+    cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                              absl::Span<std::string_view>(values_for_key1), 1);
     EXPECT_THAT(
         cache->GetKeyValueSet(request_context, keys)->GetValueSet("key1"),
@@ -924,15 +974,17 @@ TEST_F(CacheTest, ConcurrentUpdateAndDelete) {
   // Update existing value for key2
   std::vector<std::string_view> existing_values_for_key2 = {"v1", "v2"};
   cache->UpdateKeyValueSet(
-      "key2", absl::Span<std::string_view>(existing_values_for_key2), 1);
+      safe_path_log_context_, "key2",
+      absl::Span<std::string_view>(existing_values_for_key2), 1);
   std::vector<std::string_view> values_to_delete_for_key2 = {"v1"};
 
   auto delete_key2 = [&cache, &keys, &values_to_delete_for_key2, &start,
-                      &request_context]() {
+                      &request_context, this]() {
     start.WaitForNotification();
     // expect value is deleted for key2
     cache->DeleteValuesInSet(
-        "key2", absl::Span<std::string_view>(values_to_delete_for_key2), 2);
+        safe_path_log_context_, "key2",
+        absl::Span<std::string_view>(values_to_delete_for_key2), 2);
     EXPECT_THAT(
         cache->GetKeyValueSet(request_context, keys)->GetValueSet("key2"),
         UnorderedElementsAre("v2"));
@@ -955,19 +1007,19 @@ TEST_F(CacheTest, ConcurrentUpdateAndCleanUp) {
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
   absl::Notification start;
-  auto request_context = GetRequestContext();
-  auto update_fn = [&cache, &keys, &values_for_key1, &start,
-                    &request_context]() {
+  auto& request_context = GetRequestContext();
+  auto update_fn = [&cache, &keys, &values_for_key1, &start, &request_context,
+                    this]() {
     start.WaitForNotification();
-    cache->UpdateKeyValueSet("key1",
+    cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                              absl::Span<std::string_view>(values_for_key1), 2);
     EXPECT_THAT(
         cache->GetKeyValueSet(request_context, keys)->GetValueSet("key1"),
         UnorderedElementsAre("v1"));
   };
-  auto cleanup_fn = [&cache, &start]() {
+  auto cleanup_fn = [&cache, &start, this]() {
     start.WaitForNotification();
-    KeyValueCacheTestPeer::CallCacheCleanup(*cache, 1);
+    KeyValueCacheTestPeer::CallCacheCleanup(safe_path_log_context_, *cache, 1);
   };
 
   std::vector<std::thread> threads;
@@ -986,24 +1038,24 @@ TEST_F(CacheTest, ConcurrentDeleteAndCleanUp) {
   auto cache = std::make_unique<KeyValueCache>();
   absl::flat_hash_set<std::string_view> keys = {"key1"};
   std::vector<std::string_view> values_for_key1 = {"v1"};
-  cache->UpdateKeyValueSet("key1",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "key1",
                            absl::Span<std::string_view>(values_for_key1), 1);
   absl::Notification start;
-  auto request_context = GetRequestContext();
-  auto delete_fn = [&cache, &keys, &values_for_key1, &start,
-                    &request_context]() {
+  auto& request_context = GetRequestContext();
+  auto delete_fn = [&cache, &keys, &values_for_key1, &start, &request_context,
+                    this]() {
     start.WaitForNotification();
     // expect new value is deleted for key1
-    cache->DeleteValuesInSet("key1",
+    cache->DeleteValuesInSet(safe_path_log_context_, "key1",
                              absl::Span<std::string_view>(values_for_key1), 2);
     EXPECT_EQ(cache->GetKeyValueSet(request_context, keys)
                   ->GetValueSet("key1")
                   .size(),
               0);
   };
-  auto cleanup_fn = [&cache, &start]() {
+  auto cleanup_fn = [&cache, &start, this]() {
     start.WaitForNotification();
-    KeyValueCacheTestPeer::CallCacheCleanup(*cache, 1);
+    KeyValueCacheTestPeer::CallCacheCleanup(safe_path_log_context_, *cache, 1);
   };
   std::vector<std::thread> threads;
   for (int i = 0; i < std::min(20, (int)std::thread::hardware_concurrency());
@@ -1023,28 +1075,32 @@ TEST_F(CacheTest, ConcurrentGetUpdateDeleteCleanUp) {
   std::vector<std::string_view> existing_values_for_key1 = {"v1"};
   std::vector<std::string_view> existing_values_for_key2 = {"v1"};
   cache->UpdateKeyValueSet(
-      "key1", absl::Span<std::string_view>(existing_values_for_key1), 1);
+      safe_path_log_context_, "key1",
+      absl::Span<std::string_view>(existing_values_for_key1), 1);
   cache->UpdateKeyValueSet(
-      "key2", absl::Span<std::string_view>(existing_values_for_key2), 1);
+      safe_path_log_context_, "key2",
+      absl::Span<std::string_view>(existing_values_for_key2), 1);
 
   std::vector<std::string_view> values_to_insert_for_key2 = {"v2"};
   std::vector<std::string_view> values_to_delete_for_key2 = {"v1"};
   absl::Notification start;
-  auto insert_for_key2 = [&cache, &values_to_insert_for_key2, &start]() {
+  auto insert_for_key2 = [&cache, &values_to_insert_for_key2, &start, this]() {
     start.WaitForNotification();
     cache->UpdateKeyValueSet(
-        "key2", absl::Span<std::string_view>(values_to_insert_for_key2), 2);
+        safe_path_log_context_, "key2",
+        absl::Span<std::string_view>(values_to_insert_for_key2), 2);
   };
-  auto delete_for_key2 = [&cache, &values_to_delete_for_key2, &start]() {
+  auto delete_for_key2 = [&cache, &values_to_delete_for_key2, &start, this]() {
     start.WaitForNotification();
     cache->DeleteValuesInSet(
-        "key2", absl::Span<std::string_view>(values_to_delete_for_key2), 2);
+        safe_path_log_context_, "key2",
+        absl::Span<std::string_view>(values_to_delete_for_key2), 2);
   };
-  auto cleanup = [&cache, &start]() {
+  auto cleanup = [&cache, &start, this]() {
     start.WaitForNotification();
-    KeyValueCacheTestPeer::CallCacheCleanup(*cache, 1);
+    KeyValueCacheTestPeer::CallCacheCleanup(safe_path_log_context_, *cache, 1);
   };
-  auto request_context = GetRequestContext();
+  auto& request_context = GetRequestContext();
   auto lookup_for_key1 = [&cache, &keys, &start, &request_context]() {
     start.WaitForNotification();
     EXPECT_THAT(
@@ -1073,9 +1129,11 @@ TEST_F(CacheTest, MultiplePrefixKeyValueUpdates) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   // Call remove deleted keys for prefix1 to update the max delete cutoff
   // timestamp
-  cache->RemoveDeletedKeys(1, "prefix1");
-  cache->UpdateKeyValue("prefix1-key", "value1", 2, "prefix1");
-  cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
+  cache->RemoveDeletedKeys(safe_path_log_context_, 1, "prefix1");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix1-key", "value1", 2,
+                        "prefix1");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix2-key", "value2", 1,
+                        "prefix2");
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(),
                               {"prefix1-key", "prefix2-key"});
@@ -1088,10 +1146,12 @@ TEST_F(CacheTest, MultiplePrefixKeyValueNoUpdateForAnother) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   // Call remove deleted keys for prefix1 to update the max delete cutoff
   // timestamp
-  cache->RemoveDeletedKeys(2, "prefix1");
+  cache->RemoveDeletedKeys(safe_path_log_context_, 2, "prefix1");
   // Expect no update for prefix1
-  cache->UpdateKeyValue("prefix1-key", "value1", 1, "prefix1");
-  cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix1-key", "value1", 1,
+                        "prefix1");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix2-key", "value2", 1,
+                        "prefix2");
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(),
                               {"prefix1-key", "prefix2-key"});
@@ -1103,11 +1163,13 @@ TEST_F(CacheTest, MultiplePrefixKeyValueNoDeleteForAnother) {
   std::unique_ptr<Cache> cache = KeyValueCache::Create();
   // Call remove deleted keys for prefix1 to update the max delete cutoff
   // timestamp
-  cache->RemoveDeletedKeys(2, "prefix1");
-  cache->UpdateKeyValue("prefix1-key", "value1", 3, "prefix1");
+  cache->RemoveDeletedKeys(safe_path_log_context_, 2, "prefix1");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix1-key", "value1", 3,
+                        "prefix1");
   // Expect no deletion
-  cache->DeleteKey("prefix1-key", 1, "prefix1");
-  cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
+  cache->DeleteKey(safe_path_log_context_, "prefix1-key", 1, "prefix1");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix2-key", "value2", 1,
+                        "prefix2");
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(),
                               {"prefix1-key", "prefix2-key"});
@@ -1118,9 +1180,11 @@ TEST_F(CacheTest, MultiplePrefixKeyValueNoDeleteForAnother) {
 
 TEST_F(CacheTest, MultiplePrefixKeyValueDeletesAndUpdates) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
-  cache->DeleteKey("prefix1-key", 2, "prefix1");
-  cache->UpdateKeyValue("prefix1-key", "value1", 1, "prefix1");
-  cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
+  cache->DeleteKey(safe_path_log_context_, "prefix1-key", 2, "prefix1");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix1-key", "value1", 1,
+                        "prefix1");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix2-key", "value2", 1,
+                        "prefix2");
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(),
                               {"prefix1-key", "prefix2-key"});
@@ -1135,10 +1199,12 @@ TEST_F(CacheTest, MultiplePrefixKeyValueDeletesAndUpdates) {
 
 TEST_F(CacheTest, MultiplePrefixKeyValueUpdatesAndDeletes) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
-  cache->UpdateKeyValue("prefix1-key", "value1", 2, "prefix1");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix1-key", "value1", 2,
+                        "prefix1");
   // Expects no deletes
-  cache->DeleteKey("prefix1-key", 1, "prefix1");
-  cache->UpdateKeyValue("prefix2-key", "value2", 1, "prefix2");
+  cache->DeleteKey(safe_path_log_context_, "prefix1-key", 1, "prefix1");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix2-key", "value2", 1,
+                        "prefix2");
   absl::flat_hash_map<std::string, std::string> kv_pairs =
       cache->GetKeyValuePairs(GetRequestContext(),
                               {"prefix1-key", "prefix2-key"});
@@ -1155,11 +1221,11 @@ TEST_F(CacheTest, MultiplePrefixKeyValueSetUpdates) {
   std::vector<std::string_view> values2 = {"v3", "v4"};
   // Call remove deleted keys for prefix1 to update the max delete cutoff
   // timestamp
-  cache->RemoveDeletedKeys(1, "prefix1");
-  cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values1),
-                           2, "prefix1");
-  cache->UpdateKeyValueSet("prefix2-key", absl::Span<std::string_view>(values2),
-                           1, "prefix2");
+  cache->RemoveDeletedKeys(safe_path_log_context_, 1, "prefix1");
+  cache->UpdateKeyValueSet(safe_path_log_context_, "prefix1-key",
+                           absl::Span<std::string_view>(values1), 2, "prefix1");
+  cache->UpdateKeyValueSet(safe_path_log_context_, "prefix2-key",
+                           absl::Span<std::string_view>(values2), 1, "prefix2");
 
   auto get_value_set_result = cache->GetKeyValueSet(
       GetRequestContext(), {"prefix1-key", "prefix2-key"});
@@ -1175,11 +1241,11 @@ TEST_F(CacheTest, MultipleKeyValueSetNoUpdateForAnother) {
   std::vector<std::string_view> values2 = {"v3", "v4"};
   // Call remove deleted keys for prefix1 to update the max delete cutoff
   // timestamp
-  cache->RemoveDeletedKeys(2, "prefix1");
-  cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values1),
-                           1, "prefix1");
-  cache->UpdateKeyValueSet("prefix2-key", absl::Span<std::string_view>(values2),
-                           1, "prefix2");
+  cache->RemoveDeletedKeys(safe_path_log_context_, 2, "prefix1");
+  cache->UpdateKeyValueSet(safe_path_log_context_, "prefix1-key",
+                           absl::Span<std::string_view>(values1), 1, "prefix1");
+  cache->UpdateKeyValueSet(safe_path_log_context_, "prefix2-key",
+                           absl::Span<std::string_view>(values2), 1, "prefix2");
   auto get_value_set_result = cache->GetKeyValueSet(
       GetRequestContext(), {"prefix1-key", "prefix2-key"});
   EXPECT_EQ(get_value_set_result->GetValueSet("prefix1-key").size(), 0);
@@ -1192,13 +1258,13 @@ TEST_F(CacheTest, MultiplePrefixKeyValueSetDeletesAndUpdates) {
   std::vector<std::string_view> values1 = {"v1", "v2"};
   std::vector<std::string_view> values_to_delete = {"v1"};
   std::vector<std::string_view> values2 = {"v3", "v4"};
-  cache->DeleteValuesInSet("prefix1-key",
+  cache->DeleteValuesInSet(safe_path_log_context_, "prefix1-key",
                            absl::Span<std::string_view>(values_to_delete), 2,
                            "prefix1");
-  cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values1),
-                           1, "prefix1");
-  cache->UpdateKeyValueSet("prefix2-key", absl::Span<std::string_view>(values2),
-                           1, "prefix2");
+  cache->UpdateKeyValueSet(safe_path_log_context_, "prefix1-key",
+                           absl::Span<std::string_view>(values1), 1, "prefix1");
+  cache->UpdateKeyValueSet(safe_path_log_context_, "prefix2-key",
+                           absl::Span<std::string_view>(values2), 1, "prefix2");
   auto get_value_set_result = cache->GetKeyValueSet(
       GetRequestContext(), {"prefix1-key", "prefix2-key"});
   EXPECT_THAT(get_value_set_result->GetValueSet("prefix1-key"),
@@ -1217,12 +1283,12 @@ TEST_F(CacheTest, MultiplePrefixKeyValueSetUpdatesAndDeletes) {
   std::vector<std::string_view> values_to_delete = {"v1"};
   std::vector<std::string_view> values2 = {"v3", "v4"};
 
-  cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values1),
-                           2, "prefix1");
-  cache->UpdateKeyValueSet("prefix2-key", absl::Span<std::string_view>(values2),
-                           1, "prefix2");
+  cache->UpdateKeyValueSet(safe_path_log_context_, "prefix1-key",
+                           absl::Span<std::string_view>(values1), 2, "prefix1");
+  cache->UpdateKeyValueSet(safe_path_log_context_, "prefix2-key",
+                           absl::Span<std::string_view>(values2), 1, "prefix2");
   // Expect no deletes
-  cache->DeleteValuesInSet("prefix1-key",
+  cache->DeleteValuesInSet(safe_path_log_context_, "prefix1-key",
                            absl::Span<std::string_view>(values_to_delete), 1,
                            "prefix1");
   auto get_value_set_result = cache->GetKeyValueSet(
@@ -1239,15 +1305,17 @@ TEST_F(CacheTest, MultiplePrefixKeyValueSetUpdatesAndDeletes) {
 
 TEST_F(CacheTest, MultiplePrefixTimestampKeyValueCleanUps) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
-  cache->UpdateKeyValue("prefix1-key", "value", 2, "prefix1");
-  cache->DeleteKey("prefix1-key", 3, "prefix1");
-  cache->UpdateKeyValue("prefix2-key", "value", 2, "prefix2");
-  cache->DeleteKey("prefix2-key", 5, "prefix2");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix1-key", "value", 2,
+                        "prefix1");
+  cache->DeleteKey(safe_path_log_context_, "prefix1-key", 3, "prefix1");
+  cache->UpdateKeyValue(safe_path_log_context_, "prefix2-key", "value", 2,
+                        "prefix2");
+  cache->DeleteKey(safe_path_log_context_, "prefix2-key", 5, "prefix2");
   auto deleted_nodes_for_prefix1 =
       KeyValueCacheTestPeer::ReadDeletedNodes(*cache, "prefix1");
   EXPECT_EQ(deleted_nodes_for_prefix1.size(), 1);
-  cache->RemoveDeletedKeys(4, "prefix1");
-  cache->RemoveDeletedKeys(4, "prefix2");
+  cache->RemoveDeletedKeys(safe_path_log_context_, 4, "prefix1");
+  cache->RemoveDeletedKeys(safe_path_log_context_, 4, "prefix2");
   deleted_nodes_for_prefix1 =
       KeyValueCacheTestPeer::ReadDeletedNodes(*cache, "prefix1");
   EXPECT_EQ(deleted_nodes_for_prefix1.size(), 0);
@@ -1259,22 +1327,127 @@ TEST_F(CacheTest, MultiplePrefixTimestampKeyValueSetCleanUps) {
   std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
   std::vector<std::string_view> values = {"v1", "v2"};
   std::vector<std::string_view> values_to_delete = {"v1"};
-  cache->UpdateKeyValueSet("prefix1-key", absl::Span<std::string_view>(values),
-                           2, "prefix1");
-  cache->UpdateKeyValueSet("prefix2-key", absl::Span<std::string_view>(values),
-                           2, "prefix2");
-  cache->DeleteValuesInSet("prefix1-key",
+  cache->UpdateKeyValueSet(safe_path_log_context_, "prefix1-key",
+                           absl::Span<std::string_view>(values), 2, "prefix1");
+  cache->UpdateKeyValueSet(safe_path_log_context_, "prefix2-key",
+                           absl::Span<std::string_view>(values), 2, "prefix2");
+  cache->DeleteValuesInSet(safe_path_log_context_, "prefix1-key",
                            absl::Span<std::string_view>(values_to_delete), 3,
                            "prefix1");
-  cache->DeleteValuesInSet("prefix2-key",
+  cache->DeleteValuesInSet(safe_path_log_context_, "prefix2-key",
                            absl::Span<std::string_view>(values_to_delete), 5,
                            "prefix2");
-  cache->RemoveDeletedKeys(4, "prefix1");
-  cache->RemoveDeletedKeys(4, "prefix2");
+  cache->RemoveDeletedKeys(safe_path_log_context_, 4, "prefix1");
+  cache->RemoveDeletedKeys(safe_path_log_context_, 4, "prefix2");
   EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache, "prefix1"),
             0);
   EXPECT_EQ(KeyValueCacheTestPeer::GetDeletedSetNodesMapSize(*cache, "prefix2"),
             1);
 }
+
+TEST_F(CacheTest, VerifyUpdatingUInt32Sets) {
+  auto cache = KeyValueCache::Create();
+  auto& request_context = GetRequestContext();
+  auto keys = absl::flat_hash_set<std::string_view>({"set1", "set2"});
+  {
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    for (const auto& key : keys) {
+      auto* set = result->GetUInt32ValueSet(key);
+      EXPECT_EQ(set, nullptr);
+    }
+  }
+  {
+    auto set1_values = std::vector<uint32_t>({1, 2, 3, 4, 5});
+    cache->UpdateKeyValueSet(safe_path_log_context_, "set1",
+                             absl::MakeSpan(set1_values), 1);
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set1");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAreArray(set1_values));
+  }
+  {
+    auto set2_values = std::vector<uint32_t>({6, 7, 8, 9, 10});
+    cache->UpdateKeyValueSet(safe_path_log_context_, "set2",
+                             absl::MakeSpan(set2_values), 1);
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set2");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAreArray(set2_values));
+  }
+}
+
+TEST_F(CacheTest, VerifyDeletingUInt32Sets) {
+  auto cache = KeyValueCache::Create();
+  auto& request_context = GetRequestContext();
+  auto keys = absl::flat_hash_set<std::string_view>({"set1", "set2"});
+  auto delete_values = std::vector<uint32_t>({1, 2, 6, 7});
+  {
+    auto set1_values = std::vector<uint32_t>({1, 2, 3, 4, 5});
+    cache->UpdateKeyValueSet(safe_path_log_context_, "set1",
+                             absl::MakeSpan(set1_values), 1);
+    cache->DeleteValuesInSet(safe_path_log_context_, "set1",
+                             absl::MakeSpan(delete_values), 2);
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set1");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAre(3, 4, 5));
+  }
+  {
+    auto set2_values = std::vector<uint32_t>({6, 7, 8, 9, 10});
+    cache->UpdateKeyValueSet(safe_path_log_context_, "set2",
+                             absl::MakeSpan(set2_values), 1);
+    cache->DeleteValuesInSet(safe_path_log_context_, "set2",
+                             absl::MakeSpan(delete_values), 2);
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set2");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAre(8, 9, 10));
+  }
+}
+
+TEST_F(CacheTest, VerifyCleaningUpUInt32Sets) {
+  std::unique_ptr<KeyValueCache> cache = std::make_unique<KeyValueCache>();
+  auto& request_context = GetRequestContext();
+  auto keys = absl::flat_hash_set<std::string_view>({"set1"});
+  auto set1_values = std::vector<uint32_t>({1, 2, 3, 4, 5});
+  auto delete_values = std::vector<uint32_t>({1, 2});
+  {
+    cache->UpdateKeyValueSet(safe_path_log_context_, "set1",
+                             absl::MakeSpan(set1_values), 1);
+    cache->DeleteValuesInSet(safe_path_log_context_, "set1",
+                             absl::MakeSpan(delete_values), 2);
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set1");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAre(3, 4, 5));
+    EXPECT_THAT(set->GetRemovedValues(),
+                UnorderedElementsAreArray(delete_values));
+  }
+  const auto& deleted_nodes =
+      KeyValueCacheTestPeer::ReadDeletedUint32Nodes(*cache);
+  {
+    auto prefix_nodes = deleted_nodes.CGet("");
+    ASSERT_TRUE(prefix_nodes.is_present());
+    auto iter = prefix_nodes.value()->find(2);
+    ASSERT_NE(iter, prefix_nodes.value()->end());
+    EXPECT_THAT(iter->first, 2);
+    EXPECT_TRUE(iter->second.contains("set1"));
+  }
+  {
+    cache->RemoveDeletedKeys(safe_path_log_context_, 3);
+    auto prefix_nodes = deleted_nodes.CGet("");
+    ASSERT_TRUE(prefix_nodes.is_present());
+    auto iter = prefix_nodes.value()->find(2);
+    ASSERT_EQ(iter, prefix_nodes.value()->end());
+  }
+  {
+    auto result = cache->GetUInt32ValueSet(request_context, keys);
+    auto* set = result->GetUInt32ValueSet("set1");
+    ASSERT_TRUE(set != nullptr);
+    EXPECT_THAT(set->GetValues(), UnorderedElementsAre(3, 4, 5));
+    EXPECT_TRUE(set->GetRemovedValues().empty());
+  }
+}
+
 }  // namespace
 }  // namespace kv_server

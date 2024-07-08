@@ -18,11 +18,8 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
-#include "absl/log/flags.h"
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
-#include "absl/strings/substitute.h"
-#include "google/protobuf/text_format.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
@@ -40,13 +37,20 @@ ABSL_FLAG(int, num_shards, 1, "Number of shards");
 ABSL_FLAG(int, shard_number, 0, "Shard number");
 ABSL_FLAG(int64_t, timestamp, absl::ToUnixMicros(absl::Now()),
           "Record timestamp. Increases by 1 for each record.");
-ABSL_FLAG(bool, generate_set_record, false,
-          "Whether to generate set record or not");
-ABSL_FLAG(std::string, set_value_key, "bar",
+ABSL_FLAG(bool, generate_string_set_records, false,
+          "Whether to generate string set records or not");
+ABSL_FLAG(bool, generate_int_set_records, false,
+          "Whether to generate int set records or not");
+ABSL_FLAG(bool, use_random_elements, false,
+          "Whether to select set elements from a random range. If false, "
+          "elements are selected from generated keys.");
+ABSL_FLAG(std::string, set_key_prefix, "set",
           "Specify the set value key prefix for lookups");
 ABSL_FLAG(int, num_values_in_set, 10,
           "Number of values in the set to generate");
 ABSL_FLAG(int, num_set_records, 5, "Number of records to generate");
+ABSL_FLAG(uint32_t, range_min, 0, "Minimum element in set records.");
+ABSL_FLAG(uint32_t, range_max, 2147483647, "Maximum element in set records.");
 
 using kv_server::DataRecordStruct;
 using kv_server::KeyValueMutationRecordStruct;
@@ -56,6 +60,8 @@ using kv_server::ShardingMetadata;
 using kv_server::ToDeltaFileName;
 using kv_server::ToFlatBufferBuilder;
 using kv_server::ToStringView;
+
+const std::array<std::string, 3> kSetOps = {" - ", " | ", " & "};
 
 void WriteKeyValueRecord(std::string_view key, std::string_view value,
                          int64_t logical_commit_time,
@@ -95,32 +101,52 @@ std::vector<std::string> WriteKeyValueRecords(
 }
 
 void WriteKeyValueSetRecords(const std::vector<std::string>& keys,
-                             std::string_view set_value_key_prefix,
-                             int64_t timestamp,
+                             std::string_view set_key_prefix, int64_t timestamp,
                              riegeli::RecordWriterBase& writer) {
   const int num_set_records = absl::GetFlag(FLAGS_num_set_records);
   const int num_values_in_set = absl::GetFlag(FLAGS_num_values_in_set);
-  const int keys_max_index = keys.size() - 1;
   std::string query(" ");
   for (int i = 0; i < num_set_records; ++i) {
-    std::vector<std::string> set_copy;
+    std::vector<uint32_t> uint32_set;
+    std::vector<std::string> string_set;
     for (int j = 0; j < num_values_in_set; ++j) {
-      // Add a random element from keys
-      set_copy.emplace_back(keys[std::rand() % keys_max_index]);
+      // Add a random element
+      std::srand(absl::GetCurrentTimeNanos());
+      auto element = absl::GetFlag(FLAGS_range_min) +
+                     (std::rand() % (absl::GetFlag(FLAGS_range_max) -
+                                     absl::GetFlag(FLAGS_range_min)));
+      if (absl::GetFlag(FLAGS_generate_int_set_records)) {
+        uint32_set.emplace_back(element);
+      }
+      if (absl::GetFlag(FLAGS_generate_string_set_records)) {
+        if (absl::GetFlag(FLAGS_use_random_elements)) {
+          string_set.emplace_back(absl::StrCat(element));
+        } else {
+          string_set.emplace_back(keys[std::rand() % (keys.size() - 1)]);
+        }
+      }
     }
-    std::vector<std::string_view> set;
-    for (const auto& v : set_copy) {
-      set.emplace_back(v);
-    }
-    std::string set_value_key = absl::StrCat(set_value_key_prefix, i);
-    absl::StrAppend(&query, set_value_key, " | ");
+    auto set_value_key = absl::StrCat(set_key_prefix, i);
     KeyValueMutationRecordStruct record;
-    record.value = set;
     record.mutation_type = KeyValueMutationType::Update;
     record.logical_commit_time = timestamp++;
     record.key = set_value_key;
-    writer.WriteRecord(ToStringView(
-        ToFlatBufferBuilder(DataRecordStruct{.record = std::move(record)})));
+    if (absl::GetFlag(FLAGS_generate_int_set_records)) {
+      record.value = uint32_set;
+      writer.WriteRecord(ToStringView(
+          ToFlatBufferBuilder(DataRecordStruct{.record = std::move(record)})));
+    }
+    if (absl::GetFlag(FLAGS_generate_string_set_records)) {
+      std::vector<std::string_view> string_set_view;
+      for (const auto& v : string_set) {
+        string_set_view.emplace_back(v);
+      }
+      record.value = string_set_view;
+      writer.WriteRecord(ToStringView(
+          ToFlatBufferBuilder(DataRecordStruct{.record = std::move(record)})));
+    }
+    absl::StrAppend(&query, set_value_key,
+                    kSetOps[std::rand() % kSetOps.size()]);
   }
   LOG(INFO) << "Example set query for all keys" << query;
   LOG(INFO) << "write done for set records";
@@ -147,7 +173,7 @@ int main(int argc, char** argv) {
   auto write_records = [](std::ostream* os) {
     const std::string key = absl::GetFlag(FLAGS_key);
     const int value_size = absl::GetFlag(FLAGS_value_size);
-    const std::string set_value_key_prefix = absl::GetFlag(FLAGS_set_value_key);
+    const std::string set_key_prefix = absl::GetFlag(FLAGS_set_key_prefix);
     int64_t timestamp = absl::GetFlag(FLAGS_timestamp);
 
     auto os_writer = riegeli::OStreamWriter(os);
@@ -160,10 +186,9 @@ int main(int argc, char** argv) {
     auto record_writer = riegeli::RecordWriter(std::move(os_writer), options);
     const auto keys =
         WriteKeyValueRecords(key, value_size, timestamp, record_writer);
-    if (absl::GetFlag(FLAGS_generate_set_record)) {
-      timestamp += keys.size();
-      WriteKeyValueSetRecords(keys, set_value_key_prefix, timestamp,
-                              record_writer);
+    if (absl::GetFlag(FLAGS_generate_int_set_records) ||
+        absl::GetFlag(FLAGS_generate_string_set_records)) {
+      WriteKeyValueSetRecords(keys, set_key_prefix, timestamp++, record_writer);
     }
     record_writer.Close();
   };

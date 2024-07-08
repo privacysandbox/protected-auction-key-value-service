@@ -63,6 +63,8 @@ class ChangeNotifierAwsTest : public ::testing::Test {
         privacy_sandbox::server_common::telemetry::BuildDependentConfig(
             config_proto));
   }
+
+ private:
   PlatformInitializer initializer_;
 };
 

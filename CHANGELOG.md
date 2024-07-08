@@ -2,6 +2,84 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.17.0 (2024-07-08)
+
+
+### Features
+
+* Add a set wrapper around bitset for storing uint32 values
+* Add a thread safe wrapper around hash map
+* Add b&a e2e test env
+* Add data loading support for uint32 sets
+* Add health check to AWS mesh.
+* Add hook for running set query using uint32 sets as input
+* Add interestGroupNames to V1 API
+* Add latency metrics for cache uint32 sets functions
+* Add latency without custom code execution metric
+* Add option to use existing network on AWS.
+* Add padding to responses
+* Add request log context to request context
+* Add runsetqueryint udf hook
+* Add set operation functions for bitsets
+* Add support for int32_t sets to key value cache
+* Add support for reading and writing int sets to csv files
+* Add udf hook for running int sets set query (local lookup)
+* Allow pas request to pass consented debug config and log context
+* Implement sharded RunSetQueryInt rpc for lookup client
+* Implement uint32 sets sharded lookup support
+* Load consented debug token from server parameter
+* Pass LogContext and ConsentedDebugConfig to internal lookup server in sharded case
+* Plumb the safe path log context in the cache update execution path
+* Set verbosity level for PS_VLOG
+* Simplify thread safe hash map and use a single map for node storage
+* Support uint32 sets for query parsing and evaluation
+* Support uint32 sets in InternalLookup rpc
+* Switch absl log for PS_LOG and PS_VLOG for unsafe code path
+* Switch absl log to PS_LOG for safe code path
+* Switch absl vlog to PS_VLOG for safe code path
+* Update AWS coordinators public prod endpoint from GG to G3P
+
+
+### Bug Fixes
+
+* Add missing include/library deps
+* Augment UDF loading info message
+* Correct copts build config.
+* Correct verbosity flag for gcp validator.
+* Effectively lock the key in the set map cleanup
+* Fix detached head of continuous e2e branch.
+* Properly initialize runSetQueryInt hook
+* Remove ignore interestGroupNames from envoy
+* Remove test filter to allow all unit tests run in the build
+* Simplify request context and pass it as shared pointer to the hooks
+* Upgrade common repo version
+* Use kms_binaries tar target from common repo
+* Use structured initializer for clarity
+
+
+### Dependencies
+
+* **deps:** Upgrade build-system to 0.62.0
+* **deps:** Upgrade data-plane-shared-libraries to 52239f15 2024-05-21
+* **deps:** Upgrade pre-commit hooks
+
+
+### GCP: Features
+
+* **GCP:** Switch to internal lb for the otlp collector
+* **GCP:** Switch to internal lb for the otlp collector with bug fixes
+
+
+### Documentation
+
+* Add debugging playbook
+* Correct commands for sample_word2vec getting_started example
+* KV onboarding guide
+* Update to the ads retrieval explainer
+* Update word2vec example
+* Use aws_platform bazel config
+* Use local_{platform,instance} bazel configs
+
 ## 0.16.0 (2024-04-05)
 
 

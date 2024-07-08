@@ -20,16 +20,10 @@
 #include <vector>
 
 #include "absl/container/flat_hash_set.h"
-#include "components/query/sets.h"
 
 namespace kv_server {
 
-namespace {
-// Traverses the binary tree starting at root.
-// Returns a vector of `Node`s in post order.
-// This is represents the infix input as postfix.
-// Postfix can then be more easily evaluated.
-std::vector<const Node*> PostOrderTraversal(const Node* root) {
+std::vector<const Node*> ComputePostfixOrder(const Node* root) {
   std::vector<const Node*> result;
   std::vector<const Node*> stack;
   stack.push_back(root);
@@ -48,41 +42,9 @@ std::vector<const Node*> PostOrderTraversal(const Node* root) {
   return result;
 }
 
-}  // namespace
-
-void ASTStackVisitor::Visit(const OpNode& node, std::vector<KVSetView>& stack) {
-  KVSetView right = std::move(stack.back());
-  stack.pop_back();
-  KVSetView left = std::move(stack.back());
-  stack.pop_back();
-  stack.emplace_back(node.Op(std::move(left), std::move(right)));
+std::string ValueNode::Accept(ASTStringVisitor& visitor) const {
+  return visitor.Visit(*this);
 }
-
-void ASTStackVisitor::Visit(const ValueNode& node,
-                            std::vector<KVSetView>& stack) {
-  stack.emplace_back(node.Lookup());
-}
-
-KVSetView Compute(const std::vector<const Node*>& postorder) {
-  std::vector<KVSetView> stack;
-  ASTStackVisitor visitor;
-  // Apply the operations on the postorder stack
-  for (const auto* node : postorder) {
-    node->Accept(visitor, stack);
-  }
-  return stack.back();
-}
-
-KVSetView Eval(const Node& node) {
-  std::vector<const Node*> postorder = PostOrderTraversal(&node);
-  return Compute(postorder);
-}
-
-void OpNode::Accept(ASTStackVisitor& visitor,
-                    std::vector<KVSetView>& stack) const {
-  visitor.Visit(*this, stack);
-}
-
 std::string UnionNode::Accept(ASTStringVisitor& visitor) const {
   return visitor.Visit(*this);
 }
@@ -92,6 +54,13 @@ std::string DifferenceNode::Accept(ASTStringVisitor& visitor) const {
 std::string IntersectionNode::Accept(ASTStringVisitor& visitor) const {
   return visitor.Visit(*this);
 }
+
+void ValueNode::Accept(ASTVisitor& visitor) const { visitor.Visit(*this); }
+void UnionNode::Accept(ASTVisitor& visitor) const { visitor.Visit(*this); }
+void IntersectionNode::Accept(ASTVisitor& visitor) const {
+  visitor.Visit(*this);
+}
+void DifferenceNode::Accept(ASTVisitor& visitor) const { visitor.Visit(*this); }
 
 absl::flat_hash_set<std::string_view> OpNode::Keys() const {
   std::vector<const Node*> nodes;
@@ -118,21 +87,6 @@ absl::flat_hash_set<std::string_view> OpNode::Keys() const {
   return key_set;
 }
 
-ValueNode::ValueNode(
-    absl::AnyInvocable<KVSetView(std::string_view key) const> lookup_fn,
-    std::string key)
-    : lookup_fn_(absl::bind_front(std::move(lookup_fn), key)),
-      key_(std::move(key)) {}
-
-void ValueNode::Accept(ASTStackVisitor& visitor,
-                       std::vector<KVSetView>& stack) const {
-  visitor.Visit(*this, stack);
-}
-
-std::string ValueNode::Accept(ASTStringVisitor& visitor) const {
-  return visitor.Visit(*this);
-}
-
 absl::flat_hash_set<std::string_view> ValueNode::Keys() const {
   // Return a set containing a view into this instances, `key_`.
   // Be sure that the reference is not to any temp string.
@@ -140,7 +94,5 @@ absl::flat_hash_set<std::string_view> ValueNode::Keys() const {
       {key_},
   };
 }
-
-KVSetView ValueNode::Lookup() const { return lookup_fn_(); }
 
 }  // namespace kv_server

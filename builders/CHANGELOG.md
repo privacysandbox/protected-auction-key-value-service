@@ -2,6 +2,65 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.62.0 (2024-05-10)
+
+
+### Features
+
+* Add --dir flag to normalize-dist
+
+## 0.61.1 (2024-05-10)
+
+
+### Bug Fixes
+
+* Add docker flags to container name
+* Set 8h ttl for long-running build container
+
+## 0.61.0 (2024-05-08)
+
+
+### Features
+
+* Add cbuild support for container reuse
+
+## 0.60.0 (2024-05-07)
+
+
+### Dependencies
+
+* **deps:** Upgrade coverage-tools to ubuntu 24.04
+* **deps:** Upgrade golang to 1.22.2
+
+## 0.59.0 (2024-05-02)
+
+
+### Bug Fixes
+
+* **deps:** Update pre-commit hooks
+
+
+### Dependencies
+
+* **deps:** Upgrade alpine base image
+* **deps:** Upgrade base images for Amazon Linux
+* **deps:** Upgrade grpcurl to 1.9.1
+* **deps:** Upgrade presubmit to ubuntu 24.04
+
+## 0.58.0 (2024-04-26)
+
+
+### Features
+
+* add missing AWS env variable for CodeBuild
+
+## 0.57.1 (2024-03-28)
+
+
+### Bug Fixes
+
+* Upgrade OpenSSF scorecard GitHub Action
+
 ## 0.57.0 (2024-03-10)
 
 

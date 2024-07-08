@@ -46,6 +46,10 @@ static_resources:
               retry_policy:
                 retry_on: 5xx
                 num_retries: 10
+            request_headers_to_add:
+            - header:
+                key: "kv-content-type"
+                value: "%DYNAMIC_METADATA(tkv:content-type)%"
             response_headers_to_add:
             - header:
                 key: 'Ad-Auction-Allowed'
@@ -56,6 +60,23 @@ static_resources:
                 value: '2'
               append: false
           http_filters:
+          # Pass the content-type to the grpc server. By default the header is overwritten to "application/grpc"
+          # This extra filter must be used because the content-type must be copied to a metadata prior to grpc transcoding
+          # By the time the Router filter is invoked, the original content-type is already changed.
+          - name: envoy.filters.http.header_to_metadata
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.header_to_metadata.v3.Config
+              request_rules:
+              - header: "content-type"
+                on_header_present:
+                  metadata_namespace: tkv
+                  key: content-type
+                  type: STRING
+                on_header_missing:
+                  metadata_namespace: tkv
+                  key: content-type
+                  value: 'unknown'
+                  type: STRING
           - name: envoy.filters.http.grpc_stats
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_stats.v3.FilterConfig
@@ -69,8 +90,6 @@ static_resources:
               - kv_server.v1.KeyValueService
               - kv_server.v2.KeyValueService
               - grpc.health.v1.Health
-              ignored_query_parameters:
-              - "interestGroupNames"
               print_options:
                 add_whitespace: true
                 always_print_primitive_fields: true

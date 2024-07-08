@@ -39,19 +39,23 @@ BlobStorageClient::ClientOptions ParameterFetcher::GetBlobStorageClientOptions()
 NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
     int32_t num_shards, int32_t shard_num) const {
   std::string environment = GetParameter(kEnvironment);
-  LOG(INFO) << "Retrieved " << kEnvironment << " parameter: " << environment;
+  PS_LOG(INFO, log_context_)
+      << "Retrieved " << kEnvironment << " parameter: " << environment;
   auto realtime_thread_numbers =
       GetInt32Parameter(kRealtimeUpdaterThreadNumberParameterSuffix);
-  LOG(INFO) << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
-            << " parameter: " << realtime_thread_numbers;
+  PS_LOG(INFO, log_context_)
+      << "Retrieved " << kRealtimeUpdaterThreadNumberParameterSuffix
+      << " parameter: " << realtime_thread_numbers;
   std::string topic_id =
       absl::StrFormat("kv-server-%s-realtime-pubsub", environment);
   std::string project_id = GetParameter(kProjectId);
-  LOG(INFO) << "Retrieved " << kProjectId << " parameter: " << project_id;
+  PS_LOG(INFO, log_context_)
+      << "Retrieved " << kProjectId << " parameter: " << project_id;
   return GcpNotifierMetadata{
       .queue_prefix = "QueueNotifier_",
       .project_id = project_id,
       .topic_id = topic_id,
+      .environment = environment,
       .num_threads = realtime_thread_numbers,
       .num_shards = num_shards,
       .shard_num = shard_num,

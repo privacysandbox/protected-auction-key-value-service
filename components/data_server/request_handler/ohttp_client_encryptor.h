@@ -31,28 +31,26 @@ namespace kv_server {
 class OhttpClientEncryptor {
  public:
   explicit OhttpClientEncryptor(
-      privacy_sandbox::server_common::KeyFetcherManagerInterface&
-          key_fetcher_manager)
-      : key_fetcher_manager_(key_fetcher_manager) {
-#if defined(CLOUD_PLATFORM_AWS)
-    cloud_platform_ = privacy_sandbox::server_common::CloudPlatform::kAws;
-#elif defined(CLOUD_PLATFORM_GCP)
-    cloud_platform_ = privacy_sandbox::server_common::CloudPlatform::kGcp;
-#endif
-  }
+      google::cmrt::sdk::public_key_service::v1::PublicKey& public_key)
+      : public_key_(public_key) {}
   // Encrypts ougoing request.
-  absl::StatusOr<std::string> EncryptRequest(std::string payload);
+  absl::StatusOr<std::string> EncryptRequest(
+      std::string payload,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
   // Decrypts incoming reponse. Since OHTTP is stateful, this method should be
   // called after EncryptRequest.
-  absl::StatusOr<std::string> DecryptResponse(std::string encrypted_payload);
+  absl::StatusOr<std::string> DecryptResponse(
+      std::string encrypted_payload,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 
  private:
-  ::privacy_sandbox::server_common::CloudPlatform cloud_platform_ =
-      ::privacy_sandbox::server_common::CloudPlatform::kLocal;
   std::optional<quiche::ObliviousHttpClient> http_client_;
   std::optional<quiche::ObliviousHttpRequest::Context> http_request_context_;
-  privacy_sandbox::server_common::KeyFetcherManagerInterface&
-      key_fetcher_manager_;
+  google::cmrt::sdk::public_key_service::v1::PublicKey& public_key_;
 };
 
 }  // namespace kv_server

@@ -17,21 +17,6 @@
 schemaVersion: 2.0.0
 
 fileExistenceTests:
-  - name: config
-    path: /etc/envoy/envoy.yaml
-    shouldExist: true
-    permissions: "-r--r--r--"
-
-  - name: proto descriptor
-    path: /etc/envoy/config/query_api_descriptor_set.pb
-    shouldExist: true
-    permissions: "-r--r--r--"
-
-  - name: envoy
-    path: /usr/local/bin/envoy
-    shouldExist: true
-    isExecutableBy: any
-
   - name: init_server_basic
     path: /init_server_basic
     shouldExist: true

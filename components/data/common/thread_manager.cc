@@ -32,14 +32,17 @@ namespace kv_server {
 namespace {
 class ThreadManagerImpl : public ThreadManager {
  public:
-  explicit ThreadManagerImpl(std::string thread_name)
-      : thread_name_(std::move(thread_name)) {}
+  explicit ThreadManagerImpl(
+      std::string thread_name,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : thread_name_(std::move(thread_name)), log_context_(log_context) {}
 
   ~ThreadManagerImpl() {
     if (!IsRunning()) return;
-    VLOG(8) << thread_name_ << " In destructor. Attempting to stop the thread.";
+    PS_VLOG(8, log_context_)
+        << thread_name_ << " In destructor. Attempting to stop the thread.";
     if (const auto s = Stop(); !s.ok()) {
-      LOG(ERROR) << thread_name_ << " failed to stop: " << s;
+      PS_LOG(ERROR, log_context_) << thread_name_ << " failed to stop: " << s;
     }
   }
 
@@ -47,20 +50,21 @@ class ThreadManagerImpl : public ThreadManager {
     if (IsRunning()) {
       return absl::FailedPreconditionError("Already running");
     }
-    LOG(INFO) << thread_name_ << " Creating thread for processing";
+    PS_LOG(INFO, log_context_)
+        << thread_name_ << " Creating thread for processing";
     thread_ = std::make_unique<std::thread>(watch);
     return absl::OkStatus();
   }
 
   absl::Status Stop() override {
-    VLOG(8) << thread_name_ << "Stop called";
+    PS_VLOG(8, log_context_) << thread_name_ << "Stop called";
     if (!IsRunning()) {
-      LOG(ERROR) << thread_name_ << " not running";
+      PS_LOG(ERROR, log_context_) << thread_name_ << " not running";
       return absl::FailedPreconditionError("Not currently running");
     }
     should_stop_ = true;
     thread_->join();
-    VLOG(8) << thread_name_ << " joined";
+    PS_VLOG(8, log_context_) << thread_name_ << " joined";
     thread_.reset();
     should_stop_ = false;
     return absl::OkStatus();
@@ -74,12 +78,16 @@ class ThreadManagerImpl : public ThreadManager {
   std::unique_ptr<std::thread> thread_;
   std::atomic<bool> should_stop_ = false;
   std::string thread_name_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
-std::unique_ptr<ThreadManager> ThreadManager::Create(std::string thread_name) {
-  return std::make_unique<ThreadManagerImpl>(std::move(thread_name));
+std::unique_ptr<ThreadManager> ThreadManager::Create(
+    std::string thread_name,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<ThreadManagerImpl>(std::move(thread_name),
+                                             log_context);
 }
 
 }  // namespace kv_server

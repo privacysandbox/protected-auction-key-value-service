@@ -29,11 +29,12 @@
 #include "aws/sqs/model/GetQueueAttributesRequest.h"
 #include "aws/sqs/model/GetQueueAttributesResult.h"
 #include "aws/sqs/model/ReceiveMessageRequest.h"
-#include "aws/sqs/model/ReceiveMessageResult.h"
 #include "aws/sqs/model/SetQueueAttributesRequest.h"
+#include "aws/sqs/model/TagQueueRequest.h"
 #include "components/data/common/msg_svc.h"
 #include "components/data/common/msg_svc_util.h"
 #include "components/errors/error_util_aws.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {
@@ -59,16 +60,21 @@ constexpr char kPolicyTemplate[] = R"({
 constexpr char kFilterPolicyTemplate[] = R"({
   "shard_num": ["%d"]
 })";
+constexpr char kEnvironmentTag[] = "environment";
 
 class AwsMessageService : public MessageService {
  public:
   // `prefix` is the prefix of randomly generated SQS Queue name.
   // The queue is subscribed to the topic at `sns_arn`.
-  AwsMessageService(std::string prefix, std::string sns_arn,
-                    std::optional<int32_t> shard_num)
+  AwsMessageService(
+      std::string prefix, std::string sns_arn, std::string environment,
+      std::optional<int32_t> shard_num,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : prefix_(std::move(prefix)),
         sns_arn_(std::move(sns_arn)),
-        shard_num_(shard_num) {}
+        environment_(std::move(environment)),
+        shard_num_(shard_num),
+        log_context_(log_context) {}
 
   bool IsSetupComplete() const {
     absl::ReaderMutexLock lock(&mutex_);
@@ -85,29 +91,20 @@ class AwsMessageService : public MessageService {
   absl::Status SetupQueue() {
     absl::MutexLock lock(&mutex_);
     if (sqs_url_.empty()) {
-      absl::StatusOr<std::string> url = CreateQueue(sqs_client_, prefix_);
-      if (!url.ok()) {
-        return url.status();
-      }
-      sqs_url_ = std::move(*url);
+      PS_ASSIGN_OR_RETURN(sqs_url_, CreateQueue(sqs_client_, prefix_));
     }
     // TODO: Any non-retryable status from this point on should result in a
     // reset.
     if (sqs_arn_.empty()) {
-      absl::StatusOr<std::string> arn = GetQueueArn(sqs_client_, sqs_url_);
-      if (!arn.ok()) {
-        return arn.status();
-      }
-      sqs_arn_ = std::move(*arn);
+      PS_ASSIGN_OR_RETURN(sqs_arn_, GetQueueArn(sqs_client_, sqs_url_));
     }
     if (!are_attributes_set_) {
-      auto result =
-          SetQueueAttributes(sqs_client_, sns_arn_, sqs_arn_, sqs_url_);
-
-      if (!result.ok()) {
-        return result;
-      }
+      PS_RETURN_IF_ERROR(
+          SetQueueAttributes(sqs_client_, sns_arn_, sqs_arn_, sqs_url_));
       are_attributes_set_ = true;
+    }
+    if (!environment_.empty()) {
+      PS_RETURN_IF_ERROR(TagQueue(sqs_client_, sqs_url_));
     }
     const absl::Status status = SubscribeQueue(sns_client_, sns_arn_, sqs_arn_);
     if (status.ok()) {
@@ -150,17 +147,28 @@ class AwsMessageService : public MessageService {
                                : AwsErrorToStatus(outcome.GetError());
   }
 
+  absl::Status TagQueue(Aws::SQS::SQSClient& sqs, const std::string& sqs_url) {
+    Aws::SQS::Model::TagQueueRequest request;
+    request.SetQueueUrl(sqs_url);
+    request.AddTags(kEnvironmentTag, environment_);
+
+    const auto outcome = sqs.TagQueue(request);
+    return outcome.IsSuccess() ? absl::OkStatus()
+                               : AwsErrorToStatus(outcome.GetError());
+  }
+
   absl::StatusOr<std::string> GetQueueArn(Aws::SQS::SQSClient& sqs,
                                           const std::string& sqs_url) {
     Aws::SQS::Model::GetQueueAttributesRequest req;
     req.SetQueueUrl(sqs_url);
     req.AddAttributeNames(Aws::SQS::Model::QueueAttributeName::QueueArn);
-    const auto outcome = sqs.GetQueueAttributes(req);
-    if (outcome.IsSuccess()) {
+
+    if (const auto outcome = sqs.GetQueueAttributes(req); outcome.IsSuccess()) {
       return outcome.GetResult().GetAttributes().at(
           Aws::SQS::Model::QueueAttributeName::QueueArn);
+    } else {
+      return AwsErrorToStatus(outcome.GetError());
     }
-    return AwsErrorToStatus(outcome.GetError());
   }
 
   absl::Status SubscribeQueue(Aws::SNS::SNSClient& sns,
@@ -184,22 +192,26 @@ class AwsMessageService : public MessageService {
   Aws::SNS::SNSClient sns_client_;
   const std::string prefix_;
   const std::string sns_arn_;
+  const std::string environment_;
   bool is_set_up_ = false;
   std::string sqs_url_;
   std::string sqs_arn_;
   bool are_attributes_set_ = false;
   std::optional<int32_t> shard_num_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto metadata = std::get<AwsNotifierMetadata>(notifier_metadata);
   auto shard_num =
       (metadata.num_shards > 1 ? std::optional<int32_t>(metadata.shard_num)
                                : std::nullopt);
   return std::make_unique<AwsMessageService>(
-      std::move(metadata.queue_prefix), std::move(metadata.sns_arn), shard_num);
+      std::move(metadata.queue_prefix), std::move(metadata.sns_arn),
+      std::move(metadata.environment), shard_num, log_context);
 }
 }  // namespace kv_server

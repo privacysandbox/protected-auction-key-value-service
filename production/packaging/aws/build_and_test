@@ -209,7 +209,13 @@ if [[ -n ${AMI_REGIONS[0]} ]]; then
   regions="$(arr_to_string_list AMI_REGIONS)"
   builder::cbuild_al2 "
 set -o errexit
-packer build -var=regions='${regions}' -var=commit_version=$(git rev-parse HEAD) -var=distribution_dir=dist/aws -var=workspace=/src/workspace production/packaging/aws/data_server/ami/image.pkr.hcl
+packer build \
+  -var=regions='${regions}' \
+  -var=commit_version=$(git rev-parse HEAD) \
+  -var=build_mode=${MODE} \
+  -var=distribution_dir=dist/aws \
+  -var=workspace=/src/workspace \
+  production/packaging/aws/data_server/ami/image.pkr.hcl
 "
 fi
 

@@ -86,16 +86,24 @@ class GcpBlobInputStreamBuf : public SeekingInputStreambuf {
 
 class GcpBlobReader : public BlobReader {
  public:
-  GcpBlobReader(google::cloud::storage::Client& client,
-                BlobStorageClient::DataLocation location)
+  GcpBlobReader(
+      google::cloud::storage::Client& client,
+      BlobStorageClient::DataLocation location,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext))
       : BlobReader(),
+        log_context_(log_context),
         streambuf_(client, location,
-                   GetOptions([this, location](absl::Status status) {
-                     LOG(ERROR) << "Blob "
-                                << AppendPrefix(location.key, location.prefix)
-                                << " failed stream with: " << status;
-                     is_.setstate(std::ios_base::badbit);
-                   })),
+                   GetOptions(
+                       [this, location](absl::Status status) {
+                         PS_LOG(ERROR, log_context_)
+                             << "Blob "
+                             << AppendPrefix(location.key, location.prefix)
+                             << " failed stream with: " << status;
+                         is_.setstate(std::ios_base::badbit);
+                       },
+                       log_context)),
         is_(&streambuf_) {}
 
   std::istream& Stream() { return is_; }
@@ -103,24 +111,28 @@ class GcpBlobReader : public BlobReader {
 
  private:
   static SeekingInputStreambuf::Options GetOptions(
-      std::function<void(absl::Status)> error_callback) {
+      std::function<void(absl::Status)> error_callback,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) {
     SeekingInputStreambuf::Options options;
     options.error_callback = std::move(error_callback);
+    options.log_context = log_context;
     return options;
   }
-
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
   GcpBlobInputStreamBuf streambuf_;
   std::istream is_;
 };
 }  // namespace
 
 GcpBlobStorageClient::GcpBlobStorageClient(
-    std::unique_ptr<google::cloud::storage::Client> client)
-    : client_(std::move(client)) {}
+    std::unique_ptr<google::cloud::storage::Client> client,
+    privacy_sandbox::server_common::log::PSLogContext& log_context)
+    : client_(std::move(client)), log_context_(log_context) {}
 
 std::unique_ptr<BlobReader> GcpBlobStorageClient::GetBlobReader(
     DataLocation location) {
-  return std::make_unique<GcpBlobReader>(*client_, std::move(location));
+  return std::make_unique<GcpBlobReader>(*client_, std::move(location),
+                                         log_context_);
 }
 
 absl::Status GcpBlobStorageClient::PutBlob(BlobReader& blob_reader,
@@ -157,8 +169,9 @@ absl::StatusOr<std::vector<std::string>> GcpBlobStorageClient::ListBlobs(
   }
   for (auto&& object_metadata : list_object_reader) {
     if (!object_metadata) {
-      LOG(ERROR) << "Blob error when listing blobs:"
-                 << std::move(object_metadata).status().message();
+      PS_LOG(ERROR, log_context_)
+          << "Blob error when listing blobs:"
+          << std::move(object_metadata).status().message();
       continue;
     }
     // Manually exclude the starting name as the StartOffset option is
@@ -178,9 +191,10 @@ class GcpBlobStorageClientFactory : public BlobStorageClientFactory {
  public:
   ~GcpBlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
-      BlobStorageClient::ClientOptions /*client_options*/) override {
+      BlobStorageClient::ClientOptions /*client_options*/,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
     return std::make_unique<GcpBlobStorageClient>(
-        std::make_unique<google::cloud::storage::Client>());
+        std::make_unique<google::cloud::storage::Client>(), log_context);
   }
 };
 }  // namespace

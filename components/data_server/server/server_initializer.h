@@ -54,7 +54,9 @@ class ServerInitializer {
   virtual RemoteLookup CreateAndStartRemoteLookupServer() = 0;
   virtual absl::StatusOr<ShardManagerState> InitializeUdfHooks(
       GetValuesHook& string_get_values_hook,
-      GetValuesHook& binary_get_values_hook, RunQueryHook& run_query_hook) = 0;
+      GetValuesHook& binary_get_values_hook,
+      RunSetQueryStringHook& run_set_query_string_hook,
+      RunSetQueryIntHook& run_set_query_int_hook) = 0;
 };
 
 std::unique_ptr<ServerInitializer> GetServerInitializer(
@@ -63,7 +65,10 @@ std::unique_ptr<ServerInitializer> GetServerInitializer(
         key_fetcher_manager,
     Lookup& local_lookup, std::string environment, int32_t current_shard_num,
     InstanceClient& instance_client, Cache& cache,
-    ParameterFetcher& parameter_fetcher, KeySharder key_sharder);
+    ParameterFetcher& parameter_fetcher, KeySharder key_sharder,
+    privacy_sandbox::server_common::log::PSLogContext& log_context =
+        const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+            privacy_sandbox::server_common::log::kNoOpContext));
 
 }  // namespace kv_server
 #endif  // COMPONENTS_DATA_SERVER_SERVER_INITIALIZER_H_

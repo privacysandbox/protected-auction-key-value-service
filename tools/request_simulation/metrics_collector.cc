@@ -23,37 +23,21 @@ ABSL_FLAG(absl::Duration, metrics_report_interval, absl::Minutes(1),
 
 namespace kv_server {
 
-constexpr char* kP50GrpcLatency = "P50GrpcLatency";
-constexpr char* kP90GrpcLatency = "P90GrpcLatency";
-constexpr char* kP99GrpcLatency = "P99GrpcLatency";
-constexpr char* kEstimatedQPS = "EstimatedQPS";
-constexpr char* kRequestsSent = "RequestsSent";
-constexpr char* KServerResponseStatus = "ServerResponseStatus";
-
+namespace {
 constexpr double kDefaultHistogramResolution = 0.1;
 constexpr double kDefaultHistogramMaxBucket = 60e9;
+}  // namespace
 
-MetricsCollector::MetricsCollector(
-    privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
-    std::unique_ptr<SleepFor> sleep_for)
+MetricsCollector::MetricsCollector(std::unique_ptr<SleepFor> sleep_for)
     : requests_sent_per_interval_(0),
       requests_with_ok_response_per_interval_(0),
       requests_with_error_response_per_interval_(0),
       report_interval_(std::move(absl::GetFlag(FLAGS_metrics_report_interval))),
       report_thread_manager_(
           ThreadManager::Create("Metrics periodic report thread")),
-      metrics_recorder_(metrics_recorder),
       sleep_for_(std::move(sleep_for)) {
   histogram_per_interval_ = grpc_histogram_create(kDefaultHistogramResolution,
                                                   kDefaultHistogramMaxBucket);
-  metrics_recorder_.RegisterHistogram(kRequestsSent, "Requests sent", "");
-  metrics_recorder_.RegisterHistogram(kEstimatedQPS, "Estimated QPS", "");
-  metrics_recorder_.RegisterHistogram(kP50GrpcLatency, "P50 Latency",
-                                      "microsecond");
-  metrics_recorder_.RegisterHistogram(kP90GrpcLatency, "P90 Latency",
-                                      "microsecond");
-  metrics_recorder_.RegisterHistogram(kP99GrpcLatency, "P99 Latency",
-                                      "microsecond");
 }
 
 void MetricsCollector::AddLatencyToHistogram(absl::Duration latency) {
@@ -98,14 +82,16 @@ void MetricsCollector::PublishMetrics() {
     auto p50_latency = GetPercentileLatency(0.5);
     auto p90_latency = GetPercentileLatency(0.9);
     auto p99_latency = GetPercentileLatency(0.99);
-    metrics_recorder_.RecordHistogramEvent(kRequestsSent, requests_sent);
-    metrics_recorder_.RecordHistogramEvent(kEstimatedQPS, estimated_qps);
-    metrics_recorder_.RecordHistogramEvent(
-        kP50GrpcLatency, absl::ToInt64Microseconds(p50_latency));
-    metrics_recorder_.RecordHistogramEvent(
-        kP90GrpcLatency, absl::ToInt64Microseconds(p90_latency));
-    metrics_recorder_.RecordHistogramEvent(
-        kP99GrpcLatency, absl::ToInt64Microseconds(p99_latency));
+    RequestSimulationContextMap()->SafeMetric().LogUpDownCounter<kRequestsSent>(
+        (int)requests_sent);
+    RequestSimulationContextMap()->SafeMetric().LogUpDownCounter<kEstimatedQPS>(
+        (int)estimated_qps);
+    RequestSimulationContextMap()->SafeMetric().LogHistogram<kP99GrpcLatencyMs>(
+        ((int)absl::ToInt64Milliseconds(p99_latency)));
+    RequestSimulationContextMap()->SafeMetric().LogHistogram<kP90GrpcLatencyMs>(
+        ((int)absl::ToInt64Milliseconds(p90_latency)));
+    RequestSimulationContextMap()->SafeMetric().LogHistogram<kP50GrpcLatencyMs>(
+        ((int)absl::ToInt64Milliseconds(p50_latency)));
     LOG(INFO) << "Metrics Summary: ";
     LOG(INFO) << "Number of requests sent:" << requests_sent;
     LOG(INFO) << "Number of requests with ok responses:"
@@ -142,7 +128,10 @@ int64_t MetricsCollector::GetQPS() {
 }
 void MetricsCollector::IncrementServerResponseStatusEvent(
     const absl::Status& status) {
-  metrics_recorder_.IncrementEventStatus(KServerResponseStatus, status);
+  RequestSimulationContextMap()
+      ->SafeMetric()
+      .LogUpDownCounter<kServerResponseStatus>(
+          {{absl::StatusCodeToString(status.code()), 1}});
 }
 
 }  // namespace kv_server

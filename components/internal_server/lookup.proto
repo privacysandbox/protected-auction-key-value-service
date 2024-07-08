@@ -31,6 +31,10 @@ service InternalLookupService {
   // Endpoint for running a query on the server's internal datastore. Should
   // only be used within TEEs.
   rpc InternalRunQuery(InternalRunQueryRequest) returns (InternalRunQueryResponse) {}
+
+  // Endpoint for running a set query over unsigned int sets in the server's
+  // internal datastore. Should only be used within TEEs.
+  rpc InternalRunSetQueryInt(InternalRunSetQueryIntRequest) returns (InternalRunSetQueryIntResponse) {}
 }
 
 // Lookup request for internal datastore.
@@ -85,12 +89,18 @@ message SingleLookupResult {
     string value = 1;
     google.rpc.Status status = 2;
     KeysetValues keyset_values = 3;
+    UInt32SetValues uintset_values = 4;
   }
 }
 
 // Keyset values.
 message KeysetValues {
   repeated string values = 1;
+}
+
+// UInt32 set values
+message UInt32SetValues {
+  repeated uint32 values = 1;
 }
 
 // Run Query request.
@@ -107,4 +117,19 @@ message InternalRunQueryRequest {
 message InternalRunQueryResponse {
   // Set of elements returned.
   repeated string elements = 1;
+}
+
+// Run Query request.
+message InternalRunSetQueryIntRequest {
+  // Query to run.
+  optional string query = 1;
+  // Context useful for logging and tracing requests
+  privacy_sandbox.server_common.LogContext log_context = 2;
+  // Consented debugging configuration
+  privacy_sandbox.server_common.ConsentedDebugConfiguration consented_debug_config = 3;
+}
+
+// Response for running a set query using sets of unsigned ints as input.
+message InternalRunSetQueryIntResponse {
+  repeated uint32 elements = 1;
 }

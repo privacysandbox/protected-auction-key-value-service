@@ -26,6 +26,10 @@ variable "commit_version" {
   type    = string
 }
 
+variable "build_mode" {
+  type    = string
+}
+
 # Directory path where the built artifacts appear
 variable "distribution_dir" {
   type = string
@@ -76,6 +80,7 @@ source "amazon-ebs" "dataserver" {
   }
   tags = {
     commit_version = var.commit_version
+    build_mode = var.build_mode
   }
   ssh_username = "ec2-user"
 }
@@ -115,6 +120,18 @@ build {
   provisioner "file" {
     source      = join("/", [var.distribution_dir, "otel_collector_config.yaml"])
     destination = "/home/ec2-user/otel_collector_config.yaml"
+  }
+  provisioner "file" {
+    source      = join("/", [var.workspace, "production/packaging/aws/data_server/ami/envoy_networking.sh"])
+    destination = "/home/ec2-user/envoy_networking.sh"
+  }
+  provisioner "file" {
+    source      = join("/", [var.workspace, "production/packaging/aws/data_server/ami/hc.bash"])
+    destination = "/home/ec2-user/hc.bash"
+  }
+  provisioner "file" {
+    source      = join("/", [var.workspace, "components/health_check/health.proto"])
+    destination = "/home/ec2-user/health.proto"
   }
   provisioner "shell" {
     script = join("/", [var.workspace, "production/packaging/aws/data_server/ami/setup.sh"])

@@ -19,18 +19,20 @@
 set -o pipefail
 set -o errexit
 
-trap _cleanup EXIT
+# shellcheck disable=SC2317
 function _cleanup() {
-  local -r -i STATUS=$?
-  if [[ -d ${TMP_HASHES_DIR1} ]]; then
+  local -r -i _status=$?
+  if [[ -d "${TMP_HASHES_DIR1}" ]]; then
     rm -rf "${TMP_HASHES_DIR1}" "${TMP_HASHES_DIR2}"
   fi
-  if [[ ${STATUS} -ne 0 ]]; then
-    printf "Error: run-tests status code: %d\n" "${STATUS}"
+  if [[ ${_status} -ne 0 ]]; then
+    printf "Error: run-tests status code: %d\n" "${_status}"
     sleep 5s
   fi
-  exit ${STATUS}
+  # shellcheck disable=SC2086
+  exit ${_status}
 }
+trap _cleanup EXIT
 
 function get_image_list() {
   local -r _images_dir="$1"

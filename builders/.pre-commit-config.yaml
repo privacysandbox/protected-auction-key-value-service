@@ -21,7 +21,7 @@ exclude: (?x)^(
 fail_fast: true
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.4.0
+  rev: v4.6.0
   hooks:
   - id: end-of-file-fixer
   - id: fix-byte-order-marker
@@ -47,7 +47,7 @@ repos:
   - id: shellcheck
 
 - repo: https://github.com/pre-commit/mirrors-clang-format
-  rev: v16.0.6
+  rev: v18.1.4
   hooks:
   - id: clang-format
     types_or:
@@ -55,7 +55,7 @@ repos:
     - c
 
 - repo: https://github.com/bufbuild/buf
-  rev: v1.23.1
+  rev: v1.31.0
   hooks:
   - id: buf-format
 
@@ -109,7 +109,7 @@ repos:
     - markdown
 
 - repo: https://github.com/DavidAnson/markdownlint-cli2
-  rev: v0.8.1
+  rev: v0.13.0
   hooks:
   - id: markdownlint-cli2
     name: lint markdown
@@ -144,7 +144,7 @@ repos:
     - --quiet
 
 - repo: https://github.com/psf/black
-  rev: 23.7.0
+  rev: 24.4.2
   hooks:
   - id: black
     name: black python formatter

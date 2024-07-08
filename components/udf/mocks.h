@@ -17,6 +17,7 @@
 #ifndef COMPONENTS_UDF_MOCKS_H_
 #define COMPONENTS_UDF_MOCKS_H_
 
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -32,14 +33,21 @@ namespace kv_server {
 class MockUdfClient : public UdfClient {
  public:
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
-              (RequestContext, std::vector<std::string>), (const, override));
+              (const RequestContextFactory&, std::vector<std::string>,
+               ExecutionMetadata& execution_metadata),
+              (const, override));
   MOCK_METHOD((absl::StatusOr<std::string>), ExecuteCode,
-              (RequestContext, UDFExecutionMetadata&&,
-               const google::protobuf::RepeatedPtrField<UDFArgument>&),
+              (const RequestContextFactory&, UDFExecutionMetadata&&,
+               const google::protobuf::RepeatedPtrField<UDFArgument>&,
+               ExecutionMetadata& execution_metadata),
               (const, override));
   MOCK_METHOD((absl::Status), Stop, (), (override));
-  MOCK_METHOD((absl::Status), SetCodeObject, (CodeConfig), (override));
-  MOCK_METHOD((absl::Status), SetWasmCodeObject, (CodeConfig), (override));
+  MOCK_METHOD((absl::Status), SetCodeObject,
+              (CodeConfig, privacy_sandbox::server_common::log::PSLogContext&),
+              (override));
+  MOCK_METHOD((absl::Status), SetWasmCodeObject,
+              (CodeConfig, privacy_sandbox::server_common::log::PSLogContext&),
+              (override));
 };
 
 }  // namespace kv_server

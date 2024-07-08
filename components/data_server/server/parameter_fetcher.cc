@@ -27,10 +27,12 @@ namespace kv_server {
 ParameterFetcher::ParameterFetcher(
     std::string environment, const ParameterClient& parameter_client,
     absl::AnyInvocable<void(const absl::Status& status, int count) const>
-        metrics_callback)
+        metrics_callback,
+    privacy_sandbox::server_common::log::PSLogContext& log_context)
     : environment_(std::move(environment)),
       parameter_client_(parameter_client),
-      metrics_callback_(std::move(metrics_callback)) {}
+      metrics_callback_(std::move(metrics_callback)),
+      log_context_(log_context) {}
 
 std::string ParameterFetcher::GetParameter(
     std::string_view parameter_suffix,
@@ -40,7 +42,7 @@ std::string ParameterFetcher::GetParameter(
       [this, &param_name, &default_value] {
         return parameter_client_.GetParameter(param_name, default_value);
       },
-      "GetParameter", metrics_callback_, {{"param", param_name}});
+      "GetParameter", metrics_callback_, log_context_, {{"param", param_name}});
 }
 
 int32_t ParameterFetcher::GetInt32Parameter(
@@ -50,7 +52,7 @@ int32_t ParameterFetcher::GetInt32Parameter(
       [this, &param_name] {
         return parameter_client_.GetInt32Parameter(param_name);
       },
-      "GetParameter", metrics_callback_, {{"param", param_name}});
+      "GetParameter", metrics_callback_, log_context_, {{"param", param_name}});
 }
 
 bool ParameterFetcher::GetBoolParameter(
@@ -60,7 +62,7 @@ bool ParameterFetcher::GetBoolParameter(
       [this, &param_name] {
         return parameter_client_.GetBoolParameter(param_name);
       },
-      "GetParameter", metrics_callback_, {{"param", param_name}});
+      "GetParameter", metrics_callback_, log_context_, {{"param", param_name}});
 }
 
 std::string ParameterFetcher::GetParamName(

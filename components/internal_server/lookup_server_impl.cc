@@ -14,32 +14,27 @@
 
 #include "components/internal_server/lookup_server_impl.h"
 
-#include <iostream>
-#include <memory>
-#include <sstream>
 #include <string>
 #include <utility>
-#include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "components/data_server/request_handler/ohttp_server_encryptor.h"
-#include "components/internal_server/lookup.grpc.pb.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/string_padder.h"
 #include "google/protobuf/message.h"
 #include "grpcpp/grpcpp.h"
 
 namespace kv_server {
-using google::protobuf::RepeatedPtrField;
 
+using google::protobuf::RepeatedPtrField;
 using grpc::StatusCode;
 
 grpc::Status LookupServiceImpl::ToInternalGrpcStatus(
-    const RequestContext& request_context, const absl::Status& status,
+    InternalLookupMetricsContext& metrics_context, const absl::Status& status,
     std::string_view error_code) const {
-  LogInternalLookupRequestErrorMetric(
-      request_context.GetInternalLookupMetricsContext(), error_code);
+  LogInternalLookupRequestErrorMetric(metrics_context, error_code);
   return grpc::Status(StatusCode::INTERNAL,
                       absl::StrCat(status.code(), " : ", status.message()));
 }
@@ -76,8 +71,7 @@ void LookupServiceImpl::ProcessKeysetKeys(
 grpc::Status LookupServiceImpl::InternalLookup(
     grpc::ServerContext* context, const InternalLookupRequest* request,
     InternalLookupResponse* response) {
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  RequestContext request_context;
   if (context->IsCancelled()) {
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
@@ -90,8 +84,7 @@ grpc::Status LookupServiceImpl::SecureLookup(
     grpc::ServerContext* context,
     const SecureLookupRequest* secure_lookup_request,
     SecureLookupResponse* secure_response) {
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  RequestContext request_context;
   LogIfError(request_context.GetInternalLookupMetricsContext()
                  .AccumulateMetric<kSecureLookupRequestCount>(1));
   ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
@@ -101,33 +94,35 @@ grpc::Status LookupServiceImpl::SecureLookup(
     return grpc::Status(grpc::StatusCode::CANCELLED,
                         "Deadline exceeded or client cancelled, abandoning.");
   }
-  VLOG(9) << "SecureLookup incoming";
+  PS_VLOG(9, request_context.GetPSLogContext()) << "SecureLookup incoming";
 
   OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto padded_serialized_request_maybe =
-      encryptor.DecryptRequest(secure_lookup_request->ohttp_request());
+      encryptor.DecryptRequest(secure_lookup_request->ohttp_request(),
+                               request_context.GetPSLogContext());
   if (!padded_serialized_request_maybe.ok()) {
-    return ToInternalGrpcStatus(request_context,
-                                padded_serialized_request_maybe.status(),
-                                kRequestDecryptionFailure);
+    return ToInternalGrpcStatus(
+        request_context.GetInternalLookupMetricsContext(),
+        padded_serialized_request_maybe.status(), kRequestDecryptionFailure);
   }
 
-  VLOG(9) << "SecureLookup decrypted";
+  PS_VLOG(9, request_context.GetPSLogContext()) << "SecureLookup decrypted";
   auto serialized_request_maybe =
       kv_server::Unpad(*padded_serialized_request_maybe);
   if (!serialized_request_maybe.ok()) {
-    return ToInternalGrpcStatus(request_context,
-                                serialized_request_maybe.status(),
-                                kRequestUnpaddingError);
+    return ToInternalGrpcStatus(
+        request_context.GetInternalLookupMetricsContext(),
+        serialized_request_maybe.status(), kRequestUnpaddingError);
   }
 
-  VLOG(9) << "SecureLookup unpadded";
+  PS_VLOG(9, request_context.GetPSLogContext()) << "SecureLookup unpadded";
   InternalLookupRequest request;
   if (!request.ParseFromString(*serialized_request_maybe)) {
     return grpc::Status(grpc::StatusCode::INTERNAL,
                         "Failed parsing incoming request");
   }
-
+  request_context.UpdateLogContext(request.log_context(),
+                                   request.consented_debug_config());
   auto payload_to_encrypt =
       GetPayload(request_context, request.lookup_sets(), request.keys());
   if (payload_to_encrypt.empty()) {
@@ -135,12 +130,12 @@ grpc::Status LookupServiceImpl::SecureLookup(
     // to pad responses, so this branch will never be hit.
     return grpc::Status::OK;
   }
-  auto encrypted_response_payload =
-      encryptor.EncryptResponse(payload_to_encrypt);
+  auto encrypted_response_payload = encryptor.EncryptResponse(
+      payload_to_encrypt, request_context.GetPSLogContext());
   if (!encrypted_response_payload.ok()) {
-    return ToInternalGrpcStatus(request_context,
-                                encrypted_response_payload.status(),
-                                kResponseEncryptionFailure);
+    return ToInternalGrpcStatus(
+        request_context.GetInternalLookupMetricsContext(),
+        encrypted_response_payload.status(), kResponseEncryptionFailure);
   }
   secure_response->set_ohttp_response(*encrypted_response_payload);
   return grpc::Status::OK;
@@ -161,20 +156,23 @@ std::string LookupServiceImpl::GetPayload(
 grpc::Status LookupServiceImpl::InternalRunQuery(
     grpc::ServerContext* context, const InternalRunQueryRequest* request,
     InternalRunQueryResponse* response) {
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
-  if (context->IsCancelled()) {
-    return grpc::Status(grpc::StatusCode::CANCELLED,
-                        "Deadline exceeded or client cancelled, abandoning.");
-  }
-  const auto process_result =
-      lookup_.RunQuery(request_context, request->query());
-  if (!process_result.ok()) {
-    return ToInternalGrpcStatus(request_context, process_result.status(),
-                                kInternalRunQueryRequestFailure);
-  }
-  *response = *std::move(process_result);
-  return grpc::Status::OK;
+  return RunSetQuery<InternalRunQueryRequest, InternalRunQueryResponse>(
+      context, request, response,
+      [this](const RequestContext& request_context, std::string query) {
+        return lookup_.RunQuery(request_context, query);
+      });
+}
+
+grpc::Status LookupServiceImpl::InternalRunSetQueryInt(
+    grpc::ServerContext* context,
+    const kv_server::InternalRunSetQueryIntRequest* request,
+    kv_server::InternalRunSetQueryIntResponse* response) {
+  return RunSetQuery<InternalRunSetQueryIntRequest,
+                     InternalRunSetQueryIntResponse>(
+      context, request, response,
+      [this](const RequestContext& request_context, std::string query) {
+        return lookup_.RunSetQueryInt(request_context, query);
+      });
 }
 
 }  // namespace kv_server

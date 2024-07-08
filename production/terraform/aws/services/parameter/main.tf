@@ -175,7 +175,7 @@ resource "aws_ssm_parameter" "primary_coordinator_private_key_endpoint_parameter
 
 resource "aws_ssm_parameter" "secondary_coordinator_private_key_endpoint_parameter" {
   count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
-  name      = "${var.service}-${var.environment}-primary-coordinator-region"
+  name      = "${var.service}-${var.environment}-secondary-coordinator-private-key-endpoint"
   type      = "String"
   value     = var.secondary_coordinator_private_key_endpoint_parameter_value
   overwrite = true
@@ -183,7 +183,7 @@ resource "aws_ssm_parameter" "secondary_coordinator_private_key_endpoint_paramet
 
 resource "aws_ssm_parameter" "primary_coordinator_region_parameter" {
   count     = (var.use_real_coordinators_parameter_value) ? 1 : 0
-  name      = "${var.service}-${var.environment}-secondary-coordinator-private-key-endpoint"
+  name      = "${var.service}-${var.environment}-primary-coordinator-region"
   type      = "String"
   value     = var.primary_coordinator_region_parameter_value
   overwrite = true
@@ -241,6 +241,13 @@ resource "aws_ssm_parameter" "udf_timeout_millis_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "udf_update_timeout_millis_parameter" {
+  name      = "${var.service}-${var.environment}-udf-update-timeout-millis"
+  type      = "String"
+  value     = var.udf_update_timeout_millis_parameter_value
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "udf_min_log_level_parameter" {
   name      = "${var.service}-${var.environment}-udf-min-log-level"
   type      = "String"
@@ -259,5 +266,20 @@ resource "aws_ssm_parameter" "data_loading_blob_prefix_allowlist" {
   name      = "${var.service}-${var.environment}-data-loading-blob-prefix-allowlist"
   type      = "String"
   value     = var.data_loading_blob_prefix_allowlist
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "consented_debug_token_parameter" {
+  count     = (var.enable_consented_log_parameter_value) ? 1 : 0
+  name      = "${var.service}-${var.environment}-consented-debug-token"
+  type      = "String"
+  value     = var.consented_debug_token_parameter_value
+  overwrite = true
+}
+
+resource "aws_ssm_parameter" "enable_consented_log_parameter" {
+  name      = "${var.service}-${var.environment}-enable-consented-log"
+  type      = "String"
+  value     = var.enable_consented_log_parameter_value
   overwrite = true
 }

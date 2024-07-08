@@ -23,9 +23,9 @@ def cpp_repositories():
         repo_mapping = {
             "@org_brotli": "@brotli",
         },
-        sha256 = "32f303a9b0b6e07101a7a95a4cc364fb4242f0f7431de5da1a2e0ee61f5924c5",
-        strip_prefix = "riegeli-562f26cbb685aae10b7d32e32fb53d2e42a5d8c2",
-        url = "https://github.com/google/riegeli/archive/562f26cbb685aae10b7d32e32fb53d2e42a5d8c2.zip",
+        sha256 = "0aad9af403e5f394cf30330658a361c622a0155499d8726112b8fb1716750cf9",
+        strip_prefix = "riegeli-0bf809f36ae5be8a5684f63d8238b5440b42bbec",
+        url = "https://github.com/google/riegeli/archive/0bf809f36ae5be8a5684f63d8238b5440b42bbec.zip",
     )
 
     #external deps for riegeli
@@ -88,5 +88,16 @@ def cpp_repositories():
         add_prefix = "third_party/avro",
         urls = [
             "https://github.com/apache/avro/archive/release-1.10.2.tar.gz",
+        ],
+    )
+
+    ### Roaring Bitmaps
+    http_archive(
+        name = "roaring_bitmap",
+        build_file = "//third_party_deps:roaring.BUILD",
+        sha256 = "c7b0e36dfeaca0d951b2842a747ddf6fec95355abba5970511bb68d698e10a90",
+        strip_prefix = "CRoaring-3.0.1",
+        urls = [
+            "https://github.com/RoaringBitmap/CRoaring/archive/refs/tags/v3.0.1.zip",
         ],
     )

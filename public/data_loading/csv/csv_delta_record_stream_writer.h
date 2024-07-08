@@ -124,7 +124,8 @@ riegeli::CsvWriterBase::Options GetRecordWriterOptions(
                                              kShardMappingRecordHeader.end());
       break;
   }
-  writer_options.set_header(std::move(header));
+  riegeli::CsvHeader header_opt(std::move(header));
+  writer_options.set_header(std::move(header_opt));
   return writer_options;
 }
 }  // namespace internal
@@ -154,7 +155,7 @@ absl::Status CsvDeltaRecordStreamWriter<DestStreamT>::WriteRecord(
 
 template <typename DestStreamT>
 absl::Status CsvDeltaRecordStreamWriter<DestStreamT>::Flush() {
-  record_writer_.dest_writer()->Flush();
+  record_writer_.dest().Flush();
   return record_writer_.status();
 }
 

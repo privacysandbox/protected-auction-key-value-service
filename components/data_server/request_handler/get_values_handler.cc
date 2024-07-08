@@ -91,31 +91,43 @@ void ProcessKeys(
 
 }  // namespace
 
-grpc::Status GetValuesHandler::GetValues(const RequestContext& request_context,
-                                         const GetValuesRequest& request,
-                                         GetValuesResponse* response) const {
+grpc::Status GetValuesHandler::GetValues(
+    RequestContextFactory& request_context_factory,
+    const GetValuesRequest& request, GetValuesResponse* response) const {
+  const auto& request_context = request_context_factory.Get();
   if (use_v2_) {
-    VLOG(5) << "Using V2 adapter for " << request.DebugString();
-    return adapter_.CallV2Handler(request, *response);
+    PS_VLOG(5, request_context.GetPSLogContext())
+        << "Using V2 adapter for " << request.DebugString();
+    return adapter_.CallV2Handler(request_context_factory, request, *response);
   }
   if (!request.kv_internal().empty()) {
-    VLOG(5) << "Processing kv_internal for " << request.DebugString();
+    PS_VLOG(5, request_context.GetPSLogContext())
+        << "Processing kv_internal for " << request.DebugString();
     ProcessKeys(request_context, request.kv_internal(), cache_,
                 *response->mutable_kv_internal(), add_missing_keys_v1_);
   }
   if (!request.keys().empty()) {
-    VLOG(5) << "Processing keys for " << request.DebugString();
+    PS_VLOG(5, request_context.GetPSLogContext())
+        << "Processing keys for " << request.DebugString();
     ProcessKeys(request_context, request.keys(), cache_,
                 *response->mutable_keys(), add_missing_keys_v1_);
   }
+  if (!request.interest_group_names().empty()) {
+    PS_VLOG(5, request_context.GetPSLogContext())
+        << "Processing interest_group_names for " << request.DebugString();
+    ProcessKeys(request_context, request.interest_group_names(), cache_,
+                *response->mutable_per_interest_group_data(),
+                add_missing_keys_v1_);
+  }
   if (!request.render_urls().empty()) {
-    VLOG(5) << "Processing render_urls for " << request.DebugString();
+    PS_VLOG(5, request_context.GetPSLogContext())
+        << "Processing render_urls for " << request.DebugString();
     ProcessKeys(request_context, request.render_urls(), cache_,
                 *response->mutable_render_urls(), add_missing_keys_v1_);
   }
   if (!request.ad_component_render_urls().empty()) {
-    VLOG(5) << "Processing ad_component_render_urls for "
-            << request.DebugString();
+    PS_VLOG(5, request_context.GetPSLogContext())
+        << "Processing ad_component_render_urls for " << request.DebugString();
     ProcessKeys(request_context, request.ad_component_render_urls(), cache_,
                 *response->mutable_ad_component_render_urls(),
                 add_missing_keys_v1_);

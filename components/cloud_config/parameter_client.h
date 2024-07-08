@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "src/logger/request_context_logger.h"
 
 // TODO: Replace config cpio client once ready
 namespace kv_server {
@@ -32,7 +33,10 @@ class ParameterClient {
   };
 
   static std::unique_ptr<ParameterClient> Create(
-      ClientOptions client_options = ClientOptions());
+      ClientOptions client_options = ClientOptions(),
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 
   virtual ~ParameterClient() = default;
 
@@ -45,6 +49,12 @@ class ParameterClient {
 
   virtual absl::StatusOr<bool> GetBoolParameter(
       std::string_view parameter_name) const = 0;
+
+  // Updates the log context reference to enable otel logging for parameter
+  // client. This function should be called after telemetry is initialized with
+  // retrieved parameters.
+  virtual void UpdateLogContext(
+      privacy_sandbox::server_common::log::PSLogContext& log_context) = 0;
 };
 }  // namespace kv_server
 

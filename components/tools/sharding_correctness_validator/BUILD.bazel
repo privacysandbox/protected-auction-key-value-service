@@ -17,9 +17,21 @@ load("@rules_cc//cc:defs.bzl", "cc_binary")
 cc_binary(
     name = "validator",
     srcs = ["validator.cc"],
+    copts = select({
+        "//:aws_platform": ["-DCLOUD_PLATFORM_AWS=1"],
+        "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
+        "//conditions:default": [],
+    }),
     deps = [
+        "//components/cloud_config:parameter_client",
+        "//components/data_server/request_handler:ohttp_client_encryptor",
+        "//components/data_server/server:key_fetcher_factory",
+        "//components/data_server/server:parameter_fetcher",
+        "//components/tools/util:configure_telemetry_tools",
+        "//components/util:platform_initializer",
         "//public/applications/pa:response_utils",
         "//public/query/cpp:grpc_client",
+        "@com_github_google_quiche//quiche:binary_http_unstable_api",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
         "@com_google_absl//absl/log",
@@ -27,5 +39,6 @@ cc_binary(
         "@com_google_absl//absl/log:initialize",
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/communication:encoding_utils",
     ],
 )

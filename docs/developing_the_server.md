@@ -3,6 +3,27 @@
 
 # FLEDGE K/V Server developer guide
 
+## Build flavors: prod_mode vs nonprod_mode
+
+KV server now has two build flavors: more details in this [build flavor doc](/docs/build_flavor.md).
+
+## Otel logging for consented requests
+
+To turn on otel logging for consented requests in the server prod mode, the following parameters
+(terraform variables) should be set:
+
+`enable_consented_log`: true\
+`consented_debug_token`: non-empty string
+
+To make a request consented, the ConsentedDebugConfiguration proto in the
+[V2 request API](/public/query/v2/get_values_v2.proto) need to be set to:
+`"consented_debug_config": {"is_consented": true, "token": <string that matches the server's consented_debug_token>}`
+
+Example consented V2 requests in json can be found in [here](/public/test_util/request_example.h);
+
+More background information about consented debugging can be found in
+[Debugging Protected Audience API Services](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/debugging_protected_audience_api_services.md)
+
 ## Develop and run the server for AWS platform in your local machine
 
 The data server provides the read API for the KV service.
@@ -64,7 +85,7 @@ The data server provides the read API for the KV service.
     1. Build the server artifacts and copy them into the `dist/debian/` directory.
 
     ```sh
-    builders/tools/bazel-debian run //production/packaging/aws/data_server:copy_to_dist --config local_instance --//:platform=aws
+    builders/tools/bazel-debian run //production/packaging/aws/data_server:copy_to_dist --config=local_instance --config=aws_platform --config=nonprod_mode
     ```
 
 1.  Load the image into docker
@@ -107,7 +128,7 @@ docker run -it --rm --network host  bazel/testing/run_local:envoy_image
 For example:
 
 ```sh
-builders/tools/bazel-debian run //components/data_server/server:server --config local_instance --//:platform=aws -- --environment="dev"
+builders/tools/bazel-debian run //components/data_server/server:server --config=local_instance --config=aws_platform --config=nonprod_mode -- --environment="dev"
 ```
 
 We are currently developing this server for local testing and for use on AWS Nitro instances
@@ -150,7 +171,7 @@ as parameters, GCS data bucket) are still required and please follow
 From the kv-server repo folder, execute the following command
 
 ```sh
-builders/tools/bazel-debian run //production/packaging/gcp/data_server:copy_to_dist --config=local_instance --config=gcp_platform
+builders/tools/bazel-debian run //production/packaging/gcp/data_server:copy_to_dist --config=local_instance --config=gcp_platform --config=nonprod_mode
 ```
 
 #### Load the image into docker

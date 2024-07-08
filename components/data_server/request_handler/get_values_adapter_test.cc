@@ -54,6 +54,7 @@ class GetValuesAdapterTest : public ::testing::Test {
         mock_udf_client_, fake_key_fetcher_manager_);
     get_values_adapter_ = GetValuesAdapter::Create(std::move(v2_handler_));
     InitMetricsContextMap();
+    request_context_factory_ = std::make_unique<RequestContextFactory>();
   }
 
   privacy_sandbox::server_common::FakeKeyFetcherManager
@@ -61,6 +62,7 @@ class GetValuesAdapterTest : public ::testing::Test {
   std::unique_ptr<GetValuesAdapter> get_values_adapter_;
   std::unique_ptr<GetValuesV2Handler> v2_handler_;
   MockUdfClient mock_udf_client_;
+  std::unique_ptr<RequestContextFactory> request_context_factory_;
 };
 
 TEST_F(GetValuesAdapterTest, EmptyRequestReturnsEmptyResponse) {
@@ -68,14 +70,15 @@ TEST_F(GetValuesAdapterTest, EmptyRequestReturnsEmptyResponse) {
   TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
   nlohmann::json output = nlohmann::json::parse(R"({"keyGroupOutputs": {}})");
 
-  EXPECT_CALL(
-      mock_udf_client_,
-      ExecuteCode(testing::_, EqualsProto(udf_metadata), testing::IsEmpty()))
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(testing::_, EqualsProto(udf_metadata),
+                          testing::IsEmpty(), testing::_))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
@@ -132,7 +135,7 @@ data {
                               &key_group_outputs);
   EXPECT_CALL(mock_udf_client_,
               ExecuteCode(testing::_, EqualsProto(udf_metadata),
-                          testing::ElementsAre(EqualsProto(arg))))
+                          testing::ElementsAre(EqualsProto(arg)), testing::_))
       .WillOnce(Return(
           application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
 
@@ -140,7 +143,92 @@ data {
   v1_request.add_keys("key1");
   v1_request.add_keys("key2");
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
+  EXPECT_TRUE(status.ok());
+  v1::GetValuesResponse v1_expected;
+  TextFormat::ParseFromString(
+      R"pb(
+        keys {
+        key: "key1"
+        value {
+          value {
+            string_value: "value1"
+          }
+        }
+      }
+      keys {
+        key: "key2"
+        value {
+          value {
+            string_value: "value2"
+          }
+        }
+      }
+      })pb",
+      &v1_expected);
+  EXPECT_THAT(v1_response, EqualsProto(v1_expected));
+}
+
+TEST_F(GetValuesAdapterTest, V1RequestSeparatesTwoKeysReturnsOk) {
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
+  UDFArgument arg;
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key1"
+    }
+    values {
+      string_value: "key2"
+    }
+  }
+})",
+                              &arg);
+  application_pa::KeyGroupOutputs key_group_outputs;
+  TextFormat::ParseFromString(R"(
+  key_group_outputs: {
+    tags: "custom"
+    tags: "keys"
+    key_values: {
+      key: "key1"
+      value: {
+        value: {
+          string_value: "value1"
+        }
+      }
+    }
+    key_values: {
+      key: "key2"
+      value: {
+        value: {
+          string_value: "value2"
+        }
+      }
+    }
+  }
+)",
+                              &key_group_outputs);
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(testing::_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg)), testing::_))
+      .WillOnce(Return(
+          application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
+
+  v1::GetValuesRequest v1_request;
+  v1_request.add_keys("key1,key2");
+  v1::GetValuesResponse v1_response;
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
@@ -235,7 +323,8 @@ data {
   EXPECT_CALL(
       mock_udf_client_,
       ExecuteCode(testing::_, EqualsProto(udf_metadata),
-                  testing::ElementsAre(EqualsProto(arg1), EqualsProto(arg2))))
+                  testing::ElementsAre(EqualsProto(arg1), EqualsProto(arg2)),
+                  testing::_))
       .WillOnce(Return(
           application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
 
@@ -243,7 +332,8 @@ data {
   v1_request.add_render_urls("key1");
   v1_request.add_ad_component_render_urls("key2");
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb(
@@ -263,13 +353,14 @@ TEST_F(GetValuesAdapterTest, V2ResponseIsNullReturnsError) {
   nlohmann::json output = R"({
     "keyGroupOutpus": []
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_FALSE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
@@ -284,13 +375,14 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithEmptyKVsReturnsOk) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
@@ -305,13 +397,14 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithInvalidNamespaceTagIsIgnored) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
@@ -326,13 +419,14 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoCustomTagIsIgnored) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
@@ -347,13 +441,14 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoNamespaceTagIsIgnored) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
@@ -373,13 +468,14 @@ TEST_F(GetValuesAdapterTest,
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb(
@@ -407,13 +503,14 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputHasDifferentValueTypesReturnsOk) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
@@ -487,13 +584,14 @@ TEST_F(GetValuesAdapterTest, ValueWithStatusSuccess) {
     }],
     "udfOutputApiVersion": 1
   })"_json;
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _))
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, _, _))
       .WillOnce(Return(output.dump()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
   v1::GetValuesResponse v1_response;
-  auto status = get_values_adapter_->CallV2Handler(v1_request, v1_response);
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
   EXPECT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
@@ -515,6 +613,99 @@ TEST_F(GetValuesAdapterTest, ValueWithStatusSuccess) {
                         key: "message"
                         value { string_value: "some error message" }
                       }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        })pb",
+      &v1_expected);
+  EXPECT_THAT(v1_response, EqualsProto(v1_expected));
+}
+
+TEST_F(GetValuesAdapterTest, V1RequestWithInterestGroupNamesReturnsOk) {
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
+  UDFArgument arg;
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "interestGroupNames"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "interestGroup1"
+    }
+    values {
+      string_value: "interestGroup2"
+    }
+  }
+})",
+                              &arg);
+  application_pa::KeyGroupOutputs key_group_outputs;
+  TextFormat::ParseFromString(R"(
+  key_group_outputs: {
+    tags: "custom"
+    tags: "interestGroupNames"
+    key_values: {
+      key: "interestGroup1"
+      value: {
+        value: {
+          string_value: "value1"
+        }
+      }
+    }
+    key_values: {
+      key: "interestGroup2"
+      value: {
+        value: {
+          string_value: "{\"priorityVector\":{\"signal1\":1}}"
+        }
+      }
+    }
+  }
+)",
+                              &key_group_outputs);
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(testing::_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg)), testing::_))
+      .WillOnce(Return(
+          application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
+
+  v1::GetValuesRequest v1_request;
+  v1_request.add_interest_group_names("interestGroup1");
+  v1_request.add_interest_group_names("interestGroup2");
+  v1::GetValuesResponse v1_response;
+  auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
+                                                   v1_request, v1_response);
+  EXPECT_TRUE(status.ok());
+  v1::GetValuesResponse v1_expected;
+  TextFormat::ParseFromString(
+      R"pb(
+        per_interest_group_data {
+          key: "interestGroup1"
+          value { value { string_value: "value1" } }
+        }
+        per_interest_group_data {
+          key: "interestGroup2"
+          value {
+            value {
+              struct_value {
+                fields {
+                  key: "priorityVector"
+                  value {
+                    struct_value {
+                      fields {
+                        key: "signal1"
+                        value { number_value: 1 }
+                      }
+
                     }
                   }
                 }

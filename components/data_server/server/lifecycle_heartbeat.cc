@@ -29,9 +29,13 @@ constexpr absl::Duration kLifecycleHeartbeatFrequency = absl::Seconds(30);
 
 class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
  public:
-  explicit LifecycleHeartbeatImpl(std::unique_ptr<PeriodicClosure> heartbeat,
-                                  InstanceClient& instance_client)
-      : heartbeat_(std::move(heartbeat)), instance_client_(instance_client) {}
+  explicit LifecycleHeartbeatImpl(
+      std::unique_ptr<PeriodicClosure> heartbeat,
+      InstanceClient& instance_client,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : heartbeat_(std::move(heartbeat)),
+        instance_client_(instance_client),
+        log_context_(log_context) {}
 
   ~LifecycleHeartbeatImpl() {
     if (is_running_) {
@@ -46,15 +50,16 @@ class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
     }
     launch_hook_name_ =
         parameter_fetcher.GetParameter(kLaunchHookParameterSuffix);
-    LOG(INFO) << "Retrieved " << kLaunchHookParameterSuffix
-              << " parameter: " << launch_hook_name_;
+    PS_LOG(INFO, log_context_) << "Retrieved " << kLaunchHookParameterSuffix
+                               << " parameter: " << launch_hook_name_;
 
     absl::Status status =
         heartbeat_->StartDelayed(kLifecycleHeartbeatFrequency, [this] {
           if (const absl::Status status =
                   instance_client_.RecordLifecycleHeartbeat(launch_hook_name_);
               !status.ok()) {
-            LOG(WARNING) << "Failed to record lifecycle heartbeat: " << status;
+            PS_LOG(WARNING, log_context_)
+                << "Failed to record lifecycle heartbeat: " << status;
           }
         });
     if (status.ok()) {
@@ -72,9 +77,10 @@ class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
         [this] {
           return instance_client_.CompleteLifecycle(launch_hook_name_);
         },
-        "CompleteLifecycle",
-        LogStatusSafeMetricsFn<kCompleteLifecycleStatus>());
-    LOG(INFO) << "Completed lifecycle hook " << launch_hook_name_;
+        "CompleteLifecycle", LogStatusSafeMetricsFn<kCompleteLifecycleStatus>(),
+        log_context_);
+    PS_LOG(INFO, log_context_)
+        << "Completed lifecycle hook " << launch_hook_name_;
   }
 
  private:
@@ -82,20 +88,22 @@ class LifecycleHeartbeatImpl : public LifecycleHeartbeat {
   InstanceClient& instance_client_;
   std::string launch_hook_name_;
   bool is_running_ = false;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 std::unique_ptr<LifecycleHeartbeat> LifecycleHeartbeat::Create(
-    std::unique_ptr<PeriodicClosure> heartbeat,
-    InstanceClient& instance_client) {
+    std::unique_ptr<PeriodicClosure> heartbeat, InstanceClient& instance_client,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<LifecycleHeartbeatImpl>(std::move(heartbeat),
-                                                  instance_client);
+                                                  instance_client, log_context);
 }
 
 std::unique_ptr<LifecycleHeartbeat> LifecycleHeartbeat::Create(
-    InstanceClient& instance_client) {
+    InstanceClient& instance_client,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<LifecycleHeartbeatImpl>(PeriodicClosure::Create(),
-                                                  instance_client);
+                                                  instance_client, log_context);
 }
 }  // namespace kv_server

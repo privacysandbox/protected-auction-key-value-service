@@ -23,11 +23,14 @@
 namespace kv_server {
 namespace {
 
+using privacy_sandbox::server_common::CloudPlatform::kLocal;
+
 TEST(OhttpEncryptorTest, FullCircleSuccess) {
   const std::string kTestRequest = "request to encrypt";
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager;
-  OhttpClientEncryptor client_encryptor(fake_key_fetcher_manager);
+  auto public_key = fake_key_fetcher_manager.GetPublicKey(kLocal);
+  OhttpClientEncryptor client_encryptor(public_key.value());
   OhttpServerEncryptor server_encryptor(fake_key_fetcher_manager);
   auto request_encrypted_status = client_encryptor.EncryptRequest(kTestRequest);
   ASSERT_TRUE(request_encrypted_status.ok());
@@ -58,7 +61,8 @@ TEST(OhttpEncryptorTest, ClientDecryptFails) {
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager;
   const std::string kTestRequest = "request to encrypt";
-  OhttpClientEncryptor client_encryptor(fake_key_fetcher_manager);
+  auto public_key = fake_key_fetcher_manager.GetPublicKey(kLocal);
+  OhttpClientEncryptor client_encryptor(public_key.value());
   auto request_encrypted_status = client_encryptor.EncryptRequest(kTestRequest);
   ASSERT_TRUE(request_encrypted_status.ok());
   auto response_decrypted_status = client_encryptor.DecryptResponse("garbage");
@@ -83,7 +87,8 @@ TEST(OhttpEncryptorTest, ClientDecryptResponseFails) {
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager;
   const std::string kTestRequest = "request to decrypt";
-  OhttpClientEncryptor client_encryptor(fake_key_fetcher_manager);
+  auto public_key = fake_key_fetcher_manager.GetPublicKey(kLocal);
+  OhttpClientEncryptor client_encryptor(public_key.value());
   auto request_encrypted_status =
       client_encryptor.DecryptResponse(kTestRequest);
   ASSERT_FALSE(request_encrypted_status.ok());

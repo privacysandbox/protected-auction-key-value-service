@@ -30,6 +30,9 @@ namespace {
 
 class LocalInstanceClient : public InstanceClient {
  public:
+  explicit LocalInstanceClient(
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : log_context_(log_context) {}
   absl::StatusOr<std::string> GetEnvironmentTag() override {
     return absl::GetFlag(FLAGS_environment);
   }
@@ -40,13 +43,13 @@ class LocalInstanceClient : public InstanceClient {
 
   absl::Status RecordLifecycleHeartbeat(
       std::string_view lifecycle_hook_name) override {
-    LOG(INFO) << "Record lifecycle heartbeat.";
+    PS_LOG(INFO, log_context_) << "Record lifecycle heartbeat.";
     return absl::OkStatus();
   }
 
   absl::Status CompleteLifecycle(
       std::string_view lifecycle_hook_name) override {
-    LOG(INFO) << "Complete lifecycle.";
+    PS_LOG(INFO, log_context_) << "Complete lifecycle.";
     return absl::OkStatus();
   }
 
@@ -75,12 +78,21 @@ class LocalInstanceClient : public InstanceClient {
     }
     return std::vector<InstanceInfo>{InstanceInfo{.id = *id}};
   }
+
+  void UpdateLogContext(
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
+    log_context_ = log_context;
+  }
+
+ private:
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
-std::unique_ptr<InstanceClient> InstanceClient::Create() {
-  return std::make_unique<LocalInstanceClient>();
+std::unique_ptr<InstanceClient> InstanceClient::Create(
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<LocalInstanceClient>(log_context);
 }
 
 }  // namespace kv_server

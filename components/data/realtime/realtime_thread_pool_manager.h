@@ -48,7 +48,10 @@ class RealtimeThreadPoolManager {
   static absl::StatusOr<std::unique_ptr<RealtimeThreadPoolManager>> Create(
       NotifierMetadata notifier_metadata, int32_t num_threads,
       // This parameter allows overrides that are used for tests
-      std::vector<RealtimeNotifierMetadata> realtime_notifier_metadata = {});
+      std::vector<RealtimeNotifierMetadata> realtime_notifier_metadata = {},
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 };
 
 }  // namespace kv_server

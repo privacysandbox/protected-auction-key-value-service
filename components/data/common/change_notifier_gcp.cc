@@ -33,7 +33,9 @@ namespace {
 
 class GcpChangeNotifier : public ChangeNotifier {
  public:
-  GcpChangeNotifier() {}
+  explicit GcpChangeNotifier(
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : log_context_(log_context) {}
   ~GcpChangeNotifier() { sleep_for_.Stop(); }
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
@@ -45,13 +47,15 @@ class GcpChangeNotifier : public ChangeNotifier {
 
  private:
   SleepFor sleep_for_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<ChangeNotifier>> ChangeNotifier::Create(
-    NotifierMetadata notifier_metadata) {
-  return std::make_unique<GcpChangeNotifier>();
+    NotifierMetadata notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<GcpChangeNotifier>(log_context);
 }
 
 }  // namespace kv_server

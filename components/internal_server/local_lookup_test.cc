@@ -37,13 +37,13 @@ class LocalLookupTest : public ::testing::Test {
  protected:
   LocalLookupTest() {
     InitMetricsContextMap();
-    scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
-    request_context_ =
-        std::make_unique<RequestContext>(*scope_metrics_context_);
+    request_context_ = std::make_unique<RequestContext>();
+    request_context_->UpdateLogContext(
+        privacy_sandbox::server_common::LogContext(),
+        privacy_sandbox::server_common::ConsentedDebugConfiguration());
   }
   RequestContext& GetRequestContext() { return *request_context_; }
-  std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
-  std::unique_ptr<RequestContext> request_context_;
+  std::shared_ptr<RequestContext> request_context_;
   MockCache mock_cache_;
 };
 
@@ -143,6 +143,46 @@ TEST_F(LocalLookupTest, GetKeyValueSets_KeysFound_Success) {
               testing::UnorderedElementsAreArray(expected_resulting_set));
 }
 
+TEST_F(LocalLookupTest, GetUInt32ValueSets_KeysFound_Success) {
+  auto values = std::vector<uint32_t>({1000, 1001});
+  UInt32ValueSet value_set;
+  value_set.Add(absl::MakeSpan(values), 1);
+  auto mock_get_key_value_set_result =
+      std::make_unique<MockGetKeyValueSetResult>();
+  EXPECT_CALL(*mock_get_key_value_set_result, GetUInt32ValueSet("key1"))
+      .WillOnce(Return(&value_set));
+  EXPECT_CALL(mock_cache_, GetUInt32ValueSet(_, _))
+      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response =
+      local_lookup->GetUInt32ValueSet(GetRequestContext(), {"key1"});
+  ASSERT_TRUE(response.ok());
+  EXPECT_THAT(response.value().kv_pairs().at("key1").uintset_values().values(),
+              testing::UnorderedElementsAreArray(values));
+}
+
+TEST_F(LocalLookupTest, GetUInt32ValueSets_SetEmpty_Success) {
+  auto mock_get_key_value_set_result =
+      std::make_unique<MockGetKeyValueSetResult>();
+  EXPECT_CALL(*mock_get_key_value_set_result, GetUInt32ValueSet("key1"))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(mock_cache_, GetUInt32ValueSet(_, _))
+      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response =
+      local_lookup->GetUInt32ValueSet(GetRequestContext(), {"key1"});
+  ASSERT_TRUE(response.ok());
+  InternalLookupResponse expected;
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key1"
+             value { status { code: 5 message: "Key not found: key1" } }
+           }
+      )pb",
+      &expected);
+  EXPECT_THAT(response.value(), EqualsProto(expected));
+}
+
 TEST_F(LocalLookupTest, GetKeyValueSets_SetEmpty_Success) {
   auto mock_get_key_value_set_result =
       std::make_unique<MockGetKeyValueSetResult>();
@@ -202,6 +242,33 @@ TEST_F(LocalLookupTest, RunQuery_ParsingError_Error) {
 
   auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response = local_lookup->RunQuery(GetRequestContext(), query);
+  EXPECT_FALSE(response.ok());
+  EXPECT_EQ(response.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST_F(LocalLookupTest, Verify_RunSetQueryInt_Success) {
+  std::string query = "A";
+  UInt32ValueSet value_set;
+  auto values = std::vector<uint32_t>({10, 20, 30, 40, 50});
+  value_set.Add(absl::MakeSpan(values), 1);
+  auto mock_get_key_value_set_result =
+      std::make_unique<MockGetKeyValueSetResult>();
+  EXPECT_CALL(*mock_get_key_value_set_result, GetUInt32ValueSet("A"))
+      .WillOnce(Return(&value_set));
+  EXPECT_CALL(mock_cache_,
+              GetUInt32ValueSet(_, absl::flat_hash_set<std::string_view>{"A"}))
+      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response = local_lookup->RunSetQueryInt(GetRequestContext(), query);
+  ASSERT_TRUE(response.ok()) << response.status();
+  EXPECT_THAT(response.value().elements(),
+              testing::UnorderedElementsAreArray(values.begin(), values.end()));
+}
+
+TEST_F(LocalLookupTest, Verify_RunSetQueryInt_ParsingError_Error) {
+  std::string query = "someset|(";
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response = local_lookup->RunSetQueryInt(GetRequestContext(), query);
   EXPECT_FALSE(response.ok());
   EXPECT_EQ(response.status().code(), absl::StatusCode::kInvalidArgument);
 }

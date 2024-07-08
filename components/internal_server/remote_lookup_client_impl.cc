@@ -56,9 +56,19 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
     ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
                                 kRemoteLookupGetValuesLatencyInMicros>
         latency_recorder(request_context.GetUdfRequestMetricsContext());
-    OhttpClientEncryptor encryptor(key_fetcher_manager_);
+    auto maybe_public_key =
+        key_fetcher_manager_.GetPublicKey(GetCloudPlatform());
+    if (!maybe_public_key.ok()) {
+      const std::string error =
+          absl::StrCat("Could not get public key to use for HPKE encryption:",
+                       maybe_public_key.status().message());
+      PS_LOG(ERROR, request_context.GetPSLogContext()) << error;
+      return absl::InternalError(error);
+    }
+    OhttpClientEncryptor encryptor(maybe_public_key.value());
     auto encrypted_padded_serialized_request_maybe =
-        encryptor.EncryptRequest(Pad(serialized_message, padding_length));
+        encryptor.EncryptRequest(Pad(serialized_message, padding_length),
+                                 request_context.GetPSLogContext());
     if (!encrypted_padded_serialized_request_maybe.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kRemoteRequestEncryptionFailure);
@@ -74,7 +84,8 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
     if (!status.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kRemoteSecureLookupFailure);
-      LOG(ERROR) << status.error_code() << ": " << status.error_message();
+      PS_LOG(ERROR, request_context.GetPSLogContext())
+          << status.error_code() << ": " << status.error_message();
       return absl::Status((absl::StatusCode)status.error_code(),
                           status.error_message());
     }
@@ -85,7 +96,8 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
       return response;
     }
     auto decrypted_response_maybe =
-        encryptor.DecryptResponse(std::move(secure_response.ohttp_response()));
+        encryptor.DecryptResponse(std::move(secure_response.ohttp_response()),
+                                  request_context.GetPSLogContext());
     if (!decrypted_response_maybe.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kResponseEncryptionFailure);
@@ -100,6 +112,14 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
   std::string_view GetIpAddress() const override { return ip_address_; }
 
  private:
+  privacy_sandbox::server_common::CloudPlatform GetCloudPlatform() const {
+#if defined(CLOUD_PLATFORM_AWS)
+    return privacy_sandbox::server_common::CloudPlatform::kAws;
+#elif defined(CLOUD_PLATFORM_GCP)
+    return privacy_sandbox::server_common::CloudPlatform::kGcp;
+#endif
+    return privacy_sandbox::server_common::CloudPlatform::kLocal;
+  }
   const std::string ip_address_;
   std::unique_ptr<InternalLookupService::Stub> stub_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&

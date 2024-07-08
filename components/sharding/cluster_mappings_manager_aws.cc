@@ -23,10 +23,11 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
   AwsClusterMappingsManager(
       std::string environment, int32_t num_shards,
       InstanceClient& instance_client,
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
       std::unique_ptr<SleepFor> sleep_for = std::make_unique<SleepFor>(),
       int32_t update_interval_millis = 1000)
       : ClusterMappingsManager(std::move(environment), num_shards,
-                               instance_client),
+                               instance_client, log_context),
         asg_regex_{std::regex(absl::StrCat("kv-server-", environment_,
                                            R"(-(\d+)-instance-asg)"))} {}
 
@@ -46,8 +47,8 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
               describe_instance_group_input);
         },
         "DescribeInstanceGroupInstances",
-        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>());
-
+        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>(),
+        GetLogContext());
     return GroupInstancesToClusterMappings(instance_group_instances);
   }
 
@@ -81,8 +82,8 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
         [&instance_client, &instance_ids] {
           return instance_client.DescribeInstances(instance_ids);
         },
-        "DescribeInstances",
-        LogStatusSafeMetricsFn<kDescribeInstancesStatus>());
+        "DescribeInstances", LogStatusSafeMetricsFn<kDescribeInstancesStatus>(),
+        GetLogContext());
 
     absl::flat_hash_map<std::string, std::string> mapping;
     for (const auto& instance : instances_detailed_info) {
@@ -123,9 +124,10 @@ class AwsClusterMappingsManager : public ClusterMappingsManager {
 
 std::unique_ptr<ClusterMappingsManager> ClusterMappingsManager::Create(
     std::string environment, int32_t num_shards,
-    InstanceClient& instance_client, ParameterFetcher& parameter_fetcher) {
-  return std::make_unique<AwsClusterMappingsManager>(environment, num_shards,
-                                                     instance_client);
+    InstanceClient& instance_client, ParameterFetcher& parameter_fetcher,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<AwsClusterMappingsManager>(
+      environment, num_shards, instance_client, log_context);
 }
 
 }  // namespace kv_server

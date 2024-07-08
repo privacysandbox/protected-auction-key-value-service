@@ -15,5 +15,5 @@
  */
 
 output "ssh_users_group_name" {
-  value = aws_iam_group.ssh_users_group.name
+  value = var.use_existing_vpc ? data.aws_iam_group.existing_ssh_users_group[0].group_name : aws_iam_group.ssh_users_group[0].name
 }

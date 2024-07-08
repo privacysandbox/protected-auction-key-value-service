@@ -12,13 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
-    "container_layer",
-)
-load("@io_bazel_rules_docker//go:image.bzl", "go_image")
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
 load(
     "@rules_pkg//pkg:mappings.bzl",
     "pkg_attributes",
@@ -39,62 +34,114 @@ go_binary(
     visibility = ["//visibility:public"],
 )
 
-[
-    go_image(
-        name = "diagnostic_go_image_{}".format(arch),
-        embed = [":diagnostic_lib"],
-        goarch = arch,
-        goos = "linux",
-        visibility = ["//visibility:public"],
-    )
-    for arch in [
-        "arm64",
-        "amd64",
-    ]
-]
+pkg_files(
+    name = "diagnostic_cli",
+    srcs = [
+        ":diagnostic",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/tools/diagnostic_cli",
+)
 
-[
-    container_image(
-        name = "diagnostic_docker_image_{}".format(arch),
-        base = ":diagnostic_go_image_{}".format(arch),
-        visibility = ["//visibility:public"],
-    )
-    for arch in [
-        "arm64",
-        "amd64",
-    ]
-]
+pkg_tar(
+    name = "diagnostic_tar",
+    srcs = [":diagnostic_cli"],
+)
 
 pkg_files(
-    name = "server_executables",
+    name = "query_api_descriptor_set",
+    srcs = [
+        "//public/query:query_api_descriptor_set",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/tools/query",
+)
+
+pkg_tar(
+    name = "query_api_descriptor_set_tar",
+    srcs = [":query_api_descriptor_set"],
+)
+
+pkg_files(
+    name = "helloworld_server_executables",
     srcs = [
         "//tools/server_diagnostic/helloworld_server",
     ],
     attributes = pkg_attributes(mode = "0555"),
-    prefix = "/",
+    prefix = "/tools/helloworld_server",
 )
 
 pkg_tar(
-    name = "server_binaries_tar",
-    srcs = [":server_executables"],
-)
-
-container_layer(
-    name = "helloworld_server_binary_layer",
-    directory = "/",
-    tars = [
-        ":server_binaries_tar",
-    ],
+    name = "helloworld_server_binaries_tar",
+    srcs = [":helloworld_server_executables"],
 )
 
 [
-    container_image(
-        name = "helloworld_server_docker_image_{}".format(arch),
-        architecture = arch,
-        base = "@runtime-debian-debug-nonroot-{}//image".format(arch),
-        layers = [
-            ":helloworld_server_binary_layer",
+    genrule(
+        name = "grpcurl_{}_file".format(arch),
+        srcs = ["@grpcurl_{}//file".format(arch)],
+        outs = ["grpcurl_{}".format(arch)],
+        cmd = "tar -xzf $(location @grpcurl_{arch}//file) --exclude=LICENSE --to-stdout >$(@D)/grpcurl_{arch}".format(arch = arch),
+    )
+    for arch in [
+        "x86_64",
+        "aarch64",
+    ]
+]
+
+pkg_files(
+    name = "grpcurl_files_amd64",
+    srcs = [":grpcurl_x86_64"],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/usr/bin",
+    renames = {
+        ":grpcurl_x86_64": "grpcurl",
+    },
+)
+
+pkg_files(
+    name = "grpcurl_files_arm64",
+    srcs = [":grpcurl_aarch64"],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/usr/bin",
+    renames = {
+        ":grpcurl_aarch64": "grpcurl",
+    },
+)
+
+[
+    pkg_tar(
+        name = "grpcurl_tar_{}".format(arch),
+        srcs = [":grpcurl_files_{}".format(arch)],
+    )
+    for arch in [
+        "arm64",
+        "amd64",
+    ]
+]
+
+[
+    oci_image(
+        name = "diagnostic_tools_image_{}".format(arch),
+        base = "@runtime-ubuntu-fulldist-debug-root-{}//image".format(arch),
+        tars = [
+            ":helloworld_server_binaries_tar",
+            ":diagnostic_tar",
+            ":query_api_descriptor_set_tar",
+            ":grpcurl_tar_{}".format(arch),
         ],
+    )
+    for arch in [
+        "arm64",
+        "amd64",
+    ]
+]
+
+[
+    oci_tarball(
+        name = "diagnostic_tools_docker_image_{}".format(arch),
+        image = ":diagnostic_tools_image_{}".format(arch),
+        repo_tags = ["bazel/tools/server_diagnostic:diagnostic_tools_docker_image"],
     )
     for arch in [
         "arm64",
@@ -105,17 +152,15 @@ container_layer(
 genrule(
     name = "copy_to_dist",
     srcs = [
-        ":diagnostic_docker_image_arm64.tar",
-        ":diagnostic_docker_image_amd64.tar",
-        ":helloworld_server_docker_image_arm64.tar",
-        ":helloworld_server_docker_image_amd64.tar",
+        ":diagnostic_tools_docker_image_arm64",
+        ":diagnostic_tools_docker_image_amd64",
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/tools/arm64/server_diagnostic
-cp $(execpath :diagnostic_docker_image_arm64.tar) $(execpath :helloworld_server_docker_image_arm64.tar) dist/tools/arm64/server_diagnostic
+cp $(execpath :diagnostic_tools_docker_image_arm64) dist/tools/arm64/server_diagnostic/diagnostic_tools_docker_image_arm64.tar
 mkdir -p dist/tools/amd64/server_diagnostic
-cp $(execpath :diagnostic_docker_image_amd64.tar) $(execpath :helloworld_server_docker_image_amd64.tar) dist/tools/amd64/server_diagnostic
+cp $(execpath :diagnostic_tools_docker_image_amd64) dist/tools/amd64/server_diagnostic/diagnostic_tools_docker_image_amd64.tar
 builders/tools/normalize-dist
 EOF""",
     executable = True,

@@ -76,18 +76,26 @@ void LogDataLoadingMetrics(std::string_view source,
                            data_loading_stats.total_dropped_records)}}));
 }
 
-absl::Status ApplyUpdateMutation(std::string_view prefix,
-                                 const KeyValueMutationRecord& record,
-                                 Cache& cache) {
+absl::Status ApplyUpdateMutation(
+    std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   if (record.value_type() == Value::StringValue) {
-    cache.UpdateKeyValue(record.key()->string_view(),
+    cache.UpdateKeyValue(log_context, record.key()->string_view(),
                          GetRecordValue<std::string_view>(record),
                          record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
     auto values = GetRecordValue<std::vector<std::string_view>>(record);
-    cache.UpdateKeyValueSet(record.key()->string_view(), absl::MakeSpan(values),
+    cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
+                            absl::MakeSpan(values),
+                            record.logical_commit_time(), prefix);
+    return absl::OkStatus();
+  }
+  if (record.value_type() == Value::UInt32Set) {
+    auto values = GetRecordValue<std::vector<uint32_t>>(record);
+    cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
+                            absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
@@ -96,17 +104,25 @@ absl::Status ApplyUpdateMutation(std::string_view prefix,
                    " has unsupported value type: ", record.value_type()));
 }
 
-absl::Status ApplyDeleteMutation(std::string_view prefix,
-                                 const KeyValueMutationRecord& record,
-                                 Cache& cache) {
+absl::Status ApplyDeleteMutation(
+    std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   if (record.value_type() == Value::StringValue) {
-    cache.DeleteKey(record.key()->string_view(), record.logical_commit_time(),
-                    prefix);
+    cache.DeleteKey(log_context, record.key()->string_view(),
+                    record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
     auto values = GetRecordValue<std::vector<std::string_view>>(record);
-    cache.DeleteValuesInSet(record.key()->string_view(), absl::MakeSpan(values),
+    cache.DeleteValuesInSet(log_context, record.key()->string_view(),
+                            absl::MakeSpan(values),
+                            record.logical_commit_time(), prefix);
+    return absl::OkStatus();
+  }
+  if (record.value_type() == Value::UInt32Set) {
+    auto values = GetRecordValue<std::vector<uint32_t>>(record);
+    cache.DeleteValuesInSet(log_context, record.key()->string_view(),
+                            absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
@@ -115,10 +131,11 @@ absl::Status ApplyDeleteMutation(std::string_view prefix,
                    " has unsupported value type: ", record.value_type()));
 }
 
-bool ShouldProcessRecord(const KeyValueMutationRecord& record,
-                         int64_t num_shards, int64_t server_shard_num,
-                         const KeySharder& key_sharder,
-                         DataLoadingStats& data_loading_stats) {
+bool ShouldProcessRecord(
+    const KeyValueMutationRecord& record, int64_t num_shards,
+    int64_t server_shard_num, const KeySharder& key_sharder,
+    DataLoadingStats& data_loading_stats,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   if (num_shards <= 1) {
     return true;
   }
@@ -139,10 +156,11 @@ bool ShouldProcessRecord(const KeyValueMutationRecord& record,
 
 absl::Status ApplyKeyValueMutationToCache(
     std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
-    int64_t& max_timestamp, DataLoadingStats& data_loading_stats) {
+    int64_t& max_timestamp, DataLoadingStats& data_loading_stats,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   switch (record.mutation_type()) {
     case KeyValueMutationType::Update: {
-      if (auto status = ApplyUpdateMutation(prefix, record, cache);
+      if (auto status = ApplyUpdateMutation(prefix, record, cache, log_context);
           !status.ok()) {
         return status;
       }
@@ -151,7 +169,7 @@ absl::Status ApplyKeyValueMutationToCache(
       break;
     }
     case KeyValueMutationType::Delete: {
-      if (auto status = ApplyDeleteMutation(prefix, record, cache);
+      if (auto status = ApplyDeleteMutation(prefix, record, cache, log_context);
           !status.ok()) {
         return status;
       }
@@ -171,35 +189,43 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
     std::string_view data_source, std::string_view prefix,
     StreamRecordReader& record_reader, Cache& cache, int64_t& max_timestamp,
     const int32_t server_shard_num, const int32_t num_shards,
-    UdfClient& udf_client, const KeySharder& key_sharder) {
+    UdfClient& udf_client, const KeySharder& key_sharder,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   DataLoadingStats data_loading_stats;
-  const auto process_data_record_fn =
-      [prefix, &cache, &max_timestamp, &data_loading_stats, server_shard_num,
-       num_shards, &udf_client, &key_sharder](const DataRecord& data_record) {
-        if (data_record.record_type() == Record::KeyValueMutationRecord) {
-          const auto* record = data_record.record_as_KeyValueMutationRecord();
-          if (!ShouldProcessRecord(*record, num_shards, server_shard_num,
-                                   key_sharder, data_loading_stats)) {
-            // NOTE: currently upstream logic retries on non-ok status
-            // this will get us in a loop
-            return absl::OkStatus();
-          }
-          return ApplyKeyValueMutationToCache(
-              prefix, *record, cache, max_timestamp, data_loading_stats);
-        } else if (data_record.record_type() ==
-                   Record::UserDefinedFunctionsConfig) {
-          const auto* udf_config =
-              data_record.record_as_UserDefinedFunctionsConfig();
-          VLOG(3) << "Setting UDF code snippet for version: "
-                  << udf_config->version();
-          return udf_client.SetCodeObject(CodeConfig{
+  const auto process_data_record_fn = [prefix, &cache, &max_timestamp,
+                                       &data_loading_stats, server_shard_num,
+                                       num_shards, &udf_client, &key_sharder,
+                                       &log_context](
+                                          const DataRecord& data_record) {
+    if (data_record.record_type() == Record::KeyValueMutationRecord) {
+      const auto* record = data_record.record_as_KeyValueMutationRecord();
+      if (!ShouldProcessRecord(*record, num_shards, server_shard_num,
+                               key_sharder, data_loading_stats, log_context)) {
+        // NOTE: currently upstream logic retries on non-ok status
+        // this will get us in a loop
+        return absl::OkStatus();
+      }
+      return ApplyKeyValueMutationToCache(prefix, *record, cache, max_timestamp,
+                                          data_loading_stats, log_context);
+    } else if (data_record.record_type() ==
+               Record::UserDefinedFunctionsConfig) {
+      const auto* udf_config =
+          data_record.record_as_UserDefinedFunctionsConfig();
+      PS_VLOG(3, log_context)
+          << "Setting UDF code snippet for version: " << udf_config->version()
+          << ", handler: " << udf_config->handler_name()->str()
+          << ", code length: " << udf_config->code_snippet()->str().size();
+      return udf_client.SetCodeObject(
+          CodeConfig{
               .js = udf_config->code_snippet()->str(),
               .udf_handler_name = udf_config->handler_name()->str(),
               .logical_commit_time = udf_config->logical_commit_time(),
-              .version = udf_config->version()});
-        }
-        return absl::InvalidArgumentError("Received unsupported record.");
-      };
+              .version = udf_config->version(),
+          },
+          log_context);
+    }
+    return absl::InvalidArgumentError("Received unsupported record.");
+  };
   // TODO(b/314302953): ReadStreamRecords will skip over individual records that
   // have errors. We should pass the file name to the function so that it will
   // appear in error logs.
@@ -215,7 +241,7 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
 absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
     const BlobStorageClient::DataLocation& location,
     const DataOrchestrator::Options& options) {
-  LOG(INFO) << "Loading " << location;
+  PS_LOG(INFO, options.log_context) << "Loading " << location;
   int64_t max_timestamp = 0;
   auto& cache = options.cache;
   auto record_reader =
@@ -228,10 +254,10 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
                       _ << "Blob " << location);
   if (metadata.has_sharding_metadata() &&
       metadata.sharding_metadata().shard_num() != options.shard_num) {
-    LOG(INFO) << "Blob " << location << " belongs to shard num "
-              << metadata.sharding_metadata().shard_num()
-              << " but server shard num is " << options.shard_num
-              << " Skipping it.";
+    PS_LOG(INFO, options.log_context)
+        << "Blob " << location << " belongs to shard num "
+        << metadata.sharding_metadata().shard_num()
+        << " but server shard num is " << options.shard_num << " Skipping it.";
     return DataLoadingStats{
         .total_updated_records = 0,
         .total_deleted_records = 0,
@@ -246,9 +272,10 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithDataFromFile(
       auto data_loading_stats,
       LoadCacheWithData(file_name, location.prefix, *record_reader, cache,
                         max_timestamp, options.shard_num, options.num_shards,
-                        options.udf_client, options.key_sharder),
+                        options.udf_client, options.key_sharder,
+                        options.log_context),
       _ << "Blob: " << location);
-  cache.RemoveDeletedKeys(max_timestamp, location.prefix);
+  cache.RemoveDeletedKeys(options.log_context, max_timestamp, location.prefix);
   return data_loading_stats;
 }
 
@@ -281,16 +308,18 @@ class DataOrchestratorImpl : public DataOrchestrator {
       absl::MutexLock l(&mu_);
       stop_ = true;
     }
-    LOG(INFO) << "Sent cancel signal to data loader thread";
-    LOG(INFO) << "Stopping loading new data from " << options_.data_bucket;
+    PS_LOG(INFO, options_.log_context)
+        << "Sent cancel signal to data loader thread";
+    PS_LOG(INFO, options_.log_context)
+        << "Stopping loading new data from " << options_.data_bucket;
     if (options_.delta_notifier.IsRunning()) {
       if (const auto s = options_.delta_notifier.Stop(); !s.ok()) {
-        LOG(ERROR) << "Failed to stop notify: " << s;
+        PS_LOG(ERROR, options_.log_context) << "Failed to stop notify: " << s;
       }
     }
-    LOG(INFO) << "Delta notifier stopped";
+    PS_LOG(INFO, options_.log_context) << "Delta notifier stopped";
     data_loader_thread_->join();
-    LOG(INFO) << "Stopped loading new data";
+    PS_LOG(INFO, options_.log_context) << "Stopped loading new data";
   }
 
   static absl::StatusOr<absl::flat_hash_map<std::string, std::string>> Init(
@@ -311,14 +340,16 @@ class DataOrchestratorImpl : public DataOrchestrator {
       if (!maybe_filenames.ok()) {
         return maybe_filenames.status();
       }
-      LOG(INFO) << "Initializing cache with " << maybe_filenames->size()
-                << " delta files from " << location;
+      PS_LOG(INFO, options.log_context)
+          << "Initializing cache with " << maybe_filenames->size()
+          << " delta files from " << location;
       for (auto&& basename : std::move(*maybe_filenames)) {
         auto blob = BlobStorageClient::DataLocation{
             .bucket = options.data_bucket, .prefix = prefix, .key = basename};
         if (!IsDeltaFilename(blob.key)) {
-          LOG(WARNING) << "Saw a file " << blob
-                       << " not in delta file format. Skipping it.";
+          PS_LOG(WARNING, options.log_context)
+              << "Saw a file " << blob
+              << " not in delta file format. Skipping it.";
           continue;
         }
         (*ending_delta_files)[prefix] = blob.key;
@@ -326,7 +357,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
             !s.ok()) {
           return s.status();
         }
-        LOG(INFO) << "Done loading " << blob;
+        PS_LOG(INFO, options.log_context) << "Done loading " << blob;
       }
     }
     return ending_delta_files;
@@ -336,7 +367,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
     if (data_loader_thread_) {
       return absl::OkStatus();
     }
-    LOG(INFO) << "Transitioning to state ContinuouslyLoadNewData";
+    PS_LOG(INFO, options_.log_context)
+        << "Transitioning to state ContinuouslyLoadNewData";
     auto prefix_last_basenames = prefix_last_basenames_;
     absl::Status status = options_.delta_notifier.Start(
         options_.change_notifier, {.bucket = options_.data_bucket},
@@ -350,13 +382,13 @@ class DataOrchestratorImpl : public DataOrchestrator {
         absl::bind_front(&DataOrchestratorImpl::ProcessNewFiles, this));
 
     return options_.realtime_thread_pool_manager.Start(
-        [this, &cache = options_.cache,
+        [this, &cache = options_.cache, &log_context = options_.log_context,
          &delta_stream_reader_factory = options_.delta_stream_reader_factory](
             const std::string& message_body) {
           return LoadCacheWithHighPriorityUpdates(
               kDefaultDataSourceForRealtimeUpdates,
               kDefaultPrefixForRealTimeUpdates, delta_stream_reader_factory,
-              message_body, cache);
+              message_body, cache, log_context);
         });
   }
 
@@ -370,7 +402,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
   // On failure, puts the file back to the end of the queue and retry at a
   // later point.
   void ProcessNewFiles() {
-    LOG(INFO) << "Thread for new file processing started";
+    PS_LOG(INFO, options_.log_context)
+        << "Thread for new file processing started";
     absl::Condition has_new_event(this,
                                   &DataOrchestratorImpl::HasNewEventToProcess);
     while (true) {
@@ -378,21 +411,23 @@ class DataOrchestratorImpl : public DataOrchestrator {
       {
         absl::MutexLock l(&mu_, has_new_event);
         if (stop_) {
-          LOG(INFO) << "Thread for new file processing stopped";
+          PS_LOG(INFO, options_.log_context)
+              << "Thread for new file processing stopped";
           return;
         }
         basename = std::move(unprocessed_basenames_.back());
         unprocessed_basenames_.pop_back();
       }
-      LOG(INFO) << "Loading " << basename;
+      PS_LOG(INFO, options_.log_context) << "Loading " << basename;
       auto blob = ParseBlobName(basename);
       if (!IsDeltaFilename(blob.key)) {
-        LOG(WARNING) << "Received file with invalid name: " << basename;
+        PS_LOG(WARNING, options_.log_context)
+            << "Received file with invalid name: " << basename;
         continue;
       }
       if (!options_.blob_prefix_allowlist.Contains(blob.prefix)) {
-        LOG(WARNING) << "Received file with prefix not allowlisted: "
-                     << basename;
+        PS_LOG(WARNING, options_.log_context)
+            << "Received file with prefix not allowlisted: " << basename;
         continue;
       }
       RetryUntilOk(
@@ -405,7 +440,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
                  .key = blob.key},
                 options_);
           },
-          "LoadNewFile", LogStatusSafeMetricsFn<kLoadNewFilesStatus>());
+          "LoadNewFile", LogStatusSafeMetricsFn<kLoadNewFilesStatus>(),
+          options_.log_context);
     }
   }
 
@@ -413,7 +449,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
   void EnqueueNewFilesToProcess(const std::string& basename) {
     absl::MutexLock l(&mu_);
     unprocessed_basenames_.push_front(basename);
-    LOG(INFO) << "queued " << basename << " for loading";
+    PS_LOG(INFO, options_.log_context)
+        << "queued " << basename << " for loading";
     // TODO: block if the queue is too large: consumption is too slow.
   }
 
@@ -425,8 +462,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
     for (const auto& prefix : options.blob_prefix_allowlist.Prefixes()) {
       auto location = BlobStorageClient::DataLocation{
           .bucket = options.data_bucket, .prefix = prefix};
-      LOG(INFO) << "Initializing cache with snapshot file(s) from: "
-                << location;
+      PS_LOG(INFO, options.log_context)
+          << "Initializing cache with snapshot file(s) from: " << location;
       PS_ASSIGN_OR_RETURN(
           auto snapshot_group,
           FindMostRecentFileGroup(
@@ -435,7 +472,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
                               .status = FileGroup::FileStatus::kComplete},
               options.blob_client));
       if (!snapshot_group.has_value()) {
-        LOG(INFO) << "No snapshot files found in: " << location;
+        PS_LOG(INFO, options.log_context)
+            << "No snapshot files found in: " << location;
         continue;
       }
       for (const auto& snapshot : snapshot_group->Filenames()) {
@@ -450,13 +488,15 @@ class DataOrchestratorImpl : public DataOrchestrator {
         PS_ASSIGN_OR_RETURN(auto metadata, record_reader->GetKVFileMetadata());
         if (metadata.has_sharding_metadata() &&
             metadata.sharding_metadata().shard_num() != options.shard_num) {
-          LOG(INFO) << "Snapshot " << snapshot_blob << " belongs to shard num "
-                    << metadata.sharding_metadata().shard_num()
-                    << " but server shard num is " << options.shard_num
-                    << ". Skipping it.";
+          PS_LOG(INFO, options.log_context)
+              << "Snapshot " << snapshot_blob << " belongs to shard num "
+              << metadata.sharding_metadata().shard_num()
+              << " but server shard num is " << options.shard_num
+              << ". Skipping it.";
           continue;
         }
-        LOG(INFO) << "Loading snapshot file: " << snapshot_blob;
+        PS_LOG(INFO, options.log_context)
+            << "Loading snapshot file: " << snapshot_blob;
         PS_ASSIGN_OR_RETURN(
             auto stats, TraceLoadCacheWithDataFromFile(snapshot_blob, options));
         if (auto iter = ending_delta_files.find(prefix);
@@ -464,7 +504,8 @@ class DataOrchestratorImpl : public DataOrchestrator {
             metadata.snapshot().ending_delta_file() > iter->second) {
           ending_delta_files[prefix] = metadata.snapshot().ending_delta_file();
         }
-        LOG(INFO) << "Done loading snapshot file: " << snapshot_blob;
+        PS_LOG(INFO, options.log_context)
+            << "Done loading snapshot file: " << snapshot_blob;
       }
     }
     return ending_delta_files;
@@ -473,14 +514,15 @@ class DataOrchestratorImpl : public DataOrchestrator {
   absl::StatusOr<DataLoadingStats> LoadCacheWithHighPriorityUpdates(
       std::string_view data_source, std::string_view prefix,
       StreamRecordReaderFactory& delta_stream_reader_factory,
-      const std::string& record_string, Cache& cache) {
+      const std::string& record_string, Cache& cache,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) {
     std::istringstream is(record_string);
     int64_t max_timestamp = 0;
     auto record_reader = delta_stream_reader_factory.CreateReader(is);
     return LoadCacheWithData(data_source, prefix, *record_reader, cache,
                              max_timestamp, options_.shard_num,
                              options_.num_shards, options_.udf_client,
-                             options_.key_sharder);
+                             options_.key_sharder, log_context);
   }
 
   const Options options_;

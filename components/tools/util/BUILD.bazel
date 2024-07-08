@@ -1,0 +1,17 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = [
+    "//components/tools:__subpackages__",
+    "//production/packaging/tools:__subpackages__",
+    "//tools:__subpackages__",
+])
+
+cc_library(
+    name = "configure_telemetry_tools",
+    hdrs = ["configure_telemetry_tools.h"],
+    deps = [
+        "//components/telemetry:server_definition",
+        "@google_privacysandbox_servers_common//src/logger:request_context_impl",
+        "@io_opentelemetry_cpp//exporters/ostream:ostream_log_record_exporter",
+    ],
+)

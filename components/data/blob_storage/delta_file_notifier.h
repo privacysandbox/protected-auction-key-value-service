@@ -62,14 +62,20 @@ class DeltaFileNotifier {
   static std::unique_ptr<DeltaFileNotifier> Create(
       BlobStorageClient& client,
       const absl::Duration poll_frequency = absl::Minutes(5),
-      BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""));
+      BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""),
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 
   // Used for test
   static std::unique_ptr<DeltaFileNotifier> Create(
       BlobStorageClient& client, const absl::Duration poll_frequency,
       std::unique_ptr<SleepFor> sleep_for,
       privacy_sandbox::server_common::SteadyClock& clock,
-      BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""));
+      BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""),
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 };
 
 }  // namespace kv_server

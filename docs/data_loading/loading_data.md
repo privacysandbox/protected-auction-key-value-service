@@ -45,7 +45,7 @@ Confirm that the sample data file `DELTA_\d{16}` has been generated.
 The data CLI is located under: `//tools/data_cli`. First build the cli using the following command:
 
 ```sh
--$ builders/tools/bazel-debian run //production/packaging/tools:copy_to_dist --//:instance=local --//:platform=local
+-$ builders/tools/bazel-debian run //production/packaging/tools:copy_to_dist --config=local_instance --config=local_platform
 ```
 
 After building, the cli will be packaged into a docker image tar file under

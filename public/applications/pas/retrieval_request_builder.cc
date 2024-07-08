@@ -26,6 +26,9 @@ v2::GetValuesRequest GetRequest() {
 }
 
 v2::GetValuesRequest BuildRetrievalRequest(
+    const privacy_sandbox::server_common::LogContext& log_context,
+    const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+        consented_debug_config,
     std::string protected_signals,
     absl::flat_hash_map<std::string, std::string> device_metadata,
     std::string contextual_signals, std::vector<std::string> optional_ad_ids) {
@@ -59,10 +62,16 @@ v2::GetValuesRequest BuildRetrievalRequest(
           ->set_string_value(std::move(item));
     }
   }
+  { *req.mutable_consented_debug_config() = consented_debug_config; }
+  { *req.mutable_log_context() = log_context; }
   return req;
 }
 
-v2::GetValuesRequest BuildLookupRequest(std::vector<std::string> ad_ids) {
+v2::GetValuesRequest BuildLookupRequest(
+    const privacy_sandbox::server_common::LogContext& log_context,
+    const privacy_sandbox::server_common::ConsentedDebugConfiguration&
+        consented_debug_config,
+    std::vector<std::string> ad_ids) {
   v2::GetValuesRequest req = GetRequest();
   v2::RequestPartition* partition = req.add_partitions();
   auto* ad_id_arg = partition->add_arguments();
@@ -72,6 +81,8 @@ v2::GetValuesRequest BuildLookupRequest(std::vector<std::string> ad_ids) {
         ->add_values()
         ->set_string_value(std::move(item));
   }
+  { *req.mutable_consented_debug_config() = consented_debug_config; }
+  { *req.mutable_log_context() = log_context; }
   return req;
 }
 

@@ -65,7 +65,8 @@ void SetStatusAsBytes(absl::StatusCode code, std::string_view message,
 }
 
 void SetOutputAsBytes(const InternalLookupResponse& response,
-                      FunctionBindingIoProto& io) {
+                      FunctionBindingIoProto& io,
+                      const RequestContext& request_context) {
   BinaryGetValuesResponse binary_response;
   for (auto&& [k, v] : response.kv_pairs()) {
     Value value;
@@ -91,14 +92,18 @@ void SetStatusAsString(absl::StatusCode code, std::string_view message,
 }
 
 void SetOutputAsString(const InternalLookupResponse& response,
-                       FunctionBindingIoProto& io) {
-  VLOG(9) << "Processing internal lookup response";
+                       FunctionBindingIoProto& io,
+                       const RequestContext& request_context) {
+  PS_VLOG(9, request_context.GetPSLogContext())
+      << "Processing internal lookup response";
   std::string kv_pairs_json;
   if (const auto json_status = MessageToJsonString(response, &kv_pairs_json);
       !json_status.ok()) {
     SetStatusAsString(json_status.code(), json_status.message(), io);
-    LOG(ERROR) << "MessageToJsonString failed with " << json_status;
-    VLOG(1) << "getValues result: " << io.DebugString();
+    PS_LOG(ERROR, request_context.GetPSLogContext())
+        << "MessageToJsonString failed with " << json_status;
+    PS_VLOG(1, request_context.GetPSLogContext())
+        << "getValues result: " << io.DebugString();
     return;
   }
 
@@ -108,7 +113,8 @@ void SetOutputAsString(const InternalLookupResponse& response,
   if (kv_pairs_json_object.is_discarded()) {
     SetStatusAsString(absl::StatusCode::kInvalidArgument,
                       "Error while parsing JSON string.", io);
-    LOG(ERROR) << "json parse failed for " << kv_pairs_json;
+    PS_LOG(ERROR, request_context.GetPSLogContext())
+        << "json parse failed for " << kv_pairs_json;
 
     return;
   }
@@ -128,21 +134,30 @@ class GetValuesHookImpl : public GetValuesHook {
     }
   }
 
-  void operator()(FunctionBindingPayload<RequestContext>& payload) {
-    VLOG(9) << "Called getValues hook";
+  void operator()(
+      FunctionBindingPayload<std::weak_ptr<RequestContext>>& payload) {
+    std::shared_ptr<RequestContext> request_context = payload.metadata.lock();
+    if (request_context == nullptr) {
+      PS_VLOG(1) << "Request context is not available, the request might "
+                    "have been marked as complete";
+      return;
+    }
+    PS_VLOG(9, request_context->GetPSLogContext()) << "Called getValues hook";
     if (lookup_ == nullptr) {
       SetStatus(absl::StatusCode::kInternal,
                 "getValues has not been initialized yet", payload.io_proto);
-      LOG(ERROR)
+      PS_LOG(ERROR, request_context->GetPSLogContext())
           << "getValues hook is not initialized properly: lookup is nullptr";
       return;
     }
 
-    VLOG(9) << "getValues request: " << payload.io_proto.DebugString();
+    PS_VLOG(9, request_context->GetPSLogContext())
+        << "getValues request: " << payload.io_proto.DebugString();
     if (!payload.io_proto.has_input_list_of_string()) {
       SetStatus(absl::StatusCode::kInvalidArgument,
                 "getValues input must be list of strings", payload.io_proto);
-      VLOG(1) << "getValues result: " << payload.io_proto.DebugString();
+      PS_VLOG(1, request_context->GetPSLogContext())
+          << "getValues result: " << payload.io_proto.DebugString();
       return;
     }
 
@@ -151,18 +166,21 @@ class GetValuesHookImpl : public GetValuesHook {
       keys.insert(key);
     }
 
-    VLOG(9) << "Calling internal lookup client";
+    PS_VLOG(9, request_context->GetPSLogContext())
+        << "Calling internal lookup client";
     absl::StatusOr<InternalLookupResponse> response_or_status =
-        lookup_->GetKeyValues(payload.metadata, keys);
+        lookup_->GetKeyValues(*request_context, keys);
     if (!response_or_status.ok()) {
       SetStatus(response_or_status.status().code(),
                 response_or_status.status().message(), payload.io_proto);
-      VLOG(1) << "getValues result: " << payload.io_proto.DebugString();
+      PS_VLOG(1, request_context->GetPSLogContext())
+          << "getValues result: " << payload.io_proto.DebugString();
       return;
     }
 
-    SetOutput(response_or_status.value(), payload.io_proto);
-    VLOG(9) << "getValues result: " << payload.io_proto.DebugString();
+    SetOutput(response_or_status.value(), payload.io_proto, *request_context);
+    PS_VLOG(9, request_context->GetPSLogContext())
+        << "getValues result: " << payload.io_proto.DebugString();
   }
 
  private:
@@ -176,11 +194,12 @@ class GetValuesHookImpl : public GetValuesHook {
   }
 
   void SetOutput(const InternalLookupResponse& response,
-                 FunctionBindingIoProto& io) {
+                 FunctionBindingIoProto& io,
+                 const RequestContext& request_context) {
     if (output_type_ == OutputType::kString) {
-      SetOutputAsString(response, io);
+      SetOutputAsString(response, io, request_context);
     } else {
-      SetOutputAsBytes(response, io);
+      SetOutputAsBytes(response, io, request_context);
     }
   }
 

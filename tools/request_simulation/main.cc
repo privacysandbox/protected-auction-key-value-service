@@ -21,7 +21,6 @@
 #include "absl/log/initialize.h"
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
-#include "src/telemetry/metrics_recorder.h"
 #include "src/telemetry/telemetry_provider.h"
 #include "tools/request_simulation/grpc_client.h"
 #include "tools/request_simulation/request_simulation_system.h"
@@ -40,10 +39,7 @@ int main(int argc, char** argv) {
   absl::SetProgramUsageMessage(absl::StrCat(
       "Key Value Server Request Simulation System.  Sample usage:\n", argv[0]));
   kv_server::RequestSimulationSystem::InitializeTelemetry();
-  auto metric_recorder =
-      TelemetryProvider::GetInstance().CreateMetricsRecorder();
   kv_server::RequestSimulationSystem system(
-      *metric_recorder,
       privacy_sandbox::server_common::SteadyClock::RealClock(),
       [](const std::string& server_address,
          const kv_server::GrpcAuthenticationMode& mode) {

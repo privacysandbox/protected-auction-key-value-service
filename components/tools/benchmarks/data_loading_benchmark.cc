@@ -35,6 +35,7 @@
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/cache/noop_key_value_cache.h"
 #include "components/tools/benchmarks/benchmark_util.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "components/util/platform_initializer.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
@@ -177,17 +178,19 @@ void RegisterBenchmarks() {
   }
 }
 
-absl::Status ApplyUpdateMutation(const KeyValueMutationRecord& record,
-                                 Cache& cache) {
+absl::Status ApplyUpdateMutation(
+    kv_server::benchmark::BenchmarkLogContext& log_context,
+    const KeyValueMutationRecord& record, Cache& cache) {
   if (record.value_type() == Value::StringValue) {
-    cache.UpdateKeyValue(record.key()->string_view(),
+    cache.UpdateKeyValue(log_context, record.key()->string_view(),
                          GetRecordValue<std::string_view>(record),
                          record.logical_commit_time());
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
     auto values = GetRecordValue<std::vector<std::string_view>>(record);
-    cache.UpdateKeyValueSet(record.key()->string_view(), absl::MakeSpan(values),
+    cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
+                            absl::MakeSpan(values),
                             record.logical_commit_time());
     return absl::OkStatus();
   }
@@ -196,15 +199,18 @@ absl::Status ApplyUpdateMutation(const KeyValueMutationRecord& record,
                    " has unsupported value type: ", record.value_type()));
 }
 
-absl::Status ApplyDeleteMutation(const KeyValueMutationRecord& record,
-                                 Cache& cache) {
+absl::Status ApplyDeleteMutation(
+    kv_server::benchmark::BenchmarkLogContext& log_context,
+    const KeyValueMutationRecord& record, Cache& cache) {
   if (record.value_type() == Value::StringValue) {
-    cache.DeleteKey(record.key()->string_view(), record.logical_commit_time());
+    cache.DeleteKey(log_context, record.key()->string_view(),
+                    record.logical_commit_time());
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
     auto values = GetRecordValue<std::vector<std::string_view>>(record);
-    cache.DeleteValuesInSet(record.key()->string_view(), absl::MakeSpan(values),
+    cache.DeleteValuesInSet(log_context, record.key()->string_view(),
+                            absl::MakeSpan(values),
                             record.logical_commit_time());
     return absl::OkStatus();
   }
@@ -234,41 +240,46 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
       });
   auto stream_size = GetBlobSize(*blob_client, GetBlobLocation());
   std::atomic<int64_t> num_records_read{0};
+  kv_server::benchmark::BenchmarkLogContext log_context;
   for (auto _ : state) {
     state.PauseTiming();
     auto cache = args.create_cache_fn();
     state.ResumeTiming();
-    auto status = record_reader.ReadStreamRecords([&num_records_read,
-                                                   cache = cache.get()](
-                                                      std::string_view raw) {
-      num_records_read++;
-      return DeserializeDataRecord(raw, [cache](const DataRecord& data_record) {
-        if (data_record.record_type() == Record::KeyValueMutationRecord) {
-          const auto* record = data_record.record_as_KeyValueMutationRecord();
-          switch (record->mutation_type()) {
-            case KeyValueMutationType::Update: {
-              if (auto status = ApplyUpdateMutation(*record, *cache);
-                  status.ok()) {
-                return status;
+    auto status = record_reader.ReadStreamRecords(
+        [&num_records_read, &log_context,
+         cache = cache.get()](std::string_view raw) {
+          num_records_read++;
+          return DeserializeDataRecord(raw, [cache, &log_context](
+                                                const DataRecord& data_record) {
+            if (data_record.record_type() == Record::KeyValueMutationRecord) {
+              const auto* record =
+                  data_record.record_as_KeyValueMutationRecord();
+              switch (record->mutation_type()) {
+                case KeyValueMutationType::Update: {
+                  if (auto status =
+                          ApplyUpdateMutation(log_context, *record, *cache);
+                      status.ok()) {
+                    return status;
+                  }
+                  break;
+                }
+                case KeyValueMutationType::Delete: {
+                  if (auto status =
+                          ApplyDeleteMutation(log_context, *record, *cache);
+                      status.ok()) {
+                    return status;
+                  }
+                }
+                default:
+                  return absl::InvalidArgumentError(
+                      absl::StrCat("Invalid mutation type: ",
+                                   kv_server::EnumNameKeyValueMutationType(
+                                       record->mutation_type())));
               }
-              break;
             }
-            case KeyValueMutationType::Delete: {
-              if (auto status = ApplyDeleteMutation(*record, *cache);
-                  status.ok()) {
-                return status;
-              }
-            }
-            default:
-              return absl::InvalidArgumentError(
-                  absl::StrCat("Invalid mutation type: ",
-                               kv_server::EnumNameKeyValueMutationType(
-                                   record->mutation_type())));
-          }
-        }
-        return absl::OkStatus();
-      });
-    });
+            return absl::OkStatus();
+          });
+        });
     benchmark::DoNotOptimize(status);
   }
   state.SetItemsProcessed(num_records_read);
@@ -280,7 +291,7 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
 //
 // bazel run \
 //  components/tools/benchmarks:data_loading_benchmark \
-//    --//:instance=local --//:platform=local -- \
+//    --config=local_instance --config=local_platform -- \
 //    --benchmark_time_unit=ms \
 //    --benchmark_counters_tabular=true \
 //    --data_directory=/tmp/data \
@@ -304,7 +315,7 @@ int main(int argc, char** argv) {
     LOG(ERROR) << "Flag '--filename' must be not empty.";
     return -1;
   }
-  kv_server::InitMetricsContextMap();
+  kv_server::ConfigureTelemetryForTools();
   std::unique_ptr<BlobStorageClientFactory> blob_storage_client_factory =
       BlobStorageClientFactory::Create();
   std::unique_ptr<BlobStorageClient> blob_client =

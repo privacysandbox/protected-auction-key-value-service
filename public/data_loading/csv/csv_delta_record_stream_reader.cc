@@ -27,6 +27,7 @@
 
 namespace kv_server {
 namespace {
+
 absl::StatusOr<int64_t> GetInt64Column(const riegeli::CsvRecord& csv_record,
                                        std::string_view column_name) {
   if (int64_t result; absl::SimpleAtoi(csv_record[column_name], &result)) {
@@ -51,23 +52,45 @@ absl::StatusOr<std::string> GetValue(const riegeli::CsvRecord& csv_record,
   return csv_record[kValueColumn];
 }
 
-absl::StatusOr<std::vector<std::string>> GetSetValue(
+template <typename ElementType>
+absl::StatusOr<std::vector<ElementType>> BuildSetValue(
+    const std::vector<std::string>& set) {
+  std::vector<ElementType> result;
+  for (auto&& set_value : set) {
+    if constexpr (std::is_same_v<ElementType, std::string>) {
+      result.push_back(std::string(set_value));
+    }
+    if constexpr (std::is_same_v<ElementType, uint32_t>) {
+      if (uint32_t number; absl::SimpleAtoi(set_value, &number)) {
+        result.push_back(number);
+      } else {
+        return absl::InvalidArgumentError(absl::StrCat(
+            "Cannot convert: ", set_value, " to a uint32 number."));
+      }
+    }
+  }
+  return result;
+}
+
+template <typename ElementType>
+absl::StatusOr<std::vector<ElementType>> GetSetValue(
     const riegeli::CsvRecord& csv_record, char value_separator,
     const CsvEncoding& csv_encoding) {
   if (csv_encoding == CsvEncoding::kBase64) {
-    std::vector<std::string> result;
+    std::vector<std::string> decoded_values;
     for (auto&& set_value :
          absl::StrSplit(csv_record[kValueColumn], value_separator)) {
       if (std::string dest; absl::Base64Unescape(set_value, &dest)) {
-        result.push_back(std::move(dest));
+        decoded_values.push_back(std::move(dest));
       } else {
         return absl::InvalidArgumentError(absl::StrCat(
             "base64 decode failed for value: ", csv_record[kValueColumn]));
       }
     }
-    return result;
+    return BuildSetValue<ElementType>(decoded_values);
   }
-  return absl::StrSplit(csv_record[kValueColumn], value_separator);
+  return BuildSetValue<ElementType>(
+      absl::StrSplit(csv_record[kValueColumn], value_separator));
 }
 
 absl::StatusOr<KeyValueMutationType> GetDeltaMutationType(
@@ -106,11 +129,23 @@ absl::Status SetRecordValue(char value_separator,
     return absl::OkStatus();
   }
   if (absl::EqualsIgnoreCase(type, kValueTypeStringSet)) {
-    auto maybe_value = GetSetValue(csv_record, value_separator, csv_encoding);
+    auto maybe_value =
+        GetSetValue<std::string>(csv_record, value_separator, csv_encoding);
     if (!maybe_value.ok()) {
       return maybe_value.status();
     }
     StringSetT set_value;
+    set_value.value = std::move(*maybe_value);
+    mutation_record.value.Set(std::move(set_value));
+    return absl::OkStatus();
+  }
+  if (absl::EqualsIgnoreCase(type, kValueTypeUInt32Set)) {
+    auto maybe_value =
+        GetSetValue<uint32_t>(csv_record, value_separator, csv_encoding);
+    if (!maybe_value.ok()) {
+      return maybe_value.status();
+    }
+    UInt32SetT set_value;
     set_value.value = std::move(*maybe_value);
     mutation_record.value.Set(std::move(set_value));
     return absl::OkStatus();

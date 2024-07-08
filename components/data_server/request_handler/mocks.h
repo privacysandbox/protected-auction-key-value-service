@@ -27,7 +27,8 @@ namespace kv_server {
 class MockGetValuesAdapter : public GetValuesAdapter {
  public:
   MOCK_METHOD((grpc::Status), CallV2Handler,
-              (const v1::GetValuesRequest& v1_request,
+              (RequestContextFactory & request_context_factory,
+               const v1::GetValuesRequest& v1_request,
                v1::GetValuesResponse& v1_response),
               (const, override));
 };

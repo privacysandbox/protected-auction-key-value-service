@@ -30,16 +30,32 @@ using v1::GetValuesRequest;
 using v1::GetValuesResponse;
 using v1::KeyValueService;
 
+namespace {
+// The V1 request API should have no concept of consented debugging, default
+// all V1 requests to consented requests
+privacy_sandbox::server_common::ConsentedDebugConfiguration
+GetDefaultConsentedDebugConfigForV1Request() {
+  privacy_sandbox::server_common::ConsentedDebugConfiguration config;
+  config.set_is_consented(true);
+  config.set_token(privacy_sandbox::server_common::log::ServerToken());
+  return config;
+}
+}  // namespace
+
 grpc::ServerUnaryReactor* KeyValueServiceImpl::GetValues(
     CallbackServerContext* context, const GetValuesRequest* request,
     GetValuesResponse* response) {
-  auto request_received_time = absl::Now();
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
-  grpc::Status status = handler_.GetValues(request_context, *request, response);
+  privacy_sandbox::server_common::Stopwatch stopwatch;
+  std::unique_ptr<RequestContextFactory> request_context_factory =
+      std::make_unique<RequestContextFactory>();
+  request_context_factory->UpdateLogContext(
+      privacy_sandbox::server_common::LogContext(),
+      GetDefaultConsentedDebugConfigForV1Request());
+  grpc::Status status =
+      handler_.GetValues(*request_context_factory, *request, response);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
-  LogRequestCommonSafeMetrics(request, response, status, request_received_time);
+  LogV1RequestCommonSafeMetrics(request, response, status, stopwatch);
   return reactor;
 }
 

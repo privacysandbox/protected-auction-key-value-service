@@ -112,6 +112,7 @@ function builder::add_aws_env_vars() {
     "AWS_REGION"
     "AWS_DEFAULT_REGION"
     "AWS_PROFILE"
+    "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
   )
 }
 

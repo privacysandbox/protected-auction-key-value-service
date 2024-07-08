@@ -40,8 +40,8 @@ NonprodCloudKeyFetcherFactory::GetPublicKeyFetchingEndpoint(
     const ParameterFetcher& parameter_fetcher) const {
   auto publicKeyEndpointParameter =
       parameter_fetcher.GetParameter(kPublicKeyEndpointParameterSuffix);
-  LOG(INFO) << "Retrieved public_key_endpoint parameter: "
-            << publicKeyEndpointParameter;
+  PS_LOG(INFO, log_context_) << "Retrieved public_key_endpoint parameter: "
+                             << publicKeyEndpointParameter;
   std::vector<std::string> endpoints = {publicKeyEndpointParameter};
   return endpoints;
 }

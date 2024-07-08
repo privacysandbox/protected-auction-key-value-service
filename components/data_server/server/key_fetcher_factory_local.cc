@@ -40,7 +40,8 @@ class LocalKeyFetcherFactory : public KeyFetcherFactory {
   }
 };
 
-std::unique_ptr<KeyFetcherFactory> KeyFetcherFactory::Create() {
+std::unique_ptr<KeyFetcherFactory> KeyFetcherFactory::Create(
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<LocalKeyFetcherFactory>();
 }
 

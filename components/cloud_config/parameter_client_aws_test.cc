@@ -37,7 +37,7 @@ class MockSsmClient : public ::Aws::SSM::SSMClient {
 };
 
 class ParameterClientAwsTest : public ::testing::Test {
- protected:
+ private:
   PlatformInitializer initializer_;
 };
 

@@ -57,6 +57,8 @@ ABSL_FLAG(std::int32_t, logging_verbosity_level, 0,
           "Loggging verbosity level.");
 ABSL_FLAG(absl::Duration, udf_timeout, absl::Seconds(5),
           "Timeout for one UDF invocation");
+ABSL_FLAG(absl::Duration, udf_update_timeout, absl::Seconds(30),
+          "Timeout for UDF code update");
 ABSL_FLAG(int32_t, udf_min_log_level, 0,
           "Minimum logging level for UDFs. Info=0, Warn=1, Error=2. Default is "
           "0(info).");
@@ -67,6 +69,8 @@ ABSL_FLAG(std::string, data_loading_prefix_allowlist, "",
           "Allowlist for blob prefixes.");
 ABSL_FLAG(bool, add_missing_keys_v1, false,
           "Whether to add missing keys for v1.");
+ABSL_FLAG(bool, enable_consented_log, false, "Whether to enable consented log");
+ABSL_FLAG(std::string, consented_debug_token, "", "Consented debug token");
 
 namespace kv_server {
 namespace {
@@ -79,7 +83,9 @@ namespace {
 // if there's a better way.
 class LocalParameterClient : public ParameterClient {
  public:
-  LocalParameterClient() {
+  LocalParameterClient(
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : log_context_(log_context) {
     string_flag_values_.insert(
         {"kv-server-local-directory", absl::GetFlag(FLAGS_delta_directory)});
     string_flag_values_.insert({"kv-server-local-data-bucket-id",
@@ -95,6 +101,8 @@ class LocalParameterClient : public ParameterClient {
     string_flag_values_.insert(
         {"kv-server-local-data-loading-blob-prefix-allowlist",
          absl::GetFlag(FLAGS_data_loading_prefix_allowlist)});
+    string_flag_values_.insert({"kv-server-local-consented-debug-token",
+                                absl::GetFlag(FLAGS_consented_debug_token)});
     // Insert more string flag values here.
 
     int32_t_flag_values_.insert(
@@ -127,6 +135,9 @@ class LocalParameterClient : public ParameterClient {
     int32_t_flag_values_.insert(
         {"kv-server-local-udf-timeout-millis",
          absl::ToInt64Milliseconds(absl::GetFlag(FLAGS_udf_timeout))});
+    int32_t_flag_values_.insert(
+        {"kv-server-local-udf-update-timeout-millis",
+         absl::ToInt64Milliseconds(absl::GetFlag(FLAGS_udf_update_timeout))});
     int32_t_flag_values_.insert({"kv-server-local-udf-min-log-level",
                                  absl::GetFlag(FLAGS_udf_min_log_level)});
     // Insert more int32 flag values here.
@@ -140,6 +151,8 @@ class LocalParameterClient : public ParameterClient {
     bool_flag_values_.insert({"kv-server-local-use-sharding-key-regex", false});
     bool_flag_values_.insert({"kv-server-local-enable-otel-logger",
                               absl::GetFlag(FLAGS_enable_otel_logger)});
+    bool_flag_values_.insert({"kv-server-local-enable-consented-log",
+                              absl::GetFlag(FLAGS_enable_consented_log)});
     // Insert more bool flag values here.
   }
 
@@ -177,17 +190,24 @@ class LocalParameterClient : public ParameterClient {
     }
   }
 
+  void UpdateLogContext(
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
+    log_context_ = log_context;
+  }
+
  private:
   absl::flat_hash_map<std::string, int32_t> int32_t_flag_values_;
   absl::flat_hash_map<std::string, std::string> string_flag_values_;
   absl::flat_hash_map<std::string, bool> bool_flag_values_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 std::unique_ptr<ParameterClient> ParameterClient::Create(
-    ParameterClient::ClientOptions client_options) {
-  return std::make_unique<LocalParameterClient>();
+    ParameterClient::ClientOptions client_options,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<LocalParameterClient>(log_context);
 }
 
 }  // namespace kv_server

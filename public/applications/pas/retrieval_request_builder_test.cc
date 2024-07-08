@@ -27,10 +27,24 @@ namespace {
 using google::protobuf::TextFormat;
 
 TEST(RequestBuilder, Build) {
+  privacy_sandbox::server_common::ConsentedDebugConfiguration
+      consented_debug_configuration;
+  consented_debug_configuration.set_is_consented(true);
+  consented_debug_configuration.set_token("test_token");
+  privacy_sandbox::server_common::LogContext log_context;
+  log_context.set_generation_id("generation_id");
+  log_context.set_adtech_debug_id("debug_id");
+
   v2::GetValuesRequest expected;
   TextFormat::ParseFromString(
       R"pb(
         client_version: "Retrieval.20231018"
+        metadata {
+          fields {
+            key: "is_pas"
+            value { string_value: "true" }
+          }
+        }
         partitions {
           id: 0
           arguments { data { string_value: "protected signals" } }
@@ -62,11 +76,16 @@ TEST(RequestBuilder, Build) {
               }
             }
           }
-
-        })pb",
+        }
+        log_context {
+          generation_id: "generation_id"
+          adtech_debug_id: "debug_id"
+        }
+        consented_debug_config { is_consented: true token: "test_token" })pb",
       &expected);
   EXPECT_THAT(
-      BuildRetrievalRequest("protected signals",
+      BuildRetrievalRequest(log_context, consented_debug_configuration,
+                            "protected signals",
                             {{"m1", "v1"}, {"m2", "v2"}, {"m3", "v3"}},
                             "contextual signals", {"item1", "item2", "item3"}),
       EqualsProto(expected));

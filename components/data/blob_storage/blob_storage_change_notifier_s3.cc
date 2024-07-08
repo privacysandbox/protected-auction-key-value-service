@@ -26,8 +26,10 @@ namespace {
 
 class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:
-  explicit S3BlobStorageChangeNotifier(std::unique_ptr<ChangeNotifier> notifier)
-      : change_notifier_(std::move(notifier)) {}
+  explicit S3BlobStorageChangeNotifier(
+      std::unique_ptr<ChangeNotifier> notifier,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : change_notifier_(std::move(notifier)), log_context_(log_context) {}
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,
@@ -45,8 +47,9 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
       const absl::StatusOr<std::string> parsedMessage =
           ParseObjectKeyFromJson(message);
       if (!parsedMessage.ok()) {
-        LOG(ERROR) << "Failed to parse JSON. Error: " << parsedMessage.status()
-                   << " Message:" << message;
+        PS_LOG(ERROR, log_context_)
+            << "Failed to parse JSON. Error: " << parsedMessage.status()
+            << " Message:" << message;
         LogServerErrorMetric(kAwsJsonParseError);
         continue;
       }
@@ -97,23 +100,27 @@ class S3BlobStorageChangeNotifier : public BlobStorageChangeNotifier {
   }
 
   std::unique_ptr<ChangeNotifier> change_notifier_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>>
-BlobStorageChangeNotifier::Create(NotifierMetadata notifier_metadata) {
+BlobStorageChangeNotifier::Create(
+    NotifierMetadata notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto cloud_notifier_metadata =
       std::get<AwsNotifierMetadata>(notifier_metadata);
   cloud_notifier_metadata.queue_prefix = "BlobNotifier_";
   absl::StatusOr<std::unique_ptr<ChangeNotifier>> status_or =
-      ChangeNotifier::Create(std::move(cloud_notifier_metadata));
+      ChangeNotifier::Create(std::move(cloud_notifier_metadata), log_context);
 
   if (!status_or.ok()) {
     return status_or.status();
   }
 
-  return std::make_unique<S3BlobStorageChangeNotifier>(std::move(*status_or));
+  return std::make_unique<S3BlobStorageChangeNotifier>(std::move(*status_or),
+                                                       log_context);
 }
 
 }  // namespace kv_server

@@ -39,6 +39,7 @@ struct AwsNotifierMetadata {
   MessageService* queue_manager;
   int32_t num_shards = 1;
   int32_t shard_num;
+  std::string environment;
 
   // If this is set then it will be used instead of a real SQSClient.  The
   // ChangeNotifier takes ownership of this.
@@ -52,6 +53,7 @@ struct GcpNotifierMetadata {
   std::string queue_prefix;
   std::string project_id;
   std::string topic_id;
+  std::string environment;
   int32_t num_threads = 1;
   int32_t num_shards = 1;
   int32_t shard_num;

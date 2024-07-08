@@ -74,6 +74,10 @@ local_defines = select({
     ":local_otel_ostream": ["OTEL_EXPORT=\\\"ostream\\\""],
     ":local_otel_otlp": ["OTEL_EXPORT=\\\"otlp\\\""],
     "//conditions:default": ["OTEL_EXPORT=\\\"unknown\\\""],
+}) + select({
+    "//:nonprod_mode": ["MODE=\\\"non_prod\\\""],
+    "//:prod_mode": ["MODE=\\\"prod\\\""],
+    "//conditions:default": ["MODE=\\\"unknown\\\""],
 })
 
 genrule(
@@ -126,6 +130,9 @@ cc_library(
     copts = select({
         "//:gcp_platform": ["-DCLOUD_PLATFORM_GCP=1"],
         "//conditions:default": [],
+    }) + select({
+        "//:local_instance": ["-DINSTANCE_LOCAL=1"],
+        "//conditions:default": [],
     }),
     visibility = [
         "//components:__subpackages__",
@@ -136,6 +143,7 @@ cc_library(
         "//:aws_platform": [
             "//components/errors:aws_error_util",
             "@aws_sdk_cpp//:core",
+            "@google_privacysandbox_servers_common//src/public/core/interface:execution_result",
             "@google_privacysandbox_servers_common//src/public/cpio/interface:cpio",
         ],
         "//:gcp_platform": [
@@ -209,5 +217,16 @@ cc_library(
     ],
     deps = [
         "//components/telemetry:server_definition",
+        "@google_privacysandbox_servers_common//src/logger:request_context_impl",
+    ],
+)
+
+cc_library(
+    name = "safe_path_log_context",
+    hdrs = [
+        "safe_path_log_context.h",
+    ],
+    deps = [
+        "@google_privacysandbox_servers_common//src/logger:request_context_impl",
     ],
 )

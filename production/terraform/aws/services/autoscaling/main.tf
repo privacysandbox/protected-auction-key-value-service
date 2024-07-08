@@ -36,14 +36,23 @@ resource "aws_launch_template" "instance_launch_template" {
   user_data = base64encode(templatefile(
     "${path.module}/instance_init_script.tftpl",
     {
-      enclave_memory_mib        = var.enclave_memory_mib,
-      enclave_cpu_count         = var.enclave_cpu_count,
-      enclave_enable_debug_mode = "${var.enclave_enable_debug_mode ? "--debug-mode" : " "}"
-      server_port               = var.server_port,
-      region                    = var.region,
-      prometheus_service_region = var.prometheus_service_region
-      prometheus_workspace_id   = var.prometheus_workspace_id
-      run_server_outside_tee    = var.run_server_outside_tee
+      enclave_memory_mib              = var.enclave_memory_mib,
+      enclave_cpu_count               = var.enclave_cpu_count,
+      enclave_enable_debug_mode       = "${var.enclave_enable_debug_mode ? "--debug-mode" : " "}"
+      server_port                     = var.server_port,
+      region                          = var.region,
+      prometheus_service_region       = var.prometheus_service_region
+      prometheus_workspace_id         = var.prometheus_workspace_id
+      run_server_outside_tee          = var.run_server_outside_tee
+      cloud_map_service_id            = var.cloud_map_service_id
+      app_mesh_name                   = var.app_mesh_name
+      virtual_node_name               = var.virtual_node_name
+      healthcheck_interval_sec        = var.healthcheck_interval_sec
+      healthcheck_timeout_sec         = var.healthcheck_timeout_sec
+      healthcheck_healthy_threshold   = var.healthcheck_healthy_threshold
+      healthcheck_unhealthy_threshold = var.healthcheck_unhealthy_threshold
+      healthcheck_grace_period_sec    = var.healthcheck_grace_period_sec
+
   }))
 
   # Enforce IMDSv2.

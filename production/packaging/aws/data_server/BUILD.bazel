@@ -34,24 +34,6 @@ pkg_files(
     prefix = "/",
 )
 
-pkg_files(
-    name = "kmstool_enclave_executables",
-    srcs = [
-        "@google_privacysandbox_servers_common//src/cpio/client_providers/kms_client_provider/aws:kms_cli",
-    ],
-    attributes = pkg_attributes(mode = "0555"),
-    prefix = "/cpio/bin",
-)
-
-pkg_files(
-    name = "kmstool_enclave_libs",
-    srcs = [
-        "@google_privacysandbox_servers_common//src/cpio/client_providers/kms_client_provider/aws:libnsm_so",
-    ],
-    attributes = pkg_attributes(mode = "0444"),
-    prefix = "/cpio/lib",
-)
-
 # Create a symlink between where kmstool_enclave_cli expects shell to be
 # (/bin/sh) and where it actually is on our image (/busybox/sh).
 pkg_mklink(
@@ -61,8 +43,6 @@ pkg_mklink(
 )
 
 server_binaries = [
-    ":kmstool_enclave_executables",
-    ":kmstool_enclave_libs",
     ":server_executables",
     ":busybox_sh_symlink",
 ]
@@ -75,17 +55,6 @@ pkg_zip(
 pkg_tar(
     name = "server_binaries_tar",
     srcs = server_binaries,
-)
-
-# Ensure libnsm ends up in the load path.
-pkg_tar(
-    name = "libnsm-tar",
-    srcs = [
-        "@google_privacysandbox_servers_common//src/cpio/client_providers/kms_client_provider/aws:libnsm_so",
-    ],
-    mode = "0444",
-    package_dir = "/cpio/lib",
-    visibility = ["//visibility:public"],
 )
 
 # This image target is meant for testing running the server in an enclave using.
@@ -106,13 +75,13 @@ oci_image(
         "--port=50051",
         # These affect PCR0, so changing these would result in the loss of ability to communicate with
         # the downstream components
-        "--public_key_endpoint=https://publickeyservice.pa.aws.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
+        "--public_key_endpoint=https://publickeyservice.pa-3.aws.privacysandboxservices.com/v1alpha/publicKeys",
         "--stderrthreshold=0",
     ],
     tars = [
         "@google_privacysandbox_servers_common//src/aws/proxy:libnsm_and_proxify_tar",
+        "@google_privacysandbox_servers_common//src/cpio/client_providers/kms_client_provider/aws:kms_binaries",
         "//production/packaging/aws/resolv:resolv_config_layer",
-        ":libnsm-tar",
         ":server_binaries_tar",
     ],
 )

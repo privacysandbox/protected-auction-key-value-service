@@ -28,6 +28,12 @@
     If you want to import an existing public certificate into ACM, follow these steps to
     [import the certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate.html).
 
+-   **consented_debug_token**
+
+    Consented debug token to enable the otel collection of consented logs. Empty token means no-op
+    and no logs will be collected for consented requests. The token in the request's consented debug
+    configuration needs to match this debug token to make the server treat the request as consented.
+
 -   **data_loading_blob_prefix_allowlist**
 
     A comma separated list of prefixes (i.e., directories) where data is loaded from.
@@ -41,6 +47,16 @@
 
     the number of concurrent threads used to read and load a single delta or snapshot file from blob
     storage.
+
+-   **enable_consented_log**
+
+    Enable the logging of consented requests. If it is set to true, the consented debug token
+    parameter value must not be an empty string.
+
+-   **enable_external_traffic**
+
+    Whether to serve external traffic. If disabled, only internal traffic under existing VPC will be
+    served.
 
 -   **enclave_cpu_count**
 
@@ -63,6 +79,19 @@
     strings like `staging` and `prod` can be used to represent the environment that the Key/Value
     server will run in.
 
+-   **existing_vpc_environment**
+
+    Environment of the existing VPC. Ingored if use_existing_vpc is false.
+
+-   **existing_vpc_operator**
+
+    Operator of the existing VPC. Ingored if use_existing_vpc is false.
+
+-   **healthcheck_grace_period_sec**
+
+    Amount of time to wait for service inside enclave to start up before starting health checks, in
+    seconds.
+
 -   **healthcheck_healthy_threshold**
 
     Consecutive health check successes required to be considered healthy
@@ -70,6 +99,10 @@
 -   **healthcheck_interval_sec**
 
     Amount of time between health check intervals in seconds.
+
+-   **healthcheck_timeout_sec**
+
+    Amount of time to wait for a health check response in seconds.
 
 -   **healthcheck_unhealthy_threshold**
 
@@ -232,6 +265,15 @@
 -   **udf_num_workers**
 
     Total number of workers for UDF execution
+
+-   **udf_update_timeout_millis**
+
+    UDF update timeout in milliseconds. Default is 30000.
+
+-   **use_existing_vpc**
+
+    Whether to use existing VPC. If true, only internal traffic via mesh will be served; variable
+    vpc_operator and vpc_environment will be requried.
 
 -   **use_external_metrics_collector_endpoint**
 

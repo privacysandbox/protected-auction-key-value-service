@@ -43,12 +43,20 @@ namespace kv_server {
 template <typename SrcStreamT = std::iostream>
 class DeltaRecordStreamReader : public DeltaRecordReader {
  public:
-  explicit DeltaRecordStreamReader(SrcStreamT& src_stream)
+  explicit DeltaRecordStreamReader(
+      SrcStreamT& src_stream,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext))
       : stream_reader_(RiegeliStreamReader<std::string_view>(
-            src_stream, [](const riegeli::SkippedRegion& region) {
-              LOG(ERROR) << "Failed to read region: " << region;
+            src_stream,
+            [&log_context](const riegeli::SkippedRegion& region,
+                           riegeli::RecordReaderBase& record_reader) {
+              PS_LOG(ERROR, log_context) << "Failed to read region: " << region;
               return true;
-            })) {}
+            },
+            log_context)),
+        log_context_(log_context) {}
   DeltaRecordStreamReader(const DeltaRecordStreamReader&) = delete;
   DeltaRecordStreamReader& operator=(const DeltaRecordStreamReader&) = delete;
 
@@ -64,6 +72,7 @@ class DeltaRecordStreamReader : public DeltaRecordReader {
 
  private:
   RiegeliStreamReader<std::string_view> stream_reader_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 template <typename SrcStreamT>

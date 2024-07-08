@@ -19,9 +19,9 @@ variable "environment" {
   type        = string
 }
 
-variable "collector_ip_address" {
-  description = "Collector IP address"
-  type        = string
+variable "subnets" {
+  description = "All service subnets."
+  type        = any
 }
 
 variable "collector_instance_groups" {
@@ -46,4 +46,9 @@ variable "collector_domain_name" {
 variable "collector_dns_zone" {
   description = "Google Cloud DNS zone name for collector."
   type        = string
+}
+
+variable "proxy_subnets" {
+  description = "A list of all envoy proxy subnets. Used to allow ingress into the collectors."
+  type        = any
 }

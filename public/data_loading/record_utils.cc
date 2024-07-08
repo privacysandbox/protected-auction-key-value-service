@@ -49,6 +49,11 @@ absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
        kv_mutation_record.value_as_StringSet()->value() == nullptr)) {
     return absl::InvalidArgumentError("StringSet value not set.");
   }
+  if (kv_mutation_record.value_type() == Value::UInt32Set &&
+      (kv_mutation_record.value_as_UInt32Set() == nullptr ||
+       kv_mutation_record.value_as_UInt32Set()->value() == nullptr)) {
+    return absl::InvalidArgumentError("UInt32Set value not set.");
+  }
   return absl::OkStatus();
 }
 
@@ -157,6 +162,20 @@ absl::StatusOr<std::vector<std::string_view>> MaybeGetRecordValue(
     values.push_back(val->string_view());
   }
   return values;
+}
+
+template <>
+absl::StatusOr<std::vector<uint32_t>> MaybeGetRecordValue(
+    const KeyValueMutationRecord& record) {
+  const kv_server::UInt32Set* maybe_value = record.value_as_UInt32Set();
+  if (!maybe_value) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "KeyValueMutationRecord does not contain expected value type. "
+        "Expected: UInt32Set",
+        ". Actual: ", EnumNameValue(record.value_type())));
+  }
+  return std::vector<uint32_t>(maybe_value->value()->begin(),
+                               maybe_value->value()->end());
 }
 
 }  // namespace kv_server

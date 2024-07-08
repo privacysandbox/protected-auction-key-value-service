@@ -18,7 +18,6 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "components/data_server/cache/cache.h"
 
@@ -35,21 +34,37 @@ class NoOpKeyValueCache : public Cache {
       const absl::flat_hash_set<std::string_view>& key_set) const override {
     return std::make_unique<NoOpGetKeyValueSetResult>();
   }
-  void UpdateKeyValue(std::string_view key, std::string_view value,
-                      int64_t logical_commit_time,
-                      std::string_view prefix) override {}
-  void UpdateKeyValueSet(std::string_view key,
-                         absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time,
-                         std::string_view prefix) override {}
-  void DeleteKey(std::string_view key, int64_t logical_commit_time,
+  std::unique_ptr<GetKeyValueSetResult> GetUInt32ValueSet(
+      const RequestContext& request_context,
+      const absl::flat_hash_set<std::string_view>& key_set) const override {
+    return std::make_unique<NoOpGetKeyValueSetResult>();
+  }
+  void UpdateKeyValue(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, std::string_view value, int64_t logical_commit_time,
+      std::string_view prefix) override {}
+  void UpdateKeyValueSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<std::string_view> value_set,
+      int64_t logical_commit_time, std::string_view prefix) override {}
+  void UpdateKeyValueSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<uint32_t> value_set,
+      int64_t logical_commit_time, std::string_view prefix = "") override {}
+  void DeleteKey(privacy_sandbox::server_common::log::PSLogContext& log_context,
+                 std::string_view key, int64_t logical_commit_time,
                  std::string_view prefix) override {}
-  void DeleteValuesInSet(std::string_view key,
-                         absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time,
-                         std::string_view prefix) override {}
-  void RemoveDeletedKeys(int64_t logical_commit_time,
-                         std::string_view prefix) override {}
+  void DeleteValuesInSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<std::string_view> value_set,
+      int64_t logical_commit_time, std::string_view prefix) override {}
+  void DeleteValuesInSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<uint32_t> value_set,
+      int64_t logical_commit_time, std::string_view prefix = "") override {}
+  void RemoveDeletedKeys(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      int64_t logical_commit_time, std::string_view prefix) override {}
   static std::unique_ptr<Cache> Create() {
     return std::make_unique<NoOpKeyValueCache>();
   }
@@ -60,9 +75,17 @@ class NoOpKeyValueCache : public Cache {
         std::string_view key) const override {
       return {};
     }
+    const UInt32ValueSet* GetUInt32ValueSet(
+        std::string_view key) const override {
+      return nullptr;
+    }
     void AddKeyValueSet(
         std::string_view key, absl::flat_hash_set<std::string_view> value_set,
         std::unique_ptr<absl::ReaderMutexLock> key_lock) override {}
+    void AddUInt32ValueSet(
+        std::string_view key,
+        ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr
+            value_set_node) override {}
   };
 };
 

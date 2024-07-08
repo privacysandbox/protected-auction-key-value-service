@@ -20,10 +20,10 @@ parameters:
 The data loading benchmark tool can be used to search for optimal
 [tuning parameters](#tuning-parameters) that are best suited to specific hardware, memory and
 network specs. To build the benchmarking tool for AWS use the following command (note the
-`--//:platform=aws` build flag):
+`--config=aws_platform` build flag):
 
 ```sh
-builders/tools/bazel-debian run //production/packaging/tools:copy_to_dist --//:instance=local --//:platform=aws
+builders/tools/bazel-debian run //production/packaging/tools:copy_to_dist --config=local_instance --config=aws_platform
 ```
 
 After building, load the tool into docker as follows:

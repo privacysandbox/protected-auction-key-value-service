@@ -125,3 +125,43 @@ locals {
   validate_prometheus_workspace_id = (
   var.prometheus_service_region == var.region || var.prometheus_workspace_id != null) ? true : tobool("If Prometheus service runs in a different region, please create the workspace first and specify the workspace id in var file.")
 }
+
+variable "cloud_map_service_id" {
+  description = "The ID of the service discovery service"
+  type        = string
+}
+
+variable "app_mesh_name" {
+  description = "Name of the AWS App Mesh in which this service will communicate."
+  type        = string
+}
+
+variable "virtual_node_name" {
+  description = "Name of the App Mesh Virtual Node of which instance in this ASG will be a part."
+  type        = string
+}
+
+variable "healthcheck_interval_sec" {
+  description = "Amount of time between health check intervals in seconds."
+  type        = number
+}
+
+variable "healthcheck_healthy_threshold" {
+  description = "Consecutive health check successes required to be considered healthy."
+  type        = number
+}
+
+variable "healthcheck_unhealthy_threshold" {
+  description = "Consecutive health check failures required to be considered unhealthy."
+  type        = number
+}
+
+variable "healthcheck_timeout_sec" {
+  description = "Amount of time to wait for a health check response in seconds."
+  type        = number
+}
+
+variable "healthcheck_grace_period_sec" {
+  description = "Amount of time to wait for service inside enclave to start up before starting health checks, in seconds."
+  type        = number
+}

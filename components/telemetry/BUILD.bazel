@@ -55,6 +55,7 @@ cc_library(
         "@google_privacysandbox_servers_common//src/metric:context_map",
         "@google_privacysandbox_servers_common//src/util:duration",
         "@google_privacysandbox_servers_common//src/util:read_system",
+        "@io_opentelemetry_cpp//sdk/src/metrics",
     ],
 )
 

@@ -14,10 +14,11 @@
 
 #include "public/data_loading/records_utils.h"
 
-#include <numeric>
-
 #include "absl/log/log.h"
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "flatbuffers/flatbuffer_builder.h"
+#include "public/data_loading/record_utils.h"
 
 namespace kv_server {
 namespace {
@@ -48,6 +49,13 @@ ValueUnion BuildValueUnion(const KeyValueMutationRecordValueT& value,
           return ValueUnion{
               .value_type = Value::StringSet,
               .value = CreateStringSet(builder, values_offset).Union(),
+          };
+        }
+        if constexpr (std::is_same_v<VariantT, std::vector<uint32_t>>) {
+          auto values_offset = builder.CreateVector(arg);
+          return ValueUnion{
+              .value_type = Value::UInt32Set,
+              .value = CreateUInt32Set(builder, values_offset).Union(),
           };
         }
         if constexpr (std::is_same_v<VariantT, std::monostate>) {
@@ -148,6 +156,11 @@ absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
        kv_mutation_record.value_as_StringSet()->value() == nullptr)) {
     return absl::InvalidArgumentError("StringSet value not set.");
   }
+  if (kv_mutation_record.value_type() == Value::UInt32Set &&
+      (kv_mutation_record.value_as_UInt32Set() == nullptr ||
+       kv_mutation_record.value_as_UInt32Set()->value() == nullptr)) {
+    return absl::InvalidArgumentError("UInt32Set value not set.");
+  }
   return absl::OkStatus();
 }
 
@@ -201,6 +214,9 @@ KeyValueMutationRecordValueT GetRecordStructValue(
   }
   if (fbs_record.value_type() == Value::StringSet) {
     value = GetRecordValue<std::vector<std::string_view>>(fbs_record);
+  }
+  if (fbs_record.value_type() == Value::UInt32Set) {
+    value = GetRecordValue<std::vector<uint32_t>>(fbs_record);
   }
   return value;
 }
@@ -349,6 +365,12 @@ std::vector<std::string_view> GetRecordValue(
     values.push_back(val->string_view());
   }
   return values;
+}
+
+template <>
+std::vector<uint32_t> GetRecordValue(const KeyValueMutationRecord& record) {
+  return std::vector<uint32_t>(record.value_as_UInt32Set()->value()->begin(),
+                               record.value_as_UInt32Set()->value()->end());
 }
 
 template <>

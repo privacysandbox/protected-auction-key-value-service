@@ -18,13 +18,13 @@
 #define COMPONENTS_INTERNAL_SERVER_LOOKUP_SERVER_IMPL_H_
 
 #include <string>
+#include <utility>
 
 #include "components/internal_server/lookup.grpc.pb.h"
 #include "components/internal_server/lookup.h"
 #include "components/util/request_context.h"
 #include "grpcpp/grpcpp.h"
 #include "src/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
-#include "src/telemetry/telemetry.h"
 
 namespace kv_server {
 // Implements the internal lookup service for the data store.
@@ -52,6 +52,11 @@ class LookupServiceImpl final
       const kv_server::InternalRunQueryRequest* request,
       kv_server::InternalRunQueryResponse* response) override;
 
+  grpc::Status InternalRunSetQueryInt(
+      grpc::ServerContext* context,
+      const kv_server::InternalRunSetQueryIntRequest* request,
+      kv_server::InternalRunSetQueryIntResponse* response) override;
+
  private:
   std::string GetPayload(
       const RequestContext& request_context, const bool lookup_sets,
@@ -63,9 +68,32 @@ class LookupServiceImpl final
       const RequestContext& request_context,
       const google::protobuf::RepeatedPtrField<std::string>& keys,
       InternalLookupResponse& response) const;
-  grpc::Status ToInternalGrpcStatus(const RequestContext& request_context,
-                                    const absl::Status& status,
-                                    std::string_view error_code) const;
+  grpc::Status ToInternalGrpcStatus(
+      InternalLookupMetricsContext& metrics_context, const absl::Status& status,
+      std::string_view error_code) const;
+
+  template <typename RequestType, typename ResponseType>
+  grpc::Status RunSetQuery(grpc::ServerContext* context,
+                           const RequestType* request, ResponseType* response,
+                           absl::AnyInvocable<absl::StatusOr<ResponseType>(
+                               const RequestContext&, std::string)>
+                               run_set_query_fn) {
+    RequestContext request_context;
+    if (context->IsCancelled()) {
+      return grpc::Status(grpc::StatusCode::CANCELLED,
+                          "Deadline exceeded or client cancelled, abandoning.");
+    }
+    const auto process_result =
+        run_set_query_fn(request_context, request->query());
+    if (!process_result.ok()) {
+      return ToInternalGrpcStatus(
+          request_context.GetInternalLookupMetricsContext(),
+          process_result.status(), kInternalRunQueryRequestFailure);
+    }
+    *response = std::move(*process_result);
+    return grpc::Status::OK;
+  }
+
   const Lookup& lookup_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&
       key_fetcher_manager_;

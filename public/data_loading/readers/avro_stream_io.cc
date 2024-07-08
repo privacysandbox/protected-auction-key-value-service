@@ -130,9 +130,9 @@ absl::Status AvroConcurrentStreamRecordReader::ReadStreamRecords(
     }
     total_records_read += curr_byte_range_result->num_records_read;
   }
-  VLOG(2) << "Done reading " << total_records_read << " records in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+  PS_VLOG(2, options_.log_context)
+      << "Done reading " << total_records_read << " records in "
+      << absl::ToDoubleMilliseconds(latency_recorder.GetLatency()) << " ms.";
   return absl::OkStatus();
 }
 
@@ -153,20 +153,20 @@ AvroConcurrentStreamRecordReader::ReadByteRange(
     const ByteRange& byte_range,
     const std::function<absl::Status(const std::string_view&)>&
         record_callback) {
-  VLOG(2) << "Reading byte_range: "
-          << "[" << byte_range.begin_offset << "," << byte_range.end_offset
-          << "]";
+  PS_VLOG(2, options_.log_context)
+      << "Reading byte_range: " << "[" << byte_range.begin_offset << ","
+      << byte_range.end_offset << "]";
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kConcurrentStreamRecordReaderReadByteRangeLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
   auto record_stream = stream_factory_();
-  VLOG(9) << "creating input stream";
+  PS_VLOG(9, options_.log_context) << "creating input stream";
   avro::InputStreamPtr input_stream =
       avro::istreamInputStream(record_stream->Stream());
-  VLOG(9) << "creating reader";
+  PS_VLOG(9, options_.log_context) << "creating reader";
   auto record_reader = std::make_unique<avro::DataFileReader<std::string>>(
       std::move(input_stream));
-  VLOG(9) << "syncing to block";
+  PS_VLOG(9, options_.log_context) << "syncing to block";
   if (record_stream->Stream().bad()) {
     return absl::InternalError("Avro stream is bad");
   }
@@ -183,14 +183,15 @@ AvroConcurrentStreamRecordReader::ReadByteRange(
   // TODO: b/269119466 - Figure out how to handle this better. Maybe add
   // metrics to track callback failures (??).
   if (!overall_status.ok()) {
-    LOG(ERROR) << "Record callback failed to process some records with: "
-               << overall_status;
+    PS_LOG(ERROR, options_.log_context)
+        << "Record callback failed to process some records with: "
+        << overall_status;
     return overall_status;
   }
-  VLOG(2) << "Done reading " << num_records_read << " records in byte_range: ["
-          << byte_range.begin_offset << "," << byte_range.end_offset << "] in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+  PS_VLOG(2, options_.log_context)
+      << "Done reading " << num_records_read << " records in byte_range: ["
+      << byte_range.begin_offset << "," << byte_range.end_offset << "] in "
+      << absl::ToDoubleMilliseconds(latency_recorder.GetLatency()) << " ms.";
   ByteRangeResult result;
   result.num_records_read = num_records_read;
   return result;

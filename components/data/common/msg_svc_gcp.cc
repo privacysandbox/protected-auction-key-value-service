@@ -34,19 +34,24 @@ using ::google::cloud::pubsub::Subscription;
 using ::google::cloud::pubsub::SubscriptionBuilder;
 using ::google::cloud::pubsub::Topic;
 
+constexpr char kEnvironmentTag[] = "environment";
 constexpr char kFilterPolicyTemplate[] = R"(attributes.shard_num="%d")";
 
 class GcpMessageService : public MessageService {
  public:
-  GcpMessageService(std::string prefix, std::string topic_id,
-                    std::string project_id,
-                    pubsub::SubscriptionAdminClient subscription_admin_client,
-                    std::optional<int32_t> shard_num)
+  GcpMessageService(
+      std::string prefix, std::string topic_id, std::string project_id,
+      std::string environment,
+      pubsub::SubscriptionAdminClient subscription_admin_client,
+      std::optional<int32_t> shard_num,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : prefix_(std::move(prefix)),
         topic_id_(std::move(topic_id)),
         project_id_(project_id),
+        environment_(environment),
         subscription_admin_client_(subscription_admin_client),
-        shard_num_(shard_num) {}
+        shard_num_(shard_num),
+        log_context_(log_context) {}
 
   bool IsSetupComplete() const {
     absl::ReaderMutexLock lock(&mutex_);
@@ -82,12 +87,14 @@ class GcpMessageService : public MessageService {
   absl::StatusOr<std::string> CreateQueue() {
     std::string subscription_id = GenerateQueueName(prefix_);
     SubscriptionBuilder subscription_builder;
+    subscription_builder.add_label(kEnvironmentTag, environment_);
     if (prefix_ == "QueueNotifier_" && shard_num_.has_value()) {
       subscription_builder.set_filter(
           absl::StrFormat(kFilterPolicyTemplate, shard_num_.value()));
     }
-    VLOG(1) << "Creating a subscription for project id " << project_id_
-            << " with subsciprition id " << subscription_id;
+    PS_VLOG(1, log_context_)
+        << "Creating a subscription for project id " << project_id_
+        << " with subsciprition id " << subscription_id;
     auto sub = subscription_admin_client_.CreateSubscription(
         Topic(project_id_, std::move(topic_id_)),
         Subscription(project_id_, subscription_id), subscription_builder);
@@ -96,7 +103,7 @@ class GcpMessageService : public MessageService {
     }
 
     sub_id_ = subscription_id;
-    VLOG(1) << "Subscription created " << sub_id_;
+    PS_VLOG(1, log_context_) << "Subscription created " << sub_id_;
     return subscription_id;
   }
 
@@ -104,6 +111,7 @@ class GcpMessageService : public MessageService {
   const std::string prefix_;
   const std::string topic_id_;
   const std::string project_id_;
+  const std::string environment_;
   bool is_set_up_ = false;
   std::string sub_id_;
 
@@ -111,12 +119,14 @@ class GcpMessageService : public MessageService {
 
   bool are_attributes_set_ = false;
   std::optional<int32_t> shard_num_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
-    NotifierMetadata notifier_metadata) {
+    NotifierMetadata notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto metadata = std::get<GcpNotifierMetadata>(notifier_metadata);
   auto shard_num =
       (metadata.num_shards > 1 ? std::optional<int32_t>(metadata.shard_num)
@@ -126,7 +136,7 @@ absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
 
   return std::make_unique<GcpMessageService>(
       std::move(metadata.queue_prefix), std::move(metadata.topic_id),
-      std::move(metadata.project_id), std::move(subscription_admin_client),
-      shard_num);
+      std::move(metadata.project_id), std::move(metadata.environment),
+      std::move(subscription_admin_client), shard_num, log_context);
 }
 }  // namespace kv_server

@@ -38,7 +38,10 @@ class ParameterFetcher {
   ParameterFetcher(
       std::string environment, const ParameterClient& parameter_client,
       absl::AnyInvocable<void(const absl::Status& status, int count) const>
-          metric_callback = LogMetricsNoOpCallback());
+          metric_callback = LogMetricsNoOpCallback(),
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 
   virtual ~ParameterFetcher() = default;
 
@@ -59,6 +62,9 @@ class ParameterFetcher {
 
   virtual NotifierMetadata GetRealtimeNotifierMetadata(int32_t num_shards,
                                                        int32_t shard_num) const;
+
+ protected:
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 
  private:
   std::string GetParamName(std::string_view parameter_suffix) const;

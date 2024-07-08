@@ -43,9 +43,10 @@ class RemoteLookupClientImplTest : public ::testing::Test {
             server_->InProcessChannel(grpc::ChannelArguments())),
         fake_key_fetcher_manager_);
     InitMetricsContextMap();
-    scope_metrics_context_ = std::make_unique<ScopeMetricsContext>();
-    request_context_ =
-        std::make_unique<RequestContext>(*scope_metrics_context_);
+    request_context_ = std::make_unique<RequestContext>();
+    request_context_->UpdateLogContext(
+        privacy_sandbox::server_common::LogContext(),
+        privacy_sandbox::server_common::ConsentedDebugConfiguration());
   }
 
   ~RemoteLookupClientImplTest() {
@@ -59,8 +60,7 @@ class RemoteLookupClientImplTest : public ::testing::Test {
   std::unique_ptr<LookupServiceImpl> lookup_service_;
   std::unique_ptr<grpc::Server> server_;
   std::unique_ptr<RemoteLookupClient> remote_lookup_client_;
-  std::unique_ptr<ScopeMetricsContext> scope_metrics_context_;
-  std::unique_ptr<RequestContext> request_context_;
+  std::shared_ptr<RequestContext> request_context_;
 };
 
 TEST_F(RemoteLookupClientImplTest, EncryptedPaddedSuccessfulCall) {

@@ -21,12 +21,14 @@
 namespace kv_server {
 ClusterMappingsManager::ClusterMappingsManager(
     std::string environment, int32_t num_shards,
-    InstanceClient& instance_client, std::unique_ptr<SleepFor> sleep_for,
-    int32_t update_interval_millis)
+    InstanceClient& instance_client,
+    privacy_sandbox::server_common::log::PSLogContext& log_context,
+    std::unique_ptr<SleepFor> sleep_for, int32_t update_interval_millis)
     : environment_{std::move(environment)},
       num_shards_{num_shards},
       instance_client_{instance_client},
       thread_manager_(ThreadManager::Create("Cluster mappings updater")),
+      log_context_(log_context),
       sleep_for_(std::move(sleep_for)),
       update_interval_millis_(update_interval_millis) {
   CHECK_GT(num_shards, 1) << "num_shards for ShardedLookup must be > 1";
@@ -52,5 +54,10 @@ void ClusterMappingsManager::Watch(ShardManager& shard_manager) {
     sleep_for_->Duration(absl::Milliseconds(update_interval_millis_));
     shard_manager.InsertBatch(GetClusterMappings());
   }
+}
+
+privacy_sandbox::server_common::log::PSLogContext&
+ClusterMappingsManager::GetLogContext() const {
+  return log_context_;
 }
 }  // namespace kv_server

@@ -56,6 +56,7 @@ module "kv_server" {
   collector_service_name                = var.collector_service_name
   collector_machine_type                = var.collector_machine_type
   collector_service_port                = var.collector_service_port
+  collector_startup_script_path         = var.collector_startup_script_path
   collector_domain_name                 = var.collector_domain_name
   collector_dns_zone                    = var.collector_dns_zone
   data_bucket_id                        = var.data_bucket_id
@@ -81,6 +82,7 @@ module "kv_server" {
     num-shards                                 = var.num_shards
     udf-num-workers                            = var.udf_num_workers
     udf-timeout-millis                         = var.udf_timeout_millis
+    udf-update-timeout-millis                  = var.udf_update_timeout_millis
     udf-min-log-level                          = var.udf_min_log_level
     route-v1-to-v2                             = var.route_v1_to_v2
     add-missing-keys-v1                        = var.add_missing_keys_v1
@@ -107,5 +109,7 @@ module "kv_server" {
     enable-external-traffic                    = var.enable_external_traffic
     telemetry-config                           = var.telemetry_config
     data-loading-blob-prefix-allowlist         = var.data_loading_blob_prefix_allowlist
+    consented-debug-token                      = var.consented_debug_token
+    enable-consented-log                       = var.enable_consented_log
   }
 }

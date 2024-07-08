@@ -15,5 +15,5 @@
  */
 
 output "kv_server_url" {
-  value = module.load_balancing.kv_server_url
+  value = "${var.enable_external_traffic ? "External url: ${module.load_balancing[0].kv_server_url}\n" : ""}${var.use_existing_vpc ? "Mesh virtual service name: ${module.mesh_service[0].virtual_service_name}" : ""}"
 }

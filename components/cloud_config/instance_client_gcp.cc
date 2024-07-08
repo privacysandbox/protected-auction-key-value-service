@@ -54,7 +54,6 @@ using google::cmrt::sdk::instance_service::v1::
 using ::google::scp::core::ExecutionResult;
 using ::google::scp::core::errors::GetErrorMessage;
 using google::scp::cpio::InstanceClientInterface;
-using google::scp::cpio::InstanceClientOptions;
 
 namespace compute = ::google::cloud::compute_instances_v1;
 
@@ -86,9 +85,10 @@ InstanceServiceStatus GetInstanceServiceStatus(const std::string& status) {
 
 class GcpInstanceClient : public InstanceClient {
  public:
-  GcpInstanceClient()
-      : instance_client_(google::scp::cpio::InstanceClientFactory::Create(
-            InstanceClientOptions())) {
+  GcpInstanceClient(
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : instance_client_(google::scp::cpio::InstanceClientFactory::Create()),
+        log_context_(log_context) {
     instance_client_->Init();
   }
 
@@ -120,7 +120,7 @@ class GcpInstanceClient : public InstanceClient {
 
   absl::Status RecordLifecycleHeartbeat(
       std::string_view lifecycle_hook_name) override {
-    LOG(INFO) << "Record lifecycle heartbeat.";
+    PS_LOG(INFO, log_context_) << "Record lifecycle heartbeat.";
     return absl::OkStatus();
   }
 
@@ -162,7 +162,7 @@ class GcpInstanceClient : public InstanceClient {
       std::string_view lifecycle_hook_name) override {
     PS_RETURN_IF_ERROR(SetInitializedLabel())
         << "Error setting the initialized label";
-    LOG(INFO) << "Complete lifecycle.";
+    PS_LOG(INFO, log_context_) << "Complete lifecycle.";
     return absl::OkStatus();
   }
 
@@ -227,6 +227,11 @@ class GcpInstanceClient : public InstanceClient {
     return std::vector<InstanceInfo>{InstanceInfo{.id = *id}};
   }
 
+  void UpdateLogContext(
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
+    log_context_ = log_context;
+  }
+
  private:
   absl::Status GetInstanceDetails() {
     absl::StatusOr<std::string> resource_name =
@@ -239,13 +244,15 @@ class GcpInstanceClient : public InstanceClient {
     GetInstanceDetailsByResourceNameRequest request;
     request.set_instance_resource_name(resource_name.value());
 
-    const auto& result = instance_client_->GetInstanceDetailsByResourceName(
+    absl::Status status = instance_client_->GetInstanceDetailsByResourceName(
         std::move(request),
         [&done, this](
             const ExecutionResult& result,
             const GetInstanceDetailsByResourceNameResponse& response) {
           if (result.Successful()) {
-            VLOG(2) << response.DebugString();
+            // TODO(b/342614468): Temporarily turn off this vlog until
+            // verbosity setting API in the common repo is fixed
+            // PS_VLOG(2, log_context_) << response.DebugString();
             instance_id_ =
                 std::string{response.instance_details().instance_id()};
             environment_ =
@@ -253,36 +260,35 @@ class GcpInstanceClient : public InstanceClient {
             shard_number_ =
                 response.instance_details().labels().at(kShardNumberLabel);
           } else {
-            LOG(ERROR) << "Failed to get instance details: "
-                       << GetErrorMessage(result.status_code);
+            PS_LOG(ERROR, log_context_) << "Failed to get instance details: "
+                                        << GetErrorMessage(result.status_code);
           }
           done.Notify();
         });
     done.WaitForNotification();
-    return result.Successful()
-               ? absl::OkStatus()
-               : absl::InternalError(GetErrorMessage(result.status_code));
+    return status;
   }
 
   absl::StatusOr<std::string> GetResourceName(
       std::unique_ptr<InstanceClientInterface>& instance_client) {
     std::string resource_name;
     absl::Notification done;
-    const auto& result = instance_client->GetCurrentInstanceResourceName(
+    absl::Status status = instance_client->GetCurrentInstanceResourceName(
         GetCurrentInstanceResourceNameRequest(),
         [&](const ExecutionResult& result,
             const GetCurrentInstanceResourceNameResponse& response) {
           if (result.Successful()) {
             resource_name = std::string{response.instance_resource_name()};
           } else {
-            LOG(ERROR) << "Failed to get instance resource name: "
-                       << GetErrorMessage(result.status_code);
+            PS_LOG(ERROR, log_context_)
+                << "Failed to get instance resource name: "
+                << GetErrorMessage(result.status_code);
           }
 
           done.Notify();
         });
-    if (!result.Successful()) {
-      return absl::InternalError(GetErrorMessage(result.status_code));
+    if (!status.ok()) {
+      return status;
     }
     done.WaitForNotification();
     if (resource_name.empty()) {
@@ -299,10 +305,12 @@ class GcpInstanceClient : public InstanceClient {
   std::unique_ptr<InstanceClientInterface> instance_client_;
   compute::InstancesClient client_ =
       compute::InstancesClient(compute::MakeInstancesConnectionRest());
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 }  // namespace
 
-std::unique_ptr<InstanceClient> InstanceClient::Create() {
-  return std::make_unique<GcpInstanceClient>();
+std::unique_ptr<InstanceClient> InstanceClient::Create(
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<GcpInstanceClient>(log_context);
 }
 }  // namespace kv_server

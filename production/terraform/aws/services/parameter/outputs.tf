@@ -142,6 +142,10 @@ output "udf_timeout_millis_parameter_arn" {
   value = aws_ssm_parameter.udf_timeout_millis_parameter.arn
 }
 
+output "udf_update_timeout_millis_parameter_arn" {
+  value = aws_ssm_parameter.udf_update_timeout_millis_parameter.arn
+}
+
 output "udf_min_log_level_parameter_arn" {
   value = aws_ssm_parameter.udf_min_log_level_parameter.arn
 }
@@ -152,4 +156,12 @@ output "enable_otel_logger_parameter_arn" {
 
 output "data_loading_blob_prefix_allowlist_parameter_arn" {
   value = aws_ssm_parameter.data_loading_blob_prefix_allowlist.arn
+}
+
+output "consented_debug_token_parameter_arn" {
+  value = (var.enable_consented_log_parameter_value) ? aws_ssm_parameter.consented_debug_token_parameter[0].arn : ""
+}
+
+output "enable_consented_log_parameter_arn" {
+  value = aws_ssm_parameter.enable_consented_log_parameter.arn
 }

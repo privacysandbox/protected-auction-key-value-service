@@ -39,10 +39,17 @@ class OhttpServerEncryptor {
   // lifetime is tied to that object, which lifetime is in turn tied to the
   // instance of OhttpEncryptor.
   absl::StatusOr<absl::string_view> DecryptRequest(
-      absl::string_view encrypted_payload);
+      absl::string_view encrypted_payload,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
   // Encrypts outgoing response. Since OHTTP is stateful, this method should be
   // called after DecryptRequest.
-  absl::StatusOr<std::string> EncryptResponse(std::string payload);
+  absl::StatusOr<std::string> EncryptResponse(
+      std::string payload,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 
  private:
   std::optional<quiche::ObliviousHttpGateway> ohttp_gateway_;

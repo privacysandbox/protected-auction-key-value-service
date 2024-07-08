@@ -32,19 +32,27 @@ using privacy_sandbox::server_common::KeyFetcherManagerInterface;
 absl::Status InitializeUdfHooksInternal(
     std::function<std::unique_ptr<Lookup>()> get_lookup,
     GetValuesHook& string_get_values_hook,
-    GetValuesHook& binary_get_values_hook, RunQueryHook& run_query_hook) {
-  VLOG(9) << "Finishing getValues init";
+    GetValuesHook& binary_get_values_hook,
+    RunSetQueryStringHook& run_query_hook,
+    RunSetQueryIntHook& run_set_query_int_hook,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  PS_VLOG(9, log_context) << "Finishing getValues init";
   string_get_values_hook.FinishInit(get_lookup());
-  VLOG(9) << "Finishing getValuesBinary init";
+  PS_VLOG(9, log_context) << "Finishing getValuesBinary init";
   binary_get_values_hook.FinishInit(get_lookup());
-  VLOG(9) << "Finishing runQuery init";
+  PS_VLOG(9, log_context) << "Finishing runQuery init";
   run_query_hook.FinishInit(get_lookup());
+  PS_VLOG(9, log_context) << "Finishing runSetQueryInt init";
+  run_set_query_int_hook.FinishInit(get_lookup());
   return absl::OkStatus();
 }
 
 class NonshardedServerInitializer : public ServerInitializer {
  public:
-  explicit NonshardedServerInitializer(Cache& cache) : cache_(cache) {}
+  explicit NonshardedServerInitializer(
+      Cache& cache,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : cache_(cache), log_context_(log_context) {}
 
   RemoteLookup CreateAndStartRemoteLookupServer() override {
     RemoteLookup remote_lookup;
@@ -54,19 +62,22 @@ class NonshardedServerInitializer : public ServerInitializer {
   absl::StatusOr<ShardManagerState> InitializeUdfHooks(
       GetValuesHook& string_get_values_hook,
       GetValuesHook& binary_get_values_hook,
-      RunQueryHook& run_query_hook) override {
+      RunSetQueryStringHook& run_query_hook,
+      RunSetQueryIntHook& run_set_query_int_hook) override {
     ShardManagerState shard_manager_state;
     auto lookup_supplier = [&cache = cache_]() {
       return CreateLocalLookup(cache);
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
-                               run_query_hook);
+                               run_query_hook, run_set_query_int_hook,
+                               log_context_);
     return shard_manager_state;
   }
 
  private:
   Cache& cache_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 class ShardedServerInitializer : public ServerInitializer {
@@ -75,7 +86,8 @@ class ShardedServerInitializer : public ServerInitializer {
       KeyFetcherManagerInterface& key_fetcher_manager, Lookup& local_lookup,
       std::string environment, int32_t num_shards, int32_t current_shard_num,
       InstanceClient& instance_client, ParameterFetcher& parameter_fetcher,
-      KeySharder key_sharder)
+      KeySharder key_sharder,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : key_fetcher_manager_(key_fetcher_manager),
         local_lookup_(local_lookup),
         environment_(environment),
@@ -83,7 +95,8 @@ class ShardedServerInitializer : public ServerInitializer {
         current_shard_num_(current_shard_num),
         instance_client_(instance_client),
         parameter_fetcher_(parameter_fetcher),
-        key_sharder_(std::move(key_sharder)) {}
+        key_sharder_(std::move(key_sharder)),
+        log_context_(log_context) {}
 
   RemoteLookup CreateAndStartRemoteLookupServer() override {
     RemoteLookup remote_lookup;
@@ -96,17 +109,18 @@ class ShardedServerInitializer : public ServerInitializer {
         remoteLookupServerAddress, grpc::InsecureServerCredentials());
     remote_lookup_server_builder.RegisterService(
         remote_lookup.remote_lookup_service.get());
-    LOG(INFO) << "Remote lookup server listening on "
-              << remoteLookupServerAddress;
+    PS_LOG(INFO, log_context_)
+        << "Remote lookup server listening on " << remoteLookupServerAddress;
     remote_lookup.remote_lookup_server =
         remote_lookup_server_builder.BuildAndStart();
-    return std::move(remote_lookup);
+    return remote_lookup;
   }
 
   absl::StatusOr<ShardManagerState> InitializeUdfHooks(
       GetValuesHook& string_get_values_hook,
       GetValuesHook& binary_get_values_hook,
-      RunQueryHook& run_query_hook) override {
+      RunSetQueryStringHook& run_set_query_string_hook,
+      RunSetQueryIntHook& run_set_query_int_hook) override {
     auto maybe_shard_state = CreateShardManager();
     if (!maybe_shard_state.ok()) {
       return maybe_shard_state.status();
@@ -121,22 +135,24 @@ class ShardedServerInitializer : public ServerInitializer {
     };
     InitializeUdfHooksInternal(std::move(lookup_supplier),
                                string_get_values_hook, binary_get_values_hook,
-                               run_query_hook);
+                               run_set_query_string_hook,
+                               run_set_query_int_hook, log_context_);
     return std::move(*maybe_shard_state);
   }
 
  private:
   absl::StatusOr<ShardManagerState> CreateShardManager() {
     ShardManagerState shard_manager_state;
-    VLOG(10) << "Creating shard manager";
+    PS_VLOG(10, log_context_) << "Creating shard manager";
     shard_manager_state.cluster_mappings_manager =
         ClusterMappingsManager::Create(environment_, num_shards_,
-                                       instance_client_, parameter_fetcher_);
+                                       instance_client_, parameter_fetcher_,
+                                       log_context_);
     shard_manager_state.shard_manager = TraceRetryUntilOk(
         [&cluster_mappings_manager =
              *shard_manager_state.cluster_mappings_manager,
-         &num_shards = num_shards_,
-         &key_fetcher_manager = key_fetcher_manager_] {
+         &num_shards = num_shards_, &key_fetcher_manager = key_fetcher_manager_,
+         &log_context = log_context_] {
           // It might be that the cluster mappings that are passed don't pass
           // validation. E.g. a particular cluster might not have any
           // replicas
@@ -145,9 +161,10 @@ class ShardedServerInitializer : public ServerInitializer {
           // at that point in time might have new replicas spun up.
           return ShardManager::Create(
               num_shards, key_fetcher_manager,
-              cluster_mappings_manager.GetClusterMappings());
+              cluster_mappings_manager.GetClusterMappings(), log_context);
         },
-        "GetShardManager", LogStatusSafeMetricsFn<kGetShardManagerStatus>());
+        "GetShardManager", LogStatusSafeMetricsFn<kGetShardManagerStatus>(),
+        log_context_);
     auto start_status = shard_manager_state.cluster_mappings_manager->Start(
         *shard_manager_state.shard_manager);
     if (!start_status.ok()) {
@@ -163,6 +180,7 @@ class ShardedServerInitializer : public ServerInitializer {
   InstanceClient& instance_client_;
   ParameterFetcher& parameter_fetcher_;
   KeySharder key_sharder_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
@@ -171,15 +189,16 @@ std::unique_ptr<ServerInitializer> GetServerInitializer(
     int64_t num_shards, KeyFetcherManagerInterface& key_fetcher_manager,
     Lookup& local_lookup, std::string environment, int32_t current_shard_num,
     InstanceClient& instance_client, Cache& cache,
-    ParameterFetcher& parameter_fetcher, KeySharder key_sharder) {
+    ParameterFetcher& parameter_fetcher, KeySharder key_sharder,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   CHECK_GT(num_shards, 0) << "num_shards must be greater than 0";
   if (num_shards == 1) {
-    return std::make_unique<NonshardedServerInitializer>(cache);
+    return std::make_unique<NonshardedServerInitializer>(cache, log_context);
   }
 
   return std::make_unique<ShardedServerInitializer>(
       key_fetcher_manager, local_lookup, environment, num_shards,
       current_shard_num, instance_client, parameter_fetcher,
-      std::move(key_sharder));
+      std::move(key_sharder), log_context);
 }
 }  // namespace kv_server

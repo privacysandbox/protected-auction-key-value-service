@@ -1,5 +1,15 @@
+> [!IMPORTANT]
+>
+> The `main` branch hosts live code with latest changes. It is unstable and is used for development.
+> It is suitable for contribution and inspection of the latest code. The `release-*` branches are
+> stable releases that can be used to build and deploy the system.
+
+---
+
 > FLEDGE has been renamed to Protected Audience API. To learn more about the name change, see the
 > [blog post](https://privacysandbox.com/intl/en_us/news/protected-audience-api-our-new-name-for-fledge).
+
+---
 
 # ![Privacy Sandbox Logo](docs/assets/privacy_sandbox_logo.png) FLEDGE Key/Value service
 
@@ -40,31 +50,234 @@ moment, to load data, instead of calling the mutation API, you would place the d
 location that can be directly read by the server. See more details in the
 [data loading guide](/docs/data_loading/loading_data.md).
 
-Currently, this service can be deployed to 1 region of your choice with more regions to be added
-soon. Monitoring and alerts are currently unavailable.
+Currently, this service can be deployed to 1 region of your choice. Multi-region configuration is up
+to the service owner to configure.
 
-> **Attention**: The Key/Value Server is publicly queryable. It does not authenticate callers. That
-> is also true for the product end state. It is recommended to only store data you do not mind seen
-> by other entities.
+## Current features
 
-## How to use this repo
+### Build and deployment
 
-The `main` branch hosts live code with latest changes. It is unstable and is used for development.
-It is suitable for contribution and inspection of the latest code. The `release-*` branches are
-stable releases that can be used to build and deploy the system.
+-   Source code is available on Github
+-   Releases are done on a regular basis
+-   Binaries can be built from source code
+    -   C++ binary
+    -   [AWS & GCP] Docker container image
+    -   [AWS]: Nitro EIF
+    -   [AWS]: Reference AMI
+    -   Other tools
+-   Server can run as a standalone local process for testing without any cloud dependency or
+    TEE-related functionality
+-   Server can be deployed to AWS Nitro enclave
+-   Server can be deployed to GCP Confidential Space
+-   Reference terraform available for a clean and comprehensive deployment to AWS or GCP
+    -   Clean: assumes the cloud environment has no preset infrastructure
+    -   Comprehensive: deploys all dependencies and some recommended (but not necessarily required)
+        configuration
+    -   Many server behaviors can be configured by parameter flags without having to rebuild
+
+### Data loading
+
+-   Server loads key/value data from cloud file storage
+-   Server loads key/value data from cloud pub/sub services
+-   Server loads data into an in-RAM representation for query serving
+-   Server continuously monitors for new data and incrementally updates ("delta files") the in-RAM
+    representation
+-   Support independent data ingestion pipelining by monitoring directories in cloud file storage
+    independently
+-   Supports Flatbuffers as the data event format
+-   Supports Avro and Riegeli as the data file format
+-   Supports snapshot files for faster server start up
+-   Users can perform compactions of delta files into snapshot files in an offline path
+
+### Read request processing
+
+-   Support Protected Audience Key Value Server query spec: can be used as a BYOS server to serve
+    requests from Chrome
+-   Support simple key value lookups for queries
+-   Users can write "user defined functions" to execute custom logic to process queries
+-   User defined functions can be written in JavaScript or WASM
+-   User defined functions can call "GetValues" to look up key value from the dataset
+
+### Advanced features
+
+-   Set-as-a-value is supported
+    -   A key "value" pair in the dataset can be a key and a set of values
+-   UDF can call "RunQuery" API to run set operations on sets (intersection, union, difference)
+-   For GCP, Terraform supports deploying into an existing VPC, such as used by the Bidding and
+    Auction services Non-prod Server logs are persisted after server shutdown
+-   Data can be sharded and different servers may load and serve different shards (subset) of the
+    dataset.
+-   Sharding supports data locality, where the operator specifies "sharding key" for key value pairs
+    so different key value pairs can have the same sharding key.
+
+## **Timeline and roadmap**
+
+The following sections include the timelines for the Trusted Key Value Server for Protected
+Auctions. Protected Auctions refer to Protected Audiences and Protected App Signals ad targeting
+products.
+
+### **Timelines**
+
+<!-- markdownlint-disable no-inline-html -->
+<!-- markdownlint-disable line-length -->
+<table>
+  <tr>
+   <td>
+   </td>
+   <td><strong>Beta testing</strong>
+   </td>
+   <td><strong>General availability</strong>
+   </td>
+   <td><strong>Enforcement</strong>
+   </td>
+  </tr>
+  <tr>
+   <td>For Protected Audience
+<p>
+(web browser on desktop)
+   </td>
+   <td>July 2024
+<p>
+The Privacy-Sandbox-provided Key Value Server implementation can<ul>
+
+<li>run as a BYOS KV server
+<li>support production scale traffic and common functionalities</li></ul>
+
+   </td>
+   <td>Q4 2024
+<p>
+Opt-in TEE mode will be available to the Adtechs. Opt-in guidance will be published in early Q4 2024.
+   </td>
+   <td><a href="https://developers.google.com/privacy-sandbox/relevance/protected-audience-api/feature-status#feature_availability_timeline">No sooner than Q3 2025</a>
+   </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+   <td>
+   </td>
+   <td><strong>Beta testing</strong>
+   </td>
+   <td><strong>General availability</strong>
+   </td>
+  </tr>
+  <tr>
+   <td>For Protected Audience
+<p>
+(With Bidding & Auction services for Chrome or Android)
+   </td>
+   <td>July 2024
+<p>
+The Privacy-Sandbox-provided Key Value Server implementation can be used with the Bidding and Auction services and<ul>
+
+<li>run as a BYOS KV server
+<li>support production scale traffic and common functionalities</li></ul>
+
+   </td>
+   <td>Dec 2024
+<p>
+The Privacy-Sandbox-provided Key Value Server implementation can be used with the Bidding and Auction services and adtechs can opt-in TEE mode
+   </td>
+  </tr>
+  <tr>
+   <td>For Protected App Signals
+   </td>
+   <td>June 2024
+<p>
+The Privacy-Sandbox-provided Key Value Server implementation supports Ad retrieval server functionality and protected communication for live traffic testing
+   </td>
+   <td>Dec 2024
+<p>
+The implementation supports live traffic at scale
+   </td>
+  </tr>
+</table>
+<!-- markdownlint-enable no-inline-html -->
+<!-- markdownlint-enable line-length -->
+
+### **Roadmap**
+
+#### June 2024 Beta release
+
+##### Deployment and Setup
+
+-   For AWS, Terraform supports deploying into an existing VPC, such as the one that is used by the
+    Bidding and Auction services
+-   Internal load balancer is used for servers to send metrics to OpenTelemetry collector
+    -   In v0.16, the communication goes through a public load balancer
+
+##### Integration with the Bidding & Auction services
+
+-   The Bidding and Auction services can send encrypted requests to the Key Value Server for
+    Protected App Signals
+
+##### Debugging support
+
+-   [Consented Debugging](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/debugging_protected_audience_api_services.md#adtech-consented-debugging)
+    is supported
+-   Diagnose tool to check the cloud environment to warn for potential setup errors before the
+    system is deployed
+-   Operational playbook
+-   Introduction of unsafe metrics
+    -   Unsafe metrics have privacy protections such as differential privacy noises
+    -   More metrics for comprehensive SLO monitoring
+
+##### Runtime features
+
+-   Data loading error handling
+    -   The system can be configured to use different error handling strategy for different dataset
+
+##### Performance/Cost
+
+-   Benchmarking tools
+-   Cost explainer
+-   Sets-as-values will switch to using bitsets to represent sets for faster RunQuery performance.
+
+##### Support process
+
+-   Commitment to support window for active releases
+
+#### Q4 2024 Chrome-PA GA
+
+##### Chrome integration
+
+-   Update to V2 protocol to support the hybrid mode of BYOS & Opt-in TEE
+-   Chrome and Key Value server can communicate in the updated V2 protocol
+-   Chrome can send full publisher URL to TEE KV server under V2 protocol
+
+#### H2 2024 Android-PA GA, PAS GA
+
+##### User Defined Functions
+
+-   UDF can perform Key/Value lookup asynchronously
+-   Flags can be passed from the server parameters into UDF
+-   One Key Value Server system can be used for multiple use cases. Multiple UDFs can be loaded.
+    Different UDF can be selected based on the request type.
+-   Canaring support for UDF: canary version UDF can be staged in machines with specific tags.
+
+##### Customization support
+
+-   First class support for customization of the system (without violating the trust model)
+
+##### Debugging support
+
+-   Diagnose tool to collect standard and necessary debug information for troubleshooting requests
+
+##### Documentation
+
+-   Complete end to end example as a template to set up the service
 
 ## Breaking changes
 
-This codebase right now is in a very early stage. We expect frequent updates that may not be fully
-backward compatible.
+While we make efforts to not introduce breaking changes, we expect that to happen occasionally.
 
 The release version follows the `[major change]-[minor change]-[patch]` scheme. All 0.x.x versions
 may contain breaking changes without notice. Refer to the [release changelog](/CHANGELOG.md) for the
 details of the breaking changes.
 
-Once the codebase is in a more stable state that is version 1.0.0, we will establish additional
-channels for announcing breaking changes and major version will always be incremented for breaking
-changes.
+At GA the version will become 1.0.0, we will establish additional channels for announcing breaking
+changes and major version will always be incremented for breaking changes.
 
 # Key documents
 

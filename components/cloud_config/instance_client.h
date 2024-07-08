@@ -21,6 +21,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/statusor.h"
+#include "src/logger/request_context_logger.h"
 
 // TODO: Replace config cpio client once ready
 namespace kv_server {
@@ -55,7 +56,10 @@ using DescribeInstanceGroupInput =
 // Client to perform instance-specific operations.
 class InstanceClient {
  public:
-  static std::unique_ptr<InstanceClient> Create();
+  static std::unique_ptr<InstanceClient> Create(
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
   virtual ~InstanceClient() = default;
 
   // Retrieves all tags for the current instance and returns the tag with the
@@ -89,6 +93,12 @@ class InstanceClient {
   // Retrieves descriptive information about the given instances.
   virtual absl::StatusOr<std::vector<InstanceInfo>> DescribeInstances(
       const absl::flat_hash_set<std::string>& instance_ids) = 0;
+
+  // Updates the log context reference to enable otel logging for instance
+  // client. This function should be called after telemetry is initialized with
+  // retrieved parameters.
+  virtual void UpdateLogContext(
+      privacy_sandbox::server_common::log::PSLogContext& log_context) = 0;
 };
 
 }  // namespace kv_server

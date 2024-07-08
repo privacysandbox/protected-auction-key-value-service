@@ -22,10 +22,14 @@ module "kv_server" {
   region      = var.region
 
   # Variables related to network, dns and certs configuration.
-  vpc_cidr_block      = var.vpc_cidr_block
-  root_domain         = var.root_domain
-  root_domain_zone_id = var.root_domain_zone_id
-  certificate_arn     = var.certificate_arn
+  vpc_cidr_block           = var.vpc_cidr_block
+  root_domain              = var.root_domain
+  root_domain_zone_id      = var.root_domain_zone_id
+  certificate_arn          = var.certificate_arn
+  use_existing_vpc         = var.use_existing_vpc
+  existing_vpc_operator    = var.existing_vpc_operator
+  existing_vpc_environment = var.existing_vpc_environment
+  enable_external_traffic  = var.enable_external_traffic
 
   # Variables related to EC2 instances.
   instance_type   = var.instance_type
@@ -58,6 +62,8 @@ module "kv_server" {
   healthcheck_healthy_threshold   = var.healthcheck_healthy_threshold
   healthcheck_interval_sec        = var.healthcheck_interval_sec
   healthcheck_unhealthy_threshold = var.healthcheck_unhealthy_threshold
+  healthcheck_timeout_sec         = var.healthcheck_timeout_sec
+  healthcheck_grace_period_sec    = var.healthcheck_grace_period_sec
 
   # Variables related to SSH
   ssh_source_cidr_blocks = var.ssh_source_cidr_blocks
@@ -86,9 +92,10 @@ module "kv_server" {
   sharding_key_regex     = var.sharding_key_regex
 
   # Variables related to UDF execution.
-  udf_num_workers    = var.udf_num_workers
-  udf_timeout_millis = var.udf_timeout_millis
-  udf_min_log_level  = var.udf_min_log_level
+  udf_num_workers           = var.udf_num_workers
+  udf_timeout_millis        = var.udf_timeout_millis
+  udf_update_timeout_millis = var.udf_update_timeout_millis
+  udf_min_log_level         = var.udf_min_log_level
 
   # Variables related to coordinators
   use_real_coordinators                      = var.use_real_coordinators
@@ -103,6 +110,8 @@ module "kv_server" {
   # Variables related to logging
   logging_verbosity_level = var.logging_verbosity_level
   enable_otel_logger      = var.enable_otel_logger
+  consented_debug_token   = var.consented_debug_token
+  enable_consented_log    = var.enable_consented_log
 }
 
 output "kv_server_url" {

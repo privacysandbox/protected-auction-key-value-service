@@ -174,6 +174,12 @@ variable "udf_timeout_millis" {
   description = "UDF execution timeout in milliseconds."
 }
 
+variable "udf_update_timeout_millis" {
+  type        = number
+  default     = 30000
+  description = "UDF update timeout in milliseconds."
+}
+
 variable "udf_min_log_level" {
   type        = number
   default     = 0
@@ -208,6 +214,12 @@ variable "collector_service_name" {
 variable "collector_service_port" {
   description = "The grpc port that receives traffic destined for the OpenTelemetry collector."
   type        = number
+}
+
+variable "collector_startup_script_path" {
+  description = "Relative path from main.tf to collector service startup script."
+  type        = string
+  default     = "../../services/metrics_collector_autoscaling/collector_startup.sh"
 }
 
 variable "collector_domain_name" {
@@ -351,4 +363,14 @@ variable "secondary_coordinator_region" {
 variable "public_key_endpoint" {
   description = "Public key endpoint. Can only be overriden in non-prod mode."
   type        = string
+}
+
+variable "consented_debug_token" {
+  description = "Consented debug token to enable the otel collection of consented logs. Empty token means no-op and no logs will be collected for consented requests. The token in the request's consented debug configuration needs to match this debug token to make the server treat the request as consented."
+  type        = string
+}
+
+variable "enable_consented_log" {
+  description = "Enable the logging of consented requests. If it is set to true, the consented debug token parameter value must not be an empty string."
+  type        = bool
 }

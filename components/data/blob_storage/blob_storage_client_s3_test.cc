@@ -55,7 +55,6 @@ class MockS3Client : public ::Aws::S3::S3Client {
 
 class BlobStorageClientS3Test : public ::testing::Test {
  protected:
-  PlatformInitializer initializer_;
   void SetUp() override {
     privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
     config_proto.set_mode(
@@ -64,6 +63,10 @@ class BlobStorageClientS3Test : public ::testing::Test {
         privacy_sandbox::server_common::telemetry::BuildDependentConfig(
             config_proto));
   }
+  privacy_sandbox::server_common::log::NoOpContext no_op_context_;
+
+ private:
+  PlatformInitializer initializer_;
 };
 
 TEST_F(BlobStorageClientS3Test, DeleteBlobSucceeds) {
@@ -73,7 +76,8 @@ TEST_F(BlobStorageClientS3Test, DeleteBlobSucceeds) {
       .WillOnce(::testing::Return(result));
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes);
+      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes,
+                                            no_op_context_);
   BlobStorageClient::DataLocation location;
   EXPECT_TRUE(client->DeleteBlob(location).ok());
 }
@@ -83,7 +87,8 @@ TEST_F(BlobStorageClientS3Test, DeleteBlobFails) {
   auto mock_s3_client = std::make_shared<MockS3Client>();
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes);
+      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes,
+                                            no_op_context_);
   BlobStorageClient::DataLocation location;
   EXPECT_EQ(absl::StatusCode::kUnknown, client->DeleteBlob(location).code());
 }
@@ -102,7 +107,8 @@ TEST_F(BlobStorageClientS3Test, ListBlobsSucceeds) {
   }
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes);
+      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes,
+                                            no_op_context_);
   BlobStorageClient::DataLocation location;
   BlobStorageClient::ListOptions list_options;
   absl::StatusOr<std::vector<std::string>> response =
@@ -139,7 +145,8 @@ TEST_F(BlobStorageClientS3Test, ListBlobsSucceedsWithContinuedRequests) {
   }
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes);
+      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes,
+                                            no_op_context_);
   BlobStorageClient::DataLocation location;
   BlobStorageClient::ListOptions list_options;
   absl::StatusOr<std::vector<std::string>> response =
@@ -154,7 +161,8 @@ TEST_F(BlobStorageClientS3Test, ListBlobsFails) {
   auto mock_s3_client = std::make_shared<MockS3Client>();
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes);
+      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes,
+                                            no_op_context_);
   BlobStorageClient::DataLocation location;
   BlobStorageClient::ListOptions list_options;
   EXPECT_EQ(absl::StatusCode::kUnknown,
@@ -173,7 +181,8 @@ TEST_F(BlobStorageClientS3Test, DeleteBlobWithPrefixSucceeds) {
                             "prefix/object"))))
       .WillOnce(::testing::Return(result));
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes);
+      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes,
+                                            no_op_context_);
   BlobStorageClient::DataLocation location{
       .bucket = "bucket",
       .prefix = "prefix",
@@ -204,7 +213,8 @@ TEST_F(BlobStorageClientS3Test, ListBlobsWithPrefixSucceeds) {
   }
 
   std::unique_ptr<BlobStorageClient> client =
-      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes);
+      std::make_unique<S3BlobStorageClient>(mock_s3_client, kMaxRangeBytes,
+                                            no_op_context_);
   BlobStorageClient::DataLocation location{
       .bucket = "bucket",
       .prefix = "directory1",

@@ -22,6 +22,7 @@
 
 #include "absl/log/log.h"
 #include "components/tools/concurrent_publishing_engine.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 #include "grpcpp/grpcpp.h"
 #include "opentelemetry/sdk/resource/resource.h"
 #include "opentelemetry/sdk/resource/semantic_conventions.h"
@@ -92,6 +93,14 @@ ABSL_FLAG(int32_t, realtime_publisher_insertion_num_threads, 1,
           "Number of threads used to write to pubsub in parallel.");
 ABSL_FLAG(int32_t, realtime_publisher_files_insertion_rate, 15,
           "Number of messages sent per insertion thread to pubsub per second");
+ABSL_FLAG(std::string, consented_debug_token, "",
+          "Consented debug token, if non-empty value is provided,"
+          "consented requests will be sent to the test server");
+ABSL_FLAG(bool, use_default_generation_id, true,
+          "Whether to send consented requests with default generation_id,"
+          "which is a constant for all consented requests. This value should "
+          "be set to true if sending high volume of consented traffic to the "
+          "server.");
 
 namespace kv_server {
 
@@ -99,10 +108,11 @@ constexpr char* kServiceName = "request-simulation";
 constexpr char* kTestingServer = "testing.server";
 constexpr int kMetricsExportIntervalInMs = 5000;
 constexpr int kMetricsExportTimeoutInMs = 500;
+constexpr char* kDefaultGenerationIdForConsentedRequests = "consented";
 
 using opentelemetry::sdk::resource::Resource;
 using opentelemetry::sdk::resource::ResourceAttributes;
-using privacy_sandbox::server_common::ConfigureMetrics;
+using privacy_sandbox::server_common::ConfigurePrivateMetrics;
 using privacy_sandbox::server_common::InitTelemetry;
 using privacy_sandbox::server_common::SteadyClock;
 namespace semantic_conventions =
@@ -133,6 +143,10 @@ absl::Status RequestSimulationSystem::Init(
     std::unique_ptr<MetricsCollector> metrics_collector) {
   server_address_ = absl::GetFlag(FLAGS_server_address);
   server_method_ = absl::GetFlag(FLAGS_server_method);
+  consented_debug_token_ = absl::GetFlag(FLAGS_consented_debug_token);
+  if (absl::GetFlag(FLAGS_use_default_generation_id)) {
+    generation_id_override_ = kDefaultGenerationIdForConsentedRequests;
+  }
   concurrent_number_of_requests_ = absl::GetFlag(FLAGS_concurrency);
   synthetic_request_gen_option_.number_of_keys_per_request =
       absl::GetFlag(FLAGS_number_of_keys_per_request);
@@ -167,14 +181,14 @@ absl::Status RequestSimulationSystem::Init(
         const auto keys = kv_server::GenerateRandomKeys(
             synthetic_request_gen_option_.number_of_keys_per_request,
             synthetic_request_gen_option_.key_size_in_bytes);
-        return kv_server::CreateKVDSPRequestBodyInJson(keys);
+        return kv_server::CreateKVDSPRequestBodyInJson(
+            keys, consented_debug_token_, generation_id_override_);
       });
 
   // Telemetry must be initialized before initializing metrics collector
   metrics_collector_ =
       metrics_collector == nullptr
-          ? std::make_unique<MetricsCollector>(metrics_recorder_,
-                                               std::make_unique<SleepFor>())
+          ? std::make_unique<MetricsCollector>(std::make_unique<SleepFor>())
           : std::move(metrics_collector);
   // Initialize no-op telemetry for the new Telemetry API
   // TODO(b/304306398): deprecate metric recorder and use new telemetry API to
@@ -225,7 +239,7 @@ absl::Status RequestSimulationSystem::Init(
           .delta_notifier = *delta_file_notifier_,
           .change_notifier = *blob_change_notifier_,
           .delta_stream_reader_factory = *delta_stream_reader_factory_},
-      CreateRequestFromKeyFn(), metrics_recorder_);
+      CreateRequestFromKeyFn());
   PS_ASSIGN_OR_RETURN(realtime_message_batcher_,
                       RealtimeMessageBatcher::Create(
                           realtime_messages_, realtime_messages_mutex_,
@@ -381,8 +395,9 @@ RequestSimulationSystem::CreateStreamRecordReaderFactory() {
 }
 absl::AnyInvocable<std::string(std::string_view)>
 RequestSimulationSystem::CreateRequestFromKeyFn() {
-  return [](std::string_view key) {
-    return kv_server::CreateKVDSPRequestBodyInJson({std::string(key)});
+  return [this](std::string_view key) {
+    return kv_server::CreateKVDSPRequestBodyInJson(
+        {std::string(key)}, consented_debug_token_, generation_id_override_);
   };
 }
 void RequestSimulationSystem::InitializeTelemetry() {
@@ -400,8 +415,14 @@ void RequestSimulationSystem::InitializeTelemetry() {
       {semantic_conventions::kHostArch, std::string(BuildPlatform())},
       {kTestingServer, server_address}};
   auto resource = Resource::Create(attributes);
-  ConfigureMetrics(resource, metrics_options);
-  kv_server::InitMetricsContextMap();
+  kv_server::ConfigureTelemetryForTools();
+  privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+  config_proto.set_mode(
+      privacy_sandbox::server_common::telemetry::TelemetryConfig::EXPERIMENT);
+  auto* context_map = RequestSimulationContextMap(
+      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+          config_proto),
+      ConfigurePrivateMetrics(resource, metrics_options));
 }
 
 }  // namespace kv_server

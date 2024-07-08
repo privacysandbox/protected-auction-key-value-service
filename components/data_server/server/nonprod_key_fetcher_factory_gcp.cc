@@ -23,21 +23,27 @@ using ::google::scp::cpio::PrivateKeyVendingEndpoint;
 using ::privacy_sandbox::server_common::CloudPlatform;
 
 class KeyFetcherFactoryGcpNonProd : public NonprodCloudKeyFetcherFactory {
+ public:
+  explicit KeyFetcherFactoryGcpNonProd(
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : NonprodCloudKeyFetcherFactory(log_context) {}
+
+ protected:
   PrivateKeyVendingEndpoint GetPrimaryKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const override {
     PrivateKeyVendingEndpoint endpoint =
-        NonprodCloudKeyFetcherFactory::GetPrimaryKeyFetchingEndpoint(
+        CloudKeyFetcherFactory::GetPrimaryKeyFetchingEndpoint(
             parameter_fetcher);
-    UpdatePrimaryGcpEndpoint(endpoint, parameter_fetcher);
+    UpdatePrimaryGcpEndpoint(endpoint, parameter_fetcher, log_context_);
     return endpoint;
   }
 
   PrivateKeyVendingEndpoint GetSecondaryKeyFetchingEndpoint(
       const ParameterFetcher& parameter_fetcher) const override {
     PrivateKeyVendingEndpoint endpoint =
-        NonprodCloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
+        CloudKeyFetcherFactory::GetSecondaryKeyFetchingEndpoint(
             parameter_fetcher);
-    UpdateSecondaryGcpEndpoint(endpoint, parameter_fetcher);
+    UpdateSecondaryGcpEndpoint(endpoint, parameter_fetcher, log_context_);
     return endpoint;
   }
 
@@ -47,7 +53,8 @@ class KeyFetcherFactoryGcpNonProd : public NonprodCloudKeyFetcherFactory {
 };
 }  // namespace
 
-std::unique_ptr<KeyFetcherFactory> KeyFetcherFactory::Create() {
-  return std::make_unique<KeyFetcherFactoryGcpNonProd>();
+std::unique_ptr<KeyFetcherFactory> KeyFetcherFactory::Create(
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<KeyFetcherFactoryGcpNonProd>(log_context);
 }
 }  // namespace kv_server

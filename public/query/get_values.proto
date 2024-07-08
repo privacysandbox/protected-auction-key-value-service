@@ -36,6 +36,9 @@ service KeyValueService {
 message GetValuesRequest {
   // [DSP] List of keys to query values for, under the namespace keys.
   repeated string keys = 1;
+  // [DSP] List of keys to query values for, under the namespace interest_group_names.
+  // Results will be stored in per_interest_group_data field of GetValuesResponse.
+  repeated string interest_group_names = 7;
 
   // [DSP] The browser sets the hostname of the publisher page to be the value.
   // If no specific value is available in the system for this subkey,
@@ -70,6 +73,9 @@ message V1SingleLookupResult {
 message GetValuesResponse {
   // Map of key value pairs for namespace keys.
   map<string, V1SingleLookupResult> keys = 1;
+
+  // Map of key value pairs for namespace interest_group_names.
+  map<string, V1SingleLookupResult> per_interest_group_data = 5;
 
   // Map of key value pairs for namespace renderUrls.
   map<string, V1SingleLookupResult> render_urls = 2;

@@ -42,7 +42,7 @@ variable "server_port" {
 }
 
 variable "certificate_arn" {
-  description = "ARN for an ACM managed certificate."
+  description = "ARN for an ACM managed certificate. Ingored if enable_external_traffic is false."
   type        = string
 }
 
@@ -124,6 +124,16 @@ variable "healthcheck_healthy_threshold" {
 
 variable "healthcheck_unhealthy_threshold" {
   description = "Consecutive health check failures required to be considered unhealthy."
+  type        = number
+}
+
+variable "healthcheck_timeout_sec" {
+  description = "Amount of time to wait for a health check response in seconds."
+  type        = number
+}
+
+variable "healthcheck_grace_period_sec" {
+  description = "Amount of time to wait for service inside enclave to start up before starting health checks, in seconds."
   type        = number
 }
 
@@ -270,6 +280,12 @@ variable "udf_timeout_millis" {
   type        = number
 }
 
+variable "udf_update_timeout_millis" {
+  description = "UDF update timeout in milliseconds. Default is 30000."
+  default     = 30000
+  type        = number
+}
+
 variable "udf_min_log_level" {
   description = "Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for min_log_level and above. Default is 0(info)."
   type        = number
@@ -309,4 +325,34 @@ variable "secondary_coordinator_region" {
 variable "public_key_endpoint" {
   description = "Public key endpoint. Can only be overriden in non-prod mode."
   type        = string
+}
+
+variable "consented_debug_token" {
+  description = "Consented debug token to enable the otel collection of consented logs. Empty token means no-op and no logs will be collected for consented requests. The token in the request's consented debug configuration needs to match this debug token to make the server treat the request as consented."
+  type        = string
+}
+
+variable "enable_consented_log" {
+  description = "Enable the logging of consented requests. If it is set to true, the consented debug token parameter value must not be an empty string."
+  type        = bool
+}
+
+variable "use_existing_vpc" {
+  description = "Whether to use existing VPC. If true, only internal traffic via mesh will be served; variable vpc_operator and vpc_environment will be requried."
+  type        = bool
+}
+
+variable "existing_vpc_operator" {
+  description = "Operator of the existing VPC. Ingored if use_existing_vpc is false."
+  type        = string
+}
+
+variable "existing_vpc_environment" {
+  description = "Environment of the existing VPC. Ingored if use_existing_vpc is false."
+  type        = string
+}
+
+variable "enable_external_traffic" {
+  description = "Whether to serve external traffic. If disabled, only internal traffic under existing VPC will be served. "
+  type        = bool
 }

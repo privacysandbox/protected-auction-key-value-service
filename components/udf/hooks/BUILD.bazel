@@ -45,9 +45,6 @@ cc_library(
 
 cc_library(
     name = "run_query_hook",
-    srcs = [
-        "run_query_hook.cc",
-    ],
     hdrs = [
         "run_query_hook.h",
     ],
@@ -59,6 +56,7 @@ cc_library(
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
         "@google_privacysandbox_servers_common//src/roma/interface",
         "@google_privacysandbox_servers_common//src/roma/interface:function_binding_io_cc_proto",
         "@nlohmann_json//:lib",

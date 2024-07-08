@@ -44,7 +44,10 @@ using google::scp::cpio::ParameterClientOptions;
 
 class GcpParameterClient : public ParameterClient {
  public:
-  explicit GcpParameterClient(ParameterClient::ClientOptions client_options) {
+  explicit GcpParameterClient(
+      ParameterClient::ClientOptions client_options,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : log_context_(log_context) {
     if (client_options.client_for_unit_testing_ == nullptr) {
       parameter_client_ =
           ParameterClientFactory::Create(ParameterClientOptions());
@@ -52,39 +55,31 @@ class GcpParameterClient : public ParameterClient {
       parameter_client_.reset(std::move(
           (ParameterClientInterface*)client_options.client_for_unit_testing_));
     }
-    auto execution_result = parameter_client_->Init();
-    CHECK(execution_result.Successful())
-        << "Cannot init parameter client!"
-        << GetErrorMessage(execution_result.status_code);
-    execution_result = parameter_client_->Run();
-    CHECK(execution_result.Successful())
-        << "Cannot run parameter client!"
-        << GetErrorMessage(execution_result.status_code);
+    CHECK_OK(parameter_client_->Init());
+    CHECK_OK(parameter_client_->Run());
   }
 
   ~GcpParameterClient() {
-    auto execution_result = parameter_client_->Stop();
-    if (!execution_result.Successful()) {
-      LOG(ERROR) << "Cannot stop parameter client!"
-                 << GetErrorMessage(execution_result.status_code);
+    if (absl::Status status = parameter_client_->Stop(); !status.ok()) {
+      PS_LOG(ERROR, log_context_) << "Cannot stop parameter client!" << status;
     }
   }
 
   absl::StatusOr<std::string> GetParameter(
       std::string_view parameter_name,
       std::optional<std::string> default_value = std::nullopt) const override {
-    LOG(INFO) << "Getting parameter: " << parameter_name;
+    PS_LOG(INFO, log_context_) << "Getting parameter: " << parameter_name;
     GetParameterRequest get_parameter_request;
     get_parameter_request.set_parameter_name(parameter_name);
     std::string param_value;
     absl::BlockingCounter counter(1);
-    auto execution_result = parameter_client_->GetParameter(
+    absl::Status status = parameter_client_->GetParameter(
         std::move(get_parameter_request),
-        [&param_value, &counter](const ExecutionResult result,
-                                 GetParameterResponse response) {
+        [&param_value, &counter, &log_context = log_context_](
+            const ExecutionResult result, GetParameterResponse response) {
           if (!result.Successful()) {
-            LOG(ERROR) << "GetParameter failed: "
-                       << GetErrorMessage(result.status_code);
+            PS_LOG(ERROR, log_context) << "GetParameter failed: "
+                                       << GetErrorMessage(result.status_code);
           } else {
             param_value = response.parameter_value() != "EMPTY_STRING"
                               ? response.parameter_value()
@@ -94,21 +89,21 @@ class GcpParameterClient : public ParameterClient {
           counter.DecrementCount();
         });
     counter.Wait();
-    if (!execution_result.Successful()) {
-      auto status =
-          absl::UnavailableError(GetErrorMessage(execution_result.status_code));
+    if (!status.ok()) {
       if (default_value.has_value()) {
-        LOG(WARNING) << "Unable to get parameter: " << parameter_name
-                     << " with error: " << status
-                     << ", returning default value: " << *default_value;
+        PS_LOG(WARNING, log_context_)
+            << "Unable to get parameter: " << parameter_name
+            << " with error: " << status
+            << ", returning default value: " << *default_value;
         return *default_value;
       }
-      LOG(ERROR) << "Unable to get parameter: " << parameter_name
-                 << " with error: " << status;
+      PS_LOG(ERROR, log_context_)
+          << "Unable to get parameter: " << parameter_name
+          << " with error: " << status;
       return status;
     }
-    LOG(INFO) << "Got parameter: " << parameter_name
-              << " with value: " << param_value;
+    PS_LOG(INFO, log_context_) << "Got parameter: " << parameter_name
+                               << " with value: " << param_value;
     return param_value;
   }
 
@@ -123,7 +118,7 @@ class GcpParameterClient : public ParameterClient {
       const std::string error =
           absl::StrFormat("Failed converting %s parameter: %s to int32.",
                           parameter_name, *parameter);
-      LOG(ERROR) << error;
+      PS_LOG(ERROR, log_context_) << error;
       return absl::InvalidArgumentError(error);
     }
 
@@ -143,22 +138,30 @@ class GcpParameterClient : public ParameterClient {
       const std::string error =
           absl::StrFormat("Failed converting %s parameter: %s to bool.",
                           parameter_name, *parameter);
-      LOG(ERROR) << error;
+      PS_LOG(ERROR, log_context_) << error;
       return absl::InvalidArgumentError(error);
     }
 
     return parameter_bool;
   }
 
+  void UpdateLogContext(
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
+    log_context_ = log_context;
+  }
+
  private:
   std::unique_ptr<ParameterClientInterface> parameter_client_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
 
 std::unique_ptr<ParameterClient> ParameterClient::Create(
-    ParameterClient::ClientOptions client_options) {
-  return std::make_unique<GcpParameterClient>(std::move(client_options));
+    ParameterClient::ClientOptions client_options,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  return std::make_unique<GcpParameterClient>(std::move(client_options),
+                                              log_context);
 }
 
 }  // namespace kv_server

@@ -50,10 +50,12 @@ class ShardManagerImpl : public ShardManager {
       int32_t num_shards,
       std::function<std::unique_ptr<RemoteLookupClient>(const std::string& ip)>
           client_factory,
-      std::unique_ptr<RandomGenerator> random_generator)
+      std::unique_ptr<RandomGenerator> random_generator,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : num_shards_{num_shards},
         client_factory_{client_factory},
-        random_generator_{std::move(random_generator)} {}
+        random_generator_{std::move(random_generator)},
+        log_context_(log_context) {}
 
   // taking in a set to exclude duplicates.
   // set doesn't have an O(1) lookup --> converting to vector.
@@ -109,6 +111,7 @@ class ShardManagerImpl : public ShardManager {
   std::function<std::unique_ptr<RemoteLookupClient>(const std::string& ip)>
       client_factory_;
   std::unique_ptr<RandomGenerator> random_generator_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 absl::Status ValidateMapping(
@@ -140,7 +143,8 @@ absl::StatusOr<std::unique_ptr<ShardManager>> ShardManager::Create(
     int32_t num_shards,
     privacy_sandbox::server_common::KeyFetcherManagerInterface&
         key_fetcher_manager,
-    const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings) {
+    const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto validationStatus = ValidateMapping(num_shards, cluster_mappings);
   if (!validationStatus.ok()) {
     return validationStatus;
@@ -150,7 +154,7 @@ absl::StatusOr<std::unique_ptr<ShardManager>> ShardManager::Create(
       [&key_fetcher_manager](const std::string& ip) {
         return RemoteLookupClient::Create(ip, key_fetcher_manager);
       },
-      std::make_unique<RandomGeneratorImpl>());
+      std::make_unique<RandomGeneratorImpl>(), log_context);
   shard_manager->InsertBatch(std::move(cluster_mappings));
   return shard_manager;
 }
@@ -160,13 +164,15 @@ absl::StatusOr<std::unique_ptr<ShardManager>> ShardManager::Create(
     const std::vector<absl::flat_hash_set<std::string>>& cluster_mappings,
     std::unique_ptr<RandomGenerator> random_generator,
     std::function<std::unique_ptr<RemoteLookupClient>(const std::string& ip)>
-        client_factory) {
+        client_factory,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   auto validationStatus = ValidateMapping(num_shards, cluster_mappings);
   if (!validationStatus.ok()) {
     return validationStatus;
   }
   auto shard_manager = std::make_unique<ShardManagerImpl>(
-      cluster_mappings.size(), client_factory, std::move(random_generator));
+      cluster_mappings.size(), client_factory, std::move(random_generator),
+      log_context);
   shard_manager->InsertBatch(std::move(cluster_mappings));
   return shard_manager;
 }

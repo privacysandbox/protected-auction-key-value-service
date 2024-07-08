@@ -40,7 +40,7 @@ class GetValuesHandler {
         add_missing_keys_v1_(add_missing_keys_v1) {}
 
   // TODO: Implement hostname, ad/render url lookups.
-  grpc::Status GetValues(const RequestContext& request_context,
+  grpc::Status GetValues(RequestContextFactory& request_context_factory,
                          const v1::GetValuesRequest& request,
                          v1::GetValuesResponse* response) const;
 

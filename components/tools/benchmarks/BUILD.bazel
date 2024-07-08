@@ -29,6 +29,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/logger:request_context_impl",
     ],
 )
 
@@ -54,6 +55,7 @@ cc_binary(
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/cache:noop_key_value_cache",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/util:platform_initializer",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:records_utils",
@@ -80,6 +82,7 @@ cc_binary(
         "//components/data_server/cache",
         "//components/data_server/cache:key_value_cache",
         "//components/data_server/cache:noop_key_value_cache",
+        "//components/tools/util:configure_telemetry_tools",
         "//components/util:request_context",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/flags:flag",
@@ -91,5 +94,33 @@ cc_binary(
         "@com_google_absl//absl/strings",
         "@com_google_absl//absl/time",
         "@com_google_benchmark//:benchmark",
+    ],
+)
+
+cc_binary(
+    name = "query_evaluation_benchmark",
+    srcs = ["query_evaluation_benchmark.cc"],
+    malloc = "@com_google_tcmalloc//tcmalloc",
+    deps = [
+        ":benchmark_util",
+        "//components/data_server/cache:get_key_value_set_result_impl",
+        "//components/data_server/cache:key_value_cache",
+        "//components/query:ast",
+        "//components/query:driver",
+        "//components/query:scanner",
+        "//components/query:sets",
+        "//components/tools/util:configure_telemetry_tools",
+        "//components/util:request_context",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/functional:any_invocable",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:flags",
+        "@com_google_absl//absl/log:initialize",
+        "@com_google_absl//absl/strings",
+        "@com_google_benchmark//:benchmark",
+        "@roaring_bitmap//:c_roaring",
     ],
 )

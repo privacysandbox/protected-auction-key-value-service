@@ -77,6 +77,8 @@ declare -i WITH_DOCKER_SOCK=1
 declare -i WITH_CMD_PROFILER=0
 DOCKER_NETWORK="${DOCKER_NETWORK:-bridge}"
 declare -i DOCKER_SECCOMP_UNCONFINED=0
+declare -i KEEP_CONTAINER_RUNNING=0
+declare LONG_RUNNING_CONTAINER_TIMEOUT=8h
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -94,6 +96,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --image)
       IMAGE="$2"
+      if [[ ${IMAGE} =~ ^build-* ]]; then
+        KEEP_CONTAINER_RUNNING=1
+      fi
       shift 2 || usage
       ;;
     --without-shared-cache)
@@ -171,12 +176,14 @@ if [[ ${PWD_WORKSPACE_REL_PATH:0:1} != / ]]; then
 fi
 readonly WORKDIR
 
-declare -a DOCKER_RUN_ARGS
-DOCKER_RUN_ARGS+=(
+# DOCKER_EXEC_RUN_ARGS applies to both `docker run` and `docker exec`
+declare -a DOCKER_EXEC_RUN_ARGS=(
+  "--workdir=${WORKDIR}"
+)
+declare -a DOCKER_RUN_ARGS=(
   "--rm"
   "--entrypoint=/bin/bash"
   "--volume=${WORKSPACE_MOUNT}:/src/workspace"
-  "--workdir=${WORKDIR}"
   "--network=${DOCKER_NETWORK}"
   "$(echo "${EXTRA_DOCKER_RUN_ARGS}" | envsubst)"
 )
@@ -200,53 +207,118 @@ fi
 readonly BAZEL_ROOT=/bazel_root
 if [[ ${WITH_SHARED_CACHE} -eq 0 ]]; then
   # use tmpfs for as temporary, container-bound bazel cache
-  DOCKER_RUN_ARGS+=(
-    "--tmpfs ${BAZEL_ROOT}:exec"
-  )
+  DOCKER_RUN_ARGS+=("--tmpfs=${BAZEL_ROOT}:exec")
 else
   # mount host filesystem for "shared" use by multiple docker container invocations
-  DOCKER_RUN_ARGS+=(
-    "--volume ${HOME}/.cache/bazel:${BAZEL_ROOT}"
-  )
+  DOCKER_RUN_ARGS+=("--volume=${HOME}/.cache/bazel:${BAZEL_ROOT}")
 fi
 if [[ ${WITH_DOCKER_SOCK} -eq 1 ]]; then
-  DOCKER_RUN_ARGS+=(
-    "--volume /var/run/docker.sock:/var/run/docker.sock"
-  )
+  DOCKER_RUN_ARGS+=("--volume=/var/run/docker.sock:/var/run/docker.sock")
 fi
 for evar in "${ENV_VARS[@]}"
 do
-  DOCKER_RUN_ARGS+=(
-    "--env=${evar}"
-  )
+  DOCKER_EXEC_RUN_ARGS+=("--env=${evar}")
 done
 if [[ -t 0 ]] && [[ -t 1 ]]; then
   # stdin and stdout are open, assume it's an interactive tty session
-  DOCKER_RUN_ARGS+=(
-    --interactive
-    --tty
+  DOCKER_EXEC_RUN_ARGS+=(
+    "--interactive"
+    "--tty"
   )
 fi
+
+function get_container_name() {
+  local -r mount="$(echo "${WORKSPACE_MOUNT}" | sha256sum)"
+  local -r image_sha="${IMAGE_TAGGED##*-}"
+  local -r docker_args_sha="$({
+cat <<EOF
+${DOCKER_RUN_ARGS[*]}
+${DOCKER_EXEC_RUN_ARGS[*]}
+EOF
+} | sha256sum)"
+  printf "cbuild-%s-%s-%s" "${mount:0:7}" "${image_sha:0:7}" "${docker_args_sha:0:7}"
+}
+
+DOCKER_CONTAINER_NAME="$(get_container_name)"
+readonly DOCKER_CONTAINER_NAME
+
+DOCKER_RUN_ARGS+=("--name=${DOCKER_CONTAINER_NAME}")
 
 if [[ ${VERBOSE} -eq 1 ]]; then
   set -o xtrace
 fi
-if [[ -z ${CMD} ]]; then
-  # shellcheck disable=SC2068
-  docker run \
-    ${DOCKER_RUN_ARGS[@]} \
-    "${IMAGE_TAGGED}" \
-    --login
-elif [[ ${WITH_CMD_PROFILER} -eq 1 ]]; then
-  # shellcheck disable=SC2068
-  docker run \
-    ${DOCKER_RUN_ARGS[@]} \
-    "${IMAGE_TAGGED}" \
-    --login -c "'${TOOLS_RELDIR}'/normalize-bazel-symlinks; env \${CMD_PROFILER} ${CMD}"
+
+function running_container_for() {
+  declare -r name="$1"
+  declare -a docker_args=(
+    container ls
+    --filter "name=${name}"
+    --format "{{print .Names}}"
+  )
+  local -r exited="$(docker "${docker_args[@]}" --all --filter "status=exited")"
+  if [[ -n ${exited} ]]; then
+    printf "removing docker container: %s\n" "${name}" &>/dev/stderr
+    docker container rm --force "${name}" >/dev/null
+    printf "finished removing docker container: %s\n" "${name}" &>/dev/stderr
+  fi
+  docker "${docker_args[@]}" --filter "status=running"
+}
+
+function long_running_container() {
+  local -r container_name="$1"
+  local -r docker_running_container="$(running_container_for "${container_name}")"
+  if [[ -z ${docker_running_container} ]]; then
+    printf "starting a new container [%s]\n" "${container_name}" &>/dev/stderr
+    if [[ -z ${CMD} ]]; then
+      # shellcheck disable=SC2068
+      docker run \
+        ${DOCKER_RUN_ARGS[@]} \
+        "${DOCKER_EXEC_RUN_ARGS[@]}" \
+        "${IMAGE_TAGGED}"
+    else
+      # shellcheck disable=SC2068
+      docker run \
+        ${DOCKER_RUN_ARGS[@]} \
+        "${DOCKER_EXEC_RUN_ARGS[@]}" \
+        --detach \
+        "${IMAGE_TAGGED}" \
+        --login -c "
+declare -i -r pid=\$(bazel info server_pid 2>/dev/null)
+# wait for pid, even if it's not a child process of this shell
+timeout ${LONG_RUNNING_CONTAINER_TIMEOUT} tail --pid=\${pid} -f /dev/null
+" &>/dev/null
+    fi
+  fi
+  running_container_for "${DOCKER_CONTAINER_NAME}"
+}
+
+if [[ ${KEEP_CONTAINER_RUNNING} -eq 1 ]]; then
+  DOCKER_RUNNING_CONTAINER="$(long_running_container "${DOCKER_CONTAINER_NAME}")"
+  docker exec \
+    "${DOCKER_EXEC_RUN_ARGS[@]}" \
+    "${DOCKER_RUNNING_CONTAINER}" \
+    /bin/bash -c "${CMD}"
 else
-  # shellcheck disable=SC2068
-  docker run \
-    ${DOCKER_RUN_ARGS[@]} \
-    "${IMAGE_TAGGED}" \
-    --login -c "${CMD}"
+  if [[ -z ${CMD} ]]; then
+    # shellcheck disable=SC2068
+    docker run \
+      ${DOCKER_RUN_ARGS[@]} \
+      "${DOCKER_EXEC_RUN_ARGS[@]}" \
+      "${IMAGE_TAGGED}" \
+      --login
+  elif [[ ${WITH_CMD_PROFILER} -eq 1 ]]; then
+    # shellcheck disable=SC2068
+    docker run \
+      ${DOCKER_RUN_ARGS[@]} \
+      "${DOCKER_EXEC_RUN_ARGS[@]}" \
+      "${IMAGE_TAGGED}" \
+      --login -c "'${TOOLS_RELDIR}'/normalize-bazel-symlinks; env \${CMD_PROFILER} ${CMD}"
+  else
+    # shellcheck disable=SC2068
+    docker run \
+      ${DOCKER_RUN_ARGS[@]} \
+      "${DOCKER_EXEC_RUN_ARGS[@]}" \
+      "${IMAGE_TAGGED}" \
+      --login -c "$CMD"
+  fi
 fi

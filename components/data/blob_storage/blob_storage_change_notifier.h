@@ -40,7 +40,10 @@ class BlobStorageChangeNotifier {
       const std::function<bool()>& should_stop_callback) = 0;
 
   static absl::StatusOr<std::unique_ptr<BlobStorageChangeNotifier>> Create(
-      NotifierMetadata notifier_metadata);
+      NotifierMetadata notifier_metadata,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 };
 
 }  // namespace kv_server

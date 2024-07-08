@@ -37,6 +37,7 @@
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "riegeli/bytes/istream_reader.h"
 #include "riegeli/records/record_reader.h"
+#include "src/logger/request_context_logger.h"
 #include "src/telemetry/telemetry_provider.h"
 
 namespace kv_server {
@@ -48,11 +49,15 @@ class RiegeliStreamReader : public StreamRecordReader {
   // `data_input` must be at the file beginning when passed in.
   explicit RiegeliStreamReader(
       std::istream& data_input,
-      std::function<bool(const riegeli::SkippedRegion&)> recover)
+      std::function<bool(const riegeli::SkippedRegion&,
+                         riegeli::RecordReaderBase& record_reader)>
+          recover,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
       : reader_(riegeli::RecordReader(
             riegeli::IStreamReader(&data_input),
             riegeli::RecordReaderBase::Options().set_recovery(
-                std::move(recover)))) {}
+                std::move(recover)))),
+        log_context_(log_context) {}
 
   absl::StatusOr<KVFileMetadata> GetKVFileMetadata() override {
     riegeli::RecordsMetadata metadata;
@@ -65,7 +70,8 @@ class RiegeliStreamReader : public StreamRecordReader {
     }
 
     auto file_metadata = metadata.GetExtension(kv_file_metadata);
-    VLOG(2) << "File metadata: " << file_metadata.DebugString();
+    PS_VLOG(2, log_context_)
+        << "File metadata: " << file_metadata.DebugString();
     return file_metadata;
   }
 
@@ -81,7 +87,7 @@ class RiegeliStreamReader : public StreamRecordReader {
       overall_status.Update(callback_status);
     }
     if (!overall_status.ok()) {
-      LOG(ERROR) << overall_status;
+      PS_LOG(ERROR, log_context_) << overall_status;
     }
     return reader_.status();
   }
@@ -91,6 +97,7 @@ class RiegeliStreamReader : public StreamRecordReader {
 
  private:
   riegeli::RecordReader<riegeli::IStreamReader<>> reader_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 const int64_t kDefaultNumWorkerThreads = std::thread::hardware_concurrency();
@@ -134,9 +141,16 @@ class ConcurrentStreamRecordReader : public StreamRecordReader {
   struct Options {
     int64_t num_worker_threads = kDefaultNumWorkerThreads;
     int64_t min_shard_size_bytes = kDefaultMinShardSize;
-    std::function<bool(const riegeli::SkippedRegion&)> recovery_callback =
-        [](const riegeli::SkippedRegion& region) {
-          LOG(WARNING) << "Skipping over corrupted region: " << region;
+    privacy_sandbox::server_common::log::PSLogContext& log_context =
+        const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+            privacy_sandbox::server_common::log::kNoOpContext);
+    std::function<bool(const riegeli::SkippedRegion&,
+                       riegeli::RecordReaderBase& record_reader)>
+        recovery_callback = [log_context = &this->log_context](
+                                const riegeli::SkippedRegion& region,
+                                riegeli::RecordReaderBase& record_reader) {
+          PS_LOG(WARNING, *log_context)
+              << "Skipping over corrupted region: " << region;
           return true;
         };
   };
@@ -188,10 +202,15 @@ absl::StatusOr<KVFileMetadata>
 ConcurrentStreamRecordReader<RecordT>::GetKVFileMetadata() {
   auto record_stream = stream_factory_();
   RiegeliStreamReader<RecordT> metadata_reader(
-      record_stream->Stream(), [](const riegeli::SkippedRegion& region) {
-        LOG(WARNING) << "Skipping over corrupted region: " << region;
+      record_stream->Stream(),
+      [log_context = &options_.log_context](
+          const riegeli::SkippedRegion& region,
+          riegeli::RecordReaderBase& record_reader) {
+        PS_LOG(WARNING, *log_context)
+            << "Skipping over corrupted region: " << region;
         return true;
-      });
+      },
+      options_.log_context);
   return metadata_reader.GetKVFileMetadata();
 }
 template <typename RecordT>
@@ -292,9 +311,9 @@ absl::Status ConcurrentStreamRecordReader<RecordT>::ReadStreamRecords(
     total_records_read += curr_shard_result->num_records_read;
     prev_shard_result = curr_shard_result;
   }
-  VLOG(2) << "Done reading " << total_records_read << " records in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+  PS_VLOG(2, options_.log_context)
+      << "Done reading " << total_records_read << " records in "
+      << absl::ToDoubleMilliseconds(latency_recorder.GetLatency()) << " ms.";
   return absl::OkStatus();
 }
 
@@ -303,8 +322,9 @@ absl::StatusOr<typename ConcurrentStreamRecordReader<RecordT>::ShardResult>
 ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
     const ShardRange& shard,
     const std::function<absl::Status(const RecordT&)>& record_callback) {
-  VLOG(2) << "Reading shard: "
-          << "[" << shard.start_pos << "," << shard.end_pos << "]";
+  PS_VLOG(2, options_.log_context)
+      << "Reading shard: " << "[" << shard.start_pos << "," << shard.end_pos
+      << "]";
   ScopeLatencyMetricsRecorder<
       ServerSafeMetricsContext,
       kConcurrentStreamRecordReaderReadShardRecordsLatency>
@@ -331,18 +351,19 @@ ConcurrentStreamRecordReader<RecordT>::ReadShardRecords(
   // TODO: b/269119466 - Figure out how to handle this better. Maybe add
   // metrics to track callback failures (??).
   if (!overall_status.ok()) {
-    LOG(ERROR) << "Record callback failed to process some records with: "
-               << overall_status;
+    PS_LOG(ERROR, options_.log_context)
+        << "Record callback failed to process some records with: "
+        << overall_status;
   }
   if (!record_reader.ok()) {
     return record_reader.status();
   }
   shard_result.next_shard_first_record_pos = next_record_pos;
   shard_result.num_records_read = num_records_read;
-  VLOG(2) << "Done reading " << num_records_read << " records in shard: ["
-          << shard.start_pos << "," << shard.end_pos << "] in "
-          << absl::ToDoubleMilliseconds(latency_recorder.GetLatency())
-          << " ms.";
+  PS_VLOG(2, options_.log_context)
+      << "Done reading " << num_records_read << " records in shard: ["
+      << shard.start_pos << "," << shard.end_pos << "] in "
+      << absl::ToDoubleMilliseconds(latency_recorder.GetLatency()) << " ms.";
   return shard_result;
 }
 

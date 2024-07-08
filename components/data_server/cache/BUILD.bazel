@@ -20,6 +20,32 @@ package(default_visibility = [
 ])
 
 cc_library(
+    name = "uint32_value_set",
+    srcs = ["uint32_value_set.cc"],
+    hdrs = ["uint32_value_set.h"],
+    deps = [
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@roaring_bitmap//:c_roaring",
+    ],
+)
+
+cc_test(
+    name = "uint32_value_set_test",
+    size = "small",
+    srcs = [
+        "uint32_value_set_test.cc",
+    ],
+    deps = [
+        ":uint32_value_set",
+        "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+        "@roaring_bitmap//:c_roaring",
+    ],
+)
+
+cc_library(
     name = "get_key_value_set_result_impl",
     srcs = [
         "get_key_value_set_result_impl.cc",
@@ -28,6 +54,8 @@ cc_library(
         "get_key_value_set_result.h",
     ],
     deps = [
+        ":uint32_value_set",
+        "//components/container:thread_safe_hash_map",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
     ],
@@ -57,6 +85,8 @@ cc_library(
     deps = [
         ":cache",
         ":get_key_value_set_result_impl",
+        ":uint32_value_set",
+        "//components/container:thread_safe_hash_map",
         "//public:base_types_cc_proto",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:btree",
@@ -90,6 +120,8 @@ cc_library(
     hdrs = ["mocks.h"],
     deps = [
         ":cache",
+        ":uint32_value_set",
+        "//components/container:thread_safe_hash_map",
         "@com_google_googletest//:gtest",
     ],
 )

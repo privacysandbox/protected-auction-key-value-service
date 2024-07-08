@@ -34,7 +34,6 @@
 #include "grpcpp/grpcpp.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/query/get_values.grpc.pb.h"
-#include "src/telemetry/metrics_recorder.h"
 #include "test/core/util/histogram.h"
 #include "tools/request_simulation/client_worker.h"
 #include "tools/request_simulation/delta_based_request_generator.h"
@@ -83,7 +82,6 @@ namespace kv_server {
 class RequestSimulationSystem {
  public:
   RequestSimulationSystem(
-      privacy_sandbox::server_common::MetricsRecorder& metrics_recorder,
       privacy_sandbox::server_common::SteadyClock& steady_clock,
       absl::AnyInvocable<std::shared_ptr<grpc::Channel>(
           const std::string& server_address,
@@ -91,8 +89,7 @@ class RequestSimulationSystem {
           channel_creation_fn,
       std::unique_ptr<RequestSimulationParameterFetcher>
           parameter_fetcher_for_unit_testing = nullptr)
-      : metrics_recorder_(metrics_recorder),
-        steady_clock_(steady_clock),
+      : steady_clock_(steady_clock),
         channel_creation_fn_(std::move(channel_creation_fn)) {
     if (parameter_fetcher_for_unit_testing != nullptr) {
       parameter_fetcher_ = std::move(parameter_fetcher_for_unit_testing);
@@ -136,7 +133,6 @@ class RequestSimulationSystem {
   absl::AnyInvocable<std::string(std::string_view)> CreateRequestFromKeyFn();
   // This must be first, otherwise the AWS SDK will crash when it's called:
   PlatformInitializer platform_initializer_;
-  privacy_sandbox::server_common::MetricsRecorder& metrics_recorder_;
   std::unique_ptr<MetricsCollector> metrics_collector_;
   privacy_sandbox::server_common::SteadyClock& steady_clock_;
   absl::AnyInvocable<std::shared_ptr<grpc::Channel>(
@@ -145,6 +141,8 @@ class RequestSimulationSystem {
       channel_creation_fn_;
   std::string server_address_;
   std::string server_method_;
+  std::string consented_debug_token_;
+  std::optional<std::string> generation_id_override_;
   int concurrent_number_of_requests_;
   int64_t synthetic_requests_fill_qps_;
   SyntheticRequestGenOption synthetic_request_gen_option_;

@@ -50,7 +50,7 @@ std::unique_ptr<BlobReader> FileBlobStorageClient::GetBlobReader(
       std::make_unique<FileBlobReader>(GetFullPath(location));
 
   if (!reader->Stream()) {
-    LOG(ERROR) << absl::ErrnoToStatus(
+    PS_LOG(ERROR, log_context_) << absl::ErrnoToStatus(
         errno,
         absl::StrCat("Unable to open file: ", GetFullPath(location).string()));
     return nullptr;
@@ -135,8 +135,9 @@ class LocalBlobStorageClientFactory : public BlobStorageClientFactory {
  public:
   ~LocalBlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
-      BlobStorageClient::ClientOptions /*client_options*/) override {
-    return std::make_unique<FileBlobStorageClient>();
+      BlobStorageClient::ClientOptions /*client_options*/,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
+    return std::make_unique<FileBlobStorageClient>(log_context);
   }
 };
 }  // namespace

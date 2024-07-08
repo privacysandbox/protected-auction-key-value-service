@@ -33,6 +33,7 @@ module "security" {
   environment            = var.environment
   network_id             = module.networking.network_id
   subnets                = module.networking.subnets
+  proxy_subnets          = module.networking.proxy_subnets
   collector_service_port = var.collector_service_port
 }
 
@@ -72,13 +73,15 @@ module "metrics_collector_autoscaling" {
   collector_machine_type          = var.collector_machine_type
   collector_service_name          = var.collector_service_name
   collector_service_port          = var.collector_service_port
+  collector_startup_script_path   = "${path.module}/${var.collector_startup_script_path}"
   max_replicas_per_service_region = var.max_replicas_per_service_region
 }
 
 module "metrics_collector" {
   source                    = "../../services/metrics_collector"
   environment               = var.environment
-  collector_ip_address      = module.networking.collector_ip_address
+  subnets                   = module.networking.subnets
+  proxy_subnets             = module.networking.proxy_subnets
   collector_instance_groups = module.metrics_collector_autoscaling.collector_instance_groups
   collector_service_name    = var.collector_service_name
   collector_service_port    = var.collector_service_port

@@ -21,6 +21,9 @@
 #include "components/udf/mocks.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "opentelemetry/exporters/ostream/log_record_exporter.h"
+#include "opentelemetry/sdk/logs/logger_provider_factory.h"
+#include "opentelemetry/sdk/logs/simple_log_record_processor_factory.h"
 #include "opentelemetry/sdk/resource/resource.h"
 
 namespace kv_server {
@@ -31,9 +34,6 @@ using privacy_sandbox::server_common::ConfigureMetrics;
 using testing::_;
 
 void RegisterRequiredTelemetryExpectations(MockParameterClient& client) {
-  EXPECT_CALL(client, GetBoolParameter("kv-server-environment-use-external-"
-                                       "metrics-collector-endpoint"))
-      .WillOnce(::testing::Return(false));
   EXPECT_CALL(
       client,
       GetInt32Parameter("kv-server-environment-metrics-export-interval-millis"))
@@ -56,12 +56,15 @@ void RegisterRequiredTelemetryExpectations(MockParameterClient& client) {
   EXPECT_CALL(client,
               GetBoolParameter("kv-server-environment-enable-otel-logger"))
       .WillOnce(::testing::Return(false));
+  EXPECT_CALL(client,
+              GetBoolParameter("kv-server-environment-enable-consented-log"))
+      .WillOnce(::testing::Return(false));
   EXPECT_CALL(client, GetParameter("kv-server-environment-telemetry-config",
                                    testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return("mode: EXPERIMENT"));
 }
 
-void InitializeMetrics() {
+void InitializeTelemetry() {
   opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
       metrics_options;
   // The defaults for these values are 30 and 60s and we don't want to wait that
@@ -69,24 +72,36 @@ void InitializeMetrics() {
   metrics_options.export_interval_millis = std::chrono::milliseconds(200);
   metrics_options.export_timeout_millis = std::chrono::milliseconds(100);
   ConfigureMetrics(Resource::Create({}), metrics_options);
+  static auto* logger_provider =
+      opentelemetry::sdk::logs::LoggerProviderFactory::Create(
+          opentelemetry::sdk::logs::SimpleLogRecordProcessorFactory::Create(
+              std::make_unique<
+                  opentelemetry::exporter::logs::OStreamLogRecordExporter>(
+                  std::cout)))
+          .release();
+  privacy_sandbox::server_common::log::logger_private =
+      logger_provider->GetLogger("test").get();
 }
 
-TEST(ServerLocalTest, WaitWithoutStart) {
-  InitializeMetrics();
+class ServerLocalTest : public ::testing::Test {
+ protected:
+  void SetUp() override { InitializeTelemetry(); }
+};
+
+TEST_F(ServerLocalTest, WaitWithoutStart) {
   kv_server::Server server;
   // This should be a no-op as the server was never started:
   server.Wait();
 }
 
-TEST(ServerLocalTest, ShutdownWithoutStart) {
-  InitializeMetrics();
+TEST_F(ServerLocalTest, ShutdownWithoutStart) {
   kv_server::Server server;
   // These should be a no-op as the server was never started:
   server.GracefulShutdown(absl::Seconds(1));
   server.ForceShutdown();
 }
 
-TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
+TEST_F(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
   RegisterRequiredTelemetryExpectations(*parameter_client);
@@ -114,6 +129,10 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
       .WillOnce(::testing::Return(2));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
+      .WillOnce(::testing::Return(5000));
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-udf-update-timeout-millis"))
       .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-min-log-level"))
@@ -143,7 +162,7 @@ TEST(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   EXPECT_FALSE(status.ok());
 }
 
-TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
+TEST_F(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
   RegisterRequiredTelemetryExpectations(*parameter_client);
@@ -184,6 +203,10 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-udf-update-timeout-millis"))
+      .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-min-log-level"))
       .WillOnce(::testing::Return(0));
@@ -200,7 +223,7 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
-  EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
+  EXPECT_CALL(*mock_udf_client, SetCodeObject(_, _))
       .WillOnce(testing::Return(absl::OkStatus()));
   EXPECT_CALL(
       *parameter_client,
@@ -215,7 +238,7 @@ TEST(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   EXPECT_TRUE(status.ok());
 }
 
-TEST(ServerLocalTest, GracefulServerShutdown) {
+TEST_F(ServerLocalTest, GracefulServerShutdown) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
   RegisterRequiredTelemetryExpectations(*parameter_client);
@@ -259,6 +282,10 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-udf-update-timeout-millis"))
+      .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-min-log-level"))
       .WillOnce(::testing::Return(0));
@@ -271,7 +298,7 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
-  EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
+  EXPECT_CALL(*mock_udf_client, SetCodeObject(_, _))
       .WillOnce(testing::Return(absl::OkStatus()));
   EXPECT_CALL(
       *parameter_client,
@@ -289,7 +316,7 @@ TEST(ServerLocalTest, GracefulServerShutdown) {
   server_thread.join();
 }
 
-TEST(ServerLocalTest, ForceServerShutdown) {
+TEST_F(ServerLocalTest, ForceServerShutdown) {
   auto instance_client = std::make_unique<MockInstanceClient>();
   auto parameter_client = std::make_unique<MockParameterClient>();
   RegisterRequiredTelemetryExpectations(*parameter_client);
@@ -330,6 +357,10 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-timeout-millis"))
       .WillOnce(::testing::Return(5000));
+  EXPECT_CALL(
+      *parameter_client,
+      GetInt32Parameter("kv-server-environment-udf-update-timeout-millis"))
+      .WillOnce(::testing::Return(5000));
   EXPECT_CALL(*parameter_client,
               GetInt32Parameter("kv-server-environment-udf-min-log-level"))
       .WillOnce(::testing::Return(0));
@@ -346,7 +377,7 @@ TEST(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
-  EXPECT_CALL(*mock_udf_client, SetCodeObject(_))
+  EXPECT_CALL(*mock_udf_client, SetCodeObject(_, _))
       .WillOnce(testing::Return(absl::OkStatus()));
   EXPECT_CALL(
       *parameter_client,

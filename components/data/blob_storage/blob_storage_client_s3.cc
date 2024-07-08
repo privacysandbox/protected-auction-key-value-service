@@ -105,17 +105,24 @@ class S3BlobInputStreamBuf : public SeekingInputStreambuf {
 
 class S3BlobReader : public BlobReader {
  public:
-  S3BlobReader(Aws::S3::S3Client& client,
-               BlobStorageClient::DataLocation location,
-               int64_t max_range_bytes)
+  S3BlobReader(
+      Aws::S3::S3Client& client, BlobStorageClient::DataLocation location,
+      int64_t max_range_bytes,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext))
       : BlobReader(),
+        log_context_(log_context),
         streambuf_(client, location,
-                   GetOptions(max_range_bytes,
-                              [this, location](absl::Status status) {
-                                LOG(ERROR) << "Blob " << location.key
-                                           << " failed stream with: " << status;
-                                is_.setstate(std::ios_base::badbit);
-                              })),
+                   GetOptions(
+                       max_range_bytes,
+                       [this, location](absl::Status status) {
+                         PS_LOG(ERROR, log_context_)
+                             << "Blob " << location.key
+                             << " failed stream with: " << status;
+                         is_.setstate(std::ios_base::badbit);
+                       },
+                       log_context)),
         is_(&streambuf_) {}
 
   std::istream& Stream() { return is_; }
@@ -123,21 +130,26 @@ class S3BlobReader : public BlobReader {
 
  private:
   static SeekingInputStreambuf::Options GetOptions(
-      int64_t buffer_size, std::function<void(absl::Status)> error_callback) {
+      int64_t buffer_size, std::function<void(absl::Status)> error_callback,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) {
     SeekingInputStreambuf::Options options;
     options.buffer_size = buffer_size;
     options.error_callback = std::move(error_callback);
+    options.log_context = log_context;
     return options;
   }
-
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
   S3BlobInputStreamBuf streambuf_;
   std::istream is_;
 };
 }  // namespace
 
 S3BlobStorageClient::S3BlobStorageClient(
-    std::shared_ptr<Aws::S3::S3Client> client, int64_t max_range_bytes)
-    : client_(client), max_range_bytes_(max_range_bytes) {
+    std::shared_ptr<Aws::S3::S3Client> client, int64_t max_range_bytes,
+    privacy_sandbox::server_common::log::PSLogContext& log_context)
+    : client_(client),
+      max_range_bytes_(max_range_bytes),
+      log_context_(log_context) {
   executor_ = std::make_unique<Aws::Utils::Threading::PooledThreadExecutor>(
       std::thread::hardware_concurrency());
   Aws::Transfer::TransferManagerConfiguration transfer_config(executor_.get());
@@ -148,7 +160,7 @@ S3BlobStorageClient::S3BlobStorageClient(
 std::unique_ptr<BlobReader> S3BlobStorageClient::GetBlobReader(
     DataLocation location) {
   return std::make_unique<S3BlobReader>(*client_, std::move(location),
-                                        max_range_bytes_);
+                                        max_range_bytes_, log_context_);
 }
 
 absl::Status S3BlobStorageClient::PutBlob(BlobReader& reader,
@@ -224,14 +236,15 @@ class S3BlobStorageClientFactory : public BlobStorageClientFactory {
  public:
   ~S3BlobStorageClientFactory() = default;
   std::unique_ptr<BlobStorageClient> CreateBlobStorageClient(
-      BlobStorageClient::ClientOptions client_options) override {
+      BlobStorageClient::ClientOptions client_options,
+      privacy_sandbox::server_common::log::PSLogContext& log_context) override {
     Aws::Client::ClientConfiguration config;
     config.maxConnections = client_options.max_connections;
     std::shared_ptr<Aws::S3::S3Client> client =
         std::make_shared<Aws::S3::S3Client>(config);
 
     return std::make_unique<S3BlobStorageClient>(
-        client, client_options.max_range_bytes);
+        client, client_options.max_range_bytes, log_context);
   }
 };
 }  // namespace

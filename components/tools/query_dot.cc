@@ -14,8 +14,8 @@
 
 #include "components/tools/query_dot.h"
 
-#include <algorithm>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/str_join.h"
@@ -36,6 +36,12 @@ class ASTNameVisitor : public ASTStringVisitor {
 
 class ASTDotGraphLabelVisitor : public ASTStringVisitor {
  public:
+  explicit ASTDotGraphLabelVisitor(
+      absl::AnyInvocable<
+          absl::flat_hash_set<std::string_view>(std::string_view key) const>
+          lookup_fn)
+      : lookup_fn_(std::move(lookup_fn)) {}
+
   virtual std::string Visit(const UnionNode& node) {
     return name_visitor_.Visit(node);
   }
@@ -49,11 +55,17 @@ class ASTDotGraphLabelVisitor : public ASTStringVisitor {
   }
 
   virtual std::string Visit(const ValueNode& node) {
-    return absl::StrCat(ToString(node.Keys()), "->", ToString(Eval(node)));
+    return absl::StrCat(
+        ToString(node.Keys()), "->",
+        ToString(Eval<absl::flat_hash_set<std::string_view>>(
+            node, [this](std::string_view key) { return lookup_fn_(key); })));
   }
 
  private:
   ASTNameVisitor name_visitor_;
+  absl::AnyInvocable<absl::flat_hash_set<std::string_view>(std::string_view key)
+                         const>
+      lookup_fn_;
 };
 
 std::string DotNodeName(const Node& node, uint32_t namecnt) {
@@ -61,8 +73,11 @@ std::string DotNodeName(const Node& node, uint32_t namecnt) {
   return absl::StrCat(node.Accept(name_visitor), namecnt);
 }
 
-std::string ToDotGraphBody(const Node& node, uint32_t* namecnt) {
-  ASTDotGraphLabelVisitor label_visitor;
+std::string ToDotGraphBody(
+    const Node& node, uint32_t* namecnt,
+    std::function<absl::flat_hash_set<std::string_view>(std::string_view)>
+        lookup_fn) {
+  ASTDotGraphLabelVisitor label_visitor(lookup_fn);
   const std::string label = node.Accept(label_visitor);
   const std::string node_name = DotNodeName(node, *namecnt);
   std::string dot_str = absl::StrCat(node_name, " [label=\"", label, "\"]\n");
@@ -71,25 +86,29 @@ std::string ToDotGraphBody(const Node& node, uint32_t* namecnt) {
     const std::string arrow =
         absl::StrCat(node_name, " -- ", DotNodeName(*node.Left(), *namecnt));
     absl::StrAppend(&dot_str, arrow, "\n",
-                    ToDotGraphBody(*node.Left(), namecnt));
+                    ToDotGraphBody(*node.Left(), namecnt, lookup_fn));
   }
   if (node.Right() != nullptr) {
     *namecnt = *namecnt + 1;
     const std::string arrow =
         absl::StrCat(node_name, " -- ", DotNodeName(*node.Right(), *namecnt));
     absl::StrAppend(&dot_str, arrow, "\n",
-                    ToDotGraphBody(*node.Right(), namecnt));
+                    ToDotGraphBody(*node.Right(), namecnt, lookup_fn));
   }
   return dot_str;
 }
 
 }  // namespace
 
-void QueryDotWriter::WriteAst(std::string_view query, const Node& node) {
+void QueryDotWriter::WriteAst(
+    std::string_view query, const Node& node,
+    std::function<absl::flat_hash_set<std::string_view>(std::string_view)>
+        lookup_fn) {
   uint32_t namecnt = 0;
   const std::string title =
       absl::StrCat("labelloc=\"t\"\nlabel=\"AST for Query: ", query, "\"\n");
-  file_ << absl::StrCat("graph {\n", title, ToDotGraphBody(node, &namecnt),
+  file_ << absl::StrCat("graph {\n", title,
+                        ToDotGraphBody(node, &namecnt, std::move(lookup_fn)),
                         "\n}\n");
 }
 

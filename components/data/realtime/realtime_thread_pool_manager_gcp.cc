@@ -26,8 +26,10 @@ namespace {
 class RealtimeThreadPoolManagerGCP : public RealtimeThreadPoolManager {
  public:
   explicit RealtimeThreadPoolManagerGCP(
-      std::unique_ptr<RealtimeNotifier> realtime_notifier)
-      : realtime_notifier_(std::move(realtime_notifier)) {}
+      std::unique_ptr<RealtimeNotifier> realtime_notifier,
+      privacy_sandbox::server_common::log::PSLogContext& log_context)
+      : realtime_notifier_(std::move(realtime_notifier)),
+        log_context_(log_context) {}
   ~RealtimeThreadPoolManagerGCP() override { Stop(); }
 
   absl::Status Start(
@@ -40,7 +42,7 @@ class RealtimeThreadPoolManagerGCP : public RealtimeThreadPoolManager {
     if (realtime_notifier_->IsRunning()) {
       auto status = realtime_notifier_->Stop();
       if (!status.ok()) {
-        LOG(ERROR) << status.message();
+        PS_LOG(ERROR, log_context_) << status.message();
       }
       return status;
     }
@@ -49,24 +51,27 @@ class RealtimeThreadPoolManagerGCP : public RealtimeThreadPoolManager {
 
  private:
   std::unique_ptr<RealtimeNotifier> realtime_notifier_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 }  // namespace
 
 absl::StatusOr<std::unique_ptr<RealtimeThreadPoolManager>>
 RealtimeThreadPoolManager::Create(
     NotifierMetadata notifier_metadata, int32_t num_threads,
-    std::vector<RealtimeNotifierMetadata> realtime_notifier_metadata) {
+    std::vector<RealtimeNotifierMetadata> realtime_notifier_metadata,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
   RealtimeNotifierMetadata realtime_notifier_metadatum =
       realtime_notifier_metadata.empty()
           ? RealtimeNotifierMetadata{}
           : std::move(realtime_notifier_metadata[0]);
   auto maybe_realtime_notifier = RealtimeNotifier::Create(
-      std::move(notifier_metadata), std::move(realtime_notifier_metadatum));
+      std::move(notifier_metadata), std::move(realtime_notifier_metadatum),
+      log_context);
   if (!maybe_realtime_notifier.ok()) {
     return maybe_realtime_notifier.status();
   }
   return std::make_unique<RealtimeThreadPoolManagerGCP>(
-      std::move(*maybe_realtime_notifier));
+      std::move(*maybe_realtime_notifier), log_context);
 }
 
 }  // namespace kv_server

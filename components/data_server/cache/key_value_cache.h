@@ -17,21 +17,19 @@
 #ifndef COMPONENTS_DATA_SERVER_CACHE_KEY_VALUE_CACHE_H_
 #define COMPONENTS_DATA_SERVER_CACHE_KEY_VALUE_CACHE_H_
 
-#include <iostream>
 #include <map>
 #include <memory>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
-#include <vector>
 
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "components/container/thread_safe_hash_map.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/get_key_value_set_result.h"
-#include "public/base_types.pb.h"
+#include "components/data_server/cache/uint32_value_set.h"
 
 namespace kv_server {
 // In-memory datastore.
@@ -48,36 +46,59 @@ class KeyValueCache : public Cache {
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override;
 
+  // Looks up and returns int32 value set result for the given key set.
+  std::unique_ptr<GetKeyValueSetResult> GetUInt32ValueSet(
+      const RequestContext& request_context,
+      const absl::flat_hash_set<std::string_view>& key_set) const override;
+
   // Inserts or updates the key with the new value for a given prefix
-  void UpdateKeyValue(std::string_view key, std::string_view value,
-                      int64_t logical_commit_time,
-                      std::string_view prefix = "") override;
+  void UpdateKeyValue(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, std::string_view value, int64_t logical_commit_time,
+      std::string_view prefix = "") override;
 
   // Inserts or updates values in the set for a given key and prefix, if a value
   // exists, updates its timestamp to the latest logical commit time.
-  void UpdateKeyValueSet(std::string_view key,
-                         absl::Span<std::string_view> input_value_set,
-                         int64_t logical_commit_time,
-                         std::string_view prefix = "") override;
+  void UpdateKeyValueSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<std::string_view> input_value_set,
+      int64_t logical_commit_time, std::string_view prefix = "") override;
+
+  // Inserts or updates values in the set for a given key and prefix, if a value
+  // exists, updates its timestamp to the latest logical commit time.
+  void UpdateKeyValueSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<uint32_t> value_set,
+      int64_t logical_commit_time, std::string_view prefix = "") override;
 
   // Deletes a particular (key, value) pair for a given prefix.
-  void DeleteKey(std::string_view key, int64_t logical_commit_time,
+  void DeleteKey(privacy_sandbox::server_common::log::PSLogContext& log_context,
+                 std::string_view key, int64_t logical_commit_time,
                  std::string_view prefix = "") override;
 
   // Deletes values in the set for a given key and prefix. The deletion, this
   // object still exist and is marked "deleted", in case there are late-arriving
   // updates to this value.
-  void DeleteValuesInSet(std::string_view key,
-                         absl::Span<std::string_view> value_set,
-                         int64_t logical_commit_time,
-                         std::string_view prefix = "") override;
+  void DeleteValuesInSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<std::string_view> value_set,
+      int64_t logical_commit_time, std::string_view prefix = "") override;
+
+  // Deletes values in the set for a given key and prefix. The deletion, this
+  // object still exist and is marked "deleted", in case there are late-arriving
+  // updates to this value.
+  void DeleteValuesInSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<uint32_t> value_set,
+      int64_t logical_commit_time, std::string_view prefix = "") override;
 
   // Removes the values that were deleted before the specified
   // logical_commit_time for a given prefix.
   // TODO: b/267182790 -- Cache cleanup should be done periodically from a
   // background thread
-  void RemoveDeletedKeys(int64_t logical_commit_time,
-                         std::string_view prefix = "") override;
+  void RemoveDeletedKeys(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      int64_t logical_commit_time, std::string_view prefix = "") override;
 
   static std::unique_ptr<Cache> Create();
 
@@ -105,6 +126,7 @@ class KeyValueCache : public Cache {
     SetValueMeta(int64_t logical_commit_time, bool deleted)
         : last_logical_commit_time(logical_commit_time), is_deleted(deleted) {}
   };
+
   // mutex for key value map;
   mutable absl::Mutex mutex_;
   // mutex for key value set map;
@@ -131,7 +153,7 @@ class KeyValueCache : public Cache {
   //  guarded b mutex, if not, we may want to remove it and use one
   // max_cleanup_logical_commit_time in update/deletion for both maps
   absl::flat_hash_map<std::string, int64_t>
-      max_cleanup_logical_commit_time_map_for_set_cache_
+      set_cache_max_cleanup_logical_commit_time_
           ABSL_GUARDED_BY(set_map_mutex_);
 
   // Mapping from a key to its value map. The key in the inner map is the
@@ -156,12 +178,28 @@ class KeyValueCache : public Cache {
           absl::flat_hash_map<std::string, absl::flat_hash_set<std::string>>>>
       deleted_set_nodes_map_ ABSL_GUARDED_BY(set_map_mutex_);
 
+  // Maps set key to its int32_t value set.
+  ThreadSafeHashMap<std::string, UInt32ValueSet> uint32_sets_map_;
+  ThreadSafeHashMap<std::string, int64_t>
+      uint32_sets_max_cleanup_commit_time_map_;
+  ThreadSafeHashMap<std::string,
+                    absl::btree_map<int64_t, absl::flat_hash_set<std::string>>>
+      deleted_uint32_sets_map_;
+
   // Removes deleted keys from key-value map for a given prefix
-  void CleanUpKeyValueMap(int64_t logical_commit_time, std::string_view prefix);
+  void CleanUpKeyValueMap(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      int64_t logical_commit_time, std::string_view prefix);
 
   // Removes deleted key-values from key-value_set map for a given prefix
-  void CleanUpKeyValueSetMap(int64_t logical_commit_time,
-                             std::string_view prefix);
+  void CleanUpKeyValueSetMap(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      int64_t logical_commit_time, std::string_view prefix);
+
+  void CleanUpUInt32SetMap(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      int64_t logical_commit_time, std::string_view prefix);
+
   // Logs cache access metrics for cache hit or miss counts. The cache access
   // event name is defined in server_definition.h file
   void LogCacheAccessMetrics(const RequestContext& request_context,

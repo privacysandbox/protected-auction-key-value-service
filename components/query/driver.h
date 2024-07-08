@@ -20,8 +20,8 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 
-#include "absl/container/flat_hash_set.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -35,23 +35,19 @@ namespace kv_server {
 //   * Executing the query
 //   * Storing the result
 // Typical usage:
-//   Driver driver(LookupFn);
+//   Driver driver;
 //   std::istringstream stream(query);
 //   Scanner scanner(stream);
 //   Parser parse(driver, scanner);
 //   int parse_result = parse();
-//   auto result = driver.GetResult();
+//   auto result = driver.GetResult(LookupFn);
 // parse_result is only expected to be non-zero when result is a failure.
 class Driver {
  public:
-  // `lookup_fn` returns the set associated with the provided key.
-  // If no key is present, an empty set should be returned.
-  explicit Driver(absl::AnyInvocable<absl::flat_hash_set<std::string_view>(
-                      std::string_view key) const>
-                      lookup_fn);
-
   // The result contains views of the data within the DB.
-  absl::StatusOr<absl::flat_hash_set<std::string_view>> GetResult() const;
+  template <typename SetType>
+  absl::StatusOr<SetType> EvaluateQuery(
+      absl::AnyInvocable<SetType(std::string_view key) const> lookup_fn) const;
 
   // Returns the the `Node` associated with `SetAst`
   // or nullptr if unset.
@@ -62,16 +58,22 @@ class Driver {
   void SetError(std::string error);
   void ClearError() { status_ = absl::OkStatus(); }
 
-  // Looks up the set which contains a view of the DB data.
-  absl::flat_hash_set<std::string_view> Lookup(std::string_view key) const;
-
  private:
-  absl::AnyInvocable<absl::flat_hash_set<std::string_view>(std::string_view key)
-                         const>
-      lookup_fn_;
   std::unique_ptr<kv_server::Node> ast_;
   absl::Status status_ = absl::OkStatus();
 };
+
+template <typename SetType>
+absl::StatusOr<SetType> Driver::EvaluateQuery(
+    absl::AnyInvocable<SetType(std::string_view key) const> lookup_fn) const {
+  if (!status_.ok()) {
+    return status_;
+  }
+  if (ast_ == nullptr) {
+    return SetType();
+  }
+  return Eval<SetType>(*ast_, std::move(lookup_fn));
+}
 
 }  // namespace kv_server
 #endif  // COMPONENTS_QUERY_DRIVER_H_

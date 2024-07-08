@@ -22,6 +22,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "components/data/common/msg_svc.h"
+#include "src/logger/request_context_logger.h"
 
 namespace kv_server {
 
@@ -43,7 +44,10 @@ class ChangeNotifier {
       const std::function<bool()>& should_stop_callback) = 0;
 
   static absl::StatusOr<std::unique_ptr<ChangeNotifier>> Create(
-      NotifierMetadata notifier_metadata);
+      NotifierMetadata notifier_metadata,
+      privacy_sandbox::server_common::log::PSLogContext& log_context =
+          const_cast<privacy_sandbox::server_common::log::NoOpContext&>(
+              privacy_sandbox::server_common::log::kNoOpContext));
 };
 
 }  // namespace kv_server

@@ -22,6 +22,7 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "components/data_server/server/server.h"
+#include "components/data_server/server/server_log_init.h"
 #include "components/util/build_info.h"
 #include "src/util/rlimit_core_config.h"
 
@@ -46,7 +47,7 @@ int main(int argc, char** argv) {
     absl::InstallFailureSignalHandler(options);
   }
 
-  absl::InitializeLog();
+  kv_server::InitLog();
   absl::SetProgramUsageMessage(absl::StrCat(
       "FLEDGE Key/Value Server.  Sample usage:\n", argv[0], " --port=50051"));
   absl::ParseCommandLine(argc, argv);

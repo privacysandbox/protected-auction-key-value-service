@@ -34,6 +34,55 @@ sed -i -e 's/$REGION/'${prometheus_service_region}'/g' -e 's/$WORKSPACE_ID/'${pr
 # Start the otel collector
 sudo /opt/aws/aws-otel-collector/bin/aws-otel-collector-ctl -c /opt/aws/aws-otel-collector/etc/otel_collector_config.yaml -a start
 
+if [[ -n "${app_mesh_name}" && -n "${virtual_node_name}" ]]; then
+# Authenticate with the Envoy Amazon ECR repository in the Region that you want
+# your Docker client to pull the image from.
+aws ecr get-login-password \
+    --region ${region} \
+| docker login \
+    --username AWS \
+    --password-stdin 840364872350.dkr.ecr.${region}.amazonaws.com
+
+# Start the App Mesh Envoy container.
+sudo docker run --detach --env APPMESH_RESOURCE_ARN=mesh/${app_mesh_name}/virtualNode/${virtual_node_name}  \
+-v /tmp:/tmp \
+-u 1337 --network host public.ecr.aws/appmesh/aws-appmesh-envoy:v1.29.4.0-prod
+fi
+
+if [[ -n "${cloud_map_service_id}" && -n "${region}" ]]; then
+# Grab the metadata needed for registering instance.
+TOKEN=`curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"` \
+&& IP_ADDRESS=`curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4`
+
+TOKEN=`curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"` \
+&& INSTANCE_ID=`curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id`
+
+# Actually register the present EC2 with the cloud map.
+register_instance_out=$(aws servicediscovery register-instance \
+                        --service-id ${cloud_map_service_id} \
+                        --instance-id $INSTANCE_ID \
+                        --attributes "AWS_INSTANCE_IPV4="$IP_ADDRESS \
+                        --region ${region} 2>&1)
+while [[ "$?" -gt 0 ]] && [[ "$register_instance_out" =~ "not authorized to perform" ]]; do
+  echo "Registering service instance failed ... This can be transient and thus trying again in 2 seconds"
+  echo "Observed failure: $register_instance_out"
+  sleep 2
+  register_instance_out=$(aws servicediscovery register-instance \
+                          --service-id ${cloud_map_service_id} \
+                          --instance-id $INSTANCE_ID \
+                          --attributes "AWS_INSTANCE_IPV4="$IP_ADDRESS \
+                          --region ${region} 2>&1)
+done
+fi
+
+if [[ -n "${app_mesh_name}" && -n "${virtual_node_name}" && -n "${cloud_map_service_id}" && -n "${region}" ]]; then
+echo "Will wait for service mesh envoy proxy to come up"
+while [ "$(curl localhost:9901/ready)" != "LIVE" ] ; do
+  echo "Service mesh envoy proxy is not ready.. will check again in 1 second"
+  sleep 1
+done
+fi
+
 if [ ${run_server_outside_tee} = false ];
 then
   # Make sure nitro enclave allocator service is stopped
@@ -61,11 +110,31 @@ then
     --cpu-count ${enclave_cpu_count} \
     --memory ${enclave_memory_mib} \
     --eif-path /opt/privacysandbox/server_enclave_image.eif \
-    --enclave-cid 16 ${enclave_enable_debug_mode}
+    --enclave-cid 16 ${enclave_enable_debug_mode} &
 else
   # Load the docker image
   docker load -i /home/ec2-user/server_docker_image.tar
   # Run the docker image
   docker run --detach --rm --network host --security-opt=seccomp=unconfined  \
-  --entrypoint=/init_server_basic bazel/production/packaging/aws/data_server:server_docker_image
+  --entrypoint=/init_server_basic bazel/production/packaging/aws/data_server:server_docker_image &
+fi
+
+SECONDS_TRIED=0
+
+echo "Will wait for ${healthcheck_grace_period_sec} seconds for the service to come up"
+while ! grpcurl --plaintext localhost:50051 list; do
+  echo "Service/Vsock proxy is not reachable.. will retry in 1 second"
+  ((SECONDS_TRIED++))
+  if (( SECONDS_TRIED > ${healthcheck_grace_period_sec} ))
+  then
+    echo "Timing out: tried for ${healthcheck_grace_period_sec} seconds and the service and its vsock proxy are still not reachable."
+    break
+  fi
+  sleep 1
+done
+
+if [[ -n "${app_mesh_name}" && -n "${virtual_node_name}" && -n "${cloud_map_service_id}" && -n "${region}" ]]; then
+  bash /opt/privacysandbox/hc.bash -p /opt/privacysandbox -n health.proto -a localhost:50051 -i ${healthcheck_interval_sec} -t ${healthcheck_timeout_sec} -h ${healthcheck_healthy_threshold} -u ${healthcheck_unhealthy_threshold} -e $INSTANCE_ID -g 0 -r ${region} -s ${cloud_map_service_id} &
+  echo "Setting up iptables to route traffic via service mesh / envoy"
+  sudo bash -x /opt/privacysandbox/envoy_networking.sh
 fi

@@ -183,6 +183,38 @@ TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithStringSetValue) {
   EXPECT_TRUE(status.ok()) << status;
 }
 
+TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithUInt32SetValue) {
+  // Serialize
+  KeyValueMutationRecordT kv_mutation_record_native;
+  kv_mutation_record_native.key = "key";
+  kv_mutation_record_native.logical_commit_time = 5;
+  UInt32SetT value_native;
+  value_native.value = {1000, 1001, 1002};
+  kv_mutation_record_native.value.Set(std::move(value_native));
+  DataRecordT data_record_native;
+  data_record_native.record.Set(std::move(kv_mutation_record_native));
+  auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
+  // Deserialize
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(1)
+      .WillOnce([](const DataRecord& fbs_record) {
+        const KeyValueMutationRecord& kv_mutation_record =
+            *fbs_record.record_as_KeyValueMutationRecord();
+        EXPECT_EQ(kv_mutation_record.key()->string_view(), "key");
+        EXPECT_EQ(kv_mutation_record.logical_commit_time(), 5);
+        absl::StatusOr<std::vector<uint32_t>> maybe_record_value =
+            MaybeGetRecordValue<std::vector<uint32_t>>(kv_mutation_record);
+        EXPECT_TRUE(maybe_record_value.ok()) << maybe_record_value.status();
+        EXPECT_THAT(*maybe_record_value,
+                    testing::UnorderedElementsAre(1000, 1001, 1002));
+        return absl::OkStatus();
+      });
+  auto status = DeserializeRecord(serialized_string_view,
+                                  record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
 TEST(DataRecordTest, DeserializeDataRecordEmptyRecordFailure) {
   DataRecordT data_record_native;
   auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);

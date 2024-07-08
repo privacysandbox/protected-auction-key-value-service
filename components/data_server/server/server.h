@@ -42,6 +42,7 @@
 #include "components/udf/hooks/run_query_hook.h"
 #include "components/udf/udf_client.h"
 #include "components/util/platform_initializer.h"
+#include "components/util/safe_path_log_context.h"
 #include "grpcpp/grpcpp.h"
 #include "public/base_types.pb.h"
 #include "public/query/get_values.grpc.pb.h"
@@ -56,10 +57,9 @@ class Server {
 
   // Arguments that are nullptr will be created, they may be passed in for
   // unit testing purposes.
-  absl::Status Init(
-      std::unique_ptr<const ParameterClient> parameter_client = nullptr,
-      std::unique_ptr<InstanceClient> instance_client = nullptr,
-      std::unique_ptr<UdfClient> udf_client = nullptr);
+  absl::Status Init(std::unique_ptr<ParameterClient> parameter_client = nullptr,
+                    std::unique_ptr<InstanceClient> instance_client = nullptr,
+                    std::unique_ptr<UdfClient> udf_client = nullptr);
 
   // Wait for the server to shut down. Note that some other thread must be
   // responsible for shutting down the server for this call to ever return.
@@ -73,7 +73,7 @@ class Server {
  private:
   // If objects were not passed in for unit testing purposes then create them.
   absl::Status CreateDefaultInstancesIfNecessaryAndGetEnvironment(
-      std::unique_ptr<const ParameterClient> parameter_client,
+      std::unique_ptr<ParameterClient> parameter_client,
       std::unique_ptr<InstanceClient> instance_client,
       std::unique_ptr<UdfClient> udf_client);
 
@@ -103,14 +103,14 @@ class Server {
   void InitializeTelemetry(const ParameterClient& parameter_client,
                            InstanceClient& instance_client);
   absl::Status CreateShardManager();
-  void InitOtelLogger(::opentelemetry::sdk::resource::Resource server_info,
-                      absl::optional<std::string> collector_endpoint,
-                      const ParameterFetcher& parameter_fetcher);
+  void InitLogger(::opentelemetry::sdk::resource::Resource server_info,
+                  absl::optional<std::string> collector_endpoint,
+                  const ParameterFetcher& parameter_fetcher);
 
   // This must be first, otherwise the AWS SDK will crash when it's called:
   PlatformInitializer platform_initializer_;
 
-  std::unique_ptr<const ParameterClient> parameter_client_;
+  std::unique_ptr<ParameterClient> parameter_client_;
   std::unique_ptr<InstanceClient> instance_client_;
   std::string environment_;
   std::vector<std::unique_ptr<grpc::Service>> grpc_services_;
@@ -119,7 +119,8 @@ class Server {
   std::unique_ptr<GetValuesAdapter> get_values_adapter_;
   std::unique_ptr<GetValuesHook> string_get_values_hook_;
   std::unique_ptr<GetValuesHook> binary_get_values_hook_;
-  std::unique_ptr<RunQueryHook> run_query_hook_;
+  std::unique_ptr<RunSetQueryIntHook> run_set_query_int_hook_;
+  std::unique_ptr<RunSetQueryStringHook> run_set_query_string_hook_;
 
   // BlobStorageClient must outlive DeltaFileNotifier
   std::unique_ptr<BlobStorageClient> blob_client_;
@@ -154,8 +155,8 @@ class Server {
 
   std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
       key_fetcher_manager_;
-  std::unique_ptr<opentelemetry::logs::LoggerProvider> log_provider_;
   std::unique_ptr<OpenTelemetrySink> open_telemetry_sink_;
+  KVServerSafeLogContext server_safe_log_context_;
 };
 
 }  // namespace kv_server

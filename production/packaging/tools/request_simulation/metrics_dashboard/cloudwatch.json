@@ -7,18 +7,19 @@
       "x": 9,
       "type": "metric",
       "properties": {
-        "view": "timeSeries",
-        "stacked": false,
-        "region": "us-east-1",
         "metrics": [
           [
             {
-              "expression": "SEARCH('{Request-simulation,OTelLib,event,host.arch,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version, testing.server} EstimatedQPS', 'Average', 60)",
+              "expression": "SEARCH('service.name=\"request-simulation\" MetricName=\"EstimatedQPS\"', 'Maximum', 60)",
               "id": "e1",
-              "period": 60
+              "label": "$${PROP('Dim.testing.server')}",
+              "region": "us-east-1"
             }
           ]
         ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "us-east-1",
         "title": "Estimated QPS",
         "period": 60,
         "yAxis": {
@@ -26,7 +27,8 @@
             "showUnits": false,
             "min": 0
           }
-        }
+        },
+        "stat": "Average"
       }
     },
     {
@@ -36,31 +38,22 @@
       "x": 0,
       "type": "metric",
       "properties": {
+        "sparkline": false,
         "metrics": [
           [
             {
-              "expression": "SELECT SUM(EventStatus) FROM SCHEMA(\"Request-simulation\", OTelLib,event,\"host.arch\",\"service.name\",\"service.version\",status,\"telemetry.sdk.language\",\"telemetry.sdk.name\",\"telemetry.sdk.version\", \"testing.server\") WHERE event = 'ServerResponseStatus' GROUP BY status, \"testing.server\"",
-              "region": "us-east-1",
-              "period": 604800,
-              "stat": "Sum"
+              "expression": "SEARCH('service.name=\"request-simulation\" MetricName=\"ServerResponseStatus\"', 'Average', 300)",
+              "id": "e1",
+              "label": "$${PROP('Dim.testing.server')} $${PROP('Dim.status')}",
+              "period": 300
             }
           ]
         ],
         "view": "singleValue",
         "stacked": false,
         "region": "us-east-1",
-        "title": "Server response status",
-        "yAxis": {
-          "left": {
-            "showUnits": false,
-            "min": 0
-          }
-        },
-        "period": 604800,
-        "setPeriodToTimeRange": true,
-        "sparkline": false,
-        "trend": false,
-        "stat": "Sum"
+        "stat": "Average",
+        "period": 300
       }
     },
     {
@@ -73,23 +66,10 @@
         "metrics": [
           [
             {
-              "expression": "SEARCH('{Request-simulation,OTelLib,event,host.arch,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version, testing.server} P50GrpcLatency', 'Average', 60)",
+              "expression": "SEARCH('service.name=\"request-simulation\" MetricName=\"P50GrpcLatency\" OR \"P90GrpcLatency\" OR \"P99GrpcLatency\"', 'Maximum', 60)",
               "id": "e1",
-              "period": 60
-            }
-          ],
-          [
-            {
-              "expression": "SEARCH('{Request-simulation,OTelLib,event,host.arch,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version, testing.server} P90GrpcLatency', 'Average', 60)",
-              "id": "e2",
-              "period": 60
-            }
-          ],
-          [
-            {
-              "expression": "SEARCH('{Request-simulation,OTelLib,event,host.arch,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version, testing.server} P99GrpcLatency', 'Average', 60)",
-              "id": "e3",
-              "period": 60
+              "label": "$${PROP('Dim.testing.server')}",
+              "region": "us-east-1"
             }
           ]
         ],
@@ -98,7 +78,7 @@
         "region": "us-east-1",
         "stat": "Average",
         "period": 60,
-        "title": "Server response latency(microseconds)",
+        "title": "Server response latency ms",
         "yAxis": {
           "left": {
             "showUnits": true,
@@ -120,9 +100,10 @@
         "metrics": [
           [
             {
-              "expression": "SEARCH('{Request-simulation,OTelLib,event,host.arch,service.name,service.version,telemetry.sdk.language,telemetry.sdk.name,telemetry.sdk.version, testing.server} RequestsSent', 'Average', 60)",
+              "expression": "SEARCH('service.name=\"request-simulation\" MetricName=\"RequestsSent\"', 'Maximum', 60)",
               "id": "e1",
-              "period": 60
+              "label": "$${PROP('Dim.testing.server')}",
+              "region": "us-east-1"
             }
           ]
         ],

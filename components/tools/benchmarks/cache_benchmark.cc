@@ -35,6 +35,7 @@
 #include "components/data_server/cache/key_value_cache.h"
 #include "components/data_server/cache/noop_key_value_cache.h"
 #include "components/tools/benchmarks/benchmark_util.h"
+#include "components/tools/util/configure_telemetry_tools.h"
 
 ABSL_FLAG(std::vector<std::string>, record_size,
           std::vector<std::string>({"1"}),
@@ -158,21 +159,23 @@ struct BenchmarkArgs {
 void BM_GetKeyValuePairs(::benchmark::State& state, BenchmarkArgs args) {
   uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> writer_tasks;
+  benchmark::BenchmarkLogContext log_context;
   if (state.thread_index() == 0 && args.concurrent_tasks > 0) {
     auto num_writers = args.concurrent_tasks;
     writer_tasks.reserve(num_writers);
     while (num_writers-- > 0) {
-      writer_tasks.emplace_back(
-          [args, &seed, value = GenerateRandomString(args.record_size)]() {
-            auto key = std::to_string(rand_r(&seed) % args.query_size);
-            args.cache->UpdateKeyValue(key, value, ++GetLogicalTimestamp());
-          });
+      writer_tasks.emplace_back([args, &seed,
+                                 value = GenerateRandomString(args.record_size),
+                                 &log_context]() {
+        auto key = std::to_string(rand_r(&seed) % args.query_size);
+        args.cache->UpdateKeyValue(log_context, key, value,
+                                   ++GetLogicalTimestamp());
+      });
     }
   }
   auto keys = GetKeys(args.query_size);
   auto keys_view = ToContainerView<absl::flat_hash_set<std::string_view>>(keys);
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  RequestContext request_context;
   for (auto _ : state) {
     ::benchmark::DoNotOptimize(
         args.cache->GetKeyValuePairs(request_context, keys_view));
@@ -184,24 +187,25 @@ void BM_GetKeyValuePairs(::benchmark::State& state, BenchmarkArgs args) {
 void BM_GetKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
   uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> writer_tasks;
+  benchmark::BenchmarkLogContext log_context;
   if (state.thread_index() == 0 && args.concurrent_tasks > 0) {
     auto num_writers = args.concurrent_tasks;
     writer_tasks.reserve(num_writers);
     while (num_writers-- > 0) {
       writer_tasks.emplace_back([args, &seed,
                                  set_query = GetSetQuery(args.set_query_size,
-                                                         args.record_size)]() {
+                                                         args.record_size),
+                                 &log_context]() {
         auto key = std::to_string(rand_r(&seed) % args.query_size);
         auto view = ToContainerView<std::vector<std::string_view>>(set_query);
-        args.cache->UpdateKeyValueSet(key, absl::MakeSpan(view),
+        args.cache->UpdateKeyValueSet(log_context, key, absl::MakeSpan(view),
                                       ++GetLogicalTimestamp());
       });
     }
   }
   auto keys = GetKeys(args.query_size);
   auto keys_view = ToContainerView<absl::flat_hash_set<std::string_view>>(keys);
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  RequestContext request_context;
   for (auto _ : state) {
     ::benchmark::DoNotOptimize(
         args.cache->GetKeyValueSet(request_context, keys_view));
@@ -213,8 +217,8 @@ void BM_GetKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
 void BM_UpdateKeyValue(::benchmark::State& state, BenchmarkArgs args) {
   uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> reader_tasks;
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  RequestContext request_context;
+  benchmark::BenchmarkLogContext log_context;
   if (state.thread_index() == 0 && args.concurrent_tasks) {
     auto num_readers = args.concurrent_tasks;
     reader_tasks.reserve(num_readers);
@@ -229,7 +233,8 @@ void BM_UpdateKeyValue(::benchmark::State& state, BenchmarkArgs args) {
   auto value = GenerateRandomString(args.record_size);
   for (auto _ : state) {
     auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
-    args.cache->UpdateKeyValue(key, value, ++GetLogicalTimestamp());
+    args.cache->UpdateKeyValue(log_context, key, value,
+                               ++GetLogicalTimestamp());
   }
   state.counters[std::string(kWritesPerSec)] =
       ::benchmark::Counter(state.iterations(), ::benchmark::Counter::kIsRate);
@@ -238,8 +243,8 @@ void BM_UpdateKeyValue(::benchmark::State& state, BenchmarkArgs args) {
 void BM_UpdateKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
   uint seed = args.concurrent_tasks;
   std::vector<AsyncTask> reader_tasks;
-  auto scope_metrics_context = std::make_unique<ScopeMetricsContext>();
-  RequestContext request_context(*scope_metrics_context);
+  RequestContext request_context;
+  benchmark::BenchmarkLogContext log_context;
   if (state.thread_index() == 0 && args.concurrent_tasks) {
     auto num_readers = args.concurrent_tasks;
     reader_tasks.reserve(num_readers);
@@ -254,7 +259,7 @@ void BM_UpdateKeyValueSet(::benchmark::State& state, BenchmarkArgs args) {
   auto set_view = ToContainerView<std::vector<std::string_view>>(set_value);
   for (auto _ : state) {
     auto key = std::to_string(rand_r(&seed) % args.keyspace_size);
-    args.cache->UpdateKeyValueSet(key, absl::MakeSpan(set_view),
+    args.cache->UpdateKeyValueSet(log_context, key, absl::MakeSpan(set_view),
                                   ++GetLogicalTimestamp());
   }
   state.counters[std::string(kWritesPerSec)] =
@@ -367,14 +372,14 @@ void RegisterWriteBenchmarks() {
 //
 //  bazel run -c opt \
 //    //components/tools/benchmarks:cache_benchmark \
-//    --//:instance=local \
-//    --//:platform=local -- \
+//    --config=local_instance \
+//    --config=local_platform -- \
 //    --benchmark_counters_tabular=true --stderrthreshold=0
 int main(int argc, char** argv) {
   absl::InitializeLog();
   ::benchmark::Initialize(&argc, argv);
   absl::ParseCommandLine(argc, argv);
-  kv_server::InitMetricsContextMap();
+  kv_server::ConfigureTelemetryForTools();
   ::kv_server::RegisterReadBenchmarks();
   ::kv_server::RegisterWriteBenchmarks();
   ::benchmark::RunSpecifiedBenchmarks();

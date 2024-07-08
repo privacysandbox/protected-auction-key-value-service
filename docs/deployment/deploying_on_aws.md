@@ -180,6 +180,21 @@ Update the `[[REGION]].backend.conf`:
 -   `region` - Set the region where Terraform will run. This should be the same as the region in the
     variables defined.
 
+## Bidding an Auction services integration within the same VPC
+
+If you're integrating with Bidding and Auction services (B&A), you are likely going to be reusing
+the same VPC (virtual private cloud), subnets and AWS AppMesh (internal LB). In this case, you need
+the following changes:
+
+-   Make sure you are deploying the Key/Value server in the same region (specified by the `region`
+    terraform variable) and under the same AWS account as B&A servers.
+-   Set the terraform variable `use_existing_vpc` to `true`.
+-   Set the terraform variable `existing_vpc_environment` as the environment from B&A's deployment.
+-   Set the terraform variable `existing_vpc_operator` as the operator from B&A's deployment (for
+    example, `buyer1`).
+-   Optionally, you can set the terraform variable `enable_external_traffic` to `false` if you only
+    need to handle traffic from B&A servers.
+
 ## Apply Terraform
 
 From your `repository/production/terraform/aws/environments` folder, run:
@@ -302,6 +317,16 @@ Or gRPC (using [grpcurl](https://github.com/fullstorydev/grpcurl)):
 ```sh
 grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$(echo -n $BODY|base64 -w 0)"'"}}' demo.kv-server.your-domain.example:8443 kv_server.v2.KeyValueService/GetValuesHttp
 ```
+
+If you deploy the Key/Value server under the same VPC as the B&A servers (terraform variable
+`use_existing_vpc` is set to `true`), you can ssh into the target B&A server (must be a server that
+is configured to query the Key/Value server), and then use the following command to place a query:
+
+```sh
+grpcurl --plaintext -d '{"kv_internal":"hi"}'  kv-server-<kv_environment>-appmesh-virtual-service.kv-server.privacysandboxdemo.app:50051 kv_server.v1.KeyValueService.GetValues
+```
+
+where `<kv_environment>` should be replaced by the Key/Value server's `environment`.
 
 ## SSH into EC2
 

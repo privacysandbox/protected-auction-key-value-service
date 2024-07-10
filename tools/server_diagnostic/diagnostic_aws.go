@@ -28,39 +28,39 @@ import (
 
 // Flags
 var (
-	serverGrpcPortFlag     = flag.Int("server_grpc_port", 50051, "Port for KV server grpc endpoint")
-	serverHttpPortFlag     = flag.Int("server_http_port", 51052, "Port for KV server http endpoint")
-	regionFlag             = flag.String("region", "us-east-1", "The region for checking the deployed server")
-	environmentFlag        = flag.String("environment", "", "The deployment environment of KV server")
-	toolBoxDockerImageFlag = flag.String("toolbox_docker_image", "./diagnostic_tool_box_docker_image_amd64.tar", "The directory of the diagnostic tool box")
-	toolOutputDirFlag      = flag.String("tool_output_dir", "./tools/output", "The directory of the diagnostic tool output")
-	serverVerbosityFlag    = flag.Int("verbosity", 1, "The logging verbosity level of KV server running in docker")
-	help                   = flag.Bool("help", false, "Lists all flags and usage.")
+	serverGrpcPortFlag             = flag.Int("server_grpc_port", 50051, "Port for KV server grpc endpoint")
+	serverHttpPortFlag             = flag.Int("server_http_port", 51052, "Port for KV server http endpoint")
+	regionFlag                     = flag.String("region", "us-east-1", "The region for checking the deployed server")
+	environmentFlag                = flag.String("environment", "", "The deployment environment of KV server")
+	toolBoxDockerImageFlag         = flag.String("toolbox_docker_image", "./diagnostic_tool_box_docker_image_amd64.tar", "The directory of the diagnostic tool box")
+	toolOutputDirFlag              = flag.String("tool_output_dir", "./tools/output", "The directory of the diagnostic tool output")
+	serverVerbosityFlag            = flag.Int("verbosity", 1, "The logging verbosity level of KV server running in docker")
+	serverDockerImageFlag          = flag.String("server_docker_image", "/home/ec2-user/server_docker_image.tar", "The path of KV server docker image")
+	serverEnclaveImageFlag         = flag.String("server_enclave_image", "/opt/privacysandbox/server_enclave_image.eif", "The path of server enclave image")
+	vSockProxyFileFlag             = flag.String("vsock_proxy_file", "/opt/privacysandbox/proxy", "The path of vsock proxy file")
+	protoSetForEnvoyFlag           = flag.String("envoy_protoset", "/etc/envoy/query_api_descriptor_set.pb", "The path of protoset for envoy")
+	envoyConfigYamlFlag            = flag.String("envoy_config", "/etc/envoy/envoy.yaml", "The path of envoy yaml config file")
+	awsOtelCollectorCtlFlag        = flag.String("otel_collector_ctl", "/opt/aws/aws-otel-collector/bin/aws-otel-collector-ctl", "The path of otel collector ctl file")
+	awsOtelCollectorConfigYamlFlag = flag.String("otel_collector_config", "/opt/aws/aws-otel-collector/etc/otel_collector_config.yaml", "The path of otel collector yaml config file")
+	help                           = flag.Bool("help", false, "Lists all flags and usage.")
 )
 
 const (
-	systemctl                  = "/usr/bin/systemctl"
-	nitroCli                   = "/usr/bin/nitro-cli"
-	grpcurl                    = "/usr/bin/grpcurl"
-	curl                       = "/usr/bin/curl"
-	serverEnclaveImage         = "/opt/privacysandbox/server_enclave_image.eif"
-	vSockProxyFile             = "/opt/privacysandbox/proxy"
-	vSockProxyService          = "vsockproxy.service"
-	resolvConf                 = "/etc/resolv.conf"
-	protoSetForEnvoy           = "/etc/envoy/query_api_descriptor_set.pb"
-	protoSetForTest            = "/tools/query/query_api_descriptor_set.pb"
-	envoyConfigYaml            = "/etc/envoy/envoy.yaml"
-	awsOtelCollectorCtl        = "/opt/aws/aws-otel-collector/bin/aws-otel-collector-ctl"
-	awsOtelCollectorConfigYaml = "/opt/aws/aws-otel-collector/etc/otel_collector_config.yaml"
-	awsOtelCollectorService    = "aws-otel-collector.service"
-	v2APIEndpoint              = "kv_server.v2.KeyValueService.GetValuesHttp"
-	v2Payload                  = `{ "metadata": { "hostname": "example.com" }, "partitions": [{ "id": 0, "compressionGroupId": 0, "arguments": [{ "tags": [ "custom", "keys" ], "data": [ "hi" ] }] }] }`
-	helloWorldServer           = "/tools/helloworld_server/helloworld_server"
-	serverDockerImage          = "/home/ec2-user/server_docker_image.tar"
-	serverDockerProcessName    = "kv_server_docker"
-	toolBoxContainerTag        = "bazel/tools/server_diagnostic:diagnostic_tool_box_docker_image"
-	serverDockerLog            = "kv_server_docker.log"
-	helloWorldServerDockerLog  = "hello_world_server.log"
+	systemctl                 = "/usr/bin/systemctl"
+	nitroCli                  = "/usr/bin/nitro-cli"
+	grpcurl                   = "/usr/bin/grpcurl"
+	curl                      = "/usr/bin/curl"
+	vSockProxyService         = "vsockproxy.service"
+	resolvConf                = "/etc/resolv.conf"
+	protoSetForTest           = "/tools/query/query_api_descriptor_set.pb"
+	awsOtelCollectorService   = "aws-otel-collector.service"
+	v2APIEndpoint             = "kv_server.v2.KeyValueService.GetValuesHttp"
+	v2Payload                 = `{ "metadata": { "hostname": "example.com" }, "partitions": [{ "id": 0, "compressionGroupId": 0, "arguments": [{ "tags": [ "custom", "keys" ], "data": [ "hi" ] }] }] }`
+	helloWorldServer          = "/tools/helloworld_server/helloworld_server"
+	serverDockerProcessName   = "kv_server_docker"
+	toolBoxContainerTag       = "bazel/tools/server_diagnostic:diagnostic_tool_box_docker_image"
+	serverDockerLog           = "kv_server_docker.log"
+	helloWorldServerDockerLog = "hello_world_server.log"
 )
 
 // ServerHealthCheckResult to save the result of multiple checks of server health
@@ -164,11 +164,11 @@ func validateInputs() common.Status {
 	if len(strings.TrimSpace(*environmentFlag)) == 0 {
 		return common.Status{false, errors.New("empty deployment environment specified for KV server")}
 	}
-	if len(strings.TrimSpace(*toolBoxDockerImageFlag)) == 0 {
-		return common.Status{false, errors.New("empty directory of toolbox docker image specified for KV server")}
-	}
 	if len(strings.TrimSpace(*toolOutputDirFlag)) == 0 {
 		return common.Status{false, errors.New("empty output directory specified for diagnostic tool")}
+	}
+	if len(strings.TrimSpace(*toolBoxDockerImageFlag)) == 0 {
+		return common.Status{false, errors.New("empty path of toolbox docker image")}
 	}
 	status := common.FileExists(*toolBoxDockerImageFlag)
 	if status.Err != nil {
@@ -199,7 +199,7 @@ func printSummary(s string) {
 func (result *SystemDependencyCheckResult) writeToOutput(output *strings.Builder) {
 	output.WriteString("----------------------------SYSTEM DEPENDENCY CHECKS------------------------------------\n")
 	output.WriteString("All checks must be passed for server to start and process grpc requests \n\n")
-	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isVSockProxyFileExisting.Result(), vSockProxyFile, result.isVSockProxyFileExisting.Error()))
+	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isVSockProxyFileExisting.Result(), *vSockProxyFileFlag, result.isVSockProxyFileExisting.Error()))
 	output.WriteString(fmt.Sprintf("%s. %s is enabled. %s \n", result.isVSockProxyServiceEnabled.Result(), vSockProxyService, result.isVSockProxyServiceEnabled.Error()))
 	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isResolvConfExisting.Result(), resolvConf, result.isResolvConfExisting.Error()))
 	output.WriteString(fmt.Sprintf("%s. VPC Ipv4 Cidr matches nameserver in %s. %s \n", result.isVPCIpv4CidrMatchingNameServerInResolvConf.Result(), resolvConf, result.isVPCIpv4CidrMatchingNameServerInResolvConf.Error()))
@@ -210,8 +210,8 @@ func (result *SystemDependencyCheckResult) writeToOutput(output *strings.Builder
 func (result *EnvoyCheckResult) writeToOutput(output *strings.Builder) {
 	output.WriteString("-------------------------------ENVOY PROXY CHECKS---------------------------------------\n")
 	output.WriteString("All checks must be passed for server to process http requests \n\n")
-	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isProtoSetForEnvoyExisting.Result(), protoSetForEnvoy, result.isProtoSetForEnvoyExisting.Error()))
-	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isEnvoyConfigExisting.Result(), envoyConfigYaml, result.isEnvoyConfigExisting.Error()))
+	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isProtoSetForEnvoyExisting.Result(), *protoSetForEnvoyFlag, result.isProtoSetForEnvoyExisting.Error()))
+	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isEnvoyConfigExisting.Result(), *envoyConfigYamlFlag, result.isEnvoyConfigExisting.Error()))
 	output.WriteString(fmt.Sprintf("%s. Envoy is running. %s \n", result.isEnvoyRunning.Result(), result.isEnvoyRunning.Error()))
 	output.WriteString(fmt.Sprintf("%s. Envoy is listening the http port %d. %s \n", result.isEnvoyListeningHttpPort.Result(), *serverHttpPortFlag, result.isEnvoyListeningHttpPort.Error()))
 	output.WriteString(fmt.Sprintf("%s. Test Envoy with hello world grpc server. %s \n", result.isTestPassedEnvoyWithHelloWorldServer.Result(), result.isTestPassedEnvoyWithHelloWorldServer.Error()))
@@ -225,8 +225,8 @@ func (result *EnvoyCheckResult) writeToOutput(output *strings.Builder) {
 func (result *AWSOtelCollectorCheckResult) writeToOutput(output *strings.Builder) {
 	output.WriteString("------------------------------OTEL COLLECTOR CHECKS--------------------------------------\n")
 	output.WriteString("All checks must be passed for server to export metrics \n\n")
-	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isOtelCollectorCtlExisting.Result(), awsOtelCollectorCtl, result.isOtelCollectorCtlExisting.Error()))
-	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isOtelCollectorConfigYamlExisting.Result(), awsOtelCollectorConfigYaml, result.isOtelCollectorConfigYamlExisting.Error()))
+	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isOtelCollectorCtlExisting.Result(), *awsOtelCollectorCtlFlag, result.isOtelCollectorCtlExisting.Error()))
+	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isOtelCollectorConfigYamlExisting.Result(), *awsOtelCollectorConfigYamlFlag, result.isOtelCollectorConfigYamlExisting.Error()))
 	output.WriteString(fmt.Sprintf("%s. %s is enabled. %s \n", result.isOtelCollectorServiceEnabled.Result(), awsOtelCollectorService, result.isOtelCollectorServiceEnabled.Error()))
 	output.WriteString("\n")
 }
@@ -248,8 +248,8 @@ func (result *ServerHealthCheckResult) writeToOutput(title string, output *strin
 // Performs system dependency checks and returns whether all checks are passed or not
 func checkSystemDependencies(result *SystemDependencyCheckResult) bool {
 	allChecksPass := true
-	fmt.Printf("Checking if %s file exists...\n", vSockProxyFile)
-	result.isVSockProxyFileExisting = common.FileExists(vSockProxyFile)
+	fmt.Printf("Checking if %s file exists...\n", *vSockProxyFileFlag)
+	result.isVSockProxyFileExisting = common.FileExists(*vSockProxyFileFlag)
 	allChecksPass = allChecksPass && result.isVSockProxyFileExisting.Ok
 	fmt.Println("Checking if vsock proxy service is running and enabled...")
 	result.isVSockProxyServiceEnabled = common.SystemdServiceIsEnabled(vSockProxyService)
@@ -267,11 +267,11 @@ func checkSystemDependencies(result *SystemDependencyCheckResult) bool {
 // Checks envoy proxy health
 func checkEnvoyHealth() EnvoyCheckResult {
 	var result EnvoyCheckResult
-	fmt.Printf("Checking if proto set %s  for envoy proxy exists...\n", protoSetForEnvoy)
-	result.isProtoSetForEnvoyExisting = common.FileExists(protoSetForEnvoy)
+	fmt.Printf("Checking if proto set %s  for envoy proxy exists...\n", *protoSetForEnvoyFlag)
+	result.isProtoSetForEnvoyExisting = common.FileExists(*protoSetForEnvoyFlag)
 
-	fmt.Printf("Checking if envoy config %s exists...\n", envoyConfigYaml)
-	result.isEnvoyConfigExisting = common.FileExists(envoyConfigYaml)
+	fmt.Printf("Checking if envoy config %s exists...\n", *envoyConfigYamlFlag)
+	result.isEnvoyConfigExisting = common.FileExists(*envoyConfigYamlFlag)
 
 	fmt.Printf("Checking if envoy proxy docker process is running...\n")
 	result.isEnvoyRunning = common.CheckDockerContainerIsRunning("envoyproxy")
@@ -293,10 +293,10 @@ func checkEnvoyHealth() EnvoyCheckResult {
 // Checks otel collector
 func checkOtelCollector() AWSOtelCollectorCheckResult {
 	var result AWSOtelCollectorCheckResult
-	fmt.Printf("Checking if %s exists...\n", awsOtelCollectorCtl)
-	result.isOtelCollectorCtlExisting = common.FileExists(awsOtelCollectorCtl)
-	fmt.Printf("Checking if otel collector config %s exivvsts...\n", awsOtelCollectorConfigYaml)
-	result.isOtelCollectorConfigYamlExisting = common.FileExists(awsOtelCollectorConfigYaml)
+	fmt.Printf("Checking if %s exists...\n", *awsOtelCollectorCtlFlag)
+	result.isOtelCollectorCtlExisting = common.FileExists(*awsOtelCollectorCtlFlag)
+	fmt.Printf("Checking if otel collector config %s exivvsts...\n", *awsOtelCollectorConfigYamlFlag)
+	result.isOtelCollectorConfigYamlExisting = common.FileExists(*awsOtelCollectorConfigYamlFlag)
 	fmt.Printf("Checking if %s is running and enabled...\n", awsOtelCollectorService)
 	result.isOtelCollectorServiceEnabled = common.SystemdServiceIsEnabled(awsOtelCollectorService)
 	return result
@@ -309,7 +309,7 @@ func checkNitroEnclaveHealth() ServerHealthCheckResult {
 	status := common.FileExists(nitroCli)
 	common.AbortIfError(status)
 	fmt.Printf("Checking if server enclave image exists...\n")
-	result.isServerImageExisting = common.FileExists(serverEnclaveImage)
+	result.isServerImageExisting = common.FileExists(*serverEnclaveImageFlag)
 	if !result.isServerImageExisting.Ok {
 		return result
 	}
@@ -331,8 +331,8 @@ func checkNitroEnclaveHealth() ServerHealthCheckResult {
 // Brings up server outside of enclave and run it in docker container and test the server
 func runServerOutsideOfEnclaveAndCheckRequests() ServerHealthCheckResult {
 	var result ServerHealthCheckResult
-	fmt.Printf("Checking if the server docker image %s exists...\n", serverDockerImage)
-	result.isServerImageExisting = common.FileExists(serverDockerImage)
+	fmt.Printf("Checking if the server docker image %s exists...\n", *serverDockerImageFlag)
+	result.isServerImageExisting = common.FileExists(*serverDockerImageFlag)
 	if !result.isServerImageExisting.Ok {
 		return result
 	}
@@ -357,7 +357,7 @@ func checkIfEnclaveIsRunning() common.Status {
 // Runs server in docker container and checks grpc and http requests and writes
 // server log to the output directory
 func testServerInDocker(result *ServerHealthCheckResult) {
-	_, err := common.ExecuteShellCommand("docker", []string{"load", "-i", serverDockerImage})
+	_, err := common.ExecuteShellCommand("docker", []string{"load", "-i", *serverDockerImageFlag})
 	if err != nil {
 		result.isServerRunning.Err = err
 		return

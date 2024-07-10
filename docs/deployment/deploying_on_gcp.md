@@ -245,17 +245,23 @@ listed to the right. Instances associated with your Kv-server have the name star
 
 ## Access server logs
 
-In the instance details page, under `Logs`, you can access server logs in both `Logging` and
+### nonprod build
+
+In the instance details page, under `Logs`, you can access server console logs in both `Logging` and
 `Serial port (console)`. The `Logging` option is more powerful with better filtering and query
-support on `Logs Explorer`.
+support on `Logs Explorer`. In `Logs Explorer`, the console log is located under resource type
+`VM Instance`.
+![how to access GCP instance logs for nonprod build server](../assets/gcp_instance_logs.png)
 
-The console log is located under resource type `VM Instance`. When server is running in prod mode,
-the console log will not be available. However, if parameter `enable_otel_logger` is set to true, KV
-server will export selective server logs to `Logs Explorer` under resource type `Generic Task`. More
-details about logging in `prod mode` and `nonprod mode` in
-![developing the server](/docs/developing_the_server.md).
+### prod build
 
-![how to access GCP instance logs](../assets/gcp_instance_logs.png)
+When server is running in prod build, the console log will not be available. However, if parameter
+`enable_otel_logger` is set to true, KV server will export selective server logs to `Logs Explorer`
+under resource type `Generic Task`.
+![how to access GCP instance logs for prod build server](../assets/gcp_instance_prod_logs.png)
+
+More details about logging in `prod mode` and `nonprod mode` in
+[developing the server](/docs/developing_the_server.md).
 
 ## Query the server
 

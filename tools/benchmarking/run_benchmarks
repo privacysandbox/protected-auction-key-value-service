@@ -129,11 +129,11 @@ function run_ghz_for_requests_from_file() {
 
     printf "Running ghz for number of keys %s\n" "${N}"
     BASE_GHZ_TAGS=$(
-      jq -n --arg n "${N}" --arg f "${FILENAME}" \
+      builders/tools/jq -n --arg n "${N}" --arg f "${FILENAME}" \
         '{"number_of_lookup_keys": $n, "keys_from_file": $f}'
     )
-    REQUEST_METADATA_TAGS=$(echo "${REQUEST_METADATA}" | jq 'with_entries(.key |= "request_metadata."+.) | with_entries( .value |= @json)')
-    TAGS=$(echo "${GHZ_TAGS} ${BASE_GHZ_TAGS} ${REQUEST_METADATA_TAGS} ${FILTER_BY_SETS_JSON}" | jq -s -c 'add')
+    REQUEST_METADATA_TAGS=$(echo "${REQUEST_METADATA}" | builders/tools/jq 'with_entries(.key |= "request_metadata."+.) | with_entries( .value |= @json)')
+    TAGS=$(echo "${GHZ_TAGS} ${BASE_GHZ_TAGS} ${REQUEST_METADATA_TAGS} ${FILTER_BY_SETS_JSON}" | builders/tools/jq -s -c 'add')
     GHZ_OUTPUT_JSON_FILE="${DIR}/ghz_output.json"
     EXTRA_DOCKER_RUN_ARGS+=" --volume ${BASE_OUTPUT_DIR}:${DOCKER_OUTPUT_DIR} --volume ${WORKSPACE}:/src/workspace" \
       builders/tools/ghz --protoset /src/workspace/dist/query_api_descriptor_set.pb \

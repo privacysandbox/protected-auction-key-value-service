@@ -350,7 +350,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
     kReceivedLowLatencyNotificationsCount(
-        "kReceivedLowLatencyNotificationsCount",
+        "ReceivedLowLatencyNotificationsCount",
         "Count of messages received through pub/sub");
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<

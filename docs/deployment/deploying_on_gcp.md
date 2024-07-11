@@ -248,9 +248,10 @@ listed to the right. Instances associated with your Kv-server have the name star
 ### nonprod build
 
 In the instance details page, under `Logs`, you can access server console logs in both `Logging` and
-`Serial port (console)`. The `Logging` option is more powerful with better filtering and query
-support on `Logs Explorer`. In `Logs Explorer`, the console log is located under resource type
-`VM Instance`.
+`Serial port (console)`. To enable console log, you need to set `use_confidential_space_debug_image`
+parameter to `true`. The `Logging` option is more powerful with better filtering and query support
+on `Logs Explorer`. In `Logs Explorer`, the server log is located under resource type
+`VM Instance`(console log), and `Generic Task`(log exported through otel collector)
 ![how to access GCP instance logs for nonprod build server](../assets/gcp_instance_logs.png)
 
 ### prod build

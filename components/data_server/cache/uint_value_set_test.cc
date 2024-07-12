@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/data_server/cache/uint32_value_set.h"
+#include "components/data_server/cache/uint_value_set.h"
 
 #include <vector>
 

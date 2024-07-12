@@ -22,7 +22,7 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "components/container/thread_safe_hash_map.h"
-#include "components/data_server/cache/uint32_value_set.h"
+#include "components/data_server/cache/uint_value_set.h"
 
 namespace kv_server {
 // Class that holds the data retrieved from cache lookup and read locks for

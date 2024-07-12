@@ -20,7 +20,7 @@
 
 #include "components/container/thread_safe_hash_map.h"
 #include "components/data_server/cache/cache.h"
-#include "components/data_server/cache/uint32_value_set.h"
+#include "components/data_server/cache/uint_value_set.h"
 #include "gmock/gmock.h"
 
 namespace kv_server {

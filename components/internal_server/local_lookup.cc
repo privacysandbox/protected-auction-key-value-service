@@ -21,7 +21,7 @@
 
 #include "absl/functional/any_invocable.h"
 #include "components/data_server/cache/cache.h"
-#include "components/data_server/cache/uint32_value_set.h"
+#include "components/data_server/cache/uint_value_set.h"
 #include "components/errors/error_tag.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/lookup.pb.h"

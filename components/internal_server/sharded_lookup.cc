@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "absl/log/check.h"
-#include "components/data_server/cache/uint32_value_set.h"
+#include "components/data_server/cache/uint_value_set.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/lookup.pb.h"
 #include "components/internal_server/remote_lookup_client.h"

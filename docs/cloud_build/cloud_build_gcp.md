@@ -26,8 +26,8 @@ and create a host connection. You will need to clone the
 your own Github account before you can connect it to your GCP project's Cloud Build. Make sure that
 your fork, if updated automatically, also fetches the tags from the upstream repo -- that way, you
 can build directly from the semantically versioned tags. See
-[here](/production/packaging/gcp/cloud_build/sync_key_value_repo.yaml) for an example Github Action
-that handles syncing.
+[here](/production/packaging/sync_key_value_repo.yaml) for an example Github Action that handles
+syncing.
 
 #### Configuring an Image Repo
 

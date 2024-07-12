@@ -39,7 +39,7 @@ substitutions:
     _BUILD_FLAVOR: prod # Default. Use nonprod for enhanced logging output.
     _GCP_IMAGE_TAG: ${BUILD_ID} # Default. Required for server deployment later.
     _GCP_IMAGE_REPO: us-docker.pkg.dev/${PROJECT_ID}/kvs-docker-repo-shared/kv-service # Default. Artifact Registry repo to house images.
-timeout: 10800s
+timeout: 3h
 options:
   machineType: E2_HIGHCPU_32
   automapSubstitutions: true

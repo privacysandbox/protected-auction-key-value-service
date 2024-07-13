@@ -36,6 +36,8 @@ class GetKeyValueSetResult {
       std::string_view key) const = 0;
   virtual const UInt32ValueSet* GetUInt32ValueSet(
       std::string_view key) const = 0;
+  virtual const UInt64ValueSet* GetUInt64ValueSet(
+      std::string_view key) const = 0;
 
  private:
   // Adds key, value_set to the result data map, mantains the lock on `key`
@@ -43,14 +45,20 @@ class GetKeyValueSetResult {
   virtual void AddKeyValueSet(
       std::string_view key, absl::flat_hash_set<std::string_view> value_set,
       std::unique_ptr<absl::ReaderMutexLock> key_lock) = 0;
-  virtual void AddUInt32ValueSet(
+  virtual void AddUIntValueSet(
       std::string_view key,
       ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr
+          value_set_node) = 0;
+  virtual void AddUIntValueSet(
+      std::string_view key,
+      ThreadSafeHashMap<std::string, UInt64ValueSet>::ConstLockedNodePtr
           value_set_node) = 0;
 
   static std::unique_ptr<GetKeyValueSetResult> Create();
 
   friend class KeyValueCache;
+  template <typename SetType>
+  friend class UIntValueSetCache;
 };
 
 }  // namespace kv_server

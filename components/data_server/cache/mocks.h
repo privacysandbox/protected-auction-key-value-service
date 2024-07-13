@@ -89,9 +89,16 @@ class MockGetKeyValueSetResult : public GetKeyValueSetResult {
   MOCK_METHOD((const UInt32ValueSet*), GetUInt32ValueSet, (std::string_view),
               (const override));
   MOCK_METHOD(
-      void, AddUInt32ValueSet,
+      void, AddUIntValueSet,
       (std::string_view,
        (ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr)),
+      (override));
+  MOCK_METHOD((const UInt64ValueSet*), GetUInt64ValueSet, (std::string_view),
+              (const override));
+  MOCK_METHOD(
+      void, AddUIntValueSet,
+      (std::string_view,
+       (ThreadSafeHashMap<std::string, UInt64ValueSet>::ConstLockedNodePtr)),
       (override));
 };
 

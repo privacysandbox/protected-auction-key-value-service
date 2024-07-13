@@ -97,7 +97,7 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetUInt32ValueSet(
       latency_recorder(request_context.GetInternalLookupMetricsContext());
   auto result = GetKeyValueSetResult::Create();
   for (const auto& key : key_set) {
-    result->AddUInt32ValueSet(key, uint32_sets_map_.CGet(key));
+    result->AddUIntValueSet(key, uint32_sets_map_.CGet(key));
   }
   return result;
 }

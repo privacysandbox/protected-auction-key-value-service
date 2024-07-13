@@ -38,6 +38,9 @@ namespace kv_server {
 template <typename ValueType, typename BitsetType>
 class UIntValueSet {
  public:
+  using value_type = ValueType;
+  using bitset_type = BitsetType;
+
   // Returns values not marked as removed from the set.
   absl::flat_hash_set<ValueType> GetValues() const;
   // Returns values not marked as removed from the set as a bitset.

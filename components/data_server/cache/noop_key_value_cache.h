@@ -79,12 +79,20 @@ class NoOpKeyValueCache : public Cache {
         std::string_view key) const override {
       return nullptr;
     }
+    const UInt64ValueSet* GetUInt64ValueSet(
+        std::string_view key) const override {
+      return nullptr;
+    }
     void AddKeyValueSet(
         std::string_view key, absl::flat_hash_set<std::string_view> value_set,
         std::unique_ptr<absl::ReaderMutexLock> key_lock) override {}
-    void AddUInt32ValueSet(
+    void AddUIntValueSet(
         std::string_view key,
         ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr
+            value_set_node) override {}
+    void AddUIntValueSet(
+        std::string_view key,
+        ThreadSafeHashMap<std::string, UInt64ValueSet>::ConstLockedNodePtr
             value_set_node) override {}
   };
 };

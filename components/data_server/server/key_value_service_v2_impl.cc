@@ -92,15 +92,6 @@ grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValues(
                        handler_, &GetValuesV2Handler::GetValues);
 }
 
-grpc::ServerUnaryReactor* KeyValueServiceV2Impl::BinaryHttpGetValues(
-    CallbackServerContext* context,
-    const v2::BinaryHttpGetValuesRequest* request,
-    google::api::HttpBody* response) {
-  auto request_context_factory = std::make_unique<RequestContextFactory>();
-  return HandleRequest(*request_context_factory, context, request, response,
-                       handler_, &GetValuesV2Handler::BinaryHttpGetValues);
-}
-
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::ObliviousGetValues(
     CallbackServerContext* context,
     const v2::ObliviousGetValuesRequest* request,

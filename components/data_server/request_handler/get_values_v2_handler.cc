@@ -33,7 +33,6 @@
 #include "public/base_types.pb.h"
 #include "public/constants.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
-#include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
 #include "src/communication/encoding_utils.h"
@@ -55,18 +54,6 @@ constexpr std::string_view kAcceptEncodingHeader = "accept-encoding";
 constexpr std::string_view kContentEncodingHeader = "content-encoding";
 constexpr std::string_view kBrotliAlgorithmHeader = "br";
 
-CompressionGroupConcatenator::CompressionType GetResponseCompressionType(
-    const std::vector<quiche::BinaryHttpMessage::Field>& headers) {
-  for (const quiche::BinaryHttpMessage::Field& header : headers) {
-    if (absl::AsciiStrToLower(header.name) != kAcceptEncodingHeader) continue;
-    // TODO(b/278271389): Right now for simplicity we support Accept-Encoding:
-    // br
-    if (absl::AsciiStrToLower(header.value) == kBrotliAlgorithmHeader) {
-      return CompressionGroupConcatenator::CompressionType::kBrotli;
-    }
-  }
-  return CompressionGroupConcatenator::CompressionType::kUncompressed;
-}
 }  // namespace
 
 grpc::Status GetValuesV2Handler::GetValuesHttp(
@@ -117,28 +104,6 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
   return absl::OkStatus();
 }
 
-grpc::Status GetValuesV2Handler::BinaryHttpGetValues(
-    RequestContextFactory& request_context_factory,
-    const v2::BinaryHttpGetValuesRequest& bhttp_request,
-    google::api::HttpBody* response,
-    ExecutionMetadata& execution_metadata) const {
-  return FromAbslStatus(BinaryHttpGetValues(
-      request_context_factory, bhttp_request.raw_body().data(),
-      *response->mutable_data(), execution_metadata));
-}
-
-GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
-    const quiche::BinaryHttpRequest& deserialized_req) const {
-  for (const auto& header : deserialized_req.GetHeaderFields()) {
-    if (absl::AsciiStrToLower(header.name) == kContentTypeHeader &&
-        absl::AsciiStrToLower(header.value) ==
-            kContentEncodingProtoHeaderValue) {
-      return ContentType::kProto;
-    }
-  }
-  return ContentType::kJson;
-}
-
 GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
     const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
     ContentType default_content_type) const {
@@ -147,11 +112,7 @@ GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
             header_name.data(), header_name.size())) == kKVContentTypeHeader) {
       if (absl::AsciiStrToLower(
               std::string_view(header_value.data(), header_value.size())) ==
-          kContentEncodingBhttpHeaderValue) {
-        return ContentType::kBhttp;
-      } else if (absl::AsciiStrToLower(std::string_view(header_value.data(),
-                                                        header_value.size())) ==
-                 kContentEncodingProtoHeaderValue) {
+          kContentEncodingProtoHeaderValue) {
         return ContentType::kProto;
       } else if (absl::AsciiStrToLower(std::string_view(header_value.data(),
                                                         header_value.size())) ==
@@ -161,54 +122,6 @@ GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
     }
   }
   return default_content_type;
-}
-
-absl::StatusOr<quiche::BinaryHttpResponse>
-GetValuesV2Handler::BuildSuccessfulGetValuesBhttpResponse(
-    RequestContextFactory& request_context_factory,
-    std::string_view bhttp_request_body,
-    ExecutionMetadata& execution_metadata) const {
-  PS_VLOG(9) << "Handling the binary http layer";
-  PS_ASSIGN_OR_RETURN(quiche::BinaryHttpRequest deserialized_req,
-                      quiche::BinaryHttpRequest::Create(bhttp_request_body),
-                      _ << "Failed to deserialize binary http request");
-  PS_VLOG(3) << "BinaryHttpGetValues request: "
-             << deserialized_req.DebugString();
-  std::string response;
-  auto content_type = GetContentType(deserialized_req);
-  PS_RETURN_IF_ERROR(GetValuesHttp(request_context_factory,
-                                   deserialized_req.body(), response,
-                                   execution_metadata, content_type));
-  quiche::BinaryHttpResponse bhttp_response(200);
-  if (content_type == ContentType::kProto) {
-    bhttp_response.AddHeaderField({
-        .name = std::string(kContentTypeHeader),
-        .value = std::string(kContentEncodingProtoHeaderValue),
-    });
-  }
-  bhttp_response.set_body(std::move(response));
-  return bhttp_response;
-}
-
-absl::Status GetValuesV2Handler::BinaryHttpGetValues(
-    RequestContextFactory& request_context_factory,
-    std::string_view bhttp_request_body, std::string& response,
-    ExecutionMetadata& execution_metadata) const {
-  static quiche::BinaryHttpResponse const* kDefaultBhttpResponse =
-      new quiche::BinaryHttpResponse(500);
-  const quiche::BinaryHttpResponse* bhttp_response = kDefaultBhttpResponse;
-  absl::StatusOr<quiche::BinaryHttpResponse> maybe_successful_bhttp_response =
-      BuildSuccessfulGetValuesBhttpResponse(
-          request_context_factory, bhttp_request_body, execution_metadata);
-  if (maybe_successful_bhttp_response.ok()) {
-    bhttp_response = &(maybe_successful_bhttp_response.value());
-  }
-  PS_ASSIGN_OR_RETURN(auto serialized_bhttp_response,
-                      bhttp_response->Serialize());
-
-  response = std::move(serialized_bhttp_response);
-  PS_VLOG(9) << "BinaryHttpGetValues finished successfully";
-  return absl::OkStatus();
 }
 
 grpc::Status GetValuesV2Handler::ObliviousGetValues(
@@ -226,22 +139,11 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
     return FromAbslStatus(maybe_plain_text.status());
   }
   std::string response;
-  auto content_type = GetContentType(headers, ContentType::kBhttp);
-  if (content_type == ContentType::kBhttp) {
-    // Now process the binary http request
-    if (const auto s =
-            BinaryHttpGetValues(request_context_factory, *maybe_plain_text,
-                                response, execution_metadata);
-        !s.ok()) {
-      return FromAbslStatus(s);
-    }
-  } else {
-    if (const auto s =
-            GetValuesHttp(request_context_factory, *maybe_plain_text, response,
-                          execution_metadata, content_type);
-        !s.ok()) {
-      return FromAbslStatus(s);
-    }
+  auto content_type = GetContentType(headers, ContentType::kJson);
+  if (const auto s = GetValuesHttp(request_context_factory, *maybe_plain_text,
+                                   response, execution_metadata, content_type);
+      !s.ok()) {
+    return FromAbslStatus(s);
   }
   auto encoded_data_size = GetEncodedDataSize(response.size());
   auto maybe_padded_response =

@@ -31,7 +31,6 @@
 #include "public/constants.h"
 #include "public/test_util/proto_matcher.h"
 #include "public/test_util/request_example.h"
-#include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
 #include "src/communication/encoding_utils.h"
@@ -46,13 +45,11 @@ using testing::_;
 using testing::Return;
 using testing::ReturnRef;
 using testing::UnorderedElementsAre;
-using v2::BinaryHttpGetValuesRequest;
 using v2::GetValuesHttpRequest;
 using v2::ObliviousGetValuesRequest;
 
 enum class ProtocolType {
   kPlain = 0,
-  kBinaryHttp,
   kObliviousHttp,
 };
 
@@ -110,118 +107,26 @@ class GetValuesHandlerTest
     std::string plain_request_body_;
   };
 
-  class BHTTPRequest {
-   public:
-    explicit BHTTPRequest(PlainRequest plain_request,
-                          bool is_protobuf_content) {
-      quiche::BinaryHttpRequest req_bhttp_layer({});
-      if (is_protobuf_content) {
-        req_bhttp_layer.AddHeaderField({
-            .name = std::string(kContentTypeHeader),
-            .value = std::string(kContentEncodingProtoHeaderValue),
-        });
-      }
-      req_bhttp_layer.set_body(plain_request.RequestBody());
-      auto maybe_serialized = req_bhttp_layer.Serialize();
-      EXPECT_TRUE(maybe_serialized.ok());
-      serialized_bhttp_request_ = *maybe_serialized;
-    }
-
-    BinaryHttpGetValuesRequest Build() const {
-      BinaryHttpGetValuesRequest brequest;
-      brequest.mutable_raw_body()->set_data(serialized_bhttp_request_);
-      return brequest;
-    }
-
-    const std::string& SerializedBHTTPRequest() const {
-      return serialized_bhttp_request_;
-    }
-
-   private:
-    std::string serialized_bhttp_request_;
-  };
-
-  class BHTTPResponse {
-   public:
-    google::api::HttpBody& RawResponse() { return response_; }
-    int16_t ResponseCode(bool is_using_bhttp) const {
-      std::string response;
-      if (is_using_bhttp) {
-        response = response_.data();
-      } else {
-        auto deframed_req =
-            privacy_sandbox::server_common::DecodeRequestPayload(
-                response_.data());
-        EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
-        response = deframed_req->compressed_data;
-      }
-      const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
-          quiche::BinaryHttpResponse::Create(response);
-      EXPECT_TRUE(maybe_res_bhttp_layer.ok())
-          << "quiche::BinaryHttpResponse::Create failed: "
-          << maybe_res_bhttp_layer.status();
-      return maybe_res_bhttp_layer->status_code();
-    }
-
-    std::string Unwrap(bool is_protobuf_content, bool is_using_bhttp) const {
-      std::string response;
-      if (is_using_bhttp) {
-        response = response_.data();
-      } else {
-        auto deframed_req =
-            privacy_sandbox::server_common::DecodeRequestPayload(
-                response_.data());
-        EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
-        response = deframed_req->compressed_data;
-      }
-      const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
-          quiche::BinaryHttpResponse::Create(response);
-      EXPECT_TRUE(maybe_res_bhttp_layer.ok())
-          << "quiche::BinaryHttpResponse::Create failed: "
-          << maybe_res_bhttp_layer.status();
-      if (maybe_res_bhttp_layer->status_code() == 200 & is_protobuf_content) {
-        EXPECT_TRUE(HasHeader(*maybe_res_bhttp_layer, kContentTypeHeader,
-                              kContentEncodingProtoHeaderValue));
-      }
-      return std::string(maybe_res_bhttp_layer->body());
-    }
-
-   private:
-    bool HasHeader(const quiche::BinaryHttpResponse& response,
-                   const std::string_view header_key,
-                   const std::string_view header_value) const {
-      for (const auto& header : response.GetHeaderFields()) {
-        if (absl::AsciiStrToLower(header.name) == header_key &&
-            absl::AsciiStrToLower(header.value) == header_value) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    google::api::HttpBody response_;
-  };
-
   class OHTTPRequest;
   class OHTTPResponseUnwrapper {
    public:
     google::api::HttpBody& RawResponse() { return response_; }
 
-    BHTTPResponse Unwrap() {
+    std::string Unwrap() {
       uint8_t key_id = 64;
       auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
           key_id, kKEMParameter, kKDFParameter, kAEADParameter);
       EXPECT_TRUE(maybe_config.ok());
-
       auto client =
           quiche::ObliviousHttpClient::Create(public_key_, *maybe_config);
       EXPECT_TRUE(client.ok());
       auto decrypted_response =
           client->DecryptObliviousHttpResponse(response_.data(), context_);
-      BHTTPResponse bhttp_response;
-      bhttp_response.RawResponse().set_data(
+
+      auto deframed_req = privacy_sandbox::server_common::DecodeRequestPayload(
           decrypted_response->GetPlaintextData());
-      return bhttp_response;
+      EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
+      return deframed_req->compressed_data;
     }
 
    private:
@@ -238,8 +143,8 @@ class GetValuesHandlerTest
 
   class OHTTPRequest {
    public:
-    explicit OHTTPRequest(BHTTPRequest bhttp_request)
-        : bhttp_request_(std::move(bhttp_request)) {}
+    explicit OHTTPRequest(std::string raw_request)
+        : raw_request_(std::move(raw_request)) {}
 
     std::pair<ObliviousGetValuesRequest, OHTTPResponseUnwrapper> Build() const {
       // matches the test key pair, see common repo:
@@ -252,8 +157,7 @@ class GetValuesHandlerTest
       auto client =
           quiche::ObliviousHttpClient::Create(public_key_, *maybe_config);
       EXPECT_TRUE(client.ok());
-      auto encrypted_req = client->CreateObliviousHttpRequest(
-          bhttp_request_.SerializedBHTTPRequest());
+      auto encrypted_req = client->CreateObliviousHttpRequest(raw_request_);
       EXPECT_TRUE(encrypted_req.ok());
       auto serialized_encrypted_req = encrypted_req->EncapsulateAndSerialize();
       ObliviousGetValuesRequest ohttp_req;
@@ -266,56 +170,54 @@ class GetValuesHandlerTest
 
    private:
     const std::string public_key_ = absl::HexStringToBytes(kTestPublicKey);
-    BHTTPRequest bhttp_request_;
+    std::string raw_request_;
   };
 
   // For Non-plain protocols, test request and response data are converted
   // to/from the corresponding request/responses.
   grpc::Status GetValuesBasedOnProtocol(
       RequestContextFactory& request_context_factory, std::string request_body,
-      google::api::HttpBody* response, int16_t* bhttp_response_code,
+      google::api::HttpBody* response, int16_t* http_response_code,
       GetValuesV2Handler* handler) {
     PlainRequest plain_request(std::move(request_body));
     ExecutionMetadata execution_metadata;
-
-    std::multimap<grpc::string_ref, grpc::string_ref> headers = {
-        {"kv-content-type", "application/json"}};
+    auto contentTypeHeader = std::string(kKVContentTypeHeader);
+    auto contentEncodingProtoHeaderValue =
+        std::string(kContentEncodingProtoHeaderValue);
+    auto contentEncodingJsonHeaderValue =
+        std::string(kContentEncodingJsonHeaderValue);
+    std::multimap<grpc::string_ref, grpc::string_ref> headers;
     if (IsUsing<ProtocolType::kPlain>()) {
-      *bhttp_response_code = 200;
+      *http_response_code = 200;
+      headers.insert({
+          contentTypeHeader,
+          contentEncodingJsonHeaderValue,
+      });
       return handler->GetValuesHttp(request_context_factory, headers,
                                     plain_request.Build(), response,
                                     execution_metadata);
     }
 
-    BHTTPRequest bhttp_request(std::move(plain_request), IsProtobufContent());
-    BHTTPResponse bresponse;
-
-    if (IsUsing<ProtocolType::kBinaryHttp>()) {
-      if (const auto s = handler->BinaryHttpGetValues(
-              request_context_factory, bhttp_request.Build(),
-              &bresponse.RawResponse(), execution_metadata);
-          !s.ok()) {
-        LOG(ERROR) << "BinaryHttpGetValues failed: " << s.error_message();
-        return s;
-      }
-      *bhttp_response_code = bresponse.ResponseCode(true);
-    } else if (IsUsing<ProtocolType::kObliviousHttp>()) {
-      OHTTPRequest ohttp_request(std::move(bhttp_request));
-      // get ObliviousGetValuesRequest, OHTTPResponseUnwrapper
-      auto [request, response_unwrapper] = ohttp_request.Build();
-      if (const auto s = handler->ObliviousGetValues(
-              request_context_factory, {{"kv-content-type", "message/bhttp"}},
-              request, &response_unwrapper.RawResponse(), execution_metadata);
-          !s.ok()) {
-        LOG(ERROR) << "ObliviousGetValues failed: " << s.error_message();
-        return s;
-      }
-      bresponse = response_unwrapper.Unwrap();
-      *bhttp_response_code = bresponse.ResponseCode(false);
+    OHTTPRequest ohttp_request(plain_request.RequestBody());
+    // get ObliviousGetValuesRequest, OHTTPResponseUnwrapper
+    auto [request, response_unwrapper] = ohttp_request.Build();
+    if (IsProtobufContent()) {
+      headers.insert({
+          contentTypeHeader,
+          contentEncodingProtoHeaderValue,
+      });
+    }
+    if (const auto s = handler->ObliviousGetValues(
+            request_context_factory, headers, request,
+            &response_unwrapper.RawResponse(), execution_metadata);
+        !s.ok()) {
+      *http_response_code = s.error_code();
+      LOG(ERROR) << "ObliviousGetValues failed: " << s.error_message();
+      return s;
     }
 
-    response->set_data(bresponse.Unwrap(IsProtobufContent(),
-                                        IsUsing<ProtocolType::kBinaryHttp>()));
+    response->set_data(response_unwrapper.Unwrap());
+    *http_response_code = 200;
     return grpc::Status::OK;
   }
 
@@ -347,25 +249,6 @@ INSTANTIATE_TEST_SUITE_P(
             .is_consented = true,
         },
         TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingJsonHeaderValue,
-            .core_request_body = kv_server::kExampleV2RequestInJson,
-            .is_consented = false,
-        },
-        TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingJsonHeaderValue,
-            .core_request_body = kv_server::kExampleConsentedV2RequestInJson,
-            .is_consented = true,
-        },
-        TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingJsonHeaderValue,
-            .core_request_body =
-                kv_server::kExampleConsentedV2RequestWithLogContextInJson,
-            .is_consented = true,
-        },
-        TestingParameters{
             .protocol_type = ProtocolType::kObliviousHttp,
             .content_type = kContentEncodingJsonHeaderValue,
             .core_request_body = kv_server::kExampleV2RequestInJson,
@@ -380,25 +263,6 @@ INSTANTIATE_TEST_SUITE_P(
         TestingParameters{
             .protocol_type = ProtocolType::kObliviousHttp,
             .content_type = kContentEncodingJsonHeaderValue,
-            .core_request_body =
-                kv_server::kExampleConsentedV2RequestWithLogContextInJson,
-            .is_consented = true,
-        },
-        TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingProtoHeaderValue,
-            .core_request_body = kv_server::kExampleV2RequestInJson,
-            .is_consented = false,
-        },
-        TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingProtoHeaderValue,
-            .core_request_body = kv_server::kExampleConsentedV2RequestInJson,
-            .is_consented = true,
-        },
-        TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingProtoHeaderValue,
             .core_request_body =
                 kv_server::kExampleConsentedV2RequestWithLogContextInJson,
             .is_consented = true,
@@ -505,7 +369,7 @@ data {
   std::string core_request_body = GetTestRequestBody();
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
-  int16_t bhttp_response_code = 0;
+  int16_t http_response_code = 0;
   if (IsProtobufContent()) {
     v2::GetValuesRequest request_proto;
     ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(core_request_body,
@@ -518,8 +382,8 @@ data {
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   const auto result =
       GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
-                               &response, &bhttp_response_code, &handler);
-  ASSERT_EQ(bhttp_response_code, 200);
+                               &response, &http_response_code, &handler);
+  ASSERT_EQ(http_response_code, 200);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -545,7 +409,7 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
 })";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
-  int16_t bhttp_response_code = 0;
+  int16_t http_response_code = 0;
 
   if (IsProtobufContent()) {
     v2::GetValuesRequest request_proto;
@@ -557,14 +421,9 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   const auto result =
       GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
-                               &response, &bhttp_response_code, &handler);
-  if (IsUsing<ProtocolType::kPlain>()) {
-    ASSERT_FALSE(result.ok());
-    EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
-  } else {
-    ASSERT_TRUE(result.ok());
-    EXPECT_EQ(bhttp_response_code, 500);
-  }
+                               &response, &http_response_code, &handler);
+  ASSERT_FALSE(result.ok());
+  EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
 }
 
 TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
@@ -583,7 +442,7 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
 
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
-  int16_t bhttp_response_code = 0;
+  int16_t http_response_code = 0;
 
   if (IsProtobufContent()) {
     v2::GetValuesRequest request_proto;
@@ -595,8 +454,8 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   const auto result =
       GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
-                               &response, &bhttp_response_code, &handler);
-  ASSERT_EQ(bhttp_response_code, 200);
+                               &response, &http_response_code, &handler);
+  ASSERT_EQ(http_response_code, 200);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 

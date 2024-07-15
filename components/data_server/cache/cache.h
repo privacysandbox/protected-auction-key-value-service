@@ -49,6 +49,10 @@ class Cache {
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const = 0;
 
+  virtual std::unique_ptr<GetKeyValueSetResult> GetUInt64ValueSet(
+      const RequestContext& request_context,
+      const absl::flat_hash_set<std::string_view>& key_set) const = 0;
+
   // Inserts or updates the key with the new value for a given prefix
   virtual void UpdateKeyValue(
       privacy_sandbox::server_common::log::PSLogContext& log_context,
@@ -67,6 +71,11 @@ class Cache {
   virtual void UpdateKeyValueSet(
       privacy_sandbox::server_common::log::PSLogContext& log_context,
       std::string_view key, absl::Span<uint32_t> value_set,
+      int64_t logical_commit_time, std::string_view prefix = "") = 0;
+
+  virtual void UpdateKeyValueSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<uint64_t> value_set,
       int64_t logical_commit_time, std::string_view prefix = "") = 0;
 
   // Deletes a particular (key, value) pair for a given prefix.
@@ -89,6 +98,11 @@ class Cache {
   virtual void DeleteValuesInSet(
       privacy_sandbox::server_common::log::PSLogContext& log_context,
       std::string_view key, absl::Span<uint32_t> value_set,
+      int64_t logical_commit_time, std::string_view prefix = "") = 0;
+
+  virtual void DeleteValuesInSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<uint64_t> value_set,
       int64_t logical_commit_time, std::string_view prefix = "") = 0;
 
   // Removes the values that were deleted before the specified

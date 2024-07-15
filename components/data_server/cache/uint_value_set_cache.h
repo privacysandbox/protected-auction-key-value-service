@@ -82,6 +82,7 @@ std::unique_ptr<GetKeyValueSetResult> UIntValueSetCache<SetType>::GetValueSet(
     const absl::flat_hash_set<std::string_view>& key_set) const {
   auto result = GetKeyValueSetResult::Create();
   for (auto key : key_set) {
+    PS_VLOG(8, request_context.GetPSLogContext()) << "Getting key: " << key;
     result->AddUIntValueSet(key, sets_map_.CGet(key));
   }
   return result;
@@ -92,15 +93,27 @@ void UIntValueSetCache<SetType>::UpdateSetValues(
     privacy_sandbox::server_common::log::PSLogContext& log_context,
     std::string_view key, absl::Span<typename SetType::value_type> value_set,
     int64_t logical_commit_time, std::string_view prefix) {
+  if (value_set.empty()) {
+    PS_VLOG(8, log_context)
+        << "Skipping the update as it has no value in the input set.";
+    return;
+  }
   if (auto prefix_max_time_node =
           sets_max_cleanup_commit_time_map_.CGet(prefix);
       prefix_max_time_node.is_present() &&
       logical_commit_time <= *prefix_max_time_node.value()) {
+    PS_VLOG(8, log_context)
+        << "Skipping the update as its logical_commit_time: "
+        << logical_commit_time << " is older than the current cutoff time:"
+        << *prefix_max_time_node.value();
     return;  // Skip old updates.
   }
   auto cached_set_node = sets_map_.Get(key);
   if (!cached_set_node.is_present()) {
     auto result = sets_map_.PutIfAbsent(key, SetType());
+    if (result.second) {
+      PS_VLOG(8, log_context) << "Added new key: [" << key << "] is a new key.";
+    }
     cached_set_node = std::move(result.first);
   }
   cached_set_node.value()->Add(value_set, logical_commit_time);
@@ -111,10 +124,19 @@ void UIntValueSetCache<SetType>::DeleteSetValues(
     privacy_sandbox::server_common::log::PSLogContext& log_context,
     std::string_view key, absl::Span<typename SetType::value_type> value_set,
     int64_t logical_commit_time, std::string_view prefix) {
+  if (value_set.empty()) {
+    PS_VLOG(8, log_context)
+        << "Skipping the delete as it has no value in the input set.";
+    return;
+  }
   if (auto prefix_max_time_node =
           sets_max_cleanup_commit_time_map_.CGet(prefix);
       prefix_max_time_node.is_present() &&
       logical_commit_time <= *prefix_max_time_node.value()) {
+    PS_VLOG(1, log_context)
+        << "Skipping the delete as its logical_commit_time: "
+        << logical_commit_time << " is older than the current cutoff time:"
+        << *prefix_max_time_node.value();
     return;  // Skip old deletes.
   }
   {

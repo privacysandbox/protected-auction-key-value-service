@@ -95,9 +95,31 @@ std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetUInt32ValueSet(
   ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
                               kGetUInt32ValueSetLatencyInMicros>
       latency_recorder(request_context.GetInternalLookupMetricsContext());
-  auto result = GetKeyValueSetResult::Create();
+  auto result = uint32_sets_cache_.GetValueSet(request_context, key_set);
   for (const auto& key : key_set) {
-    result->AddUIntValueSet(key, uint32_sets_map_.CGet(key));
+    if (result->GetUInt32ValueSet(key) != nullptr) {
+      LogCacheAccessMetrics(request_context, kKeyValueSetCacheHit);
+    } else {
+      LogCacheAccessMetrics(request_context, kKeyValueSetCacheMiss);
+    }
+  }
+  return result;
+}
+
+// Looks up and returns int64 value set result for the given key set.
+std::unique_ptr<GetKeyValueSetResult> KeyValueCache::GetUInt64ValueSet(
+    const RequestContext& request_context,
+    const absl::flat_hash_set<std::string_view>& key_set) const {
+  ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
+                              kGetUInt64ValueSetLatencyInMicros>
+      latency_recorder(request_context.GetInternalLookupMetricsContext());
+  auto result = uint64_sets_cache_.GetValueSet(request_context, key_set);
+  for (const auto& key : key_set) {
+    if (result->GetUInt32ValueSet(key) != nullptr) {
+      LogCacheAccessMetrics(request_context, kKeyValueSetCacheHit);
+    } else {
+      LogCacheAccessMetrics(request_context, kKeyValueSetCacheMiss);
+    }
   }
   return result;
 }
@@ -231,18 +253,23 @@ void KeyValueCache::UpdateKeyValueSet(
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kUpdateUInt32ValueSetLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
-  if (auto prefix_max_time_node =
-          uint32_sets_max_cleanup_commit_time_map_.CGet(prefix);
-      prefix_max_time_node.is_present() &&
-      logical_commit_time <= *prefix_max_time_node.value()) {
-    return;  // Skip old updates.
-  }
-  auto cached_set_node = uint32_sets_map_.Get(key);
-  if (!cached_set_node.is_present()) {
-    auto result = uint32_sets_map_.PutIfAbsent(key, UInt32ValueSet());
-    cached_set_node = std::move(result.first);
-  }
-  cached_set_node.value()->Add(value_set, logical_commit_time);
+  PS_VLOG(9, log_context) << "Received update for [" << key << "] at "
+                          << logical_commit_time;
+  uint32_sets_cache_.UpdateSetValues(log_context, key, value_set,
+                                     logical_commit_time, prefix);
+}
+
+void KeyValueCache::UpdateKeyValueSet(
+    privacy_sandbox::server_common::log::PSLogContext& log_context,
+    std::string_view key, absl::Span<uint64_t> value_set,
+    int64_t logical_commit_time, std::string_view prefix) {
+  ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
+                              kUpdateUInt64ValueSetLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
+  PS_VLOG(9, log_context) << "Received update for [" << key << "] at "
+                          << logical_commit_time;
+  uint64_sets_cache_.UpdateSetValues(log_context, key, value_set,
+                                     logical_commit_time, prefix);
 }
 
 void KeyValueCache::DeleteKey(
@@ -346,32 +373,23 @@ void KeyValueCache::DeleteValuesInSet(
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
                               kDeleteUInt32ValueSetLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
-  if (auto prefix_max_time_node =
-          uint32_sets_max_cleanup_commit_time_map_.CGet(prefix);
-      prefix_max_time_node.is_present() &&
-      logical_commit_time <= *prefix_max_time_node.value()) {
-    return;  // Skip old deletes.
-  }
-  {
-    auto cached_set_node = uint32_sets_map_.Get(key);
-    if (!cached_set_node.is_present()) {
-      auto result = uint32_sets_map_.PutIfAbsent(key, UInt32ValueSet());
-      cached_set_node = std::move(result.first);
-    }
-    cached_set_node.value()->Remove(value_set, logical_commit_time);
-  }
-  {
-    // Mark set as having deleted elements.
-    auto prefix_deleted_sets_node = deleted_uint32_sets_map_.Get(prefix);
-    if (!prefix_deleted_sets_node.is_present()) {
-      auto result = deleted_uint32_sets_map_.PutIfAbsent(
-          prefix, absl::btree_map<int64_t, absl::flat_hash_set<std::string>>());
-      prefix_deleted_sets_node = std::move(result.first);
-    }
-    auto* commit_time_sets =
-        &(*prefix_deleted_sets_node.value())[logical_commit_time];
-    commit_time_sets->insert(std::string(key));
-  }
+  PS_VLOG(9, log_context) << "Received delete for [" << key << "] at "
+                          << logical_commit_time;
+  uint32_sets_cache_.DeleteSetValues(log_context, key, value_set,
+                                     logical_commit_time, prefix);
+}
+
+void KeyValueCache::DeleteValuesInSet(
+    privacy_sandbox::server_common::log::PSLogContext& log_context,
+    std::string_view key, absl::Span<uint64_t> value_set,
+    int64_t logical_commit_time, std::string_view prefix) {
+  ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
+                              kDeleteUInt64ValueSetLatency>
+      latency_recorder(KVServerContextMap()->SafeMetric());
+  PS_VLOG(9, log_context) << "Received delete for [" << key << "] at "
+                          << logical_commit_time;
+  uint64_sets_cache_.DeleteSetValues(log_context, key, value_set,
+                                     logical_commit_time, prefix);
 }
 
 void KeyValueCache::RemoveDeletedKeys(
@@ -382,7 +400,7 @@ void KeyValueCache::RemoveDeletedKeys(
       latency_recorder(KVServerContextMap()->SafeMetric());
   CleanUpKeyValueMap(log_context, logical_commit_time, prefix);
   CleanUpKeyValueSetMap(log_context, logical_commit_time, prefix);
-  CleanUpUInt32SetMap(log_context, logical_commit_time, prefix);
+  CleanUpUIntSetMaps(log_context, logical_commit_time, prefix);
 }
 
 void KeyValueCache::CleanUpKeyValueMap(
@@ -473,47 +491,17 @@ void KeyValueCache::CleanUpKeyValueSetMap(
   }
 }
 
-void KeyValueCache::CleanUpUInt32SetMap(
+void KeyValueCache::CleanUpUIntSetMaps(
     privacy_sandbox::server_common::log::PSLogContext& log_context,
     int64_t logical_commit_time, std::string_view prefix) {
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext,
-                              kCleanUpUInt32SetMapLatency>
+                              kCleanUpUIntSetMapLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
-  {
-    if (auto max_cleanup_time_node =
-            uint32_sets_max_cleanup_commit_time_map_.PutIfAbsent(
-                prefix, logical_commit_time);
-        *max_cleanup_time_node.first.value() < logical_commit_time) {
-      *max_cleanup_time_node.first.value() = logical_commit_time;
-    }
-  }
-  absl::flat_hash_set<std::string> cleanup_sets;
-  {
-    auto prefix_deleted_sets_node = deleted_uint32_sets_map_.Get(prefix);
-    if (!prefix_deleted_sets_node.is_present()) {
-      return;  // nothing to cleanup for this prefix.
-    }
-    absl::flat_hash_set<int64_t> cleanup_commit_times;
-    for (const auto& [commit_time, deleted_sets] :
-         *prefix_deleted_sets_node.value()) {
-      if (commit_time > logical_commit_time) {
-        break;
-      }
-      cleanup_commit_times.insert(commit_time);
-      cleanup_sets.insert(deleted_sets.begin(), deleted_sets.end());
-    }
-    for (auto commit_time : cleanup_commit_times) {
-      prefix_deleted_sets_node.value()->erase(
-          prefix_deleted_sets_node.value()->find(commit_time));
-    }
-  }
-  {
-    for (const auto& set : cleanup_sets) {
-      if (auto set_node = uint32_sets_map_.Get(set); set_node.is_present()) {
-        set_node.value()->Cleanup(logical_commit_time);
-      }
-    }
-  }
+  PS_VLOG(9, log_context)
+      << "Cleaning up uint set maps with a new cutoff timestamp: "
+      << logical_commit_time;
+  uint32_sets_cache_.CleanUpValueSets(log_context, logical_commit_time);
+  uint64_sets_cache_.CleanUpValueSets(log_context, logical_commit_time);
 }
 
 void KeyValueCache::LogCacheAccessMetrics(

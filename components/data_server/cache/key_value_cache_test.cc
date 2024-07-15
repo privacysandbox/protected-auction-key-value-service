@@ -51,16 +51,6 @@ class KeyValueCacheTestPeer {
     return c.map_;
   }
 
-  static const auto& ReadUint32Nodes(KeyValueCache& cache,
-                                     std::string_view prefix = "") {
-    return cache.uint32_sets_map_;
-  }
-
-  static const auto& ReadDeletedUint32Nodes(KeyValueCache& cache,
-                                            std::string_view prefix = "") {
-    return cache.deleted_uint32_sets_map_;
-  }
-
   static int GetDeletedSetNodesMapSize(const KeyValueCache& c,
                                        std::string prefix = "") {
     absl::MutexLock lock(&c.set_map_mutex_);
@@ -1422,30 +1412,6 @@ TEST_F(CacheTest, VerifyCleaningUpUInt32Sets) {
     EXPECT_THAT(set->GetValues(), UnorderedElementsAre(3, 4, 5));
     EXPECT_THAT(set->GetRemovedValues(),
                 UnorderedElementsAreArray(delete_values));
-  }
-  const auto& deleted_nodes =
-      KeyValueCacheTestPeer::ReadDeletedUint32Nodes(*cache);
-  {
-    auto prefix_nodes = deleted_nodes.CGet("");
-    ASSERT_TRUE(prefix_nodes.is_present());
-    auto iter = prefix_nodes.value()->find(2);
-    ASSERT_NE(iter, prefix_nodes.value()->end());
-    EXPECT_THAT(iter->first, 2);
-    EXPECT_TRUE(iter->second.contains("set1"));
-  }
-  {
-    cache->RemoveDeletedKeys(safe_path_log_context_, 3);
-    auto prefix_nodes = deleted_nodes.CGet("");
-    ASSERT_TRUE(prefix_nodes.is_present());
-    auto iter = prefix_nodes.value()->find(2);
-    ASSERT_EQ(iter, prefix_nodes.value()->end());
-  }
-  {
-    auto result = cache->GetUInt32ValueSet(request_context, keys);
-    auto* set = result->GetUInt32ValueSet("set1");
-    ASSERT_TRUE(set != nullptr);
-    EXPECT_THAT(set->GetValues(), UnorderedElementsAre(3, 4, 5));
-    EXPECT_TRUE(set->GetRemovedValues().empty());
   }
 }
 

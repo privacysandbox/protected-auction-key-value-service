@@ -39,6 +39,11 @@ class NoOpKeyValueCache : public Cache {
       const absl::flat_hash_set<std::string_view>& key_set) const override {
     return std::make_unique<NoOpGetKeyValueSetResult>();
   }
+  std::unique_ptr<GetKeyValueSetResult> GetUInt64ValueSet(
+      const RequestContext& request_context,
+      const absl::flat_hash_set<std::string_view>& key_set) const override {
+    return std::make_unique<NoOpGetKeyValueSetResult>();
+  }
   void UpdateKeyValue(
       privacy_sandbox::server_common::log::PSLogContext& log_context,
       std::string_view key, std::string_view value, int64_t logical_commit_time,
@@ -51,6 +56,10 @@ class NoOpKeyValueCache : public Cache {
       privacy_sandbox::server_common::log::PSLogContext& log_context,
       std::string_view key, absl::Span<uint32_t> value_set,
       int64_t logical_commit_time, std::string_view prefix = "") override {}
+  void UpdateKeyValueSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<uint64_t> value_set,
+      int64_t logical_commit_time, std::string_view prefix = "") override {}
   void DeleteKey(privacy_sandbox::server_common::log::PSLogContext& log_context,
                  std::string_view key, int64_t logical_commit_time,
                  std::string_view prefix) override {}
@@ -61,6 +70,10 @@ class NoOpKeyValueCache : public Cache {
   void DeleteValuesInSet(
       privacy_sandbox::server_common::log::PSLogContext& log_context,
       std::string_view key, absl::Span<uint32_t> value_set,
+      int64_t logical_commit_time, std::string_view prefix = "") override {}
+  void DeleteValuesInSet(
+      privacy_sandbox::server_common::log::PSLogContext& log_context,
+      std::string_view key, absl::Span<uint64_t> value_set,
       int64_t logical_commit_time, std::string_view prefix = "") override {}
   void RemoveDeletedKeys(
       privacy_sandbox::server_common::log::PSLogContext& log_context,

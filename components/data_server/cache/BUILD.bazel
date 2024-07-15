@@ -118,6 +118,7 @@ cc_library(
         ":cache",
         ":get_key_value_set_result_impl",
         ":uint_value_set",
+        ":uint_value_set_cache",
         "//components/container:thread_safe_hash_map",
         "//public:base_types_cc_proto",
         "@com_google_absl//absl/base",

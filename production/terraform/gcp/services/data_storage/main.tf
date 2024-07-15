@@ -19,5 +19,9 @@ resource "google_storage_bucket" "default" {
   location      = "US"
   storage_class = "STANDARD"
 
+  versioning {
+    enabled = true
+  }
+
   uniform_bucket_level_access = true
 }

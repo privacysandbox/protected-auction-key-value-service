@@ -456,15 +456,16 @@ TEST_F(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
 
 TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
   auto mock_lookup = std::make_unique<MockLookup>();
-  InternalRunSetQueryIntResponse response;
+  InternalRunSetQueryUInt32Response response;
   TextFormat::ParseFromString(R"pb(elements: 1000 elements: 1001)pb",
                               &response);
-  ON_CALL(*mock_lookup, RunSetQueryInt(_, _)).WillByDefault(Return(response));
-  auto run_query_hook = RunSetQueryIntHook::Create();
+  ON_CALL(*mock_lookup, RunSetQueryUInt32(_, _))
+      .WillByDefault(Return(response));
+  auto run_query_hook = RunSetQueryUInt32Hook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
-      std::move(config_builder.RegisterRunSetQueryIntHook(*run_query_hook)
+      std::move(config_builder.RegisterRunSetQueryUInt32Hook(*run_query_hook)
                     .SetNumberOfWorkers(1)
                     .Config()));
   EXPECT_TRUE(udf_client.ok());
@@ -472,7 +473,7 @@ TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
       .js = R"(
         function hello(input) {
           let keys = input.keys;
-          let bytes = runSetQueryInt(keys[0]);
+          let bytes = runSetQueryUInt32(keys[0]);
           if (bytes instanceof Uint8Array) {
             return Array.from(new Uint32Array(bytes.buffer));
           }

@@ -56,7 +56,7 @@ class ServerInitializer {
       GetValuesHook& string_get_values_hook,
       GetValuesHook& binary_get_values_hook,
       RunSetQueryStringHook& run_set_query_string_hook,
-      RunSetQueryIntHook& run_set_query_int_hook) = 0;
+      RunSetQueryUInt32Hook& run_set_query_uint32_hook) = 0;
 };
 
 std::unique_ptr<ServerInitializer> GetServerInitializer(

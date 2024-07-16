@@ -48,7 +48,7 @@ class Lookup {
   virtual absl::StatusOr<InternalRunQueryResponse> RunQuery(
       const RequestContext& request_context, std::string query) const = 0;
 
-  virtual absl::StatusOr<InternalRunSetQueryIntResponse> RunSetQueryInt(
+  virtual absl::StatusOr<InternalRunSetQueryUInt32Response> RunSetQueryUInt32(
       const RequestContext& request_context, std::string query) const = 0;
 };
 

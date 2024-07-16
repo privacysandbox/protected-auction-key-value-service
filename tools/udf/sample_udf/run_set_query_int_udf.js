@@ -27,7 +27,7 @@ function HandleRequest(executionMetadata, ...input) {
     }
 
     // Get the first key in the data.
-    const runQueryArray = runSetQueryInt(keyGroup.data[0]);
+    const runQueryArray = runSetQueryUInt32(keyGroup.data[0]);
     // runSetQueryInt returns an Uint8Array of 'uint32' ints and "code" on failure.
     // Ignore failures and only add successful runQuery results to output.
     if (runQueryArray instanceof Uint8Array) {

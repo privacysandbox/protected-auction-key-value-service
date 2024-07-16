@@ -70,21 +70,21 @@ TEST_F(RunQueryHookTest, SuccessfullyProcessesValue) {
 }
 
 TEST_F(RunQueryHookTest, VerifyProcessingIntSetsSuccessfully) {
-  InternalRunSetQueryIntResponse run_query_response;
+  InternalRunSetQueryUInt32Response run_query_response;
   TextFormat::ParseFromString(R"pb(elements: 1000 elements: 1001)pb",
                               &run_query_response);
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, RunSetQueryInt(_, "Q"))
+  EXPECT_CALL(*mock_lookup, RunSetQueryUInt32(_, "Q"))
       .WillOnce(Return(run_query_response));
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
-  auto run_query_hook = RunSetQueryIntHook::Create();
+  auto run_query_hook = RunSetQueryUInt32Hook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
   FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
       io, GetRequestContext()};
   (*run_query_hook)(payload);
   ASSERT_TRUE(io.has_output_bytes());
-  InternalRunSetQueryIntResponse actual_response;
+  InternalRunSetQueryUInt32Response actual_response;
   actual_response.mutable_elements()->Resize(
       io.output_bytes().size() / sizeof(uint32_t), 0);
   std::memcpy(actual_response.mutable_elements()->mutable_data(),
@@ -113,11 +113,11 @@ TEST_F(RunQueryHookTest, RunQueryClientReturnsError) {
 
 TEST_F(RunQueryHookTest, RunSetQueryIntClientReturnsError) {
   auto mock_lookup = std::make_unique<MockLookup>();
-  EXPECT_CALL(*mock_lookup, RunSetQueryInt(_, "Q"))
+  EXPECT_CALL(*mock_lookup, RunSetQueryUInt32(_, "Q"))
       .WillOnce(Return(absl::UnknownError("Some error")));
   FunctionBindingIoProto io;
   TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
-  auto run_query_hook = RunSetQueryIntHook::Create();
+  auto run_query_hook = RunSetQueryUInt32Hook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
   FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
       io, GetRequestContext()};
@@ -125,7 +125,7 @@ TEST_F(RunQueryHookTest, RunSetQueryIntClientReturnsError) {
   EXPECT_THAT(
       io.output_list_of_string().data(),
       UnorderedElementsAreArray(
-          {R"({"code":2,"message":"runSetQueryInt failed with error: Some error"})"}));
+          {R"({"code":2,"message":"runSetQueryUInt32 failed with error: Some error"})"}));
 }
 
 TEST_F(RunQueryHookTest, InputIsNotString) {

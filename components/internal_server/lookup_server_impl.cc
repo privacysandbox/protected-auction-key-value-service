@@ -163,15 +163,15 @@ grpc::Status LookupServiceImpl::InternalRunQuery(
       });
 }
 
-grpc::Status LookupServiceImpl::InternalRunSetQueryInt(
+grpc::Status LookupServiceImpl::InternalRunSetQueryUInt32(
     grpc::ServerContext* context,
-    const kv_server::InternalRunSetQueryIntRequest* request,
-    kv_server::InternalRunSetQueryIntResponse* response) {
-  return RunSetQuery<InternalRunSetQueryIntRequest,
-                     InternalRunSetQueryIntResponse>(
+    const kv_server::InternalRunSetQueryUInt32Request* request,
+    kv_server::InternalRunSetQueryUInt32Response* response) {
+  return RunSetQuery<InternalRunSetQueryUInt32Request,
+                     InternalRunSetQueryUInt32Response>(
       context, request, response,
       [this](const RequestContext& request_context, std::string query) {
-        return lookup_.RunSetQueryInt(request_context, query);
+        return lookup_.RunSetQueryUInt32(request_context, query);
       });
 }
 

@@ -52,10 +52,10 @@ class LookupServiceImpl final
       const kv_server::InternalRunQueryRequest* request,
       kv_server::InternalRunQueryResponse* response) override;
 
-  grpc::Status InternalRunSetQueryInt(
+  grpc::Status InternalRunSetQueryUInt32(
       grpc::ServerContext* context,
-      const kv_server::InternalRunSetQueryIntRequest* request,
-      kv_server::InternalRunSetQueryIntResponse* response) override;
+      const kv_server::InternalRunSetQueryUInt32Request* request,
+      kv_server::InternalRunSetQueryUInt32Response* response) override;
 
  private:
   std::string GetPayload(

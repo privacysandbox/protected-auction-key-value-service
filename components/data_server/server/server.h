@@ -119,7 +119,7 @@ class Server {
   std::unique_ptr<GetValuesAdapter> get_values_adapter_;
   std::unique_ptr<GetValuesHook> string_get_values_hook_;
   std::unique_ptr<GetValuesHook> binary_get_values_hook_;
-  std::unique_ptr<RunSetQueryIntHook> run_set_query_int_hook_;
+  std::unique_ptr<RunSetQueryUInt32Hook> run_set_query_uint32_hook_;
   std::unique_ptr<RunSetQueryStringHook> run_set_query_string_hook_;
 
   // BlobStorageClient must outlive DeltaFileNotifier

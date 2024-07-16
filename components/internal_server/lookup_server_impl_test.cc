@@ -136,30 +136,30 @@ TEST_F(LookupServiceImplTest, SecureLookupFailure) {
 }
 
 TEST_F(LookupServiceImplTest, InternalRunSetQueryInt_Success) {
-  InternalRunSetQueryIntRequest request;
+  InternalRunSetQueryUInt32Request request;
   request.set_query("someset");
-  InternalRunSetQueryIntResponse expected;
+  InternalRunSetQueryUInt32Response expected;
   expected.add_elements(1000);
   expected.add_elements(1001);
   expected.add_elements(1002);
-  EXPECT_CALL(mock_lookup_, RunSetQueryInt(_, _)).WillOnce(Return(expected));
-  InternalRunSetQueryIntResponse response;
+  EXPECT_CALL(mock_lookup_, RunSetQueryUInt32(_, _)).WillOnce(Return(expected));
+  InternalRunSetQueryUInt32Response response;
   grpc::ClientContext context;
   grpc::Status status =
-      stub_->InternalRunSetQueryInt(&context, request, &response);
+      stub_->InternalRunSetQueryUInt32(&context, request, &response);
   auto results = response.elements();
   EXPECT_THAT(results, testing::UnorderedElementsAreArray({1000, 1001, 1002}));
 }
 
 TEST_F(LookupServiceImplTest, InternalRunSetQueryInt_LookupError_Failure) {
-  InternalRunSetQueryIntRequest request;
+  InternalRunSetQueryUInt32Request request;
   request.set_query("fail|||||now");
-  EXPECT_CALL(mock_lookup_, RunSetQueryInt(_, _))
+  EXPECT_CALL(mock_lookup_, RunSetQueryUInt32(_, _))
       .WillOnce(Return(absl::UnknownError("Some error")));
-  InternalRunSetQueryIntResponse response;
+  InternalRunSetQueryUInt32Response response;
   grpc::ClientContext context;
   grpc::Status status =
-      stub_->InternalRunSetQueryInt(&context, request, &response);
+      stub_->InternalRunSetQueryUInt32(&context, request, &response);
   EXPECT_EQ(status.error_code(), grpc::StatusCode::INTERNAL);
 }
 

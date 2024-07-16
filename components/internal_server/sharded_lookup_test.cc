@@ -720,7 +720,7 @@ TEST_F(ShardedLookupTest, GetUInt32ValueSets_KeysFound_Success) {
   TextFormat::ParseFromString(
       R"pb(kv_pairs {
              key: "key4"
-             value { uintset_values { values: 1000 } }
+             value { uint32set_values { values: 1000 } }
            }
       )pb",
       &local_lookup_response);
@@ -756,7 +756,7 @@ TEST_F(ShardedLookupTest, GetUInt32ValueSets_KeysFound_Success) {
               TextFormat::ParseFromString(
                   R"pb(kv_pairs {
                          key: "key1"
-                         value { uintset_values { values: 2000 } }
+                         value { uint32set_values { values: 2000 } }
                        }
                   )pb",
                   &resp);
@@ -774,11 +774,11 @@ TEST_F(ShardedLookupTest, GetUInt32ValueSets_KeysFound_Success) {
   TextFormat::ParseFromString(
       R"pb(kv_pairs {
              key: "key1"
-             value { uintset_values { values: 2000 } }
+             value { uint32set_values { values: 2000 } }
            }
            kv_pairs {
              key: "key4"
-             value { uintset_values { values: 1000 } }
+             value { uint32set_values { values: 1000 } }
            }
       )pb",
       &expected);
@@ -790,7 +790,7 @@ TEST_F(ShardedLookupTest, GetUInt32ValueSets_KeysMissing_ReturnsStatus) {
   TextFormat::ParseFromString(
       R"pb(kv_pairs {
              key: "key4"
-             value { uintset_values { values: 1000 } }
+             value { uint32set_values { values: 1000 } }
            }
       )pb",
       &local_lookup_response);
@@ -853,7 +853,7 @@ TEST_F(ShardedLookupTest, GetUInt32ValueSets_KeysMissing_ReturnsStatus) {
            }
            kv_pairs {
              key: "key4"
-             value { uintset_values { values: 1000 } }
+             value { uint32set_values { values: 1000 } }
            }
            kv_pairs {
              key: "key5"
@@ -1158,7 +1158,7 @@ TEST_F(ShardedLookupTest, RunSetQueryInt_Success) {
   TextFormat::ParseFromString(
       R"pb(kv_pairs {
              key: "key4"
-             value { uintset_values { values: 1000 } }
+             value { uint32set_values { values: 1000 } }
            }
       )pb",
       &local_lookup_response);
@@ -1195,7 +1195,7 @@ TEST_F(ShardedLookupTest, RunSetQueryInt_Success) {
               TextFormat::ParseFromString(
                   R"pb(kv_pairs {
                          key: "key1"
-                         value { uintset_values { values: 2000 } }
+                         value { uint32set_values { values: 2000 } }
                        }
                   )pb",
                   &resp);
@@ -1207,7 +1207,7 @@ TEST_F(ShardedLookupTest, RunSetQueryInt_Success) {
       CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
                           *(*shard_manager), key_sharder_);
   auto response =
-      sharded_lookup->RunSetQueryInt(GetRequestContext(), "key1|key4");
+      sharded_lookup->RunSetQueryUInt32(GetRequestContext(), "key1|key4");
   EXPECT_TRUE(response.ok());
   EXPECT_THAT(response.value().elements(),
               testing::UnorderedElementsAreArray({1000, 2000}));
@@ -1218,7 +1218,7 @@ TEST_F(ShardedLookupTest, RunSetQueryInt_ShardedLookupFails_Error) {
   TextFormat::ParseFromString(
       R"pb(kv_pairs {
              key: "key4"
-             value { uintset_values { values: 1000 } }
+             value { uint32set_values { values: 1000 } }
            }
       )pb",
       &local_lookup_response);
@@ -1236,7 +1236,7 @@ TEST_F(ShardedLookupTest, RunSetQueryInt_ShardedLookupFails_Error) {
       CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
                           *(*shard_manager), key_sharder_);
   auto response =
-      sharded_lookup->RunSetQueryInt(GetRequestContext(), "key1|key4");
+      sharded_lookup->RunSetQueryUInt32(GetRequestContext(), "key1|key4");
   EXPECT_FALSE(response.ok());
   EXPECT_THAT(response.status().code(), absl::StatusCode::kInternal);
 }
@@ -1255,7 +1255,7 @@ TEST_F(ShardedLookupTest, RunSetQueryInt_EmptyRequest_EmptyResponse) {
   auto sharded_lookup =
       CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
                           *(*shard_manager), key_sharder_);
-  auto response = sharded_lookup->RunSetQueryInt(GetRequestContext(), "");
+  auto response = sharded_lookup->RunSetQueryUInt32(GetRequestContext(), "");
   EXPECT_TRUE(response.ok());
   EXPECT_TRUE(response.value().elements().empty());
 }

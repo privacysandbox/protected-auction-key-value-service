@@ -119,6 +119,13 @@ inline constexpr std::string_view kShardedRunQueryMissingKeySet =
 // Query parsing failure in the run query in sharded lookup
 inline constexpr std::string_view kShardedRunQueryParsingFailure =
     "ShardedRunQueryParsingFailure";
+// Key set retrieval failure in the GetUInt32ValueSet in sharded lookup
+inline constexpr std::string_view
+    kShardedGetUInt32ValueSetKeySetRetrievalFailure =
+        "ShardedGetUInt32ValueSetKeySetRetrievalFailure";
+// Key set not found error in the GetUInt32ValueSet in sharded lookup
+inline constexpr std::string_view kShardedGetUInt32ValueSetKeySetNotFound =
+    "ShardedGetUInt32ValueSetKeySetNotFound";
 
 // Strings must be sorted, this is required by the API of partitioned metrics
 inline constexpr absl::string_view kKVUdfRequestErrorCode[] = {
@@ -129,6 +136,8 @@ inline constexpr absl::string_view kKVUdfRequestErrorCode[] = {
     kRemoteSecureLookupFailure,
     kShardedGetKeyValueSetKeySetNotFound,
     kShardedGetKeyValueSetKeySetRetrievalFailure,
+    kShardedGetUInt32ValueSetKeySetNotFound,
+    kShardedGetUInt32ValueSetKeySetRetrievalFailure,
     kShardedKeyCollisionOnKeySetCollection,
     kShardedKeyValueRequestFailure,
     kShardedKeyValueSetRequestFailure,
@@ -136,8 +145,7 @@ inline constexpr absl::string_view kKVUdfRequestErrorCode[] = {
     kShardedRunQueryFailure,
     kShardedRunQueryKeySetRetrievalFailure,
     kShardedRunQueryMissingKeySet,
-    kShardedRunQueryParsingFailure,
-};
+    kShardedRunQueryParsingFailure};
 
 // Non request related server error
 // Strings must be sorted, this is required by the API of partitioned metrics

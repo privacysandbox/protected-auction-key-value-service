@@ -157,8 +157,9 @@ TEST_F(LocalLookupTest, GetUInt32ValueSets_KeysFound_Success) {
   auto response =
       local_lookup->GetUInt32ValueSet(GetRequestContext(), {"key1"});
   ASSERT_TRUE(response.ok());
-  EXPECT_THAT(response.value().kv_pairs().at("key1").uintset_values().values(),
-              testing::UnorderedElementsAreArray(values));
+  EXPECT_THAT(
+      response.value().kv_pairs().at("key1").uint32set_values().values(),
+      testing::UnorderedElementsAreArray(values));
 }
 
 TEST_F(LocalLookupTest, GetUInt32ValueSets_SetEmpty_Success) {
@@ -259,7 +260,7 @@ TEST_F(LocalLookupTest, Verify_RunSetQueryInt_Success) {
               GetUInt32ValueSet(_, absl::flat_hash_set<std::string_view>{"A"}))
       .WillOnce(Return(std::move(mock_get_key_value_set_result)));
   auto local_lookup = CreateLocalLookup(mock_cache_);
-  auto response = local_lookup->RunSetQueryInt(GetRequestContext(), query);
+  auto response = local_lookup->RunSetQueryUInt32(GetRequestContext(), query);
   ASSERT_TRUE(response.ok()) << response.status();
   EXPECT_THAT(response.value().elements(),
               testing::UnorderedElementsAreArray(values.begin(), values.end()));
@@ -268,7 +269,7 @@ TEST_F(LocalLookupTest, Verify_RunSetQueryInt_Success) {
 TEST_F(LocalLookupTest, Verify_RunSetQueryInt_ParsingError_Error) {
   std::string query = "someset|(";
   auto local_lookup = CreateLocalLookup(mock_cache_);
-  auto response = local_lookup->RunSetQueryInt(GetRequestContext(), query);
+  auto response = local_lookup->RunSetQueryUInt32(GetRequestContext(), query);
   EXPECT_FALSE(response.ok());
   EXPECT_EQ(response.status().code(), absl::StatusCode::kInvalidArgument);
 }

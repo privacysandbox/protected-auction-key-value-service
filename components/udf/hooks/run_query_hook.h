@@ -63,8 +63,9 @@ constexpr std::string_view RunSetQueryHook<ResponseType>::HookName() {
   if constexpr (std::is_same_v<ResponseType, InternalRunQueryResponse>) {
     return "runQuery";
   }
-  if constexpr (std::is_same_v<ResponseType, InternalRunSetQueryIntResponse>) {
-    return "runSetQueryInt";
+  if constexpr (std::is_same_v<ResponseType,
+                               InternalRunSetQueryUInt32Response>) {
+    return "runSetQueryUInt32";
   }
 }
 
@@ -121,8 +122,9 @@ void RunSetQueryHook<ResponseType>::operator()(
     response_or_status =
         lookup_->RunQuery(*request_context, payload.io_proto.input_string());
   }
-  if constexpr (std::is_same_v<ResponseType, InternalRunSetQueryIntResponse>) {
-    response_or_status = lookup_->RunSetQueryInt(
+  if constexpr (std::is_same_v<ResponseType,
+                               InternalRunSetQueryUInt32Response>) {
+    response_or_status = lookup_->RunSetQueryUInt32(
         *request_context, payload.io_proto.input_string());
   }
   if (!response_or_status.ok()) {
@@ -144,7 +146,8 @@ void RunSetQueryHook<ResponseType>::operator()(
     *payload.io_proto.mutable_output_list_of_string()->mutable_data() =
         std::move(*response_or_status.value().mutable_elements());
   }
-  if constexpr (std::is_same_v<ResponseType, InternalRunSetQueryIntResponse>) {
+  if constexpr (std::is_same_v<ResponseType,
+                               InternalRunSetQueryUInt32Response>) {
     const auto& elements = response_or_status->elements();
     payload.io_proto.set_output_bytes(elements.data(),
                                       elements.size() * sizeof(uint32_t));
@@ -160,7 +163,8 @@ RunSetQueryHook<ResponseType>::Create() {
 }
 
 using RunSetQueryStringHook = RunSetQueryHook<InternalRunQueryResponse>;
-using RunSetQueryIntHook = RunSetQueryHook<InternalRunSetQueryIntResponse>;
+using RunSetQueryUInt32Hook =
+    RunSetQueryHook<InternalRunSetQueryUInt32Response>;
 
 }  // namespace kv_server
 

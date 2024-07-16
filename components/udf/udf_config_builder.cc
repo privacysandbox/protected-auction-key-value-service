@@ -38,7 +38,7 @@ using google::scp::roma::FunctionBindingPayload;
 constexpr char kStringGetValuesHookJsName[] = "getValues";
 constexpr char kBinaryGetValuesHookJsName[] = "getValuesBinary";
 constexpr char kRunQueryHookJsName[] = "runQuery";
-constexpr char kRunSetQueryIntHookJsName[] = "runSetQueryInt";
+constexpr char kRunSetQueryUInt32HookJsName[] = "runSetQueryUInt32";
 
 std::unique_ptr<FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>
 GetValuesFunctionObject(GetValuesHook& get_values_hook,
@@ -84,15 +84,15 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterRunSetQueryStringHook(
   return *this;
 }
 
-UdfConfigBuilder& UdfConfigBuilder::RegisterRunSetQueryIntHook(
-    RunSetQueryIntHook& run_set_query_int_hook) {
+UdfConfigBuilder& UdfConfigBuilder::RegisterRunSetQueryUInt32Hook(
+    RunSetQueryUInt32Hook& run_set_query_uint32_hook) {
   auto run_query_function_object = std::make_unique<
       FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>();
-  run_query_function_object->function_name = kRunSetQueryIntHookJsName;
+  run_query_function_object->function_name = kRunSetQueryUInt32HookJsName;
   run_query_function_object->function =
-      [&run_set_query_int_hook](
+      [&run_set_query_uint32_hook](
           FunctionBindingPayload<std::weak_ptr<RequestContext>>& in) {
-        run_set_query_int_hook(in);
+        run_set_query_uint32_hook(in);
       };
   config_.RegisterFunctionBinding(std::move(run_query_function_object));
   return *this;

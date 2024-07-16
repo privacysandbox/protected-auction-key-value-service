@@ -156,6 +156,7 @@ cc_library(
     ],
 )
 
+# TODO: Azure. Add a test implementation.
 cc_test(
     name = "realtime_thread_pool_manager_test",
     size = "small",

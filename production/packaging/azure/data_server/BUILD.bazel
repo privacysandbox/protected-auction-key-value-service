@@ -61,18 +61,18 @@ container_layer(
     ],
 )
 
-pkg_files(
-    name = "etc_envoy_files",
-    srcs = [
-        "envoy/envoy.yaml",
-        "//public/query:query_api_descriptor_set",
-    ],
-    attributes = pkg_attributes(mode = "0444"),
-    prefix = "/etc/envoy",
-    visibility = [
-        "//production/packaging:__subpackages__",
-    ],
-)
+# pkg_files(
+#     name = "etc_envoy_files",
+#     srcs = [
+#         "envoy/envoy.yaml",
+#         "//public/query:query_api_descriptor_set",
+#     ],
+#     attributes = pkg_attributes(mode = "0444"),
+#     prefix = "/etc/envoy",
+#     visibility = [
+#         "//production/packaging:__subpackages__",
+#     ],
+# )
 
 # This image target is meant for testing running the server in an enclave using.
 #
@@ -100,8 +100,6 @@ container_image(
     labels = {"tee.launch_policy.log_redirect": "always"},
     layers = [
         ":server_binary_layer",
-        ":envoy_distroless_layer",
-        ":envoy_config_layer",
     ],
     ports = [
         "50050",

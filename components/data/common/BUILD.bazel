@@ -165,12 +165,13 @@ cc_library(
     ],
 )
 
+# TODO: Azure. Add a test implementation.
 cc_library(
     name = "mocks",
     testonly = 1,
     hdrs =
         selects.with_or({
-            ("//:aws_platform", "//:local_platform"): [
+            ("//:aws_platform", "//:local_platform", "//:azure_platform"): [
                 "mocks_aws.h",
             ],
             "//conditions:default": [],

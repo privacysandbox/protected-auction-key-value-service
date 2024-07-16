@@ -25,6 +25,8 @@ build:noexcept --per_file_copt=.*oneTBB.*@-fexceptions
 build:noexcept --per_file_copt=.*com_github_nghttp2_nghttp2.*@-fexceptions
 build:noexcept --per_file_copt=.*src/core.*@-fexceptions
 build:noexcept --per_file_copt=.*src/cpio.*@-fexceptions
+# external/google_privacysandbox_servers_common/src/azure/attestation/src/utils/security_context.cc error: cannot use 'throw' with exceptions disabled throw std::runtime_error(
+build:noexcept --per_file_copt=.*/src/azure.*@-fexceptions
 
 test --test_output=errors
 # Disable ICU linking for googleurl.

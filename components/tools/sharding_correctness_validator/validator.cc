@@ -127,28 +127,14 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
     return absl::Status(absl::StatusCode::kUnknown,
                         absl::StrCat("Protobuf SerializeToString failed!"));
   }
-  quiche::BinaryHttpRequest req_bhttp_layer({});
-  req_bhttp_layer.AddHeaderField({
-      .name = std::string(kContentTypeHeader),
-      .value = std::string(kContentEncodingProtoHeaderValue),
-  });
-  req_bhttp_layer.set_body(serialized_req);
-  auto maybe_serialized_bhttp = req_bhttp_layer.Serialize();
-  if (!maybe_serialized_bhttp.ok()) {
-    return absl::Status(
-        absl::StatusCode::kInternal,
-        absl::StrCat(maybe_serialized_bhttp.status().message()));
-  }
-
   if (!public_key) {
     const std::string error = "public_key==nullptr, cannot proceed.";
     LOG(ERROR) << error;
     return absl::InternalError(error);
   }
   OhttpClientEncryptor encryptor(*public_key);
-
   auto encrypted_serialized_request_maybe =
-      encryptor.EncryptRequest(*maybe_serialized_bhttp);
+      encryptor.EncryptRequest(serialized_req);
   if (!encrypted_serialized_request_maybe.ok()) {
     return encrypted_serialized_request_maybe.status();
   }
@@ -156,6 +142,8 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
   ohttp_req.mutable_raw_body()->set_data(*encrypted_serialized_request_maybe);
   google::api::HttpBody ohttp_res;
   grpc::ClientContext context;
+  context.AddMetadata(std::string(kContentTypeHeader),
+                      std::string(kContentEncodingProtoHeaderValue));
   grpc::Status status =
       stub->ObliviousGetValues(&context, ohttp_req, &ohttp_res);
   if (!status.ok()) {
@@ -175,15 +163,9 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
     LOG(ERROR) << "unpadding response failed!";
     return deframed_req.status();
   }
-  const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
-      quiche::BinaryHttpResponse::Create(deframed_req->compressed_data);
-  if (!maybe_res_bhttp_layer.ok()) {
-    LOG(ERROR) << "Failed to create bhttp resonse layer!";
-    return maybe_res_bhttp_layer.status();
-  }
   v2::GetValuesResponse get_value_response;
   if (!get_value_response.ParseFromString(
-          std::string(maybe_res_bhttp_layer->body()))) {
+          std::string(deframed_req->compressed_data))) {
     return absl::Status(absl::StatusCode::kUnknown,
                         absl::StrCat("Protobuf ParseFromString failed!"));
   }

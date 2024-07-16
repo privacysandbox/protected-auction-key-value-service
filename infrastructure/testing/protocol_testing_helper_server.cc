@@ -24,7 +24,6 @@
 #include "grpcpp/grpcpp.h"
 #include "infrastructure/testing/protocol_testing_helper_server.grpc.pb.h"
 #include "public/constants.h"
-#include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
 
 ABSL_FLAG(uint16_t, port, 50050,
@@ -43,47 +42,6 @@ class ProtocolTestingHelperServiceImpl final
                              GetTestConfigResponse* response) override {
     response->set_public_key(public_key_);
     return grpc::Status::OK;
-  }
-
-  grpc::Status BHTTPEncapsulate(ServerContext* context,
-                                const BHTTPEncapsulateRequest* request,
-                                BHTTPEncapsulateResponse* response) override {
-    const auto process = [&request, &response](auto&& bhttp_layer) {
-      bhttp_layer.set_body(request->body());
-      auto maybe_serialized = bhttp_layer.Serialize();
-      if (!maybe_serialized.ok()) {
-        return grpc::Status(grpc::INTERNAL,
-                            std::string(maybe_serialized.status().message()));
-      }
-      response->set_bhttp_message(*maybe_serialized);
-      return grpc::Status::OK;
-    };
-    if (request->is_request()) {
-      return process(quiche::BinaryHttpRequest({}));
-    }
-    return process(quiche::BinaryHttpResponse(200));
-  }
-
-  grpc::Status BHTTPDecapsulate(ServerContext* context,
-                                const BHTTPDecapsulateRequest* request,
-                                BHTTPDecapsulateResponse* response) override {
-    const auto process = [&request, &response](auto&& maybe_bhttp_layer) {
-      if (!maybe_bhttp_layer.ok()) {
-        return grpc::Status(grpc::INTERNAL,
-                            std::string(maybe_bhttp_layer.status().message()));
-      }
-      std::string body;
-      maybe_bhttp_layer->swap_body(body);
-      response->set_body(std::move(body));
-      return grpc::Status::OK;
-    };
-
-    if (request->is_request()) {
-      return process(
-          quiche::BinaryHttpRequest::Create(request->bhttp_message()));
-    }
-    return process(
-        quiche::BinaryHttpResponse::Create(request->bhttp_message()));
   }
 
   grpc::Status OHTTPEncapsulate(ServerContext* context,

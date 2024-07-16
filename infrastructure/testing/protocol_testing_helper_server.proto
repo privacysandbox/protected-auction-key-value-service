@@ -30,13 +30,6 @@ service ProtocolTestingHelper {
   // Returns test parameters like public key used for testing.
   rpc GetTestConfig(GetTestConfigRequest) returns (GetTestConfigResponse) {}
 
-  // Given a cleartext http message body in bytes format, wraps it in BinaryHTTP
-  // format.
-  rpc BHTTPEncapsulate(BHTTPEncapsulateRequest) returns (BHTTPEncapsulateResponse) {}
-
-  // Given a BinaryHTTP message, unwraps it into a cleartext message.
-  rpc BHTTPDecapsulate(BHTTPDecapsulateRequest) returns (BHTTPDecapsulateResponse) {}
-
   // Wraps a byte string with Oblivious HTTP encryption.
   rpc OHTTPEncapsulate(OHTTPEncapsulateRequest) returns (OHTTPEncapsulateResponse) {}
 
@@ -56,31 +49,6 @@ service ProtocolTestingHelper {
 message GetTestConfigRequest {}
 message GetTestConfigResponse {
   bytes public_key = 1;
-}
-
-// ======================== BHTTP functions ========================
-message BHTTPEncapsulateRequest {
-  // Message body to be wrapped
-  bytes body = 1;
-  // True: request False: response
-  bool is_request = 2;
-}
-
-message BHTTPEncapsulateResponse {
-  // serialized BHTTP message
-  bytes bhttp_message = 1;
-}
-
-message BHTTPDecapsulateRequest {
-  // serialized BHTTP message
-  bytes bhttp_message = 1;
-  // True: request False: response
-  bool is_request = 2;
-}
-
-message BHTTPDecapsulateResponse {
-  // Message body unwrapped
-  bytes body = 1;
 }
 
 // ======================== OHTTP functions ========================

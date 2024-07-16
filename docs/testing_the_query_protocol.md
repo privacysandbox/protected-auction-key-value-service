@@ -73,7 +73,7 @@ containers locally. In addition, run the helper server alongside:
 `cd` into the root of the repo.
 
 ```sh
-bazel run -c opt //infrastructure/testing:protocol_testing_helper_server
+builders/tools/bazel-debian run //infrastructure/testing:protocol_testing_helper_server
 ```
 
 For more information on how to test the query protocol with the helper server, see also the
@@ -99,68 +99,6 @@ grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'
 
 For gRPC, use base64 --decode to convert the output to plaintext.
 
-## Binary HTTP query ("BinaryHTTPGetValues")
-
-First convert the request body into Binary HTTP request:
-
-```sh
-echo -n '{"is_request": true, "body": "'$(echo -n $BODY|base64 -w 0)'"}'|grpcurl -plaintext -d @   localhost:50050 kv_server.ProtocolTestingHelper/BHTTPEncapsulate
-```
-
-The result should be something like:
-
-```json
-{
-    "bhttp_message": "AAAAAAAAQZZ7ICJjb250ZXh0IjogeyAic3Via2V5IjogImV4YW1wbGUuY29tIiB9LCAicGFydGl0aW9ucyI6IFsgeyAiaWQiOiAwLCAiY29tcHJlc3Npb25Hcm91cCI6IDAsICJrZXlHcm91cHMiOiBbIHsgInRhZ3MiOiBbICJzdHJ1Y3R1cmVkIiwgImdyb3VwTmFtZXMiIF0sICJrZXlMaXN0IjogWyAiaGkiIF0gfSwgeyAidGFncyI6IFsgImN1c3RvbSIsICJrZXlzIiBdLCAia2V5TGlzdCI6IFsgImhpIiBdIH0gXSB9LCB7ICJpZCI6IDEsICJjb21wcmVzc2lvbkdyb3VwIjogMCwgImtleUdyb3VwcyI6IFsgeyAidGFncyI6IFsgInN0cnVjdHVyZWQiLCAiZ3JvdXBOYW1lcyIgXSwgImtleUxpc3QiOiBbICJoaSIgXSB9LCB7ICJ0YWdzIjogWyAiY3VzdG9tIiwgImtleXMiIF0sICJrZXlMaXN0IjogWyAiaGkiIF0gfSBdIH0gXSB9"
-}
-```
-
-Assign the bhttp_message output to an environment variable:
-
-```sh
-BHTTP_REQ=AAAAAAAAQZZ7ICJjb250ZXh0IjogeyAic3Via2V5IjogImV4YW1wbGUuY29tIiB9LCAicGFydGl0aW9ucyI6IFsgeyAiaWQiOiAwLCAiY29tcHJlc3Npb25Hcm91cCI6IDAsICJrZXlHcm91cHMiOiBbIHsgInRhZ3MiOiBbICJzdHJ1Y3R1cmVkIiwgImdyb3VwTmFtZXMiIF0sICJrZXlMaXN0IjogWyAiaGkiIF0gfSwgeyAidGFncyI6IFsgImN1c3RvbSIsICJrZXlzIiBdLCAia2V5TGlzdCI6IFsgImhpIiBdIH0gXSB9LCB7ICJpZCI6IDEsICJjb21wcmVzc2lvbkdyb3VwIjogMCwgImtleUdyb3VwcyI6IFsgeyAidGFncyI6IFsgInN0cnVjdHVyZWQiLCAiZ3JvdXBOYW1lcyIgXSwgImtleUxpc3QiOiBbICJoaSIgXSB9LCB7ICJ0YWdzIjogWyAiY3VzdG9tIiwgImtleXMiIF0sICJrZXlMaXN0IjogWyAiaGkiIF0gfSBdIH0gXSB9
-```
-
-Send the request to the k/v server.
-
-HTTP:
-
-```sh
-BHTTP_RES=$(curl -svX POST --data-binary @<(echo -n $BHTTP_REQ|base64 --decode) http://localhost:51052/v2/bhttp_getvalues|base64 -w 0);echo $BHTTP_RES
-```
-
-Or gRPC:
-
-```sh
-grpcurl --protoset dist/query_api_descriptor_set.pb --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'"$BHTTP_REQ"'"}}' -plaintext localhost:50051 kv_server.v2.KeyValueService/BinaryHttpGetValues
-```
-
-The result should look similar to:
-
-```json
-{
-    "data": "AUDIAEFcAAABWHsicGFydGl0aW9ucyI6W3siaWQiOjAsImtleUdyb3VwT3V0cHV0cyI6W3sia2V5VmFsdWVzIjp7ImhpIjp7InZhbHVlIjoiSGVsbG8sIHdvcmxkISBJZiB5b3UgYXJlIHNlZWluZyB0aGlzLCBpdCBtZWFucyB5b3UgY2FuIHF1ZXJ5IG1lIHN1Y2Nlc3NmdWxseSJ9fSwidGFncyI6WyJjdXN0b20iLCJrZXlzIl19XX0seyJpZCI6MSwia2V5R3JvdXBPdXRwdXRzIjpbeyJrZXlWYWx1ZXMiOnsiaGkiOnsidmFsdWUiOiJIZWxsbywgd29ybGQhIElmIHlvdSBhcmUgc2VlaW5nIHRoaXMsIGl0IG1lYW5zIHlvdSBjYW4gcXVlcnkgbWUgc3VjY2Vzc2Z1bGx5In19LCJ0YWdzIjpbImN1c3RvbSIsImtleXMiXX1dfV19"
-}
-```
-
-Assign the data to `BHTTP_RES` and decode the BHTTP layer:
-
-```sh
-echo -n '{"is_request": false, "bhttp_message": "'$BHTTP_RES'"}'|grpcurl -plaintext -d @  localhost:50050 kv_server.ProtocolTestingHelper/BHTTPDecapsulate
-```
-
-Result:
-
-```json
-{
-    "body": "AAABWHsicGFydGl0aW9ucyI6W3siaWQiOjAsImtleUdyb3VwT3V0cHV0cyI6W3sia2V5VmFsdWVzIjp7ImhpIjp7InZhbHVlIjoiSGVsbG8sIHdvcmxkISBJZiB5b3UgYXJlIHNlZWluZyB0aGlzLCBpdCBtZWFucyB5b3UgY2FuIHF1ZXJ5IG1lIHN1Y2Nlc3NmdWxseSJ9fSwidGFncyI6WyJjdXN0b20iLCJrZXlzIl19XX0seyJpZCI6MSwia2V5R3JvdXBPdXRwdXRzIjpbeyJrZXlWYWx1ZXMiOnsiaGkiOnsidmFsdWUiOiJIZWxsbywgd29ybGQhIElmIHlvdSBhcmUgc2VlaW5nIHRoaXMsIGl0IG1lYW5zIHlvdSBjYW4gcXVlcnkgbWUgc3VjY2Vzc2Z1bGx5In19LCJ0YWdzIjpbImN1c3RvbSIsImtleXMiXX1dfV19"
-}
-```
-
-The returned data is base64 encoded. Decode the content with base64 --decode and you should see the
-expected response. Note that the first 32 bits of the response stores the size of the response. That
-is part of the compression layer, which is not turned on in this exercise.
-
 ## Oblivious HTTP query ("ObliviousGetValues")
 
 Oblivious HTTP request is encrypted with a public key as one of the initial input. The testing
@@ -173,7 +111,7 @@ grpcurl -plaintext localhost:50050 kv_server.ProtocolTestingHelper/GetTestConfig
 To build the request:
 
 ```sh
-echo -n '{"body": "'$BHTTP_REQ'", "key_id": 1, "public_key": "MeHwWnQBAhFSIOmvkY9zhnSuyV9U224E63Baro55gVU="}'|grpcurl -plaintext -d @  localhost:50050 kv_server.ProtocolTestingHelper/OHTTPEncapsulate
+echo -n '{"body": "body": "'$(echo -n $BODY|base64 -w 0)'", "key_id": 1, "public_key": "MeHwWnQBAhFSIOmvkY9zhnSuyV9U224E63Baro55gVU="}'|grpcurl -plaintext -d @  localhost:50050 kv_server.ProtocolTestingHelper/OHTTPEncapsulate
 ```
 
 The output is similar to:
@@ -222,12 +160,6 @@ Result example:
 {
     "body": "AUDIAEFcAAABWHsicGFydGl0aW9ucyI6W3siaWQiOjAsImtleUdyb3VwT3V0cHV0cyI6W3sia2V5VmFsdWVzIjp7ImhpIjp7InZhbHVlIjoiSGVsbG8sIHdvcmxkISBJZiB5b3UgYXJlIHNlZWluZyB0aGlzLCBpdCBtZWFucyB5b3UgY2FuIHF1ZXJ5IG1lIHN1Y2Nlc3NmdWxseSJ9fSwidGFncyI6WyJjdXN0b20iLCJrZXlzIl19XX0seyJpZCI6MSwia2V5R3JvdXBPdXRwdXRzIjpbeyJrZXlWYWx1ZXMiOnsiaGkiOnsidmFsdWUiOiJIZWxsbywgd29ybGQhIElmIHlvdSBhcmUgc2VlaW5nIHRoaXMsIGl0IG1lYW5zIHlvdSBjYW4gcXVlcnkgbWUgc3VjY2Vzc2Z1bGx5In19LCJ0YWdzIjpbImN1c3RvbSIsImtleXMiXX1dfV19"
 }
-```
-
-The body here is in Binary HTTP format. Decapsulate it the same way as the Binary HTTP response:
-
-```sh
-echo -n '{"is_request": false, "bhttp_message": "'$BHTTP_RES'"}'|grpcurl -plaintext -d @  localhost:50050 kv_server.ProtocolTestingHelper/BHTTPDecapsulate
 ```
 
 The returned data is base64 encoded. Decode the content with base64 --decode and you should see the

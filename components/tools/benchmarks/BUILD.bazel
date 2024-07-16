@@ -105,6 +105,7 @@ cc_binary(
         ":benchmark_util",
         "//components/data_server/cache:get_key_value_set_result_impl",
         "//components/data_server/cache:key_value_cache",
+        "//components/data_server/cache:uint_value_set",
         "//components/query:ast",
         "//components/query:driver",
         "//components/query:scanner",
@@ -121,6 +122,5 @@ cc_binary(
         "@com_google_absl//absl/log:initialize",
         "@com_google_absl//absl/strings",
         "@com_google_benchmark//:benchmark",
-        "@roaring_bitmap//:c_roaring",
     ],
 )

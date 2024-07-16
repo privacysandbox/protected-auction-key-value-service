@@ -54,20 +54,4 @@ absl::flat_hash_set<std::string_view> Difference(
   return std::move(left);
 }
 
-template <>
-roaring::Roaring Union(roaring::Roaring&& left, roaring::Roaring&& right) {
-  return left | right;
-}
-
-template <>
-roaring::Roaring Intersection(roaring::Roaring&& left,
-                              roaring::Roaring&& right) {
-  return left & right;
-}
-
-template <>
-roaring::Roaring Difference(roaring::Roaring&& left, roaring::Roaring&& right) {
-  return left - right;
-}
-
 }  // namespace kv_server

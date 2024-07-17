@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# ---- Azure midification for docker registry config ----
+# This file has azure specific hack to configure docker registry.
+# `@<image name>-amd64-repo-digests-replace-marker@` is used to update repoDigest
+# when you replace registry.
+# If there is a way to configure repository and repoDigest as a bazel feature,
+# that would be better.
+
 load("@io_bazel_rules_docker//container:container.bzl", "container_pull")
 
 def container_deps():
@@ -29,7 +36,7 @@ def container_deps():
         "envoy-distroless": {
             "arch_hashes": {
                 # v1.23.1
-                "amd64": "e2c642bc6949cb3053810ca14524324d7daf884a0046d7173e46e2b003144f1d",
+                "amd64": "e2c642bc6949cb3053810ca14524324d7daf884a0046d7173e46e2b003144f1d",  # @envoy-distroless-amd64-repo-digests-replace-marker@
                 "arm64": "7763f6325882122afb1beb6ba0a047bed318368f9656fd9c1df675f3d89f1dbe",
             },
             "registry": "docker.io",
@@ -48,7 +55,7 @@ def container_deps():
             # debug build so we can use 'sh'. Root, for gcp coordinators
             # auth to work
             "arch_hashes": {
-                "amd64": "6865ad48467c89c3c3524d4c426f52ad12d9ab7dec31fad31fae69da40eb6445",
+                "amd64": "6865ad48467c89c3c3524d4c426f52ad12d9ab7dec31fad31fae69da40eb6445",  # @runtime-cc-debian-amd64-repo-digests-replace-marker@
                 "arm64": "3c399c24b13bfef7e38257831b1bb05cbddbbc4d0327df87a21b6fbbb2480bc9",
             },
             "registry": "gcr.io",

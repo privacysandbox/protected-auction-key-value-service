@@ -65,6 +65,9 @@ environment variables (all optional):
     BAZEL_STARTUP_ARGS           Additional startup arguments to pass to bazel invocations
     BAZEL_EXTRA_ARGS             Additional command arguments to pass to bazel invocations
     EXTRA_DOCKER_RUN_ARGS        Additional arguments to pass to docker run invocations
+    DOCKER_REGISTRY              Docker registry
+    DOCKER_USER                  Docker user for DOCKER_REGISTRY
+    DOCKER_PASSWORD              Docker password for DOCKER_REGISTRY
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}
@@ -118,6 +121,12 @@ while [[ $# -gt 0 ]]; do
     *) usage ;;
   esac
 done
+
+if [[ -n "$DOCKER_PASSWORD" ]]; then
+    echo "Logging into docker registry ${DOCKER_REGISTRY} as ${DOCKER_USER}"
+    docker login "${DOCKER_REGISTRY}" -u "${DOCKER_USER}" -p "${DOCKER_PASSWORD}"
+    echo ""
+fi
 
 BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --config=${INSTANCE}_instance --config=${PLATFORM}_platform --config=${MODE}_mode"
 

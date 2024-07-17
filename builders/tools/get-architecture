@@ -27,5 +27,5 @@ function _cleanup() {
 if [[ -n ${BUILD_ARCH} ]]; then
   printf "%s\n" "${BUILD_ARCH}"
 else
-  docker run --rm --entrypoint=/usr/bin/dpkg ubuntu:20.04 --print-architecture
+  docker run --rm --entrypoint=/usr/bin/dpkg ${DOCKER_REGISTRY}ubuntu:20.04 --print-architecture
 fi

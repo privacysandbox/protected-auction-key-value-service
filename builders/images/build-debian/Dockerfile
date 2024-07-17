@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG BASE_IMAGE=ubuntu:20.04
+ARG DOCKER_REGISTRY
+ARG BASE_IMAGE=${DOCKER_REGISTRY}ubuntu:20.04
 
 # ignore this hadolint error as BASE_IMAGE contains an image tag
 # hadolint ignore=DL3006
@@ -24,7 +25,7 @@ ADD https://apt.llvm.org/llvm.sh /build/llvm.sh
 COPY compile_libprofiler /scripts/
 RUN /scripts/compile_libprofiler
 
-FROM docker/buildx-bin:v0.10 AS buildx-bin
+FROM ${DOCKER_REGISTRY}docker/buildx-bin:v0.10 AS buildx-bin
 
 # ignore this hadolint error as BASE_IMAGE contains an image tag
 # hadolint ignore=DL3006

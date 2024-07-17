@@ -16,6 +16,9 @@
 # environment variables (all optional):
 #   TERRAFORM_VERSION            specify the terraform version to use
 #   WORKSPACE                    repo root directory, must be an absolute path
+#   DOCKER_REGISTRY              docker registry for terraform image
+#   DOCKER_USER                  docker user for DOCKER_REGISTRY
+#   DOCKER_PASSWORD              docker password for DOCKER_REGISTRY
 #
 # AWS-related environment variables exported into the terraform container:
 # For more info on supported env vars, see:
@@ -60,7 +63,11 @@ if [[ -t 0 ]] && [[ -t 1 ]]; then
   )
 fi
 
-readonly IMAGE_TAGGED=hashicorp/terraform:"${TERRAFORM_VERSION}"
+if [[ -n "$DOCKER_PASSWORD" ]]; then
+  docker login $DOCKER_REGISTRY -u ${DOCKER_USER} -p ${DOCKER_PASSWORD}
+fi
+
+readonly IMAGE_TAGGED=${DOCKER_REGISTRY}hashicorp/terraform:"${TERRAFORM_VERSION}"
 REL_PWD="$(realpath --relative-to="${WORKSPACE}" "$(pwd)")"
 readonly REL_PWD
 WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"

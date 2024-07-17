@@ -130,7 +130,7 @@ if [[ $# -gt 0 ]]; then
       shift
       __init
       # shellcheck disable=SC2086
-      "${TOOLS_DIR}"/cbuild "${CBUILD_COMMON_ARGS[@]}" --env "${SKIP_ENV}" --cmd "${PRECOMMIT} ${PRECOMMIT_CMD} --config ./.pre-commit-config.yaml $*"
+      "${TOOLS_DIR}"/cbuild "${CBUILD_COMMON_ARGS[@]}" --env "${SKIP_ENV}" --env "DOCKER_REGISTRY=$DOCKER_REGISTRY" --env "DOCKER_USER=$DOCKER_USER" --env "DOCKER_PASSWORD=$DOCKER_PASSWORD" --cmd "${PRECOMMIT} ${PRECOMMIT_CMD} --config ./.pre-commit-config.yaml $*"
       ;;
 
     hook-impl)
@@ -143,6 +143,9 @@ if [[ $# -gt 0 ]]; then
         --volume "${WORKSPACE}":/src/workspace \
         -v /var/run/docker.sock:/var/run/docker.sock \
         --env="${SKIP_ENV}" \
+        --env "DOCKER_REGISTRY=$DOCKER_REGISTRY" \
+        --env "DOCKER_USER=$DOCKER_USER" \
+        --env "DOCKER_PASSWORD=$DOCKER_PASSWORD" \
         --workdir /src/workspace \
         "${IMAGE_TAGGED}" \
         "${PRECOMMIT_CMD}" --config ./.pre-commit-config.yaml "$@"
@@ -153,12 +156,12 @@ if [[ $# -gt 0 ]]; then
       CLEANUP=1
       for HOOK in "$@"; do
         # shellcheck disable=SC2086
-        "${TOOLS_DIR}"/cbuild "${CBUILD_COMMON_ARGS[@]}" --env "${SKIP_ENV}" --cmd "${PRECOMMIT} run --config ./.pre-commit-config.yaml --all-files ${HOOK}"
+        "${TOOLS_DIR}"/cbuild "${CBUILD_COMMON_ARGS[@]}" --env "${SKIP_ENV}" --env "DOCKER_REGISTRY=$DOCKER_REGISTRY" --env "DOCKER_USER=$DOCKER_USER" --env "DOCKER_PASSWORD=$DOCKER_PASSWORD" --cmd "${PRECOMMIT} run --config ./.pre-commit-config.yaml --all-files ${HOOK}"
       done
   esac
 else
   __init
   CLEANUP=1
   # shellcheck disable=SC2086
-  "${TOOLS_DIR}"/cbuild "${CBUILD_COMMON_ARGS[@]}" --env "${SKIP_ENV}" --cmd "${PRECOMMIT} run --config ./.pre-commit-config.yaml --all-files"
+  "${TOOLS_DIR}"/cbuild "${CBUILD_COMMON_ARGS[@]}" --env "${SKIP_ENV}" --env "DOCKER_REGISTRY=$DOCKER_REGISTRY" --env "DOCKER_USER=$DOCKER_USER" --env "DOCKER_PASSWORD=$DOCKER_PASSWORD" --cmd "${PRECOMMIT} run --config ./.pre-commit-config.yaml --all-files"
 fi

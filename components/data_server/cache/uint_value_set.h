@@ -173,7 +173,8 @@ absl::flat_hash_set<ValueType> BitSetToUintSet(const BitsetType& bitset) {
 }
 
 absl::flat_hash_set<uint32_t> BitSetToUint32Set(const roaring::Roaring& bitset);
-absl::flat_hash_set<uint64_t> BitSetToUint64Set(const roaring::Roaring& bitset);
+absl::flat_hash_set<uint64_t> BitSetToUint64Set(
+    const roaring::Roaring64Map& bitset);
 
 }  // namespace kv_server
 

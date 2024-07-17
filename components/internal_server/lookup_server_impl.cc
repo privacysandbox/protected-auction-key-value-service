@@ -175,4 +175,16 @@ grpc::Status LookupServiceImpl::InternalRunSetQueryUInt32(
       });
 }
 
+grpc::Status LookupServiceImpl::InternalRunSetQueryUInt64(
+    grpc::ServerContext* context,
+    const kv_server::InternalRunSetQueryUInt64Request* request,
+    kv_server::InternalRunSetQueryUInt64Response* response) {
+  return RunSetQuery<InternalRunSetQueryUInt64Request,
+                     InternalRunSetQueryUInt64Response>(
+      context, request, response,
+      [this](const RequestContext& request_context, std::string query) {
+        return lookup_.RunSetQueryUInt64(request_context, query);
+      });
+}
+
 }  // namespace kv_server

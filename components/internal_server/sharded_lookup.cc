@@ -228,6 +228,12 @@ class ShardedLookup : public Lookup {
     return response;
   }
 
+  absl::StatusOr<InternalRunSetQueryUInt64Response> RunSetQueryUInt64(
+      const RequestContext& request_context, std::string query) const override {
+    // TODO: Impelemnt sharded lookup for uint64 sets.
+    return InternalRunSetQueryUInt64Response();
+  }
+
  private:
   // Keeps sharded keys and assosiated metdata.
   struct ShardLookupInput {

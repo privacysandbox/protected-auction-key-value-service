@@ -132,12 +132,12 @@ class LocalLookup : public Lookup {
         [](const RequestContext& request_context, const Driver& driver,
            const Cache& cache)
             -> absl::StatusOr<InternalRunSetQueryUInt32Response> {
-          auto get_key_value_set_result = cache.GetUInt32ValueSet(
+          auto cache_result = cache.GetUInt32ValueSet(
               request_context, driver.GetRootNode()->Keys());
-          auto eval_result = driver.EvaluateQuery<roaring::Roaring>(
-              [&get_key_value_set_result](std::string_view key) {
-                auto set = get_key_value_set_result->GetUInt32ValueSet(key);
-                return set == nullptr ? roaring::Roaring()
+          auto eval_result = driver.EvaluateQuery<UInt32ValueSet::bitset_type>(
+              [&cache_result](std::string_view key) {
+                auto set = cache_result->GetUInt32ValueSet(key);
+                return set == nullptr ? UInt32ValueSet::bitset_type()
                                       : set->GetValuesBitSet();
               });
           if (!eval_result.ok()) {
@@ -147,6 +147,32 @@ class LocalLookup : public Lookup {
           InternalRunSetQueryUInt32Response response;
           response.mutable_elements()->Assign(uint32_set.begin(),
                                               uint32_set.end());
+          return response;
+        });
+  }
+
+  absl::StatusOr<InternalRunSetQueryUInt64Response> RunSetQueryUInt64(
+      const RequestContext& request_context, std::string query) const override {
+    return ProcessQuery<InternalRunSetQueryUInt64Response>(
+        request_context, std::move(query),
+        [](const RequestContext& request_context, const Driver& driver,
+           const Cache& cache)
+            -> absl::StatusOr<InternalRunSetQueryUInt64Response> {
+          auto cache_result = cache.GetUInt64ValueSet(
+              request_context, driver.GetRootNode()->Keys());
+          auto eval_result = driver.EvaluateQuery<UInt64ValueSet::bitset_type>(
+              [&cache_result](std::string_view key) {
+                auto set = cache_result->GetUInt64ValueSet(key);
+                return set == nullptr ? UInt64ValueSet::bitset_type()
+                                      : set->GetValuesBitSet();
+              });
+          if (!eval_result.ok()) {
+            return eval_result.status();
+          }
+          auto uint64_set = BitSetToUint64Set(*eval_result);
+          InternalRunSetQueryUInt64Response response;
+          response.mutable_elements()->Assign(uint64_set.begin(),
+                                              uint64_set.end());
           return response;
         });
   }

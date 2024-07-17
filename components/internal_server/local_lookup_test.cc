@@ -14,6 +14,7 @@
 
 #include "components/internal_server/local_lookup.h"
 
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
@@ -247,7 +248,7 @@ TEST_F(LocalLookupTest, RunQuery_ParsingError_Error) {
   EXPECT_EQ(response.status().code(), absl::StatusCode::kInvalidArgument);
 }
 
-TEST_F(LocalLookupTest, Verify_RunSetQueryInt_Success) {
+TEST_F(LocalLookupTest, Verify_RunSetQueryUInt32_Success) {
   std::string query = "A";
   UInt32ValueSet value_set;
   auto values = std::vector<uint32_t>({10, 20, 30, 40, 50});
@@ -266,10 +267,39 @@ TEST_F(LocalLookupTest, Verify_RunSetQueryInt_Success) {
               testing::UnorderedElementsAreArray(values.begin(), values.end()));
 }
 
-TEST_F(LocalLookupTest, Verify_RunSetQueryInt_ParsingError_Error) {
+TEST_F(LocalLookupTest, Verify_RunSetQueryUInt32_ParsingError_Error) {
   std::string query = "someset|(";
   auto local_lookup = CreateLocalLookup(mock_cache_);
   auto response = local_lookup->RunSetQueryUInt32(GetRequestContext(), query);
+  EXPECT_FALSE(response.ok());
+  EXPECT_EQ(response.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST_F(LocalLookupTest, Verify_RunSetQueryUInt64_Success) {
+  std::string query = "A";
+  UInt64ValueSet value_set;
+  auto uint64_max = std::numeric_limits<uint64_t>::max();
+  auto values =
+      std::vector<uint64_t>({uint64_max - 10, uint64_max - 20, uint64_max - 30,
+                             uint64_max - 40, uint64_max - 50});
+  value_set.Add(absl::MakeSpan(values), 1);
+  auto mock_result = std::make_unique<MockGetKeyValueSetResult>();
+  EXPECT_CALL(*mock_result, GetUInt64ValueSet("A"))
+      .WillOnce(Return(&value_set));
+  EXPECT_CALL(mock_cache_,
+              GetUInt64ValueSet(_, absl::flat_hash_set<std::string_view>{"A"}))
+      .WillOnce(Return(std::move(mock_result)));
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response = local_lookup->RunSetQueryUInt64(GetRequestContext(), query);
+  ASSERT_TRUE(response.ok()) << response.status();
+  EXPECT_THAT(response.value().elements(),
+              testing::UnorderedElementsAreArray(values.begin(), values.end()));
+}
+
+TEST_F(LocalLookupTest, Verify_RunSetQueryUInt64_ParsingError_Error) {
+  std::string query = "someset|(";
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response = local_lookup->RunSetQueryUInt64(GetRequestContext(), query);
   EXPECT_FALSE(response.ok());
   EXPECT_EQ(response.status().code(), absl::StatusCode::kInvalidArgument);
 }

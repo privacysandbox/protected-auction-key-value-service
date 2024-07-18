@@ -119,7 +119,10 @@ class UdfClientImpl : public UdfClient {
     PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
         << "Executing UDF with input arg(s): "
         << absl::StrJoin(invocation_request.input, ",");
-    privacy_sandbox::server_common::Stopwatch stopwatch;
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kUDFExecutionLatencyInMicros>
+        latency_recorder(
+            request_context_factory.Get().GetUdfRequestMetricsContext());
     const auto status = roma_service_.Execute(
         std::make_unique<InvocationStrRequest<std::weak_ptr<RequestContext>>>(
             std::move(invocation_request)),
@@ -152,13 +155,8 @@ class UdfClientImpl : public UdfClient {
     }
     // TODO(b/338813575): waiting on the K&B team. Once that's
     // implemented we should just use that number.
-    const auto udf_execution_time = stopwatch.GetElapsedTime();
     metadata.custom_code_total_execution_time_micros =
-        absl::ToInt64Milliseconds(udf_execution_time);
-    LogIfError(request_context_factory.Get()
-                   .GetUdfRequestMetricsContext()
-                   .LogHistogram<kUDFExecutionLatencyInMicros>(
-                       absl::ToDoubleMicroseconds(udf_execution_time)));
+        absl::ToInt64Milliseconds(latency_recorder.GetLatency());
     return *result;
   }
   absl::Status Init() { return roma_service_.Init(); }

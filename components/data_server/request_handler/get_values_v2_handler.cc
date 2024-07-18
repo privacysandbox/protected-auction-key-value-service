@@ -30,6 +30,7 @@
 #include "components/telemetry/server_definition.h"
 #include "google/protobuf/util/json_util.h"
 #include "grpcpp/grpcpp.h"
+#include "nlohmann/json.hpp"
 #include "public/base_types.pb.h"
 #include "public/constants.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
@@ -54,6 +55,7 @@ const std::string_view kOHTTPResponseContentType =
 constexpr std::string_view kAcceptEncodingHeader = "accept-encoding";
 constexpr std::string_view kContentEncodingHeader = "content-encoding";
 constexpr std::string_view kBrotliAlgorithmHeader = "br";
+constexpr std::string_view kIsPas = "is_pas";
 
 }  // namespace
 
@@ -81,7 +83,7 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
   } else {  // proto
     if (!request_proto.ParseFromString(request)) {
       auto error_message =
-          "Cannot parse request as a valid serilized proto object.";
+          "Cannot parse request as a valid serialized proto object.";
       PS_VLOG(4, request_context_factory.Get().GetPSLogContext())
           << error_message;
       return absl::InvalidArgumentError(error_message);
@@ -90,8 +92,15 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
   PS_VLOG(9) << "Converted the http request to proto: "
              << request_proto.DebugString();
   v2::GetValuesResponse response_proto;
+
+  const auto is_pas_field = request_proto.metadata().fields().find(kIsPas);
+  bool single_partition_use_case =
+      (is_pas_field != request_proto.metadata().fields().end() &&
+       is_pas_field->second.string_value() == "true");
+
   PS_RETURN_IF_ERROR(GetValues(request_context_factory, request_proto,
-                               &response_proto, execution_metadata));
+                               &response_proto, execution_metadata,
+                               single_partition_use_case));
   // TODO (b/353537363): implement CBOR
   if (content_type == ContentType::kJson ||
       content_type == ContentType::kCbor) {
@@ -176,6 +185,7 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
   return grpc::Status::OK;
 }
 
+// TODO(b/343983940): Pass partition metadata
 absl::Status GetValuesV2Handler::ProcessOnePartition(
     const RequestContextFactory& request_context_factory,
     const google::protobuf::Struct& req_metadata,
@@ -186,9 +196,9 @@ absl::Status GetValuesV2Handler::ProcessOnePartition(
   UDFExecutionMetadata udf_metadata;
   *udf_metadata.mutable_request_metadata() = req_metadata;
 
-  const auto maybe_output_string = udf_client_.ExecuteCode(
-      std::move(request_context_factory), std::move(udf_metadata),
-      req_partition.arguments(), execution_metadata);
+  const auto maybe_output_string =
+      udf_client_.ExecuteCode(request_context_factory, std::move(udf_metadata),
+                              req_partition.arguments(), execution_metadata);
   if (!maybe_output_string.ok()) {
     resp_partition.mutable_status()->set_code(
         static_cast<int>(maybe_output_string.status().code()));
@@ -202,26 +212,82 @@ absl::Status GetValuesV2Handler::ProcessOnePartition(
   return absl::OkStatus();
 }
 
+absl::Status GetValuesV2Handler::ProcessMultiplePartitions(
+    const RequestContextFactory& request_context_factory,
+    const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
+    ExecutionMetadata& execution_metadata) const {
+  absl::flat_hash_map<int32_t, std::vector<std::string>> compression_group_map;
+  for (const auto& partition : request.partitions()) {
+    int32_t compression_group_id = partition.compression_group_id();
+    v2::ResponsePartition resp_partition;
+    if (auto single_partition_status =
+            ProcessOnePartition(request_context_factory, request.metadata(),
+                                partition, resp_partition, execution_metadata);
+        single_partition_status.ok()) {
+      compression_group_map[compression_group_id].emplace_back(
+          std::move(resp_partition.string_output()));
+    } else {
+      PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
+          << "Failed to process partition: " << single_partition_status;
+    }
+  }
+
+  // The content of each compressed blob is a CBOR/JSON list of partition
+  // outputs.
+  for (const auto& [group_id, partition_output_strings] :
+       compression_group_map) {
+    // TODO(b/353537363): Add CBOR option
+    nlohmann::json json_partition_output_list = nlohmann::json::array();
+    for (const auto& partition_output_string : partition_output_strings) {
+      auto partition_output_json =
+          nlohmann::json::parse(partition_output_string, nullptr,
+                                /*allow_exceptions=*/false,
+                                /*ignore_comments=*/true);
+      if (partition_output_json.is_discarded()) {
+        PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
+            << "json parse failed for " << partition_output_string;
+        continue;
+      }
+      json_partition_output_list.emplace_back(partition_output_json);
+    }
+    // TODO(b/355464083): Compress the compression_group content
+    auto* compression_group = response.add_compression_groups();
+    compression_group->set_content(json_partition_output_list.dump());
+    compression_group->set_compression_group_id(group_id);
+  }
+  if (response.compression_groups().empty()) {
+    return absl::InvalidArgumentError("All partitions failed.");
+  }
+  return absl::OkStatus();
+}
+
 grpc::Status GetValuesV2Handler::GetValues(
     RequestContextFactory& request_context_factory,
     const v2::GetValuesRequest& request, v2::GetValuesResponse* response,
-    ExecutionMetadata& execution_metadata) const {
+    ExecutionMetadata& execution_metadata,
+    bool single_partition_use_case) const {
   PS_VLOG(9) << "Update log context " << request.log_context() << ";"
              << request.consented_debug_config();
   request_context_factory.UpdateLogContext(request.log_context(),
                                            request.consented_debug_config());
-  if (request.partitions().size() == 1) {
-    const auto partition_status = ProcessOnePartition(
-        request_context_factory, request.metadata(), request.partitions(0),
-        *response->mutable_single_partition(), execution_metadata);
-    return GetExternalStatusForV2(partition_status);
-  }
   if (request.partitions().empty()) {
     return grpc::Status(StatusCode::INTERNAL,
                         "At least 1 partition is required");
   }
-  return grpc::Status(StatusCode::UNIMPLEMENTED,
-                      "Multiple partition support is not implemented");
+  if (single_partition_use_case) {
+    if (request.partitions().size() > 1) {
+      return grpc::Status(StatusCode::UNIMPLEMENTED,
+                          "This use case only accepts single partitions, but "
+                          "multiple partitions were found.");
+    }
+    const auto response_status = ProcessOnePartition(
+        request_context_factory, request.metadata(), request.partitions(0),
+        *response->mutable_single_partition(), execution_metadata);
+    return GetExternalStatusForV2(response_status);
+  }
+  const auto response_status = ProcessMultiplePartitions(
+      request_context_factory, request, *response, execution_metadata);
+  return FromAbslStatus(response_status);
 }
 
 }  // namespace kv_server

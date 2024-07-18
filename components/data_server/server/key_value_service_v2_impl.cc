@@ -30,7 +30,8 @@ using v2::KeyValueService;
 template <typename RequestT, typename ResponseT>
 using HandlerFunctionT = grpc::Status (GetValuesV2Handler::*)(
     RequestContextFactory&, const RequestT&, ResponseT*,
-    ExecutionMetadata& execution_metadata) const;
+    ExecutionMetadata& execution_metadata,
+    bool single_partition_use_case) const;
 
 inline void LogTotalExecutionWithoutCustomCodeMetric(
     const privacy_sandbox::server_common::Stopwatch& stopwatch,
@@ -55,7 +56,8 @@ grpc::ServerUnaryReactor* HandleRequest(
   privacy_sandbox::server_common::Stopwatch stopwatch;
   ExecutionMetadata execution_metadata;
   grpc::Status status = (handler.*handler_function)(
-      request_context_factory, *request, response, execution_metadata);
+      request_context_factory, *request, response, execution_metadata,
+      /*single_partition_use_case=*/false);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
   LogRequestCommonSafeMetrics(request, response, status, stopwatch);

@@ -98,6 +98,7 @@ cc_library(
         "@google_privacysandbox_servers_common//src/communication:encoding_utils",
         "@google_privacysandbox_servers_common//src/telemetry",
         "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
+        "@nlohmann_json//:lib",
     ],
 )
 

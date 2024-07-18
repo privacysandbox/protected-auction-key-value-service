@@ -31,6 +31,7 @@
 #include "components/data_server/server/parameter_fetcher.h"
 #include "components/tools/util/configure_telemetry_tools.h"
 #include "components/util/platform_initializer.h"
+#include "nlohmann/json.hpp"
 #include "public/applications/pa/response_utils.h"
 #include "public/query/cpp/grpc_client.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
@@ -198,8 +199,31 @@ absl::StatusOr<std::string> GetValueFromResponse(
   if (!maybe_response.ok()) {
     return maybe_response.status();
   }
-  auto output = maybe_response->single_partition().string_output();
-  auto maybe_proto = application_pa::KeyGroupOutputsFromJson(output);
+  // We are only sending 1 partition, so should only get 1 partition back.
+  if (maybe_response->compression_groups().size() != 1) {
+    return absl::InvalidArgumentError(absl::StrFormat(
+        "Expected compression group size is 1, but found %s.",
+        std::to_string(maybe_response->compression_groups().size())));
+  }
+  // TODO(b/355464083): Will need to uncompress once compression is implemented
+  // TODO(b/353537363): Use CBOR
+  auto content = maybe_response->compression_groups(0).content();
+  nlohmann::json output_list = nlohmann::json::parse(content, nullptr,
+                                                     /*allow_exceptions=*/false,
+                                                     /*ignore_comments=*/true);
+  if (output_list.is_discarded()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Could not parse compression group content: ", content));
+  }
+
+  // Expecting 1 kv in the response key group output
+  if (!output_list.is_array() || output_list.size() != 1) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Expected key group output to be a list of size 1, but received: ",
+        output_list.dump()));
+  }
+  auto maybe_proto =
+      application_pa::KeyGroupOutputsFromJson(output_list[0].dump());
   if (!maybe_proto.ok()) {
     return maybe_proto.status();
   }

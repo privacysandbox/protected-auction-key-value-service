@@ -41,5 +41,6 @@ cc_binary(
         "@com_google_absl//absl/random",
         "@com_google_absl//absl/strings",
         "@google_privacysandbox_servers_common//src/communication:encoding_utils",
+        "@nlohmann_json//:lib",
     ],
 )

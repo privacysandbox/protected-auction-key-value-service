@@ -79,7 +79,8 @@ class GetValuesV2Handler {
   grpc::Status GetValues(RequestContextFactory& request_context_factory,
                          const v2::GetValuesRequest& request,
                          v2::GetValuesResponse* response,
-                         ExecutionMetadata& execution_metadata) const;
+                         ExecutionMetadata& execution_metadata,
+                         bool single_partition_use_case) const;
 
   // Supports requests encrypted with a fixed key for debugging/demoing.
   // X25519 Secret key (priv key).
@@ -119,6 +120,12 @@ class GetValuesV2Handler {
       const google::protobuf::Struct& req_metadata,
       const v2::RequestPartition& req_partition,
       v2::ResponsePartition& resp_partition,
+      ExecutionMetadata& execution_metadata) const;
+
+  // Invokes UDF to process multiple partitions.
+  absl::Status ProcessMultiplePartitions(
+      const RequestContextFactory& request_context_factory,
+      const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
       ExecutionMetadata& execution_metadata) const;
 
   const UdfClient& udf_client_;

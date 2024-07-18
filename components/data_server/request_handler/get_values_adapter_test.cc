@@ -79,7 +79,7 @@ TEST_F(GetValuesAdapterTest, EmptyRequestReturnsEmptyResponse) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -145,7 +145,7 @@ data {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
       R"pb(
@@ -229,7 +229,7 @@ data {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
       R"pb(
@@ -334,7 +334,7 @@ data {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb(
                                 render_urls {
@@ -383,7 +383,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithEmptyKVsReturnsOk) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -405,7 +405,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithInvalidNamespaceTagIsIgnored) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -427,7 +427,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoCustomTagIsIgnored) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -449,7 +449,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoNamespaceTagIsIgnored) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -476,7 +476,7 @@ TEST_F(GetValuesAdapterTest,
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb(
                                 keys {
@@ -511,7 +511,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputHasDifferentValueTypesReturnsOk) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
       R"pb(
@@ -592,7 +592,7 @@ TEST_F(GetValuesAdapterTest, ValueWithStatusSuccess) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
       R"pb(
@@ -684,7 +684,7 @@ data {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
       R"pb(

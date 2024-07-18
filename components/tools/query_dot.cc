@@ -14,6 +14,7 @@
 
 #include "components/tools/query_dot.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -32,6 +33,10 @@ class ASTNameVisitor : public ASTStringVisitor {
   virtual std::string Visit(const DifferenceNode&) { return "Difference"; }
   virtual std::string Visit(const IntersectionNode&) { return "Intersection"; }
   virtual std::string Visit(const ValueNode&) { return "Value"; }
+  virtual std::string Visit(const NumberSetNode&) { return "NumberSet"; }
+  virtual std::string Visit(const StringViewSetNode&) {
+    return "StringViewSet";
+  }
 };
 
 class ASTDotGraphLabelVisitor : public ASTStringVisitor {
@@ -59,6 +64,18 @@ class ASTDotGraphLabelVisitor : public ASTStringVisitor {
         ToString(node.Keys()), "->",
         ToString(Eval<absl::flat_hash_set<std::string_view>>(
             node, [this](std::string_view key) { return lookup_fn_(key); })));
+  }
+
+  virtual std::string Visit(const NumberSetNode& node) {
+    auto numbers = node.GetValues();
+    std::vector<std::string> strings(numbers.size());
+    std::transform(numbers.begin(), numbers.end(), strings.begin(),
+                   [](uint64_t num) { return std::to_string(num); });
+    return absl::StrCat("NumberSet(", ToString(strings), ")");
+  }
+
+  virtual std::string Visit(const StringViewSetNode& node) {
+    return absl::StrCat("StringViewSet(", ToString(node.GetValues()), ")");
   }
 
  private:

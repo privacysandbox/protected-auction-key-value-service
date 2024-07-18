@@ -27,6 +27,9 @@
 #include "absl/functional/any_invocable.h"
 #include "components/query/sets.h"
 
+#include "roaring.hh"
+#include "roaring64map.hh"
+
 namespace kv_server {
 // All set operations using `KVStringSetView` operate on a reference to the data
 // in the DB This means that the data in the DB must be locked throughout the
@@ -35,6 +38,17 @@ using KVStringSetView = absl::flat_hash_set<std::string_view>;
 
 class ASTVisitor;
 class ASTStringVisitor;
+
+// SFINAE with std::void_t
+template <typename, typename = std::void_t<>>
+struct has_value_type : std::false_type {};
+
+template <typename T>
+struct has_value_type<T, std::void_t<typename T::value_type>> : std::true_type {
+};
+
+template <typename T>
+inline constexpr bool has_value_type_v = has_value_type<T>::value;
 
 class Node {
  public:
@@ -58,6 +72,38 @@ class ValueNode : public Node {
 
  private:
   std::string key_;
+};
+
+template <typename T>
+class SetNode : public Node {
+ public:
+  using value_type = T;
+
+  explicit SetNode(std::vector<T> values)
+      : values_(values.begin(), values.end()) {}
+  absl::flat_hash_set<std::string_view> Keys() const override { return {}; };
+  // TODO(b/353502448): Consider changing Vistor argument
+  // from const-ref to value.  Then we can return an r-value and avoid copy.
+  const absl::flat_hash_set<T>& GetValues() const { return values_; }
+
+ private:
+  absl::flat_hash_set<T> values_;
+};
+
+class NumberSetNode : public SetNode<uint64_t> {
+ public:
+  using SetNode<uint64_t>::SetNode;
+  void Accept(ASTVisitor& visitor) const override;
+  std::string Accept(ASTStringVisitor& visitor) const override;
+};
+
+// View to strings who's lifetime is managed externally,
+// typically the `Driver`.
+class StringViewSetNode : public SetNode<std::string_view> {
+ public:
+  using SetNode<std::string_view>::SetNode;
+  void Accept(ASTVisitor& visitor) const override;
+  std::string Accept(ASTStringVisitor& visitor) const override;
 };
 
 class OpNode : public Node {
@@ -107,6 +153,8 @@ class ASTStringVisitor {
   virtual std::string Visit(const DifferenceNode&) = 0;
   virtual std::string Visit(const IntersectionNode&) = 0;
   virtual std::string Visit(const ValueNode&) = 0;
+  virtual std::string Visit(const NumberSetNode&) = 0;
+  virtual std::string Visit(const StringViewSetNode&) = 0;
 };
 
 // Defines a general AST visitor interface which can be extended to implement
@@ -114,11 +162,14 @@ class ASTStringVisitor {
 class ASTVisitor {
  public:
   // Entrypoint for running the visitor algorithm on a given AST tree, `root`.
+  virtual ~ASTVisitor() = default;
   virtual void ConductVisit(const Node& root) = 0;
   virtual void Visit(const ValueNode& node) = 0;
   virtual void Visit(const UnionNode& node) = 0;
   virtual void Visit(const DifferenceNode& node) = 0;
   virtual void Visit(const IntersectionNode& node) = 0;
+  virtual void Visit(const NumberSetNode& node) = 0;
+  virtual void Visit(const StringViewSetNode& node) = 0;
 };
 
 // Implements AST tree evaluation using iterative post order processing.
@@ -147,6 +198,30 @@ class ASTPostOrderEvalVisitor final : public ASTVisitor {
 
   void Visit(const IntersectionNode& node) override {
     Visit(node, Intersection<ValueT>);
+  }
+
+  void Visit(const NumberSetNode& node) override {
+    if constexpr (std::is_same_v<ValueT, roaring::Roaring> ||
+                  std::is_same_v<ValueT, roaring::Roaring64Map>) {
+      ValueT r;
+      for (const auto v : node.GetValues()) {
+        r.add(v);
+      }
+      stack_.push_back(std::move(r));
+      return;
+    }
+    // TODO(b/353502448): Consider returning an error.
+  }
+
+  void Visit(const StringViewSetNode& node) override {
+    if constexpr (has_value_type_v<ValueT>) {
+      if constexpr (std::is_same_v<StringViewSetNode::value_type,
+                                   typename ValueT::value_type>) {
+        stack_.push_back(node.GetValues());
+        return;
+      }
+    }
+    // TODO(b/353502448): Consider returning an error.
   }
 
   ValueT GetResult() {

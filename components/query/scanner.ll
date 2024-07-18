@@ -30,6 +30,9 @@
 %option prefix="KV"
 %option noyywrap nounput noinput debug batch
 
+/* States */
+%x IN_FUNC
+
 /* Valid key name characters, this list can be expanded as needed */
 VAR_CHARS         [a-zA-Z0-9_:\.]
 /*
@@ -41,6 +44,14 @@ OP_CHARS          [|&\-+=/]
 
 %%
 [ \t\r\n]+         {}
+(?i:SET)           { yy_push_state(IN_FUNC); return kv_server::Parser::make_SET(); }
+<IN_FUNC>{
+  "("              { return kv_server::Parser::make_LPAREN(); }
+  ")"              { yy_pop_state(); return kv_server::Parser::make_RPAREN();}
+  ","              { return kv_server::Parser::make_COMMA(); }
+  [0-9]+           { return kv_server::Parser::make_NUMBER(yytext); }
+  \"[^\"]*\"       { yytext[strlen(yytext)-1]='\0'; return kv_server::Parser::make_STRING(yytext + 1); }
+}
 "("                { return kv_server::Parser::make_LPAREN(); }
 ")"                { return kv_server::Parser::make_RPAREN();}
 (?i:UNION)         { return kv_server::Parser::make_UNION(); }

@@ -59,6 +59,7 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/functional:bind_front",
+        "@roaring_bitmap//:c_roaring",
     ],
 )
 
@@ -67,12 +68,12 @@ cc_test(
     size = "small",
     srcs = [
         "ast_test.cc",
+        "template_test_utils.h",
     ],
     deps = [
         ":ast",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_googletest//:gtest_main",
-        "@roaring_bitmap//:c_roaring",
     ],
 )
 
@@ -99,6 +100,7 @@ cc_test(
     size = "small",
     srcs = [
         "driver_test.cc",
+        "template_test_utils.h",
     ],
     deps = [
         ":driver",
@@ -106,6 +108,7 @@ cc_test(
         ":scanner",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
         "@roaring_bitmap//:c_roaring",
     ],

@@ -19,8 +19,11 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "absl/synchronization/notification.h"
 #include "components/query/scanner.h"
+#include "components/query/template_test_utils.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
@@ -55,6 +58,31 @@ const absl::flat_hash_map<std::string, roaring::Roaring64Map> kUInt64SetDb = {
     {"D",
      {18446744073709551612UL, 18446744073709551613UL, 18446744073709551614UL}},
 };
+
+template <typename SetType>
+SetType GetExpectations(std::vector<ConvertedSetType<SetType>> elems);
+
+template <>
+absl::flat_hash_set<std::string_view> GetExpectations(
+    std::vector<std::string_view> expected) {
+  absl::flat_hash_set<std::string_view> views;
+  for (auto e : expected) {
+    if (e.front() == '"' && e.back() == '"') {
+      views.insert(e.substr(1, e.size() - 2));
+    }
+  }
+  return views;
+}
+
+template <>
+roaring::Roaring GetExpectations(std::vector<uint32_t> expected) {
+  return roaring::Roaring(expected.size(), expected.data());
+}
+
+template <>
+roaring::Roaring64Map GetExpectations(std::vector<uint64_t> expected) {
+  return roaring::Roaring64Map(expected.size(), expected.data());
+}
 
 template <typename SetType>
 SetType Lookup(std::string_view key);
@@ -200,6 +228,41 @@ TYPED_TEST(DriverTest, KeyOnly) {
   }
 }
 
+TYPED_TEST(DriverTest, InlineSetOnly) {
+  std::vector<ConvertedSetType<TypeParam>> multi_elem;
+  ConvertedSetType<TypeParam> elem;
+  if constexpr (std::is_same_v<TypeParam,
+                               absl::flat_hash_set<std::string_view>>) {
+    elem = "\"a\"";
+    multi_elem = {"\"a\"", "\"b\""};
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
+    elem = 1;
+    multi_elem = {2, 3};
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
+    elem = 184467440737551610UL;
+    multi_elem = {18446744073709551609UL, 18446744073709551610UL};
+  }
+  this->Parse(absl::StrCat("Set(", elem, ")"));
+  auto result =
+      this->driver_->template EvaluateQuery<TypeParam>(Lookup<TypeParam>);
+  ASSERT_TRUE(result.ok());
+  EXPECT_THAT(*result, GetExpectations<TypeParam>({elem}));
+
+  this->Parse(absl::StrCat("Set(", absl::StrJoin(multi_elem, ","), ")"));
+  result = this->driver_->template EvaluateQuery<TypeParam>(Lookup<TypeParam>);
+  ASSERT_TRUE(result.ok());
+  EXPECT_THAT(*result, GetExpectations<TypeParam>(multi_elem));
+}
+
+TYPED_TEST(DriverTest, InlineIntegerSetTooBig) {
+  this->Parse("Set(99999999999999999999)");
+  auto result =
+      this->driver_->template EvaluateQuery<TypeParam>(Lookup<TypeParam>);
+  ASSERT_FALSE(result.ok());
+}
+
 TYPED_TEST(DriverTest, Union) {
   for (std::string_view query : {"A UNION B", "A | B"}) {
     this->Parse(std::string(query));
@@ -329,7 +392,7 @@ TYPED_TEST(DriverTest, MultipleOperations) {
 
 TYPED_TEST(DriverTest, MultipleThreads) {
   absl::Notification notification;
-  auto test_func = [this, &notification](Driver* driver) {
+  auto test_func = [&notification](Driver* driver) {
     notification.WaitForNotification();
     std::string query = "(A-B) | (C&D)";
     std::istringstream stream(query);

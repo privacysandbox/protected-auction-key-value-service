@@ -54,13 +54,22 @@ std::string DifferenceNode::Accept(ASTStringVisitor& visitor) const {
 std::string IntersectionNode::Accept(ASTStringVisitor& visitor) const {
   return visitor.Visit(*this);
 }
-
+std::string NumberSetNode::Accept(ASTStringVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
+std::string StringViewSetNode::Accept(ASTStringVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
 void ValueNode::Accept(ASTVisitor& visitor) const { visitor.Visit(*this); }
 void UnionNode::Accept(ASTVisitor& visitor) const { visitor.Visit(*this); }
 void IntersectionNode::Accept(ASTVisitor& visitor) const {
   visitor.Visit(*this);
 }
 void DifferenceNode::Accept(ASTVisitor& visitor) const { visitor.Visit(*this); }
+void NumberSetNode::Accept(ASTVisitor& visitor) const { visitor.Visit(*this); }
+void StringViewSetNode::Accept(ASTVisitor& visitor) const {
+  visitor.Visit(*this);
+}
 
 absl::flat_hash_set<std::string_view> OpNode::Keys() const {
   std::vector<const Node*> nodes;

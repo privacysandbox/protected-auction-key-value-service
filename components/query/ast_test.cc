@@ -14,6 +14,8 @@
 
 #include "components/query/ast.h"
 
+#include <limits>
+
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "gmock/gmock.h"
@@ -50,6 +52,29 @@ const absl::flat_hash_map<std::string, roaring::Roaring64Map> kUInt64SetDb = {
     {"D",
      {18446744073709551612UL, 18446744073709551613UL, 18446744073709551614UL}},
 };
+
+// Copied from driver_test
+// TODO: move to a shared header.
+template <typename T>
+struct SetTypeConverter;
+
+template <>
+struct SetTypeConverter<absl::flat_hash_set<std::string_view>> {
+  using type = std::string_view;
+};
+
+template <>
+struct SetTypeConverter<roaring::Roaring> {
+  using type = uint32_t;
+};
+
+template <>
+struct SetTypeConverter<roaring::Roaring64Map> {
+  using type = uint64_t;
+};
+
+template <typename T>
+using ConvertedSetType = typename SetTypeConverter<T>::type;
 
 template <typename SetType>
 SetType Lookup(std::string_view key);
@@ -113,6 +138,39 @@ TYPED_TEST(ASTTest, Value) {
   EXPECT_EQ(Eval<TypeParam>(value4, Lookup<TypeParam>), Lookup<TypeParam>("D"));
   ValueNode value5("E");
   EXPECT_EQ(Eval<TypeParam>(value5, Lookup<TypeParam>), Lookup<TypeParam>("E"));
+}
+
+TYPED_TEST(ASTTest, Set) {
+  StringViewSetNode ssn({"a", "b", "c"});
+  auto str_result = Eval<TypeParam>(ssn, Lookup<TypeParam>);
+  if constexpr (std::is_same_v<TypeParam,
+                               absl::flat_hash_set<std::string_view>>) {
+    EXPECT_THAT(str_result, testing::UnorderedElementsAre("a", "b", "c"));
+  } else {
+    // For number evals, we expect string sets to result as an empty set
+    // See TODO for eval to return an error.
+    EXPECT_EQ(str_result, decltype(str_result)());
+  }
+
+  if constexpr (std::is_same_v<TypeParam,
+                               absl::flat_hash_set<std::string_view>>) {
+    // For string evals, we expect strings to result as an empty set
+    // See TODO for eval to return an error.
+    auto result = Eval<TypeParam>(NumberSetNode({1, 2, 3}), Lookup<TypeParam>);
+    EXPECT_THAT(result, decltype(result)());
+  } else {
+    std::vector<ConvertedSetType<TypeParam>> vals = {
+        0, std::numeric_limits<ConvertedSetType<TypeParam>>::max(),
+        std::numeric_limits<ConvertedSetType<TypeParam>>::max() - 1,
+        std::numeric_limits<ConvertedSetType<TypeParam>>::max() - 2};
+    // Currently no bounds checking on 64-bit type fits into 32-bit range
+    // for 32-bit Roaring eval type.
+    // See TODO for eval to return an error.
+    NumberSetNode nsn({vals.begin(), vals.end()});
+    auto num_result = Eval<TypeParam>(nsn, Lookup<TypeParam>);
+    decltype(num_result) expected(vals.size(), vals.data());
+    EXPECT_EQ(num_result, expected);
+  }
 }
 
 TYPED_TEST(ASTTest, Union) {

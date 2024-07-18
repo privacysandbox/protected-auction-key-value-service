@@ -17,10 +17,12 @@
 #ifndef COMPONENTS_QUERY_DRIVER_H_
 #define COMPONENTS_QUERY_DRIVER_H_
 
+#include <list>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/status/status.h"
@@ -56,10 +58,26 @@ class Driver {
   // Clients should not call these functions, they are called by the parser.
   void SetAst(std::unique_ptr<kv_server::Node>);
   void SetError(std::string error);
-  void ClearError() { status_ = absl::OkStatus(); }
+  void Clear() {
+    status_ = absl::OkStatus();
+    ast_ = nullptr;
+    buffer_.clear();
+  }
+  std::vector<std::string_view> StoreStrings(std::vector<std::string> strings) {
+    std::vector<std::string_view> views;
+    views.reserve(strings.size());
+    for (auto& string : strings) {
+      buffer_.push_back(std::move(string));
+      views.push_back(buffer_.back());
+    }
+    return views;
+  }
 
  private:
   std::unique_ptr<kv_server::Node> ast_;
+  // using list since we require pointer stabilty on string_view that references
+  // them.
+  std::list<std::string> buffer_;
   absl::Status status_ = absl::OkStatus();
 };
 

@@ -45,6 +45,10 @@ class Lookup {
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const = 0;
 
+  virtual absl::StatusOr<InternalLookupResponse> GetUInt64ValueSet(
+      const RequestContext& request_context,
+      const absl::flat_hash_set<std::string_view>& key_set) const = 0;
+
   virtual absl::StatusOr<InternalRunQueryResponse> RunQuery(
       const RequestContext& request_context, std::string query) const = 0;
 

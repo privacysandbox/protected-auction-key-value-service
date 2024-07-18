@@ -169,20 +169,32 @@ class ShardedLookup : public Lookup {
     return response;
   }
 
+  absl::StatusOr<InternalLookupResponse> GetUInt64ValueSet(
+      const RequestContext& request_context,
+      const absl::flat_hash_set<std::string_view>& key_set) const override {
+    // TODO: Implement sharded lookup for uint64 sets.
+    return InternalLookupResponse();
+  }
+
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
       const RequestContext& request_context, std::string query) const override {
     ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
                                 kShardedLookupRunQueryLatencyInMicros>
         latency_recorder(request_context.GetUdfRequestMetricsContext());
-    InternalRunQueryResponse response;
     if (query.empty()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kShardedRunQueryEmptyQuery);
-      return response;
+      return InternalRunQueryResponse();
     }
-    auto result =
-        RunSetQuery<absl::flat_hash_set<std::string_view>, std::string>(
-            request_context, query);
+    auto result = RunSetQuery<absl::flat_hash_set<std::string_view>,
+                              std::string, InternalRunQueryResponse>(
+        request_context, query, [](const auto& result_set) {
+          InternalRunQueryResponse response;
+          response.mutable_elements()->Reserve(result_set.size());
+          response.mutable_elements()->Assign(result_set.begin(),
+                                              result_set.end());
+          return response;
+        });
     if (!result.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kShardedRunQueryFailure);
@@ -190,48 +202,80 @@ class ShardedLookup : public Lookup {
     }
     PS_VLOG(8, request_context.GetPSLogContext())
         << "Driver results for query " << query;
-    for (const auto& value : *result) {
+    for (const auto& value : result->elements()) {
       PS_VLOG(8, request_context.GetPSLogContext())
           << "Value: " << value << "\n";
     }
-    response.mutable_elements()->Assign(result->begin(), result->end());
-    return response;
+    return result;
   }
 
   absl::StatusOr<InternalRunSetQueryUInt32Response> RunSetQueryUInt32(
       const RequestContext& request_context, std::string query) const override {
     ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
-                                kShardedLookupRunSetQueryIntLatencyInMicros>
+                                kShardedLookupRunSetQueryUInt32LatencyInMicros>
         latency_recorder(request_context.GetUdfRequestMetricsContext());
-    InternalRunSetQueryUInt32Response response;
     if (query.empty()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                               kShardedRunQueryEmptyQuery);
-      return response;
+                               kShardedRunSetQueryUInt32EmptyQuery);
+      return InternalRunSetQueryUInt32Response();
     }
-    auto result =
-        RunSetQuery<roaring::Roaring, uint32_t>(request_context, query);
+    auto result = RunSetQuery<UInt32ValueSet::bitset_type, uint32_t,
+                              InternalRunSetQueryUInt32Response>(
+        request_context, query, [](const auto& result_set) {
+          InternalRunSetQueryUInt32Response response;
+          auto uint32_set = BitSetToUint32Set(result_set);
+          response.mutable_elements()->Reserve(uint32_set.size());
+          response.mutable_elements()->Assign(uint32_set.begin(),
+                                              uint32_set.end());
+          return response;
+        });
     if (!result.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                               kShardedRunQueryFailure);
+                               kShardedRunSetQueryUInt32Failure);
       return result.status();
     }
     PS_VLOG(8, request_context.GetPSLogContext())
         << "Driver results for query " << query;
-    for (const auto& value : *result) {
+    for (const auto& value : result->elements()) {
       PS_VLOG(8, request_context.GetPSLogContext())
           << "Value: " << value << "\n";
     }
-    auto uint32_set = BitSetToUint32Set(*result);
-    response.mutable_elements()->Reserve(uint32_set.size());
-    response.mutable_elements()->Assign(uint32_set.begin(), uint32_set.end());
-    return response;
+    return result;
   }
 
   absl::StatusOr<InternalRunSetQueryUInt64Response> RunSetQueryUInt64(
       const RequestContext& request_context, std::string query) const override {
-    // TODO: Impelemnt sharded lookup for uint64 sets.
-    return InternalRunSetQueryUInt64Response();
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupRunSetQueryUInt64LatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
+    InternalRunSetQueryUInt64Response response;
+    if (query.empty()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunSetQueryUInt64EmptyQuery);
+      return response;
+    }
+    auto result = RunSetQuery<UInt64ValueSet::bitset_type, uint64_t,
+                              InternalRunSetQueryUInt64Response>(
+        request_context, query, [](const auto& result_set) {
+          InternalRunSetQueryUInt64Response response;
+          auto uint64_set = BitSetToUint64Set(result_set);
+          response.mutable_elements()->Reserve(uint64_set.size());
+          response.mutable_elements()->Assign(uint64_set.begin(),
+                                              uint64_set.end());
+          return response;
+        });
+    if (!result.ok()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunSetQueryUInt64Failure);
+      return result.status();
+    }
+    PS_VLOG(8, request_context.GetPSLogContext())
+        << "Driver results for query " << query;
+    for (const auto& value : result->elements()) {
+      PS_VLOG(8, request_context.GetPSLogContext())
+          << "Value: " << value << "\n";
+    }
+    return result;
   }
 
  private:
@@ -361,6 +405,9 @@ class ShardedLookup : public Lookup {
     if constexpr (result_type == SingleLookupResult::kUint32SetValues) {
       return local_lookup_.GetUInt32ValueSet(request_context, keys);
     }
+    if constexpr (result_type == SingleLookupResult::kUint64SetValues) {
+      return local_lookup_.GetUInt64ValueSet(request_context, keys);
+    }
   }
 
   absl::StatusOr<InternalLookupResponse> ProcessShardedKeys(
@@ -427,6 +474,16 @@ class ShardedLookup : public Lookup {
           }
         }
       }
+      if constexpr (std::is_same_v<SetElementType, uint64_t>) {
+        if (keyset_lookup_result.single_lookup_result_case() ==
+            SingleLookupResult::kUint64SetValues) {
+          for (auto& v : keyset_lookup_result.uint64set_values().values()) {
+            PS_VLOG(8, request_context.GetPSLogContext())
+                << "keyset name: " << key << " value: " << v;
+            value_set.emplace(std::move(v));
+          }
+        }
+      }
       if (!value_set.empty()) {
         if (auto [_, inserted] =
                 key_sets.insert_or_assign(key, std::move(value_set));
@@ -460,6 +517,10 @@ class ShardedLookup : public Lookup {
             return GetLocalLookupResponse<SingleLookupResult::kUint32SetValues>(
                 request_context, key_list);
           }
+          if constexpr (std::is_same_v<SetElementType, uint64_t>) {
+            return GetLocalLookupResponse<SingleLookupResult::kUint64SetValues>(
+                request_context, key_list);
+          }
         });
     if (!responses.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
@@ -481,9 +542,20 @@ class ShardedLookup : public Lookup {
     return key_sets;
   }
 
-  template <typename SetType, typename SetElementType>
-  absl::StatusOr<SetType> RunSetQuery(const RequestContext& request_context,
-                                      std::string query) const {
+  template <typename ElementType, typename BitsetType>
+  static BitsetType ToBitset(const absl::flat_hash_set<ElementType>& set) {
+    BitsetType bitset;
+    for (const auto& element : set) {
+      bitset.add(element);
+    }
+    bitset.runOptimize();
+    return bitset;
+  }
+
+  template <typename SetType, typename SetElementType, typename ResponseType>
+  absl::StatusOr<ResponseType> RunSetQuery(
+      const RequestContext& request_context, std::string query,
+      absl::AnyInvocable<ResponseType(const SetType&)> to_response_fn) const {
     kv_server::Driver driver;
     std::istringstream stream(query);
     kv_server::Scanner scanner(stream);
@@ -494,38 +566,38 @@ class ShardedLookup : public Lookup {
                                kShardedRunQueryParsingFailure);
       return absl::InvalidArgumentError("Parsing failure.");
     }
-    auto get_key_value_set_result_maybe = GetShardedKeyValueSet<SetElementType>(
+    auto key_value_result = GetShardedKeyValueSet<SetElementType>(
         request_context, driver.GetRootNode()->Keys());
-    if (!get_key_value_set_result_maybe.ok()) {
+    if (!key_value_result.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kShardedRunQueryKeySetRetrievalFailure);
-      return get_key_value_set_result_maybe.status();
+      return key_value_result.status();
     }
-    auto keysets = std::move(*get_key_value_set_result_maybe);
-    return driver.EvaluateQuery<SetType>([&keysets, &request_context](
-                                             std::string_view key) {
-      const auto key_iter = keysets.find(key);
-      if (key_iter == keysets.end()) {
-        PS_VLOG(8, request_context.GetPSLogContext())
-            << "Driver can't find " << key << "key_set. Returning empty.";
-        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                                 kShardedRunQueryMissingKeySet);
-        return SetType();
-      }
-      if constexpr (std::is_same_v<SetType,
-                                   absl::flat_hash_set<std::string_view>>) {
-        return absl::flat_hash_set<std::string_view>(key_iter->second.begin(),
-                                                     key_iter->second.end());
-      }
-      if constexpr (std::is_same_v<SetType, roaring::Roaring>) {
-        roaring::Roaring bitset;
-        for (const auto& element : key_iter->second) {
-          bitset.add(element);
-        }
-        bitset.runOptimize();
-        return bitset;
-      }
-    });
+    auto query_result = driver.EvaluateQuery<SetType>(
+        [&key_value_result, &request_context](std::string_view key) {
+          const auto key_iter = key_value_result->find(key);
+          if (key_iter == key_value_result->end()) {
+            PS_VLOG(8, request_context.GetPSLogContext())
+                << "Driver can't find " << key << "key_set. Returning empty.";
+            LogUdfRequestErrorMetric(
+                request_context.GetUdfRequestMetricsContext(),
+                kShardedRunQueryMissingKeySet);
+            return SetType();
+          }
+          if constexpr (std::is_same_v<SetType,
+                                       absl::flat_hash_set<std::string_view>>) {
+            return absl::flat_hash_set<std::string_view>(
+                key_iter->second.begin(), key_iter->second.end());
+          }
+          if constexpr (std::is_same_v<SetType, UInt32ValueSet::bitset_type> ||
+                        std::is_same_v<SetType, UInt64ValueSet::bitset_type>) {
+            return ToBitset<SetElementType, SetType>(key_iter->second);
+          }
+        });
+    if (!query_result.ok()) {
+      return query_result.status();
+    }
+    return to_response_fn(*query_result);
   }
 
   const Lookup& local_lookup_;

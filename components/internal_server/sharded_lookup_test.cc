@@ -1260,6 +1260,115 @@ TEST_F(ShardedLookupTest, RunSetQueryInt_EmptyRequest_EmptyResponse) {
   EXPECT_TRUE(response.value().elements().empty());
 }
 
+TEST_F(ShardedLookupTest, RunSetQueryUInt64_Success) {
+  InternalLookupResponse local_lookup_response;
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key4"
+             value { uint64set_values { values: 18446744073709551 } }
+           }
+      )pb",
+      &local_lookup_response);
+  EXPECT_CALL(mock_local_lookup_, GetUInt64ValueSet(_, _))
+      .WillOnce(Return(local_lookup_response));
+  std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
+  for (int i = 0; i < 2; i++) {
+    cluster_mappings.push_back({std::to_string(i)});
+  }
+  auto shard_manager = ShardManager::Create(
+      num_shards_, std::move(cluster_mappings),
+      std::make_unique<MockRandomGenerator>(), [this](const std::string& ip) {
+        if (ip != "1") {
+          return std::make_unique<MockRemoteLookupClient>();
+        }
+        auto mock_remote_lookup_client_1 =
+            std::make_unique<MockRemoteLookupClient>();
+        const std::vector<std::string_view> key_list_remote = {"key1"};
+        InternalLookupRequest request;
+        request.mutable_keys()->Assign(key_list_remote.begin(),
+                                       key_list_remote.end());
+        request.set_lookup_sets(true);
+        *request.mutable_consented_debug_config() =
+            GetRequestContext()
+                .GetRequestLogContext()
+                .GetConsentedDebugConfiguration();
+        *request.mutable_log_context() =
+            GetRequestContext().GetRequestLogContext().GetLogContext();
+        const std::string serialized_request = request.SerializeAsString();
+        EXPECT_CALL(*mock_remote_lookup_client_1,
+                    GetValues(_, serialized_request, 0))
+            .WillOnce([&]() {
+              InternalLookupResponse resp;
+              TextFormat::ParseFromString(
+                  R"pb(kv_pairs {
+                         key: "key1"
+                         value {
+                           uint64set_values { values: 18446744073709552 }
+                         }
+                       }
+                  )pb",
+                  &resp);
+              return resp;
+            });
+        return mock_remote_lookup_client_1;
+      });
+  auto sharded_lookup =
+      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
+                          *(*shard_manager), key_sharder_);
+  auto response =
+      sharded_lookup->RunSetQueryUInt64(GetRequestContext(), "key1|key4");
+  EXPECT_TRUE(response.ok());
+  EXPECT_THAT(response.value().elements(),
+              testing::UnorderedElementsAreArray(
+                  {18446744073709551, 18446744073709552}));
+}
+
+TEST_F(ShardedLookupTest, RunSetQueryUInt64_ShardedLookupFails_Error) {
+  InternalLookupResponse local_lookup_response;
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key4"
+             value { uint64set_values { values: 18446744073709551 } }
+           }
+      )pb",
+      &local_lookup_response);
+  EXPECT_CALL(mock_local_lookup_, GetUInt64ValueSet(_, _))
+      .WillOnce(Return(local_lookup_response));
+  std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
+  for (int i = 0; i < 2; i++) {
+    cluster_mappings.push_back({std::to_string(i)});
+  }
+  auto shard_manager =
+      ShardManager::Create(num_shards_, std::move(cluster_mappings),
+                           std::make_unique<MockRandomGenerator>(),
+                           [](const std::string& ip) { return nullptr; });
+  auto sharded_lookup =
+      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
+                          *(*shard_manager), key_sharder_);
+  auto response =
+      sharded_lookup->RunSetQueryUInt64(GetRequestContext(), "key1|key4");
+  EXPECT_FALSE(response.ok());
+  EXPECT_THAT(response.status().code(), absl::StatusCode::kInternal);
+}
+
+TEST_F(ShardedLookupTest, RunSetQueryUInt64_EmptyRequest_EmptyResponse) {
+  std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
+  for (int i = 0; i < 2; i++) {
+    cluster_mappings.push_back({std::to_string(i)});
+  }
+  auto shard_manager = ShardManager::Create(
+      num_shards_, std::move(cluster_mappings),
+      std::make_unique<MockRandomGenerator>(), [](const std::string& ip) {
+        return std::make_unique<MockRemoteLookupClient>();
+      });
+  auto sharded_lookup =
+      CreateShardedLookup(mock_local_lookup_, num_shards_, shard_num_,
+                          *(*shard_manager), key_sharder_);
+  auto response = sharded_lookup->RunSetQueryUInt64(GetRequestContext(), "");
+  EXPECT_TRUE(response.ok());
+  EXPECT_TRUE(response.value().elements().empty());
+}
+
 }  // namespace
 
 }  // namespace kv_server

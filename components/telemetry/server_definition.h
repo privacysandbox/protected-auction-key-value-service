@@ -159,9 +159,18 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
-    kShardedLookupRunSetQueryIntLatencyInMicros(
-        "ShardedLookupRunSetQueryIntLatencyInMicros",
-        "Latency in executing RunQuery in the sharded lookup",
+    kShardedLookupRunSetQueryUInt32LatencyInMicros(
+        "ShardedLookupRunSetQueryUInt32LatencyInMicros",
+        "Latency in executing RunSetQueryUInt32 in the sharded lookup",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kShardedLookupRunSetQueryUInt64LatencyInMicros(
+        "ShardedLookupRunSetQueryUInt64LatencyInMicros",
+        "Latency in executing RunSetQueryUInt64 in the sharded lookup",
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
 
@@ -638,10 +647,11 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kShardedLookupGetKeyValuesLatencyInMicros,
         &kShardedLookupGetKeyValueSetLatencyInMicros,
         &kShardedLookupRunQueryLatencyInMicros,
-        &kShardedLookupRunSetQueryIntLatencyInMicros,
+        &kShardedLookupRunSetQueryUInt32LatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros,
         &kTotalV2LatencyWithoutCustomCode, &kUDFExecutionLatencyInMicros,
         &kShardedLookupGetUInt32ValueSetLatencyInMicros,
+        &kShardedLookupRunSetQueryUInt64LatencyInMicros,
         // Safe metrics
         &kKVServerError,
         &privacy_sandbox::server_common::metrics::kTotalRequestCount,

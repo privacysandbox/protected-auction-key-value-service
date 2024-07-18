@@ -102,6 +102,13 @@ class LocalLookup : public Lookup {
     return response;
   }
 
+  absl::StatusOr<InternalLookupResponse> GetUInt64ValueSet(
+      const RequestContext& request_context,
+      const absl::flat_hash_set<std::string_view>& key_set) const override {
+    // TODO: implement local lookup for 64 bit sets.
+    return InternalLookupResponse();
+  }
+
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
       const RequestContext& request_context, std::string query) const override {
     return ProcessQuery<InternalRunQueryResponse>(

@@ -75,7 +75,7 @@ oci_image(
         "--port=50051",
         # These affect PCR0, so changing these would result in the loss of ability to communicate with
         # the downstream components
-        "--public_key_endpoint=https://publickeyservice.pa-3.aws.privacysandboxservices.com/v1alpha/publicKeys",
+        "--public_key_endpoint=https://publickeyservice.pa.aws.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
         "--stderrthreshold=0",
     ],
     tars = [

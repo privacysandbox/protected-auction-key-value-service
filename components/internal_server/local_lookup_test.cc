@@ -304,6 +304,48 @@ TEST_F(LocalLookupTest, Verify_RunSetQueryUInt64_ParsingError_Error) {
   EXPECT_EQ(response.status().code(), absl::StatusCode::kInvalidArgument);
 }
 
+TEST_F(LocalLookupTest, GetUInt64ValueSets_KeysFound_Success) {
+  auto uint64_max = std::numeric_limits<uint64_t>::max();
+  auto values = std::vector<uint64_t>({uint64_max - 1000, uint64_max - 1001});
+  UInt64ValueSet value_set;
+  value_set.Add(absl::MakeSpan(values), 1);
+  auto mock_get_key_value_set_result =
+      std::make_unique<MockGetKeyValueSetResult>();
+  EXPECT_CALL(*mock_get_key_value_set_result, GetUInt64ValueSet("key1"))
+      .WillOnce(Return(&value_set));
+  EXPECT_CALL(mock_cache_, GetUInt64ValueSet(_, _))
+      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response =
+      local_lookup->GetUInt64ValueSet(GetRequestContext(), {"key1"});
+  ASSERT_TRUE(response.ok());
+  EXPECT_THAT(
+      response.value().kv_pairs().at("key1").uint64set_values().values(),
+      testing::UnorderedElementsAreArray(values));
+}
+
+TEST_F(LocalLookupTest, GetUInt64ValueSets_SetEmpty_Success) {
+  auto mock_get_key_value_set_result =
+      std::make_unique<MockGetKeyValueSetResult>();
+  EXPECT_CALL(*mock_get_key_value_set_result, GetUInt64ValueSet("key1"))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(mock_cache_, GetUInt64ValueSet(_, _))
+      .WillOnce(Return(std::move(mock_get_key_value_set_result)));
+  auto local_lookup = CreateLocalLookup(mock_cache_);
+  auto response =
+      local_lookup->GetUInt64ValueSet(GetRequestContext(), {"key1"});
+  ASSERT_TRUE(response.ok());
+  InternalLookupResponse expected;
+  TextFormat::ParseFromString(
+      R"pb(kv_pairs {
+             key: "key1"
+             value { status { code: 5 message: "Key not found: key1" } }
+           }
+      )pb",
+      &expected);
+  EXPECT_THAT(response.value(), EqualsProto(expected));
+}
+
 }  // namespace
 
 }  // namespace kv_server

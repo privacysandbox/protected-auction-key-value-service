@@ -134,6 +134,13 @@ inline constexpr std::string_view
 // Key set not found error in the GetUInt32ValueSet in sharded lookup
 inline constexpr std::string_view kShardedGetUInt32ValueSetKeySetNotFound =
     "ShardedGetUInt32ValueSetKeySetNotFound";
+// Key set retrieval failure in the GetUInt64ValueSet in sharded lookup
+inline constexpr std::string_view
+    kShardedGetUInt64ValueSetKeySetRetrievalFailure =
+        "ShardedGetUInt64ValueSetKeySetRetrievalFailure";
+// Key set not found error in the GetUInt64ValueSet in sharded lookup
+inline constexpr std::string_view kShardedGetUInt64ValueSetKeySetNotFound =
+    "ShardedGetUInt64ValueSetKeySetNotFound";
 
 // Strings must be sorted, this is required by the API of partitioned metrics
 inline constexpr absl::string_view kKVUdfRequestErrorCode[] = {
@@ -146,6 +153,8 @@ inline constexpr absl::string_view kKVUdfRequestErrorCode[] = {
     kShardedGetKeyValueSetKeySetRetrievalFailure,
     kShardedGetUInt32ValueSetKeySetNotFound,
     kShardedGetUInt32ValueSetKeySetRetrievalFailure,
+    kShardedGetUInt64ValueSetKeySetNotFound,
+    kShardedGetUInt64ValueSetKeySetRetrievalFailure,
     kShardedKeyCollisionOnKeySetCollection,
     kShardedKeyValueRequestFailure,
     kShardedKeyValueSetRequestFailure,

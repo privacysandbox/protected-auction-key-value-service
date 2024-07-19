@@ -105,8 +105,32 @@ class LocalLookup : public Lookup {
   absl::StatusOr<InternalLookupResponse> GetUInt64ValueSet(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override {
-    // TODO: implement local lookup for 64 bit sets.
-    return InternalLookupResponse();
+    ScopeLatencyMetricsRecorder<InternalLookupMetricsContext,
+                                kInternalGetUInt64ValueSetLatencyInMicros>
+        latency_recorder(request_context.GetInternalLookupMetricsContext());
+    InternalLookupResponse response;
+    if (key_set.empty()) {
+      return response;
+    }
+    auto key_value_set_result =
+        cache_.GetUInt64ValueSet(request_context, key_set);
+    for (const auto& key : key_set) {
+      SingleLookupResult result;
+      if (const auto value_set = key_value_set_result->GetUInt64ValueSet(key);
+          value_set != nullptr && !value_set->GetValues().empty()) {
+        auto uint64_values = value_set->GetValues();
+        auto* result_values = result.mutable_uint64set_values();
+        result_values->mutable_values()->Reserve(uint64_values.size());
+        result_values->mutable_values()->Add(uint64_values.begin(),
+                                             uint64_values.end());
+      } else {
+        auto status = result.mutable_status();
+        status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+        status->set_message(absl::StrCat("Key not found: ", key));
+      }
+      (*response.mutable_kv_pairs())[key] = std::move(result);
+    }
+    return response;
   }
 
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
@@ -126,6 +150,7 @@ class LocalLookup : public Lookup {
             return eval_result.status();
           }
           InternalRunQueryResponse response;
+          response.mutable_elements()->Reserve(eval_result->size());
           response.mutable_elements()->Assign(eval_result->begin(),
                                               eval_result->end());
           return response;
@@ -152,6 +177,7 @@ class LocalLookup : public Lookup {
           }
           auto uint32_set = BitSetToUint32Set(*eval_result);
           InternalRunSetQueryUInt32Response response;
+          response.mutable_elements()->Reserve(uint32_set.size());
           response.mutable_elements()->Assign(uint32_set.begin(),
                                               uint32_set.end());
           return response;
@@ -178,6 +204,7 @@ class LocalLookup : public Lookup {
           }
           auto uint64_set = BitSetToUint64Set(*eval_result);
           InternalRunSetQueryUInt64Response response;
+          response.mutable_elements()->Reserve(uint64_set.size());
           response.mutable_elements()->Assign(uint64_set.begin(),
                                               uint64_set.end());
           return response;

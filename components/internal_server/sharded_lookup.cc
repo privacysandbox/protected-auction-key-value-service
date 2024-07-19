@@ -172,8 +172,37 @@ class ShardedLookup : public Lookup {
   absl::StatusOr<InternalLookupResponse> GetUInt64ValueSet(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override {
-    // TODO: Implement sharded lookup for uint64 sets.
-    return InternalLookupResponse();
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupGetUInt64ValueSetLatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
+    InternalLookupResponse response;
+    if (key_set.empty()) {
+      return response;
+    }
+    auto maybe_result =
+        GetShardedKeyValueSet<uint64_t>(request_context, key_set);
+    if (!maybe_result.ok()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedGetUInt64ValueSetKeySetRetrievalFailure);
+      return maybe_result.status();
+    }
+    for (const auto& key : key_set) {
+      SingleLookupResult result;
+      if (const auto key_iter = maybe_result->find(key);
+          key_iter == maybe_result->end()) {
+        auto status = result.mutable_status();
+        status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                                 kShardedGetUInt64ValueSetKeySetNotFound);
+      } else {
+        auto* uint64set_values = result.mutable_uint64set_values();
+        uint64set_values->mutable_values()->Reserve(key_iter->second.size());
+        uint64set_values->mutable_values()->Add(key_iter->second.begin(),
+                                                key_iter->second.end());
+      }
+      (*response.mutable_kv_pairs())[key] = std::move(result);
+    }
+    return response;
   }
 
   absl::StatusOr<InternalRunQueryResponse> RunQuery(

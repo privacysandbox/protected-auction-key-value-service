@@ -55,7 +55,7 @@ inline constexpr std::string_view kPublicKeyEndpointParameterSuffix =
     "public-key-endpoint";
 inline constexpr std::string_view kUseRealCoordinatorsParameterSuffix =
     "use-real-coordinators";
-inline constexpr std::string_view kContentTypeHeader = "content-type";
+inline constexpr std::string_view kContentTypeHeader = "kv-content-type";
 inline constexpr std::string_view kContentEncodingProtoHeaderValue =
     "application/protobuf";
 

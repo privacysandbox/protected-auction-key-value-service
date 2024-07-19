@@ -184,6 +184,7 @@ Server::Server()
       binary_get_values_hook_(
           GetValuesHook::Create(GetValuesHook::OutputType::kBinary)),
       run_set_query_uint32_hook_(RunSetQueryUInt32Hook::Create()),
+      run_set_query_uint64_hook_(RunSetQueryUInt64Hook::Create()),
       run_set_query_string_hook_(RunSetQueryStringHook::Create()) {}
 
 // Because the cache relies on telemetry, this function needs to be
@@ -323,6 +324,7 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
                   .RegisterStringGetValuesHook(*string_get_values_hook_)
                   .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
                   .RegisterRunSetQueryUInt32Hook(*run_set_query_uint32_hook_)
+                  .RegisterRunSetQueryUInt64Hook(*run_set_query_uint64_hook_)
                   .RegisterRunSetQueryStringHook(*run_set_query_string_hook_)
                   .RegisterLoggingFunction()
                   .SetNumberOfWorkers(number_of_workers)
@@ -477,7 +479,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   }
   auto maybe_shard_state = server_initializer->InitializeUdfHooks(
       *string_get_values_hook_, *binary_get_values_hook_,
-      *run_set_query_string_hook_, *run_set_query_uint32_hook_);
+      *run_set_query_string_hook_, *run_set_query_uint32_hook_,
+      *run_set_query_uint64_hook_);
   if (!maybe_shard_state.ok()) {
     return maybe_shard_state.status();
   }

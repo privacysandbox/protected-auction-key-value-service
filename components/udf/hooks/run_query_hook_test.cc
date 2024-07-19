@@ -69,7 +69,7 @@ TEST_F(RunQueryHookTest, SuccessfullyProcessesValue) {
               UnorderedElementsAreArray({"a", "b"}));
 }
 
-TEST_F(RunQueryHookTest, VerifyProcessingIntSetsSuccessfully) {
+TEST_F(RunQueryHookTest, VerifyProcessingUInt32SetsSuccessfully) {
   InternalRunSetQueryUInt32Response run_query_response;
   TextFormat::ParseFromString(R"pb(elements: 1000 elements: 1001)pb",
                               &run_query_response);
@@ -111,7 +111,7 @@ TEST_F(RunQueryHookTest, RunQueryClientReturnsError) {
           {R"({"code":2,"message":"runQuery failed with error: Some error"})"}));
 }
 
-TEST_F(RunQueryHookTest, RunSetQueryIntClientReturnsError) {
+TEST_F(RunQueryHookTest, RunSetQueryUInt32ClientReturnsError) {
   auto mock_lookup = std::make_unique<MockLookup>();
   EXPECT_CALL(*mock_lookup, RunSetQueryUInt32(_, "Q"))
       .WillOnce(Return(absl::UnknownError("Some error")));
@@ -143,6 +143,47 @@ TEST_F(RunQueryHookTest, InputIsNotString) {
       io.output_list_of_string().data(),
       UnorderedElementsAreArray(
           {R"({"code":3,"message":"runQuery input must be a string"})"}));
+}
+
+TEST_F(RunQueryHookTest, VerifyProcessingUInt64SetsSuccessfully) {
+  InternalRunSetQueryUInt64Response run_query_response;
+  TextFormat::ParseFromString(R"pb(elements: 18446744073709551614
+                                   elements: 18446744073709551615)pb",
+                              &run_query_response);
+  auto mock_lookup = std::make_unique<MockLookup>();
+  EXPECT_CALL(*mock_lookup, RunSetQueryUInt64(_, "Q"))
+      .WillOnce(Return(run_query_response));
+  FunctionBindingIoProto io;
+  TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
+  auto run_query_hook = RunSetQueryUInt64Hook::Create();
+  run_query_hook->FinishInit(std::move(mock_lookup));
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
+  (*run_query_hook)(payload);
+  ASSERT_TRUE(io.has_output_bytes());
+  InternalRunSetQueryUInt64Response actual_response;
+  actual_response.mutable_elements()->Resize(
+      io.output_bytes().size() / sizeof(uint64_t), 0);
+  std::memcpy(actual_response.mutable_elements()->mutable_data(),
+              io.output_bytes().data(), io.output_bytes().size());
+  EXPECT_THAT(actual_response, EqualsProto(run_query_response));
+}
+
+TEST_F(RunQueryHookTest, RunSetQueryUInt64ClientReturnsError) {
+  auto mock_lookup = std::make_unique<MockLookup>();
+  EXPECT_CALL(*mock_lookup, RunSetQueryUInt64(_, "Q"))
+      .WillOnce(Return(absl::UnknownError("Some error")));
+  FunctionBindingIoProto io;
+  TextFormat::ParseFromString(R"pb(input_string: "Q")pb", &io);
+  auto run_query_hook = RunSetQueryUInt64Hook::Create();
+  run_query_hook->FinishInit(std::move(mock_lookup));
+  FunctionBindingPayload<std::weak_ptr<RequestContext>> payload{
+      io, GetRequestContext()};
+  (*run_query_hook)(payload);
+  EXPECT_THAT(
+      io.output_list_of_string().data(),
+      UnorderedElementsAreArray(
+          {R"({"code":2,"message":"runSetQueryUInt64 failed with error: Some error"})"}));
 }
 
 }  // namespace

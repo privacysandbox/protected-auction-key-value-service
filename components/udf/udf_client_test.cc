@@ -886,6 +886,46 @@ TEST_F(UdfClientTest, DefaultUdfPasSucceeds) {
   EXPECT_TRUE(stop.ok());
 }
 
-}  // namespace
+TEST_F(UdfClientTest, VerifyJsRunSetQueryUInt64HookSucceeds) {
+  auto mock_lookup = std::make_unique<MockLookup>();
+  InternalRunSetQueryUInt64Response response;
+  TextFormat::ParseFromString(R"pb(elements: 18446744073709551614
+                                   elements: 18446744073709551615)pb",
+                              &response);
+  ON_CALL(*mock_lookup, RunSetQueryUInt64(_, _))
+      .WillByDefault(Return(response));
+  auto run_query_hook = RunSetQueryUInt64Hook::Create();
+  run_query_hook->FinishInit(std::move(mock_lookup));
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      std::move(config_builder.RegisterRunSetQueryUInt64Hook(*run_query_hook)
+                    .SetNumberOfWorkers(1)
+                    .Config()));
+  EXPECT_TRUE(udf_client.ok());
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(input) {
+          const keys = input.keys;
+          const bytes = runSetQueryUInt64(keys[0]);
+          if (bytes instanceof Uint8Array) {
+            const uint64Array = new BigUint64Array(bytes.buffer);
+            return Array.from(uint64Array, uint64 => uint64.toString());
+          }
+          return "runSetQueryInt failed.";
+        }
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_EQ(*result, "[\"18446744073709551614\",\"18446744073709551615\"]");
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
 
+}  // namespace
 }  // namespace kv_server

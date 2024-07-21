@@ -103,6 +103,9 @@ cc_library(
     hdrs = [
         "framing_utils.h",
     ],
+    visibility = [
+        "//components/tools:__subpackages__",
+    ],
     deps = [
         "@com_google_absl//absl/numeric:bits",
     ],

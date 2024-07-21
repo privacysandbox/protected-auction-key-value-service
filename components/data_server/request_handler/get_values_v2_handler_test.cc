@@ -22,6 +22,7 @@
 #include "absl/log/log.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
+#include "components/data_server/request_handler/framing_utils.h"
 #include "components/udf/mocks.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -197,8 +198,20 @@ class GetValuesHandlerTest
                                     plain_request.Build(), response,
                                     execution_metadata);
     }
+    auto encoded_data_size =
+        GetEncodedDataSize(plain_request.RequestBody().size());
+    auto maybe_padded_request =
+        privacy_sandbox::server_common::EncodeResponsePayload(
+            privacy_sandbox::server_common::CompressionType::kUncompressed,
+            std::move(plain_request.RequestBody()), encoded_data_size);
+    if (!maybe_padded_request.ok()) {
+      LOG(ERROR) << "Padding failed: "
+                 << maybe_padded_request.status().message();
+      return privacy_sandbox::server_common::FromAbslStatus(
+          maybe_padded_request.status());
+    }
 
-    OHTTPRequest ohttp_request(plain_request.RequestBody());
+    OHTTPRequest ohttp_request(*maybe_padded_request);
     // get ObliviousGetValuesRequest, OHTTPResponseUnwrapper
     auto [request, response_unwrapper] = ohttp_request.Build();
     if (IsProtobufContent()) {

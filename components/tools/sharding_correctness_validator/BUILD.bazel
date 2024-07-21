@@ -24,6 +24,7 @@ cc_binary(
     }),
     deps = [
         "//components/cloud_config:parameter_client",
+        "//components/data_server/request_handler:framing_utils",
         "//components/data_server/request_handler:ohttp_client_encryptor",
         "//components/data_server/server:key_fetcher_factory",
         "//components/data_server/server:parameter_fetcher",

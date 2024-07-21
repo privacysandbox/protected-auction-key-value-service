@@ -24,6 +24,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "components/cloud_config/parameter_client.h"
+#include "components/data_server/request_handler/framing_utils.h"
 #include "components/data_server/request_handler/ohttp_client_encryptor.h"
 #include "components/data_server/server/key_fetcher_factory.h"
 #include "components/data_server/server/parameter_fetcher.h"
@@ -127,6 +128,15 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
     return absl::Status(absl::StatusCode::kUnknown,
                         absl::StrCat("Protobuf SerializeToString failed!"));
   }
+  auto encoded_data_size = GetEncodedDataSize(serialized_req.size());
+  auto maybe_padded_request =
+      privacy_sandbox::server_common::EncodeResponsePayload(
+          privacy_sandbox::server_common::CompressionType::kUncompressed,
+          std::move(serialized_req), encoded_data_size);
+  if (!maybe_padded_request.ok()) {
+    LOG(ERROR) << "Padding failed: " << maybe_padded_request.status().message();
+    return maybe_padded_request.status();
+  }
   if (!public_key) {
     const std::string error = "public_key==nullptr, cannot proceed.";
     LOG(ERROR) << error;
@@ -134,7 +144,7 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
   }
   OhttpClientEncryptor encryptor(*public_key);
   auto encrypted_serialized_request_maybe =
-      encryptor.EncryptRequest(serialized_req);
+      encryptor.EncryptRequest(*maybe_padded_request);
   if (!encrypted_serialized_request_maybe.ok()) {
     return encrypted_serialized_request_maybe.status();
   }

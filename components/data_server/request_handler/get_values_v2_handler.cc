@@ -132,15 +132,22 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
     ExecutionMetadata& execution_metadata) const {
   PS_VLOG(9) << "Received ObliviousGetValues request. ";
   OhttpServerEncryptor encryptor(key_fetcher_manager_);
-  auto maybe_plain_text =
+  auto maybe_padded_plain_text =
       encryptor.DecryptRequest(oblivious_request.raw_body().data(),
                                request_context_factory.Get().GetPSLogContext());
-  if (!maybe_plain_text.ok()) {
-    return FromAbslStatus(maybe_plain_text.status());
+  if (!maybe_padded_plain_text.ok()) {
+    return FromAbslStatus(maybe_padded_plain_text.status());
   }
   std::string response;
+  absl::StatusOr<privacy_sandbox::server_common::DecodedRequest>
+      decoded_request = privacy_sandbox::server_common::DecodeRequestPayload(
+          *maybe_padded_plain_text);
+  if (!decoded_request.ok()) {
+    return FromAbslStatus(decoded_request.status());
+  }
   auto content_type = GetContentType(headers, ContentType::kJson);
-  if (const auto s = GetValuesHttp(request_context_factory, *maybe_plain_text,
+  if (const auto s = GetValuesHttp(request_context_factory,
+                                   std::move(decoded_request->compressed_data),
                                    response, execution_metadata, content_type);
       !s.ok()) {
     return FromAbslStatus(s);

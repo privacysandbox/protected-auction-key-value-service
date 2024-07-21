@@ -80,6 +80,11 @@ All notable changes to this project will be documented in this file. See [commit
 * Use aws_platform bazel config
 * Use local_{platform,instance} bazel configs
 
+### Image digests and PCR0s
+
+GCP: sha256:d09d5a6d340a8829df03213b71b74d4b431e4d5a138525c77269c347a367b004
+AWS: {"PCR0":"1e28ac4b72600ea40d61e1756e14f453a3d923a1bf94c360ae48d9777bff0714923d9322ed380823591859e357d2f825"}
+
 ## 0.16.0 (2024-04-05)
 
 

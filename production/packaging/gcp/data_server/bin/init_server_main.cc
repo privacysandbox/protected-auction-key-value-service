@@ -113,8 +113,8 @@ int main(int argc, char* argv[]) {
 
   if (PrepareTlsKeyCertForEnvoy()) {
     // Starts Envoy and server in separate processes
-    if (const pid_t pid = fork(); pid == 1) {
-      LOG(ERROR) << "Fork failure!";
+    if (const pid_t pid = fork(); pid == -1) {
+      PLOG(ERROR) << "Fork failure!";
       return errno;
     } else if (pid == 0) {
       StartEnvoy();

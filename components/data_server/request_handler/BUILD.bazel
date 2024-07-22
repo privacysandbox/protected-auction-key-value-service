@@ -70,6 +70,12 @@ cc_library(
     hdrs = [
         "get_values_v2_handler.h",
     ],
+    visibility = [
+        "//components/data_server:__subpackages__",
+        "//components/internal_server:__subpackages__",
+        "//components/tools:__subpackages__",
+        "//tools/request_simulation:__subpackages__",
+    ],
     deps = [
         ":compression",
         ":framing_utils",

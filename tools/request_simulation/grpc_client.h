@@ -24,6 +24,7 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/status/statusor.h"
 #include "absl/synchronization/notification.h"
+#include "components/data_server/request_handler/get_values_v2_handler.h"
 #include "grpcpp/generic/generic_stub.h"
 #include "grpcpp/grpcpp.h"
 #include "src/google/protobuf/message.h"
@@ -141,6 +142,8 @@ class GrpcClient {
         std::make_shared<absl::Notification>();
     std::shared_ptr<grpc::ClientContext> client_context =
         std::make_shared<grpc::ClientContext>();
+    client_context->AddMetadata(std::string(kContentTypeHeader),
+                                std::string(kContentEncodingJsonHeaderValue));
     std::shared_ptr<absl::Status> grpc_status =
         std::make_shared<absl::Status>();
     generic_stub_->UnaryCall(

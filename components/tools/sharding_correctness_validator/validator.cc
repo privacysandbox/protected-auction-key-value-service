@@ -25,6 +25,7 @@
 #include "absl/strings/str_format.h"
 #include "components/cloud_config/parameter_client.h"
 #include "components/data_server/request_handler/framing_utils.h"
+#include "components/data_server/request_handler/get_values_v2_handler.h"
 #include "components/data_server/request_handler/ohttp_client_encryptor.h"
 #include "components/data_server/server/key_fetcher_factory.h"
 #include "components/data_server/server/parameter_fetcher.h"
@@ -33,7 +34,6 @@
 #include "public/applications/pa/response_utils.h"
 #include "public/query/cpp/grpc_client.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
-#include "quiche/binary_http/binary_http_message.h"
 #include "src/communication/encoding_utils.h"
 
 ABSL_DECLARE_FLAG(std::string, gcp_project_id);
@@ -56,9 +56,6 @@ inline constexpr std::string_view kPublicKeyEndpointParameterSuffix =
     "public-key-endpoint";
 inline constexpr std::string_view kUseRealCoordinatorsParameterSuffix =
     "use-real-coordinators";
-inline constexpr std::string_view kContentTypeHeader = "kv-content-type";
-inline constexpr std::string_view kContentEncodingProtoHeaderValue =
-    "application/protobuf";
 
 absl::BitGen bitgen;
 int total_failures = 0;

@@ -49,7 +49,8 @@ using v2::GetValuesHttpRequest;
 using v2::KeyValueService;
 using v2::ObliviousGetValuesRequest;
 
-const std::string_view kOHTTPResponseContentType = "message/ohttp-res";
+const std::string_view kOHTTPResponseContentType =
+    "message/ad-auction-trusted-signals-response; v=2.0";
 constexpr std::string_view kAcceptEncodingHeader = "accept-encoding";
 constexpr std::string_view kContentEncodingHeader = "content-encoding";
 constexpr std::string_view kBrotliAlgorithmHeader = "br";
@@ -72,7 +73,9 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
     std::string& response, ExecutionMetadata& execution_metadata,
     ContentType content_type) const {
   v2::GetValuesRequest request_proto;
-  if (content_type == ContentType::kJson) {
+  // TODO (b/353537363): implement CBOR
+  if (content_type == ContentType::kJson ||
+      content_type == ContentType::kCbor) {
     PS_RETURN_IF_ERROR(
         google::protobuf::util::JsonStringToMessage(request, &request_proto));
   } else {  // proto
@@ -87,11 +90,11 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
   PS_VLOG(9) << "Converted the http request to proto: "
              << request_proto.DebugString();
   v2::GetValuesResponse response_proto;
-  PS_RETURN_IF_ERROR(
-
-      GetValues(request_context_factory, request_proto, &response_proto,
-                execution_metadata));
-  if (content_type == ContentType::kJson) {
+  PS_RETURN_IF_ERROR(GetValues(request_context_factory, request_proto,
+                               &response_proto, execution_metadata));
+  // TODO (b/353537363): implement CBOR
+  if (content_type == ContentType::kJson ||
+      content_type == ContentType::kCbor) {
     return MessageToJsonString(response_proto, &response);
   }
   // content_type == proto
@@ -145,7 +148,7 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
   if (!decoded_request.ok()) {
     return FromAbslStatus(decoded_request.status());
   }
-  auto content_type = GetContentType(headers, ContentType::kJson);
+  auto content_type = GetContentType(headers, ContentType::kCbor);
   if (const auto s = GetValuesHttp(request_context_factory,
                                    std::move(decoded_request->compressed_data),
                                    response, execution_metadata, content_type);

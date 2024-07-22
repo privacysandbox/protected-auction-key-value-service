@@ -48,10 +48,10 @@ inline constexpr std::string_view kContentTypeHeader = "content-type";
 inline constexpr std::string_view kKVContentTypeHeader = "kv-content-type";
 // Protobuf Content Type Header Value.
 inline constexpr std::string_view kContentEncodingProtoHeaderValue =
-    "application/protobuf";
+    "message/ad-auction-trusted-signals-request+proto; v=2.0";
 // Json Content Type Header Value.
 inline constexpr std::string_view kContentEncodingJsonHeaderValue =
-    "application/json";
+    "message/ad-auction-trusted-signals-request+json; v=2.0";
 
 // Handles the request family of *GetValues.
 // See the Service proto definition for details.
@@ -102,7 +102,7 @@ class GetValuesV2Handler {
       ExecutionMetadata& execution_metadata) const;
 
  private:
-  enum class ContentType { kJson = 0, kProto };
+  enum class ContentType { kCbor = 0, kJson = 1, kProto = 2 };
 
   ContentType GetContentType(
       const std::multimap<grpc::string_ref, grpc::string_ref>& headers,

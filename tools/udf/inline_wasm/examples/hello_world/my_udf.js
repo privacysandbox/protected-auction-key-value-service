@@ -41,9 +41,9 @@ function getKeyGroupOutputs(udf_arguments, module) {
 }
 
 async function HandleRequest(executionMetadata, ...udf_arguments) {
-  console.log('Handling request');
+  logMessage('Handling request');
   const module = await getModule();
-  console.log('Done loading WASM Module');
+  logMessage('Done loading WASM Module');
   const keyGroupOutputs = getKeyGroupOutputs(udf_arguments, module);
   return { keyGroupOutputs, udfOutputApiVersion: 1 };
 }

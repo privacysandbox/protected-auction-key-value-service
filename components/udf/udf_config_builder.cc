@@ -40,6 +40,7 @@ constexpr char kBinaryGetValuesHookJsName[] = "getValuesBinary";
 constexpr char kRunQueryHookJsName[] = "runQuery";
 constexpr char kRunSetQueryUInt32HookJsName[] = "runSetQueryUInt32";
 constexpr char kRunSetQueryUInt64HookJsName[] = "runSetQueryUInt64";
+constexpr char kLoggingHookJsName[] = "logMessage";
 
 std::unique_ptr<FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>
 GetValuesFunctionObject(GetValuesHook& get_values_hook,
@@ -113,8 +114,12 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterRunSetQueryUInt64Hook(
   return *this;
 }
 
-UdfConfigBuilder& UdfConfigBuilder::RegisterLoggingFunction() {
-  config_.SetLoggingFunction(LoggingFunction);
+UdfConfigBuilder& UdfConfigBuilder::RegisterLoggingHook() {
+  auto logging_function_object = std::make_unique<
+      FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>();
+  logging_function_object->function_name = kLoggingHookJsName;
+  logging_function_object->function = LogMessage;
+  config_.RegisterFunctionBinding(std::move(logging_function_object));
   return *this;
 }
 

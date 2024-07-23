@@ -326,7 +326,7 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
                   .RegisterRunSetQueryUInt32Hook(*run_set_query_uint32_hook_)
                   .RegisterRunSetQueryUInt64Hook(*run_set_query_uint64_hook_)
                   .RegisterRunSetQueryStringHook(*run_set_query_string_hook_)
-                  .RegisterLoggingFunction()
+                  .RegisterLoggingHook()
                   .SetNumberOfWorkers(number_of_workers)
                   .Config()),
           absl::Milliseconds(udf_timeout_ms),

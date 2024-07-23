@@ -264,7 +264,7 @@ function getKeyGroupOutputs(hostname, udf_arguments) {
 }
 
 function HandleRequest(executionMetadata, ...udf_arguments) {
-  console.log(JSON.stringify(executionMetadata));
+  logMessage(JSON.stringify(executionMetadata));
   const keyGroupOutputs = getKeyGroupOutputs(executionMetadata.requestMetadata.hostname, udf_arguments);
   return {keyGroupOutputs, udfOutputApiVersion: 1};
 }

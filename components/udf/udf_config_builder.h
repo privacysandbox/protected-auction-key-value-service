@@ -36,7 +36,7 @@ class UdfConfigBuilder {
   UdfConfigBuilder& RegisterRunSetQueryUInt64Hook(
       RunSetQueryUInt64Hook& run_set_query_uint64_hook);
 
-  UdfConfigBuilder& RegisterLoggingFunction();
+  UdfConfigBuilder& RegisterLoggingHook();
 
   UdfConfigBuilder& SetNumberOfWorkers(int number_of_workers);
 

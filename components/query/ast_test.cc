@@ -20,106 +20,192 @@
 #include "gtest/gtest.h"
 
 #include "roaring.hh"
+#include "roaring64map.hh"
 
 namespace kv_server {
 namespace {
 
 const absl::flat_hash_map<std::string, absl::flat_hash_set<std::string_view>>
-    kDb = {
+    kStringSetDB = {
         {"A", {"a", "b", "c"}},
         {"B", {"b", "c", "d"}},
         {"C", {"c", "d", "e"}},
         {"D", {"d", "e", "f"}},
 };
-const absl::flat_hash_map<std::string, roaring::Roaring> kBitsetDb = {
+
+const absl::flat_hash_map<std::string, roaring::Roaring> kUInt32SetDb = {
     {"A", {1, 2, 3}},
     {"B", {2, 3, 4}},
     {"C", {3, 4, 5}},
     {"D", {4, 5, 6}},
 };
 
+const absl::flat_hash_map<std::string, roaring::Roaring64Map> kUInt64SetDb = {
+    {"A",
+     {18446744073709551609UL, 18446744073709551610UL, 18446744073709551611UL}},
+    {"B",
+     {18446744073709551610UL, 18446744073709551611UL, 18446744073709551612UL}},
+    {"C",
+     {18446744073709551611UL, 18446744073709551612UL, 18446744073709551613UL}},
+    {"D",
+     {18446744073709551612UL, 18446744073709551613UL, 18446744073709551614UL}},
+};
+
+template <typename SetType>
+SetType Lookup(std::string_view key);
+
+template <>
 absl::flat_hash_set<std::string_view> Lookup(std::string_view key) {
-  if (const auto& it = kDb.find(key); it != kDb.end()) {
+  if (const auto& it = kStringSetDB.find(key); it != kStringSetDB.end()) {
     return it->second;
   }
   return {};
 }
 
-roaring::Roaring BitsetLookup(std::string_view key) {
-  if (const auto& it = kBitsetDb.find(key); it != kBitsetDb.end()) {
+template <>
+roaring::Roaring Lookup(std::string_view key) {
+  if (const auto& it = kUInt32SetDb.find(key); it != kUInt32SetDb.end()) {
     return it->second;
   }
   return {};
 }
 
-TEST(AstTest, Value) {
+template <>
+roaring::Roaring64Map Lookup(std::string_view key) {
+  if (const auto& it = kUInt64SetDb.find(key); it != kUInt64SetDb.end()) {
+    return it->second;
+  }
+  return {};
+}
+
+class NameGenerator {
+ public:
+  template <typename SetType>
+  static std::string GetName(int) {
+    if constexpr (std::is_same_v<SetType,
+                                 absl::flat_hash_set<std::string_view>>) {
+      return "StringSet";
+    }
+    if constexpr (std::is_same_v<SetType, roaring::Roaring>) {
+      return "UInt32Set";
+    }
+    if constexpr (std::is_same_v<SetType, roaring::Roaring64Map>) {
+      return "UInt64Set";
+    }
+  }
+};
+
+template <typename SetType>
+class ASTTest : public ::testing::Test {};
+
+using SetTypes = testing::Types<absl::flat_hash_set<std::string_view>,
+                                roaring::Roaring, roaring::Roaring64Map>;
+TYPED_TEST_SUITE(ASTTest, SetTypes, NameGenerator);
+
+TYPED_TEST(ASTTest, Value) {
   ValueNode value("A");
-  EXPECT_EQ(Eval<KVStringSetView>(value, Lookup), Lookup("A"));
+  EXPECT_EQ(Eval<TypeParam>(value, Lookup<TypeParam>), Lookup<TypeParam>("A"));
   ValueNode value2("B");
-  EXPECT_EQ(Eval<KVStringSetView>(value2, Lookup), Lookup("B"));
+  EXPECT_EQ(Eval<TypeParam>(value2, Lookup<TypeParam>), Lookup<TypeParam>("B"));
   ValueNode value3("C");
-  EXPECT_EQ(Eval<KVStringSetView>(value3, Lookup), Lookup("C"));
+  EXPECT_EQ(Eval<TypeParam>(value3, Lookup<TypeParam>), Lookup<TypeParam>("C"));
   ValueNode value4("D");
-  EXPECT_EQ(Eval<KVStringSetView>(value4, Lookup), Lookup("D"));
+  EXPECT_EQ(Eval<TypeParam>(value4, Lookup<TypeParam>), Lookup<TypeParam>("D"));
   ValueNode value5("E");
-  EXPECT_EQ(Eval<KVStringSetView>(value5, Lookup), Lookup("E"));
+  EXPECT_EQ(Eval<TypeParam>(value5, Lookup<TypeParam>), Lookup<TypeParam>("E"));
 }
 
-TEST(AstTest, Union) {
+TYPED_TEST(ASTTest, Union) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> b = std::make_unique<ValueNode>("B");
   UnionNode op(std::move(a), std::move(b));
-  absl::flat_hash_set<std::string_view> expected = {"a", "b", "c", "d"};
-  EXPECT_EQ(Eval<KVStringSetView>(op, Lookup), expected);
+  auto result = Eval<TypeParam>(op, Lookup<TypeParam>);
+  if constexpr (std::is_same_v<TypeParam,
+                               absl::flat_hash_set<std::string_view>>) {
+    EXPECT_THAT(result, testing::UnorderedElementsAre("a", "b", "c", "d"));
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
+    EXPECT_EQ(result, roaring::Roaring({1, 2, 3, 4}));
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
+    EXPECT_EQ(result, roaring::Roaring64Map(
+                          {18446744073709551609UL, 18446744073709551610UL,
+                           18446744073709551611UL, 18446744073709551612UL}));
+  }
 }
 
-TEST(AstTest, UnionSelf) {
+TYPED_TEST(ASTTest, UnionSelf) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> a2 = std::make_unique<ValueNode>("A");
   UnionNode op(std::move(a), std::move(a2));
-  absl::flat_hash_set<std::string_view> expected = {"a", "b", "c"};
-  EXPECT_EQ(Eval<KVStringSetView>(op, Lookup), expected);
+  EXPECT_EQ(Eval<TypeParam>(op, Lookup<TypeParam>), Lookup<TypeParam>("A"));
 }
 
-TEST(AstTest, Intersection) {
+TYPED_TEST(ASTTest, Intersection) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> b = std::make_unique<ValueNode>("B");
   IntersectionNode op(std::move(a), std::move(b));
-  absl::flat_hash_set<std::string_view> expected = {"b", "c"};
-  EXPECT_EQ(Eval<KVStringSetView>(op, Lookup), expected);
+  auto result = Eval<TypeParam>(op, Lookup<TypeParam>);
+  if constexpr (std::is_same_v<TypeParam,
+                               absl::flat_hash_set<std::string_view>>) {
+    EXPECT_THAT(result, testing::UnorderedElementsAre("b", "c"));
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
+    EXPECT_EQ(result, roaring::Roaring({2, 3}));
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
+    EXPECT_EQ(result, roaring::Roaring64Map(
+                          {18446744073709551610UL, 18446744073709551611UL}));
+  }
 }
 
-TEST(AstTest, IntersectionSelf) {
+TYPED_TEST(ASTTest, IntersectionSelf) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> a2 = std::make_unique<ValueNode>("A");
   IntersectionNode op(std::move(a), std::move(a2));
-  absl::flat_hash_set<std::string_view> expected = {"a", "b", "c"};
-  EXPECT_EQ(Eval<KVStringSetView>(op, Lookup), expected);
+  EXPECT_EQ(Eval<TypeParam>(op, Lookup<TypeParam>), Lookup<TypeParam>("A"));
 }
 
-TEST(AstTest, Difference) {
+TYPED_TEST(ASTTest, Difference) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> b = std::make_unique<ValueNode>("B");
   DifferenceNode op(std::move(a), std::move(b));
-  absl::flat_hash_set<std::string_view> expected = {"a"};
-  EXPECT_EQ(Eval<KVStringSetView>(op, Lookup), expected);
+  auto result = Eval<TypeParam>(op, Lookup<TypeParam>);
+  if constexpr (std::is_same_v<TypeParam,
+                               absl::flat_hash_set<std::string_view>>) {
+    EXPECT_THAT(result, testing::UnorderedElementsAre("a"));
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
+    EXPECT_EQ(result, roaring::Roaring({1}));
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
+    EXPECT_EQ(result, roaring::Roaring64Map({18446744073709551609UL}));
+  }
 
   std::unique_ptr<ValueNode> a2 = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> b2 = std::make_unique<ValueNode>("B");
   DifferenceNode op2(std::move(b2), std::move(a2));
-  absl::flat_hash_set<std::string_view> expected2 = {"d"};
-  EXPECT_EQ(Eval<KVStringSetView>(op2, Lookup), expected2);
+  result = Eval<TypeParam>(op2, Lookup<TypeParam>);
+  if constexpr (std::is_same_v<TypeParam,
+                               absl::flat_hash_set<std::string_view>>) {
+    EXPECT_THAT(result, testing::UnorderedElementsAre("d"));
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
+    EXPECT_EQ(result, roaring::Roaring({4}));
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
+    EXPECT_EQ(result, roaring::Roaring64Map({18446744073709551612UL}));
+  }
 }
 
-TEST(AstTest, DifferenceSelf) {
+TYPED_TEST(ASTTest, DifferenceSelf) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> a2 = std::make_unique<ValueNode>("A");
   DifferenceNode op(std::move(a), std::move(a2));
-  absl::flat_hash_set<std::string_view> expected = {};
-  EXPECT_EQ(Eval<KVStringSetView>(op, Lookup), expected);
+  EXPECT_EQ(Eval<TypeParam>(op, Lookup<TypeParam>), TypeParam());
 }
 
-TEST(AstTest, All) {
+TYPED_TEST(ASTTest, All) {
   // (A-B) | (C&D) =
   // {a} | {d,e} =
   // {a, d, e}
@@ -132,23 +218,34 @@ TEST(AstTest, All) {
   std::unique_ptr<IntersectionNode> right =
       std::make_unique<IntersectionNode>(std::move(c), std::move(d));
   UnionNode center(std::move(left), std::move(right));
-  absl::flat_hash_set<std::string_view> expected = {"a", "d", "e"};
-  EXPECT_EQ(Eval<KVStringSetView>(center, Lookup), expected);
+  auto result = Eval<TypeParam>(center, Lookup<TypeParam>);
+  if constexpr (std::is_same_v<TypeParam,
+                               absl::flat_hash_set<std::string_view>>) {
+    EXPECT_THAT(result, testing::UnorderedElementsAre("a", "d", "e"));
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
+    EXPECT_EQ(result, roaring::Roaring({1, 4, 5}));
+  }
+  if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
+    EXPECT_EQ(result, roaring::Roaring64Map({18446744073709551609UL,
+                                             18446744073709551612UL,
+                                             18446744073709551613UL}));
+  }
 }
 
-TEST(AstTest, ValueNodeKeys) {
+TEST(ASTKeysTest, ValueNodeKeys) {
   ValueNode v("A");
   EXPECT_THAT(v.Keys(), testing::UnorderedElementsAre("A"));
 }
 
-TEST(AstTest, OpNodeKeys) {
+TEST(ASTKeysTest, OpNodeKeys) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> b = std::make_unique<ValueNode>("B");
   DifferenceNode op(std::move(b), std::move(a));
   EXPECT_THAT(op.Keys(), testing::UnorderedElementsAre("A", "B"));
 }
 
-TEST(AstTest, DupeNodeKeys) {
+TEST(ASTKeysTest, DupeNodeKeys) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> b = std::make_unique<ValueNode>("B");
   std::unique_ptr<ValueNode> c = std::make_unique<ValueNode>("C");
@@ -159,64 +256,6 @@ TEST(AstTest, DupeNodeKeys) {
       std::make_unique<IntersectionNode>(std::move(c), std::move(a2));
   UnionNode center(std::move(left), std::move(right));
   EXPECT_THAT(center.Keys(), testing::UnorderedElementsAre("A", "B", "C"));
-}
-
-TEST(ASTEvalTest, VerifyValueNodeEvaluation) {
-  {
-    ValueNode root("DOES_NOT_EXIST");
-    EXPECT_TRUE(Eval<KVStringSetView>(root, Lookup).empty());
-  }
-  ValueNode root("A");
-  EXPECT_THAT(Eval<KVStringSetView>(root, Lookup),
-              testing::UnorderedElementsAre("a", "b", "c"));
-  EXPECT_EQ(Eval<roaring::Roaring>(root, BitsetLookup),
-            roaring::Roaring({1, 2, 3}));
-}
-
-TEST(ASTEvalTest, VerifyUnionNodeEvaluation) {
-  auto a = std::make_unique<ValueNode>("A");
-  auto b = std::make_unique<ValueNode>("B");
-  UnionNode root(std::move(a), std::move(b));
-  EXPECT_THAT(Eval<KVStringSetView>(root, Lookup),
-              testing::UnorderedElementsAre("a", "b", "c", "d"));
-  EXPECT_EQ(Eval<roaring::Roaring>(root, BitsetLookup),
-            roaring::Roaring({1, 2, 3, 4}));
-}
-
-TEST(ASTEvalTest, VerifyDifferenceNodeEvaluation) {
-  auto a = std::make_unique<ValueNode>("A");
-  auto b = std::make_unique<ValueNode>("B");
-  DifferenceNode root(std::move(a), std::move(b));
-  EXPECT_THAT(Eval<KVStringSetView>(root, Lookup),
-              testing::UnorderedElementsAre("a"));
-  EXPECT_EQ(Eval<roaring::Roaring>(root, BitsetLookup), roaring::Roaring({1}));
-}
-
-TEST(ASTEvalTest, VerifyIntersectionNodeEvaluation) {
-  auto a = std::make_unique<ValueNode>("A");
-  auto b = std::make_unique<ValueNode>("B");
-  IntersectionNode root(std::move(a), std::move(b));
-  EXPECT_THAT(Eval<KVStringSetView>(root, Lookup),
-              testing::UnorderedElementsAre("b", "c"));
-  EXPECT_EQ(Eval<roaring::Roaring>(root, BitsetLookup),
-            roaring::Roaring({2, 3}));
-}
-
-TEST(ASTEvalTest, VerifyComplexNodeEvaluation) {
-  // (A-B) | (C&D) =
-  // {a} | {d,e} =
-  // {a, d, e}
-  auto a = std::make_unique<ValueNode>("A");
-  auto b = std::make_unique<ValueNode>("B");
-  auto c = std::make_unique<ValueNode>("C");
-  auto d = std::make_unique<ValueNode>("D");
-  auto left = std::make_unique<DifferenceNode>(std::move(a), std::move(b));
-  auto right = std::make_unique<IntersectionNode>(std::move(c), std::move(d));
-  UnionNode root(std::move(left), std::move(right));
-  EXPECT_THAT(Eval<KVStringSetView>(root, Lookup),
-              testing::UnorderedElementsAre("a", "d", "e"));
-  EXPECT_THAT(Eval<roaring::Roaring>(root, BitsetLookup),
-              roaring::Roaring({1, 4, 5}));
 }
 
 }  // namespace

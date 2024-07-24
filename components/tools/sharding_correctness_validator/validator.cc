@@ -149,7 +149,7 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
   ohttp_req.mutable_raw_body()->set_data(*encrypted_serialized_request_maybe);
   google::api::HttpBody ohttp_res;
   grpc::ClientContext context;
-  context.AddMetadata(std::string(kContentTypeHeader),
+  context.AddMetadata(std::string(kKVContentTypeHeader),
                       std::string(kContentEncodingProtoHeaderValue));
   grpc::Status status =
       stub->ObliviousGetValues(&context, ohttp_req, &ohttp_res);

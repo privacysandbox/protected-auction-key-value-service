@@ -49,18 +49,35 @@ run_binary(
 )
 
 run_binary(
-    name = "generate_run_set_query_int_delta",
+    name = "generate_run_set_query_uint32_delta",
     srcs = [
-        ":run_set_query_int_udf.js",
+        ":run_set_query_uint32_udf.js",
     ],
     outs = [
         "DELTA_0000000000000007",
     ],
     args = [
         "--udf_file_path",
-        "$(location :run_set_query_int_udf.js)",
+        "$(location :run_set_query_uint32_udf.js)",
         "--output_path",
         "$(location DELTA_0000000000000007)",
+    ],
+    tool = "//tools/udf/udf_generator:udf_delta_file_generator",
+)
+
+run_binary(
+    name = "generate_run_set_query_uint64_delta",
+    srcs = [
+        ":run_set_query_uint64_udf.js",
+    ],
+    outs = [
+        "DELTA_0000000000000008",
+    ],
+    args = [
+        "--udf_file_path",
+        "$(location :run_set_query_uint64_udf.js)",
+        "--output_path",
+        "$(location DELTA_0000000000000008)",
     ],
     tool = "//tools/udf/udf_generator:udf_delta_file_generator",
 )

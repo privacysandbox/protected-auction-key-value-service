@@ -11,7 +11,8 @@ table StringValue { value:string; }
 // (2) `Delete` mutation removes the elements from existing set.
 table StringSet { value:[string]; }
 table UInt32Set { value:[uint]; }
-union Value { StringValue, StringSet, UInt32Set }
+table UInt64Set { value:[ulong]; }
+union Value { StringValue, StringSet, UInt32Set, UInt64Set }
 
 table KeyValueMutationRecord {
   // Required. For updates, the value will overwrite the previous value, if any.

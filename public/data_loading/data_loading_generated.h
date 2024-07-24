@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Google LLC
+ * Copyright 2024 Google LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,10 @@ struct UInt32Set;
 struct UInt32SetBuilder;
 struct UInt32SetT;
 
+struct UInt64Set;
+struct UInt64SetBuilder;
+struct UInt64SetT;
+
 struct KeyValueMutationRecord;
 struct KeyValueMutationRecordBuilder;
 struct KeyValueMutationRecordT;
@@ -64,6 +68,8 @@ bool operator==(const StringSetT& lhs, const StringSetT& rhs);
 bool operator!=(const StringSetT& lhs, const StringSetT& rhs);
 bool operator==(const UInt32SetT& lhs, const UInt32SetT& rhs);
 bool operator!=(const UInt32SetT& lhs, const UInt32SetT& rhs);
+bool operator==(const UInt64SetT& lhs, const UInt64SetT& rhs);
+bool operator!=(const UInt64SetT& lhs, const UInt64SetT& rhs);
 bool operator==(const KeyValueMutationRecordT& lhs,
                 const KeyValueMutationRecordT& rhs);
 bool operator!=(const KeyValueMutationRecordT& lhs,
@@ -108,24 +114,26 @@ enum class Value : uint8_t {
   StringValue = 1,
   StringSet = 2,
   UInt32Set = 3,
+  UInt64Set = 4,
   MIN = NONE,
-  MAX = UInt32Set
+  MAX = UInt64Set
 };
 
-inline const Value (&EnumValuesValue())[4] {
+inline const Value (&EnumValuesValue())[5] {
   static const Value values[] = {Value::NONE, Value::StringValue,
-                                 Value::StringSet, Value::UInt32Set};
+                                 Value::StringSet, Value::UInt32Set,
+                                 Value::UInt64Set};
   return values;
 }
 
 inline const char* const* EnumNamesValue() {
-  static const char* const names[5] = {"NONE", "StringValue", "StringSet",
-                                       "UInt32Set", nullptr};
+  static const char* const names[6] = {"NONE",      "StringValue", "StringSet",
+                                       "UInt32Set", "UInt64Set",   nullptr};
   return names;
 }
 
 inline const char* EnumNameValue(Value e) {
-  if (flatbuffers::IsOutRange(e, Value::NONE, Value::UInt32Set)) return "";
+  if (flatbuffers::IsOutRange(e, Value::NONE, Value::UInt64Set)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesValue()[index];
 }
@@ -150,6 +158,11 @@ struct ValueTraits<kv_server::UInt32Set> {
   static const Value enum_value = Value::UInt32Set;
 };
 
+template <>
+struct ValueTraits<kv_server::UInt64Set> {
+  static const Value enum_value = Value::UInt64Set;
+};
+
 template <typename T>
 struct ValueUnionTraits {
   static const Value enum_value = Value::NONE;
@@ -168,6 +181,11 @@ struct ValueUnionTraits<kv_server::StringSetT> {
 template <>
 struct ValueUnionTraits<kv_server::UInt32SetT> {
   static const Value enum_value = Value::UInt32Set;
+};
+
+template <>
+struct ValueUnionTraits<kv_server::UInt64SetT> {
+  static const Value enum_value = Value::UInt64Set;
 };
 
 struct ValueUnion {
@@ -242,6 +260,16 @@ struct ValueUnion {
                ? reinterpret_cast<const kv_server::UInt32SetT*>(value)
                : nullptr;
   }
+  kv_server::UInt64SetT* AsUInt64Set() {
+    return type == Value::UInt64Set
+               ? reinterpret_cast<kv_server::UInt64SetT*>(value)
+               : nullptr;
+  }
+  const kv_server::UInt64SetT* AsUInt64Set() const {
+    return type == Value::UInt64Set
+               ? reinterpret_cast<const kv_server::UInt64SetT*>(value)
+               : nullptr;
+  }
 };
 
 inline bool operator==(const ValueUnion& lhs, const ValueUnion& rhs) {
@@ -261,6 +289,10 @@ inline bool operator==(const ValueUnion& lhs, const ValueUnion& rhs) {
     case Value::UInt32Set: {
       return *(reinterpret_cast<const kv_server::UInt32SetT*>(lhs.value)) ==
              *(reinterpret_cast<const kv_server::UInt32SetT*>(rhs.value));
+    }
+    case Value::UInt64Set: {
+      return *(reinterpret_cast<const kv_server::UInt64SetT*>(lhs.value)) ==
+             *(reinterpret_cast<const kv_server::UInt64SetT*>(rhs.value));
     }
     default: {
       return false;
@@ -716,6 +748,76 @@ flatbuffers::Offset<UInt32Set> CreateUInt32Set(
     flatbuffers::FlatBufferBuilder& _fbb, const UInt32SetT* _o,
     const flatbuffers::rehasher_function_t* _rehasher = nullptr);
 
+struct UInt64SetT : public flatbuffers::NativeTable {
+  typedef UInt64Set TableType;
+  std::vector<uint64_t> value{};
+};
+
+struct UInt64Set FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef UInt64SetT NativeTableType;
+  typedef UInt64SetBuilder Builder;
+  struct Traits;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_VALUE = 4
+  };
+  const flatbuffers::Vector<uint64_t>* value() const {
+    return GetPointer<const flatbuffers::Vector<uint64_t>*>(VT_VALUE);
+  }
+  bool Verify(flatbuffers::Verifier& verifier) const {
+    return VerifyTableStart(verifier) && VerifyOffset(verifier, VT_VALUE) &&
+           verifier.VerifyVector(value()) && verifier.EndTable();
+  }
+  UInt64SetT* UnPack(
+      const flatbuffers::resolver_function_t* _resolver = nullptr) const;
+  void UnPackTo(
+      UInt64SetT* _o,
+      const flatbuffers::resolver_function_t* _resolver = nullptr) const;
+  static flatbuffers::Offset<UInt64Set> Pack(
+      flatbuffers::FlatBufferBuilder& _fbb, const UInt64SetT* _o,
+      const flatbuffers::rehasher_function_t* _rehasher = nullptr);
+};
+
+struct UInt64SetBuilder {
+  typedef UInt64Set Table;
+  flatbuffers::FlatBufferBuilder& fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_value(flatbuffers::Offset<flatbuffers::Vector<uint64_t>> value) {
+    fbb_.AddOffset(UInt64Set::VT_VALUE, value);
+  }
+  explicit UInt64SetBuilder(flatbuffers::FlatBufferBuilder& _fbb) : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  flatbuffers::Offset<UInt64Set> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<UInt64Set>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<UInt64Set> CreateUInt64Set(
+    flatbuffers::FlatBufferBuilder& _fbb,
+    flatbuffers::Offset<flatbuffers::Vector<uint64_t>> value = 0) {
+  UInt64SetBuilder builder_(_fbb);
+  builder_.add_value(value);
+  return builder_.Finish();
+}
+
+struct UInt64Set::Traits {
+  using type = UInt64Set;
+  static auto constexpr Create = CreateUInt64Set;
+};
+
+inline flatbuffers::Offset<UInt64Set> CreateUInt64SetDirect(
+    flatbuffers::FlatBufferBuilder& _fbb,
+    const std::vector<uint64_t>* value = nullptr) {
+  auto value__ = value ? _fbb.CreateVector<uint64_t>(*value) : 0;
+  return kv_server::CreateUInt64Set(_fbb, value__);
+}
+
+flatbuffers::Offset<UInt64Set> CreateUInt64Set(
+    flatbuffers::FlatBufferBuilder& _fbb, const UInt64SetT* _o,
+    const flatbuffers::rehasher_function_t* _rehasher = nullptr);
+
 struct KeyValueMutationRecordT : public flatbuffers::NativeTable {
   typedef KeyValueMutationRecord TableType;
   kv_server::KeyValueMutationType mutation_type =
@@ -768,6 +870,11 @@ struct KeyValueMutationRecord FLATBUFFERS_FINAL_CLASS
                ? static_cast<const kv_server::UInt32Set*>(value())
                : nullptr;
   }
+  const kv_server::UInt64Set* value_as_UInt64Set() const {
+    return value_type() == kv_server::Value::UInt64Set
+               ? static_cast<const kv_server::UInt64Set*>(value())
+               : nullptr;
+  }
   bool Verify(flatbuffers::Verifier& verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int8_t>(verifier, VT_MUTATION_TYPE, 1) &&
@@ -803,6 +910,12 @@ template <>
 inline const kv_server::UInt32Set*
 KeyValueMutationRecord::value_as<kv_server::UInt32Set>() const {
   return value_as_UInt32Set();
+}
+
+template <>
+inline const kv_server::UInt64Set*
+KeyValueMutationRecord::value_as<kv_server::UInt64Set>() const {
+  return value_as_UInt64Set();
 }
 
 struct KeyValueMutationRecordBuilder {
@@ -1347,6 +1460,57 @@ inline flatbuffers::Offset<UInt32Set> CreateUInt32Set(
   return kv_server::CreateUInt32Set(_fbb, _value);
 }
 
+inline bool operator==(const UInt64SetT& lhs, const UInt64SetT& rhs) {
+  return (lhs.value == rhs.value);
+}
+
+inline bool operator!=(const UInt64SetT& lhs, const UInt64SetT& rhs) {
+  return !(lhs == rhs);
+}
+
+inline UInt64SetT* UInt64Set::UnPack(
+    const flatbuffers::resolver_function_t* _resolver) const {
+  auto _o = std::make_unique<UInt64SetT>();
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void UInt64Set::UnPackTo(
+    UInt64SetT* _o, const flatbuffers::resolver_function_t* _resolver) const {
+  (void)_o;
+  (void)_resolver;
+  {
+    auto _e = value();
+    if (_e) {
+      _o->value.resize(_e->size());
+      for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) {
+        _o->value[_i] = _e->Get(_i);
+      }
+    }
+  }
+}
+
+inline flatbuffers::Offset<UInt64Set> UInt64Set::Pack(
+    flatbuffers::FlatBufferBuilder& _fbb, const UInt64SetT* _o,
+    const flatbuffers::rehasher_function_t* _rehasher) {
+  return CreateUInt64Set(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<UInt64Set> CreateUInt64Set(
+    flatbuffers::FlatBufferBuilder& _fbb, const UInt64SetT* _o,
+    const flatbuffers::rehasher_function_t* _rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs {
+    flatbuffers::FlatBufferBuilder* __fbb;
+    const UInt64SetT* __o;
+    const flatbuffers::rehasher_function_t* __rehasher;
+  } _va = {&_fbb, _o, _rehasher};
+  (void)_va;
+  auto _value = _o->value.size() ? _fbb.CreateVector(_o->value) : 0;
+  return kv_server::CreateUInt64Set(_fbb, _value);
+}
+
 inline bool operator==(const KeyValueMutationRecordT& lhs,
                        const KeyValueMutationRecordT& rhs) {
   return (lhs.mutation_type == rhs.mutation_type) &&
@@ -1627,6 +1791,10 @@ inline bool VerifyValue(flatbuffers::Verifier& verifier, const void* obj,
       auto ptr = reinterpret_cast<const kv_server::UInt32Set*>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case Value::UInt64Set: {
+      auto ptr = reinterpret_cast<const kv_server::UInt64Set*>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default:
       return true;
   }
@@ -1663,6 +1831,10 @@ inline void* ValueUnion::UnPack(
       auto ptr = reinterpret_cast<const kv_server::UInt32Set*>(obj);
       return ptr->UnPack(resolver);
     }
+    case Value::UInt64Set: {
+      auto ptr = reinterpret_cast<const kv_server::UInt64Set*>(obj);
+      return ptr->UnPack(resolver);
+    }
     default:
       return nullptr;
   }
@@ -1684,6 +1856,10 @@ inline flatbuffers::Offset<void> ValueUnion::Pack(
     case Value::UInt32Set: {
       auto ptr = reinterpret_cast<const kv_server::UInt32SetT*>(value);
       return CreateUInt32Set(_fbb, ptr, _rehasher).Union();
+    }
+    case Value::UInt64Set: {
+      auto ptr = reinterpret_cast<const kv_server::UInt64SetT*>(value);
+      return CreateUInt64Set(_fbb, ptr, _rehasher).Union();
     }
     default:
       return 0;
@@ -1708,6 +1884,11 @@ inline ValueUnion::ValueUnion(const ValueUnion& u)
           *reinterpret_cast<kv_server::UInt32SetT*>(u.value));
       break;
     }
+    case Value::UInt64Set: {
+      value = new kv_server::UInt64SetT(
+          *reinterpret_cast<kv_server::UInt64SetT*>(u.value));
+      break;
+    }
     default:
       break;
   }
@@ -1727,6 +1908,11 @@ inline void ValueUnion::Reset() {
     }
     case Value::UInt32Set: {
       auto ptr = reinterpret_cast<kv_server::UInt32SetT*>(value);
+      delete ptr;
+      break;
+    }
+    case Value::UInt64Set: {
+      auto ptr = reinterpret_cast<kv_server::UInt64SetT*>(value);
       delete ptr;
       break;
     }

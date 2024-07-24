@@ -55,6 +55,11 @@ absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
        kv_mutation_record.value_as_UInt32Set()->value() == nullptr)) {
     return absl::InvalidArgumentError("UInt32Set value not set.");
   }
+  if (kv_mutation_record.value_type() == Value::UInt64Set &&
+      (kv_mutation_record.value_as_UInt64Set() == nullptr ||
+       kv_mutation_record.value_as_UInt64Set()->value() == nullptr)) {
+    return absl::InvalidArgumentError("UInt64Set value not set.");
+  }
   return absl::OkStatus();
 }
 
@@ -176,6 +181,20 @@ absl::StatusOr<std::vector<uint32_t>> MaybeGetRecordValue(
         ". Actual: ", EnumNameValue(record.value_type())));
   }
   return std::vector<uint32_t>(maybe_value->value()->begin(),
+                               maybe_value->value()->end());
+}
+
+template <>
+absl::StatusOr<std::vector<uint64_t>> MaybeGetRecordValue(
+    const KeyValueMutationRecord& record) {
+  const kv_server::UInt64Set* maybe_value = record.value_as_UInt64Set();
+  if (!maybe_value) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "KeyValueMutationRecord does not contain expected value type. "
+        "Expected: UInt64Set",
+        ". Actual: ", EnumNameValue(record.value_type())));
+  }
+  return std::vector<uint64_t>(maybe_value->value()->begin(),
                                maybe_value->value()->end());
 }
 

@@ -151,8 +151,8 @@ func FileExists(f string) Status {
 // Checks if a given systemd service exists
 func SystemdServiceExists(s string) Status {
 	output, err := ExecuteShellCommand(systemctl, []string{"status", s})
-	if err != nil || strings.Contains(output, s+" could not be found") {
-		return Status{false, err}
+	if err != nil || strings.Contains(output, s+" could not be found") || !strings.Contains(output, "Active: active") {
+		return Status{false, fmt.Errorf("Error %v, output %s", err, output)}
 	}
 	return Status{true, nil}
 }

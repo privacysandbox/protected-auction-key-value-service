@@ -76,6 +76,7 @@ type ServerHealthCheckResult struct {
 type SystemDependencyCheckResult struct {
 	isVSockProxyFileExisting                    common.Status
 	isVSockProxyServiceEnabled                  common.Status
+	isVSockProxyServiceRunning                  common.Status
 	isResolvConfExisting                        common.Status
 	isVPCIpv4CidrMatchingNameServerInResolvConf common.Status
 }
@@ -200,6 +201,7 @@ func (result *SystemDependencyCheckResult) writeToOutput(output *strings.Builder
 	output.WriteString("----------------------------SYSTEM DEPENDENCY CHECKS------------------------------------\n")
 	output.WriteString("All checks must be passed for server to start and process grpc requests \n\n")
 	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isVSockProxyFileExisting.Result(), *vSockProxyFileFlag, result.isVSockProxyFileExisting.Error()))
+	output.WriteString(fmt.Sprintf("%s. %s is running. %s \n", result.isVSockProxyServiceRunning.Result(), vSockProxyService, result.isVSockProxyServiceRunning.Error()))
 	output.WriteString(fmt.Sprintf("%s. %s is enabled. %s \n", result.isVSockProxyServiceEnabled.Result(), vSockProxyService, result.isVSockProxyServiceEnabled.Error()))
 	output.WriteString(fmt.Sprintf("%s. %s exists. %s \n", result.isResolvConfExisting.Result(), resolvConf, result.isResolvConfExisting.Error()))
 	output.WriteString(fmt.Sprintf("%s. VPC Ipv4 Cidr matches nameserver in %s. %s \n", result.isVPCIpv4CidrMatchingNameServerInResolvConf.Result(), resolvConf, result.isVPCIpv4CidrMatchingNameServerInResolvConf.Error()))
@@ -252,6 +254,8 @@ func checkSystemDependencies(result *SystemDependencyCheckResult) bool {
 	result.isVSockProxyFileExisting = common.FileExists(*vSockProxyFileFlag)
 	allChecksPass = allChecksPass && result.isVSockProxyFileExisting.Ok
 	fmt.Println("Checking if vsock proxy service is running and enabled...")
+	result.isVSockProxyServiceRunning = common.SystemdServiceExists(vSockProxyService)
+	allChecksPass = allChecksPass && result.isVSockProxyServiceRunning.Ok
 	result.isVSockProxyServiceEnabled = common.SystemdServiceIsEnabled(vSockProxyService)
 	allChecksPass = allChecksPass && result.isVSockProxyServiceEnabled.Ok
 

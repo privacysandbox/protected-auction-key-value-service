@@ -34,6 +34,7 @@ inline constexpr std::string_view kValueTypeColumn = "value_type";
 inline constexpr std::string_view kValueTypeString = "string";
 inline constexpr std::string_view kValueTypeStringSet = "string_set";
 inline constexpr std::string_view kValueTypeUInt32Set = "uint32_set";
+inline constexpr std::string_view kValueTypeUInt64Set = "uint64_set";
 
 inline constexpr std::string_view kRecordTypeColumn = "record_type";
 inline constexpr std::string_view kRecordTypeKVMutation = "key_value_mutation";

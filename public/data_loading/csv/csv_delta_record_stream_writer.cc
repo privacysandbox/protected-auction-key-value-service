@@ -16,7 +16,6 @@
 
 #include "public/data_loading/csv/csv_delta_record_stream_writer.h"
 
-#include "absl/log/log.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
@@ -90,6 +89,13 @@ absl::StatusOr<ValueStruct> GetRecordValue(
         if constexpr (std::is_same_v<VariantT, std::vector<uint32_t>>) {
           return ValueStruct{
               .value_type = std::string(kValueTypeUInt32Set),
+              .value = absl::StrJoin(MaybeEncode(arg, csv_encoding),
+                                     value_separator),
+          };
+        }
+        if constexpr (std::is_same_v<VariantT, std::vector<uint64_t>>) {
+          return ValueStruct{
+              .value_type = std::string(kValueTypeUInt64Set),
               .value = absl::StrJoin(MaybeEncode(arg, csv_encoding),
                                      value_separator),
           };

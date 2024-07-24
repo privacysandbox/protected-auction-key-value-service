@@ -24,6 +24,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/str_split.h"
 #include "public/data_loading/record_utils.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {
@@ -60,12 +61,13 @@ absl::StatusOr<std::vector<ElementType>> BuildSetValue(
     if constexpr (std::is_same_v<ElementType, std::string>) {
       result.push_back(std::string(set_value));
     }
-    if constexpr (std::is_same_v<ElementType, uint32_t>) {
-      if (uint32_t number; absl::SimpleAtoi(set_value, &number)) {
+    if constexpr (std::is_same_v<ElementType, uint32_t> ||
+                  std::is_same_v<ElementType, uint64_t>) {
+      if (ElementType number; absl::SimpleAtoi(set_value, &number)) {
         result.push_back(number);
       } else {
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Cannot convert: ", set_value, " to a uint32 number."));
+        return absl::InvalidArgumentError(
+            absl::StrCat("Cannot convert: ", set_value, " to a number."));
       }
     }
   }
@@ -140,13 +142,20 @@ absl::Status SetRecordValue(char value_separator,
     return absl::OkStatus();
   }
   if (absl::EqualsIgnoreCase(type, kValueTypeUInt32Set)) {
-    auto maybe_value =
-        GetSetValue<uint32_t>(csv_record, value_separator, csv_encoding);
-    if (!maybe_value.ok()) {
-      return maybe_value.status();
-    }
+    PS_ASSIGN_OR_RETURN(
+        auto value,
+        GetSetValue<uint32_t>(csv_record, value_separator, csv_encoding));
     UInt32SetT set_value;
-    set_value.value = std::move(*maybe_value);
+    set_value.value = std::move(value);
+    mutation_record.value.Set(std::move(set_value));
+    return absl::OkStatus();
+  }
+  if (absl::EqualsIgnoreCase(type, kValueTypeUInt64Set)) {
+    PS_ASSIGN_OR_RETURN(
+        auto value,
+        GetSetValue<uint64_t>(csv_record, value_separator, csv_encoding));
+    UInt64SetT set_value;
+    set_value.value = std::move(value);
     mutation_record.value.Set(std::move(set_value));
     return absl::OkStatus();
   }

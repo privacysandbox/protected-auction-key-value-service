@@ -36,6 +36,4 @@ message KeyGroupOutput {
 
 message ValueObject {
   google.protobuf.Value value = 1;
-  int64 global_ttl_sec = 2;
-  int64 dedicated_ttl_sec = 3;
 }

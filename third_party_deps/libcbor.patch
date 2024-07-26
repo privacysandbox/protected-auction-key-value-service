@@ -1,0 +1,69 @@
+diff --git a/cbor/cbor_export.h b/cbor/cbor_export.h
+new file mode 100644
+index 0000000..0758ee6
+--- /dev/null
++++ b/cbor/cbor_export.h
+@@ -0,0 +1,42 @@
++
++#ifndef CBOR_EXPORT_H
++#define CBOR_EXPORT_H
++
++#ifdef CBOR_STATIC_DEFINE
++#  define CBOR_EXPORT
++#  define CBOR_NO_EXPORT
++#else
++#  ifndef CBOR_EXPORT
++#    ifdef cbor_EXPORTS
++        /* We are building this library */
++#      define CBOR_EXPORT
++#    else
++        /* We are using this library */
++#      define CBOR_EXPORT
++#    endif
++#  endif
++
++#  ifndef CBOR_NO_EXPORT
++#    define CBOR_NO_EXPORT
++#  endif
++#endif
++
++#ifndef CBOR_DEPRECATED
++#  define CBOR_DEPRECATED __attribute__ ((__deprecated__))
++#endif
++
++#ifndef CBOR_DEPRECATED_EXPORT
++#  define CBOR_DEPRECATED_EXPORT CBOR_EXPORT CBOR_DEPRECATED
++#endif
++
++#ifndef CBOR_DEPRECATED_NO_EXPORT
++#  define CBOR_DEPRECATED_NO_EXPORT CBOR_NO_EXPORT CBOR_DEPRECATED
++#endif
++
++#if 0 /* DEFINE_NO_DEPRECATED */
++#  ifndef CBOR_NO_DEPRECATED
++#    define CBOR_NO_DEPRECATED
++#  endif
++#endif
++
++#endif /* CBOR_EXPORT_H */
+diff --git a/cbor/configuration.h b/cbor/configuration.h
+new file mode 100644
+index 0000000..aee03db
+--- /dev/null
++++ b/cbor/configuration.h
+@@ -0,0 +1,15 @@
++#ifndef LIBCBOR_CONFIGURATION_H
++#define LIBCBOR_CONFIGURATION_H
++
++#define CBOR_MAJOR_VERSION 0
++#define CBOR_MINOR_VERSION 10
++#define CBOR_PATCH_VERSION 2
++
++#define CBOR_BUFFER_GROWTH 2
++#define CBOR_MAX_STACK_SIZE 2048
++#define CBOR_PRETTY_PRINTER 1
++
++#define CBOR_RESTRICT_SPECIFIER restrict
++#define CBOR_INLINE_SPECIFIER
++
++#endif //LIBCBOR_CONFIGURATION_H

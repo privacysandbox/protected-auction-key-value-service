@@ -88,6 +88,16 @@ http_archive(
     urls = ["https://github.com/google/distributed_point_functions/archive/45da5f54836c38b73a1392e846c9db999c548711.tar.gz"],
 )
 
+http_archive(
+    name = "libcbor",
+    build_file = "//third_party_deps:libcbor.BUILD",
+    patch_args = ["-p1"],
+    patches = ["//third_party_deps:libcbor.patch"],
+    sha256 = "9fec8ce3071d5c7da8cda397fab5f0a17a60ca6cbaba6503a09a47056a53a4d7",
+    strip_prefix = "libcbor-0.10.2/src",
+    urls = ["https://github.com/PJK/libcbor/archive/refs/tags/v0.10.2.zip"],
+)
+
 # Dependencies for Flex/Bison build rules
 http_archive(
     name = "rules_m4",

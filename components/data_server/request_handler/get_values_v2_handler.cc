@@ -195,6 +195,9 @@ absl::Status GetValuesV2Handler::ProcessOnePartition(
   resp_partition.set_id(req_partition.id());
   UDFExecutionMetadata udf_metadata;
   *udf_metadata.mutable_request_metadata() = req_metadata;
+  if (!req_partition.metadata().fields().empty()) {
+    *udf_metadata.mutable_partition_metadata() = req_partition.metadata();
+  }
 
   const auto maybe_output_string =
       udf_client_.ExecuteCode(request_context_factory, std::move(udf_metadata),

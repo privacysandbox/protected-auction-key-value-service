@@ -703,6 +703,11 @@ TEST_F(UdfClientTest, MetadataPassedSuccesfully) {
           {
             return "true";
           }
+          if(metadata.partitionMetadata &&
+              metadata.partitionMetadata.partition_level_key)
+          {
+            return "true";
+          }
           return "false";
         }
       )",
@@ -712,8 +717,9 @@ TEST_F(UdfClientTest, MetadataPassedSuccesfully) {
   });
   EXPECT_TRUE(code_obj_status.ok());
   v2::GetValuesRequest req;
-  (*(req.mutable_metadata()->mutable_fields()))["is_pas"].set_string_value(
-      "true");
+  auto* fields = req.mutable_metadata()->mutable_fields();
+  (*fields)["is_pas"].set_string_value("true");
+  (*fields)["partition_level_key"].set_string_value("true");
   UDFExecutionMetadata udf_metadata;
   *udf_metadata.mutable_request_metadata() = *req.mutable_metadata();
   google::protobuf::RepeatedPtrField<UDFArgument> args;

@@ -1198,5 +1198,69 @@ TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
   EXPECT_THAT(resp, EqualsProto(res));
 }
 
+TEST_F(GetValuesHandlerTest,
+       PureGRPCTest_SinglePartitionUseCase_PassesPartitionMetadata) {
+  v2::GetValuesRequest req;
+  ExecutionMetadata execution_metadata;
+  TextFormat::ParseFromString(
+      R"pb(partitions {
+             id: 9
+             arguments { data { string_value: "ECHO" } }
+             metadata {
+               fields {
+                 key: "partition_metadata_key"
+                 value: { string_value: "my_value" }
+               }
+             }
+           }
+           metadata {
+             fields {
+               key: "is_pas"
+               value { string_value: "true" }
+             }
+           })pb",
+      &req);
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(R"(
+  request_metadata {
+    fields {
+      key: "is_pas"
+      value {
+        string_value: "true"
+      }
+    }
+  }
+  partition_metadata {
+    fields {
+      key: "partition_metadata_key"
+      value {
+        string_value: "my_value"
+      }
+    }
+  }
+  )",
+                              &udf_metadata);
+
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+  EXPECT_CALL(
+      mock_udf_client_,
+      ExecuteCode(
+          _, EqualsProto(udf_metadata),
+          testing::ElementsAre(EqualsProto(req.partitions(0).arguments(0))), _))
+      .WillOnce(Return("ECHO"));
+  v2::GetValuesResponse resp;
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result =
+      handler.GetValues(*request_context_factory, req, &resp,
+                        execution_metadata, /*single_partition_use_case=*/true);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  v2::GetValuesResponse res;
+  TextFormat::ParseFromString(
+      R"pb(single_partition { id: 9 string_output: "ECHO" })pb", &res);
+  EXPECT_THAT(resp, EqualsProto(res));
+}
+
 }  // namespace
 }  // namespace kv_server

@@ -28,6 +28,8 @@ message UDFExecutionMetadata {
   int32 udf_interface_version = 1;
   // Metadata passed in from the request that are related to the request.
   google.protobuf.Struct request_metadata = 2;
+  // Metadata passed in from the request that are related to the partition.
+  google.protobuf.Struct partition_metadata = 3;
 }
 
 // Represents one argument to UDF. One UDF invocation may have multiple

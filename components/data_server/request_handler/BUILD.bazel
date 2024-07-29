@@ -17,6 +17,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_proto_library", "cc_test")
 load("@rules_proto//proto:defs.bzl", "proto_library")
 
 package(default_visibility = [
+    "//components/data:__subpackages__",
     "//components/data_server:__subpackages__",
     "//components/internal_server:__subpackages__",
 ])

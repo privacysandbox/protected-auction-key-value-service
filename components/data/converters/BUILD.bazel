@@ -50,6 +50,7 @@ cc_library(
     deps = [
         ":cbor_converter_utils",
         ":scoped_cbor",
+        "//components/data_server/request_handler:v2_response_data_cc_proto",
         "//public/query/v2:get_values_v2_cc_proto",
         "@com_google_absl//absl/status:statusor",
         "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",

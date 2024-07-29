@@ -1,0 +1,44 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+package(default_visibility = [
+    "//components:__subpackages__",
+    "//tools:__subpackages__",
+])
+
+cc_library(
+    name = "parameter_notifier",
+    srcs = select({
+        "//:aws_platform": ["parameter_notifier_aws.cc"],
+        "//:gcp_platform": ["parameter_notifier_gcp.cc"],
+        "//:local_platform": ["parameter_notifier_local.cc"],
+    }) + ["parameter_notifier.cc"],
+    hdrs = [
+        "parameter_notifier.h",
+    ],
+    deps = [
+        "//components/data/common:change_notifier",
+        "//components/data/common:thread_manager",
+        "//components/util:sleepfor",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/synchronization",
+        "@google_privacysandbox_servers_common//src/logger:request_context_logger",
+    ],
+)
+
+cc_test(
+    name = "parameter_notifier_test",
+    size = "small",
+    srcs = select({
+        "//:aws_platform": ["parameter_notifier_test_aws.cc"],
+        "//:gcp_platform": ["parameter_notifier_test_gcp.cc"],
+        "//:local_platform": ["parameter_notifier_test_local.cc"],
+    }),
+    deps = [
+        ":parameter_notifier",
+        "//components/data/common:mocks",
+        "//components/util:sleepfor_mock",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

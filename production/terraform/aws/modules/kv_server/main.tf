@@ -181,6 +181,13 @@ module "ssh" {
   instance_profile_name   = module.iam_roles.ssh_instance_profile_name
 }
 
+
+module "parameter_notification" {
+  source      = "../../services/parameter_notification"
+  service     = local.service
+  environment = var.environment
+}
+
 module "parameter" {
   source                                                     = "../../services/parameter"
   service                                                    = local.service
@@ -217,12 +224,13 @@ module "parameter" {
   enable_consented_log_parameter_value                       = var.enable_consented_log
 
 
-  data_loading_file_format_parameter_value = var.data_loading_file_format
-  logging_verbosity_level_parameter_value  = var.logging_verbosity_level
-  use_sharding_key_regex_parameter_value   = var.use_sharding_key_regex
-  sharding_key_regex_parameter_value       = var.sharding_key_regex
-  enable_otel_logger_parameter_value       = var.enable_otel_logger
-  data_loading_blob_prefix_allowlist       = var.data_loading_blob_prefix_allowlist
+  data_loading_file_format_parameter_value         = var.data_loading_file_format
+  logging_verbosity_level_parameter_value          = var.logging_verbosity_level
+  logging_verbosity_update_sns_arn_parameter_value = module.parameter_notification.logging_verbosity_updates_topic_arn
+  use_sharding_key_regex_parameter_value           = var.use_sharding_key_regex
+  sharding_key_regex_parameter_value               = var.sharding_key_regex
+  enable_otel_logger_parameter_value               = var.enable_otel_logger
+  data_loading_blob_prefix_allowlist               = var.data_loading_blob_prefix_allowlist
 }
 
 module "security_group_rules" {
@@ -242,15 +250,16 @@ module "security_group_rules" {
 }
 
 module "iam_role_policies" {
-  source                       = "../../services/iam_role_policies"
-  service                      = local.service
-  environment                  = var.environment
-  server_instance_role_name    = module.iam_roles.instance_role_name
-  sqs_cleanup_lambda_role_name = module.iam_roles.lambda_role_name
-  s3_delta_file_bucket_arn     = module.data_storage.s3_data_bucket_arn
-  sns_data_updates_topic_arn   = module.data_storage.sns_data_updates_topic_arn
-  sns_realtime_topic_arn       = module.data_storage.sns_realtime_topic_arn
-  ssh_instance_role_name       = module.iam_roles.ssh_instance_role_name
+  source                              = "../../services/iam_role_policies"
+  service                             = local.service
+  environment                         = var.environment
+  server_instance_role_name           = module.iam_roles.instance_role_name
+  sqs_cleanup_lambda_role_name        = module.iam_roles.lambda_role_name
+  s3_delta_file_bucket_arn            = module.data_storage.s3_data_bucket_arn
+  sns_data_updates_topic_arn          = module.data_storage.sns_data_updates_topic_arn
+  sns_realtime_topic_arn              = module.data_storage.sns_realtime_topic_arn
+  logging_verbosity_updates_topic_arn = module.parameter_notification.logging_verbosity_updates_topic_arn
+  ssh_instance_role_name              = module.iam_roles.ssh_instance_role_name
   server_parameter_arns = [
     module.parameter.s3_bucket_parameter_arn,
     module.parameter.bucket_update_sns_arn_parameter_arn,
@@ -271,6 +280,7 @@ module "iam_role_policies" {
     module.parameter.add_missing_keys_v1_parameter_arn,
     module.parameter.data_loading_file_format_parameter_arn,
     module.parameter.logging_verbosity_level_parameter_arn,
+    module.parameter.logging_verbosity_update_sns_arn_parameter_arn,
     module.parameter.use_real_coordinators_parameter_arn,
     module.parameter.use_sharding_key_regex_parameter_arn,
     module.parameter.udf_timeout_millis_parameter_arn,

@@ -219,6 +219,13 @@ resource "aws_ssm_parameter" "logging_verbosity_level_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "logging_verbosity_update_sns_arn_parameter" {
+  name      = "${var.service}-${var.environment}-logging-verbosity-update-sns-arn"
+  type      = "String"
+  value     = var.logging_verbosity_update_sns_arn_parameter_value
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "use_sharding_key_regex_parameter" {
   name      = "${var.service}-${var.environment}-use-sharding-key-regex"
   type      = "String"

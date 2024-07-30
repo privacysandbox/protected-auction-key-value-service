@@ -92,6 +92,11 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     resources = [var.sns_realtime_topic_arn]
   }
   statement {
+    sid       = "AllowInstancesToSubscribeToLoggingVerbosityParameterUpdates"
+    actions   = ["sns:Subscribe"]
+    resources = [var.logging_verbosity_updates_topic_arn]
+  }
+  statement {
     sid = "AllowXRay"
     actions = [
       "xray:PutTraceSegments",

@@ -59,3 +59,19 @@ cc_grpc_library(
     grpc_only = True,
     deps = [":get_values_cc_proto"],
 )
+
+genrule(
+    name = "copy_to_dist",
+    srcs = [
+        ":query_api_descriptor_set",
+    ],
+    outs = ["copy_to_dist.bin"],
+    cmd_bash = """cat << EOF > '$@'
+mkdir -p dist
+cp $(execpath //public/query:query_api_descriptor_set) dist
+builders/tools/normalize-dist
+EOF""",
+    executable = True,
+    local = True,
+    message = "copying server artifacts to dist directory",
+)

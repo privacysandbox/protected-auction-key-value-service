@@ -126,9 +126,10 @@ message CompressionGroup {
 }
 
 message GetValuesResponse {
-  // For single partition response, no explicit compression is necessary at
+  // For single partition response use cases, no explicit compression is necessary at
   // request handling layer. Compression can be applied during the
   // communication by the protocol layer such as gRPC or HTTP.
+  // Note that single partition responses in cbor are not currently supported.
   ResponsePartition single_partition = 1;
   repeated CompressionGroup compression_groups = 2;
 }

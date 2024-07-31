@@ -53,8 +53,10 @@ cc_library(
         "//components/data_server/request_handler:v2_response_data_cc_proto",
         "//public/query/v2:get_values_v2_cc_proto",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_protobuf//:protobuf",
         "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
         "@libcbor//:cbor",
+        "@nlohmann_json//:lib",
     ],
 )
 
@@ -64,6 +66,7 @@ cc_test(
     srcs = ["cbor_converter_test.cc"],
     deps = [
         ":cbor_converter",
+        "//public/test_util:proto_matcher",
         "@com_google_googletest//:gtest",
         "@com_google_googletest//:gtest_main",
         "@nlohmann_json//:lib",

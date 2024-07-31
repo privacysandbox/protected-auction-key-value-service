@@ -30,5 +30,8 @@ absl::StatusOr<std::string> V2GetValuesResponseCborEncode(
 
 absl::StatusOr<std::string> V2CompressionGroupCborEncode(
     V2CompressionGroup& comp_group);
+
+absl::Status CborDecodeToProto(std::string_view cbor_raw,
+                               google::protobuf::Message& message);
 }  // namespace kv_server
 #endif  // COMPONENTS_DATA_CONVERTER_H

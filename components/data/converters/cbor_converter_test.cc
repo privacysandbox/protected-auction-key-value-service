@@ -14,11 +14,14 @@
 
 #include "components/data/converters/cbor_converter.h"
 
+#include <vector>
+
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
 #include "public/query/v2/get_values_v2.pb.h"
+#include "public/test_util/proto_matcher.h"
 
 namespace kv_server {
 namespace {
@@ -187,6 +190,100 @@ TEST(CborConverterTest,
       V2CompressionGroupCborEncode(compression_group);
   ASSERT_TRUE(cbor_encoded_proto_maybe.ok());
   ASSERT_TRUE(json_etalon == json::from_cbor(*cbor_encoded_proto_maybe));
+}
+
+TEST(CborConverterTest, CborDecodeToProtoSuccess) {
+  v2::GetValuesRequest expected;
+  TextFormat::ParseFromString(R"pb(
+                                client_version: "version1"
+                                metadata {
+                                  fields {
+                                    key: "foo"
+                                    value { string_value: "bar1" }
+                                  }
+                                }
+                                partitions {
+                                  id: 1
+                                  compression_group_id: 1
+                                  metadata {
+                                    fields {
+                                      key: "partition_metadata"
+                                      value { string_value: "bar2" }
+                                    }
+                                  }
+                                  arguments {
+                                    tags {
+                                      values { string_value: "tag1" }
+                                      values { string_value: "tag2" }
+                                    }
+
+                                    data { string_value: "bar4" }
+                                  }
+                                }
+                              )pb",
+                              &expected);
+  nlohmann::json json_message = R"(
+ {
+    "clientVersion": "version1",
+    "metadata": {
+        "foo": "bar1"
+    },
+    "partitions": [
+        {
+            "id": 1,
+            "compressionGroupId": 1,
+            "metadata": {
+                "partition_metadata": "bar2"
+            },
+            "arguments": {
+                "tags": [
+                    "tag1",
+                    "tag2"
+                ],
+                "data": "bar4"
+            }
+        }
+    ]
+}
+)"_json;
+  ::kv_server::v2::GetValuesRequest actual;
+  std::vector<std::uint8_t> v = json::to_cbor(json_message);
+  std::string cbor_raw(v.begin(), v.end());
+  const auto status = CborDecodeToProto(cbor_raw, actual);
+  ASSERT_TRUE(status.ok());
+  EXPECT_THAT(actual, EqualsProto(expected));
+}
+
+TEST(CborConverterTest, CborDecodeToProtoFailure) {
+  nlohmann::json json_message = R"(
+ {
+    "clientVersion": "version1",
+    "metadata": {
+        "foo": "bar1"
+    },
+    "partitions": [
+        {
+            "id": 1,
+            "compressionGroupId": 1,
+            "metadata": {
+                "partition_metadata": "bar2"
+            },
+            "arguments": {
+                "tags": [
+                    "tag1",
+                    "tag2"
+                ],
+                "data": "bar4"
+            }
+        }
+    ]
+}
+)"_json;
+  ::kv_server::v2::GetValuesRequest actual;
+  std::vector<std::uint8_t> v = json::to_cbor(json_message);
+  std::string cbor_raw(v.begin(), --v.end());
+  const auto status = CborDecodeToProto(cbor_raw, actual);
+  ASSERT_FALSE(status.ok());
 }
 
 }  // namespace

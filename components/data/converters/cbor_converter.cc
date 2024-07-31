@@ -18,6 +18,9 @@
 
 #include "components/data/converters/cbor_converter_utils.h"
 #include "components/data/converters/scoped_cbor.h"
+#include "google/protobuf/message.h"
+#include "google/protobuf/util/json_util.h"
+#include "nlohmann/json.hpp"
 #include "public/query/v2/get_values_v2.pb.h"
 #include "src/util/status_macro/status_macros.h"
 
@@ -212,6 +215,18 @@ absl::StatusOr<std::string> V2CompressionGroupCborEncode(
                                             " to CBOR. ", comp_group));
   }
   return GetCborSerializedResult(*cbor_internal);
+}
+
+absl::Status CborDecodeToProto(std::string_view cbor_raw,
+                               google::protobuf::Message& message) {
+  // TODO(b/353537363): Skip intermediate JSON conversion step
+  nlohmann::json json_from_cbor = nlohmann::json::from_cbor(
+      cbor_raw, /*strict=*/true, /*allow_exceptions=*/false);
+  if (json_from_cbor.is_discarded()) {
+    return absl::InternalError("Failed to convert raw CBOR buffer to JSON");
+  }
+  return google::protobuf::util::JsonStringToMessage(json_from_cbor.dump(),
+                                                     &message);
 }
 
 }  // namespace kv_server

@@ -24,7 +24,6 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
-#include "components/data_server/request_handler/v2_response_data.pb.h"
 #include "components/errors/error_tag.h"
 #include "google/protobuf/util/json_util.h"
 #include "public/api_schema.pb.h"
@@ -203,7 +202,7 @@ absl::Status ConvertToV1Response(RequestContextFactory& request_context_factory,
   // string_output should be a JSON object
   PS_VLOG(7, request_context_factory.Get().GetPSLogContext())
       << "Received v2 response: " << v2_response.DebugString();
-  const auto outputs = application_pa::KeyGroupOutputsFromJson(string_output);
+  const auto outputs = application_pa::PartitionOutputFromJson(string_output);
   if (!outputs.ok()) {
     PS_LOG(ERROR, request_context_factory.Get().GetPSLogContext())
         << outputs.status();

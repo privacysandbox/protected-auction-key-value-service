@@ -223,7 +223,7 @@ absl::StatusOr<std::string> GetValueFromResponse(
         output_list.dump()));
   }
   auto maybe_proto =
-      application_pa::KeyGroupOutputsFromJson(output_list[0].dump());
+      application_pa::PartitionOutputFromJson(output_list[0].dump());
   if (!maybe_proto.ok()) {
     return maybe_proto.status();
   }

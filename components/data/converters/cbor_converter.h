@@ -20,7 +20,7 @@
 #include <string>
 
 #include "absl/status/statusor.h"
-#include "components/data_server/request_handler/v2_response_data.pb.h"
+#include "public/applications/pa/api_overlay.pb.h"
 #include "public/query/v2/get_values_v2.pb.h"
 
 namespace kv_server {
@@ -29,7 +29,7 @@ absl::StatusOr<std::string> V2GetValuesResponseCborEncode(
     v2::GetValuesResponse& response);
 
 absl::StatusOr<std::string> V2CompressionGroupCborEncode(
-    V2CompressionGroup& comp_group);
+    application_pa::V2CompressionGroup& comp_group);
 
 absl::Status CborDecodeToProto(std::string_view cbor_raw,
                                google::protobuf::Message& message);

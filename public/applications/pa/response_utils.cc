@@ -28,21 +28,22 @@ enum class ErrorTag : int {
 using google::protobuf::util::JsonStringToMessage;
 using google::protobuf::util::MessageToJsonString;
 
-absl::StatusOr<KeyGroupOutputs> KeyGroupOutputsFromJson(
+absl::StatusOr<PartitionOutput> PartitionOutputFromJson(
     std::string_view json_str) {
-  KeyGroupOutputs outputs_proto;
-  if (const auto status = JsonStringToMessage(json_str, &outputs_proto);
+  PartitionOutput partition_output_proto;
+  if (const auto status =
+          JsonStringToMessage(json_str, &partition_output_proto);
       !status.ok()) {
     return StatusWithErrorTag(status, __FILE__,
                               ErrorTag::kJsonStringToMessageError);
   }
-  return outputs_proto;
+  return partition_output_proto;
 }
 
-absl::StatusOr<std::string> KeyGroupOutputsToJson(
-    const KeyGroupOutputs& key_group_outputs) {
+absl::StatusOr<std::string> PartitionOutputToJson(
+    const PartitionOutput& partition_output) {
   std::string json_str;
-  if (const auto status = MessageToJsonString(key_group_outputs, &json_str);
+  if (const auto status = MessageToJsonString(partition_output, &json_str);
       !status.ok()) {
     return StatusWithErrorTag(status, __FILE__,
                               ErrorTag::kMessageToJsonStringError);

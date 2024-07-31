@@ -83,7 +83,7 @@ TEST(CborConverterTest, V2GetValuesResponseCborEncodeArrayMsSuccess) {
 TEST(CborConverterTest, V2CompressionGroupCborEncodeSuccess) {
   json json_etalon = R"(
   {
-    "partitions": [
+    "partitionOutputs": [
       {
         "id": 0,
         "keyGroupOutputs": [
@@ -131,9 +131,9 @@ TEST(CborConverterTest, V2CompressionGroupCborEncodeSuccess) {
   }
 )"_json;
 
-  V2CompressionGroup compression_group;
+  application_pa::V2CompressionGroup compression_group;
   TextFormat::ParseFromString(
-      R"pb(partitions {
+      R"pb(partition_outputs {
              id: 0
              key_group_outputs {
                tags: "custom"
@@ -152,7 +152,7 @@ TEST(CborConverterTest, V2CompressionGroupCborEncodeSuccess) {
                }
              }
            }
-           partitions {
+           partition_outputs {
              id: 1
              key_group_outputs {
                tags: "custom"
@@ -174,7 +174,7 @@ TEST(CborConverterTest,
      V2CompressionGroupEmptyKeyGroupOutputsCborEncodeSuccess) {
   json json_etalon = R"(
   {
-    "partitions": [
+    "partitionOutputs": [
       {
         "id": 0,
         "keyGroupOutputs": []
@@ -183,8 +183,8 @@ TEST(CborConverterTest,
   }
 )"_json;
 
-  V2CompressionGroup compression_group;
-  TextFormat::ParseFromString(R"pb(partitions { id: 0 })pb",
+  application_pa::V2CompressionGroup compression_group;
+  TextFormat::ParseFromString(R"pb(partition_outputs { id: 0 })pb",
                               &compression_group);
   absl::StatusOr<std::string> cbor_encoded_proto_maybe =
       V2CompressionGroupCborEncode(compression_group);

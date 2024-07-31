@@ -20,6 +20,16 @@ import "google/protobuf/struct.proto";
 
 // https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#query-api-version-2
 
+message V2CompressionGroup {
+  repeated PartitionOutput partition_outputs = 1;
+}
+
+message PartitionOutput {
+  optional int64 id = 1;
+  repeated KeyGroupOutput key_group_outputs = 2;
+  optional int32 udf_output_api_version = 3;
+}
+
 message KeyGroupOutput {
   repeated string tags = 1;
   map<string, ValueObject> key_values = 2;
@@ -27,11 +37,4 @@ message KeyGroupOutput {
 
 message ValueObject {
   google.protobuf.Value value = 1;
-  int64 global_ttl_sec = 2;
-  int64 dedicated_ttl_sec = 3;
-}
-
-message KeyGroupOutputs {
-  repeated KeyGroupOutput key_group_outputs = 1;
-  int32 udf_output_api_version = 2;
 }

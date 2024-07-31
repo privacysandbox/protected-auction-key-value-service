@@ -33,7 +33,7 @@ inline constexpr char kCompressionGroupId[] = "compressionGroupId";
 inline constexpr char kTtlMs[] = "ttlMs";
 inline constexpr char kContent[] = "content";
 
-inline constexpr char kPartitions[] = "partitions";
+inline constexpr char kPartitionOutputs[] = "partitionOutputs";
 inline constexpr char kPartitionId[] = "id";
 inline constexpr char kKeyGroupOutputs[] = "keyGroupOutputs";
 inline constexpr char kTags[] = "tags";
@@ -97,7 +97,7 @@ absl::StatusOr<std::string> V2GetValuesResponseCborEncode(
 }
 
 absl::StatusOr<cbor_item_t*> EncodeKeyGroupOutput(
-    KeyGroupOutput& key_group_output) {
+    application_pa::KeyGroupOutput& key_group_output) {
   const int keyGroupOutputKeysNumber = 2;
   auto* cbor_internal = cbor_new_definite_map(keyGroupOutputKeysNumber);
   // tags
@@ -155,20 +155,23 @@ absl::StatusOr<cbor_item_t*> EncodeKeyGroupOutput(
   return cbor_internal;
 }
 
-absl::StatusOr<cbor_item_t*> EncodePartition(Partition& partition) {
-  const int parititonKeysNumber = 2;
-  auto* cbor_internal = cbor_new_definite_map(parititonKeysNumber);
+absl::StatusOr<cbor_item_t*> EncodePartitionOutput(
+    application_pa::PartitionOutput& partition_output) {
+  const int partitionKeysNumber = 2;
+  auto* cbor_internal = cbor_new_definite_map(partitionKeysNumber);
   PS_RETURN_IF_ERROR(
-      CborSerializeUInt(kPartitionId, partition.id(), *cbor_internal));
+      CborSerializeUInt(kPartitionId, partition_output.id(), *cbor_internal));
   cbor_item_t* serialized_key_group_outputs =
-      cbor_new_definite_array(partition.key_group_outputs().size());
-  for (auto& key_group_output : *(partition.mutable_key_group_outputs())) {
+      cbor_new_definite_array(partition_output.key_group_outputs().size());
+  for (auto& key_group_output :
+       *(partition_output.mutable_key_group_outputs())) {
     PS_ASSIGN_OR_RETURN(auto* serialized_key_group_output,
                         EncodeKeyGroupOutput(key_group_output));
     if (!cbor_array_push(serialized_key_group_outputs,
                          cbor_move(serialized_key_group_output))) {
-      return absl::InternalError(absl::StrCat(
-          "Failed to serialize ", kPartitions, " to CBOR", partition));
+      return absl::InternalError(absl::StrCat("Failed to serialize ",
+                                              kPartitionOutputs, " to CBOR",
+                                              partition_output));
     }
   }
   struct cbor_pair serialized_key_group_outputs_pair = {
@@ -177,42 +180,47 @@ absl::StatusOr<cbor_item_t*> EncodePartition(Partition& partition) {
       .value = serialized_key_group_outputs,
   };
   if (!cbor_map_add(cbor_internal, serialized_key_group_outputs_pair)) {
-    return absl::InternalError(absl::StrCat(
-        "Failed to serialize ", kKeyGroupOutputs, " to CBOR. ", partition));
+    return absl::InternalError(absl::StrCat("Failed to serialize ",
+                                            kKeyGroupOutputs, " to CBOR. ",
+                                            partition_output));
   }
   return cbor_internal;
 }
 
-absl::StatusOr<cbor_item_t*> EncodePartitions(
-    google::protobuf::RepeatedPtrField<Partition>& partitions) {
-  cbor_item_t* serialized_paritions =
-      cbor_new_definite_array(partitions.size());
-  for (auto& partition : partitions) {
-    PS_ASSIGN_OR_RETURN(auto* serialized_partition, EncodePartition(partition));
-    if (!cbor_array_push(serialized_paritions,
-                         cbor_move(serialized_partition))) {
-      return absl::InternalError(absl::StrCat(
-          "Failed to serialize ", kPartitions, " to CBOR. ", partition));
+absl::StatusOr<cbor_item_t*> EncodePartitionOutputs(
+    google::protobuf::RepeatedPtrField<application_pa::PartitionOutput>&
+        partition_outputs) {
+  cbor_item_t* serialized_partition_outputs =
+      cbor_new_definite_array(partition_outputs.size());
+  for (auto& partition_output : partition_outputs) {
+    PS_ASSIGN_OR_RETURN(auto* serialized_partition_output,
+                        EncodePartitionOutput(partition_output));
+    if (!cbor_array_push(serialized_partition_outputs,
+                         cbor_move(serialized_partition_output))) {
+      return absl::InternalError(absl::StrCat("Failed to serialize ",
+                                              kPartitionOutputs, " to CBOR. ",
+                                              partition_output));
     }
   }
-  return serialized_paritions;
+  return serialized_partition_outputs;
 }
 
 absl::StatusOr<std::string> V2CompressionGroupCborEncode(
-    V2CompressionGroup& comp_group) {
+    application_pa::V2CompressionGroup& comp_group) {
   const int getCompressionGroupKeysNumber = 1;
   ScopedCbor root(cbor_new_definite_map(getCompressionGroupKeysNumber));
-  PS_ASSIGN_OR_RETURN(auto* paritions,
-                      EncodePartitions(*(comp_group.mutable_partitions())));
-  struct cbor_pair serialized_paritions = {
-      .key =
-          cbor_move(cbor_build_stringn(kPartitions, sizeof(kPartitions) - 1)),
-      .value = paritions,
+  PS_ASSIGN_OR_RETURN(
+      auto* partition_outputs,
+      EncodePartitionOutputs(*(comp_group.mutable_partition_outputs())));
+  struct cbor_pair serialized_partition_outputs = {
+      .key = cbor_move(
+          cbor_build_stringn(kPartitionOutputs, sizeof(kPartitionOutputs) - 1)),
+      .value = partition_outputs,
   };
   auto* cbor_internal = root.get();
-  if (!cbor_map_add(cbor_internal, serialized_paritions)) {
-    return absl::InternalError(absl::StrCat("Failed to serialize ", kPartitions,
-                                            " to CBOR. ", comp_group));
+  if (!cbor_map_add(cbor_internal, serialized_partition_outputs)) {
+    return absl::InternalError(absl::StrCat(
+        "Failed to serialize ", kPartitionOutputs, " to CBOR. ", comp_group));
   }
   return GetCborSerializedResult(*cbor_internal);
 }

@@ -24,11 +24,11 @@
 
 namespace kv_server::application_pa {
 
-absl::StatusOr<KeyGroupOutputs> KeyGroupOutputsFromJson(
+absl::StatusOr<PartitionOutput> PartitionOutputFromJson(
     std::string_view json_str);
 
-absl::StatusOr<std::string> KeyGroupOutputsToJson(
-    const KeyGroupOutputs& key_group_outputs);
+absl::StatusOr<std::string> PartitionOutputToJson(
+    const PartitionOutput& key_group_outputs);
 
 }  // namespace kv_server::application_pa
 

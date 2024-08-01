@@ -31,10 +31,15 @@ namespace kv_server {
 inline void LogMessage(
     google::scp::roma::FunctionBindingPayload<std::weak_ptr<RequestContext>>&
         payload) {
-  if (payload.io_proto.has_input_string()) {
-    LOG(INFO) << payload.io_proto.input_string();
+  std::shared_ptr<RequestContext> request_context = payload.metadata.lock();
+  if (request_context == nullptr) {
+    PS_VLOG(1) << "Request context is not available, the request might "
+                  "have been marked as complete";
+    return;
   }
-  payload.io_proto.set_output_string("");
+  PS_VLOG(10, request_context->GetPSLogContext()) << "Called logging hook";
+  PS_LOG(INFO, request_context->GetPSLogContext())
+      << payload.io_proto.input_string();
 }
 
 }  // namespace kv_server

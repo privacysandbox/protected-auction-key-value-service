@@ -492,7 +492,18 @@ TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
   EXPECT_TRUE(stop.ok());
 }
 
-TEST_F(UdfClientTest, JsCallsLogMessageTwiceSucceeds) {
+TEST_F(UdfClientTest, JsCallsLogMessageConsentedSucceeds) {
+  std::stringstream log_ss;
+  auto* logger_provider =
+      opentelemetry::sdk::logs::LoggerProviderFactory::Create(
+          opentelemetry::sdk::logs::SimpleLogRecordProcessorFactory::Create(
+              std::make_unique<
+                  opentelemetry::exporter::logs::OStreamLogRecordExporter>(
+                  log_ss)))
+          .release();
+  privacy_sandbox::server_common::log::logger_private =
+      logger_provider->GetLogger("test").get();
+
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
       UdfClient::Create(std::move(
@@ -502,9 +513,8 @@ TEST_F(UdfClientTest, JsCallsLogMessageTwiceSucceeds) {
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
         function hello(input) {
-          const a = logMessage("first message");
-          const b = logMessage("second message");
-          return a + b;
+          logMessage("first message");
+          return "";
         }
       )",
       .udf_handler_name = "hello",
@@ -523,7 +533,55 @@ TEST_F(UdfClientTest, JsCallsLogMessageTwiceSucceeds) {
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
+  auto output_log = log_ss.str();
+  EXPECT_THAT(output_log, ContainsRegex("first message"));
 
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, JsCallsLoggingFunctionNoLogForNonConsentedRequests) {
+  std::stringstream log_ss;
+  auto* logger_provider =
+      opentelemetry::sdk::logs::LoggerProviderFactory::Create(
+          opentelemetry::sdk::logs::SimpleLogRecordProcessorFactory::Create(
+              std::make_unique<
+                  opentelemetry::exporter::logs::OStreamLogRecordExporter>(
+                  log_ss)))
+          .release();
+  privacy_sandbox::server_common::log::logger_private =
+      logger_provider->GetLogger("test").get();
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
+      UdfClient::Create(std::move(
+          config_builder.RegisterLoggingHook().SetNumberOfWorkers(1).Config()));
+  EXPECT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(input) {
+          logMessage("first message");
+          return "";
+        }
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  privacy_sandbox::server_common::ConsentedDebugConfiguration
+      consented_debug_configuration;
+  consented_debug_configuration.set_is_consented(false);
+  consented_debug_configuration.set_token("mismatch_token");
+  privacy_sandbox::server_common::LogContext log_context;
+  request_context_factory_->UpdateLogContext(log_context,
+                                             consented_debug_configuration);
+  EXPECT_TRUE(code_obj_status.ok());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"("")");
+  auto output_log = log_ss.str();
+  EXPECT_TRUE(output_log.empty());
   absl::Status stop = udf_client.value()->Stop();
   EXPECT_TRUE(stop.ok());
 }

@@ -93,7 +93,7 @@ TEST(OhttpEncryptorTest, ClientDecryptResponseFails) {
       client_encryptor.DecryptResponse(kTestRequest);
   ASSERT_FALSE(request_encrypted_status.ok());
   EXPECT_EQ(
-      "Emtpy `http_client_` or `http_request_context_`. You should call "
+      "Emtpy `http_request_context_`. You should call "
       "`ClientEncryptRequest` first",
       request_encrypted_status.status().message());
 }

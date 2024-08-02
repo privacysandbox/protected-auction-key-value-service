@@ -54,8 +54,8 @@ absl::StatusOr<absl::string_view> OhttpServerEncryptor::DecryptRequest(
     return maybe_ohttp_gateway.status();
   }
   ohttp_gateway_ = std::move(*maybe_ohttp_gateway);
-  auto decrypted_request_maybe =
-      ohttp_gateway_->DecryptObliviousHttpRequest(encrypted_payload);
+  auto decrypted_request_maybe = ohttp_gateway_->DecryptObliviousHttpRequest(
+      encrypted_payload, kKVOhttpRequestLabel);
   if (!decrypted_request_maybe.ok()) {
     return decrypted_request_maybe.status();
   }
@@ -73,7 +73,7 @@ absl::StatusOr<std::string> OhttpServerEncryptor::EncryptResponse(
   }
   auto server_request_context = std::move(*decrypted_request_).ReleaseContext();
   const auto encapsulate_resp = ohttp_gateway_->CreateObliviousHttpResponse(
-      std::move(payload), server_request_context);
+      std::move(payload), server_request_context, kKVOhttpResponseLabel);
   if (!encapsulate_resp.ok()) {
     return absl::InternalError(
         std::string(encapsulate_resp.status().message()));

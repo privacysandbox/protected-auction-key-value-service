@@ -53,15 +53,10 @@ absl::StatusOr<std::string> OhttpClientEncryptor::EncryptRequest(
                           << public_key_.key_id() << " uint8 key id " << *key_id
                           << "public key " << public_key_.public_key();
   absl::Base64Unescape(public_key_.public_key(), &public_key_string);
-  auto http_client_maybe =
-      quiche::ObliviousHttpClient::Create(public_key_string, *maybe_config);
-  if (!http_client_maybe.ok()) {
-    return absl::InternalError(
-        std::string(http_client_maybe.status().message()));
-  }
-  http_client_ = std::move(*http_client_maybe);
   auto encrypted_req =
-      http_client_->CreateObliviousHttpRequest(std::move(payload));
+      quiche::ObliviousHttpRequest::CreateClientObliviousRequest(
+          std::move(payload), public_key_string, *std::move(maybe_config),
+          kKVOhttpRequestLabel);
   if (!encrypted_req.ok()) {
     return absl::InternalError(std::string(encrypted_req.status().message()));
   }
@@ -74,13 +69,15 @@ absl::StatusOr<std::string> OhttpClientEncryptor::EncryptRequest(
 absl::StatusOr<std::string> OhttpClientEncryptor::DecryptResponse(
     std::string encrypted_payload,
     privacy_sandbox::server_common::log::PSLogContext& log_context) {
-  if (!http_client_.has_value() || !http_request_context_.has_value()) {
+  if (!http_request_context_.has_value()) {
     return absl::InternalError(
-        "Emtpy `http_client_` or `http_request_context_`. You should call "
+        "Emtpy `http_request_context_`. You should call "
         "`ClientEncryptRequest` first");
   }
-  auto decrypted_response = http_client_->DecryptObliviousHttpResponse(
-      std::move(encrypted_payload), *http_request_context_);
+  auto decrypted_response =
+      quiche::ObliviousHttpResponse::CreateClientObliviousResponse(
+          std::move(encrypted_payload), *http_request_context_,
+          kKVOhttpResponseLabel);
   if (!decrypted_response.ok()) {
     return decrypted_response.status();
   }

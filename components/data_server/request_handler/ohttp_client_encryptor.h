@@ -48,7 +48,6 @@ class OhttpClientEncryptor {
               privacy_sandbox::server_common::log::kNoOpContext));
 
  private:
-  std::optional<quiche::ObliviousHttpClient> http_client_;
   std::optional<quiche::ObliviousHttpRequest::Context> http_request_context_;
   google::cmrt::sdk::public_key_service::v1::PublicKey& public_key_;
 };

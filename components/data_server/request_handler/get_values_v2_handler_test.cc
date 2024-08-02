@@ -118,12 +118,9 @@ class BaseTest : public ::testing::Test,
       auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
           key_id, kKEMParameter, kKDFParameter, kAEADParameter);
       EXPECT_TRUE(maybe_config.ok());
-      auto client =
-          quiche::ObliviousHttpClient::Create(public_key_, *maybe_config);
-      EXPECT_TRUE(client.ok());
       auto decrypted_response =
-          client->DecryptObliviousHttpResponse(response_.data(), context_);
-
+          quiche::ObliviousHttpResponse::CreateClientObliviousResponse(
+              response_.data(), context_, kKVOhttpResponseLabel);
       auto deframed_req = privacy_sandbox::server_common::DecodeRequestPayload(
           decrypted_response->GetPlaintextData());
       EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
@@ -154,11 +151,10 @@ class BaseTest : public ::testing::Test,
       auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
           key_id, kKEMParameter, kKDFParameter, kAEADParameter);
       EXPECT_TRUE(maybe_config.ok());
-
-      auto client =
-          quiche::ObliviousHttpClient::Create(public_key_, *maybe_config);
-      EXPECT_TRUE(client.ok());
-      auto encrypted_req = client->CreateObliviousHttpRequest(raw_request_);
+      auto encrypted_req =
+          quiche::ObliviousHttpRequest::CreateClientObliviousRequest(
+              raw_request_, public_key_, *std::move(maybe_config),
+              kKVOhttpRequestLabel);
       EXPECT_TRUE(encrypted_req.ok());
       auto serialized_encrypted_req = encrypted_req->EncapsulateAndSerialize();
       ObliviousGetValuesRequest ohttp_req;

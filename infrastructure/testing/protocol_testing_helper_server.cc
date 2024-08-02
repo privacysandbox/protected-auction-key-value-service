@@ -54,15 +54,10 @@ class ProtocolTestingHelperServiceImpl final
       return grpc::Status(grpc::INTERNAL,
                           std::string(maybe_config.status().message()));
     }
-
-    auto client = quiche::ObliviousHttpClient::Create(request->public_key(),
-                                                      *maybe_config);
-    if (!client.ok()) {
-      return grpc::Status(grpc::INTERNAL,
-                          std::string(client.status().message()));
-    }
-
-    auto encrypted_req = client->CreateObliviousHttpRequest(request->body());
+    auto encrypted_req =
+        quiche::ObliviousHttpRequest::CreateClientObliviousRequest(
+            std::move(request->body()), request->public_key(),
+            *std::move(maybe_config), kKVOhttpRequestLabel);
     if (!encrypted_req.ok()) {
       return grpc::Status(grpc::INTERNAL,
                           std::string(encrypted_req.status().message()));
@@ -107,8 +102,10 @@ class ProtocolTestingHelperServiceImpl final
       quiche::ObliviousHttpRequest::Context context =
           std::move(context_iter->second);
       context_map_.erase(context_iter);
-      auto decrypted_response = client->DecryptObliviousHttpResponse(
-          request->ohttp_response(), context);
+      auto decrypted_response =
+          quiche::ObliviousHttpResponse::CreateClientObliviousResponse(
+              request->ohttp_response(), context, kKVOhttpResponseLabel);
+
       response->set_body(decrypted_response->GetPlaintextData());
       return grpc::Status::OK;
     }

@@ -105,6 +105,13 @@ const uint16_t kKDFParameter = 0x0001;
 // AEAD: AES-256-GCM
 const uint16_t kAEADParameter = 0x0002;
 
+// Custom media types for KV. Used as input for ohttp request/response
+// encryption/decryption.
+inline constexpr absl::string_view kKVOhttpRequestLabel =
+    "message/ad-auction-trusted-signals-request";
+inline constexpr absl::string_view kKVOhttpResponseLabel =
+    "message/ad-auction-trusted-signals-response";
+
 constexpr std::string_view kServiceName = "kv-server";
 
 // Returns a compiled logical sharding config file name regex defined as

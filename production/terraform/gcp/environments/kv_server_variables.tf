@@ -298,6 +298,13 @@ variable "logging_verbosity_level" {
   type        = string
 }
 
+variable "logging_verbosity_backup_poll_frequency_secs" {
+  description = "Backup poll frequency in seconds for the logging verbosity parameter."
+  default     = 60
+  type        = number
+}
+
+
 variable "use_sharding_key_regex" {
   description = "Use sharding key regex. This is useful if you want to use data locality feature for sharding."
   default     = false

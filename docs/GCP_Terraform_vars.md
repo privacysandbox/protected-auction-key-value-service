@@ -98,6 +98,10 @@
 
     The grpc port that receives traffic destined for the frontend service.
 
+-   **logging_verbosity_backup_poll_frequency_secs**
+
+    Backup poll frequency in seconds for the logging verbosity parameter.
+
 -   **logging_verbosity_level**
 
     Logging verbosity level

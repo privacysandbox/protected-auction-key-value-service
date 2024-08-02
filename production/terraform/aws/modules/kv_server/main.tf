@@ -224,13 +224,14 @@ module "parameter" {
   enable_consented_log_parameter_value                       = var.enable_consented_log
 
 
-  data_loading_file_format_parameter_value         = var.data_loading_file_format
-  logging_verbosity_level_parameter_value          = var.logging_verbosity_level
-  logging_verbosity_update_sns_arn_parameter_value = module.parameter_notification.logging_verbosity_updates_topic_arn
-  use_sharding_key_regex_parameter_value           = var.use_sharding_key_regex
-  sharding_key_regex_parameter_value               = var.sharding_key_regex
-  enable_otel_logger_parameter_value               = var.enable_otel_logger
-  data_loading_blob_prefix_allowlist               = var.data_loading_blob_prefix_allowlist
+  data_loading_file_format_parameter_value                     = var.data_loading_file_format
+  logging_verbosity_level_parameter_value                      = var.logging_verbosity_level
+  logging_verbosity_update_sns_arn_parameter_value             = module.parameter_notification.logging_verbosity_updates_topic_arn
+  logging_verbosity_backup_poll_frequency_secs_parameter_value = var.logging_verbosity_backup_poll_frequency_secs
+  use_sharding_key_regex_parameter_value                       = var.use_sharding_key_regex
+  sharding_key_regex_parameter_value                           = var.sharding_key_regex
+  enable_otel_logger_parameter_value                           = var.enable_otel_logger
+  data_loading_blob_prefix_allowlist                           = var.data_loading_blob_prefix_allowlist
 }
 
 module "security_group_rules" {
@@ -281,6 +282,7 @@ module "iam_role_policies" {
     module.parameter.data_loading_file_format_parameter_arn,
     module.parameter.logging_verbosity_level_parameter_arn,
     module.parameter.logging_verbosity_update_sns_arn_parameter_arn,
+    module.parameter.logging_verbosity_backup_poll_frequency_secs_parameter_arn,
     module.parameter.use_real_coordinators_parameter_arn,
     module.parameter.use_sharding_key_regex_parameter_arn,
     module.parameter.udf_timeout_millis_parameter_arn,

@@ -123,6 +123,10 @@
     supported from the
     [AWS article](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
 
+-   **logging_verbosity_backup_poll_frequency_secs**
+
+    Backup poll frequency in seconds for the logging verbosity parameter.
+
 -   **logging_verbosity_level**
 
     Logging verbosity level

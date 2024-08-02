@@ -139,6 +139,11 @@ variable "logging_verbosity_update_sns_arn_parameter_value" {
   type        = string
 }
 
+variable "logging_verbosity_backup_poll_frequency_secs_parameter_value" {
+  description = "Backup poll frequency in seconds for the logging verbosity parameter"
+  type        = number
+}
+
 variable "use_sharding_key_regex_parameter_value" {
   description = "Use sharding key regex. This is useful if you want to use data locality feature for sharding."
   type        = bool

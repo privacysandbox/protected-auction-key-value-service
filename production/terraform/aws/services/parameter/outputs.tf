@@ -134,6 +134,10 @@ output "logging_verbosity_update_sns_arn_parameter_arn" {
   value = aws_ssm_parameter.logging_verbosity_update_sns_arn_parameter.arn
 }
 
+output "logging_verbosity_backup_poll_frequency_secs_parameter_arn" {
+  value = aws_ssm_parameter.logging_verbosity_backup_poll_frequency_secs_parameter.arn
+}
+
 output "use_sharding_key_regex_parameter_arn" {
   value = aws_ssm_parameter.use_sharding_key_regex_parameter.arn
 }

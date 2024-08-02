@@ -250,6 +250,12 @@ variable "logging_verbosity_level" {
   type        = number
 }
 
+variable "logging_verbosity_backup_poll_frequency_secs" {
+  description = "Backup poll frequency in seconds for the logging verbosity parameter."
+  default     = "300"
+  type        = number
+}
+
 variable "run_server_outside_tee" {
   description = "Whether to run the server outside the TEE, in a docker container. Untrusted mode, for debugging."
   default     = false

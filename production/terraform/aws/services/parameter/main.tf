@@ -226,6 +226,13 @@ resource "aws_ssm_parameter" "logging_verbosity_update_sns_arn_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "logging_verbosity_backup_poll_frequency_secs_parameter" {
+  name      = "${var.service}-${var.environment}-logging-verbosity-backup-poll-frequency-secs"
+  type      = "String"
+  value     = var.logging_verbosity_backup_poll_frequency_secs_parameter_value
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "use_sharding_key_regex_parameter" {
   name      = "${var.service}-${var.environment}-use-sharding-key-regex"
   type      = "String"

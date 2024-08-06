@@ -52,11 +52,21 @@ inline constexpr std::string_view kContentEncodingProtoHeaderValue =
 // Json Content Type Header Value.
 inline constexpr std::string_view kContentEncodingJsonHeaderValue =
     "message/ad-auction-trusted-signals-request+json; v=2.0";
+inline constexpr std::string_view kContentEncodingCborHeaderValue =
+    "message/ad-auction-trusted-signals-request; v=2.0";
+
+bool IsSinglePartitionUseCase(const v2::GetValuesRequest& request);
 
 // Handles the request family of *GetValues.
 // See the Service proto definition for details.
 class GetValuesV2Handler {
  public:
+  enum class ContentType { kCbor = 0, kJson = 1, kProto = 2 };
+
+  static GetValuesV2Handler::ContentType GetContentType(
+      const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
+      ContentType default_content_type);
+
   // Accepts a functor to create compression blob builder for testing purposes.
   explicit GetValuesV2Handler(
       const UdfClient& udf_client,
@@ -80,7 +90,8 @@ class GetValuesV2Handler {
                          const v2::GetValuesRequest& request,
                          v2::GetValuesResponse* response,
                          ExecutionMetadata& execution_metadata,
-                         bool single_partition_use_case) const;
+                         bool single_partition_use_case,
+                         ContentType content_type) const;
 
   // Supports requests encrypted with a fixed key for debugging/demoing.
   // X25519 Secret key (priv key).
@@ -95,6 +106,8 @@ class GetValuesV2Handler {
   // KDF: HKDF-SHA256 0x0001
   // AEAD: AES-256-GCM 0X0002
   // (https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#encryption)
+  //
+  // The default content type for OHTTP is cbor.
   grpc::Status ObliviousGetValues(
       RequestContextFactory& request_context_factory,
       const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
@@ -103,12 +116,6 @@ class GetValuesV2Handler {
       ExecutionMetadata& execution_metadata) const;
 
  private:
-  enum class ContentType { kCbor = 0, kJson = 1, kProto = 2 };
-
-  ContentType GetContentType(
-      const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
-      ContentType default_content_type) const;
-
   absl::Status GetValuesHttp(
       RequestContextFactory& request_context_factory, std::string_view request,
       std::string& json_response, ExecutionMetadata& execution_metadata,
@@ -126,7 +133,7 @@ class GetValuesV2Handler {
   absl::Status ProcessMultiplePartitions(
       const RequestContextFactory& request_context_factory,
       const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
-      ExecutionMetadata& execution_metadata) const;
+      ExecutionMetadata& execution_metadata, ContentType content_type) const;
 
   const UdfClient& udf_client_;
   std::function<CompressionGroupConcatenator::FactoryFunctionType>

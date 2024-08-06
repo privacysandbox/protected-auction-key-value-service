@@ -234,7 +234,8 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
     ExecutionMetadata execution_metadata;
     if (auto status = v2_handler_->GetValues(
             request_context_factory, v2_request, &v2_response,
-            execution_metadata, /*single_partition_use_case=*/true);
+            execution_metadata, /*single_partition_use_case=*/true,
+            GetValuesV2Handler::ContentType::kJson);
         !status.ok()) {
       return status;
     }

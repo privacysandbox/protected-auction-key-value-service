@@ -30,8 +30,8 @@ using v2::KeyValueService;
 template <typename RequestT, typename ResponseT>
 using HandlerFunctionT = grpc::Status (GetValuesV2Handler::*)(
     RequestContextFactory&, const RequestT&, ResponseT*,
-    ExecutionMetadata& execution_metadata,
-    bool single_partition_use_case) const;
+    ExecutionMetadata& execution_metadata, bool single_partition_use_case,
+    GetValuesV2Handler::ContentType content_type) const;
 
 inline void LogTotalExecutionWithoutCustomCodeMetric(
     const privacy_sandbox::server_common::Stopwatch& stopwatch,
@@ -51,13 +51,17 @@ template <typename RequestT, typename ResponseT>
 grpc::ServerUnaryReactor* HandleRequest(
     RequestContextFactory& request_context_factory,
     CallbackServerContext* context, const RequestT* request,
-    ResponseT* response, const GetValuesV2Handler& handler,
+    ResponseT* response, bool is_single_partition_use_case,
+    const GetValuesV2Handler& handler,
     HandlerFunctionT<RequestT, ResponseT> handler_function) {
   privacy_sandbox::server_common::Stopwatch stopwatch;
   ExecutionMetadata execution_metadata;
+  auto content_type = GetValuesV2Handler::GetContentType(
+      context->client_metadata(),
+      /*default_content_type=*/GetValuesV2Handler::ContentType::kProto);
   grpc::Status status = (handler.*handler_function)(
       request_context_factory, *request, response, execution_metadata,
-      /*single_partition_use_case=*/false);
+      is_single_partition_use_case, content_type);
   auto* reactor = context->DefaultReactor();
   reactor->Finish(status);
   LogRequestCommonSafeMetrics(request, response, status, stopwatch);
@@ -91,7 +95,8 @@ grpc::ServerUnaryReactor* KeyValueServiceV2Impl::GetValues(
     v2::GetValuesResponse* response) {
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   return HandleRequest(*request_context_factory, context, request, response,
-                       handler_, &GetValuesV2Handler::GetValues);
+                       IsSinglePartitionUseCase(*request), handler_,
+                       &GetValuesV2Handler::GetValues);
 }
 
 grpc::ServerUnaryReactor* KeyValueServiceV2Impl::ObliviousGetValues(

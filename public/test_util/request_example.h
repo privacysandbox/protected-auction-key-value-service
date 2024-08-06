@@ -315,7 +315,7 @@ constexpr std::string_view
   "log_context": {
       "generation_id": "client_UUID",
       "adtech_debug_id": "adtech_debug_test"
-  },
+  }
   })";
 
 // Example consented debug token used in the unit tests

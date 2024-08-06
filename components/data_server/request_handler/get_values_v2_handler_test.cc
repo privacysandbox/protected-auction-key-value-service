@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "absl/log/log.h"
+#include "components/data/converters/cbor_converter.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
 #include "components/data_server/request_handler/framing_utils.h"
@@ -36,6 +37,8 @@
 #include "quiche/oblivious_http/oblivious_http_client.h"
 #include "src/communication/encoding_utils.h"
 #include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
+
+#include "cbor.h"
 
 namespace kv_server {
 namespace {
@@ -62,6 +65,20 @@ struct TestingParameters {
   const bool is_consented;
 };
 
+nlohmann::json GetPartitionOutputsInJson(nlohmann::json content_json) {
+  std::vector<uint8_t> content_cbor = nlohmann::json::to_cbor(content_json);
+  std::string content_cbor_string =
+      std::string(content_cbor.begin(), content_cbor.end());
+  struct cbor_load_result result;
+  cbor_item_t* cbor_bytestring = cbor_load(
+      reinterpret_cast<const unsigned char*>(content_cbor_string.data()),
+      content_cbor_string.size(), &result);
+  auto partition_output_cbor = cbor_bytestring_handle(cbor_bytestring);
+  auto cbor_bytestring_len = cbor_bytestring_length(cbor_bytestring);
+  return nlohmann::json::from_cbor(std::vector<uint8_t>(
+      partition_output_cbor, partition_output_cbor + cbor_bytestring_len));
+}
+
 class BaseTest : public ::testing::Test,
                  public ::testing::WithParamInterface<TestingParameters> {
  protected:
@@ -79,6 +96,16 @@ class BaseTest : public ::testing::Test,
   bool IsProtobufContent() {
     auto param = GetParam();
     return param.content_type == kContentEncodingProtoHeaderValue;
+  }
+
+  bool IsJsonContent() {
+    auto param = GetParam();
+    return param.content_type == kContentEncodingJsonHeaderValue;
+  }
+
+  bool IsCborContent() {
+    auto param = GetParam();
+    return param.content_type == kContentEncodingCborHeaderValue;
   }
 
   bool IsRequestExpectConsented() {
@@ -184,6 +211,8 @@ class BaseTest : public ::testing::Test,
         std::string(kContentEncodingProtoHeaderValue);
     auto contentEncodingJsonHeaderValue =
         std::string(kContentEncodingJsonHeaderValue);
+    auto contentEncodingCborHeaderValue =
+        std::string(kContentEncodingCborHeaderValue);
     std::multimap<grpc::string_ref, grpc::string_ref> headers;
     if (IsUsing<ProtocolType::kPlain>()) {
       *http_response_code = 200;
@@ -222,6 +251,18 @@ class BaseTest : public ::testing::Test,
           contentEncodingProtoHeaderValue,
       });
     }
+    if (IsJsonContent()) {
+      headers.insert({
+          contentTypeHeader,
+          contentEncodingJsonHeaderValue,
+      });
+    }
+    if (IsCborContent()) {
+      headers.insert({
+          contentTypeHeader,
+          contentEncodingCborHeaderValue,
+      });
+    }
     if (const auto s = handler->ObliviousGetValues(
             request_context_factory, headers, request,
             &response_unwrapper.RawResponse(), execution_metadata);
@@ -230,7 +271,6 @@ class BaseTest : public ::testing::Test,
       LOG(ERROR) << "ObliviousGetValues failed: " << s.error_message();
       return s;
     }
-
     response->set_data(response_unwrapper.Unwrap());
     *http_response_code = 200;
     return grpc::Status::OK;
@@ -351,20 +391,20 @@ INSTANTIATE_TEST_SUITE_P(
         },
         TestingParameters{
             .protocol_type = ProtocolType::kObliviousHttp,
-            .content_type = kContentEncodingProtoHeaderValue,
+            .content_type = kContentEncodingCborHeaderValue,
             .core_request_body = kv_server::kV2RequestMultiplePartitionsInJson,
             .is_consented = false,
         },
         TestingParameters{
             .protocol_type = ProtocolType::kObliviousHttp,
-            .content_type = kContentEncodingProtoHeaderValue,
+            .content_type = kContentEncodingCborHeaderValue,
             .core_request_body =
                 kv_server::kConsentedV2RequestMultiplePartitionsInJson,
             .is_consented = true,
         },
         TestingParameters{
             .protocol_type = ProtocolType::kObliviousHttp,
-            .content_type = kContentEncodingProtoHeaderValue,
+            .content_type = kContentEncodingCborHeaderValue,
             .core_request_body = kv_server::
                 kConsentedV2RequestMultiplePartitionsWithLogContextInJson,
             .is_consented = true,
@@ -634,10 +674,13 @@ data {
                               &arg3);
   nlohmann::json output1 = nlohmann::json::parse(R"(
 {
+  "id": 1,
   "keyGroupOutputs": [
       {
           "keyValues": {
-              "hello": "world"
+              "hello": {
+                "value": "world"
+              }
           },
           "tags": [
               "structured",
@@ -649,10 +692,13 @@ data {
   )");
   nlohmann::json output2 = nlohmann::json::parse(R"(
 {
+  "id": 2,
   "keyGroupOutputs": [
       {
           "keyValues": {
-              "key1": "value1"
+              "key1": {
+                "value": "value1"
+              }
           },
           "tags": [
               "custom",
@@ -664,10 +710,13 @@ data {
   )");
   nlohmann::json output3 = nlohmann::json::parse(R"(
 {
+  "id": 3,
   "keyGroupOutputs": [
       {
-          "keyValues": {
-              "key2": "value2"
+           "keyValues": {
+              "key2": {
+                "value": "value2"
+              }
           },
           "tags": [
               "custom",
@@ -694,14 +743,15 @@ data {
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
   int16_t http_response_code = 0;
-  if (IsProtobufContent()) {
-    v2::GetValuesRequest request_proto;
-    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(core_request_body,
-                                                            &request_proto)
-                    .ok());
-    ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
-    EXPECT_EQ(request_proto.consented_debug_config().is_consented(),
-              IsRequestExpectConsented());
+  if (IsCborContent()) {
+    nlohmann::json request_body_json =
+        nlohmann::json::parse(core_request_body, nullptr,
+                              /*allow_exceptions=*/false,
+                              /*ignore_comments=*/true);
+    ASSERT_FALSE(request_body_json.is_discarded());
+    std::vector<uint8_t> cbor_vector =
+        nlohmann::json::to_cbor(request_body_json);
+    core_request_body = std::string(cbor_vector.begin(), cbor_vector.end());
   }
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   const auto result =
@@ -711,18 +761,34 @@ data {
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
-  v2::GetValuesResponse actual_response, expected_response;
-  nlohmann::json compressed_partition_group0 = nlohmann::json::array();
-  nlohmann::json compressed_partition_group1 = nlohmann::json::array();
-  compressed_partition_group0.emplace_back(output1);
-  compressed_partition_group0.emplace_back(output3);
-  compressed_partition_group1.emplace_back(output2);
-  auto* compression_group0 = expected_response.add_compression_groups();
-  compression_group0->set_compression_group_id(0);
-  compression_group0->set_content(compressed_partition_group0.dump());
-  auto* compression_group1 = expected_response.add_compression_groups();
-  compression_group1->set_compression_group_id(1);
-  compression_group1->set_content(compressed_partition_group1.dump());
+  nlohmann::json compressed_partition_group0 = {output1, output3};
+  nlohmann::json compressed_partition_group1 = nlohmann::json::array({output2});
+  if (IsCborContent()) {
+    nlohmann::json expected_json = {
+        {"compressionGroups",
+         {{{"compressionGroupId", 0}, {"content", compressed_partition_group0}},
+          {{"compressionGroupId", 1},
+           {"content", compressed_partition_group1}}}}};
+
+    // Convert CBOR to json to check content
+    nlohmann::json actual_response_from_cbor = nlohmann::json::from_cbor(
+        response.data(), /*strict=*/true, /*allow_exceptions=*/false);
+    ASSERT_FALSE(actual_response_from_cbor.is_discarded());
+    auto a = GetPartitionOutputsInJson(
+        actual_response_from_cbor["compressionGroups"][0]["content"]);
+    actual_response_from_cbor["compressionGroups"][0]["content"] = a;
+    auto b = GetPartitionOutputsInJson(
+        actual_response_from_cbor["compressionGroups"][1]["content"]);
+    actual_response_from_cbor["compressionGroups"][1]["content"] = b;
+    // Compare compression groups lists, since ordering might throw off equality
+    EXPECT_THAT(std::vector(expected_json["compressionGroups"].begin(),
+                            expected_json["compressionGroups"].end()),
+                testing::UnorderedElementsAreArray(
+                    actual_response_from_cbor["compressionGroups"].begin(),
+                    actual_response_from_cbor["compressionGroups"].end()));
+    return;
+  }
+  v2::GetValuesResponse actual_response;
   if (IsProtobufContent()) {
     ASSERT_TRUE(actual_response.ParseFromString(response.data()));
   } else {
@@ -807,11 +873,13 @@ data {
 })",
                               &arg3);
   nlohmann::json output1 = nlohmann::json::parse(R"(
-{
+{ "id": 1,
   "keyGroupOutputs": [
       {
           "keyValues": {
-              "hello": "world"
+              "hello": {
+                "value": "world"
+              }
           },
           "tags": [
               "structured",
@@ -823,10 +891,13 @@ data {
   )");
   nlohmann::json output2 = nlohmann::json::parse(R"(
 {
+  "id": 2,
   "keyGroupOutputs": [
       {
           "keyValues": {
-              "key1": "value1"
+              "key1": {
+                "value": "value1"
+              }
           },
           "tags": [
               "custom",
@@ -853,15 +924,17 @@ data {
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
   int16_t http_response_code = 0;
-  if (IsProtobufContent()) {
-    v2::GetValuesRequest request_proto;
-    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(core_request_body,
-                                                            &request_proto)
-                    .ok());
-    ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
-    EXPECT_EQ(request_proto.consented_debug_config().is_consented(),
-              IsRequestExpectConsented());
+  if (IsCborContent()) {
+    nlohmann::json request_body_json =
+        nlohmann::json::parse(core_request_body, nullptr,
+                              /*allow_exceptions=*/false,
+                              /*ignore_comments=*/true);
+    ASSERT_FALSE(request_body_json.is_discarded());
+    std::vector<uint8_t> cbor_vector =
+        nlohmann::json::to_cbor(request_body_json);
+    core_request_body = std::string(cbor_vector.begin(), cbor_vector.end());
   }
+
   auto request_context_factory = std::make_unique<RequestContextFactory>();
 
   const auto result =
@@ -871,24 +944,39 @@ data {
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
-  v2::GetValuesResponse actual_response, expected_response;
-  nlohmann::json compressed_partition_group0 = nlohmann::json::array();
-  nlohmann::json compressed_partition_group1 = nlohmann::json::array();
-  compressed_partition_group0.emplace_back(output1);
-  compressed_partition_group1.emplace_back(output2);
-  auto* compression_group0 = expected_response.add_compression_groups();
-  compression_group0->set_compression_group_id(0);
-  compression_group0->set_content(compressed_partition_group0.dump());
-  auto* compression_group1 = expected_response.add_compression_groups();
-  compression_group1->set_compression_group_id(1);
-  compression_group1->set_content(compressed_partition_group1.dump());
-  if (IsProtobufContent()) {
-    ASSERT_TRUE(actual_response.ParseFromString(response.data()));
-  } else {
-    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
-                                                            &actual_response)
-                    .ok());
+  nlohmann::json compressed_partition_group0 = nlohmann::json::array({output1});
+  nlohmann::json compressed_partition_group1 = nlohmann::json::array({output2});
+  if (IsCborContent()) {
+    nlohmann::json expected_json = {
+        {"compressionGroups",
+         {{{"compressionGroupId", 0}, {"content", compressed_partition_group0}},
+          {{"compressionGroupId", 1},
+           {"content", compressed_partition_group1}}}}};
+
+    // Convert CBOR to json to check content
+    nlohmann::json actual_response_from_cbor = nlohmann::json::from_cbor(
+        response.data(), /*strict=*/true, /*allow_exceptions=*/false);
+    ASSERT_FALSE(actual_response_from_cbor.is_discarded());
+    auto a = GetPartitionOutputsInJson(
+        actual_response_from_cbor["compressionGroups"][0]["content"]);
+    actual_response_from_cbor["compressionGroups"][0]["content"] = a;
+    auto b = GetPartitionOutputsInJson(
+        actual_response_from_cbor["compressionGroups"][1]["content"]);
+    actual_response_from_cbor["compressionGroups"][1]["content"] = b;
+    // Compare compression groups lists, since ordering might throw off equality
+    EXPECT_THAT(std::vector(expected_json["compressionGroups"].begin(),
+                            expected_json["compressionGroups"].end()),
+                testing::UnorderedElementsAreArray(
+                    actual_response_from_cbor["compressionGroups"].begin(),
+                    actual_response_from_cbor["compressionGroups"].end()));
+    return;
   }
+  v2::GetValuesResponse actual_response;
+
+  ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
+                                                          &actual_response)
+                  .ok());
+
   EXPECT_EQ(actual_response.compression_groups().size(), 2);
   std::vector<std::string> contents;
   for (auto&& compression_group : actual_response.compression_groups()) {
@@ -967,10 +1055,13 @@ data {
                               &arg3);
   nlohmann::json output = nlohmann::json::parse(R"(
 {
+  "id": 1,
   "keyGroupOutputs": [
       {
           "keyValues": {
-              "key1": "value1"
+              "key1": {
+                "value": "value1"
+              }
           },
           "tags": [
               "custom",
@@ -997,14 +1088,15 @@ data {
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
   int16_t http_response_code = 0;
-  if (IsProtobufContent()) {
-    v2::GetValuesRequest request_proto;
-    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(core_request_body,
-                                                            &request_proto)
-                    .ok());
-    ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
-    EXPECT_EQ(request_proto.consented_debug_config().is_consented(),
-              IsRequestExpectConsented());
+  if (IsCborContent()) {
+    nlohmann::json request_body_json =
+        nlohmann::json::parse(core_request_body, nullptr,
+                              /*allow_exceptions=*/false,
+                              /*ignore_comments=*/true);
+    ASSERT_FALSE(request_body_json.is_discarded());
+    std::vector<uint8_t> cbor_vector =
+        nlohmann::json::to_cbor(request_body_json);
+    core_request_body = std::string(cbor_vector.begin(), cbor_vector.end());
   }
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   const auto result =
@@ -1014,19 +1106,32 @@ data {
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
+  nlohmann::json compressed_partition_group1 = nlohmann::json::array({output});
+  if (IsCborContent()) {
+    nlohmann::json expected_json = {
+        {"compressionGroups",
+         {{{"compressionGroupId", 1},
+           {"content", compressed_partition_group1}}}}};
+
+    // Convert CBOR to json to check content
+    nlohmann::json actual_response_from_cbor = nlohmann::json::from_cbor(
+        response.data(), /*strict=*/true, /*allow_exceptions=*/false);
+    ASSERT_FALSE(actual_response_from_cbor.is_discarded());
+    auto a = GetPartitionOutputsInJson(
+        actual_response_from_cbor["compressionGroups"][0]["content"]);
+    actual_response_from_cbor["compressionGroups"][0]["content"] = a;
+    EXPECT_EQ(expected_json, actual_response_from_cbor);
+    return;
+  }
+
   v2::GetValuesResponse actual_response, expected_response;
-  nlohmann::json compressed_partition_group = nlohmann::json::array();
-  compressed_partition_group.emplace_back(output);
+  nlohmann::json compressed_partition_group = nlohmann::json::array({output});
   auto* compression_group = expected_response.add_compression_groups();
   compression_group->set_content(compressed_partition_group.dump());
   compression_group->set_compression_group_id(1);
-  if (IsProtobufContent()) {
-    ASSERT_TRUE(actual_response.ParseFromString(response.data()));
-  } else {
-    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
-                                                            &actual_response)
-                    .ok());
-  }
+  ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
+                                                          &actual_response)
+                  .ok());
   EXPECT_THAT(actual_response, EqualsProto(expected_response));
 }
 
@@ -1102,15 +1207,17 @@ data {
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
   int16_t http_response_code = 0;
-  if (IsProtobufContent()) {
-    v2::GetValuesRequest request_proto;
-    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(core_request_body,
-                                                            &request_proto)
-                    .ok());
-    ASSERT_TRUE(request_proto.SerializeToString(&core_request_body));
-    EXPECT_EQ(request_proto.consented_debug_config().is_consented(),
-              IsRequestExpectConsented());
+  if (IsCborContent()) {
+    nlohmann::json request_body_json =
+        nlohmann::json::parse(core_request_body, nullptr,
+                              /*allow_exceptions=*/false,
+                              /*ignore_comments=*/true);
+    ASSERT_FALSE(request_body_json.is_discarded());
+    std::vector<uint8_t> cbor_vector =
+        nlohmann::json::to_cbor(request_body_json);
+    core_request_body = std::string(cbor_vector.begin(), cbor_vector.end());
   }
+
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   const auto result =
       GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
@@ -1142,9 +1249,10 @@ TEST_F(GetValuesHandlerTest, PureGRPCTest_Success) {
       .WillOnce(Return("ECHO"));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
-  const auto result =
-      handler.GetValues(*request_context_factory, req, &resp,
-                        execution_metadata, /*single_partition_use_case=*/true);
+  const auto result = handler.GetValues(
+      *request_context_factory, req, &resp, execution_metadata,
+      /*single_partition_use_case=*/true,
+      /*content_type=*/GetValuesV2Handler::ContentType::kJson);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -1178,9 +1286,10 @@ TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
       .WillOnce(Return(absl::InternalError("UDF execution error")));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
-  const auto result =
-      handler.GetValues(*request_context_factory, req, &resp,
-                        execution_metadata, /*single_partition_use_case=*/true);
+  const auto result = handler.GetValues(
+      *request_context_factory, req, &resp, execution_metadata,
+      /*single_partition_use_case=*/true,
+      /*content_type=*/GetValuesV2Handler::ContentType::kJson);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -1246,9 +1355,10 @@ TEST_F(GetValuesHandlerTest,
       .WillOnce(Return("ECHO"));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
-  const auto result =
-      handler.GetValues(*request_context_factory, req, &resp,
-                        execution_metadata, /*single_partition_use_case=*/true);
+  const auto result = handler.GetValues(
+      *request_context_factory, req, &resp, execution_metadata,
+      /*single_partition_use_case=*/true,
+      /*content_type=*/GetValuesV2Handler::ContentType::kJson);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -1256,6 +1366,71 @@ TEST_F(GetValuesHandlerTest,
   TextFormat::ParseFromString(
       R"pb(single_partition { id: 9 string_output: "ECHO" })pb", &res);
   EXPECT_THAT(resp, EqualsProto(res));
+}
+
+TEST_F(GetValuesHandlerTest, PureGRPCTest_CBOR_Success) {
+  v2::GetValuesRequest req;
+  ExecutionMetadata execution_metadata;
+  TextFormat::ParseFromString(
+      R"pb(partitions {
+             id: 9
+             arguments { data { string_value: "ECHO" } }
+           }
+           metadata {
+             fields {
+               key: "is_pas"
+               value { string_value: "true" }
+             }
+           })pb",
+      &req);
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+  EXPECT_CALL(
+      mock_udf_client_,
+      ExecuteCode(
+          _, _,
+          testing::ElementsAre(EqualsProto(req.partitions(0).arguments(0))), _))
+      .WillOnce(Return("ECHO"));
+  v2::GetValuesResponse resp;
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result = handler.GetValues(
+      *request_context_factory, req, &resp, execution_metadata,
+      /*single_partition_use_case=*/true,
+      /*content_type=*/GetValuesV2Handler::ContentType::kJson);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  v2::GetValuesResponse res;
+  TextFormat::ParseFromString(
+      R"pb(single_partition { id: 9 string_output: "ECHO" })pb", &res);
+  EXPECT_THAT(resp, EqualsProto(res));
+}
+
+TEST_F(GetValuesHandlerTest, IsSinglePartitionUseCaseIsPasReturnsTrue) {
+  v2::GetValuesRequest req;
+  TextFormat::ParseFromString(
+      R"pb(
+        metadata {
+          fields {
+            key: "is_pas"
+            value { string_value: "true" }
+          }
+        })pb",
+      &req);
+  EXPECT_TRUE(IsSinglePartitionUseCase(req));
+}
+
+TEST_F(GetValuesHandlerTest, IsSinglePartitonUseCaseNotIsPasReturnsFalse) {
+  v2::GetValuesRequest req;
+  TextFormat::ParseFromString(
+      R"pb(
+        metadata {
+          fields {
+            key: "some"
+            value { string_value: "other data" }
+          }
+        })pb",
+      &req);
+  EXPECT_FALSE(IsSinglePartitionUseCase(req));
 }
 
 }  // namespace

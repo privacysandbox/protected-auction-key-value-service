@@ -31,7 +31,13 @@ absl::StatusOr<std::string> V2GetValuesResponseCborEncode(
 absl::StatusOr<std::string> V2CompressionGroupCborEncode(
     application_pa::V2CompressionGroup& comp_group);
 
-absl::Status CborDecodeToProto(std::string_view cbor_raw,
-                               google::protobuf::Message& message);
+absl::StatusOr<std::string> PartitionOutputsCborEncode(
+    google::protobuf::RepeatedPtrField<application_pa::PartitionOutput>&
+        partition_outputs);
+
+// Converts a CBOR serialized string to a proto that does not contain a `bytes`
+// field. Will return error if the proto contains `bytes`.
+absl::Status CborDecodeToNonBytesProto(std::string_view cbor_raw,
+                                       google::protobuf::Message& message);
 }  // namespace kv_server
 #endif  // COMPONENTS_DATA_CONVERTER_H

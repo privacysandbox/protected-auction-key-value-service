@@ -47,6 +47,9 @@ cc_library(
     hdrs = [
         "cbor_converter.h",
     ],
+    visibility = [
+        "//components/data_server:__subpackages__",
+    ],
     deps = [
         ":cbor_converter_utils",
         ":scoped_cbor",

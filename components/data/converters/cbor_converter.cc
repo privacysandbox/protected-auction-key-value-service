@@ -16,6 +16,7 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "components/data/converters/cbor_converter_utils.h"
 #include "components/data/converters/scoped_cbor.h"
 #include "google/protobuf/message.h"
@@ -52,7 +53,7 @@ absl::StatusOr<cbor_item_t*> EncodeCompressionGroup(
         CborSerializeUInt(kTtlMs, compression_group.ttl_ms(), *cbor_internal));
   }
 
-  PS_RETURN_IF_ERROR(CborSerializeString(
+  PS_RETURN_IF_ERROR(CborSerializeByteString(
       kContent, std::move(compression_group.content()), *cbor_internal));
   return cbor_internal;
 }
@@ -78,6 +79,10 @@ absl::StatusOr<cbor_item_t*> EncodeCompressionGroups(
 
 absl::StatusOr<std::string> V2GetValuesResponseCborEncode(
     v2::GetValuesResponse& response) {
+  if (response.has_single_partition()) {
+    return absl::InvalidArgumentError(
+        "single_partition is not supported for cbor content type");
+  }
   const int getValuesResponseKeysNumber = 1;
   ScopedCbor root(cbor_new_definite_map(getValuesResponseKeysNumber));
   PS_ASSIGN_OR_RETURN(
@@ -187,11 +192,10 @@ absl::StatusOr<cbor_item_t*> EncodePartitionOutput(
   return cbor_internal;
 }
 
-absl::StatusOr<cbor_item_t*> EncodePartitionOutputs(
+absl::Status EncodePartitionOutputs(
     google::protobuf::RepeatedPtrField<application_pa::PartitionOutput>&
-        partition_outputs) {
-  cbor_item_t* serialized_partition_outputs =
-      cbor_new_definite_array(partition_outputs.size());
+        partition_outputs,
+    cbor_item_t* serialized_partition_outputs) {
   for (auto& partition_output : partition_outputs) {
     PS_ASSIGN_OR_RETURN(auto* serialized_partition_output,
                         EncodePartitionOutput(partition_output));
@@ -202,16 +206,26 @@ absl::StatusOr<cbor_item_t*> EncodePartitionOutputs(
                                               partition_output));
     }
   }
-  return serialized_partition_outputs;
+  return absl::OkStatus();
+}
+
+absl::StatusOr<std::string> PartitionOutputsCborEncode(
+    google::protobuf::RepeatedPtrField<application_pa::PartitionOutput>&
+        partition_outputs) {
+  ScopedCbor root(cbor_new_definite_array(partition_outputs.size()));
+  auto* cbor_internal = root.get();
+  PS_RETURN_IF_ERROR(EncodePartitionOutputs(partition_outputs, cbor_internal));
+  return GetCborSerializedResult(*cbor_internal);
 }
 
 absl::StatusOr<std::string> V2CompressionGroupCborEncode(
     application_pa::V2CompressionGroup& comp_group) {
   const int getCompressionGroupKeysNumber = 1;
   ScopedCbor root(cbor_new_definite_map(getCompressionGroupKeysNumber));
-  PS_ASSIGN_OR_RETURN(
-      auto* partition_outputs,
-      EncodePartitionOutputs(*(comp_group.mutable_partition_outputs())));
+  cbor_item_t* partition_outputs =
+      cbor_new_definite_array(comp_group.partition_outputs().size());
+  PS_RETURN_IF_ERROR(EncodePartitionOutputs(
+      *(comp_group.mutable_partition_outputs()), partition_outputs));
   struct cbor_pair serialized_partition_outputs = {
       .key = cbor_move(
           cbor_build_stringn(kPartitionOutputs, sizeof(kPartitionOutputs) - 1)),
@@ -225,8 +239,8 @@ absl::StatusOr<std::string> V2CompressionGroupCborEncode(
   return GetCborSerializedResult(*cbor_internal);
 }
 
-absl::Status CborDecodeToProto(std::string_view cbor_raw,
-                               google::protobuf::Message& message) {
+absl::Status CborDecodeToNonBytesProto(std::string_view cbor_raw,
+                                       google::protobuf::Message& message) {
   // TODO(b/353537363): Skip intermediate JSON conversion step
   nlohmann::json json_from_cbor = nlohmann::json::from_cbor(
       cbor_raw, /*strict=*/true, /*allow_exceptions=*/false);

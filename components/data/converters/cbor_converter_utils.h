@@ -32,6 +32,10 @@ absl::Status CborSerializeUInt(absl::string_view key, uint32_t value,
 absl::Status CborSerializeString(absl::string_view key, absl::string_view value,
                                  cbor_item_t& root);
 
+absl::Status CborSerializeByteString(absl::string_view key,
+                                     absl::string_view value,
+                                     cbor_item_t& root);
+
 absl::StatusOr<std::string> GetCborSerializedResult(
     cbor_item_t& cbor_data_root);
 

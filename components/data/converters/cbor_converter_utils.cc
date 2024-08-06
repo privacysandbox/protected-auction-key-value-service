@@ -52,6 +52,21 @@ absl::Status CborSerializeString(absl::string_view key, absl::string_view value,
   return absl::OkStatus();
 }
 
+absl::Status CborSerializeByteString(absl::string_view key,
+                                     absl::string_view value,
+                                     cbor_item_t& root) {
+  struct cbor_pair kv = {
+      .key = cbor_move(cbor_build_stringn(key.data(), key.size())),
+      .value = cbor_move(cbor_build_bytestring(
+          reinterpret_cast<const unsigned char*>(value.data()), value.size()))};
+  if (!cbor_map_add(&root, kv)) {
+    return absl::InternalError(
+        absl::StrCat("Failed to serialize ", key, " to CBOR"));
+  }
+
+  return absl::OkStatus();
+}
+
 absl::StatusOr<std::string> GetCborSerializedResult(
     cbor_item_t& cbor_data_root) {
   const size_t cbor_serialized_data_size =

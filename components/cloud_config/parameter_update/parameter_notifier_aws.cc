@@ -30,7 +30,7 @@ absl::StatusOr<std::string> ParameterNotifier::WaitForNotification(
     return absl::DataLossError("Empty message in the notification");
   }
   // return the last element
-  PS_LOG(ERROR, log_context_) << "Received notification for parameter update";
+  PS_VLOG(5, log_context_) << "Received notification for parameter update";
   return std::string((*changes).back());
 }
 

@@ -75,6 +75,8 @@ using privacy_sandbox::server_common::telemetry::BuildDependentConfig;
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
 constexpr absl::string_view kBackupPollFrequencySecsParameterSuffix =
     "backup-poll-frequency-secs";
+constexpr absl::string_view kLoggingVerbosityBackupPollFreqSecsParameterSuffix =
+    "logging-verbosity-backup-poll-frequency-secs";
 constexpr absl::string_view kMetricsExportIntervalMillisParameterSuffix =
     "metrics-export-interval-millis";
 constexpr absl::string_view kMetricsExportTimeoutMillisParameterSuffix =
@@ -206,14 +208,13 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
   // downstream.
   auto verbosity_level = parameter_fetcher.GetInt32Parameter(
       kLoggingVerbosityLevelParameterSuffix);
-  absl::SetGlobalVLogLevel(verbosity_level);
-  privacy_sandbox::server_common::log::PS_VLOG_IS_ON(0, verbosity_level);
   static auto* log_provider =
       privacy_sandbox::server_common::ConfigurePrivateLogger(server_info,
                                                              collector_endpoint)
           .release();
   privacy_sandbox::server_common::log::logger_private =
       log_provider->GetLogger(kServiceName.data()).get();
+  UpdateLoggingVerbosity(verbosity_level);
   parameter_client_->UpdateLogContext(server_safe_log_context_);
   instance_client_->UpdateLogContext(server_safe_log_context_);
   if (const bool enable_consented_log =
@@ -221,6 +222,46 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
       enable_consented_log) {
     privacy_sandbox::server_common::log::ServerToken(
         parameter_fetcher.GetParameter(kConsentedDebugTokenSuffix, ""));
+  }
+  // Start verbosity parameter notifier to listen to the updates
+  uint32_t backup_poll_frequency_secs = parameter_fetcher.GetInt32Parameter(
+      kLoggingVerbosityBackupPollFreqSecsParameterSuffix);
+  auto metadata =
+      parameter_fetcher.GetLoggingVerbosityParameterNotifierMetadata();
+  auto message_service_status =
+      MessageService::Create(metadata, server_safe_log_context_);
+  if (!message_service_status.ok()) {
+    PS_LOG(ERROR, server_safe_log_context_)
+        << "Failed to setup message service for logging verbosity update";
+    return;
+  }
+  message_service_verbosity_param_update_ = std::move(*message_service_status);
+  SetQueueManager(metadata, message_service_verbosity_param_update_.get());
+  auto logging_verbosity_notifier_status = ParameterNotifier::Create(
+      metadata,
+      std::move(parameter_fetcher.GetParamName(
+          kLoggingVerbosityLevelParameterSuffix)),
+      absl::Seconds(backup_poll_frequency_secs), server_safe_log_context_);
+  if (logging_verbosity_notifier_status.ok()) {
+    logging_verbosity_param_notifier_ =
+        std::move(*logging_verbosity_notifier_status);
+    if (auto status = logging_verbosity_param_notifier_->Start<int32_t>(
+            [this](std::string_view param_name) {
+              return parameter_client_->GetInt32Parameter(param_name);
+            },
+            absl::bind_front(&Server::UpdateLoggingVerbosity, this));
+        !status.ok()) {
+      PS_LOG(ERROR, server_safe_log_context_)
+          << "Failed to start the parameter notifier for logging verbosity "
+             "update "
+          << status;
+      return;
+    }
+  } else {
+    PS_LOG(ERROR, server_safe_log_context_)
+        << "Failed to setup the parameter notifier for logging verbosity "
+           "update "
+        << logging_verbosity_notifier_status.status();
   }
 }
 
@@ -505,6 +546,10 @@ absl::Status Server::MaybeShutdownNotifiers() {
   if (realtime_thread_pool_manager_) {
     status.Update(realtime_thread_pool_manager_->Stop());
   }
+  if (logging_verbosity_param_notifier_ &&
+      logging_verbosity_param_notifier_->IsRunning()) {
+    status.Update(logging_verbosity_param_notifier_->Stop());
+  }
   return status;
 }
 
@@ -719,6 +764,20 @@ std::unique_ptr<DeltaFileNotifier> Server::CreateDeltaFileNotifier(
       *blob_client_, absl::Seconds(backup_poll_frequency_secs),
       GetBlobPrefixAllowlist(parameter_fetcher, server_safe_log_context_),
       server_safe_log_context_);
+}
+
+void Server::UpdateLoggingVerbosity(int32_t verbosity_value) {
+  if (verbosity_value >= 0) {
+    // absl and ps log internally will check if new verbosity value
+    // equals existing verbosity value and apply the update if values are
+    // different.
+    absl::SetGlobalVLogLevel(verbosity_value);
+    // TODO(b/331416648): Uncomment the code to pick up SetGlobalPSVLogLevel
+    // API with common repo upgrade
+    // privacy_sandbox::server_common::log::SetGlobalPSVLogLevel(verbosity_value);
+    PS_VLOG(1, server_safe_log_context_)
+        << "Updated logging verbosity level to " << verbosity_value;
+  }
 }
 
 }  // namespace kv_server

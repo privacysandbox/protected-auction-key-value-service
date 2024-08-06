@@ -135,6 +135,7 @@ cc_library(
         ":server_log_init",
         "//components/cloud_config:instance_client",
         "//components/cloud_config:parameter_client",
+        "//components/cloud_config/parameter_update:parameter_notifier",
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",
         "//components/data/realtime:realtime_thread_pool_manager",

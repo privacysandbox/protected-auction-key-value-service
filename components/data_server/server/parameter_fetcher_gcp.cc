@@ -62,4 +62,11 @@ NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
   };
 }
 
+NotifierMetadata
+ParameterFetcher::GetLoggingVerbosityParameterNotifierMetadata() const {
+  // TODO(b/301118821): set to proper values. Waiting on the change notifier
+  // implementation.
+  return GcpNotifierMetadata{};
+}
+
 }  // namespace kv_server

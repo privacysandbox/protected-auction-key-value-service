@@ -42,4 +42,10 @@ NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
   return LocalNotifierMetadata{.local_directory = std::move(directory)};
 }
 
+NotifierMetadata
+ParameterFetcher::GetLoggingVerbosityParameterNotifierMetadata() const {
+  // returns dummy notifier data
+  return LocalNotifierMetadata{};
+}
+
 }  // namespace kv_server

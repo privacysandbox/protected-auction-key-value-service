@@ -772,9 +772,7 @@ void Server::UpdateLoggingVerbosity(int32_t verbosity_value) {
     // equals existing verbosity value and apply the update if values are
     // different.
     absl::SetGlobalVLogLevel(verbosity_value);
-    // TODO(b/331416648): Uncomment the code to pick up SetGlobalPSVLogLevel
-    // API with common repo upgrade
-    // privacy_sandbox::server_common::log::SetGlobalPSVLogLevel(verbosity_value);
+    privacy_sandbox::server_common::log::SetGlobalPSVLogLevel(verbosity_value);
     PS_VLOG(1, server_safe_log_context_)
         << "Updated logging verbosity level to " << verbosity_value;
   }

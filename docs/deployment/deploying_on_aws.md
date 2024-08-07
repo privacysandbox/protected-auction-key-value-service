@@ -149,6 +149,15 @@ export AWS_REGION=us-east-1  # For example.
 
 Then run `dist/aws/push_sqs` to push the SQS cleanup lambda image to AWS ECR.
 
+If you want to deploy a new version of SQS cleanup lambda image to clean up the expired sqs queues
+for KV servers that already had been deployed, after running `dist/aws/push_sqs` command, run the
+aws update-function-code command to notify the AWS lambda sqs clean up function to pick up the new
+lambda image.
+
+```shell
+aws lambda update-function-code --function-name kv-server-<environment>-sqs-cleanup --image-uri <aws account>.dkr.ecr.<region:us-east-1,us-west-1, etc>.amazonaws.com/sqs_lambda:latest
+```
+
 ## Set up Terraform
 
 The setup scripts require Terraform version 1.2.3. There is a helper script /tools/terraform, which

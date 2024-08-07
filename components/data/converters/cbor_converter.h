@@ -20,6 +20,7 @@
 #include <string>
 
 #include "absl/status/statusor.h"
+#include "nlohmann/json.hpp"
 #include "public/applications/pa/api_overlay.pb.h"
 #include "public/query/v2/get_values_v2.pb.h"
 
@@ -31,9 +32,18 @@ absl::StatusOr<std::string> V2GetValuesResponseCborEncode(
 absl::StatusOr<std::string> V2CompressionGroupCborEncode(
     application_pa::V2CompressionGroup& comp_group);
 
+absl::StatusOr<std::string> V2GetValuesRequestJsonStringCborEncode(
+    std::string_view serialized_json);
+
+absl::StatusOr<std::string> V2GetValuesRequestProtoToCborEncode(
+    const v2::GetValuesRequest& proto_req);
+
 absl::StatusOr<std::string> PartitionOutputsCborEncode(
     google::protobuf::RepeatedPtrField<application_pa::PartitionOutput>&
         partition_outputs);
+
+absl::StatusOr<nlohmann::json> GetPartitionOutputsInJson(
+    const nlohmann::json& content_json);
 
 // Converts a CBOR serialized string to a proto that does not contain a `bytes`
 // field. Will return error if the proto contains `bytes`.

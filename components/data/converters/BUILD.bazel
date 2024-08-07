@@ -49,11 +49,14 @@ cc_library(
     ],
     visibility = [
         "//components/data_server:__subpackages__",
+        "//components/tools:__subpackages__",
+        "//infrastructure:__subpackages__",
     ],
     deps = [
         ":cbor_converter_utils",
         ":scoped_cbor",
         "//public/applications/pa:api_overlay_cc_proto",
+        "//public/applications/pa:response_utils",
         "//public/query/v2:get_values_v2_cc_proto",
         "@com_google_absl//absl/status:statusor",
         "@com_google_protobuf//:protobuf",

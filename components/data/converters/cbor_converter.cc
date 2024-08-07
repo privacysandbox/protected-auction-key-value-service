@@ -15,6 +15,7 @@
 #include "components/data/converters/cbor_converter.h"
 
 #include <utility>
+#include <vector>
 
 #include "absl/log/log.h"
 #include "components/data/converters/cbor_converter_utils.h"
@@ -22,6 +23,7 @@
 #include "google/protobuf/message.h"
 #include "google/protobuf/util/json_util.h"
 #include "nlohmann/json.hpp"
+#include "public/applications/pa/response_utils.h"
 #include "public/query/v2/get_values_v2.pb.h"
 #include "src/util/status_macro/status_macros.h"
 
@@ -29,6 +31,7 @@
 
 namespace kv_server {
 
+namespace {
 inline constexpr char kCompressionGroups[] = "compressionGroups";
 inline constexpr char kCompressionGroupId[] = "compressionGroupId";
 inline constexpr char kTtlMs[] = "ttlMs";
@@ -75,30 +78,6 @@ absl::StatusOr<cbor_item_t*> EncodeCompressionGroups(
   }
 
   return serialized_compression_groups;
-}
-
-absl::StatusOr<std::string> V2GetValuesResponseCborEncode(
-    v2::GetValuesResponse& response) {
-  if (response.has_single_partition()) {
-    return absl::InvalidArgumentError(
-        "single_partition is not supported for cbor content type");
-  }
-  const int getValuesResponseKeysNumber = 1;
-  ScopedCbor root(cbor_new_definite_map(getValuesResponseKeysNumber));
-  PS_ASSIGN_OR_RETURN(
-      auto* compression_groups,
-      EncodeCompressionGroups(*(response.mutable_compression_groups())));
-  struct cbor_pair serialized_compression_groups = {
-      .key = cbor_move(cbor_build_stringn(kCompressionGroups,
-                                          sizeof(kCompressionGroups) - 1)),
-      .value = compression_groups,
-  };
-  auto* cbor_internal = root.get();
-  if (!cbor_map_add(cbor_internal, serialized_compression_groups)) {
-    return absl::InternalError(absl::StrCat(
-        "Failed to serialize ", kCompressionGroups, " to CBOR. ", response));
-  }
-  return GetCborSerializedResult(*cbor_internal);
 }
 
 absl::StatusOr<cbor_item_t*> EncodeKeyGroupOutput(
@@ -209,6 +188,56 @@ absl::Status EncodePartitionOutputs(
   return absl::OkStatus();
 }
 
+}  // namespace
+absl::StatusOr<std::string> V2GetValuesResponseCborEncode(
+    v2::GetValuesResponse& response) {
+  if (response.has_single_partition()) {
+    return absl::InvalidArgumentError(
+        "single_partition is not supported for cbor content type");
+  }
+  const int getValuesResponseKeysNumber = 1;
+  ScopedCbor root(cbor_new_definite_map(getValuesResponseKeysNumber));
+  PS_ASSIGN_OR_RETURN(
+      auto* compression_groups,
+      EncodeCompressionGroups(*(response.mutable_compression_groups())));
+  struct cbor_pair serialized_compression_groups = {
+      .key = cbor_move(cbor_build_stringn(kCompressionGroups,
+                                          sizeof(kCompressionGroups) - 1)),
+      .value = compression_groups,
+  };
+  auto* cbor_internal = root.get();
+  if (!cbor_map_add(cbor_internal, serialized_compression_groups)) {
+    return absl::InternalError(absl::StrCat(
+        "Failed to serialize ", kCompressionGroups, " to CBOR. ", response));
+  }
+  return GetCborSerializedResult(*cbor_internal);
+}
+
+absl::StatusOr<std::string> V2GetValuesRequestJsonStringCborEncode(
+    std::string_view serialized_json) {
+  nlohmann::json json_req = nlohmann::json::parse(serialized_json, nullptr,
+                                                  /*allow_exceptions=*/false,
+                                                  /*ignore_comments=*/true);
+  if (json_req.is_discarded()) {
+    return absl::InternalError(absl::StrCat(
+        "Unable to parse json req from string: ", serialized_json));
+  }
+  std::vector<uint8_t> cbor_vec = nlohmann::json::to_cbor(json_req);
+  return std::string(cbor_vec.begin(), cbor_vec.end());
+}
+
+absl::StatusOr<std::string> V2GetValuesRequestProtoToCborEncode(
+    const v2::GetValuesRequest& proto_req) {
+  std::string json_req_string;
+  if (const auto json_status = google::protobuf::json::MessageToJsonString(
+          proto_req, &json_req_string);
+      !json_status.ok()) {
+    return absl::InternalError(absl::StrCat(
+        "Unable to convert proto request to json string: ", proto_req));
+  }
+  return V2GetValuesRequestJsonStringCborEncode(json_req_string);
+}
+
 absl::StatusOr<std::string> PartitionOutputsCborEncode(
     google::protobuf::RepeatedPtrField<application_pa::PartitionOutput>&
         partition_outputs) {
@@ -216,6 +245,21 @@ absl::StatusOr<std::string> PartitionOutputsCborEncode(
   auto* cbor_internal = root.get();
   PS_RETURN_IF_ERROR(EncodePartitionOutputs(partition_outputs, cbor_internal));
   return GetCborSerializedResult(*cbor_internal);
+}
+
+absl::StatusOr<nlohmann::json> GetPartitionOutputsInJson(
+    const nlohmann::json& content_json) {
+  std::vector<uint8_t> content_cbor = nlohmann::json::to_cbor(content_json);
+  std::string content_cbor_string =
+      std::string(content_cbor.begin(), content_cbor.end());
+  struct cbor_load_result result;
+  cbor_item_t* cbor_bytestring = cbor_load(
+      reinterpret_cast<const unsigned char*>(content_cbor_string.data()),
+      content_cbor_string.size(), &result);
+  auto partition_output_cbor = cbor_bytestring_handle(cbor_bytestring);
+  auto cbor_bytestring_len = cbor_bytestring_length(cbor_bytestring);
+  return nlohmann::json::from_cbor(std::vector<uint8_t>(
+      partition_output_cbor, partition_output_cbor + cbor_bytestring_len));
 }
 
 absl::StatusOr<std::string> V2CompressionGroupCborEncode(

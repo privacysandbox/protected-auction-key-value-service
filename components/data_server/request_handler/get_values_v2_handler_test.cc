@@ -65,7 +65,7 @@ struct TestingParameters {
   const bool is_consented;
 };
 
-nlohmann::json GetPartitionOutputsInJson(nlohmann::json content_json) {
+nlohmann::json GetPartitionOutputsInJson(const nlohmann::json& content_json) {
   std::vector<uint8_t> content_cbor = nlohmann::json::to_cbor(content_json);
   std::string content_cbor_string =
       std::string(content_cbor.begin(), content_cbor.end());

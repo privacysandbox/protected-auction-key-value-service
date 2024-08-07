@@ -210,6 +210,77 @@ TEST(CborConverterTest,
   ASSERT_TRUE(json_etalon == json::from_cbor(*cbor_encoded_proto_maybe));
 }
 
+TEST(CborConverterTest, V2GetValuesRequestJsonStringCborEncodeSuccess) {
+  std::string json_request = R"({
+  "partitions": [
+      {
+          "id": 0,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "structured",
+                      "groupNames"
+                  ],
+                  "data": [
+                      "hello"
+                  ]
+              }
+          ]
+      }
+  ]
+  })";
+  absl::StatusOr<std::string> cbor_encoded_request_maybe =
+      V2GetValuesRequestJsonStringCborEncode(json_request);
+  ASSERT_TRUE(cbor_encoded_request_maybe.ok())
+      << cbor_encoded_request_maybe.status();
+  EXPECT_EQ(nlohmann::json::parse(json_request),
+            nlohmann::json::from_cbor(*cbor_encoded_request_maybe));
+}
+
+TEST(CborConverterTest,
+     V2GetValuesRequestJsonStringCborEncodeInvalidJsonFails) {
+  std::string json_request = R"({
+  "partitions": [
+      {
+          "id": 0,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "structured",
+                      "groupNames"
+                  ],
+                  "data": [
+                      "hello"
+                  ]
+              }
+          ]
+      }
+  ],
+  })";
+  absl::StatusOr<std::string> cbor_encoded_request_maybe =
+      V2GetValuesRequestJsonStringCborEncode(json_request);
+  ASSERT_FALSE(cbor_encoded_request_maybe.ok())
+      << cbor_encoded_request_maybe.status();
+}
+
+TEST(CborConverterTest, V2GetValuesRequestProtoToCborEncodeSuccess) {
+  v2::GetValuesRequest request;
+  TextFormat::ParseFromString(
+      R"pb(partitions {
+             id: 0
+             compression_group_id: 1
+             arguments { data { string_value: "hi" } }
+
+           })pb",
+      &request);
+  absl::StatusOr<std::string> cbor_encoded_request_maybe =
+      V2GetValuesRequestProtoToCborEncode(request);
+  ASSERT_TRUE(cbor_encoded_request_maybe.ok())
+      << cbor_encoded_request_maybe.status();
+}
+
 TEST(CborConverterTest, CborDecodeToNonBytesProtoSuccess) {
   v2::GetValuesRequest expected;
   TextFormat::ParseFromString(R"pb(

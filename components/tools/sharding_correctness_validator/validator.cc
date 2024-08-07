@@ -24,6 +24,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "components/cloud_config/parameter_client.h"
+#include "components/data/converters/cbor_converter.h"
 #include "components/data_server/request_handler/framing_utils.h"
 #include "components/data_server/request_handler/get_values_v2_handler.h"
 #include "components/data_server/request_handler/ohttp_client_encryptor.h"
@@ -36,6 +37,8 @@
 #include "public/query/cpp/grpc_client.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 #include "src/communication/encoding_utils.h"
+
+#include "cbor.h"
 
 ABSL_DECLARE_FLAG(std::string, gcp_project_id);
 
@@ -73,6 +76,53 @@ privacy_sandbox::server_common::CloudPlatform GetCloudPlatform() {
 
 int64_t Get(int64_t upper_bound) {
   return absl::Uniform(bitgen, 0, upper_bound);
+}
+
+// Cannot use existing CborDecodeToNonBytesProto, since that doesn't handle
+// bytes (content field). To fix this, convert the content from a
+// cbor serialized list to a proto serialized list.
+//
+// This function is only used for testing purposes and the output might
+// not accurately represent what an actual response proto content would look
+// like.
+absl::Status CborDecodeToGetValuesResponseProto(
+    std::string_view cbor_raw, v2::GetValuesResponse& response) {
+  nlohmann::json json_from_cbor = nlohmann::json::from_cbor(
+      cbor_raw, /*strict=*/true, /*allow_exceptions=*/false);
+  if (json_from_cbor.is_discarded()) {
+    return absl::InternalError("Failed to convert raw CBOR buffer to JSON");
+  }
+  for (auto& json_compression_group : json_from_cbor["compressionGroups"]) {
+    // Convert CBOR serialized list to a JSON list of partition outputs
+    PS_ASSIGN_OR_RETURN(
+        auto json_partition_outputs,
+        GetPartitionOutputsInJson(json_compression_group["content"]));
+
+    // Put the JSON list of partition outputs into a V2CompressionGroup
+    // This is necessary so that we can properly serialize the proto.
+    // The proto library only supports serializing a message, not
+    // a vector/list of protos.
+    application_pa::V2CompressionGroup v2_compression_group;
+    for (const auto& json_partition_output : json_partition_outputs) {
+      PS_ASSIGN_OR_RETURN(*v2_compression_group.add_partition_outputs(),
+                          application_pa::PartitionOutputFromJson(
+                              json_partition_output.dump()));
+    }
+    // Serialize the V2CompressionGroup and set it as the compression group's
+    // content
+    LOG(INFO) << "V2 compression group: " << v2_compression_group;
+    std::string serialized_content;
+    if (!v2_compression_group.SerializeToString(&serialized_content)) {
+      return absl::InternalError(absl::StrCat(
+          "Failed to serialize proto to string: ", v2_compression_group));
+    }
+    json_compression_group.erase("content");
+    auto* compression_group = response.add_compression_groups();
+    PS_RETURN_IF_ERROR(google::protobuf::util::JsonStringToMessage(
+        json_compression_group.dump(), compression_group));
+    compression_group->set_content(std::move(serialized_content));
+  }
+  return absl::OkStatus();
 }
 
 absl::StatusOr<google::cmrt::sdk::public_key_service::v1::PublicKey>
@@ -122,10 +172,8 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
     std::unique_ptr<google::cmrt::sdk::public_key_service::v1::PublicKey>&
         public_key) {
   std::string serialized_req;
-  if (!proto_req.SerializeToString(&serialized_req)) {
-    return absl::Status(absl::StatusCode::kUnknown,
-                        absl::StrCat("Protobuf SerializeToString failed!"));
-  }
+  PS_ASSIGN_OR_RETURN(serialized_req,
+                      V2GetValuesRequestProtoToCborEncode(proto_req));
   auto encoded_data_size = GetEncodedDataSize(serialized_req.size());
   auto maybe_padded_request =
       privacy_sandbox::server_common::EncodeResponsePayload(
@@ -151,7 +199,7 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
   google::api::HttpBody ohttp_res;
   grpc::ClientContext context;
   context.AddMetadata(std::string(kKVContentTypeHeader),
-                      std::string(kContentEncodingProtoHeaderValue));
+                      std::string(kContentEncodingCborHeaderValue));
   grpc::Status status =
       stub->ObliviousGetValues(&context, ohttp_req, &ohttp_res);
   if (!status.ok()) {
@@ -171,13 +219,11 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
     LOG(ERROR) << "unpadding response failed!";
     return deframed_req.status();
   }
-  v2::GetValuesResponse get_value_response;
-  if (!get_value_response.ParseFromString(
-          std::string(deframed_req->compressed_data))) {
-    return absl::Status(absl::StatusCode::kUnknown,
-                        absl::StrCat("Protobuf ParseFromString failed!"));
-  }
-  return get_value_response;
+  v2::GetValuesResponse get_values_response;
+  PS_RETURN_IF_ERROR(CborDecodeToGetValuesResponseProto(
+      deframed_req->compressed_data, get_values_response));
+  LOG(INFO) << "response: " << get_values_response;
+  return get_values_response;
 }
 
 v2::GetValuesRequest GetRequest(const std::vector<std::string>& input_values) {
@@ -206,28 +252,28 @@ absl::StatusOr<std::string> GetValueFromResponse(
         std::to_string(maybe_response->compression_groups().size())));
   }
   // TODO(b/355464083): Will need to uncompress once compression is implemented
-  // TODO(b/353537363): Use CBOR
   auto content = maybe_response->compression_groups(0).content();
-  nlohmann::json output_list = nlohmann::json::parse(content, nullptr,
-                                                     /*allow_exceptions=*/false,
-                                                     /*ignore_comments=*/true);
-  if (output_list.is_discarded()) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Could not parse compression group content: ", content));
+  application_pa::V2CompressionGroup v2_compression_group;
+  if (!v2_compression_group.ParseFromString(content)) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Could not parse V2CompressionGroup from content: ", content));
   }
 
-  // Expecting 1 kv in the response key group output
-  if (!output_list.is_array() || output_list.size() != 1) {
+  // Expecting 1 partition in the key group output
+  if (v2_compression_group.partition_outputs_size() != 1) {
     return absl::InvalidArgumentError(absl::StrCat(
         "Expected key group output to be a list of size 1, but received: ",
-        output_list.dump()));
+        v2_compression_group));
   }
-  auto maybe_proto =
-      application_pa::PartitionOutputFromJson(output_list[0].dump());
-  if (!maybe_proto.ok()) {
-    return maybe_proto.status();
+
+  auto partition_output = v2_compression_group.partition_outputs(0);
+  // Expecting 1 kv in the response key group output
+  if (partition_output.key_group_outputs_size() != 1) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Expected key group output to be a list of size 1, but received: ",
+        partition_output));
   }
-  auto key_group_outputs = maybe_proto->key_group_outputs();
+  auto key_group_outputs = partition_output.key_group_outputs();
   if (key_group_outputs.empty()) {
     return absl::InvalidArgumentError("key_group_outputs empty");
   }
@@ -258,6 +304,7 @@ void ValidateResponse(absl::StatusOr<v2::GetValuesResponse> maybe_response,
                       std::vector<std::string>& keys) {
   const int value_size = absl::GetFlag(FLAGS_value_size);
   for (const auto& key : keys) {
+    LOG(INFO) << "Validating key: " << key;
     auto maybe_response_value = GetValueFromResponse(maybe_response, key);
     if (!maybe_response_value.ok()) {
       total_failures++;
@@ -334,7 +381,7 @@ void Validate(
 // _number_of_requests_to_make_. Each request has _batch_size_ number of keys to
 // lookup. The assumptions for these tests are following. The keys loaded to the
 // kv server are of format _key_prefix_{0....inclusive_upper_bound} Each value
-// is deterministiclly mapped from the key -- const std::string
+// is deterministically mapped from the key -- const std::string
 // expected_value(value_size, key[key.size() - 1]); For each request a random
 // key from the key space is selected. And the request look up that key and
 // _batch_size_ of the sequential keys.

@@ -44,9 +44,27 @@ def handler(event, context):
     deleted_realtime_queues, deleted_realtime_subscriptions = find_and_cleanup(
         realtime_sns_topic, realtime_queue_prefix, timeout_secs
     )
+    logging_verbosity_updates_sns_topic = event.get(
+        "logging_verbosity_updates_sns_topic"
+    )
+    parameter_queue_prefix = event.get("parameter_queue_prefix")
+    if logging_verbosity_updates_sns_topic is None:
+        raise Exception("no logging verbosity updates topic")
+    if parameter_queue_prefix is None:
+        raise Exception("no parameter queue prefix")
+
+    (
+        deleted_logging_verbosity_parameter_queues,
+        deleted_logging_verbosity_parameter_subscriptions,
+    ) = find_and_cleanup(
+        logging_verbosity_updates_sns_topic, parameter_queue_prefix, timeout_secs
+    )
+
     return {
         "deleted_queues": deleted_queues,
         "deleted_subscriptions": deleted_subscriptions,
         "deleted_realtime_queues": deleted_realtime_queues,
         "deleted_realtime_subscriptions": deleted_realtime_subscriptions,
+        "deleted_logging_verbosity_parameter_queues": deleted_logging_verbosity_parameter_queues,
+        "deleted_logging_verbosity_parameter_subscriptions": deleted_logging_verbosity_parameter_subscriptions,
     }

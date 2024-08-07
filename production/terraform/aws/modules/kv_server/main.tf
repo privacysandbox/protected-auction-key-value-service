@@ -44,18 +44,6 @@ module "data_storage" {
   bucket_notification_dependency = [module.sqs_cleanup.allow_sqs_cleanup_execution_as_dependency]
 }
 
-module "sqs_cleanup" {
-  source                     = "../../services/sqs_cleanup"
-  environment                = var.environment
-  service                    = local.service
-  sqs_cleanup_image_uri      = var.sqs_cleanup_image_uri
-  lambda_role_arn            = module.iam_roles.lambda_role_arn
-  sqs_cleanup_schedule       = var.sqs_cleanup_schedule
-  sns_data_updates_topic_arn = module.data_storage.sns_data_updates_topic_arn
-  sqs_queue_timeout_secs     = var.sqs_queue_timeout_secs
-  sns_realtime_topic_arn     = module.data_storage.sns_realtime_topic_arn
-}
-
 module "networking" {
   source                   = "../../services/networking"
   service                  = local.service
@@ -232,6 +220,19 @@ module "parameter" {
   sharding_key_regex_parameter_value                           = var.sharding_key_regex
   enable_otel_logger_parameter_value                           = var.enable_otel_logger
   data_loading_blob_prefix_allowlist                           = var.data_loading_blob_prefix_allowlist
+}
+
+module "sqs_cleanup" {
+  source                                  = "../../services/sqs_cleanup"
+  environment                             = var.environment
+  service                                 = local.service
+  sqs_cleanup_image_uri                   = var.sqs_cleanup_image_uri
+  lambda_role_arn                         = module.iam_roles.lambda_role_arn
+  sqs_cleanup_schedule                    = var.sqs_cleanup_schedule
+  sns_data_updates_topic_arn              = module.data_storage.sns_data_updates_topic_arn
+  sqs_queue_timeout_secs                  = var.sqs_queue_timeout_secs
+  sns_realtime_topic_arn                  = module.data_storage.sns_realtime_topic_arn
+  sns_logging_verbosity_updates_topic_arn = module.parameter_notification.logging_verbosity_updates_topic_arn
 }
 
 module "security_group_rules" {

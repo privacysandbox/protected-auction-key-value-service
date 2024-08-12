@@ -152,7 +152,7 @@ Result is similar to:
 
 ```json
 {
-    "contentType": "message/ad-auction-trusted-signals-response; v=2.0",
+    "contentType": "message/ad-auction-trusted-signals-response",
     "data": "TFZDIlvBIBUfq4fzHvWwa58pjRrMmyE8mkfQshA4N9SDD6Ts28KigYIU3OcV30/+ZrCmStdCg/BcgY59Rod6TCLkSfI32Gk25oY+9I+vVxpj7FG67vWoQdbee7FUvn7TxsrdCSd9ulwpixbE7KtSw7MmX6Y0y0I7xHkx9N7zKSu/cmabg9ZgdQFipDUdBaBNPScNOrwh6b6nZhWHbW/oUWCFMHtDa9sLVP5cNi9oMjb7AFdK5NKeq1qiCuhKTi3RZ7bKNbk98JnmyGI6OwAs2631Gl+S0npPR/KDblWQJ2ZCI0maek0zIVPhWLs2/kA+etwOCmRzB7syxDwwT3MRDo6wWJdcKKHC8Y48XgKEv5NvTLC39tsEniSvPdymevNfG2PTLJDKaAocb/WVLj5wm08UNjAv+Pxu8a+wRDxP+kxm+TnKMCPapnRcplU4D3+VH4YdhQbF2V1kwsyfBQxQMr4XX1w6n87ah8qUBucjveKPSa6kqKVSk2w261McQobJW54="
 }
 ```

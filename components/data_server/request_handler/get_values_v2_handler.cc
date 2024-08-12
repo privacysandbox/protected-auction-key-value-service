@@ -53,8 +53,6 @@ using v2::GetValuesHttpRequest;
 using v2::KeyValueService;
 using v2::ObliviousGetValuesRequest;
 
-const std::string_view kOHTTPResponseContentType =
-    "message/ad-auction-trusted-signals-response; v=2.0";
 constexpr std::string_view kAcceptEncodingHeader = "accept-encoding";
 constexpr std::string_view kContentEncodingHeader = "content-encoding";
 constexpr std::string_view kBrotliAlgorithmHeader = "br";
@@ -253,7 +251,7 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
                         absl::StrCat(encrypted_response.status().code(), " : ",
                                      encrypted_response.status().message()));
   }
-  oblivious_response->set_content_type(std::string(kOHTTPResponseContentType));
+  oblivious_response->set_content_type(std::string(kKVOhttpResponseLabel));
   oblivious_response->set_data(*encrypted_response);
   return grpc::Status::OK;
 }

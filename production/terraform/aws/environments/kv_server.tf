@@ -30,6 +30,7 @@ module "kv_server" {
   existing_vpc_operator    = var.existing_vpc_operator
   existing_vpc_environment = var.existing_vpc_environment
   enable_external_traffic  = var.enable_external_traffic
+  with_existing_kv         = var.with_existing_kv
 
   # Variables related to EC2 instances.
   instance_type   = var.instance_type

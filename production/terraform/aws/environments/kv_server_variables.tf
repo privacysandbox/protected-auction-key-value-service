@@ -367,3 +367,9 @@ variable "enable_external_traffic" {
   description = "Whether to serve external traffic. If disabled, only internal traffic under existing VPC will be served."
   type        = bool
 }
+
+variable "with_existing_kv" {
+  description = "In order to deploy this Key/Value server with existing Key/Value server(s) under the same VPC, you must set this var to true to avoid resource collision. In this case, use_existing_vpc must be true for all Key/Value servers under the same VPC."
+  default     = false
+  type        = bool
+}

@@ -130,7 +130,7 @@ build {
     destination = "/home/ec2-user/hc.bash"
   }
   provisioner "file" {
-    source      = join("/", [var.workspace, "components/health_check/health.proto"])
+    source      = join("/", [var.workspace, "production/packaging/aws/data_server/ami/health.proto"])
     destination = "/home/ec2-user/health.proto"
   }
   provisioner "shell" {

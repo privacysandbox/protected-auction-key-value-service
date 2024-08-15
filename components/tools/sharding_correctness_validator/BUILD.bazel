@@ -27,7 +27,7 @@ cc_binary(
         "//components/data/converters:cbor_converter",
         "//components/data_server/request_handler:framing_utils",
         "//components/data_server/request_handler:get_values_v2_handler",
-        "//components/data_server/request_handler:ohttp_client_encryptor",
+        "//components/data_server/request_handler/encryption:ohttp_client_encryptor",
         "//components/data_server/server:key_fetcher_factory",
         "//components/data_server/server:parameter_fetcher",
         "//components/tools/util:configure_telemetry_tools",

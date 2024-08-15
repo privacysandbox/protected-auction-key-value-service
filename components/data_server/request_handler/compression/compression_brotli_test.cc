@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/data_server/request_handler/compression_brotli.h"
+#include "components/data_server/request_handler/compression/compression_brotli.h"
 
 #include <string>
 #include <string_view>
 
 #include "absl/log/log.h"
-#include "components/data_server/request_handler/uncompressed.h"
+#include "components/data_server/request_handler/compression/uncompressed.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

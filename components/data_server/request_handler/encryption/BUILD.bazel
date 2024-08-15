@@ -1,0 +1,70 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+package(default_visibility = [
+    "//components/data_server:__subpackages__",
+    "//components/internal_server:__subpackages__",
+    "//components/tools:__subpackages__",
+])
+
+cc_library(
+    name = "ohttp_client_encryptor",
+    srcs = [
+        "ohttp_client_encryptor.cc",
+    ],
+    hdrs = [
+        "ohttp_client_encryptor.h",
+    ],
+    deps = [
+        "//public:constants",
+        "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/encryption/key_fetcher:key_fetcher_manager",
+    ],
+)
+
+cc_library(
+    name = "ohttp_server_encryptor",
+    srcs = [
+        "ohttp_server_encryptor.cc",
+    ],
+    hdrs = [
+        "ohttp_server_encryptor.h",
+    ],
+    deps = [
+        "//public:constants",
+        "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/encryption/key_fetcher:key_fetcher_manager",
+    ],
+)
+
+cc_test(
+    name = "ohttp_encryptor_test",
+    size = "small",
+    srcs = [
+        "ohttp_encryptor_test.cc",
+    ],
+    deps = [
+        ":ohttp_client_encryptor",
+        ":ohttp_server_encryptor",
+        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/encryption/key_fetcher:fake_key_fetcher_manager",
+    ],
+)

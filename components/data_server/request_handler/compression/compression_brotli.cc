@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include "components/data_server/request_handler/compression_brotli.h"
+#include "components/data_server/request_handler/compression/compression_brotli.h"
 
 #include <memory>
 #include <string>

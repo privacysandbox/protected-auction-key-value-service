@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/data_server/request_handler/ohttp_server_encryptor.h"
+#include "components/data_server/request_handler/encryption/ohttp_server_encryptor.h"
 
 #include <utility>
 

@@ -20,7 +20,7 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
-#include "components/data_server/request_handler/ohttp_server_encryptor.h"
+#include "components/data_server/request_handler/encryption/ohttp_server_encryptor.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/string_padder.h"
 #include "google/protobuf/message.h"

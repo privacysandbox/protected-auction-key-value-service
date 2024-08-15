@@ -14,7 +14,7 @@
 
 #include <string_view>
 
-#include "components/data_server/request_handler/compression.h"
+#include "components/data_server/request_handler/compression/compression.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

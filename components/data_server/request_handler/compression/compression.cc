@@ -11,11 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include "components/data_server/request_handler/compression.h"
+#include "components/data_server/request_handler/compression/compression.h"
 
 #include "absl/log/log.h"
-#include "components/data_server/request_handler/compression_brotli.h"
-#include "components/data_server/request_handler/uncompressed.h"
+#include "components/data_server/request_handler/compression/compression_brotli.h"
+#include "components/data_server/request_handler/compression/uncompressed.h"
 #include "quiche/common/quiche_data_writer.h"
 
 namespace kv_server {

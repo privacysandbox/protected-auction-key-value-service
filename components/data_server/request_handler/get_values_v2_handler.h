@@ -27,7 +27,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "components/data_server/cache/cache.h"
-#include "components/data_server/request_handler/compression.h"
+#include "components/data_server/request_handler/compression/compression.h"
 #include "components/telemetry/server_definition.h"
 #include "components/udf/udf_client.h"
 #include "components/util/request_context.h"

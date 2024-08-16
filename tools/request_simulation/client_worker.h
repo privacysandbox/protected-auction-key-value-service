@@ -123,9 +123,10 @@ void ClientWorker<RequestT, ResponseT>::SendRequests() {
         metrics_collector_.IncrementRequestSentPerInterval();
         auto start = absl::Now();
         std::shared_ptr<ResponseT> response = std::make_shared<ResponseT>();
+        std::shared_ptr<RequestT> request = std::make_shared<RequestT>(
+            request_converter_(request_body.value()));
         auto status =
-            grpc_client_->SendMessage(request_converter_(request_body.value()),
-                                      service_method_, response);
+            grpc_client_->SendMessage(request, service_method_, response);
         metrics_collector_.IncrementServerResponseStatusEvent(status);
         if (!status.ok()) {
           VLOG(8) << "Received error in response " << status;

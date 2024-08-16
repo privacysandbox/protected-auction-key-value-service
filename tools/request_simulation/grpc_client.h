@@ -131,7 +131,7 @@ class GrpcClient {
   // Sends message via grpc unary call. The request method is the
   // api name supported by the grpc service, an example method name is
   // "/PackageName.ExampleService/APIName".
-  absl::Status SendMessage(const RequestT& request,
+  absl::Status SendMessage(std::shared_ptr<RequestT> request,
                            const std::string& request_method,
                            std::shared_ptr<ResponseT> response) {
     if (is_client_channel_ &&
@@ -147,8 +147,9 @@ class GrpcClient {
     std::shared_ptr<absl::Status> grpc_status =
         std::make_shared<absl::Status>();
     generic_stub_->UnaryCall(
-        client_context.get(), request_method, grpc::StubOptions(), &request,
-        response.get(), [notification, grpc_status](grpc::Status status) {
+        client_context.get(), request_method, grpc::StubOptions(),
+        request.get(), response.get(),
+        [notification, grpc_status](grpc::Status status) {
           grpc_status->Update(absl::Status(
               absl::StatusCode(status.error_code()), status.error_message()));
           notification->Notify();

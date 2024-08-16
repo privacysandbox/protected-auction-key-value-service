@@ -288,17 +288,6 @@ absl::Status RequestSimulationSystem::InitializeGrpcClientWorkers() {
   auto channel = channel_creation_fn_(server_address_,
                                       absl::GetFlag(FLAGS_server_auth_mode));
   bool is_client_channel = absl::GetFlag(FLAGS_is_client_channel);
-
-  if (is_client_channel) {
-    RetryUntilOk(
-        [channel]() {
-          if (channel->GetState(true) != GRPC_CHANNEL_READY) {
-            return absl::UnavailableError("GRPC channel is disconnected");
-          }
-          return absl::OkStatus();
-        },
-        "check grpc connection in start up", LogMetricsNoOpCallback());
-  }
   auto request_timeout = absl::GetFlag(FLAGS_request_timeout);
   for (int i = 0; i < num_of_workers; ++i) {
     auto request_converter = [](const std::string& request_body) {

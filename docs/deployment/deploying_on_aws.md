@@ -298,8 +298,9 @@ curl ${KV_SERVER_URL}/v1/getvalues?keys=foo1
 ```
 
 Since 7.47.0. curl by default send request via HTTP/2 protocol
-[curl-http2](https://curl.se/docs/http2.html). The terraform setup has the KV load balancer listen
-to HTTP/2 on port 8443 and HTTP1.1 on port 443. To query the server using http1.1 request protocol:
+[curl-http2](https://fuchsia.googlesource.com/third_party/curl/+/refs/heads/cobalt/docs/HTTP2.md).
+The terraform setup has the KV load balancer listen to HTTP/2 on port 8443 and HTTP1.1 on port 443.
+To query the server using http1.1 request protocol:
 
 ```sh
 KV_SERVER_URL="https://demo.kv-server.your-domain.example"

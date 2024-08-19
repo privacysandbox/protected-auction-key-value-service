@@ -116,8 +116,7 @@ absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithKVMutation(
   const auto record =
       std::get<KeyValueMutationRecordStruct>(data_record.record);
 
-  riegeli::CsvHeader header(kKeyValueMutationRecordHeader);
-  riegeli::CsvRecord csv_record(header);
+  riegeli::CsvRecord csv_record(*kKeyValueMutationRecordHeader);
   csv_record[kKeyColumn] = record.key;
   absl::StatusOr<ValueStruct> value = GetRecordValue(
       record.value, std::string(1, value_separator), csv_encoding);
@@ -158,8 +157,8 @@ absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithUdfConfig(
   const auto udf_config =
       std::get<UserDefinedFunctionsConfigStruct>(data_record.record);
 
-  riegeli::CsvHeader header(kUserDefinedFunctionsConfigHeader);
-  riegeli::CsvRecord csv_record(header);
+  riegeli::CsvRecord csv_record(*kUserDefinedFunctionsConfigHeader);
+
   csv_record[kCodeSnippetColumn] = udf_config.code_snippet;
   csv_record[kHandlerNameColumn] = udf_config.handler_name;
   csv_record[kLogicalCommitTimeColumn] =
@@ -182,8 +181,7 @@ absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithShardMapping(
   }
   const auto shard_mapping_struct =
       std::get<ShardMappingRecordStruct>(data_record.record);
-  riegeli::CsvHeader header(kShardMappingRecordHeader);
-  riegeli::CsvRecord csv_record(header);
+  riegeli::CsvRecord csv_record(*kShardMappingRecordHeader);
   csv_record[kLogicalShardColumn] =
       absl::StrCat(shard_mapping_struct.logical_shard);
   csv_record[kPhysicalShardColumn] =

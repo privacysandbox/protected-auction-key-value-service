@@ -21,7 +21,9 @@ package(default_visibility = [
 cc_library(
     name = "constants",
     hdrs = ["constants.h"],
-    deps = [],
+    deps = [
+        "@com_google_riegeli//riegeli/csv:csv_record",
+    ],
 )
 
 cc_library(

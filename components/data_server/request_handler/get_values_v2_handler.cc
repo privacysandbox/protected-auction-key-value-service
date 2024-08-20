@@ -26,7 +26,6 @@
 #include "absl/strings/ascii.h"
 #include "components/data/converters/cbor_converter.h"
 #include "components/data_server/request_handler/encryption/ohttp_server_encryptor.h"
-#include "components/data_server/request_handler/framing_utils.h"
 #include "components/data_server/request_handler/get_values_v2_status.h"
 #include "components/telemetry/server_definition.h"
 #include "google/protobuf/util/json_util.h"
@@ -39,6 +38,7 @@
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
 #include "src/communication/encoding_utils.h"
+#include "src/communication/framing_utils.h"
 #include "src/telemetry/telemetry.h"
 #include "src/util/status_macro/status_macros.h"
 
@@ -235,7 +235,8 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
       !s.ok()) {
     return FromAbslStatus(s);
   }
-  auto encoded_data_size = GetEncodedDataSize(response.size());
+  auto encoded_data_size = privacy_sandbox::server_common::GetEncodedDataSize(
+      response.size(), kMinResponsePaddingBytes);
   auto maybe_padded_response =
       privacy_sandbox::server_common::EncodeResponsePayload(
           privacy_sandbox::server_common::CompressionType::kUncompressed,

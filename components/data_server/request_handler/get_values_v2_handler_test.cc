@@ -23,7 +23,6 @@
 #include "components/data/converters/cbor_converter.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
-#include "components/data_server/request_handler/framing_utils.h"
 #include "components/udf/mocks.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -36,6 +35,7 @@
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
 #include "src/communication/encoding_utils.h"
+#include "src/communication/framing_utils.h"
 #include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
 
 #include "cbor.h"
@@ -229,8 +229,8 @@ class BaseTest : public ::testing::Test,
       }
       return s;
     }
-    auto encoded_data_size =
-        GetEncodedDataSize(plain_request.RequestBody().size());
+    auto encoded_data_size = privacy_sandbox::server_common::GetEncodedDataSize(
+        plain_request.RequestBody().size(), kMinResponsePaddingBytes);
     auto maybe_padded_request =
         privacy_sandbox::server_common::EncodeResponsePayload(
             privacy_sandbox::server_common::CompressionType::kUncompressed,

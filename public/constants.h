@@ -44,6 +44,9 @@ constexpr int kFileGroupFileIndexDigits = 5;
 // Number of digits used to represent the size of a file group.
 constexpr int kFileGroupSizeDigits = 6;
 
+// Minimum size of the returned response in bytes.
+constexpr int kMinResponsePaddingBytes = 0;
+
 // "DELTA_\d{16}"
 // The first component represents the file type.
 //

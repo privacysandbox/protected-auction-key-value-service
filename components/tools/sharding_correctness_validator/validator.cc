@@ -26,7 +26,6 @@
 #include "components/cloud_config/parameter_client.h"
 #include "components/data/converters/cbor_converter.h"
 #include "components/data_server/request_handler/encryption/ohttp_client_encryptor.h"
-#include "components/data_server/request_handler/framing_utils.h"
 #include "components/data_server/request_handler/get_values_v2_handler.h"
 #include "components/data_server/server/key_fetcher_factory.h"
 #include "components/data_server/server/parameter_fetcher.h"
@@ -34,9 +33,11 @@
 #include "components/util/platform_initializer.h"
 #include "nlohmann/json.hpp"
 #include "public/applications/pa/response_utils.h"
+#include "public/constants.h"
 #include "public/query/cpp/grpc_client.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 #include "src/communication/encoding_utils.h"
+#include "src/communication/framing_utils.h"
 
 #include "cbor.h"
 
@@ -174,7 +175,8 @@ absl::StatusOr<v2::GetValuesResponse> GetValuesWithCoordinators(
   std::string serialized_req;
   PS_ASSIGN_OR_RETURN(serialized_req,
                       V2GetValuesRequestProtoToCborEncode(proto_req));
-  auto encoded_data_size = GetEncodedDataSize(serialized_req.size());
+  auto encoded_data_size = privacy_sandbox::server_common::GetEncodedDataSize(
+      serialized_req.size(), kMinResponsePaddingBytes);
   auto maybe_padded_request =
       privacy_sandbox::server_common::EncodeResponsePayload(
           privacy_sandbox::server_common::CompressionType::kUncompressed,

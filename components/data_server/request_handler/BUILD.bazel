@@ -77,7 +77,6 @@ cc_library(
         "//tools/request_simulation:__subpackages__",
     ],
     deps = [
-        ":framing_utils",
         ":get_values_v2_status",
         "//components/data/converters:cbor_converter",
         "//components/data_server/cache",
@@ -98,38 +97,10 @@ cc_library(
         "@com_google_absl//absl/strings",
         "@com_google_protobuf//:protobuf",
         "@google_privacysandbox_servers_common//src/communication:encoding_utils",
+        "@google_privacysandbox_servers_common//src/communication:framing_utils",
         "@google_privacysandbox_servers_common//src/telemetry",
         "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
         "@nlohmann_json//:lib",
-    ],
-)
-
-cc_library(
-    name = "framing_utils",
-    srcs = [
-        "framing_utils.cc",
-    ],
-    hdrs = [
-        "framing_utils.h",
-    ],
-    visibility = [
-        "//components/tools:__subpackages__",
-        "//infrastructure:__subpackages__",
-    ],
-    deps = [
-        "@com_google_absl//absl/numeric:bits",
-    ],
-)
-
-cc_test(
-    name = "framing_utils_test",
-    size = "small",
-    srcs = [
-        "framing_utils_test.cc",
-    ],
-    deps = [
-        ":framing_utils",
-        "@com_google_googletest//:gtest_main",
     ],
 )
 

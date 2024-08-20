@@ -21,13 +21,13 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "components/data/converters/cbor_converter.h"
-#include "components/data_server/request_handler/framing_utils.h"
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
 #include "grpcpp/grpcpp.h"
 #include "infrastructure/testing/protocol_testing_helper_server.grpc.pb.h"
 #include "public/constants.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
 #include "src/communication/encoding_utils.h"
+#include "src/communication/framing_utils.h"
 
 ABSL_FLAG(uint16_t, port, 50050,
           "Port the server is listening on. Defaults to 50050.");
@@ -89,7 +89,8 @@ class ProtocolTestingHelperServiceImpl final
       return grpc::Status(grpc::INTERNAL,
                           std::string(maybe_cbor_body.status().message()));
     }
-    auto encoded_data_size = GetEncodedDataSize(maybe_cbor_body->size());
+    auto encoded_data_size = privacy_sandbox::server_common::GetEncodedDataSize(
+        maybe_cbor_body->size(), kMinResponsePaddingBytes);
     auto maybe_padded_request =
         privacy_sandbox::server_common::EncodeResponsePayload(
             privacy_sandbox::server_common::CompressionType::kUncompressed,

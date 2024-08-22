@@ -114,91 +114,29 @@ grpc::Status GetValuesV2Handler::GetValuesHttp(
     const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
     const GetValuesHttpRequest& request, google::api::HttpBody* response,
     ExecutionMetadata& execution_metadata) const {
+  auto v2_codec = V2EncoderDecoder::Create(V2EncoderDecoder::GetContentType(
+      headers, V2EncoderDecoder::ContentType::kJson));
   return FromAbslStatus(
       GetValuesHttp(request_context_factory, request.raw_body().data(),
-                    *response->mutable_data(), execution_metadata,
-                    GetContentType(headers, ContentType::kJson)));
+                    *response->mutable_data(), execution_metadata, *v2_codec));
 }
 
 absl::Status GetValuesV2Handler::GetValuesHttp(
     RequestContextFactory& request_context_factory, std::string_view request,
     std::string& response, ExecutionMetadata& execution_metadata,
-    ContentType content_type) const {
-  v2::GetValuesRequest request_proto;
-  switch (content_type) {
-    case ContentType::kCbor: {
-      PS_RETURN_IF_ERROR(CborDecodeToNonBytesProto(request, request_proto));
-      break;
-    }
-    case ContentType::kJson: {
-      PS_RETURN_IF_ERROR(
-          google::protobuf::util::JsonStringToMessage(request, &request_proto));
-      break;
-    }
-    case ContentType::kProto: {
-      if (!request_proto.ParseFromString(request)) {
-        auto error_message =
-            "Cannot parse request as a valid serialized proto object.";
-        PS_VLOG(4, request_context_factory.Get().GetPSLogContext())
-            << error_message;
-        return absl::InvalidArgumentError(error_message);
-      }
-      break;
-    }
-  }
+    const V2EncoderDecoder& v2_codec) const {
+  PS_ASSIGN_OR_RETURN(v2::GetValuesRequest request_proto,
+                      v2_codec.DecodeToV2GetValuesRequestProto(request));
   PS_VLOG(9) << "Converted the http request to proto: "
              << request_proto.DebugString();
   v2::GetValuesResponse response_proto;
 
-  PS_RETURN_IF_ERROR(GetValues(request_context_factory, request_proto,
-                               &response_proto, execution_metadata,
-                               IsSinglePartitionUseCase(request_proto),
-                               content_type));
-  switch (content_type) {
-    case ContentType::kCbor: {
-      PS_ASSIGN_OR_RETURN(response,
-                          V2GetValuesResponseCborEncode(response_proto));
-      break;
-    }
-    case ContentType::kJson: {
-      return MessageToJsonString(response_proto, &response);
-      break;
-    }
-    case ContentType::kProto: {
-      if (!response_proto.SerializeToString(&response)) {
-        auto error_message = "Cannot serialize the response as a proto.";
-        PS_VLOG(4, request_context_factory.Get().GetPSLogContext())
-            << error_message;
-        return absl::InvalidArgumentError(error_message);
-      }
-      break;
-    }
-  }
+  PS_RETURN_IF_ERROR(GetValues(
+      request_context_factory, request_proto, &response_proto,
+      execution_metadata, IsSinglePartitionUseCase(request_proto), v2_codec));
+  PS_ASSIGN_OR_RETURN(response,
+                      v2_codec.EncodeV2GetValuesResponse(response_proto));
   return absl::OkStatus();
-}
-
-GetValuesV2Handler::ContentType GetValuesV2Handler::GetContentType(
-    const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
-    ContentType default_content_type) {
-  for (const auto& [header_name, header_value] : headers) {
-    if (absl::AsciiStrToLower(std::string_view(
-            header_name.data(), header_name.size())) == kKVContentTypeHeader) {
-      if (absl::AsciiStrToLower(
-              std::string_view(header_value.data(), header_value.size())) ==
-          kContentEncodingProtoHeaderValue) {
-        return ContentType::kProto;
-      } else if (absl::AsciiStrToLower(std::string_view(header_value.data(),
-                                                        header_value.size())) ==
-                 kContentEncodingJsonHeaderValue) {
-        return ContentType::kJson;
-      } else if (absl::AsciiStrToLower(std::string_view(header_value.data(),
-                                                        header_value.size())) ==
-                 kContentEncodingCborHeaderValue) {
-        return ContentType::kCbor;
-      }
-    }
-  }
-  return default_content_type;
 }
 
 bool IsSinglePartitionUseCase(const v2::GetValuesRequest& request) {
@@ -228,10 +166,11 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
   if (!decoded_request.ok()) {
     return FromAbslStatus(decoded_request.status());
   }
-  auto content_type = GetContentType(headers, ContentType::kCbor);
+  auto v2_codec = V2EncoderDecoder::Create(V2EncoderDecoder::GetContentType(
+      headers, V2EncoderDecoder::ContentType::kCbor));
   if (const auto s = GetValuesHttp(request_context_factory,
                                    std::move(decoded_request->compressed_data),
-                                   response, execution_metadata, content_type);
+                                   response, execution_metadata, *v2_codec);
       !s.ok()) {
     return FromAbslStatus(s);
   }
@@ -289,12 +228,8 @@ absl::Status GetValuesV2Handler::ProcessOnePartition(
 absl::Status GetValuesV2Handler::ProcessMultiplePartitions(
     const RequestContextFactory& request_context_factory,
     const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
-    ExecutionMetadata& execution_metadata, ContentType content_type) const {
-  if (content_type == ContentType::kProto) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Content type proto not implemented for multiple "
-                     "partition use cases,"));
-  }
+    ExecutionMetadata& execution_metadata,
+    const V2EncoderDecoder& v2_codec) const {
   absl::flat_hash_map<int32_t, std::vector<std::string>> compression_group_map;
   for (const auto& partition : request.partitions()) {
     int32_t compression_group_id = partition.compression_group_id();
@@ -314,32 +249,16 @@ absl::Status GetValuesV2Handler::ProcessMultiplePartitions(
   // The content of each compressed blob is a CBOR/JSON list of partition
   // outputs or a V2CompressionGroup protobuf message.
   for (auto& [group_id, partition_output_strings] : compression_group_map) {
-    std::string content;
-    switch (content_type) {
-      case ContentType::kCbor: {
-        if (const auto status = GetCompressionGroupContentAsCborList(
-                partition_output_strings, content, request_context_factory);
-            !status.ok()) {
-          PS_VLOG(3, request_context_factory.Get().GetPSLogContext()) << status;
-        }
-        break;
-      }
-      case ContentType::kJson: {
-        if (const auto status = GetCompressionGroupContentAsJsonList(
-                partition_output_strings, content, request_context_factory);
-            !status.ok()) {
-          PS_VLOG(3, request_context_factory.Get().GetPSLogContext()) << status;
-        }
-        break;
-      }
-      case ContentType::kProto: {
-        return absl::InvalidArgumentError(absl::StrCat(
-            "Content type proto not implemented as partition output,"));
-      }
+    const auto maybe_content = v2_codec.EncodePartitionOutputs(
+        partition_output_strings, request_context_factory);
+    if (!maybe_content.ok()) {
+      PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
+          << maybe_content.status();
+      continue;
     }
     // TODO(b/355464083): Compress the compression_group content
     auto* compression_group = response.add_compression_groups();
-    compression_group->set_content(std::move(content));
+    compression_group->set_content(std::move(*maybe_content));
     compression_group->set_compression_group_id(group_id);
   }
   if (response.compression_groups().empty()) {
@@ -352,7 +271,7 @@ grpc::Status GetValuesV2Handler::GetValues(
     RequestContextFactory& request_context_factory,
     const v2::GetValuesRequest& request, v2::GetValuesResponse* response,
     ExecutionMetadata& execution_metadata, bool single_partition_use_case,
-    ContentType content_type) const {
+    const V2EncoderDecoder& v2_codec) const {
   PS_VLOG(9) << "Update log context " << request.log_context() << ";"
              << request.consented_debug_config();
   request_context_factory.UpdateLogContext(request.log_context(),
@@ -374,7 +293,7 @@ grpc::Status GetValuesV2Handler::GetValues(
   }
   const auto response_status =
       ProcessMultiplePartitions(request_context_factory, request, *response,
-                                execution_metadata, content_type);
+                                execution_metadata, v2_codec);
   return FromAbslStatus(response_status);
 }
 

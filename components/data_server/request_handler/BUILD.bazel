@@ -81,6 +81,7 @@ cc_library(
         "//components/data/converters:cbor_converter",
         "//components/data_server/cache",
         "//components/data_server/request_handler/compression",
+        "//components/data_server/request_handler/content_type:encoder",
         "//components/data_server/request_handler/encryption:ohttp_server_encryptor",
         "//components/telemetry:server_definition",
         "//components/udf:udf_client",
@@ -141,6 +142,7 @@ cc_library(
     ],
     deps = [
         ":get_values_v2_handler",
+        "//components/data_server/request_handler/content_type:encoder",
         "//components/errors:error_tag",
         "//public:api_schema_cc_proto",
         "//public/applications/pa:api_overlay_cc_proto",

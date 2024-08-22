@@ -28,6 +28,7 @@
 #include "absl/strings/escaping.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/request_handler/compression/compression.h"
+#include "components/data_server/request_handler/content_type/encoder.h"
 #include "components/telemetry/server_definition.h"
 #include "components/udf/udf_client.h"
 #include "components/util/request_context.h"
@@ -41,19 +42,6 @@ namespace kv_server {
 // Content Type Header Name. Can be set for ohttp request to proto or json
 // values below.
 inline constexpr std::string_view kContentTypeHeader = "content-type";
-// Header in clear text http request/response that indicates which format is
-// used by the payload. The more common "Content-Type" header is not used
-// because most importantly that has CORS implications, and in addition, may not
-// be forwarded by Envoy to gRPC.
-inline constexpr std::string_view kKVContentTypeHeader = "kv-content-type";
-// Protobuf Content Type Header Value.
-inline constexpr std::string_view kContentEncodingProtoHeaderValue =
-    "message/ad-auction-trusted-signals-request+proto";
-// Json Content Type Header Value.
-inline constexpr std::string_view kContentEncodingJsonHeaderValue =
-    "message/ad-auction-trusted-signals-request+json";
-inline constexpr std::string_view kContentEncodingCborHeaderValue =
-    "message/ad-auction-trusted-signals-request";
 
 bool IsSinglePartitionUseCase(const v2::GetValuesRequest& request);
 
@@ -61,12 +49,6 @@ bool IsSinglePartitionUseCase(const v2::GetValuesRequest& request);
 // See the Service proto definition for details.
 class GetValuesV2Handler {
  public:
-  enum class ContentType { kCbor = 0, kJson = 1, kProto = 2 };
-
-  static GetValuesV2Handler::ContentType GetContentType(
-      const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
-      ContentType default_content_type);
-
   // Accepts a functor to create compression blob builder for testing purposes.
   explicit GetValuesV2Handler(
       const UdfClient& udf_client,
@@ -91,7 +73,7 @@ class GetValuesV2Handler {
                          v2::GetValuesResponse* response,
                          ExecutionMetadata& execution_metadata,
                          bool single_partition_use_case,
-                         ContentType content_type) const;
+                         const V2EncoderDecoder& v2_codec) const;
 
   // Supports requests encrypted with a fixed key for debugging/demoing.
   // X25519 Secret key (priv key).
@@ -116,10 +98,11 @@ class GetValuesV2Handler {
       ExecutionMetadata& execution_metadata) const;
 
  private:
-  absl::Status GetValuesHttp(
-      RequestContextFactory& request_context_factory, std::string_view request,
-      std::string& json_response, ExecutionMetadata& execution_metadata,
-      ContentType content_type = ContentType::kJson) const;
+  absl::Status GetValuesHttp(RequestContextFactory& request_context_factory,
+                             std::string_view request,
+                             std::string& json_response,
+                             ExecutionMetadata& execution_metadata,
+                             const V2EncoderDecoder& v2_codec) const;
 
   // Invokes UDF to process one partition.
   absl::Status ProcessOnePartition(
@@ -133,7 +116,8 @@ class GetValuesV2Handler {
   absl::Status ProcessMultiplePartitions(
       const RequestContextFactory& request_context_factory,
       const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
-      ExecutionMetadata& execution_metadata, ContentType content_type) const;
+      ExecutionMetadata& execution_metadata,
+      const V2EncoderDecoder& v2_codec) const;
 
   const UdfClient& udf_client_;
   std::function<CompressionGroupConcatenator::FactoryFunctionType>

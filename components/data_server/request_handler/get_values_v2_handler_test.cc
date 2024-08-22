@@ -23,6 +23,7 @@
 #include "components/data/converters/cbor_converter.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
+#include "components/data_server/request_handler/content_type/json_encoder.h"
 #include "components/udf/mocks.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -1249,10 +1250,10 @@ TEST_F(GetValuesHandlerTest, PureGRPCTest_Success) {
       .WillOnce(Return("ECHO"));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
+  JsonV2EncoderDecoder v2_codec;
   const auto result = handler.GetValues(
       *request_context_factory, req, &resp, execution_metadata,
-      /*single_partition_use_case=*/true,
-      /*content_type=*/GetValuesV2Handler::ContentType::kJson);
+      /*single_partition_use_case=*/true, v2_codec);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -1286,10 +1287,10 @@ TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
       .WillOnce(Return(absl::InternalError("UDF execution error")));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
+  JsonV2EncoderDecoder v2_codec;
   const auto result = handler.GetValues(
       *request_context_factory, req, &resp, execution_metadata,
-      /*single_partition_use_case=*/true,
-      /*content_type=*/GetValuesV2Handler::ContentType::kJson);
+      /*single_partition_use_case=*/true, v2_codec);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -1355,10 +1356,10 @@ TEST_F(GetValuesHandlerTest,
       .WillOnce(Return("ECHO"));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
+  JsonV2EncoderDecoder v2_codec;
   const auto result = handler.GetValues(
       *request_context_factory, req, &resp, execution_metadata,
-      /*single_partition_use_case=*/true,
-      /*content_type=*/GetValuesV2Handler::ContentType::kJson);
+      /*single_partition_use_case=*/true, v2_codec);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -1392,10 +1393,10 @@ TEST_F(GetValuesHandlerTest, PureGRPCTest_CBOR_Success) {
       .WillOnce(Return("ECHO"));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
+  JsonV2EncoderDecoder v2_codec;
   const auto result = handler.GetValues(
       *request_context_factory, req, &resp, execution_metadata,
-      /*single_partition_use_case=*/true,
-      /*content_type=*/GetValuesV2Handler::ContentType::kJson);
+      /*single_partition_use_case=*/true, v2_codec);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 

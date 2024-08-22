@@ -24,6 +24,7 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
+#include "components/data_server/request_handler/content_type/encoder.h"
 #include "components/errors/error_tag.h"
 #include "google/protobuf/util/json_util.h"
 #include "public/api_schema.pb.h"
@@ -232,10 +233,11 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
         << " to v2 request " << v2_request.DebugString();
     v2::GetValuesResponse v2_response;
     ExecutionMetadata execution_metadata;
+    auto v2_codec =
+        V2EncoderDecoder::Create(V2EncoderDecoder::ContentType::kJson);
     if (auto status = v2_handler_->GetValues(
             request_context_factory, v2_request, &v2_response,
-            execution_metadata, /*single_partition_use_case=*/true,
-            GetValuesV2Handler::ContentType::kJson);
+            execution_metadata, /*single_partition_use_case=*/true, *v2_codec);
         !status.ok()) {
       return status;
     }

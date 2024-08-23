@@ -48,12 +48,12 @@ inline constexpr std::string_view kContentTypeHeader = "content-type";
 inline constexpr std::string_view kKVContentTypeHeader = "kv-content-type";
 // Protobuf Content Type Header Value.
 inline constexpr std::string_view kContentEncodingProtoHeaderValue =
-    "message/ad-auction-trusted-signals-request+proto; v=2.0";
+    "message/ad-auction-trusted-signals-request+proto";
 // Json Content Type Header Value.
 inline constexpr std::string_view kContentEncodingJsonHeaderValue =
-    "message/ad-auction-trusted-signals-request+json; v=2.0";
+    "message/ad-auction-trusted-signals-request+json";
 inline constexpr std::string_view kContentEncodingCborHeaderValue =
-    "message/ad-auction-trusted-signals-request; v=2.0";
+    "message/ad-auction-trusted-signals-request";
 
 bool IsSinglePartitionUseCase(const v2::GetValuesRequest& request);
 

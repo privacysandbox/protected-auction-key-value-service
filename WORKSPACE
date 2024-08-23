@@ -7,17 +7,19 @@ local_repository(
     path = "testing/functionaltest-system",
 )
 
-load("//builders/bazel:deps.bzl", "python_deps")
+load("//builders/bazel:deps.bzl", "python_deps", "python_register_toolchains")
 
-python_deps("//builders/bazel")
+python_deps()
+
+python_register_toolchains("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit 90eb19f 2024-08-16
-    sha256 = "1f88d637da2f54762bf2b59ea46a1852813f40b99e2cc3da2453d972357633c3",
-    strip_prefix = "data-plane-shared-libraries-90eb19f50989c8b57c4e1e355d4eef9953a2fe81",
+    # commit 9c5c93e 2024-08-23
+    sha256 = "915e837fcfeab97341ccb628b2bd7481559921909aa5f7271b95160b4f724b19",
+    strip_prefix = "data-plane-shared-libraries-9c5c93ef58d3fb174f785c0cdc0802c7e72bf4fb",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/90eb19f50989c8b57c4e1e355d4eef9953a2fe81.zip",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/9c5c93ef58d3fb174f785c0cdc0802c7e72bf4fb.zip",
     ],
 )
 

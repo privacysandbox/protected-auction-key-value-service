@@ -135,10 +135,10 @@ class UdfClientImpl : public UdfClient {
           }
           notification->Notify();
         });
-    if (!status.ok()) {
+    if (!status.status().ok()) {
       PS_LOG(ERROR, request_context_factory.Get().GetPSLogContext())
-          << "Error sending UDF for execution: " << status;
-      return status;
+          << "Error sending UDF for execution: " << status.status();
+      return status.status();
     }
 
     notification->WaitForNotificationWithTimeout(udf_timeout_);

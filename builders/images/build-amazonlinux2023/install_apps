@@ -47,8 +47,8 @@ function install_python() {
 
 function install_nitro() {
   dnf install -y \
-    "aws-nitro-enclaves-cli-1.2.*" \
-    "aws-nitro-enclaves-cli-devel-1.2.*"
+    "aws-nitro-enclaves-cli-1.3.*" \
+    "aws-nitro-enclaves-cli-devel-1.3.*"
 }
 
 function install_gcc() {

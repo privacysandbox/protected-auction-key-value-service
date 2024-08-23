@@ -5,4 +5,4 @@ npm install --global commit-and-tag-version@10.1.0
 # Install the GitHub CLI tool (https://cli.github.com/)
 apk add github-cli
 
-GOBIN=/usr/local/go/bin go install github.com/bazelbuild/buildtools/buildozer@6.0.1
+GOBIN=/usr/local/go/bin go install github.com/bazelbuild/buildtools/buildozer@6.1.1

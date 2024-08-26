@@ -153,6 +153,11 @@ resource "aws_iam_role_policy_attachment" "instance_role_policy_attachment" {
   role       = var.server_instance_role_name
 }
 
+resource "aws_iam_role_policy_attachment" "ssm_instance_role_attachment" {
+  role       = var.server_instance_role_name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 # Set up access policies for the SQS cleanup lambda function.
 data "aws_iam_policy_document" "sqs_cleanup_lambda_policy_doc" {
   statement {

@@ -25,7 +25,7 @@ output "subnets" {
 
 output "proxy_subnets" {
   description = "All service proxy subnets."
-  value       = google_compute_subnetwork.proxy_subnets
+  value       = var.use_existing_vpc ? data.google_compute_subnetwork.proxy_subnetworks : google_compute_subnetwork.proxy_subnets
 }
 
 output "server_ip_address" {

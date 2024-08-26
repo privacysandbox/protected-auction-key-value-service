@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.17.1 (2024-08-26)
+
+
+### Bug Fixes
+
+* Enable a second kv on aws deployment.
+* fix AppMesh health check.
+* Resolve proxy subnet resources collision issue.
+
 ## 0.17.0 (2024-07-08)
 
 

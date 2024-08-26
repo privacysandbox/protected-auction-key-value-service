@@ -77,6 +77,7 @@ module "security_groups" {
 }
 
 module "backend_services" {
+  count                        = var.with_existing_kv ? 0 : 1
   source                       = "../../services/backend_services"
   region                       = var.region
   environment                  = var.environment
@@ -226,6 +227,7 @@ module "parameter" {
 }
 
 module "security_group_rules" {
+  count                             = var.with_existing_kv ? 0 : 1
   source                            = "../../services/security_group_rules"
   region                            = var.region
   service                           = local.service
@@ -236,7 +238,7 @@ module "security_group_rules" {
   instances_security_group_id       = module.security_groups.instance_security_group_id
   ssh_security_group_id             = module.security_groups.ssh_security_group_id
   vpce_security_group_id            = module.security_groups.vpc_endpoint_security_group_id
-  gateway_endpoints_prefix_list_ids = module.backend_services.gateway_endpoints_prefix_list_ids
+  gateway_endpoints_prefix_list_ids = module.backend_services[0].gateway_endpoints_prefix_list_ids
   ssh_source_cidr_blocks            = var.ssh_source_cidr_blocks
   use_existing_vpc                  = var.use_existing_vpc
 }

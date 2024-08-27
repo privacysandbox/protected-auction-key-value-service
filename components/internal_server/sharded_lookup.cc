@@ -71,12 +71,13 @@ class ShardedLookup : public Lookup {
   explicit ShardedLookup(const Lookup& local_lookup, const int32_t num_shards,
                          const int32_t current_shard_num,
                          const ShardManager& shard_manager,
-                         KeySharder key_sharder)
+                         KeySharder key_sharder, bool add_chaff = true)
       : local_lookup_(local_lookup),
         num_shards_(num_shards),
         current_shard_num_(current_shard_num),
         shard_manager_(shard_manager),
-        key_sharder_(std::move(key_sharder)) {
+        key_sharder_(std::move(key_sharder)),
+        add_chaff_(add_chaff) {
     CHECK_GT(num_shards, 1) << "num_shards for ShardedLookup must be > 1";
   }
 
@@ -403,10 +404,18 @@ class ShardedLookup : public Lookup {
         }
         responses.push_back(std::async(
             std::launch::async,
-            [client, &request_context](std::string_view serialized_request,
-                                       int32_t padding) {
-              return client->GetValues(request_context, serialized_request,
-                                       padding);
+            [client, &request_context, add_chaff = add_chaff_,
+             keys = shard_lookup_input.keys](
+                std::string_view serialized_request, int32_t padding) {
+              if (!add_chaff && keys.empty()) {
+                InternalLookupResponse response;
+                absl::StatusOr<InternalLookupResponse> maybe_response =
+                    response;
+                return maybe_response;
+              } else {
+                return client->GetValues(request_context, serialized_request,
+                                         padding);
+              }
             },
             shard_lookup_input.serialized_request, shard_lookup_input.padding));
       }
@@ -635,6 +644,10 @@ class ShardedLookup : public Lookup {
   const std::string hashing_seed_;
   const ShardManager& shard_manager_;
   KeySharder key_sharder_;
+  // For prod this flag is always true.
+  // When this flag is on we always query all shards. This is done for
+  // privacy reasons.
+  const bool add_chaff_;
 };
 
 }  // namespace
@@ -643,10 +656,11 @@ std::unique_ptr<Lookup> CreateShardedLookup(const Lookup& local_lookup,
                                             const int32_t num_shards,
                                             const int32_t current_shard_num,
                                             const ShardManager& shard_manager,
-                                            KeySharder key_sharder) {
+                                            KeySharder key_sharder,
+                                            bool add_chaff) {
   return std::make_unique<ShardedLookup>(local_lookup, num_shards,
                                          current_shard_num, shard_manager,
-                                         std::move(key_sharder));
+                                         std::move(key_sharder), add_chaff);
 }
 
 }  // namespace kv_server

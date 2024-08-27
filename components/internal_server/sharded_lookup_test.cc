@@ -32,6 +32,7 @@ namespace {
 using google::protobuf::TextFormat;
 using testing::_;
 using testing::Return;
+using ::testing::StrictMock;
 
 class ShardedLookupTest : public ::testing::Test {
  protected:
@@ -173,6 +174,87 @@ TEST_F(ShardedLookupTest, GetKeyValues_Success) {
                                      key: "key4"
                                      value { value: "value4" }
                                    }
+                              )pb",
+                              &expected);
+  EXPECT_THAT(response.value(), EqualsProto(expected));
+}
+
+TEST_F(ShardedLookupTest, GetKeyValues_Nochaff_Success) {
+  const int num_shards_three = 3;
+  InternalLookupResponse local_lookup_response;
+  TextFormat::ParseFromString(R"pb(kv_pairs {
+                                     key: "key1"
+                                     value { value: "value1" }
+                                   }
+                              )pb",
+                              &local_lookup_response);
+  EXPECT_CALL(mock_local_lookup_, GetKeyValues(_, _))
+      .WillOnce(Return(local_lookup_response));
+  std::vector<absl::flat_hash_set<std::string>> cluster_mappings;
+  std::vector<std::unique_ptr<StrictMock<MockRemoteLookupClient>>>
+      remote_lookup_client;
+  for (int i = 0; i < num_shards_three; i++) {
+    cluster_mappings.push_back({std::to_string(i)});
+
+    // The key piece here is the `strict` mode. If `add_chaff` was set to true,
+    // this test would fail because `GetValues` would be called for a non local
+    // lookup.  In strict mode instead of returning defaults, we fail the test
+    // for such an unexpected call.
+    if (i == 1) {
+      auto mock_remote_lookup_client_1 =
+          std::make_unique<StrictMock<MockRemoteLookupClient>>();
+      const std::vector<std::string_view> key_list_remote = {"key4"};
+      InternalLookupRequest request;
+      request.mutable_keys()->Assign(key_list_remote.begin(),
+                                     key_list_remote.end());
+      *request.mutable_consented_debug_config() =
+          GetRequestContext()
+              .GetRequestLogContext()
+              .GetConsentedDebugConfiguration();
+      *request.mutable_log_context() =
+          GetRequestContext().GetRequestLogContext().GetLogContext();
+      const std::string serialized_request = request.SerializeAsString();
+      EXPECT_CALL(*mock_remote_lookup_client_1,
+                  GetValues(_, serialized_request, 0))
+          .WillOnce([&]() {
+            InternalLookupResponse resp;
+            SingleLookupResult result;
+            result.set_value("value4");
+            (*resp.mutable_kv_pairs())["key4"] = result;
+            return resp;
+          });
+      remote_lookup_client.push_back(std::move(mock_remote_lookup_client_1));
+    } else {
+      remote_lookup_client.push_back(
+          std::make_unique<StrictMock<MockRemoteLookupClient>>());
+    }
+  }
+  auto shard_manager = ShardManager::Create(
+      num_shards_three, std::move(cluster_mappings),
+      std::make_unique<MockRandomGenerator>(),
+      [this, &remote_lookup_client](const std::string& ip) {
+        return std::move(remote_lookup_client[stoi(ip)]);
+      });
+  auto sharded_lookup =
+      CreateShardedLookup(mock_local_lookup_, num_shards_three, shard_num_,
+                          *(*shard_manager), key_sharder_, /*add_chaff=*/false);
+
+  // as part of this call for non-chaff we're making two requests.
+  // one local and one remote. With chaff it would have been three calls:
+  // one local and two remote (one chaff and one non-chaff).
+  auto response =
+      sharded_lookup->GetKeyValues(GetRequestContext(), {"key1", "key4"});
+  EXPECT_TRUE(response.ok());
+  InternalLookupResponse expected;
+  TextFormat::ParseFromString(R"pb(
+                                kv_pairs {
+                                  key: "key1"
+                                  value { value: "value1" }
+                                }
+                                kv_pairs {
+                                  key: "key4"
+                                  value { value: "value4" }
+                                }
                               )pb",
                               &expected);
   EXPECT_THAT(response.value(), EqualsProto(expected));

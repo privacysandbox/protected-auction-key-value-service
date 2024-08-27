@@ -487,5 +487,63 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeEmptyKeyGroupOutputsSuccess) {
               ordered_json::from_cbor(*cbor_encoded_proto_maybe));
 }
 
+TEST(CborConverterTest, PartitionOutputsCborEncodeKeyValueMapOrderSuccess) {
+  ordered_json json_etalon = ordered_json::parse(R"(
+    [
+      {
+        "id": 0,
+        "keyGroupOutputs": [
+          {
+            "tags": [
+              "custom",
+              "keys"
+            ],
+            "keyValues": {
+              "a": {
+                "value": "first"
+              },
+              "b": {
+                "value": "second"
+              },
+              "ab": {
+                "value": "third"
+              }
+            }
+          }
+        ]
+      }
+    ]
+)");
+
+  application_pa::V2CompressionGroup compression_group;
+  TextFormat::ParseFromString(
+      R"pb(partition_outputs {
+             id: 0
+             key_group_outputs {
+               tags: "custom"
+               tags: "keys"
+               key_values {
+                 key: "b"
+                 value { value { string_value: "second" } }
+               }
+               key_values {
+                 key: "a"
+                 value { value { string_value: "first" } }
+               }
+               key_values {
+                 key: "ab"
+                 value { value { string_value: "third" } }
+               }
+             }
+           })pb",
+      &compression_group);
+  absl::StatusOr<std::string> cbor_encoded_proto_maybe =
+      PartitionOutputsCborEncode(
+          *compression_group.mutable_partition_outputs());
+  ASSERT_TRUE(cbor_encoded_proto_maybe.ok())
+      << cbor_encoded_proto_maybe.status();
+  EXPECT_EQ(json_etalon, ordered_json::from_cbor(*cbor_encoded_proto_maybe));
+}
+
 }  // namespace
 }  // namespace kv_server

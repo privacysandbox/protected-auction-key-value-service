@@ -14,6 +14,7 @@
 
 #include "components/data/converters/cbor_converter.h"
 
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -106,6 +107,7 @@ absl::StatusOr<cbor_item_t*> EncodeKeyGroupOutput(
   // key_values
   cbor_item_t* serialized_key_values =
       cbor_new_definite_map(key_group_output.key_values().size());
+  std::vector<std::pair<std::string, cbor_pair>> kv_vector;
   for (auto&& [key, value] : *(key_group_output.mutable_key_values())) {
     std::string value_str = std::move(value.mutable_value()->string_value());
     auto* cbor_internal_value = cbor_new_definite_map(1);
@@ -123,9 +125,23 @@ absl::StatusOr<cbor_item_t*> EncodeKeyGroupOutput(
         .key = cbor_move(cbor_build_stringn(key.c_str(), key.size())),
         .value = cbor_internal_value,
     };
+    kv_vector.emplace_back(key, serialized_key_value_pair);
+  }
+  // Following the chromium implementation, we only need to check that
+  // the length and lexicographic order of the plaintext string
+  // https://chromium.googlesource.com/chromium/src/components/cbor/+/10d0a11b998d2cca774189ba26159ad4e1eacb7f/values.h#59
+  // https://chromium.googlesource.com/chromium/src/components/cbor/+/10d0a11b998d2cca774189ba26159ad4e1eacb7f/values.cc#109
+  std::sort(kv_vector.begin(), kv_vector.end(), [](auto& left, auto& right) {
+    const auto left_size = left.first.size();
+    const auto& left_str = left.first;
+    const auto right_size = right.first.size();
+    const auto& right_str = right.first;
+    return std::tie(left_size, left_str) < std::tie(right_size, right_str);
+  });
+  for (auto&& [key, serialized_key_value_pair] : kv_vector) {
     if (!cbor_map_add(serialized_key_values, serialized_key_value_pair)) {
-      return absl::InternalError(absl::StrCat("Failed to serialize ", key,
-                                              " to CBOR. ", key_group_output));
+      return absl::InternalError(absl::StrCat(
+          "Failed to serialize ", kKeyValues, " to CBOR. ", key_group_output));
     }
   }
   struct cbor_pair serialized_key_values_pair = {

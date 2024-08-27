@@ -27,19 +27,20 @@ namespace kv_server {
 namespace {
 
 using json = nlohmann::json;
+using ordered_json = nlohmann::ordered_json;
 using google::protobuf::TextFormat;
 
 TEST(CborConverterTest, V2GetValuesResponseCborEncodeSuccess) {
   // "abc" -> [97,98,99] as byte array
-  json json_etalon = R"({
+  ordered_json json_etalon = nlohmann::ordered_json::parse(R"({
     "compressionGroups": [
       {
-        "compressionGroupId": 1,
+        "ttlMs": 2,
         "content": {"bytes":[97,98,99],"subtype":null},
-        "ttlMs": 2
+        "compressionGroupId": 1
       }
     ]
-  })"_json;
+  })");
   v2::GetValuesResponse response;
   TextFormat::ParseFromString(
       R"pb(
@@ -50,8 +51,9 @@ TEST(CborConverterTest, V2GetValuesResponseCborEncodeSuccess) {
       V2GetValuesResponseCborEncode(response);
   ASSERT_TRUE(cbor_encoded_proto_maybe.ok())
       << cbor_encoded_proto_maybe.status();
-  EXPECT_EQ(json_etalon.dump(),
-            json::from_cbor(*cbor_encoded_proto_maybe).dump());
+  EXPECT_EQ(
+      json_etalon.dump(),
+      nlohmann::ordered_json::from_cbor(*cbor_encoded_proto_maybe).dump());
 }
 
 TEST(CborConverterTest, V2GetValuesResponseCborEncode_SinglePartition_Failure) {
@@ -68,19 +70,20 @@ TEST(CborConverterTest, V2GetValuesResponseCborEncode_SinglePartition_Failure) {
 }
 
 TEST(CborConverterTest, V2GetValuesResponseCborEncodeArrayMsSuccess) {
-  json json_etalon = R"({
+  ordered_json json_etalon = nlohmann::ordered_json::parse(R"({
     "compressionGroups": [
       {
-        "compressionGroupId": 1,
-        "content": {"bytes":[97,98,99], "subtype":null }
+        "content": {"bytes":[97,98,99], "subtype":null },
+                "compressionGroupId": 1
+
       },
       {
-        "compressionGroupId": 2,
+        "ttlMs": 2,
         "content": {"bytes":[97,98,99,100], "subtype":null },
-        "ttlMs": 2
+        "compressionGroupId": 2
       }
     ]
-  })"_json;
+  })");
 
   v2::GetValuesResponse response;
   TextFormat::ParseFromString(
@@ -94,37 +97,37 @@ TEST(CborConverterTest, V2GetValuesResponseCborEncodeArrayMsSuccess) {
   ASSERT_TRUE(cbor_encoded_proto_maybe.ok())
       << cbor_encoded_proto_maybe.status();
   EXPECT_EQ(json_etalon.dump(),
-            json::from_cbor(*cbor_encoded_proto_maybe).dump());
+            ordered_json::from_cbor(*cbor_encoded_proto_maybe).dump());
 }
 
 TEST(CborConverterTest, V2CompressionGroupCborEncodeSuccess) {
-  json json_etalon = R"(
+  ordered_json json_etalon = ordered_json::parse(R"(
   {
     "partitionOutputs": [
       {
         "id": 0,
         "keyGroupOutputs": [
           {
-            "keyValues": {
-              "hello": {
-                "value": "world"
-              }
-            },
             "tags": [
               "custom",
               "keys"
-            ]
-          },
-          {
+            ],
             "keyValues": {
               "hello": {
                 "value": "world"
               }
-            },
+            }
+          },
+          {
             "tags": [
               "structured",
               "groupNames"
-            ]
+            ],
+            "keyValues": {
+              "hello": {
+                "value": "world"
+              }
+            }
           }
         ]
       },
@@ -132,21 +135,21 @@ TEST(CborConverterTest, V2CompressionGroupCborEncodeSuccess) {
         "id": 1,
         "keyGroupOutputs": [
           {
+            "tags": [
+              "custom",
+              "keys"
+            ],
             "keyValues": {
               "hello2": {
                 "value": "world2"
               }
-            },
-            "tags": [
-              "custom",
-              "keys"
-            ]
+            }
           }
         ]
       }
     ]
   }
-)"_json;
+)");
 
   application_pa::V2CompressionGroup compression_group;
   TextFormat::ParseFromString(
@@ -185,7 +188,7 @@ TEST(CborConverterTest, V2CompressionGroupCborEncodeSuccess) {
       V2CompressionGroupCborEncode(compression_group);
   ASSERT_TRUE(cbor_encoded_proto_maybe.ok());
   EXPECT_EQ(json_etalon.dump(),
-            json::from_cbor(*cbor_encoded_proto_maybe).dump());
+            ordered_json::from_cbor(*cbor_encoded_proto_maybe).dump());
 }
 
 TEST(CborConverterTest,
@@ -393,21 +396,21 @@ TEST(CborConverterTest, CborDecodeToNonBytesProtoFailure) {
 }
 
 TEST(CborConverterTest, PartitionOutputsCborEncodeSuccess) {
-  json json_etalon = R"(
+  ordered_json json_etalon = ordered_json::parse(R"(
     [
       {
         "id": 0,
         "keyGroupOutputs": [
           {
+            "tags": [
+              "custom",
+              "keys"
+            ],
             "keyValues": {
               "hello": {
                 "value": "world"
               }
-            },
-            "tags": [
-              "custom",
-              "keys"
-            ]
+            }
           }
         ]
       },
@@ -415,20 +418,20 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeSuccess) {
         "id": 1,
         "keyGroupOutputs": [
           {
+            "tags": [
+              "custom",
+              "keys"
+            ],
             "keyValues": {
               "hello2": {
                 "value": "world2"
               }
-            },
-            "tags": [
-              "custom",
-              "keys"
-            ]
+            }
           }
         ]
       }
     ]
-)"_json;
+)");
 
   application_pa::V2CompressionGroup compression_group;
   TextFormat::ParseFromString(
@@ -460,18 +463,18 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeSuccess) {
           *compression_group.mutable_partition_outputs());
   ASSERT_TRUE(cbor_encoded_proto_maybe.ok())
       << cbor_encoded_proto_maybe.status();
-  EXPECT_EQ(json_etalon, json::from_cbor(*cbor_encoded_proto_maybe));
+  EXPECT_EQ(json_etalon, ordered_json::from_cbor(*cbor_encoded_proto_maybe));
 }
 
 TEST(CborConverterTest, PartitionOutputsCborEncodeEmptyKeyGroupOutputsSuccess) {
-  json json_etalon = R"(
+  ordered_json json_etalon = nlohmann::ordered_json::parse(R"(
    [
       {
         "id": 0,
         "keyGroupOutputs": []
       }
     ]
-)"_json;
+)");
 
   application_pa::V2CompressionGroup compression_group;
   TextFormat::ParseFromString(R"pb(partition_outputs { id: 0 })pb",
@@ -480,7 +483,8 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeEmptyKeyGroupOutputsSuccess) {
       PartitionOutputsCborEncode(
           *compression_group.mutable_partition_outputs());
   ASSERT_TRUE(cbor_encoded_proto_maybe.ok());
-  ASSERT_TRUE(json_etalon == json::from_cbor(*cbor_encoded_proto_maybe));
+  ASSERT_TRUE(json_etalon ==
+              ordered_json::from_cbor(*cbor_encoded_proto_maybe));
 }
 
 }  // namespace

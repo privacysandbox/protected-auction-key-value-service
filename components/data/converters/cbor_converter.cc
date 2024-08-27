@@ -48,16 +48,16 @@ absl::StatusOr<cbor_item_t*> EncodeCompressionGroup(
     v2::CompressionGroup& compression_group) {
   const int compressionGroupKeysNumber = 3;
   auto* cbor_internal = cbor_new_definite_map(compressionGroupKeysNumber);
-  PS_RETURN_IF_ERROR(CborSerializeUInt(kCompressionGroupId,
-                                       compression_group.compression_group_id(),
-                                       *cbor_internal));
   if (compression_group.has_ttl_ms()) {
     PS_RETURN_IF_ERROR(
         CborSerializeUInt(kTtlMs, compression_group.ttl_ms(), *cbor_internal));
   }
-
   PS_RETURN_IF_ERROR(CborSerializeByteString(
       kContent, std::move(compression_group.content()), *cbor_internal));
+  PS_RETURN_IF_ERROR(CborSerializeUInt(kCompressionGroupId,
+                                       compression_group.compression_group_id(),
+                                       *cbor_internal));
+
   return cbor_internal;
 }
 
@@ -116,7 +116,7 @@ absl::StatusOr<cbor_item_t*> EncodeKeyGroupOutput(
     };
 
     if (!cbor_map_add(cbor_internal_value, serialized_value_pair)) {
-      return absl::InternalError(absl::StrCat("Failed to serialize ", kTags,
+      return absl::InternalError(absl::StrCat("Failed to serialize ", kValue,
                                               " to CBOR. ", key_group_output));
     }
     struct cbor_pair serialized_key_value_pair = {

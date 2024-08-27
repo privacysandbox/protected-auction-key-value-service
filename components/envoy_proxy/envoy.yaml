@@ -34,7 +34,16 @@ static_resources:
             virtual_hosts:
             - name: local_service
               domains: [ "*" ]
+              cors:
+                allow_origin_string_match:
+                - prefix: "*"
+                allow_methods: GET, POST, PUT, OPTIONS
+                allow_headers: Origin, Content, Accept, Content-Type, Authorization, X-Requested-With
+                allow_credentials: true
               routes:
+              - match: { prefix: "/", headers: [ { name: ":method", exact_match: "OPTIONS" } ] }
+                # fake cluster route ... some issue in envoy.
+                route: { cluster: "grpc_cluster", timeout: 60s }
               - match: { prefix: "/kv_server.v1.KeyValueService" }
                 route: { cluster: grpc_cluster, timeout: 60s }
               - match: { prefix: "/kv_server.v2.KeyValueService" }
@@ -60,6 +69,9 @@ static_resources:
                 value: '2'
               append: false
           http_filters:
+          - name: envoy.filters.http.cors
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors
           # Pass the content-type to the grpc server. By default the header is overwritten to "application/grpc"
           # This extra filter must be used because the content-type must be copied to a metadata prior to grpc transcoding
           # By the time the Router filter is invoked, the original content-type is already changed.

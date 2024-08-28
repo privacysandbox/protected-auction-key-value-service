@@ -63,6 +63,7 @@ class ParameterFetcher {
   virtual NotifierMetadata GetRealtimeNotifierMetadata(int32_t num_shards,
                                                        int32_t shard_num) const;
   virtual NotifierMetadata GetLoggingVerbosityParameterNotifierMetadata() const;
+  virtual bool ShouldAddChaffCalloutsToShardCluster() const;
 
   std::string GetParamName(std::string_view parameter_suffix) const;
 

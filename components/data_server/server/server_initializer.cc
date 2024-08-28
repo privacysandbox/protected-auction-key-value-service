@@ -130,6 +130,8 @@ class ShardedServerInitializer : public ServerInitializer {
     if (!maybe_shard_state.ok()) {
       return maybe_shard_state.status();
     }
+    const bool add_chaff =
+        parameter_fetcher_.ShouldAddChaffCalloutsToShardCluster();
     auto lookup_supplier = [&local_lookup = local_lookup_,
                             num_shards = num_shards_,
                             current_shard_num = current_shard_num_,

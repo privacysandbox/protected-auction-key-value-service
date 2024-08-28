@@ -37,6 +37,9 @@ cc_library(
         "//:aws_platform": ["parameter_fetcher_aws.cc"],
         "//:gcp_platform": ["parameter_fetcher_gcp.cc"],
         "//:local_platform": ["parameter_fetcher_local.cc"],
+    }) + select({
+        "//:nonprod_mode": ["nonprod_parameter_fetcher.cc"],
+        "//:prod_mode": ["prod_parameter_fetcher.cc"],
     }) + ["parameter_fetcher.cc"],
     hdrs = ["parameter_fetcher.h"],
     visibility = [

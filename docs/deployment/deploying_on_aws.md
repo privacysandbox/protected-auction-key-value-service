@@ -391,6 +391,11 @@ instance id is `i-00f54fe22aa47367f`):
 mssh i-00f54fe22aa47367f --region us-east-1
 ```
 
+### Alternative: Connect via Session Manager
+
+Navigate to actual EC2 instance and connect via Session Manager by following the instructions on
+[Connect to your Amazon EC2 instance using Session Manager](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html)
+
 Once you have connected to the instance, run `ls` to see the content of the server. The output
 should look similar to something like this:
 

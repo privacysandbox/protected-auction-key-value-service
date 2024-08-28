@@ -224,6 +224,11 @@ variable "add_missing_keys_v1" {
   type        = bool
 }
 
+variable "add_chaff_sharding_clusters" {
+  description = "Whether to add chaff when querying sharding clusters."
+  type        = bool
+}
+
 variable "use_real_coordinators" {
   description = "Will use real coordinators. `enclave_enable_debug_mode` should be set to `false` if the attestation check is enabled for coordinators. Attestation check is enabled on all production instances, and might be disabled for testing purposes only on staging/dev environments."
   type        = bool

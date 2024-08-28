@@ -90,6 +90,10 @@ output "add_missing_keys_v1_parameter_arn" {
   value = aws_ssm_parameter.add_missing_keys_v1_parameter.arn
 }
 
+output "add_chaff_sharding_clusters_parameter_arn" {
+  value = aws_ssm_parameter.add_chaff_sharding_clusters_parameter.arn
+}
+
 output "use_real_coordinators_parameter_arn" {
   value = aws_ssm_parameter.use_real_coordinators_parameter.arn
 }

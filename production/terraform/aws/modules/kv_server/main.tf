@@ -201,6 +201,7 @@ module "parameter" {
   udf_min_log_level_parameter_value                          = var.udf_min_log_level
   route_v1_requests_to_v2_parameter_value                    = var.route_v1_requests_to_v2
   add_missing_keys_v1_parameter_value                        = var.add_missing_keys_v1
+  add_chaff_sharding_clusters_parameter_value                = var.add_chaff_sharding_clusters
   use_real_coordinators_parameter_value                      = var.use_real_coordinators
   primary_coordinator_account_identity_parameter_value       = var.primary_coordinator_account_identity
   secondary_coordinator_account_identity_parameter_value     = var.secondary_coordinator_account_identity
@@ -282,6 +283,7 @@ module "iam_role_policies" {
     module.parameter.udf_num_workers_parameter_arn,
     module.parameter.route_v1_requests_to_v2_parameter_arn,
     module.parameter.add_missing_keys_v1_parameter_arn,
+    module.parameter.add_chaff_sharding_clusters_parameter_arn,
     module.parameter.data_loading_file_format_parameter_arn,
     module.parameter.logging_verbosity_level_parameter_arn,
     module.parameter.logging_verbosity_update_sns_arn_parameter_arn,

@@ -104,6 +104,11 @@ variable "add_missing_keys_v1_parameter_value" {
   type        = bool
 }
 
+variable "add_chaff_sharding_clusters_parameter_value" {
+  description = "Add chaff when querying sharding clusters."
+  type        = bool
+}
+
 variable "use_real_coordinators_parameter_value" {
   description = "Number of parallel threads for reading and loading data files."
   type        = bool

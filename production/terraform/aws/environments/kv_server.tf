@@ -88,9 +88,10 @@ module "kv_server" {
   data_loading_blob_prefix_allowlist = var.data_loading_blob_prefix_allowlist
 
   # Variables related to sharding.
-  num_shards             = var.num_shards
-  use_sharding_key_regex = var.use_sharding_key_regex
-  sharding_key_regex     = var.sharding_key_regex
+  num_shards                  = var.num_shards
+  use_sharding_key_regex      = var.use_sharding_key_regex
+  sharding_key_regex          = var.sharding_key_regex
+  add_chaff_sharding_clusters = var.add_chaff_sharding_clusters
 
   # Variables related to UDF execution.
   udf_num_workers           = var.udf_num_workers

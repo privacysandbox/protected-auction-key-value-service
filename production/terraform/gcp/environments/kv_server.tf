@@ -86,6 +86,7 @@ module "kv_server" {
     udf-min-log-level                            = var.udf_min_log_level
     route-v1-to-v2                               = var.route_v1_to_v2
     add-missing-keys-v1                          = var.add_missing_keys_v1
+    add-chaff-sharding-clusters                  = var.add_chaff_sharding_clusters
     use-real-coordinators                        = var.use_real_coordinators
     environment                                  = var.environment
     project-id                                   = var.project_id

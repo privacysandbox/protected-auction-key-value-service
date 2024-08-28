@@ -196,6 +196,11 @@ variable "add_missing_keys_v1" {
   description = "Add missing keys for v1."
 }
 
+variable "add_chaff_sharding_clusters" {
+  type        = bool
+  description = "Add chaff sharding clusters."
+}
+
 variable "use_real_coordinators" {
   type        = bool
   description = "Use real coordinators."

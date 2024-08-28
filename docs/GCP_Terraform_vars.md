@@ -1,5 +1,10 @@
 # GCP Key Value Server Terraform vars documentation
 
+-   **add_chaff_sharding_clusters**
+
+    Whether to add chaff sharding clusters. Only works for nonprod. For prod mode requests are
+    always chaffed.
+
 -   **add_missing_keys_v1**
 
     Add missing keys v1.

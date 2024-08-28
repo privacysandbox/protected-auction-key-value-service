@@ -223,6 +223,11 @@ variable "add_missing_keys_v1" {
   type        = bool
 }
 
+variable "add_chaff_sharding_clusters" {
+  description = "Whether to add chaff when querying sharding clusters."
+  type        = bool
+}
+
 variable "use_real_coordinators" {
   description = "Use real coordinators."
   type        = bool

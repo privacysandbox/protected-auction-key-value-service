@@ -142,6 +142,13 @@ resource "aws_ssm_parameter" "add_missing_keys_v1_parameter" {
   overwrite = true
 }
 
+resource "aws_ssm_parameter" "add_chaff_sharding_clusters_parameter" {
+  name      = "${var.service}-${var.environment}-add-chaff-sharding-clusters"
+  type      = "String"
+  value     = var.add_chaff_sharding_clusters_parameter_value
+  overwrite = true
+}
+
 resource "aws_ssm_parameter" "use_real_coordinators_parameter" {
   name      = "${var.service}-${var.environment}-use-real-coordinators"
   type      = "String"

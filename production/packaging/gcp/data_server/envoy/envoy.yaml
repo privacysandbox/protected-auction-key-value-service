@@ -58,6 +58,9 @@ static_resources:
                 key: 'x-fledge-bidding-signals-format-version'
                 value: '2'
               append: false
+            - header:
+                key: 'Access-Control-Allow-Origin'
+                value: '*'
           http_filters:
           - name: envoy.filters.http.cors
             typed_config:

@@ -8,7 +8,6 @@ package(
 proto_library(
     name = "api_schema_proto",
     srcs = ["api_schema.proto"],
-    cc_api_version = 2,
     deps = [
         "//google/protobuf:struct",
     ],
@@ -22,7 +21,6 @@ cc_proto_library(
 proto_library(
     name = "base_types_proto",
     srcs = ["base_types.proto"],
-    cc_api_version = 2,
 )
 
 cc_proto_library(

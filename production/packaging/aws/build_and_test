@@ -144,7 +144,7 @@ if [[ ${SKIP_EIF} -eq 0  ]]; then
   readonly IMAGE_URI
   BUILD_ARCH=$("${WORKSPACE}"/builders/tools/get-architecture)
   IMAGE_TAG=$(mktemp --dry-run temp-XXXXXX)
-  builder::cbuild_al2 $"
+  builder::cbuild_al2023 $"
   set -o errexit
   # extract server docker image into local docker client and retag it
   docker load -i dist/server_docker_image.tar
@@ -186,7 +186,7 @@ if [[ ${SKIP_EIF} -eq 0  ]]; then
 fi
 
 printf "==== Copying to dist =====\n"
-builder::cbuild_al2 $"
+builder::cbuild_al2023 $"
 trap _collect_logs EXIT
 function _collect_logs() {
   local -r -i STATUS=\$?
@@ -215,7 +215,7 @@ if [[ -n ${AMI_REGIONS[0]} ]]; then
   docker run --rm --user "${DOCKER_USER}" --entrypoint=unzip --volume "${AWSDIR}:${AWSDIR}" --workdir "${AWSDIR}" "${UTILS_IMAGE}" -o -q "${AWSDIR}"/aws_artifacts.zip
   printf "==== build AWS AMI (using packer) =====\n"
   regions="$(arr_to_string_list AMI_REGIONS)"
-  builder::cbuild_al2 "
+  builder::cbuild_al2023 "
 set -o errexit
 packer build \
   -var=regions='${regions}' \

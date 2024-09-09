@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
-    "container_layer",
-)
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 pkg_tar(
@@ -29,31 +25,35 @@ pkg_tar(
     package_dir = "/opt/privacysandbox/bin",
 )
 
-container_layer(
-    name = "data_loading_analyzer_layer",
-    directory = "/",
-    tars = [
-        ":data_loading_analyzer_binaries",
-    ],
-)
-
 # This image target is meant for testing running the server in an enclave using.
 #
 # See project README.md on how to run the image.
-container_image(
+oci_image(
     name = "data_loading_analyzer_enclave_image",
     base = select({
-        "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64//image",
-        "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64//image",
+        "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64",
+        "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64",
     }),
     cmd = [
         "/opt/privacysandbox/bin/proxify",
         "/opt/privacysandbox/bin/data_loading_analyzer",
     ],
     entrypoint = ["/bin/bash"],
-    layers = [
-        ":data_loading_analyzer_layer",
+    tars = [
+        ":data_loading_analyzer_binaries",
     ],
+)
+
+oci_load(
+    name = "data_loading_analyzer_enclave_tarball",
+    image = ":data_loading_analyzer_enclave_image",
+    repo_tags = ["bazel/components/tools:data_loading_analyzer_enclave"],
+)
+
+filegroup(
+    name = "data_loading_analyzer_enclave_image.tar",
+    srcs = [":data_loading_analyzer_enclave_tarball"],
+    output_group = "tarball",
 )
 
 cc_binary(

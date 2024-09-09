@@ -1,4 +1,4 @@
-# Copyright 2023 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,26 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load(
-    "@rules_pkg//pkg:mappings.bzl",
-    "pkg_attributes",
-    "pkg_files",
-)
-load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+# refer to docs at https://github.com/GoogleContainerTools/container-structure-test
 
-pkg_files(
-    name = "etc_resolv_files",
-    srcs = [
-        "//components/aws/resolv:resolv_config_group",
-    ],
-    attributes = pkg_attributes(mode = "0444"),
-    prefix = "/etc",
-)
+schemaVersion: 2.0.0
 
-pkg_tar(
-    name = "resolv_config_tar",
-    srcs = [
-        ":etc_resolv_files",
-    ],
-    visibility = ["//production/packaging:__subpackages__"],
-)
+fileExistenceTests:
+  - name: init_server_basic
+    path: /init_server_basic
+    shouldExist: true
+    isExecutableBy: any
+
+  - name: server
+    path: /server
+    shouldExist: true
+    isExecutableBy: any
+
+  - name: envoy-config
+    path: /etc/envoy/envoy.yaml
+    shouldExist: true
+
+  - name: envoy-binary
+    path: /usr/local/bin/envoy
+    shouldExist: true
+    isExecutableBy: any
+
+licenseTests:
+  - debian: true

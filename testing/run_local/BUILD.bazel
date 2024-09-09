@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
-    "container_layer",
-)
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load(
     "@rules_pkg//pkg:mappings.bzl",
     "pkg_attributes",
@@ -41,27 +37,27 @@ pkg_tar(
     ],
 )
 
-container_layer(
-    name = "envoy_config_layer",
-    directory = "/",
+oci_image(
+    name = "envoy_image",
+    base = select({
+        "@platforms//cpu:arm64": "@envoy-distroless-arm64",
+        "@platforms//cpu:x86_64": "@envoy-distroless-amd64",
+    }),
     tars = [
         ":envoy_config_tar",
     ],
 )
 
-container_image(
-    name = "envoy_image",
-    architecture = select({
-        "@platforms//cpu:arm64": "arm64",
-        "@platforms//cpu:x86_64": "amd64",
-    }),
-    base = select({
-        "@platforms//cpu:arm64": "@envoy-distroless-arm64//image",
-        "@platforms//cpu:x86_64": "@envoy-distroless-amd64//image",
-    }),
-    layers = [
-        ":envoy_config_layer",
-    ],
+oci_load(
+    name = "envoy_image_tarball",
+    image = ":envoy_image",
+    repo_tags = ["bazel/testing/run_local:envoy_image"],
+)
+
+filegroup(
+    name = "envoy_image.tar",
+    srcs = [":envoy_image_tarball"],
+    output_group = "tarball",
 )
 
 genrule(
@@ -72,7 +68,7 @@ genrule(
     outs = ["build_envoy_image.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p testing/run_local/dist
-cp $(execpath :envoy_image.tar) testing/run_local/dist
+cp $(execpath :envoy_image.tar) testing/run_local/dist/envoy_image.tar
 EOF""",
     executable = True,
     local = True,

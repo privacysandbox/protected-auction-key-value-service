@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
-    "container_layer",
-    "container_push",
+    "@rules_pkg//pkg:mappings.bzl",
+    "pkg_attributes",
+    "pkg_files",
 )
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_python//python:defs.bzl", "py_library", "py_test")
 
 py_library(
@@ -35,35 +36,58 @@ py_test(
     ],
 )
 
-container_layer(
-    name = "lambda_binary_layer",
-    directory = "/var/task",  # ${LAMBDA_TASK_ROOT}
-    files = [
+pkg_files(
+    name = "lambda_binaries",
+    srcs = [
         "sqs_cleanup.py",
         "sqs_cleanup_manager.py",
     ],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/var/task",  # ${LAMBDA_TASK_ROOT}
 )
 
-container_image(
-    name = "sqs_lambda",
+pkg_tar(
+    name = "lambda_binary_tar",
+    srcs = [":lambda_binaries"],
+)
+
+oci_image(
+    name = "sqs_lambda_image",
     base = select({
-        "@platforms//cpu:arm64": "@aws-lambda-python-arm64//image",
-        "@platforms//cpu:x86_64": "@aws-lambda-python-amd64//image",
+        "@platforms//cpu:arm64": "@aws-lambda-python-arm64",
+        "@platforms//cpu:x86_64": "@aws-lambda-python-amd64",
     }),
     cmd = ["sqs_cleanup.handler"],
-    layers = [
-        ":lambda_binary_layer",
+    tars = [
+        ":lambda_binary_tar",
     ],
+)
+
+oci_load(
+    name = "sqs_lambda",
+    image = ":sqs_lambda_image",
+    repo_tags = ["bazel/components/aws:sqs_lambda"],
+)
+
+filegroup(
+    name = "sqs_lambda_tarball_file",
+    srcs = [":sqs_lambda"],
+    output_group = "tarball",
+)
+
+genrule(
+    name = "sqs_lambda_tarball",
+    srcs = [":sqs_lambda_tarball_file"],
+    outs = ["sqs_lambda.tar"],
+    cmd = "cp $< $@",
     visibility = ["//production/packaging:__subpackages__"],
 )
 
-container_push(
+oci_push(
     name = "sqs_lambda_push_aws_ecr",
-    format = "Docker",
-    image = ":sqs_lambda",
-    registry = "$${AWS_ECR}",
-    repository = "sqs_lambda",
-    tag = "latest",
+    image = ":sqs_lambda_image",
+    remote_tags = ["latest"],
+    repository = "$${AWS_ECR}/sqs_lambda",
 )
 
 exports_files(

@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load(
-    "@io_bazel_rules_docker//container:container.bzl",
-    "container_image",
-    "container_layer",
-)
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load(
     "@rules_pkg//pkg:mappings.bzl",
     "pkg_attributes",
@@ -87,27 +83,27 @@ pkg_tar(
     srcs = [":tools_executables"],
 )
 
-container_layer(
-    name = "tools_binaries_layer",
-    directory = "/",
+oci_image(
+    name = "tools_binaries_image",
+    base = select({
+        "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64",
+        "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64",
+    }),
     tars = [
         ":tools_binaries_tar",
     ],
 )
 
-container_image(
+oci_load(
     name = "tools_binaries_docker_image",
-    architecture = select({
-        "@platforms//cpu:arm64": "arm64",
-        "@platforms//cpu:x86_64": "amd64",
-    }),
-    base = select({
-        "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64//image",
-        "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64//image",
-    }),
-    layers = [
-        ":tools_binaries_layer",
-    ],
+    image = ":tools_binaries_image",
+    repo_tags = ["bazel/production/packaging/tools:tools_binaries_docker_image"],
+)
+
+filegroup(
+    name = "tools_binaries_docker_image.tar",
+    srcs = [":tools_binaries_docker_image"],
+    output_group = "tarball",
 )
 
 genrule(
@@ -120,7 +116,7 @@ genrule(
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/debian
 cp $(execpath :tools_binaries) dist/debian
-cp $(execpath :tools_binaries_docker_image.tar) dist
+cp $(execpath :tools_binaries_docker_image.tar) dist/tools_binaries_docker_image.tar
 builders/tools/normalize-dist
 EOF""",
     executable = True,

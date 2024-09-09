@@ -15,11 +15,11 @@ python_register_toolchains("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit b7b3c75 2024-09-17
-    sha256 = "9359a6adbfe7f5343a7f39d923840d8b89697bcc7c0ec04a6723f9437bbfbab8",
-    strip_prefix = "data-plane-shared-libraries-b7b3c750b2934f0b5eab110b23574035102dfbd1",
+    # commit 619fc5d 2024-09-17
+    sha256 = "ddfc8e3c7d9065f64d3ae758977e16b4a70084776e689e745ee53bac6243d19b",
+    strip_prefix = "data-plane-shared-libraries-619fc5d4b6383422e54a3624d49a574e56313bc8",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/b7b3c750b2934f0b5eab110b23574035102dfbd1.zip",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/619fc5d4b6383422e54a3624d49a574e56313bc8.zip",
     ],
 )
 
@@ -53,27 +53,9 @@ load(
 
 cpp_repositories()
 
-http_archive(
-    name = "io_bazel_rules_docker",
-    sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
-    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
-)
-
-load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
-
-container_repositories()
-
-load("@io_bazel_rules_docker//repositories:deps.bzl", io_bazel_rules_docker_deps = "deps")
-
-io_bazel_rules_docker_deps()
-
 load("//third_party_deps:container_deps.bzl", "container_deps")
 
 container_deps()
-
-load("@io_bazel_rules_docker//go:image.bzl", go_image_repos = "repositories")
-
-go_image_repos()
 
 # googleapis
 http_archive(
@@ -143,6 +125,15 @@ load("@word2vec//:requirements.bzl", word2vec_install_deps = "install_deps")
 latency_benchmark_install_deps()
 
 word2vec_install_deps()
+
+http_archive(
+    name = "io_bazel_rules_go",
+    sha256 = "16e9fca53ed6bd4ff4ad76facc9b7b651a89db1689a2877d6fd7b82aa824e366",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.34.0/rules_go-v0.34.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.34.0/rules_go-v0.34.0.zip",
+    ],
+)
 
 # Use nogo to run `go vet` with bazel
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")

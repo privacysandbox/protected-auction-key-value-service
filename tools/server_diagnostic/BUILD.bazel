@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load(
     "@rules_pkg//pkg:mappings.bzl",
     "pkg_attributes",
@@ -117,7 +117,7 @@ pkg_files(
 [
     oci_image(
         name = "diagnostic_tool_box_image_{}".format(arch),
-        base = "@runtime-ubuntu-fulldist-debug-root-{}//image".format(arch),
+        base = "@runtime-ubuntu-fulldist-debug-root-{}".format(arch),
         tars = [
             ":helloworld_server_binaries_tar",
             ":query_api_descriptor_set_tar",
@@ -131,10 +131,22 @@ pkg_files(
 ]
 
 [
-    oci_tarball(
+    oci_load(
         name = "diagnostic_tool_box_docker_image_{}".format(arch),
         image = ":diagnostic_tool_box_image_{}".format(arch),
         repo_tags = ["bazel/tools/server_diagnostic:diagnostic_tool_box_docker_image"],
+    )
+    for arch in [
+        "arm64",
+        "amd64",
+    ]
+]
+
+[
+    filegroup(
+        name = "diagnostic_tool_box_docker_image_{}.tar".format(arch),
+        srcs = [":diagnostic_tool_box_docker_image_{}".format(arch)],
+        output_group = "tarball",
     )
     for arch in [
         "arm64",
@@ -146,15 +158,15 @@ genrule(
     name = "copy_to_dist",
     srcs = [
         ":diagnostic_cli",
-        ":diagnostic_tool_box_docker_image_arm64",
-        ":diagnostic_tool_box_docker_image_amd64",
+        ":diagnostic_tool_box_docker_image_arm64.tar",
+        ":diagnostic_tool_box_docker_image_amd64.tar",
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/tools/server_diagnostic/arm64
-cp $(execpath :diagnostic_tool_box_docker_image_arm64) dist/tools/server_diagnostic/arm64/diagnostic_tool_box_docker_image_arm64.tar
+cp $(execpath :diagnostic_tool_box_docker_image_arm64.tar) dist/tools/server_diagnostic/arm64/diagnostic_tool_box_docker_image_arm64.tar
 mkdir -p dist/tools/server_diagnostic/amd64
-cp $(execpath :diagnostic_tool_box_docker_image_amd64) dist/tools/server_diagnostic/amd64/diagnostic_tool_box_docker_image_amd64.tar
+cp $(execpath :diagnostic_tool_box_docker_image_amd64.tar) dist/tools/server_diagnostic/amd64/diagnostic_tool_box_docker_image_amd64.tar
 cp $(execpath :diagnostic_cli) dist/tools/server_diagnostic/diagnostic_cli
 builders/tools/normalize-dist
 EOF""",

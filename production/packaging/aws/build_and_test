@@ -34,6 +34,7 @@ function _print_runtime() {
 }
 
 declare MODE=prod
+declare -i SKIP_EIF=0
 
 function usage() {
   local exitval=${1-1}
@@ -46,6 +47,7 @@ usage:
     --no-precommit               Skip precommit checks
     --with-tests                 Also runs tests before building
     --mode <type>                Mode can  be prod or nonprod. Default: ${MODE}
+    --skip-eif                   Skip building the eif and checking pcr0
 
 environment variables (all optional):
     WORKSPACE                    Set the path to the workspace (repo root)
@@ -77,6 +79,10 @@ while [[ $# -gt 0 ]]; do
     --mode)
       MODE="$2"
       shift
+      shift
+      ;;
+    --skip-eif)
+      SKIP_EIF=1
       shift
       ;;
     --verbose)
@@ -131,50 +137,52 @@ printf "==== Creating dist dir =====\n"
 mkdir -p "${DIST}"/aws
 chmod 770 "${DIST}" "${DIST}"/aws
 
-printf "==== build AWS artifacts using build-amazonlinux2 =====\n"
-# build nitro enclave image, collect eif artifacts
-IMAGE_URI=bazel/production/packaging/aws/data_server
-readonly IMAGE_URI
-BUILD_ARCH=$("${WORKSPACE}"/builders/tools/get-architecture)
-IMAGE_TAG=$(mktemp --dry-run temp-XXXXXX)
-builder::cbuild_al2 $"
-set -o errexit
-# extract server docker image into local docker client and retag it
-docker load -i dist/server_docker_image.tar
-docker tag ${IMAGE_URI}:server_docker_image ${IMAGE_URI}:'${IMAGE_TAG}'
-rm -f dist/aws/{server_enclave_image.eif,server_enclave_image.json,pcr0.json}
-nitro-cli build-enclave --docker-uri ${IMAGE_URI}:'${IMAGE_TAG}' --output-file dist/aws/server_enclave_image.eif >dist/aws/server_enclave_image.json
-if [[ \$? -ne 0 ]]; then
-  printf 'error building nitro eif image\n'
-  exit 1
-fi
-jq --compact-output '{PCR0: .Measurements.PCR0}' dist/aws/server_enclave_image.json >dist/aws/pcr0.json
-jq --compact-output --raw-output '.Measurements.PCR0' dist/aws/server_enclave_image.json >dist/aws/pcr0.txt
-cat dist/aws/pcr0.json
-exit 0
-"
-docker image rm --force ${IMAGE_URI}:"${IMAGE_TAG}" || fail "Unable to remove Docker image"
+if [[ ${SKIP_EIF} -eq 0  ]]; then
+  printf "==== build AWS artifacts using build-amazonlinux2 =====\n"
+  # build nitro enclave image, collect eif artifacts
+  IMAGE_URI=bazel/production/packaging/aws/data_server
+  readonly IMAGE_URI
+  BUILD_ARCH=$("${WORKSPACE}"/builders/tools/get-architecture)
+  IMAGE_TAG=$(mktemp --dry-run temp-XXXXXX)
+  builder::cbuild_al2 $"
+  set -o errexit
+  # extract server docker image into local docker client and retag it
+  docker load -i dist/server_docker_image.tar
+  docker tag ${IMAGE_URI}:server_docker_image ${IMAGE_URI}:'${IMAGE_TAG}'
+  rm -f dist/aws/{server_enclave_image.eif,server_enclave_image.json,pcr0.json}
+  nitro-cli build-enclave --docker-uri ${IMAGE_URI}:'${IMAGE_TAG}' --output-file dist/aws/server_enclave_image.eif >dist/aws/server_enclave_image.json
+  if [[ \$? -ne 0 ]]; then
+    printf 'error building nitro eif image\n'
+    exit 1
+  fi
+  jq --compact-output '{PCR0: .Measurements.PCR0}' dist/aws/server_enclave_image.json >dist/aws/pcr0.json
+  jq --compact-output --raw-output '.Measurements.PCR0' dist/aws/server_enclave_image.json >dist/aws/pcr0.txt
+  cat dist/aws/pcr0.json
+  exit 0
+  "
+  docker image rm --force ${IMAGE_URI}:"${IMAGE_TAG}" || fail "Unable to remove Docker image"
 
-printf "==== Checking PCR0 =====\n"
-PCR0_REL_DIR=production/packaging/aws/data_server/nitro-pcr0
-readonly PCR0_REL_DIR
-PCR0_DIR="${WORKSPACE}"/${PCR0_REL_DIR}
-readonly PCR0_DIR
-PCR0_FILE="${PCR0_DIR}"/${BUILD_ARCH}.json
-readonly PCR0_FILE
-declare -i OUTDATED_PCR0=0
-if [[ ! -s ${PCR0_FILE} ]]; then
-  printf "warning: PCR0 file doesn't exist or is empty [%s]\n" "${PCR0_FILE}"
-  OUTDATED_PCR0=1
-elif ! diff -q "${DIST}"/aws/pcr0.json "${PCR0_FILE}" &>/dev/null; then
-  printf "warning: PCR0 hash differs\n"
-  OUTDATED_PCR0=1
-fi
-if [[ ${OUTDATED_PCR0} -eq 0 ]]; then
-  printf "PCR0 hash unchanged\n"
-else
-  printf "PCR0 hash differs: %s:\n" "${PCR0_FILE}"
-  cat "${PCR0_FILE}"
+  printf "==== Checking PCR0 =====\n"
+  PCR0_REL_DIR=production/packaging/aws/data_server/nitro-pcr0
+  readonly PCR0_REL_DIR
+  PCR0_DIR="${WORKSPACE}"/${PCR0_REL_DIR}
+  readonly PCR0_DIR
+  PCR0_FILE="${PCR0_DIR}"/${BUILD_ARCH}.json
+  readonly PCR0_FILE
+  declare -i OUTDATED_PCR0=0
+  if [[ ! -s ${PCR0_FILE} ]]; then
+    printf "warning: PCR0 file doesn't exist or is empty [%s]\n" "${PCR0_FILE}"
+    OUTDATED_PCR0=1
+  elif ! diff -q "${DIST}"/aws/pcr0.json "${PCR0_FILE}" &>/dev/null; then
+    printf "warning: PCR0 hash differs\n"
+    OUTDATED_PCR0=1
+  fi
+  if [[ ${OUTDATED_PCR0} -eq 0 ]]; then
+    printf "PCR0 hash unchanged\n"
+  else
+    printf "PCR0 hash differs: %s:\n" "${PCR0_FILE}"
+    cat "${PCR0_FILE}"
+  fi
 fi
 
 printf "==== Copying to dist =====\n"

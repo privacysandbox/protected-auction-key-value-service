@@ -138,7 +138,7 @@ mkdir -p "${DIST}"/aws
 chmod 770 "${DIST}" "${DIST}"/aws
 
 if [[ ${SKIP_EIF} -eq 0  ]]; then
-  printf "==== build AWS artifacts using build-amazonlinux2 =====\n"
+  printf "==== build AWS artifacts using build-amazonlinux2023 =====\n"
   # build nitro enclave image, collect eif artifacts
   IMAGE_URI=bazel/production/packaging/aws/data_server
   readonly IMAGE_URI

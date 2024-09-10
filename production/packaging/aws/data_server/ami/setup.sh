@@ -20,7 +20,6 @@ chmod 500 /home/ec2-user/proxy
 chmod 500 /home/ec2-user/server_enclave_image.eif
 
 sudo mkdir /opt/privacysandbox
-mkdir /tmp/proxy
 
 sudo cp /home/ec2-user/vsockproxy.service /etc/systemd/system/vsockproxy.service
 sudo cp /home/ec2-user/proxy /opt/privacysandbox/proxy
@@ -36,10 +35,10 @@ sudo chmod 555 /opt/privacysandbox/hc.bash
 sudo chmod 555 /opt/privacysandbox/health.proto
 
 # Install necessary dependencies
-sudo yum update -y
-sudo yum install -y docker
-sudo yum localinstall -y /home/ec2-user/aws-otel-collector.rpm
-sudo amazon-linux-extras install -y aws-nitro-enclaves-cli
+sudo dnf update -y
+sudo dnf install -y docker
+sudo dnf localinstall -y /home/ec2-user/aws-otel-collector.rpm
+sudo dnf install aws-nitro-enclaves-cli -y
 
 sudo usermod -a -G docker ec2-user
 sudo usermod -a -G ne ec2-user

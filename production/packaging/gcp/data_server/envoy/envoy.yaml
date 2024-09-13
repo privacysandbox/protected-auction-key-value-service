@@ -66,6 +66,22 @@ static_resources:
                 key: 'Access-Control-Allow-Origin'
                 value: '*'
           http_filters:
+          # TODO(b/362736353): Remove lua filter.
+          # Add a LUA filter to get the request body.
+          # On GCP, the request body does not seem to get fully propagated to the server.
+          # Adding a `request_handle:body()` call fixes this.
+          - name: envoy.filters.http.lua
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+              default_source_code:
+                inline_string: |
+                  function envoy_on_request(request_handle)
+                    -- If path is grpc reflection, don't wait for body or envoy will get stuck
+                    if(request_handle:headers():get(":path") ~= "/grpc.reflection.v1alpha.ServerReflection/ServerReflectionInfo")
+                    then
+                      request_handle:body()
+                    end
+                  end
           - name: envoy.filters.http.cors
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors

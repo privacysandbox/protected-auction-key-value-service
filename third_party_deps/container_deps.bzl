@@ -25,12 +25,12 @@ def container_deps():
             "registry": "public.ecr.aws",
             "repository": "lambda/python",
         },
-        # Used for deploying Envoy locally for testing
+        # Used for deploying Envoy locally and on GCP
         "envoy-distroless": {
             "arch_hashes": {
-                # v1.23.1
-                "amd64": "e2c642bc6949cb3053810ca14524324d7daf884a0046d7173e46e2b003144f1d",
-                "arm64": "7763f6325882122afb1beb6ba0a047bed318368f9656fd9c1df675f3d89f1dbe",
+                # v1.24.1
+                "amd64": "9f5d0d7c817c588cd4bd6ef4508ad544ef19cef6d217aa894315790da7662ba7",
+                "arm64": "94c9e77eaa85893daaf95a20fdd5dfb3141250a8c5d707d789265ee3abe49a1e",
             },
             "registry": "docker.io",
             "repository": "envoyproxy/envoy-distroless",

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.69.0 (2024-09-15)
+
+
+### Features
+
+* Pin build-debian ubuntu base image from 20.04 to focal-20240530
+
 ## 0.68.1 (2024-08-21)
 
 ### Bug Fixes

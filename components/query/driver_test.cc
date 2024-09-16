@@ -263,6 +263,19 @@ TYPED_TEST(DriverTest, InlineIntegerSetTooBig) {
   ASSERT_FALSE(result.ok());
 }
 
+TYPED_TEST(DriverTest, WrongInlineSetType) {
+  if constexpr (std::is_same_v<TypeParam, std::string_view>) {
+    // Incorrectly mix a inline number node with a string_view set.
+    this->Parse("A & Set(1)");
+    auto result =
+        this->driver_->template EvaluateQuery<TypeParam>(Lookup<TypeParam>);
+    // TODO(b/353502448): Consider returning an error.
+    ASSERT_TRUE(result.ok());
+    // Wrong type returns empty set.
+    EXPECT_TRUE(result->empty());
+  }
+}
+
 TYPED_TEST(DriverTest, Union) {
   for (std::string_view query : {"A UNION B", "A | B"}) {
     this->Parse(std::string(query));

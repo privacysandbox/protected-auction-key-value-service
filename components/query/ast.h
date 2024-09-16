@@ -211,6 +211,8 @@ class ASTPostOrderEvalVisitor final : public ASTVisitor {
       return;
     }
     // TODO(b/353502448): Consider returning an error.
+    // For now push back the empty set.
+    stack_.push_back({});
   }
 
   void Visit(const StringViewSetNode& node) override {
@@ -222,6 +224,8 @@ class ASTPostOrderEvalVisitor final : public ASTVisitor {
       }
     }
     // TODO(b/353502448): Consider returning an error.
+    // For now push back the empty set.
+    stack_.push_back({});
   }
 
   ValueT GetResult() {

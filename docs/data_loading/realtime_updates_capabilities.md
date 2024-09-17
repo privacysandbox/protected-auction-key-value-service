@@ -3,7 +3,7 @@
 ## Overview
 
 A parameter
-([AWS](https://github.com/privacysandbox/fledge-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/production/terraform/aws/environments/kv_server.tf#L51),
+([AWS](https://github.com/privacysandbox/protected-auction-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/production/terraform/aws/environments/kv_server.tf#L51),
 [GCP](/docs/GCP_Terraform_vars.md#L96)) sets the size of the thread pool that reads off a queue. The
 bigger that number is, the smaller the batch size can be. It is preferred to use a larger batch size
 where possible.
@@ -45,7 +45,7 @@ While similar logic applies, the GCP SDK has superior performance due to
 ## Multiple threads
 
 To get to a higher QPS we can have multiple threads reading off a queue. This is a parameter
-([AWS](https://github.com/privacysandbox/fledge-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/production/terraform/aws/environments/kv_server.tf#L51),
+([AWS](https://github.com/privacysandbox/protected-auction-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/production/terraform/aws/environments/kv_server.tf#L51),
 [GCP](/docs/GCP_Terraform_vars.md#L96)) that our solution exposes. It can be increased to match
 specific QPS requirements and underlying hardware - based on the number of cores.
 
@@ -170,10 +170,10 @@ the batch size.
 
 You can test our service with our tools.
 
-[Data generation script](https://github.com/privacysandbox/fledge-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/tools/serving_data_generator/generate_load_test_data)
+[Data generation script](https://github.com/privacysandbox/protected-auction-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/tools/serving_data_generator/generate_load_test_data)
 Allows to generate N deltas, with B updates per delta. You can configure the N, and B (batch size).
 
-[Publisher](https://github.com/privacysandbox/fledge-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/components/tools/realtime_updates_publisher.cc#L122)
+[Publisher](https://github.com/privacysandbox/protected-auction-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/components/tools/realtime_updates_publisher.cc#L122)
 allows to insert batched updates at the specified rate from a specified folder.
 
 ### Getting p values
@@ -183,7 +183,7 @@ allows to insert batched updates at the specified rate from a specified folder.
 You can query Prometheus directly by using the script below. You can update the p value, 0.5 in this
 case, to the value you're interested in. AMP_QUERY_ENDPOINT can be found in AWS UI. It is a url for
 the prometheus workspace that's created by
-[this](https://github.com/privacysandbox/fledge-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/production/terraform/aws/services/telemetry/main.tf#L17)
+[this](https://github.com/privacysandbox/protected-auction-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/production/terraform/aws/services/telemetry/main.tf#L17)
 
 ```sh
 AWS_ACCESS_KEY_ID=...

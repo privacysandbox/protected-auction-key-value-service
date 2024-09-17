@@ -51,9 +51,9 @@ obfuscate key names.
 # Data loading and serving flow with the data locality feature
 
 A regex can be set by an AdTech on startup as a terraform
-[parameter](https://github.com/privacysandbox/fledge-key-value-service/blob/b047d89ebfa6312ec8d1de275da69fd60d24eba3/production/terraform/aws/environments/kv_server_variables.tf#L254)
+[parameter](https://github.com/privacysandbox/protected-auction-key-value-service/blob/b047d89ebfa6312ec8d1de275da69fd60d24eba3/production/terraform/aws/environments/kv_server_variables.tf#L254)
 that will be applied to all keys. This
-[parameter](https://github.com/privacysandbox/fledge-key-value-service/blob/b047d89ebfa6312ec8d1de275da69fd60d24eba3/production/terraform/aws/environments/kv_server_variables.tf#L248)
+[parameter](https://github.com/privacysandbox/protected-auction-key-value-service/blob/b047d89ebfa6312ec8d1de275da69fd60d24eba3/production/terraform/aws/environments/kv_server_variables.tf#L248)
 should be set to `true`. The regex is global in the sense that there is only 1 regex and it is known
 to all shards.
 

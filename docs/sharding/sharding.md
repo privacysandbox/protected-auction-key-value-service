@@ -34,7 +34,7 @@ sharding. Naturally, if the size of your data set is bigger than the biggest mac
 capacity, your only option is to use sharding. Additionally, sometimes it is cheaper to use multiple
 smaller machines, as compared to a few high capacity ones. The memory capacity of a single machine
 depends on what you specify in the terraform variables
-[file](https://github.com/privacysandbox/fledge-key-value-service/blob/04d3e75794fadc14c17b960a9cd02088216aa138/production/terraform/aws/environments/demo/us-east-1.tfvars.json#L16).
+[file](https://github.com/privacysandbox/protected-auction-key-value-service/blob/04d3e75794fadc14c17b960a9cd02088216aa138/production/terraform/aws/environments/demo/us-east-1.tfvars.json#L16).
 
 E.g. the demo value is `m5.xlarge` for AWS, which
 [is](https://aws.amazon.com/ec2/instance-types/m5/) 16 GB. Cloud providers give an ability to
@@ -82,15 +82,15 @@ incurred.
 
 ## Sharding function
 
-[Sharding function](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/public/sharding/sharding_function.h#L32)
+[Sharding function](https://github.com/privacysandbox/protected-auction-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/public/sharding/sharding_function.h#L32)
 takes a key and maps it to a shard number. It is a
-[SHA256](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/public/sharding/sharding_function.h#L35C38-L35C38)
+[SHA256](https://github.com/privacysandbox/protected-auction-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/public/sharding/sharding_function.h#L35C38-L35C38)
 mod `number of shards`.
 
 ## Write path
 
 Data that doesn't belong to a given shard is dropped if it makes it to the server. There is a
-[metric](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/data_server/data_loading/data_orchestrator.cc#L101C54-L101C54)
+[metric](https://github.com/privacysandbox/protected-auction-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/data_server/data_loading/data_orchestrator.cc#L101C54-L101C54)
 that an AdTech can track. Ideally, this metric should be 0.
 
 Sharding helps limit the amount of data each server instance has to process on the write path. This
@@ -106,9 +106,9 @@ and load it.
 ![Realtime sequence](../assets/grouping_records.png)
 
 A snapshot/delta file indicates its shard number through this
-[field](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/public/data_loading/riegeli_metadata.proto#L40).
+[field](https://github.com/privacysandbox/protected-auction-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/public/data_loading/riegeli_metadata.proto#L40).
 This
-[tool](https://github.com/privacysandbox/fledge-key-value-service/blob/252d361c7a3b291f50ffbf36d86fc4405af6a147/tools/serving_data_generator/test_serving_data_generator.cc#L36-L37)
+[tool](https://github.com/privacysandbox/protected-auction-key-value-service/blob/252d361c7a3b291f50ffbf36d86fc4405af6a147/tools/serving_data_generator/test_serving_data_generator.cc#L36-L37)
 shows how that field can be set. If it is not set, the whole file will be read by all machines.
 However, only records that belong to that particular shard will be loaded in memory. If the shard
 number in the file does not match the server's shard number, the server can skip the file without
@@ -118,8 +118,8 @@ reading the records.
 
 A message published to SNS, for AWS, or PubSub, for GCP _must_ be tagged with a shard number.
 SNS/PubSub will fan out such messages only
-([AWS](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/data/common/msg_svc_aws.cc#L174),
-[GCP](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/data/common/msg_svc_gcp.cc#L86))
+([AWS](https://github.com/privacysandbox/protected-auction-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/data/common/msg_svc_aws.cc#L174),
+[GCP](https://github.com/privacysandbox/protected-auction-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/data/common/msg_svc_gcp.cc#L86))
 to the machines that are associated with that shard number. This increases the throughput for any
 given machine, as it has to process fewer messages and only relevant ones.
 
@@ -147,9 +147,9 @@ from relevant shards and then combines them together and returns the result to t
 some keys may be looked up in memory from that server.
 
 If one of the downstream requests fails, a corresponding per key
-[status](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/internal_server/sharded_lookup.cc#L85)
+[status](https://github.com/privacysandbox/protected-auction-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/internal_server/sharded_lookup.cc#L85)
 is set, which is different from `Not found`
-[status](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/internal_server/sharded_lookup.cc#L72C24-L72C24).
+[status](https://github.com/privacysandbox/protected-auction-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/internal_server/sharded_lookup.cc#L72C24-L72C24).
 
 Similarly, if a set query needs to be run, it will be run after corresponding sets have been
 collected. However, if one of the downstream requests fails, then the whole query is failed.
@@ -158,10 +158,10 @@ Each machine knows its shard number. A machine isn't ready to serve traffic unti
 at least one active replica for each shard cluster (from 1 to `num_shards`). That mapping from a
 shard cluster number to internal ip addresses, preserved in memory for performance reasons, is
 updated every
-[`update_interval_millis`](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/sharding/cluster_mappings_manager.h#L48C30-L48C30).
+[`update_interval_millis`](https://github.com/privacysandbox/protected-auction-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/sharding/cluster_mappings_manager.h#L48C30-L48C30).
 
 When a request needs to be made to a shard cluster with K replicas, a machine is chosen
-[randomly](https://github.com/privacysandbox/fledge-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/sharding/shard_manager.cc#L91C45-L91C45)
+[randomly](https://github.com/privacysandbox/protected-auction-key-value-service/blob/31e6d0e3f173086214c068b62d6b95935063fd6b/components/sharding/shard_manager.cc#L91C45-L91C45)
 from the pool.
 
 ## Privacy
@@ -209,5 +209,5 @@ replicas.
 
 ## Work in progress
 
-[Logical Sharding Config](https://github.com/privacysandbox/fledge-key-value-service/blob/0e9b454825d641786255f11df4a2b62eee893a98/public/data_loading/riegeli_metadata.proto#L44)
+[Logical Sharding Config](https://github.com/privacysandbox/protected-auction-key-value-service/blob/0e9b454825d641786255f11df4a2b62eee893a98/public/data_loading/riegeli_metadata.proto#L44)
 is a work in progress and you should not be using it at the moment.

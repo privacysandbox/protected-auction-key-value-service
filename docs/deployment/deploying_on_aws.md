@@ -18,9 +18,8 @@ To learn more about FLEDGE and the Key/Value server, take a look at the followin
     > with the functionality and high level user experience. As more privacy protection mechanisms
     > are added to the system, this document will be updated accordingly.
 
-For the initial testing of the Key/Value server, you must have or
-[create an Amazon Web Services (AWS)](https://portal.aws.amazon.com/billing/signup/iam) account.
-You'll need API access, as well as your key ID and secret key.
+For the initial testing of the Key/Value server, you must have or create an Amazon Web Services
+(AWS) account. You'll need API access, as well as your key ID and secret key.
 
 # Set up your AWS account
 

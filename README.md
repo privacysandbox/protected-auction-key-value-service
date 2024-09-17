@@ -304,8 +304,8 @@ changes and major version will always be incremented for breaking changes.
 
 Contributions are welcome, and we will publish more detailed guidelines soon. In the meantime, if
 you are interested,
-[open a new Issue](https://github.com/privacysandbox/fledge-key-value-service/issues) in the GitHub
-repository.
+[open a new Issue](https://github.com/privacysandbox/protected-auction-key-value-service/issues) in
+the GitHub repository.
 
 # Feedback
 

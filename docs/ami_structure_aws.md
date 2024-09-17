@@ -50,5 +50,5 @@ Let:
 ## How is the server launched on EC2 instance launch?
 
 The
-[instance launch script](https://github.com/privacysandbox/fledge-key-value-service/blob/main/production/terraform/aws/services/autoscaling/instance_init_script.tftpl)
+[instance launch script](https://github.com/privacysandbox/protected-auction-key-value-service/blob/main/production/terraform/aws/services/autoscaling/instance_init_script.tftpl)
 is used to startup the KV server and other relevant components when the EC2 instance is launched.

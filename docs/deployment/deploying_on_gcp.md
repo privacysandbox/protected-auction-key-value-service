@@ -96,10 +96,10 @@ run into any Docker access errors, follow the instructions for
 ## Get the source code from GitHub
 
 The code for the FLEDGE Key/Value server is released on
-[GitHub](https://github.com/privacysandbox/fledge-key-value-service).
+[GitHub](https://github.com/privacysandbox/protected-auction-key-value-service).
 
 The main branch is under active development. For a more stable experience, please use the
-[latest release branch](https://github.com/privacysandbox/fledge-key-value-service/releases).
+[latest release branch](https://github.com/privacysandbox/protected-auction-key-value-service/releases).
 
 ## Build the Docker image for GCP
 

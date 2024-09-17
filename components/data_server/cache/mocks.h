@@ -101,14 +101,14 @@ class MockGetKeyValueSetResult : public GetKeyValueSetResult {
                std::unique_ptr<absl::ReaderMutexLock>),
               (override));
   MOCK_METHOD((const UInt32ValueSet*), GetUInt32ValueSet, (std::string_view),
-              (const override));
+              (const, override));
   MOCK_METHOD(
       void, AddUIntValueSet,
       (std::string_view,
        (ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr)),
       (override));
   MOCK_METHOD((const UInt64ValueSet*), GetUInt64ValueSet, (std::string_view),
-              (const override));
+              (const, override));
   MOCK_METHOD(
       void, AddUIntValueSet,
       (std::string_view,

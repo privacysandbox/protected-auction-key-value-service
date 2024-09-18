@@ -225,6 +225,7 @@ variable "add_missing_keys_v1" {
 
 variable "add_chaff_sharding_clusters" {
   description = "Whether to add chaff when querying sharding clusters."
+  default     = true
   type        = bool
 }
 

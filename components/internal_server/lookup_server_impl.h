@@ -38,29 +38,9 @@ class LookupServiceImpl final
 
   ~LookupServiceImpl() override = default;
 
-  grpc::Status InternalLookup(
-      grpc::ServerContext* context,
-      const kv_server::InternalLookupRequest* request,
-      kv_server::InternalLookupResponse* response) override;
-
   grpc::Status SecureLookup(grpc::ServerContext* context,
                             const kv_server::SecureLookupRequest* request,
                             kv_server::SecureLookupResponse* response) override;
-
-  grpc::Status InternalRunQuery(
-      grpc::ServerContext* context,
-      const kv_server::InternalRunQueryRequest* request,
-      kv_server::InternalRunQueryResponse* response) override;
-
-  grpc::Status InternalRunSetQueryUInt32(
-      grpc::ServerContext* context,
-      const kv_server::InternalRunSetQueryUInt32Request* request,
-      kv_server::InternalRunSetQueryUInt32Response* response) override;
-
-  grpc::Status InternalRunSetQueryUInt64(
-      grpc::ServerContext* context,
-      const kv_server::InternalRunSetQueryUInt64Request* request,
-      kv_server::InternalRunSetQueryUInt64Response* response) override;
 
  private:
   std::string GetPayload(
@@ -76,28 +56,6 @@ class LookupServiceImpl final
   grpc::Status ToInternalGrpcStatus(
       InternalLookupMetricsContext& metrics_context, const absl::Status& status,
       std::string_view error_code) const;
-
-  template <typename RequestType, typename ResponseType>
-  grpc::Status RunSetQuery(grpc::ServerContext* context,
-                           const RequestType* request, ResponseType* response,
-                           absl::AnyInvocable<absl::StatusOr<ResponseType>(
-                               const RequestContext&, std::string)>
-                               run_set_query_fn) {
-    RequestContext request_context;
-    if (context->IsCancelled()) {
-      return grpc::Status(grpc::StatusCode::CANCELLED,
-                          "Deadline exceeded or client cancelled, abandoning.");
-    }
-    const auto process_result =
-        run_set_query_fn(request_context, request->query());
-    if (!process_result.ok()) {
-      return ToInternalGrpcStatus(
-          request_context.GetInternalLookupMetricsContext(),
-          process_result.status(), kInternalRunQueryRequestFailure);
-    }
-    *response = std::move(*process_result);
-    return grpc::Status::OK;
-  }
 
   const Lookup& lookup_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&

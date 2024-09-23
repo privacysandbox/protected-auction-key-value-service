@@ -68,18 +68,6 @@ void LookupServiceImpl::ProcessKeysetKeys(
   }
 }
 
-grpc::Status LookupServiceImpl::InternalLookup(
-    grpc::ServerContext* context, const InternalLookupRequest* request,
-    InternalLookupResponse* response) {
-  RequestContext request_context;
-  if (context->IsCancelled()) {
-    return grpc::Status(grpc::StatusCode::CANCELLED,
-                        "Deadline exceeded or client cancelled, abandoning.");
-  }
-  ProcessKeys(request_context, request->keys(), *response);
-  return grpc::Status::OK;
-}
-
 grpc::Status LookupServiceImpl::SecureLookup(
     grpc::ServerContext* context,
     const SecureLookupRequest* secure_lookup_request,
@@ -151,40 +139,6 @@ std::string LookupServiceImpl::GetPayload(
     ProcessKeys(request_context, keys, response);
   }
   return response.SerializeAsString();
-}
-
-grpc::Status LookupServiceImpl::InternalRunQuery(
-    grpc::ServerContext* context, const InternalRunQueryRequest* request,
-    InternalRunQueryResponse* response) {
-  return RunSetQuery<InternalRunQueryRequest, InternalRunQueryResponse>(
-      context, request, response,
-      [this](const RequestContext& request_context, std::string query) {
-        return lookup_.RunQuery(request_context, query);
-      });
-}
-
-grpc::Status LookupServiceImpl::InternalRunSetQueryUInt32(
-    grpc::ServerContext* context,
-    const kv_server::InternalRunSetQueryUInt32Request* request,
-    kv_server::InternalRunSetQueryUInt32Response* response) {
-  return RunSetQuery<InternalRunSetQueryUInt32Request,
-                     InternalRunSetQueryUInt32Response>(
-      context, request, response,
-      [this](const RequestContext& request_context, std::string query) {
-        return lookup_.RunSetQueryUInt32(request_context, query);
-      });
-}
-
-grpc::Status LookupServiceImpl::InternalRunSetQueryUInt64(
-    grpc::ServerContext* context,
-    const kv_server::InternalRunSetQueryUInt64Request* request,
-    kv_server::InternalRunSetQueryUInt64Response* response) {
-  return RunSetQuery<InternalRunSetQueryUInt64Request,
-                     InternalRunSetQueryUInt64Response>(
-      context, request, response,
-      [this](const RequestContext& request_context, std::string query) {
-        return lookup_.RunSetQueryUInt64(request_context, query);
-      });
 }
 
 }  // namespace kv_server

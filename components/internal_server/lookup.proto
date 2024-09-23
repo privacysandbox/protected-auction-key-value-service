@@ -21,24 +21,8 @@ import "src/logger/logger.proto";
 
 // Internal Lookup Service API.
 service InternalLookupService {
-  // Endpoint for querying the server's internal datastore. Should only be used
-  // within TEEs.
-  rpc InternalLookup(InternalLookupRequest) returns (InternalLookupResponse) {}
-
   // Endpoint for querying the datastore over the network.
   rpc SecureLookup(SecureLookupRequest) returns (SecureLookupResponse) {}
-
-  // Endpoint for running a query on the server's internal datastore. Should
-  // only be used within TEEs.
-  rpc InternalRunQuery(InternalRunQueryRequest) returns (InternalRunQueryResponse) {}
-
-  // Endpoint for running a set query over unsigned int sets in the server's
-  // internal datastore. Should only be used within TEEs.
-  rpc InternalRunSetQueryUInt32(InternalRunSetQueryUInt32Request) returns (InternalRunSetQueryUInt32Response) {}
-
-  // Endpoint for running a set query over unsigned int sets in the server's
-  // internal datastore. Should only be used within TEEs.
-  rpc InternalRunSetQueryUInt64(InternalRunSetQueryUInt64Request) returns (InternalRunSetQueryUInt64Response) {}
 }
 
 // Lookup request for internal datastore.

@@ -18,6 +18,7 @@
 #define COMPONENTS_UTIL_REQUEST_CONTEXT_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -33,7 +34,10 @@ class RequestLogContext {
   explicit RequestLogContext(
       const privacy_sandbox::server_common::LogContext& log_context,
       const privacy_sandbox::server_common::ConsentedDebugConfiguration&
-          consented_debug_config);
+          consented_debug_config,
+      std::optional<
+          absl::AnyInvocable<privacy_sandbox::server_common::DebugInfo*()>>
+          debug_info_opt = std::nullopt);
 
   privacy_sandbox::server_common::log::ContextImpl<>&
   GetRequestLoggingContext();
@@ -79,7 +83,10 @@ class RequestContext {
   void UpdateLogContext(
       const privacy_sandbox::server_common::LogContext& log_context,
       const privacy_sandbox::server_common::ConsentedDebugConfiguration&
-          consented_debug_config);
+          consented_debug_config,
+      std::optional<
+          absl::AnyInvocable<privacy_sandbox::server_common::DebugInfo*()>>
+          debug_info_opt = std::nullopt);
   UdfRequestMetricsContext& GetUdfRequestMetricsContext() const;
   InternalLookupMetricsContext& GetInternalLookupMetricsContext() const;
   RequestLogContext& GetRequestLogContext() const;
@@ -128,7 +135,10 @@ class RequestContextFactory {
   void UpdateLogContext(
       const privacy_sandbox::server_common::LogContext& log_context,
       const privacy_sandbox::server_common::ConsentedDebugConfiguration&
-          consented_debug_config);
+          consented_debug_config,
+      std::optional<
+          absl::AnyInvocable<privacy_sandbox::server_common::DebugInfo*()>>
+          debug_info_opt = std::nullopt);
   // Not movable and copyable to prevent making unnecessary
   // copies of underlying shared_ptr of request context, and moving of
   // shared ownership of request context

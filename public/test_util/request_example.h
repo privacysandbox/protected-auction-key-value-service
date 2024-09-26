@@ -318,6 +318,73 @@ constexpr std::string_view
   }
   })";
 
+// Consented V2 request example with multiple partitions with log context and
+// debug info response flag
+constexpr std::string_view
+    kConsentedV2RequestMultiPartWithDebugInfoResponseInJson =
+        R"(
+  {
+  "metadata": {
+      "hostname": "example.com"
+  },
+  "partitions": [
+      {
+          "id": 0,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "structured",
+                      "groupNames"
+                  ],
+                  "data": [
+                      "hello"
+                  ]
+              }
+           ]
+      },
+      {
+          "id": 1,
+          "compressionGroupId": 1,
+          "arguments": [
+              {
+                  "tags": [
+                      "custom",
+                      "keys"
+                  ],
+                  "data": [
+                      "key1"
+                  ]
+              }
+          ]
+      },
+      {
+          "id": 2,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "custom",
+                      "keys"
+                  ],
+                  "data": [
+                      "key2"
+                  ]
+              }
+          ]
+      }
+  ],
+  "consented_debug_config": {
+        "is_consented": true,
+        "token": "debug_token",
+        "is_debug_info_in_response": true
+  },
+  "log_context": {
+      "generation_id": "client_UUID",
+      "adtech_debug_id": "adtech_debug_test"
+  }
+  })";
+
 // Example consented debug token used in the unit tests
 constexpr std::string_view kExampleConsentedDebugToken = "debug_token";
 

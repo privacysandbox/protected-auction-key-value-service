@@ -274,8 +274,9 @@ grpc::Status GetValuesV2Handler::GetValues(
     const V2EncoderDecoder& v2_codec) const {
   PS_VLOG(9) << "Update log context " << request.log_context() << ";"
              << request.consented_debug_config();
-  request_context_factory.UpdateLogContext(request.log_context(),
-                                           request.consented_debug_config());
+  request_context_factory.UpdateLogContext(
+      request.log_context(), request.consented_debug_config(),
+      [response]() { return response->mutable_debug_info(); });
   if (request.partitions().empty()) {
     return grpc::Status(StatusCode::INTERNAL,
                         "At least 1 partition is required");

@@ -38,9 +38,12 @@ RequestLogContext& RequestContext::GetRequestLogContext() const {
 void RequestContext::UpdateLogContext(
     const privacy_sandbox::server_common::LogContext& log_context,
     const privacy_sandbox::server_common::ConsentedDebugConfiguration&
-        consented_debug_config) {
-  request_log_context_ =
-      std::make_unique<RequestLogContext>(log_context, consented_debug_config);
+        consented_debug_config,
+    std::optional<
+        absl::AnyInvocable<privacy_sandbox::server_common::DebugInfo*()>>
+        debug_info_opt) {
+  request_log_context_ = std::make_unique<RequestLogContext>(
+      log_context, consented_debug_config, std::move(debug_info_opt));
   if (request_log_context_->GetRequestLoggingContext().is_consented()) {
     const std::string generation_id =
         request_log_context_->GetLogContext().generation_id().empty()
@@ -71,11 +74,21 @@ RequestContext::GetPSLogContext() const {
 RequestLogContext::RequestLogContext(
     const privacy_sandbox::server_common::LogContext& log_context,
     const privacy_sandbox::server_common::ConsentedDebugConfiguration&
-        consented_debug_config)
+        consented_debug_config,
+    std::optional<
+        absl::AnyInvocable<privacy_sandbox::server_common::DebugInfo*()>>
+        debug_info_opt)
     : log_context_(log_context),
       consented_debug_config_(consented_debug_config),
       request_logging_context_(GetContextMap(log_context),
-                               consented_debug_config) {}
+                               consented_debug_config) {
+  if (debug_info_opt.has_value()) {
+    request_logging_context_ =
+        privacy_sandbox::server_common::log::ContextImpl<>(
+            GetContextMap(log_context), consented_debug_config,
+            std::move(debug_info_opt.value()));
+  }
+}
 
 privacy_sandbox::server_common::log::ContextImpl<>&
 RequestLogContext::GetRequestLoggingContext() {
@@ -111,8 +124,12 @@ const RequestContext& RequestContextFactory::Get() const {
 void RequestContextFactory::UpdateLogContext(
     const privacy_sandbox::server_common::LogContext& log_context,
     const privacy_sandbox::server_common::ConsentedDebugConfiguration&
-        consented_debug_config) {
-  request_context_->UpdateLogContext(log_context, consented_debug_config);
+        consented_debug_config,
+    std::optional<
+        absl::AnyInvocable<privacy_sandbox::server_common::DebugInfo*()>>
+        debug_info_opt) {
+  request_context_->UpdateLogContext(log_context, consented_debug_config,
+                                     std::move(debug_info_opt));
 }
 
 }  // namespace kv_server

@@ -132,4 +132,8 @@ message GetValuesResponse {
   // Note that single partition responses in cbor are not currently supported.
   ResponsePartition single_partition = 1;
   repeated CompressionGroup compression_groups = 2;
+  // Debug logs to send back to upstream servers (only in non_prod)
+  // The server name in the debug info will be set by the upstream servers after
+  // they get response from KV server
+  privacy_sandbox.server_common.DebugInfo debug_info = 3;
 }

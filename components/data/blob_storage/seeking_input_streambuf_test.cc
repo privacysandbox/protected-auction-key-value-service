@@ -66,14 +66,7 @@ class StringBlobInputStreambuf : public SeekingInputStreambuf {
 class SeekingInputStreambufTest
     : public testing::TestWithParam<SeekingInputStreambuf::Options> {
  protected:
-  void SetUp() override {
-    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
-    config_proto.set_mode(
-        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
-    kv_server::KVServerContextMap(
-        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
-            config_proto));
-  }
+  void SetUp() override { kv_server::InitMetricsContextMap(); }
   StringBlobInputStreambuf CreateStringBlobStreambuf(std::string_view blob) {
     TelemetryProvider::Init("test", "test");
     return StringBlobInputStreambuf(blob, GetParam());

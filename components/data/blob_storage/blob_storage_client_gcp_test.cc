@@ -51,14 +51,7 @@ class GcpBlobStorageClientTest : public ::testing::Test {
  protected:
   PlatformInitializer initializer_;
   privacy_sandbox::server_common::log::NoOpContext no_op_context_;
-  void SetUp() override {
-    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
-    config_proto.set_mode(
-        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
-    kv_server::KVServerContextMap(
-        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
-            config_proto));
-  }
+  void SetUp() override { kv_server::InitMetricsContextMap(); }
 };
 
 TEST_F(GcpBlobStorageClientTest, DeleteBlobSucceeds) {

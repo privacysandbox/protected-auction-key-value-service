@@ -733,9 +733,9 @@ inline constexpr absl::Span<
     kInternalLookupServiceMetricsSpan = kInternalLookupServiceMetricsList;
 
 inline auto* KVServerContextMap(
-    std::optional<
+    std::unique_ptr<
         privacy_sandbox::server_common::telemetry::BuildDependentConfig>
-        config = std::nullopt,
+        config = nullptr,
     std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
     absl::string_view service = kKVServerServiceName,
     absl::string_view version = "") {
@@ -746,9 +746,9 @@ inline auto* KVServerContextMap(
 }
 
 inline auto* InternalLookupServerContextMap(
-    std::optional<
+    std::unique_ptr<
         privacy_sandbox::server_common::telemetry::BuildDependentConfig>
-        config = std::nullopt,
+        config = nullptr,
     std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
     absl::string_view service = kInternalLookupServiceName,
     absl::string_view version = "") {
@@ -809,10 +809,12 @@ inline void InitMetricsContextMap() {
   config_proto.set_mode(
       privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
   kv_server::KVServerContextMap(
-      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+      std::make_unique<
+          privacy_sandbox::server_common::telemetry::BuildDependentConfig>(
           config_proto));
   kv_server::InternalLookupServerContextMap(
-      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+      std::make_unique<
+          privacy_sandbox::server_common::telemetry::BuildDependentConfig>(
           config_proto));
 }
 

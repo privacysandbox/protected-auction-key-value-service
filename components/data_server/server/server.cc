@@ -70,6 +70,7 @@ using privacy_sandbox::server_common::InitTelemetry;
 using privacy_sandbox::server_common::TelemetryProvider;
 using privacy_sandbox::server_common::log::PSLogContext;
 using privacy_sandbox::server_common::telemetry::BuildDependentConfig;
+using privacy_sandbox::server_common::telemetry::TelemetryConfig;
 
 // TODO: Use config cpio client to get this from the environment
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
@@ -153,9 +154,8 @@ void CheckMetricsCollectorEndPointConnection(
       "Checking connection to metrics collector", LogMetricsNoOpCallback());
 }
 
-privacy_sandbox::server_common::telemetry::TelemetryConfig
-GetServerTelemetryConfig(const ParameterClient& parameter_client,
-                         const std::string& environment) {
+TelemetryConfig GetServerTelemetryConfig(
+    const ParameterClient& parameter_client, const std::string& environment) {
   ParameterFetcher parameter_fetcher(environment, parameter_client);
   auto config_string = parameter_fetcher.GetParameter(kTelemetryConfigSuffix);
   privacy_sandbox::server_common::telemetry::TelemetryConfig config;
@@ -275,8 +275,9 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
       parameter_fetcher.GetBoolParameter(kEnableOtelLoggerParameterSuffix);
   LOG(INFO) << "Retrieved " << kEnableOtelLoggerParameterSuffix
             << " parameter: " << enable_otel_logger;
-  BuildDependentConfig telemetry_config(
-      GetServerTelemetryConfig(parameter_client, environment_));
+  TelemetryConfig telemetry_config_proto =
+      GetServerTelemetryConfig(parameter_client, environment_);
+  BuildDependentConfig telemetry_config(telemetry_config_proto);
   InitTelemetry(std::string(kServiceName), std::string(BuildVersion()),
                 telemetry_config.TraceAllowed(),
                 telemetry_config.MetricAllowed(), enable_otel_logger);
@@ -288,7 +289,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
   }
   LOG(INFO) << "Done retrieving metrics collector endpoint";
   auto* context_map = KVServerContextMap(
-      telemetry_config,
+      std::make_unique<BuildDependentConfig>(telemetry_config_proto),
       ConfigurePrivateMetrics(
           CreateKVAttributes(instance_id, std::to_string(shard_num_),
                              environment_),
@@ -296,7 +297,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
   AddSystemMetric(context_map);
 
   auto* internal_lookup_context_map = InternalLookupServerContextMap(
-      telemetry_config,
+      std::make_unique<BuildDependentConfig>(telemetry_config_proto),
       ConfigurePrivateMetrics(
           CreateKVAttributes(instance_id, std::to_string(shard_num_),
                              environment_),

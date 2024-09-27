@@ -190,14 +190,12 @@ absl::Status RequestSimulationSystem::Init(
       metrics_collector == nullptr
           ? std::make_unique<MetricsCollector>(std::make_unique<SleepFor>())
           : std::move(metrics_collector);
-  // Initialize no-op telemetry for the new Telemetry API
-  // TODO(b/304306398): deprecate metric recorder and use new telemetry API to
-  // log metrics
   privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
   config_proto.set_mode(
       privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
   kv_server::KVServerContextMap(
-      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+      std::make_unique<
+          privacy_sandbox::server_common::telemetry::BuildDependentConfig>(
           config_proto));
 
   if (auto status = InitializeGrpcClientWorkers(); !status.ok()) {
@@ -409,7 +407,8 @@ void RequestSimulationSystem::InitializeTelemetry() {
   config_proto.set_mode(
       privacy_sandbox::server_common::telemetry::TelemetryConfig::EXPERIMENT);
   auto* context_map = RequestSimulationContextMap(
-      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+      std::make_unique<
+          privacy_sandbox::server_common::telemetry::BuildDependentConfig>(
           config_proto),
       ConfigurePrivateMetrics(resource, metrics_options));
 }

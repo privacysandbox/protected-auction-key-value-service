@@ -55,14 +55,7 @@ class MockS3Client : public ::Aws::S3::S3Client {
 
 class BlobStorageClientS3Test : public ::testing::Test {
  protected:
-  void SetUp() override {
-    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
-    config_proto.set_mode(
-        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
-    kv_server::KVServerContextMap(
-        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
-            config_proto));
-  }
+  void SetUp() override { kv_server::InitMetricsContextMap(); }
   privacy_sandbox::server_common::log::NoOpContext no_op_context_;
 
  private:

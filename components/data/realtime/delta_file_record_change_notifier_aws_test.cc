@@ -56,12 +56,7 @@ constexpr std::string_view kX64EncodedMessage =
 class DeltaFileRecordChangeNotifierAwsTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
-    config_proto.set_mode(
-        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
-    kv_server::KVServerContextMap(
-        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
-            config_proto));
+    kv_server::InitMetricsContextMap();
     mock_change_notifier_ = std::make_unique<kv_server::MockChangeNotifier>();
   }
   std::unique_ptr<MockChangeNotifier> mock_change_notifier_;

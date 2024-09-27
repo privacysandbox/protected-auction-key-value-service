@@ -917,6 +917,9 @@ inline void LogV1RequestCommonSafeMetrics(
 // Measures the latency of a block of code. The latency is recorded in
 // microseconds as histogram metrics when the object of this class goes
 // out of scope. The metric can be either safe or unsafe metric.
+// For unsafe metric, the metric data point will be aggregated for the given
+// metric definition and the mean will be logged as final value at the
+// destruction of metric context
 template <typename ContextT, const auto& definition>
 class ScopeLatencyMetricsRecorder {
  public:
@@ -928,9 +931,16 @@ class ScopeLatencyMetricsRecorder {
     stopwatch_ = std::move(stopwatch);
   }
   ~ScopeLatencyMetricsRecorder<ContextT, definition>() {
-    LogIfError(metrics_context_.template LogHistogram<definition>(
-        absl::ToDoubleMicroseconds(stopwatch_->GetElapsedTime())));
+    if (definition.type_privacy ==
+        privacy_sandbox::server_common::metrics::Privacy::kImpacting) {
+      LogIfError(metrics_context_.template AggregateMetricToGetMean<definition>(
+          absl::ToDoubleMicroseconds(stopwatch_->GetElapsedTime())));
+    } else {
+      LogIfError(metrics_context_.template LogHistogram<definition>(
+          absl::ToDoubleMicroseconds(stopwatch_->GetElapsedTime())));
+    }
   }
+
   // Returns the latency so far
   absl::Duration GetLatency() { return stopwatch_->GetElapsedTime(); }
 

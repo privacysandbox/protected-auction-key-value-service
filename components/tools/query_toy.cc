@@ -126,7 +126,11 @@ void PromptForQuery(
     std::getline(std::cin, query);
     ProcessQuery(driver, query);
     if (dot_writer && driver.GetRootNode()) {
-      dot_writer->WriteAst(query, *driver.GetRootNode(), Lookup);
+      if (const auto status =
+              dot_writer->WriteAst(query, *driver.GetRootNode(), Lookup);
+          !status.ok()) {
+        std::cout << "Failed to write AST with error: " << status << std::endl;
+      }
       dot_writer->Flush();
     }
   }
@@ -149,7 +153,11 @@ int main(int argc, char* argv[]) {
   if (!query.empty()) {
     ProcessQuery(driver, query);
     if (dot_writer && driver.GetRootNode()) {
-      dot_writer->WriteAst(query, *driver.GetRootNode(), Lookup);
+      if (const auto status =
+              dot_writer->WriteAst(query, *driver.GetRootNode(), Lookup);
+          !status.ok()) {
+        std::cout << "Failed to write AST with error: " << status << std::endl;
+      }
     }
     return 0;
   }

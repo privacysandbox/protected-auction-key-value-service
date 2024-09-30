@@ -129,15 +129,29 @@ TYPED_TEST_SUITE(ASTTest, SetTypes, NameGenerator);
 
 TYPED_TEST(ASTTest, Value) {
   ValueNode value("A");
-  EXPECT_EQ(Eval<TypeParam>(value, Lookup<TypeParam>), Lookup<TypeParam>("A"));
+  auto result = Eval<TypeParam>(value, Lookup<TypeParam>);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, Lookup<TypeParam>("A"));
+
   ValueNode value2("B");
-  EXPECT_EQ(Eval<TypeParam>(value2, Lookup<TypeParam>), Lookup<TypeParam>("B"));
+  result = Eval<TypeParam>(value2, Lookup<TypeParam>);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, Lookup<TypeParam>("B"));
+
   ValueNode value3("C");
-  EXPECT_EQ(Eval<TypeParam>(value3, Lookup<TypeParam>), Lookup<TypeParam>("C"));
+  result = Eval<TypeParam>(value3, Lookup<TypeParam>);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, Lookup<TypeParam>("C"));
+
   ValueNode value4("D");
-  EXPECT_EQ(Eval<TypeParam>(value4, Lookup<TypeParam>), Lookup<TypeParam>("D"));
+  result = Eval<TypeParam>(value4, Lookup<TypeParam>);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, Lookup<TypeParam>("D"));
+
   ValueNode value5("E");
-  EXPECT_EQ(Eval<TypeParam>(value5, Lookup<TypeParam>), Lookup<TypeParam>("E"));
+  result = Eval<TypeParam>(value5, Lookup<TypeParam>);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, Lookup<TypeParam>("E"));
 }
 
 TYPED_TEST(ASTTest, Set) {
@@ -145,19 +159,18 @@ TYPED_TEST(ASTTest, Set) {
   auto str_result = Eval<TypeParam>(ssn, Lookup<TypeParam>);
   if constexpr (std::is_same_v<TypeParam,
                                absl::flat_hash_set<std::string_view>>) {
-    EXPECT_THAT(str_result, testing::UnorderedElementsAre("a", "b", "c"));
+    ASSERT_TRUE(str_result.ok());
+    EXPECT_THAT(*str_result, testing::UnorderedElementsAre("a", "b", "c"));
   } else {
-    // For number evals, we expect string sets to result as an empty set
-    // See TODO for eval to return an error.
-    EXPECT_EQ(str_result, decltype(str_result)());
+    // For number evals, we expect string sets to be invalid.
+    ASSERT_FALSE(str_result.ok());
   }
 
   if constexpr (std::is_same_v<TypeParam,
                                absl::flat_hash_set<std::string_view>>) {
-    // For string evals, we expect strings to result as an empty set
-    // See TODO for eval to return an error.
+    // For string evals, we expect strings to be invalid
     auto result = Eval<TypeParam>(NumberSetNode({1, 2, 3}), Lookup<TypeParam>);
-    EXPECT_THAT(result, decltype(result)());
+    ASSERT_FALSE(result.ok());
   } else {
     std::vector<ConvertedSetType<TypeParam>> vals = {
         0, std::numeric_limits<ConvertedSetType<TypeParam>>::max(),
@@ -168,8 +181,9 @@ TYPED_TEST(ASTTest, Set) {
     // See TODO for eval to return an error.
     NumberSetNode nsn({vals.begin(), vals.end()});
     auto num_result = Eval<TypeParam>(nsn, Lookup<TypeParam>);
-    decltype(num_result) expected(vals.size(), vals.data());
-    EXPECT_EQ(num_result, expected);
+    typename decltype(num_result)::value_type expected(vals.size(),
+                                                       vals.data());
+    EXPECT_EQ(*num_result, expected);
   }
 }
 
@@ -178,17 +192,18 @@ TYPED_TEST(ASTTest, Union) {
   std::unique_ptr<ValueNode> b = std::make_unique<ValueNode>("B");
   UnionNode op(std::move(a), std::move(b));
   auto result = Eval<TypeParam>(op, Lookup<TypeParam>);
+  ASSERT_TRUE(result.ok());
   if constexpr (std::is_same_v<TypeParam,
                                absl::flat_hash_set<std::string_view>>) {
-    EXPECT_THAT(result, testing::UnorderedElementsAre("a", "b", "c", "d"));
+    EXPECT_THAT(*result, testing::UnorderedElementsAre("a", "b", "c", "d"));
   }
   if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
-    EXPECT_EQ(result, roaring::Roaring({1, 2, 3, 4}));
+    EXPECT_EQ(*result, roaring::Roaring({1, 2, 3, 4}));
   }
   if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
-    EXPECT_EQ(result, roaring::Roaring64Map(
-                          {18446744073709551609UL, 18446744073709551610UL,
-                           18446744073709551611UL, 18446744073709551612UL}));
+    EXPECT_EQ(*result, roaring::Roaring64Map(
+                           {18446744073709551609UL, 18446744073709551610UL,
+                            18446744073709551611UL, 18446744073709551612UL}));
   }
 }
 
@@ -196,7 +211,9 @@ TYPED_TEST(ASTTest, UnionSelf) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> a2 = std::make_unique<ValueNode>("A");
   UnionNode op(std::move(a), std::move(a2));
-  EXPECT_EQ(Eval<TypeParam>(op, Lookup<TypeParam>), Lookup<TypeParam>("A"));
+  auto result = Eval<TypeParam>(op, Lookup<TypeParam>);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(*result, Lookup<TypeParam>("A"));
 }
 
 TYPED_TEST(ASTTest, Intersection) {
@@ -204,16 +221,17 @@ TYPED_TEST(ASTTest, Intersection) {
   std::unique_ptr<ValueNode> b = std::make_unique<ValueNode>("B");
   IntersectionNode op(std::move(a), std::move(b));
   auto result = Eval<TypeParam>(op, Lookup<TypeParam>);
+  ASSERT_TRUE(result.ok());
   if constexpr (std::is_same_v<TypeParam,
                                absl::flat_hash_set<std::string_view>>) {
-    EXPECT_THAT(result, testing::UnorderedElementsAre("b", "c"));
+    EXPECT_THAT(*result, testing::UnorderedElementsAre("b", "c"));
   }
   if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
-    EXPECT_EQ(result, roaring::Roaring({2, 3}));
+    EXPECT_EQ(*result, roaring::Roaring({2, 3}));
   }
   if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
-    EXPECT_EQ(result, roaring::Roaring64Map(
-                          {18446744073709551610UL, 18446744073709551611UL}));
+    EXPECT_EQ(*result, roaring::Roaring64Map(
+                           {18446744073709551610UL, 18446744073709551611UL}));
   }
 }
 
@@ -221,7 +239,9 @@ TYPED_TEST(ASTTest, IntersectionSelf) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> a2 = std::make_unique<ValueNode>("A");
   IntersectionNode op(std::move(a), std::move(a2));
-  EXPECT_EQ(Eval<TypeParam>(op, Lookup<TypeParam>), Lookup<TypeParam>("A"));
+  auto result = Eval<TypeParam>(op, Lookup<TypeParam>);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(*result, Lookup<TypeParam>("A"));
 }
 
 TYPED_TEST(ASTTest, Difference) {
@@ -229,30 +249,32 @@ TYPED_TEST(ASTTest, Difference) {
   std::unique_ptr<ValueNode> b = std::make_unique<ValueNode>("B");
   DifferenceNode op(std::move(a), std::move(b));
   auto result = Eval<TypeParam>(op, Lookup<TypeParam>);
+  ASSERT_TRUE(result.ok());
   if constexpr (std::is_same_v<TypeParam,
                                absl::flat_hash_set<std::string_view>>) {
-    EXPECT_THAT(result, testing::UnorderedElementsAre("a"));
+    EXPECT_THAT(*result, testing::UnorderedElementsAre("a"));
   }
   if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
-    EXPECT_EQ(result, roaring::Roaring({1}));
+    EXPECT_EQ(*result, roaring::Roaring({1}));
   }
   if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
-    EXPECT_EQ(result, roaring::Roaring64Map({18446744073709551609UL}));
+    EXPECT_EQ(*result, roaring::Roaring64Map({18446744073709551609UL}));
   }
 
   std::unique_ptr<ValueNode> a2 = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> b2 = std::make_unique<ValueNode>("B");
   DifferenceNode op2(std::move(b2), std::move(a2));
   result = Eval<TypeParam>(op2, Lookup<TypeParam>);
+  ASSERT_TRUE(result.ok());
   if constexpr (std::is_same_v<TypeParam,
                                absl::flat_hash_set<std::string_view>>) {
-    EXPECT_THAT(result, testing::UnorderedElementsAre("d"));
+    EXPECT_THAT(*result, testing::UnorderedElementsAre("d"));
   }
   if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
-    EXPECT_EQ(result, roaring::Roaring({4}));
+    EXPECT_EQ(*result, roaring::Roaring({4}));
   }
   if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
-    EXPECT_EQ(result, roaring::Roaring64Map({18446744073709551612UL}));
+    EXPECT_EQ(*result, roaring::Roaring64Map({18446744073709551612UL}));
   }
 }
 
@@ -260,7 +282,9 @@ TYPED_TEST(ASTTest, DifferenceSelf) {
   std::unique_ptr<ValueNode> a = std::make_unique<ValueNode>("A");
   std::unique_ptr<ValueNode> a2 = std::make_unique<ValueNode>("A");
   DifferenceNode op(std::move(a), std::move(a2));
-  EXPECT_EQ(Eval<TypeParam>(op, Lookup<TypeParam>), TypeParam());
+  auto result = Eval<TypeParam>(op, Lookup<TypeParam>);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(*result, TypeParam());
 }
 
 TYPED_TEST(ASTTest, All) {
@@ -277,17 +301,18 @@ TYPED_TEST(ASTTest, All) {
       std::make_unique<IntersectionNode>(std::move(c), std::move(d));
   UnionNode center(std::move(left), std::move(right));
   auto result = Eval<TypeParam>(center, Lookup<TypeParam>);
+  ASSERT_TRUE(result.ok());
   if constexpr (std::is_same_v<TypeParam,
                                absl::flat_hash_set<std::string_view>>) {
-    EXPECT_THAT(result, testing::UnorderedElementsAre("a", "d", "e"));
+    EXPECT_THAT(*result, testing::UnorderedElementsAre("a", "d", "e"));
   }
   if constexpr (std::is_same_v<TypeParam, roaring::Roaring>) {
-    EXPECT_EQ(result, roaring::Roaring({1, 4, 5}));
+    EXPECT_EQ(*result, roaring::Roaring({1, 4, 5}));
   }
   if constexpr (std::is_same_v<TypeParam, roaring::Roaring64Map>) {
-    EXPECT_EQ(result, roaring::Roaring64Map({18446744073709551609UL,
-                                             18446744073709551612UL,
-                                             18446744073709551613UL}));
+    EXPECT_EQ(*result, roaring::Roaring64Map({18446744073709551609UL,
+                                              18446744073709551612UL,
+                                              18446744073709551613UL}));
   }
 }
 

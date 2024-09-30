@@ -25,7 +25,10 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/functional/any_invocable.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "components/query/sets.h"
+#include "src/util/status_macro/status_macros.h"
 
 #include "roaring.hh"
 #include "roaring64map.hh"
@@ -57,8 +60,9 @@ class Node {
   virtual Node* Right() const { return nullptr; }
   // Return all Keys associated with ValueNodes in the tree.
   virtual absl::flat_hash_set<std::string_view> Keys() const = 0;
-  virtual void Accept(ASTVisitor& visitor) const = 0;
-  virtual std::string Accept(ASTStringVisitor& visitor) const = 0;
+  virtual absl::Status Accept(ASTVisitor& visitor) const = 0;
+  virtual absl::StatusOr<std::string> Accept(
+      ASTStringVisitor& visitor) const = 0;
 };
 
 // The value associated with a `ValueNode` is the set with its associated `key`.
@@ -67,8 +71,8 @@ class ValueNode : public Node {
   explicit ValueNode(std::string key) : key_(std::move(key)) {}
   std::string_view Key() const { return key_; }
   absl::flat_hash_set<std::string_view> Keys() const override;
-  void Accept(ASTVisitor& visitor) const override;
-  std::string Accept(ASTStringVisitor& visitor) const override;
+  absl::Status Accept(ASTVisitor& visitor) const override;
+  absl::StatusOr<std::string> Accept(ASTStringVisitor& visitor) const override;
 
  private:
   std::string key_;
@@ -93,8 +97,8 @@ class SetNode : public Node {
 class NumberSetNode : public SetNode<uint64_t> {
  public:
   using SetNode<uint64_t>::SetNode;
-  void Accept(ASTVisitor& visitor) const override;
-  std::string Accept(ASTStringVisitor& visitor) const override;
+  absl::Status Accept(ASTVisitor& visitor) const override;
+  absl::StatusOr<std::string> Accept(ASTStringVisitor& visitor) const override;
 };
 
 // View to strings who's lifetime is managed externally,
@@ -102,8 +106,8 @@ class NumberSetNode : public SetNode<uint64_t> {
 class StringViewSetNode : public SetNode<std::string_view> {
  public:
   using SetNode<std::string_view>::SetNode;
-  void Accept(ASTVisitor& visitor) const override;
-  std::string Accept(ASTStringVisitor& visitor) const override;
+  absl::Status Accept(ASTVisitor& visitor) const override;
+  absl::StatusOr<std::string> Accept(ASTStringVisitor& visitor) const override;
 };
 
 class OpNode : public Node {
@@ -122,22 +126,22 @@ class OpNode : public Node {
 class UnionNode : public OpNode {
  public:
   using OpNode::OpNode;
-  void Accept(ASTVisitor& visitor) const override;
-  std::string Accept(ASTStringVisitor& visitor) const override;
+  absl::Status Accept(ASTVisitor& visitor) const override;
+  absl::StatusOr<std::string> Accept(ASTStringVisitor& visitor) const override;
 };
 
 class IntersectionNode : public OpNode {
  public:
   using OpNode::OpNode;
-  void Accept(ASTVisitor& visitor) const override;
-  std::string Accept(ASTStringVisitor& visitor) const override;
+  absl::Status Accept(ASTVisitor& visitor) const override;
+  absl::StatusOr<std::string> Accept(ASTStringVisitor& visitor) const override;
 };
 
 class DifferenceNode : public OpNode {
  public:
   using OpNode::OpNode;
-  void Accept(ASTVisitor& visitor) const override;
-  std::string Accept(ASTStringVisitor& visitor) const override;
+  absl::Status Accept(ASTVisitor& visitor) const override;
+  absl::StatusOr<std::string> Accept(ASTStringVisitor& visitor) const override;
 };
 
 // Traverses the binary tree starting at root and returns a vector of `Node`s in
@@ -149,12 +153,12 @@ std::vector<const Node*> ComputePostfixOrder(const Node* root);
 // upon inspection.
 class ASTStringVisitor {
  public:
-  virtual std::string Visit(const UnionNode&) = 0;
-  virtual std::string Visit(const DifferenceNode&) = 0;
-  virtual std::string Visit(const IntersectionNode&) = 0;
-  virtual std::string Visit(const ValueNode&) = 0;
-  virtual std::string Visit(const NumberSetNode&) = 0;
-  virtual std::string Visit(const StringViewSetNode&) = 0;
+  virtual absl::StatusOr<std::string> Visit(const UnionNode&) = 0;
+  virtual absl::StatusOr<std::string> Visit(const DifferenceNode&) = 0;
+  virtual absl::StatusOr<std::string> Visit(const IntersectionNode&) = 0;
+  virtual absl::StatusOr<std::string> Visit(const ValueNode&) = 0;
+  virtual absl::StatusOr<std::string> Visit(const NumberSetNode&) = 0;
+  virtual absl::StatusOr<std::string> Visit(const StringViewSetNode&) = 0;
 };
 
 // Defines a general AST visitor interface which can be extended to implement
@@ -163,13 +167,13 @@ class ASTVisitor {
  public:
   // Entrypoint for running the visitor algorithm on a given AST tree, `root`.
   virtual ~ASTVisitor() = default;
-  virtual void ConductVisit(const Node& root) = 0;
-  virtual void Visit(const ValueNode& node) = 0;
-  virtual void Visit(const UnionNode& node) = 0;
-  virtual void Visit(const DifferenceNode& node) = 0;
-  virtual void Visit(const IntersectionNode& node) = 0;
-  virtual void Visit(const NumberSetNode& node) = 0;
-  virtual void Visit(const StringViewSetNode& node) = 0;
+  virtual absl::Status ConductVisit(const Node& root) = 0;
+  virtual absl::Status Visit(const ValueNode& node) = 0;
+  virtual absl::Status Visit(const UnionNode& node) = 0;
+  virtual absl::Status Visit(const DifferenceNode& node) = 0;
+  virtual absl::Status Visit(const IntersectionNode& node) = 0;
+  virtual absl::Status Visit(const NumberSetNode& node) = 0;
+  virtual absl::Status Visit(const StringViewSetNode& node) = 0;
 };
 
 // Implements AST tree evaluation using iterative post order processing.
@@ -180,27 +184,31 @@ class ASTPostOrderEvalVisitor final : public ASTVisitor {
       absl::AnyInvocable<ValueT(std::string_view) const> lookup_fn)
       : lookup_fn_(std::move(lookup_fn)) {}
 
-  void ConductVisit(const Node& root) override {
+  absl::Status ConductVisit(const Node& root) override {
     stack_.clear();
     for (const auto* node : ComputePostfixOrder(&root)) {
-      node->Accept(*this);
+      PS_RETURN_IF_ERROR(node->Accept(*this));
     }
+    return absl::OkStatus();
   }
 
-  void Visit(const ValueNode& node) override {
+  absl::Status Visit(const ValueNode& node) override {
     stack_.push_back(std::move(lookup_fn_(node.Key())));
+    return absl::OkStatus();
   }
-  void Visit(const UnionNode& node) override { Visit(node, Union<ValueT>); }
-
-  void Visit(const DifferenceNode& node) override {
-    Visit(node, Difference<ValueT>);
-  }
-
-  void Visit(const IntersectionNode& node) override {
-    Visit(node, Intersection<ValueT>);
+  absl::Status Visit(const UnionNode& node) override {
+    return Visit(node, Union<ValueT>);
   }
 
-  void Visit(const NumberSetNode& node) override {
+  absl::Status Visit(const DifferenceNode& node) override {
+    return Visit(node, Difference<ValueT>);
+  }
+
+  absl::Status Visit(const IntersectionNode& node) override {
+    return Visit(node, Intersection<ValueT>);
+  }
+
+  absl::Status Visit(const NumberSetNode& node) override {
     if constexpr (std::is_same_v<ValueT, roaring::Roaring> ||
                   std::is_same_v<ValueT, roaring::Roaring64Map>) {
       ValueT r;
@@ -208,24 +216,20 @@ class ASTPostOrderEvalVisitor final : public ASTVisitor {
         r.add(v);
       }
       stack_.push_back(std::move(r));
-      return;
+      return absl::OkStatus();
     }
-    // TODO(b/353502448): Consider returning an error.
-    // For now push back the empty set.
-    stack_.push_back({});
+    return absl::InvalidArgumentError("Unexpected set type");
   }
 
-  void Visit(const StringViewSetNode& node) override {
+  absl::Status Visit(const StringViewSetNode& node) override {
     if constexpr (has_value_type_v<ValueT>) {
       if constexpr (std::is_same_v<StringViewSetNode::value_type,
                                    typename ValueT::value_type>) {
         stack_.push_back(node.GetValues());
-        return;
+        return absl::OkStatus();
       }
     }
-    // TODO(b/353502448): Consider returning an error.
-    // For now push back the empty set.
-    stack_.push_back({});
+    return absl::InvalidArgumentError("Unexpected set type");
   }
 
   ValueT GetResult() {
@@ -236,13 +240,14 @@ class ASTPostOrderEvalVisitor final : public ASTVisitor {
   }
 
  private:
-  void Visit(const OpNode& node,
-             absl::AnyInvocable<ValueT(ValueT&&, ValueT&&)> op_fn) {
+  absl::Status Visit(const OpNode& node,
+                     absl::AnyInvocable<ValueT(ValueT&&, ValueT&&)> op_fn) {
     auto right = std::move(stack_.back());
     stack_.pop_back();
     auto left = std::move(stack_.back());
     stack_.pop_back();
     stack_.push_back(op_fn(std::move(left), std::move(right)));
+    return absl::OkStatus();
   }
 
   absl::AnyInvocable<ValueT(std::string_view) const> lookup_fn_;
@@ -251,10 +256,11 @@ class ASTPostOrderEvalVisitor final : public ASTVisitor {
 
 // Accepts an AST representing a set query, creates execution plan and runs it.
 template <typename ValueT>
-ValueT Eval(const Node& node,
-            absl::AnyInvocable<ValueT(std::string_view) const> lookup_fn) {
+absl::StatusOr<ValueT> Eval(
+    const Node& node,
+    absl::AnyInvocable<ValueT(std::string_view) const> lookup_fn) {
   auto visitor = ASTPostOrderEvalVisitor<ValueT>(std::move(lookup_fn));
-  visitor.ConductVisit(node);
+  PS_RETURN_IF_ERROR(visitor.ConductVisit(node));
   return visitor.GetResult();
 }
 

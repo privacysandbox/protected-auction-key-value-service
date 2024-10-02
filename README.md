@@ -11,47 +11,27 @@
 
 ---
 
-# ![Privacy Sandbox Logo](docs/assets/privacy_sandbox_logo.png) FLEDGE Key/Value service
-
-# Background
-
-FLEDGE API is a proposal to serve remarketing and other custom-audience ads without third-party
-cookies. FLEDGE executes the ad auction between the buyers (DSP) and the sellers (SSP) locally, and
-receives real-time signals from the FLEDGE K/V servers. To learn more about
-
--   FLEDGE for the Web: [explainer](https://developer.chrome.com/en/docs/privacy-sandbox/fledge/)
-    and the [developer guide](https://developer.chrome.com/blog/fledge-api/).
--   FLEDGE on Android:
-    [design proposal](https://developer.android.com/design-for-safety/privacy-sandbox/fledge) and
-    the
-    [developer guide](https://developer.android.com/design-for-safety/privacy-sandbox/guides/fledge).
-
-When the auction is executed, separate
-[FLEDGE K/V servers](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md)
-are queried for the buyers and sellers. When a buyer is making a bid, the DSP K/V server can be
-queried to receive real-time information to help determine the bid. To help the seller pick an
-auction winner, the SSP K/V server can be queried to receive any information about the creative to
-help score the ad.
+# ![Privacy Sandbox Logo](docs/assets/privacy_sandbox_logo.png) Protected Auction Key/Value service
 
 # State of the project
 
-The current codebase represents the initial implementation and setup of the Key/Value server. It can
-be integrated with Chrome and Android with the
+The current codebase represents the implementation of the TEE-based Key/Value service by Privacy
+Sandbox.
+
+For
+[Protected Audience](https://developers.google.com/privacy-sandbox/private-advertising/protected-audience),
+the service can be used as a BYOS KV server. Soon it can be used to communicate with Chrome and the
+Bidding and Auction services using
+[V2 protocol](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md).
+
+For
+[Protected App Signals](https://developers.google.com/privacy-sandbox/private-advertising/protected-audience/android/protected-app-signals),
+the service should be used as the ad retrieval server.
+
+It can be integrated with Chrome and Android with the
 [Privacy Sandbox unified origin trial](https://developer.chrome.com/blog/expanding-privacy-sandbox-testing/)
 and
 [Privacy Sandbox on Android Developer Preview](https://developer.android.com/design-for-safety/privacy-sandbox/program-overview).
-Our goal is to present the foundation of the project in a publicly visible way for early feedback.
-This feedback will help us shape the future versions.
-
-The implementation, and in particular the APIs, are in rapid development and may change as new
-versions are released. The query API conforms to the
-[API explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md). At the
-moment, to load data, instead of calling the mutation API, you would place the data as files into a
-location that can be directly read by the server. See more details in the
-[data loading guide](/docs/data_loading/loading_data.md).
-
-Currently, this service can be deployed to 1 region of your choice. Multi-region configuration is up
-to the service owner to configure.
 
 ## Current features
 
@@ -120,6 +100,7 @@ products.
 
 <!-- markdownlint-disable no-inline-html -->
 <!-- markdownlint-disable line-length -->
+
 <table>
   <tr>
    <td>
@@ -193,6 +174,7 @@ The implementation supports live traffic at scale
    </td>
   </tr>
 </table>
+
 <!-- markdownlint-enable no-inline-html -->
 <!-- markdownlint-enable line-length -->
 
@@ -270,14 +252,7 @@ The implementation supports live traffic at scale
 
 ## Breaking changes
 
-While we make efforts to not introduce breaking changes, we expect that to happen occasionally.
-
-The release version follows the `[major change]-[minor change]-[patch]` scheme. All 0.x.x versions
-may contain breaking changes without notice. Refer to the [release changelog](/CHANGELOG.md) for the
-details of the breaking changes.
-
-At GA the version will become 1.0.0, we will establish additional channels for announcing breaking
-changes and major version will always be incremented for breaking changes.
+Backward-incompatible changes are expected to be rare and will result in a major version change.
 
 # Key documents
 

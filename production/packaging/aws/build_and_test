@@ -142,7 +142,6 @@ if [[ ${SKIP_EIF} -eq 0  ]]; then
   # build nitro enclave image, collect eif artifacts
   IMAGE_URI=bazel/production/packaging/aws/data_server
   readonly IMAGE_URI
-  BUILD_ARCH=$("${WORKSPACE}"/builders/tools/get-architecture)
   IMAGE_TAG=$(mktemp --dry-run temp-XXXXXX)
   builder::cbuild_al2023 $"
   set -o errexit
@@ -161,28 +160,6 @@ if [[ ${SKIP_EIF} -eq 0  ]]; then
   exit 0
   "
   docker image rm --force ${IMAGE_URI}:"${IMAGE_TAG}" || fail "Unable to remove Docker image"
-
-  printf "==== Checking PCR0 =====\n"
-  PCR0_REL_DIR=production/packaging/aws/data_server/nitro-pcr0
-  readonly PCR0_REL_DIR
-  PCR0_DIR="${WORKSPACE}"/${PCR0_REL_DIR}
-  readonly PCR0_DIR
-  PCR0_FILE="${PCR0_DIR}"/${BUILD_ARCH}.json
-  readonly PCR0_FILE
-  declare -i OUTDATED_PCR0=0
-  if [[ ! -s ${PCR0_FILE} ]]; then
-    printf "warning: PCR0 file doesn't exist or is empty [%s]\n" "${PCR0_FILE}"
-    OUTDATED_PCR0=1
-  elif ! diff -q "${DIST}"/aws/pcr0.json "${PCR0_FILE}" &>/dev/null; then
-    printf "warning: PCR0 hash differs\n"
-    OUTDATED_PCR0=1
-  fi
-  if [[ ${OUTDATED_PCR0} -eq 0 ]]; then
-    printf "PCR0 hash unchanged\n"
-  else
-    printf "PCR0 hash differs: %s:\n" "${PCR0_FILE}"
-    cat "${PCR0_FILE}"
-  fi
 fi
 
 printf "==== Copying to dist =====\n"

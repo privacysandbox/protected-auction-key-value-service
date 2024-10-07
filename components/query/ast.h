@@ -86,7 +86,7 @@ class SetNode : public Node {
   explicit SetNode(std::vector<T> values)
       : values_(values.begin(), values.end()) {}
   absl::flat_hash_set<std::string_view> Keys() const override { return {}; };
-  // TODO(b/353502448): Consider changing Vistor argument
+  // TODO(b/371977043): Consider changing Vistor argument
   // from const-ref to value.  Then we can return an r-value and avoid copy.
   const absl::flat_hash_set<T>& GetValues() const { return values_; }
 

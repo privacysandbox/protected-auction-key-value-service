@@ -106,6 +106,7 @@ TEST(CborConverterTest, V2CompressionGroupCborEncodeSuccess) {
     "partitionOutputs": [
       {
         "id": 0,
+        "dataVersion": 101,
         "keyGroupOutputs": [
           {
             "tags": [
@@ -133,6 +134,7 @@ TEST(CborConverterTest, V2CompressionGroupCborEncodeSuccess) {
       },
       {
         "id": 1,
+        "dataVersion": 101,
         "keyGroupOutputs": [
           {
             "tags": [
@@ -171,6 +173,7 @@ TEST(CborConverterTest, V2CompressionGroupCborEncodeSuccess) {
                  value { value { string_value: "world" } }
                }
              }
+             data_version: 101
            }
            partition_outputs {
              id: 1
@@ -182,6 +185,7 @@ TEST(CborConverterTest, V2CompressionGroupCborEncodeSuccess) {
                  value { value { string_value: "world2" } }
                }
              }
+             data_version: 101
            })pb",
       &compression_group);
   absl::StatusOr<std::string> cbor_encoded_proto_maybe =
@@ -400,6 +404,7 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeSuccess) {
     [
       {
         "id": 0,
+        "dataVersion": 101,
         "keyGroupOutputs": [
           {
             "tags": [
@@ -416,6 +421,7 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeSuccess) {
       },
       {
         "id": 1,
+        "dataVersion": 101,
         "keyGroupOutputs": [
           {
             "tags": [
@@ -445,6 +451,7 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeSuccess) {
                  value { value { string_value: "world" } }
                }
              }
+             data_version: 101
            }
            partition_outputs {
              id: 1
@@ -456,6 +463,7 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeSuccess) {
                  value { value { string_value: "world2" } }
                }
              }
+             data_version: 101
            })pb",
       &compression_group);
   absl::StatusOr<std::string> cbor_encoded_proto_maybe =

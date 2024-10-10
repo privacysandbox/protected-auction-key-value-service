@@ -40,7 +40,6 @@ inline constexpr char kContent[] = "content";
 
 inline constexpr char kPartitionOutputs[] = "partitionOutputs";
 inline constexpr char kPartitionId[] = "id";
-inline constexpr char kDataVersion[] = "dataVersion";
 inline constexpr char kKeyGroupOutputs[] = "keyGroupOutputs";
 inline constexpr char kTags[] = "tags";
 inline constexpr char kKeyValues[] = "keyValues";
@@ -158,14 +157,10 @@ absl::StatusOr<cbor_item_t*> EncodeKeyGroupOutput(
 
 absl::StatusOr<cbor_item_t*> EncodePartitionOutput(
     application_pa::PartitionOutput& partition_output) {
-  const int partitionKeysNumber = partition_output.has_data_version() ? 3 : 2;
+  const int partitionKeysNumber = 2;
   auto* cbor_internal = cbor_new_definite_map(partitionKeysNumber);
   PS_RETURN_IF_ERROR(
       CborSerializeUInt(kPartitionId, partition_output.id(), *cbor_internal));
-  if (partition_output.has_data_version()) {
-    PS_RETURN_IF_ERROR(CborSerializeUInt(
-        kDataVersion, partition_output.data_version(), *cbor_internal));
-  }
   cbor_item_t* serialized_key_group_outputs =
       cbor_new_definite_array(partition_output.key_group_outputs().size());
   for (auto& key_group_output :

@@ -28,7 +28,6 @@ message PartitionOutput {
   optional int64 id = 1;
   repeated KeyGroupOutput key_group_outputs = 2;
   optional int32 udf_output_api_version = 3;
-  optional int64 data_version = 4;
 }
 
 message KeyGroupOutput {

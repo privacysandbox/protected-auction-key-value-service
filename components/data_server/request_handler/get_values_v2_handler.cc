@@ -230,7 +230,8 @@ absl::Status GetValuesV2Handler::ProcessMultiplePartitions(
     const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
     ExecutionMetadata& execution_metadata,
     const V2EncoderDecoder& v2_codec) const {
-  absl::flat_hash_map<int32_t, std::vector<std::string>> compression_group_map;
+  absl::flat_hash_map<int32_t, std::vector<std::pair<int32_t, std::string>>>
+      compression_group_map;
   for (const auto& partition : request.partitions()) {
     int32_t compression_group_id = partition.compression_group_id();
     v2::ResponsePartition resp_partition;
@@ -239,7 +240,7 @@ absl::Status GetValuesV2Handler::ProcessMultiplePartitions(
                                 partition, resp_partition, execution_metadata);
         single_partition_status.ok()) {
       compression_group_map[compression_group_id].emplace_back(
-          std::move(resp_partition.string_output()));
+          partition.id(), std::move(resp_partition.string_output()));
     } else {
       PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
           << "Failed to process partition: " << single_partition_status;
@@ -248,9 +249,9 @@ absl::Status GetValuesV2Handler::ProcessMultiplePartitions(
 
   // The content of each compressed blob is a CBOR/JSON list of partition
   // outputs or a V2CompressionGroup protobuf message.
-  for (auto& [group_id, partition_output_strings] : compression_group_map) {
+  for (auto& [group_id, partition_output_pairs] : compression_group_map) {
     const auto maybe_content = v2_codec.EncodePartitionOutputs(
-        partition_output_strings, request_context_factory);
+        partition_output_pairs, request_context_factory);
     if (!maybe_content.ok()) {
       PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
           << maybe_content.status();

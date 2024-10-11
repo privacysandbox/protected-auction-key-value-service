@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/status/statusor.h"
@@ -61,9 +62,11 @@ class V2EncoderDecoder {
   virtual absl::StatusOr<std::string> EncodeV2GetValuesResponse(
       v2::GetValuesResponse& response_proto) const = 0;
 
-  // Encodes a list of UDF partition outputs and serializes it as a string
+  // Encodes a list of <id, UDF partition outputs> and serializes it as a string
+  // If UDF partition output has an "id" field, it will be overwritten by the
+  // given id in the pair.
   virtual absl::StatusOr<std::string> EncodePartitionOutputs(
-      std::vector<std::string>& partition_output_strings,
+      std::vector<std::pair<int32_t, std::string>>& partition_output_pairs,
       const RequestContextFactory& request_context_factory) const = 0;
 
   // Decodes the string to a V2 GetValuesRequest proto

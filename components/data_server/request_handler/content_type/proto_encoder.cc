@@ -16,6 +16,7 @@
 
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
@@ -35,11 +36,21 @@ absl::StatusOr<std::string> ProtoV2EncoderDecoder::EncodeV2GetValuesResponse(
 }
 
 absl::StatusOr<std::string> ProtoV2EncoderDecoder::EncodePartitionOutputs(
-    std::vector<std::string>& partition_output_strings,
+    std::vector<std::pair<int32_t, std::string>>& partition_output_pairs,
     const RequestContextFactory& request_context_factory) const {
   nlohmann::json json_partition_output_list = nlohmann::json::array();
-  for (auto&& partition_output_string : partition_output_strings) {
-    json_partition_output_list.emplace_back(partition_output_string);
+  for (auto&& partition_output_pair : partition_output_pairs) {
+    auto partition_output_json =
+        nlohmann::json::parse(partition_output_pair.second, nullptr,
+                              /*allow_exceptions=*/false,
+                              /*ignore_comments=*/true);
+    if (partition_output_json.is_discarded()) {
+      PS_VLOG(2, request_context_factory.Get().GetPSLogContext())
+          << "json parse failed for " << partition_output_pair.second;
+      continue;
+    }
+    partition_output_json["id"] = partition_output_pair.first;
+    json_partition_output_list.emplace_back(partition_output_json);
   }
   if (json_partition_output_list.size() == 0) {
     return absl::InvalidArgumentError(

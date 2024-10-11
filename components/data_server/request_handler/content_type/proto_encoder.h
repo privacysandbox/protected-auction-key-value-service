@@ -15,6 +15,7 @@
  */
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "components/data_server/request_handler/content_type/encoder.h"
@@ -32,7 +33,7 @@ class ProtoV2EncoderDecoder : public V2EncoderDecoder {
   // Returns a serialized JSON array of partition outputs.
   // A partition output is simply the return value of a UDF execution.
   absl::StatusOr<std::string> EncodePartitionOutputs(
-      std::vector<std::string>& partition_output_strings,
+      std::vector<std::pair<int32_t, std::string>>& partition_output_pairs,
       const RequestContextFactory& request_context_factory) const override;
 
   absl::StatusOr<v2::GetValuesRequest> DecodeToV2GetValuesRequestProto(

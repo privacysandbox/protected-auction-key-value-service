@@ -16,6 +16,7 @@
 
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "components/data/converters/cbor_converter.h"
@@ -32,14 +33,15 @@ absl::StatusOr<std::string> CborV2EncoderDecoder::EncodeV2GetValuesResponse(
 }
 
 absl::StatusOr<std::string> CborV2EncoderDecoder::EncodePartitionOutputs(
-    std::vector<std::string>& partition_output_strings,
+    std::vector<std::pair<int32_t, std::string>>& partition_output_pairs,
     const RequestContextFactory& request_context_factory) const {
   google::protobuf::RepeatedPtrField<application_pa::PartitionOutput>
       partition_outputs;
-  for (auto& partition_output_string : partition_output_strings) {
+  for (auto& partition_output_pair : partition_output_pairs) {
     auto partition_output =
-        application_pa::PartitionOutputFromJson(partition_output_string);
+        application_pa::PartitionOutputFromJson(partition_output_pair.second);
     if (partition_output.ok()) {
+      partition_output.value().set_id(partition_output_pair.first);
       *partition_outputs.Add() = partition_output.value();
     } else {
       PS_VLOG(2, request_context_factory.Get().GetPSLogContext())

@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/log/log.h"
@@ -53,7 +54,6 @@ TEST(ProtoEncoderTest, EncodePartitionOutputsSuccess) {
   InitMetricsContextMap();
   json json_partition_output1 = R"(
       {
-        "id": 0,
         "keyGroupOutputs": [
           {
             "keyValues": {
@@ -68,30 +68,48 @@ TEST(ProtoEncoderTest, EncodePartitionOutputsSuccess) {
           }
         ]
       })"_json;
-  json json_partition_output2 = "stringOutput";
-  std::vector<std::string> partition_output_strings = {
-      json_partition_output1.dump(), json_partition_output2.dump()};
+  json json_partition_output2 = R"(
+      {
+        "keyGroupOutputs": [
+          {
+            "keyValues": {
+              "hello2": {
+                "value": "world2"
+              }
+            },
+            "tags": [
+              "custom",
+              "keys"
+            ]
+          }
+        ]
+      }
+  )"_json;
+  std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {
+      {1, json_partition_output1.dump()}, {2, json_partition_output2.dump()}};
 
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   ProtoV2EncoderDecoder encoder;
   const auto maybe_proto_content = encoder.EncodePartitionOutputs(
-      partition_output_strings, *request_context_factory);
+      partition_output_pairs, *request_context_factory);
 
-  json expected = {json_partition_output1.dump(),
-                   json_partition_output2.dump()};
+  json expected_output1 = {{"id", 1}};
+  expected_output1.update(json_partition_output1);
+  json expected_output2 = {{"id", 2}};
+  expected_output2.update(json_partition_output2);
+  json expected = {expected_output1, expected_output2};
   ASSERT_TRUE(maybe_proto_content.ok()) << maybe_proto_content.status();
   EXPECT_EQ(expected.dump(), *maybe_proto_content);
 }
 
 TEST(JsonEncoderTest, EncodePartitionOutputsEmptyFails) {
   InitMetricsContextMap();
-  std::vector<std::string> partition_output_strings = {};
-
+  std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {};
   std::string content;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   ProtoV2EncoderDecoder encoder;
   const auto maybe_proto_content = encoder.EncodePartitionOutputs(
-      partition_output_strings, *request_context_factory);
+      partition_output_pairs, *request_context_factory);
 
   ASSERT_FALSE(maybe_proto_content.ok()) << maybe_proto_content.status();
 }

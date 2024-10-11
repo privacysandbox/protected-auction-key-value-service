@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "absl/log/log.h"
@@ -77,10 +78,8 @@ TEST(CborEncoderTest, EncodeV2GetValuesResponseSinglePartitionFailure) {
 
 TEST(CborEncoderTest, EncodePartitionOutputsSuccess) {
   InitMetricsContextMap();
-  json json_partition_outputs = R"(
-    [
+  json json_partition_output1 = R"(
       {
-        "id": 0,
         "keyGroupOutputs": [
           {
             "keyValues": {
@@ -94,9 +93,9 @@ TEST(CborEncoderTest, EncodePartitionOutputsSuccess) {
             ]
           }
         ]
-      },
+      })"_json;
+  json json_partition_output2 = R"(
       {
-        "id": 1,
         "keyGroupOutputs": [
           {
             "keyValues": {
@@ -111,69 +110,101 @@ TEST(CborEncoderTest, EncodePartitionOutputsSuccess) {
           }
         ]
       }
-    ]
-)"_json;
-  std::vector<std::string> partition_output_strings = {
-      json_partition_outputs[0].dump(), json_partition_outputs[1].dump()};
+  )"_json;
+  std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {
+      {1, json_partition_output1.dump()}, {2, json_partition_output2.dump()}};
 
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   CborV2EncoderDecoder encoder;
   const auto maybe_cbor_content = encoder.EncodePartitionOutputs(
-      partition_output_strings, *request_context_factory);
+      partition_output_pairs, *request_context_factory);
 
+  json expected_partition_output1 = {{"id", 1}};
+  expected_partition_output1.update(json_partition_output1);
+  json expected_partition_output2 = {{"id", 2}};
+  expected_partition_output2.update(json_partition_output2);
+  json expected_partition_outputs = {expected_partition_output1,
+                                     expected_partition_output2};
   ASSERT_TRUE(maybe_cbor_content.ok()) << maybe_cbor_content.status();
-  EXPECT_EQ(json_partition_outputs, json::from_cbor(*maybe_cbor_content));
+  EXPECT_EQ(expected_partition_outputs, json::from_cbor(*maybe_cbor_content));
 }
 
 TEST(CborEncoderTest, EncodePartitionOutputsEmptyKeyGroupOutputSuccess) {
   InitMetricsContextMap();
-  json json_partition_outputs = R"(
-   [
+  json json_partition_output = R"(
       {
-        "id": 0,
         "keyGroupOutputs": []
-      }
-    ]
-)"_json;
-  std::vector<std::string> partition_output_strings = {
-      json_partition_outputs[0].dump()};
+      })"_json;
+  std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {
+      {1, json_partition_output.dump()}};
 
   std::string content;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   CborV2EncoderDecoder encoder;
   const auto maybe_cbor_content = encoder.EncodePartitionOutputs(
-      partition_output_strings, *request_context_factory);
+      partition_output_pairs, *request_context_factory);
 
+  json expected_json_outputs = R"([
+      {
+        "id": 1,
+        "keyGroupOutputs": []
+      }])"_json;
   ASSERT_TRUE(maybe_cbor_content.ok()) << maybe_cbor_content.status();
-  EXPECT_EQ(json_partition_outputs, json::from_cbor(*maybe_cbor_content));
+  EXPECT_EQ(expected_json_outputs, json::from_cbor(*maybe_cbor_content));
+}
+
+TEST(CborEncoderTest, EncodePartitionOutputs_OverwritesId) {
+  InitMetricsContextMap();
+  json json_partition_output = R"(
+      {
+        "id": 100,
+        "keyGroupOutputs": []
+      })"_json;
+  std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {
+      {1, json_partition_output.dump()}};
+
+  std::string content;
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  CborV2EncoderDecoder encoder;
+  const auto maybe_cbor_content = encoder.EncodePartitionOutputs(
+      partition_output_pairs, *request_context_factory);
+
+  json expected_json_outputs = R"([
+      {
+        "id": 1,
+        "keyGroupOutputs": []
+      }])"_json;
+  ASSERT_TRUE(maybe_cbor_content.ok()) << maybe_cbor_content.status();
+  EXPECT_EQ(expected_json_outputs, json::from_cbor(*maybe_cbor_content));
 }
 
 TEST(CborEncoderTest, EncodePartitionOutputsInvalidPartitionOutputIgnored) {
   InitMetricsContextMap();
   json json_partition_output_invalid = R"(
       {
-        "id": 0,
         "keyGroupOtputs": []
       }
   )"_json;
 
   json json_partition_output_valid = R"(
       {
-        "id": 0,
         "keyGroupOutputs": []
       }
   )"_json;
-  std::vector<std::string> partition_output_strings = {
-      json_partition_output_invalid.dump(), json_partition_output_valid.dump()};
+  std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {
+      {1, json_partition_output_invalid.dump()},
+      {2, json_partition_output_valid.dump()}};
 
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   CborV2EncoderDecoder encoder;
   const auto maybe_cbor_content = encoder.EncodePartitionOutputs(
-      partition_output_strings, *request_context_factory);
+      partition_output_pairs, *request_context_factory);
 
   ASSERT_TRUE(maybe_cbor_content.ok()) << maybe_cbor_content.status();
   json partition_outputs_json = json::array();
-  partition_outputs_json.emplace_back(json_partition_output_valid);
+  json expected_partition_output_valid = {{"id", 2}};
+  expected_partition_output_valid.update(json_partition_output_valid);
+  partition_outputs_json.emplace_back(expected_partition_output_valid);
   EXPECT_EQ(partition_outputs_json, json::from_cbor(*maybe_cbor_content));
 }
 
@@ -181,18 +212,17 @@ TEST(CborEncoderTest, EncodePartitionOutputsAllInvalidPartitionOutputFails) {
   InitMetricsContextMap();
   json json_partition_output_invalid = R"(
       {
-        "id": 0,
         "keyGroupOtputs": []
       }
   )"_json;
-  std::vector<std::string> partition_output_strings = {
-      json_partition_output_invalid.dump()};
+  std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {
+      {1, json_partition_output_invalid.dump()}};
 
   std::string content;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   CborV2EncoderDecoder encoder;
   const auto maybe_cbor_content = encoder.EncodePartitionOutputs(
-      partition_output_strings, *request_context_factory);
+      partition_output_pairs, *request_context_factory);
 
   ASSERT_FALSE(maybe_cbor_content.ok()) << maybe_cbor_content.status();
 }

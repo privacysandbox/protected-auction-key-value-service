@@ -682,7 +682,6 @@ data {
                               &arg3);
   nlohmann::json output1 = nlohmann::json::parse(R"(
 {
-  "id": 1,
   "keyGroupOutputs": [
       {
           "keyValues": {
@@ -700,7 +699,6 @@ data {
   )");
   nlohmann::json output2 = nlohmann::json::parse(R"(
 {
-  "id": 2,
   "keyGroupOutputs": [
       {
           "keyValues": {
@@ -718,7 +716,6 @@ data {
   )");
   nlohmann::json output3 = nlohmann::json::parse(R"(
 {
-  "id": 3,
   "keyGroupOutputs": [
       {
            "keyValues": {
@@ -769,8 +766,16 @@ data {
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
-  nlohmann::json compressed_partition_group0 = {output1, output3};
-  nlohmann::json compressed_partition_group1 = nlohmann::json::array({output2});
+  nlohmann::json partition_output1 = {{"id", 0}};
+  partition_output1.update(output1);
+  nlohmann::json partition_output2 = {{"id", 1}};
+  partition_output2.update(output2);
+  nlohmann::json partition_output3 = {{"id", 2}};
+  partition_output3.update(output3);
+  nlohmann::json compressed_partition_group0 = {partition_output1,
+                                                partition_output3};
+  nlohmann::json compressed_partition_group1 =
+      nlohmann::json::array({partition_output2});
   if (IsCborContent()) {
     nlohmann::json expected_json = {
         {"compressionGroups",
@@ -881,7 +886,7 @@ data {
 })",
                               &arg3);
   nlohmann::json output1 = nlohmann::json::parse(R"(
-{ "id": 1,
+{
   "keyGroupOutputs": [
       {
           "keyValues": {
@@ -899,7 +904,6 @@ data {
   )");
   nlohmann::json output2 = nlohmann::json::parse(R"(
 {
-  "id": 2,
   "keyGroupOutputs": [
       {
           "keyValues": {
@@ -952,8 +956,14 @@ data {
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
-  nlohmann::json compressed_partition_group0 = nlohmann::json::array({output1});
-  nlohmann::json compressed_partition_group1 = nlohmann::json::array({output2});
+  nlohmann::json partition_output1 = {{"id", 0}};
+  partition_output1.update(output1);
+  nlohmann::json partition_output2 = {{"id", 1}};
+  partition_output2.update(output2);
+  nlohmann::json compressed_partition_group0 =
+      nlohmann::json::array({partition_output1});
+  nlohmann::json compressed_partition_group1 =
+      nlohmann::json::array({partition_output2});
   if (IsCborContent()) {
     nlohmann::json expected_json = {
         {"compressionGroups",
@@ -1063,7 +1073,6 @@ data {
                               &arg3);
   nlohmann::json output = nlohmann::json::parse(R"(
 {
-  "id": 1,
   "keyGroupOutputs": [
       {
           "keyValues": {
@@ -1114,12 +1123,15 @@ data {
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
-  nlohmann::json compressed_partition_group1 = nlohmann::json::array({output});
+  nlohmann::json expected_partition_output = {{"id", 1}};
+  expected_partition_output.update(output);
+  nlohmann::json compressed_partition_group =
+      nlohmann::json::array({expected_partition_output});
   if (IsCborContent()) {
     nlohmann::json expected_json = {
         {"compressionGroups",
          {{{"compressionGroupId", 1},
-           {"content", compressed_partition_group1}}}}};
+           {"content", compressed_partition_group}}}}};
 
     // Convert CBOR to json to check content
     nlohmann::json actual_response_from_cbor = nlohmann::json::from_cbor(
@@ -1133,7 +1145,6 @@ data {
   }
 
   v2::GetValuesResponse actual_response, expected_response;
-  nlohmann::json compressed_partition_group = nlohmann::json::array({output});
   auto* compression_group = expected_response.add_compression_groups();
   compression_group->set_content(compressed_partition_group.dump());
   compression_group->set_compression_group_id(1);

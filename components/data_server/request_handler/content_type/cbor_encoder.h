@@ -15,6 +15,7 @@
  */
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "components/data_server/request_handler/content_type/encoder.h"
@@ -33,7 +34,7 @@ class CborV2EncoderDecoder : public V2EncoderDecoder {
   // as per
   // https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md
   absl::StatusOr<std::string> EncodePartitionOutputs(
-      std::vector<std::string>& partition_output_strings,
+      std::vector<std::pair<int32_t, std::string>>& partition_output_pairs,
       const RequestContextFactory& request_context_factory) const override;
 
   absl::StatusOr<v2::GetValuesRequest> DecodeToV2GetValuesRequestProto(

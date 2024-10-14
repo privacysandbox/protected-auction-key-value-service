@@ -2,6 +2,98 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 1.0.0 (2024-10-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* GA release
+
+### Features
+
+* Add 64 bit int sets support to key value cache
+* Add CBOR conversion for v2 objects
+* Add CBOR support to multi-partition flows in V2
+* add CORS headers for envoy config
+* Add data loading support for uint64 sets
+* Add documentation for uint64 sets
+* Add internal lookup rpc for uint64 sets
+* Add parameter notifier to get parameter update notification
+* Add partition-level metadata to UDF execution metadata
+* Add runSetQueryUInt64 udf hook
+* Add support for reading and writing uint64 sets to csv files
+* Add uint64 bitset wrapper.
+* CBOR conversion for Compresion Group
+* CborDecodeToProto implementation
+* Convert http ContentType header to a custom header in GCP
+* Download pre-built aws-otel-collector.rpm
+* Encode cbor content as bytestring and add partitionOutputs to CBOR converter
+* Fix release script
+* Flag to control chaffing for sharding for nonprod
+* GA release
+* Implement CBOR for validator
+* Implement internal GetUInt64ValueSet functionality
+* Implement InternalRunSetQueryUInt64 rpc (local lookup)
+* Implement InternalRunSetQueryUInt64 rpc (sharded lookup)
+* multiple partition support
+* Pass partition level metadata to UDF
+* Process v2 padded requests
+* Put server logs in the response DebugInfo for consented requests
+* Refactor cache logic for bitsets into it's own class
+* Set up AWS terraform resources for logging verbosity parameter notification
+* Start parameter notifier to get logging verbosity updates
+* Support dataVersion field in PA partition output
+* Support set operations for 64 bit int sets
+* Update AWS sqs cleanup function to clean up sqs for parameter updates
+* Update common repo and set the verbosity level for PS_VLOG with new API
+* Update v2 contract
+* Update v2 headers
+* Upgrade common repo to 9c5c93e
+* Upgrade rules_oci to 2.0 and deprecate rules_docker
+* Use proper ohttp media types for encryption
+* When using the wrong inline set type in query, resolve the result
+
+
+### Bug Fixes
+
+* Add missing include directive
+* Add missing internal testing parameters
+* Allow CORS OPTIONS for preflight
+* Correct fork logic
+* Correct output_filter typo
+* Destroy terraform before doing perfgate exporting
+* Enable a second kv on aws deployment.
+* fix AppMesh health check.
+* logMessage should us PS LOGS
+* Make AL2023 work.
+* Remove "k" from ReceivedLowLatencyNotificationsCount metric name
+* Remove version from header
+* Rename BUILD to BUILD.bazel
+* Resolve proxy subnet resources collision issue.
+* Response partition id should come from the request
+* Temporary GCP V2 HTTP envoy fix
+* Update common repo to pick up the server crash fix
+* Update V2 handler and docs with proper ohttp response label.
+* Upgrade builders version to 0.69.0
+* Use specified release branch to cut release.
+* V2 should not return error status on UDF failure
+
+
+### Dependencies
+
+* **deps:** Upgrade build-system to 0.66.1
+* **deps:** Upgrade data-plane-shared-libraries to 144264c 2024-07-31
+
+
+### Documentation
+
+* Add aws update-function-code lambda update command to the AWS deployment doc
+* Add readme doc for diagnostic tool
+* Add screenshot for gcp server prod log location
+* Update docs to use docker compose instead of docker-compose
+* Update gcp deployment doc about console logging
+* Update playbook
+
 ## 0.17.0 (2024-07-08)
 
 

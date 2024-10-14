@@ -1154,7 +1154,8 @@ data {
   EXPECT_THAT(actual_response, EqualsProto(expected_response));
 }
 
-TEST_P(GetValuesHandlerMultiplePartitionsTest, AllPartitionsFail_ReturnError) {
+TEST_P(GetValuesHandlerMultiplePartitionsTest,
+       AllPartitionsFail_ReturnSuccess) {
   UDFExecutionMetadata udf_metadata;
   TextFormat::ParseFromString(R"(
 request_metadata {
@@ -1241,7 +1242,23 @@ data {
   const auto result =
       GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
                                &response, &http_response_code, &handler);
-  ASSERT_EQ(http_response_code, 3);
+  ASSERT_EQ(http_response_code, 200);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+  v2::GetValuesResponse actual_response, expected_response;
+  if (IsJsonContent()) {
+    EXPECT_THAT(actual_response, EqualsProto(expected_response));
+  }
+  if (IsCborContent()) {
+    nlohmann::json expected_json = {
+        {"compressionGroups", nlohmann::json::array()}};
+
+    // Convert CBOR to json to check content
+    nlohmann::json actual_response_from_cbor = nlohmann::json::from_cbor(
+        response.data(), /*strict=*/true, /*allow_exceptions=*/false);
+    ASSERT_FALSE(actual_response_from_cbor.is_discarded());
+    EXPECT_EQ(expected_json, actual_response_from_cbor);
+  }
 }
 
 TEST_F(GetValuesHandlerTest, PureGRPCTest_Success) {

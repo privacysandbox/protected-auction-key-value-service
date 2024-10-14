@@ -296,7 +296,7 @@ grpc::Status GetValuesV2Handler::GetValues(
   const auto response_status =
       ProcessMultiplePartitions(request_context_factory, request, *response,
                                 execution_metadata, v2_codec);
-  return FromAbslStatus(response_status);
+  return GetExternalStatusForV2(response_status);
 }
 
 }  // namespace kv_server

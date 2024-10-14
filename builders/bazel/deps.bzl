@@ -15,21 +15,24 @@
 """Load definitions for use in WORKSPACE files."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
 
-def python_deps(bazel_package):
-    """Load rules_python and register container-based python toolchain
+def python_deps():
+    """Load rules_python. Use python_register_toolchains to also resgister container-based python toolchain."""
+    maybe(
+        http_archive,
+        name = "rules_python",
+        sha256 = "be04b635c7be4604be1ef20542e9870af3c49778ce841ee2d92fcb42f9d9516a",
+        strip_prefix = "rules_python-0.35.0",
+        url = "https://github.com/bazelbuild/rules_python/releases/download/0.35.0/rules_python-0.35.0.tar.gz",
+    )
+
+def python_register_toolchains(bazel_package):
+    """Register container-based python toolchain.
 
     Note: the bazel_package arg will depend on the import/submodule location in your workspace
 
     Args:
       bazel_package: repo-relative bazel package to builders/bazel/BUILD eg. "//builders/bazel"
     """
-    http_archive(
-        name = "rules_python",
-        sha256 = "0a8003b044294d7840ac7d9d73eef05d6ceb682d7516781a4ec62eeb34702578",
-        strip_prefix = "rules_python-0.24.0",
-        urls = [
-            "https://github.com/bazelbuild/rules_python/releases/download/0.24.0/rules_python-0.24.0.tar.gz",
-        ],
-    )
     native.register_toolchains("{}:py_toolchain".format(bazel_package))

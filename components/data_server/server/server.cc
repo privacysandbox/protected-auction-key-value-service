@@ -70,11 +70,14 @@ using privacy_sandbox::server_common::InitTelemetry;
 using privacy_sandbox::server_common::TelemetryProvider;
 using privacy_sandbox::server_common::log::PSLogContext;
 using privacy_sandbox::server_common::telemetry::BuildDependentConfig;
+using privacy_sandbox::server_common::telemetry::TelemetryConfig;
 
 // TODO: Use config cpio client to get this from the environment
 constexpr absl::string_view kDataBucketParameterSuffix = "data-bucket-id";
 constexpr absl::string_view kBackupPollFrequencySecsParameterSuffix =
     "backup-poll-frequency-secs";
+constexpr absl::string_view kLoggingVerbosityBackupPollFreqSecsParameterSuffix =
+    "logging-verbosity-backup-poll-frequency-secs";
 constexpr absl::string_view kMetricsExportIntervalMillisParameterSuffix =
     "metrics-export-interval-millis";
 constexpr absl::string_view kMetricsExportTimeoutMillisParameterSuffix =
@@ -151,9 +154,8 @@ void CheckMetricsCollectorEndPointConnection(
       "Checking connection to metrics collector", LogMetricsNoOpCallback());
 }
 
-privacy_sandbox::server_common::telemetry::TelemetryConfig
-GetServerTelemetryConfig(const ParameterClient& parameter_client,
-                         const std::string& environment) {
+TelemetryConfig GetServerTelemetryConfig(
+    const ParameterClient& parameter_client, const std::string& environment) {
   ParameterFetcher parameter_fetcher(environment, parameter_client);
   auto config_string = parameter_fetcher.GetParameter(kTelemetryConfigSuffix);
   privacy_sandbox::server_common::telemetry::TelemetryConfig config;
@@ -183,7 +185,8 @@ Server::Server()
           GetValuesHook::Create(GetValuesHook::OutputType::kString)),
       binary_get_values_hook_(
           GetValuesHook::Create(GetValuesHook::OutputType::kBinary)),
-      run_set_query_int_hook_(RunSetQueryIntHook::Create()),
+      run_set_query_uint32_hook_(RunSetQueryUInt32Hook::Create()),
+      run_set_query_uint64_hook_(RunSetQueryUInt64Hook::Create()),
       run_set_query_string_hook_(RunSetQueryStringHook::Create()) {}
 
 // Because the cache relies on telemetry, this function needs to be
@@ -205,14 +208,13 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
   // downstream.
   auto verbosity_level = parameter_fetcher.GetInt32Parameter(
       kLoggingVerbosityLevelParameterSuffix);
-  absl::SetGlobalVLogLevel(verbosity_level);
-  privacy_sandbox::server_common::log::PS_VLOG_IS_ON(0, verbosity_level);
   static auto* log_provider =
       privacy_sandbox::server_common::ConfigurePrivateLogger(server_info,
                                                              collector_endpoint)
           .release();
   privacy_sandbox::server_common::log::logger_private =
       log_provider->GetLogger(kServiceName.data()).get();
+  UpdateLoggingVerbosity(verbosity_level);
   parameter_client_->UpdateLogContext(server_safe_log_context_);
   instance_client_->UpdateLogContext(server_safe_log_context_);
   if (const bool enable_consented_log =
@@ -220,6 +222,46 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
       enable_consented_log) {
     privacy_sandbox::server_common::log::ServerToken(
         parameter_fetcher.GetParameter(kConsentedDebugTokenSuffix, ""));
+  }
+  // Start verbosity parameter notifier to listen to the updates
+  uint32_t backup_poll_frequency_secs = parameter_fetcher.GetInt32Parameter(
+      kLoggingVerbosityBackupPollFreqSecsParameterSuffix);
+  auto metadata =
+      parameter_fetcher.GetLoggingVerbosityParameterNotifierMetadata();
+  auto message_service_status =
+      MessageService::Create(metadata, server_safe_log_context_);
+  if (!message_service_status.ok()) {
+    PS_LOG(ERROR, server_safe_log_context_)
+        << "Failed to setup message service for logging verbosity update";
+    return;
+  }
+  message_service_verbosity_param_update_ = std::move(*message_service_status);
+  SetQueueManager(metadata, message_service_verbosity_param_update_.get());
+  auto logging_verbosity_notifier_status = ParameterNotifier::Create(
+      metadata,
+      std::move(parameter_fetcher.GetParamName(
+          kLoggingVerbosityLevelParameterSuffix)),
+      absl::Seconds(backup_poll_frequency_secs), server_safe_log_context_);
+  if (logging_verbosity_notifier_status.ok()) {
+    logging_verbosity_param_notifier_ =
+        std::move(*logging_verbosity_notifier_status);
+    if (auto status = logging_verbosity_param_notifier_->Start<int32_t>(
+            [this](std::string_view param_name) {
+              return parameter_client_->GetInt32Parameter(param_name);
+            },
+            absl::bind_front(&Server::UpdateLoggingVerbosity, this));
+        !status.ok()) {
+      PS_LOG(ERROR, server_safe_log_context_)
+          << "Failed to start the parameter notifier for logging verbosity "
+             "update "
+          << status;
+      return;
+    }
+  } else {
+    PS_LOG(ERROR, server_safe_log_context_)
+        << "Failed to setup the parameter notifier for logging verbosity "
+           "update "
+        << logging_verbosity_notifier_status.status();
   }
 }
 
@@ -233,8 +275,9 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
       parameter_fetcher.GetBoolParameter(kEnableOtelLoggerParameterSuffix);
   LOG(INFO) << "Retrieved " << kEnableOtelLoggerParameterSuffix
             << " parameter: " << enable_otel_logger;
-  BuildDependentConfig telemetry_config(
-      GetServerTelemetryConfig(parameter_client, environment_));
+  TelemetryConfig telemetry_config_proto =
+      GetServerTelemetryConfig(parameter_client, environment_);
+  BuildDependentConfig telemetry_config(telemetry_config_proto);
   InitTelemetry(std::string(kServiceName), std::string(BuildVersion()),
                 telemetry_config.TraceAllowed(),
                 telemetry_config.MetricAllowed(), enable_otel_logger);
@@ -246,7 +289,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
   }
   LOG(INFO) << "Done retrieving metrics collector endpoint";
   auto* context_map = KVServerContextMap(
-      telemetry_config,
+      std::make_unique<BuildDependentConfig>(telemetry_config_proto),
       ConfigurePrivateMetrics(
           CreateKVAttributes(instance_id, std::to_string(shard_num_),
                              environment_),
@@ -254,7 +297,7 @@ void Server::InitializeTelemetry(const ParameterClient& parameter_client,
   AddSystemMetric(context_map);
 
   auto* internal_lookup_context_map = InternalLookupServerContextMap(
-      telemetry_config,
+      std::make_unique<BuildDependentConfig>(telemetry_config_proto),
       ConfigurePrivateMetrics(
           CreateKVAttributes(instance_id, std::to_string(shard_num_),
                              environment_),
@@ -322,9 +365,10 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
               config_builder
                   .RegisterStringGetValuesHook(*string_get_values_hook_)
                   .RegisterBinaryGetValuesHook(*binary_get_values_hook_)
-                  .RegisterRunSetQueryIntHook(*run_set_query_int_hook_)
+                  .RegisterRunSetQueryUInt32Hook(*run_set_query_uint32_hook_)
+                  .RegisterRunSetQueryUInt64Hook(*run_set_query_uint64_hook_)
                   .RegisterRunSetQueryStringHook(*run_set_query_string_hook_)
-                  .RegisterLoggingFunction()
+                  .RegisterLoggingHook()
                   .SetNumberOfWorkers(number_of_workers)
                   .Config()),
           absl::Milliseconds(udf_timeout_ms),
@@ -477,7 +521,8 @@ absl::Status Server::InitOnceInstancesAreCreated() {
   }
   auto maybe_shard_state = server_initializer->InitializeUdfHooks(
       *string_get_values_hook_, *binary_get_values_hook_,
-      *run_set_query_string_hook_, *run_set_query_int_hook_);
+      *run_set_query_string_hook_, *run_set_query_uint32_hook_,
+      *run_set_query_uint64_hook_);
   if (!maybe_shard_state.ok()) {
     return maybe_shard_state.status();
   }
@@ -501,6 +546,10 @@ absl::Status Server::MaybeShutdownNotifiers() {
   }
   if (realtime_thread_pool_manager_) {
     status.Update(realtime_thread_pool_manager_->Stop());
+  }
+  if (logging_verbosity_param_notifier_ &&
+      logging_verbosity_param_notifier_->IsRunning()) {
+    status.Update(logging_verbosity_param_notifier_->Stop());
   }
   return status;
 }
@@ -716,6 +765,18 @@ std::unique_ptr<DeltaFileNotifier> Server::CreateDeltaFileNotifier(
       *blob_client_, absl::Seconds(backup_poll_frequency_secs),
       GetBlobPrefixAllowlist(parameter_fetcher, server_safe_log_context_),
       server_safe_log_context_);
+}
+
+void Server::UpdateLoggingVerbosity(int32_t verbosity_value) {
+  if (verbosity_value >= 0) {
+    // absl and ps log internally will check if new verbosity value
+    // equals existing verbosity value and apply the update if values are
+    // different.
+    absl::SetGlobalVLogLevel(verbosity_value);
+    privacy_sandbox::server_common::log::SetGlobalPSVLogLevel(verbosity_value);
+    PS_VLOG(1, server_safe_log_context_)
+        << "Updated logging verbosity level to " << verbosity_value;
+  }
 }
 
 }  // namespace kv_server

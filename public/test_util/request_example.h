@@ -25,7 +25,8 @@ namespace kv_server {
 constexpr std::string_view kExampleV2RequestInJson = R"(
   {
   "metadata": {
-      "hostname": "example.com"
+      "hostname": "example.com",
+      "is_pas": "true"
   },
   "partitions": [
       {
@@ -59,7 +60,8 @@ constexpr std::string_view kExampleV2RequestInJson = R"(
 constexpr std::string_view kExampleConsentedV2RequestInJson = R"(
   {
   "metadata": {
-      "hostname": "example.com"
+      "hostname": "example.com",
+      "is_pas": "true"
   },
   "partitions": [
       {
@@ -97,7 +99,8 @@ constexpr std::string_view kExampleConsentedV2RequestInJson = R"(
 constexpr std::string_view kExampleConsentedV2RequestWithLogContextInJson = R"(
   {
   "metadata": {
-      "hostname": "example.com"
+      "hostname": "example.com",
+      "is_pas": "true"
   },
   "partitions": [
       {
@@ -133,6 +136,253 @@ constexpr std::string_view kExampleConsentedV2RequestWithLogContextInJson = R"(
       "generation_id": "client_UUID",
       "adtech_debug_id": "adtech_debug_test"
   },
+  })";
+
+//  Non-consented V2 request example with multiple partitions
+constexpr std::string_view kV2RequestMultiplePartitionsInJson = R"(
+  {
+  "metadata": {
+      "hostname": "example.com"
+  },
+  "partitions": [
+      {
+          "id": 0,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "structured",
+                      "groupNames"
+                  ],
+                  "data": [
+                      "hello"
+                  ]
+              }
+           ]
+      },
+      {
+          "id": 1,
+          "compressionGroupId": 1,
+          "arguments": [
+              {
+                  "tags": [
+                      "custom",
+                      "keys"
+                  ],
+                  "data": [
+                      "key1"
+                  ]
+              }
+          ]
+      },
+      {
+          "id": 2,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "custom",
+                      "keys"
+                  ],
+                  "data": [
+                      "key2"
+                  ]
+              }
+          ]
+      }
+  ]
+  }
+  )";
+
+// Consented V2 request example with multiple partitions without log context
+constexpr std::string_view kConsentedV2RequestMultiplePartitionsInJson =
+    R"(
+  {
+  "metadata": {
+      "hostname": "example.com"
+  },
+  "partitions": [
+      {
+          "id": 0,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "structured",
+                      "groupNames"
+                  ],
+                  "data": [
+                      "hello"
+                  ]
+              }
+           ]
+      },
+      {
+          "id": 1,
+          "compressionGroupId": 1,
+          "arguments": [
+              {
+                  "tags": [
+                      "custom",
+                      "keys"
+                  ],
+                  "data": [
+                      "key1"
+                  ]
+              }
+          ]
+      },
+      {
+          "id": 2,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "custom",
+                      "keys"
+                  ],
+                  "data": [
+                      "key2"
+                  ]
+              }
+          ]
+      }
+  ],
+  "consented_debug_config": {
+        "is_consented": true,
+        "token": "debug_token"
+  }
+  })";
+
+// Consented V2 request example with multiple partitions with log context
+constexpr std::string_view
+    kConsentedV2RequestMultiplePartitionsWithLogContextInJson = R"(
+  {
+  "metadata": {
+      "hostname": "example.com"
+  },
+  "partitions": [
+      {
+          "id": 0,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "structured",
+                      "groupNames"
+                  ],
+                  "data": [
+                      "hello"
+                  ]
+              }
+           ]
+      },
+      {
+          "id": 1,
+          "compressionGroupId": 1,
+          "arguments": [
+              {
+                  "tags": [
+                      "custom",
+                      "keys"
+                  ],
+                  "data": [
+                      "key1"
+                  ]
+              }
+          ]
+      },
+      {
+          "id": 2,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "custom",
+                      "keys"
+                  ],
+                  "data": [
+                      "key2"
+                  ]
+              }
+          ]
+      }
+  ],
+  "consented_debug_config": {
+        "is_consented": true,
+        "token": "debug_token"
+  },
+  "log_context": {
+      "generation_id": "client_UUID",
+      "adtech_debug_id": "adtech_debug_test"
+  }
+  })";
+
+// Consented V2 request example with multiple partitions with log context and
+// debug info response flag
+constexpr std::string_view
+    kConsentedV2RequestMultiPartWithDebugInfoResponseInJson =
+        R"(
+  {
+  "metadata": {
+      "hostname": "example.com"
+  },
+  "partitions": [
+      {
+          "id": 0,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "structured",
+                      "groupNames"
+                  ],
+                  "data": [
+                      "hello"
+                  ]
+              }
+           ]
+      },
+      {
+          "id": 1,
+          "compressionGroupId": 1,
+          "arguments": [
+              {
+                  "tags": [
+                      "custom",
+                      "keys"
+                  ],
+                  "data": [
+                      "key1"
+                  ]
+              }
+          ]
+      },
+      {
+          "id": 2,
+          "compressionGroupId": 0,
+          "arguments": [
+              {
+                  "tags": [
+                      "custom",
+                      "keys"
+                  ],
+                  "data": [
+                      "key2"
+                  ]
+              }
+          ]
+      }
+  ],
+  "consented_debug_config": {
+        "is_consented": true,
+        "token": "debug_token",
+        "is_debug_info_in_response": true
+  },
+  "log_context": {
+      "generation_id": "client_UUID",
+      "adtech_debug_id": "adtech_debug_test"
+  }
   })";
 
 // Example consented debug token used in the unit tests

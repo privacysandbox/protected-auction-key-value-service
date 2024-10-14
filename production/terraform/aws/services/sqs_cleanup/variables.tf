@@ -54,3 +54,8 @@ variable "sns_realtime_topic_arn" {
   description = "SNS topic where realtime updates are pushed to."
   type        = string
 }
+
+variable "sns_logging_verbosity_updates_topic_arn" {
+  description = "SNS topic where logging verbosity updates are pushed to."
+  type        = string
+}

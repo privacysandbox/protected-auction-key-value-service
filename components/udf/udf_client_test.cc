@@ -20,7 +20,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/log/scoped_mock_log.h"
 #include "absl/status/statusor.h"
 #include "components/internal_server/mocks.h"
 #include "components/udf/code_config.h"
@@ -456,15 +455,16 @@ TEST_F(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
 
 TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
   auto mock_lookup = std::make_unique<MockLookup>();
-  InternalRunSetQueryIntResponse response;
+  InternalRunSetQueryUInt32Response response;
   TextFormat::ParseFromString(R"pb(elements: 1000 elements: 1001)pb",
                               &response);
-  ON_CALL(*mock_lookup, RunSetQueryInt(_, _)).WillByDefault(Return(response));
-  auto run_query_hook = RunSetQueryIntHook::Create();
+  ON_CALL(*mock_lookup, RunSetQueryUInt32(_, _))
+      .WillByDefault(Return(response));
+  auto run_query_hook = RunSetQueryUInt32Hook::Create();
   run_query_hook->FinishInit(std::move(mock_lookup));
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
-      std::move(config_builder.RegisterRunSetQueryIntHook(*run_query_hook)
+      std::move(config_builder.RegisterRunSetQueryUInt32Hook(*run_query_hook)
                     .SetNumberOfWorkers(1)
                     .Config()));
   EXPECT_TRUE(udf_client.ok());
@@ -472,7 +472,7 @@ TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
       .js = R"(
         function hello(input) {
           let keys = input.keys;
-          let bytes = runSetQueryInt(keys[0]);
+          let bytes = runSetQueryUInt32(keys[0]);
           if (bytes instanceof Uint8Array) {
             return Array.from(new Uint32Array(bytes.buffer));
           }
@@ -492,7 +492,7 @@ TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
   EXPECT_TRUE(stop.ok());
 }
 
-TEST_F(UdfClientTest, JsCallsLoggingFunctionLogForConsentedRequests) {
+TEST_F(UdfClientTest, JsCallsLogMessageConsentedSucceeds) {
   std::stringstream log_ss;
   auto* logger_provider =
       opentelemetry::sdk::logs::LoggerProviderFactory::Create(
@@ -503,19 +503,17 @@ TEST_F(UdfClientTest, JsCallsLoggingFunctionLogForConsentedRequests) {
           .release();
   privacy_sandbox::server_common::log::logger_private =
       logger_provider->GetLogger("test").get();
+
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
-      UdfClient::Create(std::move(config_builder.RegisterLoggingFunction()
-                                      .SetNumberOfWorkers(1)
-                                      .Config()));
+      UdfClient::Create(std::move(
+          config_builder.RegisterLoggingHook().SetNumberOfWorkers(1).Config()));
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
         function hello(input) {
-          const a = console.error("Error message");
-          const b = console.warn("Warning message");
-          const c = console.log("Info message");
+          logMessage("first message");
           return "";
         }
       )",
@@ -536,9 +534,7 @@ TEST_F(UdfClientTest, JsCallsLoggingFunctionLogForConsentedRequests) {
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
   auto output_log = log_ss.str();
-  EXPECT_THAT(output_log, ContainsRegex("Error message"));
-  EXPECT_THAT(output_log, ContainsRegex("Warning message"));
-  EXPECT_THAT(output_log, ContainsRegex("Info message"));
+  EXPECT_THAT(output_log, ContainsRegex("first message"));
 
   absl::Status stop = udf_client.value()->Stop();
   EXPECT_TRUE(stop.ok());
@@ -557,17 +553,14 @@ TEST_F(UdfClientTest, JsCallsLoggingFunctionNoLogForNonConsentedRequests) {
       logger_provider->GetLogger("test").get();
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
-      UdfClient::Create(std::move(config_builder.RegisterLoggingFunction()
-                                      .SetNumberOfWorkers(1)
-                                      .Config()));
+      UdfClient::Create(std::move(
+          config_builder.RegisterLoggingHook().SetNumberOfWorkers(1).Config()));
   EXPECT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
         function hello(input) {
-          const a = console.error("Error message");
-          const b = console.warn("Warning message");
-          const c = console.log("Info message");
+          logMessage("first message");
           return "";
         }
       )",
@@ -702,6 +695,11 @@ TEST_F(UdfClientTest, MetadataPassedSuccesfully) {
           {
             return "true";
           }
+          if(metadata.partitionMetadata &&
+              metadata.partitionMetadata.partition_level_key)
+          {
+            return "true";
+          }
           return "false";
         }
       )",
@@ -711,8 +709,9 @@ TEST_F(UdfClientTest, MetadataPassedSuccesfully) {
   });
   EXPECT_TRUE(code_obj_status.ok());
   v2::GetValuesRequest req;
-  (*(req.mutable_metadata()->mutable_fields()))["is_pas"].set_string_value(
-      "true");
+  auto* fields = req.mutable_metadata()->mutable_fields();
+  (*fields)["is_pas"].set_string_value("true");
+  (*fields)["partition_level_key"].set_string_value("true");
   UDFExecutionMetadata udf_metadata;
   *udf_metadata.mutable_request_metadata() = *req.mutable_metadata();
   google::protobuf::RepeatedPtrField<UDFArgument> args;
@@ -749,6 +748,7 @@ TEST_F(UdfClientTest, DefaultUdfPASucceeds) {
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
       std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
+                    .RegisterLoggingHook()
                     .SetNumberOfWorkers(1)
                     .Config()));
   EXPECT_TRUE(udf_client.ok());
@@ -795,6 +795,7 @@ TEST_F(UdfClientTest, DefaultUdfPasKeyLookupFails) {
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
       std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
+                    .RegisterLoggingHook()
                     .SetNumberOfWorkers(1)
                     .Config()));
   EXPECT_TRUE(udf_client.ok());
@@ -847,6 +848,7 @@ TEST_F(UdfClientTest, DefaultUdfPasSucceeds) {
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
       std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
+                    .RegisterLoggingHook()
                     .SetNumberOfWorkers(1)
                     .Config()));
   EXPECT_TRUE(udf_client.ok());
@@ -885,6 +887,46 @@ TEST_F(UdfClientTest, DefaultUdfPasSucceeds) {
   EXPECT_TRUE(stop.ok());
 }
 
-}  // namespace
+TEST_F(UdfClientTest, VerifyJsRunSetQueryUInt64HookSucceeds) {
+  auto mock_lookup = std::make_unique<MockLookup>();
+  InternalRunSetQueryUInt64Response response;
+  TextFormat::ParseFromString(R"pb(elements: 18446744073709551614
+                                   elements: 18446744073709551615)pb",
+                              &response);
+  ON_CALL(*mock_lookup, RunSetQueryUInt64(_, _))
+      .WillByDefault(Return(response));
+  auto run_query_hook = RunSetQueryUInt64Hook::Create();
+  run_query_hook->FinishInit(std::move(mock_lookup));
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
+      std::move(config_builder.RegisterRunSetQueryUInt64Hook(*run_query_hook)
+                    .SetNumberOfWorkers(1)
+                    .Config()));
+  EXPECT_TRUE(udf_client.ok());
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(input) {
+          const keys = input.keys;
+          const bytes = runSetQueryUInt64(keys[0]);
+          if (bytes instanceof Uint8Array) {
+            const uint64Array = new BigUint64Array(bytes.buffer);
+            return Array.from(uint64Array, uint64 => uint64.toString());
+          }
+          return "runSetQueryInt failed.";
+        }
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_EQ(*result, "[\"18446744073709551614\",\"18446744073709551615\"]");
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
 
+}  // namespace
 }  // namespace kv_server

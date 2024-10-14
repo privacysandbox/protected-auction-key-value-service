@@ -44,6 +44,9 @@ constexpr int kFileGroupFileIndexDigits = 5;
 // Number of digits used to represent the size of a file group.
 constexpr int kFileGroupSizeDigits = 6;
 
+// Minimum size of the returned response in bytes.
+constexpr int kMinResponsePaddingBytes = 0;
+
 // "DELTA_\d{16}"
 // The first component represents the file type.
 //
@@ -104,6 +107,13 @@ const uint16_t kKEMParameter = 0x0020;
 const uint16_t kKDFParameter = 0x0001;
 // AEAD: AES-256-GCM
 const uint16_t kAEADParameter = 0x0002;
+
+// Custom media types for KV. Used as input for ohttp request/response
+// encryption/decryption.
+inline constexpr absl::string_view kKVOhttpRequestLabel =
+    "message/ad-auction-trusted-signals-request";
+inline constexpr absl::string_view kKVOhttpResponseLabel =
+    "message/ad-auction-trusted-signals-response";
 
 constexpr std::string_view kServiceName = "kv-server";
 

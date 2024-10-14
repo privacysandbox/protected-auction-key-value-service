@@ -3,7 +3,7 @@ Description=Vsock proxy for allowing outgoing connections from enclave image
 After=network.target
 [Service]
 ExecStart=/opt/privacysandbox/proxy
-WorkingDirectory=/tmp/proxy
+WorkingDirectory=/tmp
 Restart=always
 [Install]
 WantedBy=multi-user.target

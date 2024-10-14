@@ -20,7 +20,7 @@
 
 #include "components/container/thread_safe_hash_map.h"
 #include "components/data_server/cache/cache.h"
-#include "components/data_server/cache/uint32_value_set.h"
+#include "components/data_server/cache/uint_value_set.h"
 #include "gmock/gmock.h"
 
 namespace kv_server {
@@ -44,6 +44,10 @@ class MockCache : public Cache {
               (const RequestContext&,
                const absl::flat_hash_set<std::string_view>&),
               (const, override));
+  MOCK_METHOD((std::unique_ptr<GetKeyValueSetResult>), GetUInt64ValueSet,
+              (const RequestContext&,
+               const absl::flat_hash_set<std::string_view>&),
+              (const, override));
   MOCK_METHOD(void, UpdateKeyValue,
               (privacy_sandbox::server_common::log::PSLogContext&,
                std::string_view, std::string_view, int64_t, std::string_view),
@@ -58,6 +62,11 @@ class MockCache : public Cache {
                std::string_view, absl::Span<uint32_t>, int64_t,
                std::string_view),
               (override));
+  MOCK_METHOD(void, UpdateKeyValueSet,
+              (privacy_sandbox::server_common::log::PSLogContext&,
+               std::string_view, absl::Span<uint64_t>, int64_t,
+               std::string_view),
+              (override));
   MOCK_METHOD(void, DeleteValuesInSet,
               (privacy_sandbox::server_common::log::PSLogContext&,
                std::string_view, absl::Span<std::string_view>, int64_t,
@@ -66,6 +75,11 @@ class MockCache : public Cache {
   MOCK_METHOD(void, DeleteValuesInSet,
               (privacy_sandbox::server_common::log::PSLogContext&,
                std::string_view, absl::Span<uint32_t>, int64_t,
+               std::string_view),
+              (override));
+  MOCK_METHOD(void, DeleteValuesInSet,
+              (privacy_sandbox::server_common::log::PSLogContext&,
+               std::string_view, absl::Span<uint64_t>, int64_t,
                std::string_view),
               (override));
   MOCK_METHOD(void, DeleteKey,
@@ -87,11 +101,18 @@ class MockGetKeyValueSetResult : public GetKeyValueSetResult {
                std::unique_ptr<absl::ReaderMutexLock>),
               (override));
   MOCK_METHOD((const UInt32ValueSet*), GetUInt32ValueSet, (std::string_view),
-              (const override));
+              (const, override));
   MOCK_METHOD(
-      void, AddUInt32ValueSet,
+      void, AddUIntValueSet,
       (std::string_view,
        (ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr)),
+      (override));
+  MOCK_METHOD((const UInt64ValueSet*), GetUInt64ValueSet, (std::string_view),
+              (const, override));
+  MOCK_METHOD(
+      void, AddUIntValueSet,
+      (std::string_view,
+       (ThreadSafeHashMap<std::string, UInt64ValueSet>::ConstLockedNodePtr)),
       (override));
 };
 

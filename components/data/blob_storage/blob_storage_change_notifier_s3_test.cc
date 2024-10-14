@@ -55,14 +55,7 @@ class MockSqsClient : public ::Aws::SQS::SQSClient {
 // https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html
 class BlobStorageChangeNotifierS3Test : public ::testing::Test {
  protected:
-  void SetUp() override {
-    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
-    config_proto.set_mode(
-        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
-    KVServerContextMap(
-        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
-            config_proto));
-  }
+  void SetUp() override { kv_server::InitMetricsContextMap(); }
   void CreateRequiredSqsCallExpectations() {
     static const std::string mock_sqs_url("mock sqs url");
     EXPECT_CALL(mock_message_service_, IsSetupComplete)

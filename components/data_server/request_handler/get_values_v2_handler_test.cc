@@ -20,8 +20,10 @@
 #include <vector>
 
 #include "absl/log/log.h"
+#include "components/data/converters/cbor_converter.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/mocks.h"
+#include "components/data_server/request_handler/content_type/json_encoder.h"
 #include "components/udf/mocks.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -31,11 +33,13 @@
 #include "public/constants.h"
 #include "public/test_util/proto_matcher.h"
 #include "public/test_util/request_example.h"
-#include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
 #include "src/communication/encoding_utils.h"
+#include "src/communication/framing_utils.h"
 #include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
+
+#include "cbor.h"
 
 namespace kv_server {
 namespace {
@@ -46,16 +50,15 @@ using testing::_;
 using testing::Return;
 using testing::ReturnRef;
 using testing::UnorderedElementsAre;
-using v2::BinaryHttpGetValuesRequest;
 using v2::GetValuesHttpRequest;
 using v2::ObliviousGetValuesRequest;
 
 enum class ProtocolType {
   kPlain = 0,
-  kBinaryHttp,
   kObliviousHttp,
 };
 
+// TODO(b/355434272): Refactor
 struct TestingParameters {
   ProtocolType protocol_type;
   const std::string_view content_type;
@@ -63,9 +66,22 @@ struct TestingParameters {
   const bool is_consented;
 };
 
-class GetValuesHandlerTest
-    : public ::testing::Test,
-      public ::testing::WithParamInterface<TestingParameters> {
+nlohmann::json GetPartitionOutputsInJson(const nlohmann::json& content_json) {
+  std::vector<uint8_t> content_cbor = nlohmann::json::to_cbor(content_json);
+  std::string content_cbor_string =
+      std::string(content_cbor.begin(), content_cbor.end());
+  struct cbor_load_result result;
+  cbor_item_t* cbor_bytestring = cbor_load(
+      reinterpret_cast<const unsigned char*>(content_cbor_string.data()),
+      content_cbor_string.size(), &result);
+  auto partition_output_cbor = cbor_bytestring_handle(cbor_bytestring);
+  auto cbor_bytestring_len = cbor_bytestring_length(cbor_bytestring);
+  return nlohmann::json::from_cbor(std::vector<uint8_t>(
+      partition_output_cbor, partition_output_cbor + cbor_bytestring_len));
+}
+
+class BaseTest : public ::testing::Test,
+                 public ::testing::WithParamInterface<TestingParameters> {
  protected:
   void SetUp() override {
     privacy_sandbox::server_common::log::ServerToken(
@@ -81,6 +97,16 @@ class GetValuesHandlerTest
   bool IsProtobufContent() {
     auto param = GetParam();
     return param.content_type == kContentEncodingProtoHeaderValue;
+  }
+
+  bool IsJsonContent() {
+    auto param = GetParam();
+    return param.content_type == kContentEncodingJsonHeaderValue;
+  }
+
+  bool IsCborContent() {
+    auto param = GetParam();
+    return param.content_type == kContentEncodingCborHeaderValue;
   }
 
   bool IsRequestExpectConsented() {
@@ -110,118 +136,23 @@ class GetValuesHandlerTest
     std::string plain_request_body_;
   };
 
-  class BHTTPRequest {
-   public:
-    explicit BHTTPRequest(PlainRequest plain_request,
-                          bool is_protobuf_content) {
-      quiche::BinaryHttpRequest req_bhttp_layer({});
-      if (is_protobuf_content) {
-        req_bhttp_layer.AddHeaderField({
-            .name = std::string(kContentTypeHeader),
-            .value = std::string(kContentEncodingProtoHeaderValue),
-        });
-      }
-      req_bhttp_layer.set_body(plain_request.RequestBody());
-      auto maybe_serialized = req_bhttp_layer.Serialize();
-      EXPECT_TRUE(maybe_serialized.ok());
-      serialized_bhttp_request_ = *maybe_serialized;
-    }
-
-    BinaryHttpGetValuesRequest Build() const {
-      BinaryHttpGetValuesRequest brequest;
-      brequest.mutable_raw_body()->set_data(serialized_bhttp_request_);
-      return brequest;
-    }
-
-    const std::string& SerializedBHTTPRequest() const {
-      return serialized_bhttp_request_;
-    }
-
-   private:
-    std::string serialized_bhttp_request_;
-  };
-
-  class BHTTPResponse {
-   public:
-    google::api::HttpBody& RawResponse() { return response_; }
-    int16_t ResponseCode(bool is_using_bhttp) const {
-      std::string response;
-      if (is_using_bhttp) {
-        response = response_.data();
-      } else {
-        auto deframed_req =
-            privacy_sandbox::server_common::DecodeRequestPayload(
-                response_.data());
-        EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
-        response = deframed_req->compressed_data;
-      }
-      const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
-          quiche::BinaryHttpResponse::Create(response);
-      EXPECT_TRUE(maybe_res_bhttp_layer.ok())
-          << "quiche::BinaryHttpResponse::Create failed: "
-          << maybe_res_bhttp_layer.status();
-      return maybe_res_bhttp_layer->status_code();
-    }
-
-    std::string Unwrap(bool is_protobuf_content, bool is_using_bhttp) const {
-      std::string response;
-      if (is_using_bhttp) {
-        response = response_.data();
-      } else {
-        auto deframed_req =
-            privacy_sandbox::server_common::DecodeRequestPayload(
-                response_.data());
-        EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
-        response = deframed_req->compressed_data;
-      }
-      const absl::StatusOr<quiche::BinaryHttpResponse> maybe_res_bhttp_layer =
-          quiche::BinaryHttpResponse::Create(response);
-      EXPECT_TRUE(maybe_res_bhttp_layer.ok())
-          << "quiche::BinaryHttpResponse::Create failed: "
-          << maybe_res_bhttp_layer.status();
-      if (maybe_res_bhttp_layer->status_code() == 200 & is_protobuf_content) {
-        EXPECT_TRUE(HasHeader(*maybe_res_bhttp_layer, kContentTypeHeader,
-                              kContentEncodingProtoHeaderValue));
-      }
-      return std::string(maybe_res_bhttp_layer->body());
-    }
-
-   private:
-    bool HasHeader(const quiche::BinaryHttpResponse& response,
-                   const std::string_view header_key,
-                   const std::string_view header_value) const {
-      for (const auto& header : response.GetHeaderFields()) {
-        if (absl::AsciiStrToLower(header.name) == header_key &&
-            absl::AsciiStrToLower(header.value) == header_value) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    google::api::HttpBody response_;
-  };
-
   class OHTTPRequest;
   class OHTTPResponseUnwrapper {
    public:
     google::api::HttpBody& RawResponse() { return response_; }
 
-    BHTTPResponse Unwrap() {
+    std::string Unwrap() {
       uint8_t key_id = 64;
       auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
           key_id, kKEMParameter, kKDFParameter, kAEADParameter);
       EXPECT_TRUE(maybe_config.ok());
-
-      auto client =
-          quiche::ObliviousHttpClient::Create(public_key_, *maybe_config);
-      EXPECT_TRUE(client.ok());
       auto decrypted_response =
-          client->DecryptObliviousHttpResponse(response_.data(), context_);
-      BHTTPResponse bhttp_response;
-      bhttp_response.RawResponse().set_data(
+          quiche::ObliviousHttpResponse::CreateClientObliviousResponse(
+              response_.data(), context_, kKVOhttpResponseLabel);
+      auto deframed_req = privacy_sandbox::server_common::DecodeRequestPayload(
           decrypted_response->GetPlaintextData());
-      return bhttp_response;
+      EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
+      return deframed_req->compressed_data;
     }
 
    private:
@@ -238,8 +169,8 @@ class GetValuesHandlerTest
 
   class OHTTPRequest {
    public:
-    explicit OHTTPRequest(BHTTPRequest bhttp_request)
-        : bhttp_request_(std::move(bhttp_request)) {}
+    explicit OHTTPRequest(std::string raw_request)
+        : raw_request_(std::move(raw_request)) {}
 
     std::pair<ObliviousGetValuesRequest, OHTTPResponseUnwrapper> Build() const {
       // matches the test key pair, see common repo:
@@ -248,12 +179,10 @@ class GetValuesHandlerTest
       auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
           key_id, kKEMParameter, kKDFParameter, kAEADParameter);
       EXPECT_TRUE(maybe_config.ok());
-
-      auto client =
-          quiche::ObliviousHttpClient::Create(public_key_, *maybe_config);
-      EXPECT_TRUE(client.ok());
-      auto encrypted_req = client->CreateObliviousHttpRequest(
-          bhttp_request_.SerializedBHTTPRequest());
+      auto encrypted_req =
+          quiche::ObliviousHttpRequest::CreateClientObliviousRequest(
+              raw_request_, public_key_, *std::move(maybe_config),
+              kKVOhttpRequestLabel);
       EXPECT_TRUE(encrypted_req.ok());
       auto serialized_encrypted_req = encrypted_req->EncapsulateAndSerialize();
       ObliviousGetValuesRequest ohttp_req;
@@ -266,56 +195,85 @@ class GetValuesHandlerTest
 
    private:
     const std::string public_key_ = absl::HexStringToBytes(kTestPublicKey);
-    BHTTPRequest bhttp_request_;
+    std::string raw_request_;
   };
 
   // For Non-plain protocols, test request and response data are converted
   // to/from the corresponding request/responses.
   grpc::Status GetValuesBasedOnProtocol(
       RequestContextFactory& request_context_factory, std::string request_body,
-      google::api::HttpBody* response, int16_t* bhttp_response_code,
+      google::api::HttpBody* response, int16_t* http_response_code,
       GetValuesV2Handler* handler) {
     PlainRequest plain_request(std::move(request_body));
+
     ExecutionMetadata execution_metadata;
-
-    std::multimap<grpc::string_ref, grpc::string_ref> headers = {
-        {"kv-content-type", "application/json"}};
+    auto contentTypeHeader = std::string(kKVContentTypeHeader);
+    auto contentEncodingProtoHeaderValue =
+        std::string(kContentEncodingProtoHeaderValue);
+    auto contentEncodingJsonHeaderValue =
+        std::string(kContentEncodingJsonHeaderValue);
+    auto contentEncodingCborHeaderValue =
+        std::string(kContentEncodingCborHeaderValue);
+    std::multimap<grpc::string_ref, grpc::string_ref> headers;
     if (IsUsing<ProtocolType::kPlain>()) {
-      *bhttp_response_code = 200;
-      return handler->GetValuesHttp(request_context_factory, headers,
-                                    plain_request.Build(), response,
-                                    execution_metadata);
+      *http_response_code = 200;
+      headers.insert({
+          contentTypeHeader,
+          contentEncodingJsonHeaderValue,
+      });
+      const auto s = handler->GetValuesHttp(request_context_factory, headers,
+                                            plain_request.Build(), response,
+                                            execution_metadata);
+      if (!s.ok()) {
+        *http_response_code = s.error_code();
+        LOG(ERROR) << "GetValuesHttp failed: " << s.error_message();
+      }
+      return s;
+    }
+    auto encoded_data_size = privacy_sandbox::server_common::GetEncodedDataSize(
+        plain_request.RequestBody().size(), kMinResponsePaddingBytes);
+    auto maybe_padded_request =
+        privacy_sandbox::server_common::EncodeResponsePayload(
+            privacy_sandbox::server_common::CompressionType::kUncompressed,
+            std::move(plain_request.RequestBody()), encoded_data_size);
+    if (!maybe_padded_request.ok()) {
+      LOG(ERROR) << "Padding failed: "
+                 << maybe_padded_request.status().message();
+      return privacy_sandbox::server_common::FromAbslStatus(
+          maybe_padded_request.status());
     }
 
-    BHTTPRequest bhttp_request(std::move(plain_request), IsProtobufContent());
-    BHTTPResponse bresponse;
-
-    if (IsUsing<ProtocolType::kBinaryHttp>()) {
-      if (const auto s = handler->BinaryHttpGetValues(
-              request_context_factory, bhttp_request.Build(),
-              &bresponse.RawResponse(), execution_metadata);
-          !s.ok()) {
-        LOG(ERROR) << "BinaryHttpGetValues failed: " << s.error_message();
-        return s;
-      }
-      *bhttp_response_code = bresponse.ResponseCode(true);
-    } else if (IsUsing<ProtocolType::kObliviousHttp>()) {
-      OHTTPRequest ohttp_request(std::move(bhttp_request));
-      // get ObliviousGetValuesRequest, OHTTPResponseUnwrapper
-      auto [request, response_unwrapper] = ohttp_request.Build();
-      if (const auto s = handler->ObliviousGetValues(
-              request_context_factory, {{"kv-content-type", "message/bhttp"}},
-              request, &response_unwrapper.RawResponse(), execution_metadata);
-          !s.ok()) {
-        LOG(ERROR) << "ObliviousGetValues failed: " << s.error_message();
-        return s;
-      }
-      bresponse = response_unwrapper.Unwrap();
-      *bhttp_response_code = bresponse.ResponseCode(false);
+    OHTTPRequest ohttp_request(*maybe_padded_request);
+    // get ObliviousGetValuesRequest, OHTTPResponseUnwrapper
+    auto [request, response_unwrapper] = ohttp_request.Build();
+    if (IsProtobufContent()) {
+      headers.insert({
+          contentTypeHeader,
+          contentEncodingProtoHeaderValue,
+      });
     }
-
-    response->set_data(bresponse.Unwrap(IsProtobufContent(),
-                                        IsUsing<ProtocolType::kBinaryHttp>()));
+    if (IsJsonContent()) {
+      headers.insert({
+          contentTypeHeader,
+          contentEncodingJsonHeaderValue,
+      });
+    }
+    if (IsCborContent()) {
+      headers.insert({
+          contentTypeHeader,
+          contentEncodingCborHeaderValue,
+      });
+    }
+    if (const auto s = handler->ObliviousGetValues(
+            request_context_factory, headers, request,
+            &response_unwrapper.RawResponse(), execution_metadata);
+        !s.ok()) {
+      *http_response_code = s.error_code();
+      LOG(ERROR) << "ObliviousGetValues failed: " << s.error_message();
+      return s;
+    }
+    response->set_data(response_unwrapper.Unwrap());
+    *http_response_code = 200;
     return grpc::Status::OK;
   }
 
@@ -323,6 +281,9 @@ class GetValuesHandlerTest
   privacy_sandbox::server_common::FakeKeyFetcherManager
       fake_key_fetcher_manager_;
 };
+
+class GetValuesHandlerTest : public BaseTest {};
+class GetValuesHandlerMultiplePartitionsTest : public BaseTest {};
 
 INSTANTIATE_TEST_SUITE_P(
     GetValuesHandlerTest, GetValuesHandlerTest,
@@ -347,25 +308,6 @@ INSTANTIATE_TEST_SUITE_P(
             .is_consented = true,
         },
         TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingJsonHeaderValue,
-            .core_request_body = kv_server::kExampleV2RequestInJson,
-            .is_consented = false,
-        },
-        TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingJsonHeaderValue,
-            .core_request_body = kv_server::kExampleConsentedV2RequestInJson,
-            .is_consented = true,
-        },
-        TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingJsonHeaderValue,
-            .core_request_body =
-                kv_server::kExampleConsentedV2RequestWithLogContextInJson,
-            .is_consented = true,
-        },
-        TestingParameters{
             .protocol_type = ProtocolType::kObliviousHttp,
             .content_type = kContentEncodingJsonHeaderValue,
             .core_request_body = kv_server::kExampleV2RequestInJson,
@@ -380,25 +322,6 @@ INSTANTIATE_TEST_SUITE_P(
         TestingParameters{
             .protocol_type = ProtocolType::kObliviousHttp,
             .content_type = kContentEncodingJsonHeaderValue,
-            .core_request_body =
-                kv_server::kExampleConsentedV2RequestWithLogContextInJson,
-            .is_consented = true,
-        },
-        TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingProtoHeaderValue,
-            .core_request_body = kv_server::kExampleV2RequestInJson,
-            .is_consented = false,
-        },
-        TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingProtoHeaderValue,
-            .core_request_body = kv_server::kExampleConsentedV2RequestInJson,
-            .is_consented = true,
-        },
-        TestingParameters{
-            .protocol_type = ProtocolType::kBinaryHttp,
-            .content_type = kContentEncodingProtoHeaderValue,
             .core_request_body =
                 kv_server::kExampleConsentedV2RequestWithLogContextInJson,
             .is_consented = true,
@@ -423,6 +346,78 @@ INSTANTIATE_TEST_SUITE_P(
             .is_consented = true,
         }));
 
+INSTANTIATE_TEST_SUITE_P(
+    GetValuesHandlerMultiplePartitionsTest,
+    GetValuesHandlerMultiplePartitionsTest,
+    testing::Values(
+        TestingParameters{
+            .protocol_type = ProtocolType::kPlain,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body = kv_server::kV2RequestMultiplePartitionsInJson,
+            .is_consented = false,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kPlain,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body =
+                kv_server::kConsentedV2RequestMultiplePartitionsInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kPlain,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body = kv_server::
+                kConsentedV2RequestMultiplePartitionsWithLogContextInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body = kv_server::kV2RequestMultiplePartitionsInJson,
+            .is_consented = false,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body =
+                kv_server::kConsentedV2RequestMultiplePartitionsInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingJsonHeaderValue,
+            .core_request_body = kv_server::
+                kConsentedV2RequestMultiplePartitionsWithLogContextInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingCborHeaderValue,
+            .core_request_body = kv_server::kV2RequestMultiplePartitionsInJson,
+            .is_consented = false,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingCborHeaderValue,
+            .core_request_body =
+                kv_server::kConsentedV2RequestMultiplePartitionsInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingCborHeaderValue,
+            .core_request_body = kv_server::
+                kConsentedV2RequestMultiplePartitionsWithLogContextInJson,
+            .is_consented = true,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingCborHeaderValue,
+            .core_request_body = kv_server::
+                kConsentedV2RequestMultiPartWithDebugInfoResponseInJson,
+            .is_consented = true,
+        }));
+
 TEST_P(GetValuesHandlerTest, Success) {
   UDFExecutionMetadata udf_metadata;
   TextFormat::ParseFromString(R"(
@@ -431,6 +426,12 @@ request_metadata {
     key: "hostname"
     value {
       string_value: "example.com"
+    }
+  }
+  fields {
+    key: "is_pas"
+    value {
+      string_value: "true"
     }
   }
 }
@@ -505,7 +506,7 @@ data {
   std::string core_request_body = GetTestRequestBody();
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
-  int16_t bhttp_response_code = 0;
+  int16_t http_response_code = 0;
   if (IsProtobufContent()) {
     v2::GetValuesRequest request_proto;
     ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(core_request_body,
@@ -518,8 +519,8 @@ data {
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   const auto result =
       GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
-                               &response, &bhttp_response_code, &handler);
-  ASSERT_EQ(bhttp_response_code, 200);
+                               &response, &http_response_code, &handler);
+  ASSERT_EQ(http_response_code, 200);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -545,7 +546,7 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
 })";
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
-  int16_t bhttp_response_code = 0;
+  int16_t http_response_code = 0;
 
   if (IsProtobufContent()) {
     v2::GetValuesRequest request_proto;
@@ -557,14 +558,9 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   const auto result =
       GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
-                               &response, &bhttp_response_code, &handler);
-  if (IsUsing<ProtocolType::kPlain>()) {
-    ASSERT_FALSE(result.ok());
-    EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
-  } else {
-    ASSERT_TRUE(result.ok());
-    EXPECT_EQ(bhttp_response_code, 500);
-  }
+                               &response, &http_response_code, &handler);
+  ASSERT_FALSE(result.ok());
+  EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
 }
 
 TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
@@ -577,13 +573,16 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
         {
             "id": 0,
         }
-    ]
+    ],
+    "metadata": {
+      "is_pas": "true"
+    }
 }
   )";
 
   google::api::HttpBody response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
-  int16_t bhttp_response_code = 0;
+  int16_t http_response_code = 0;
 
   if (IsProtobufContent()) {
     v2::GetValuesRequest request_proto;
@@ -595,8 +594,8 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   const auto result =
       GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
-                               &response, &bhttp_response_code, &handler);
-  ASSERT_EQ(bhttp_response_code, 200);
+                               &response, &http_response_code, &handler);
+  ASSERT_EQ(http_response_code, 200);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -616,13 +615,665 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
   EXPECT_THAT(actual_response, EqualsProto(expected_response));
 }
 
-TEST_F(GetValuesHandlerTest, PureGRPCTest) {
+TEST_P(GetValuesHandlerMultiplePartitionsTest, Success) {
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(R"(
+request_metadata {
+  fields {
+    key: "hostname"
+    value {
+      string_value: "example.com"
+    }
+  }
+}
+  )",
+                              &udf_metadata);
+  UDFArgument arg1, arg2, arg3;
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "structured"
+  }
+  values {
+    string_value: "groupNames"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "hello"
+    }
+  }
+})",
+                              &arg1);
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key1"
+    }
+  }
+})",
+                              &arg2);
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key2"
+    }
+  }
+})",
+                              &arg3);
+  nlohmann::json output1 = nlohmann::json::parse(R"(
+{
+  "keyGroupOutputs": [
+      {
+          "keyValues": {
+              "hello": {
+                "value": "world"
+              }
+          },
+          "tags": [
+              "structured",
+              "groupNames"
+          ]
+      }
+  ]
+}
+  )");
+  nlohmann::json output2 = nlohmann::json::parse(R"(
+{
+  "keyGroupOutputs": [
+      {
+          "keyValues": {
+              "key1": {
+                "value": "value1"
+              }
+          },
+          "tags": [
+              "custom",
+              "keys"
+          ]
+      }
+  ]
+}
+  )");
+  nlohmann::json output3 = nlohmann::json::parse(R"(
+{
+  "keyGroupOutputs": [
+      {
+           "keyValues": {
+              "key2": {
+                "value": "value2"
+              }
+          },
+          "tags": [
+              "custom",
+              "keys"
+          ]
+      }
+  ]
+}
+  )");
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg1)), _))
+      .WillOnce(Return(output1.dump()));
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg2)), _))
+      .WillOnce(Return(output2.dump()));
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg3)), _))
+      .WillOnce(Return(output3.dump()));
+
+  std::string core_request_body = GetTestRequestBody();
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+  int16_t http_response_code = 0;
+  if (IsCborContent()) {
+    nlohmann::json request_body_json =
+        nlohmann::json::parse(core_request_body, nullptr,
+                              /*allow_exceptions=*/false,
+                              /*ignore_comments=*/true);
+    ASSERT_FALSE(request_body_json.is_discarded());
+    std::vector<uint8_t> cbor_vector =
+        nlohmann::json::to_cbor(request_body_json);
+    core_request_body = std::string(cbor_vector.begin(), cbor_vector.end());
+  }
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result =
+      GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
+                               &response, &http_response_code, &handler);
+  ASSERT_EQ(http_response_code, 200);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  nlohmann::json partition_output1 = {{"id", 0}};
+  partition_output1.update(output1);
+  nlohmann::json partition_output2 = {{"id", 1}};
+  partition_output2.update(output2);
+  nlohmann::json partition_output3 = {{"id", 2}};
+  partition_output3.update(output3);
+  nlohmann::json compressed_partition_group0 = {partition_output1,
+                                                partition_output3};
+  nlohmann::json compressed_partition_group1 =
+      nlohmann::json::array({partition_output2});
+  if (IsCborContent()) {
+    nlohmann::json expected_json = {
+        {"compressionGroups",
+         {{{"compressionGroupId", 0}, {"content", compressed_partition_group0}},
+          {{"compressionGroupId", 1},
+           {"content", compressed_partition_group1}}}}};
+
+    // Convert CBOR to json to check content
+    nlohmann::json actual_response_from_cbor = nlohmann::json::from_cbor(
+        response.data(), /*strict=*/true, /*allow_exceptions=*/false);
+    ASSERT_FALSE(actual_response_from_cbor.is_discarded());
+    auto a = GetPartitionOutputsInJson(
+        actual_response_from_cbor["compressionGroups"][0]["content"]);
+    actual_response_from_cbor["compressionGroups"][0]["content"] = a;
+    auto b = GetPartitionOutputsInJson(
+        actual_response_from_cbor["compressionGroups"][1]["content"]);
+    actual_response_from_cbor["compressionGroups"][1]["content"] = b;
+    // Compare compression groups lists, since ordering might throw off equality
+    EXPECT_THAT(std::vector(expected_json["compressionGroups"].begin(),
+                            expected_json["compressionGroups"].end()),
+                testing::UnorderedElementsAreArray(
+                    actual_response_from_cbor["compressionGroups"].begin(),
+                    actual_response_from_cbor["compressionGroups"].end()));
+    return;
+  }
+  v2::GetValuesResponse actual_response;
+  if (IsProtobufContent()) {
+    ASSERT_TRUE(actual_response.ParseFromString(response.data()));
+  } else {
+    ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
+                                                            &actual_response)
+                    .ok());
+  }
+  EXPECT_EQ(actual_response.compression_groups().size(), 2);
+  std::vector<std::string> contents;
+  for (auto&& compression_group : actual_response.compression_groups()) {
+    contents.emplace_back(compression_group.content());
+  }
+  EXPECT_THAT(contents, testing::UnorderedElementsAre(
+                            compressed_partition_group0.dump(),
+                            compressed_partition_group1.dump()));
+}
+
+TEST_P(GetValuesHandlerMultiplePartitionsTest,
+       SinglePartitionUDFFails_IgnorePartition) {
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(R"(
+request_metadata {
+  fields {
+    key: "hostname"
+    value {
+      string_value: "example.com"
+    }
+  }
+}
+  )",
+                              &udf_metadata);
+  UDFArgument arg1, arg2, arg3;
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "structured"
+  }
+  values {
+    string_value: "groupNames"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "hello"
+    }
+  }
+})",
+                              &arg1);
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key1"
+    }
+  }
+})",
+                              &arg2);
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key2"
+    }
+  }
+})",
+                              &arg3);
+  nlohmann::json output1 = nlohmann::json::parse(R"(
+{
+  "keyGroupOutputs": [
+      {
+          "keyValues": {
+              "hello": {
+                "value": "world"
+              }
+          },
+          "tags": [
+              "structured",
+              "groupNames"
+          ]
+      }
+  ]
+}
+  )");
+  nlohmann::json output2 = nlohmann::json::parse(R"(
+{
+  "keyGroupOutputs": [
+      {
+          "keyValues": {
+              "key1": {
+                "value": "value1"
+              }
+          },
+          "tags": [
+              "custom",
+              "keys"
+          ]
+      }
+  ]
+}
+  )");
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg1)), _))
+      .WillOnce(Return(output1.dump()));
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg2)), _))
+      .WillOnce(Return(output2.dump()));
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg3)), _))
+      .WillOnce(Return(absl::InternalError("UDF execution error")));
+
+  std::string core_request_body = GetTestRequestBody();
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+  int16_t http_response_code = 0;
+  if (IsCborContent()) {
+    nlohmann::json request_body_json =
+        nlohmann::json::parse(core_request_body, nullptr,
+                              /*allow_exceptions=*/false,
+                              /*ignore_comments=*/true);
+    ASSERT_FALSE(request_body_json.is_discarded());
+    std::vector<uint8_t> cbor_vector =
+        nlohmann::json::to_cbor(request_body_json);
+    core_request_body = std::string(cbor_vector.begin(), cbor_vector.end());
+  }
+
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+
+  const auto result =
+      GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
+                               &response, &http_response_code, &handler);
+  ASSERT_EQ(http_response_code, 200);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  nlohmann::json partition_output1 = {{"id", 0}};
+  partition_output1.update(output1);
+  nlohmann::json partition_output2 = {{"id", 1}};
+  partition_output2.update(output2);
+  nlohmann::json compressed_partition_group0 =
+      nlohmann::json::array({partition_output1});
+  nlohmann::json compressed_partition_group1 =
+      nlohmann::json::array({partition_output2});
+  if (IsCborContent()) {
+    nlohmann::json expected_json = {
+        {"compressionGroups",
+         {{{"compressionGroupId", 0}, {"content", compressed_partition_group0}},
+          {{"compressionGroupId", 1},
+           {"content", compressed_partition_group1}}}}};
+
+    // Convert CBOR to json to check content
+    nlohmann::json actual_response_from_cbor = nlohmann::json::from_cbor(
+        response.data(), /*strict=*/true, /*allow_exceptions=*/false);
+    ASSERT_FALSE(actual_response_from_cbor.is_discarded());
+    auto a = GetPartitionOutputsInJson(
+        actual_response_from_cbor["compressionGroups"][0]["content"]);
+    actual_response_from_cbor["compressionGroups"][0]["content"] = a;
+    auto b = GetPartitionOutputsInJson(
+        actual_response_from_cbor["compressionGroups"][1]["content"]);
+    actual_response_from_cbor["compressionGroups"][1]["content"] = b;
+    // Compare compression groups lists, since ordering might throw off equality
+    EXPECT_THAT(std::vector(expected_json["compressionGroups"].begin(),
+                            expected_json["compressionGroups"].end()),
+                testing::UnorderedElementsAreArray(
+                    actual_response_from_cbor["compressionGroups"].begin(),
+                    actual_response_from_cbor["compressionGroups"].end()));
+    return;
+  }
+  v2::GetValuesResponse actual_response;
+
+  ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
+                                                          &actual_response)
+                  .ok());
+
+  EXPECT_EQ(actual_response.compression_groups().size(), 2);
+  std::vector<std::string> contents;
+  for (auto&& compression_group : actual_response.compression_groups()) {
+    contents.emplace_back(compression_group.content());
+  }
+  EXPECT_THAT(contents, testing::UnorderedElementsAre(
+                            compressed_partition_group0.dump(),
+                            compressed_partition_group1.dump()));
+}
+
+TEST_P(GetValuesHandlerMultiplePartitionsTest,
+       AllPartitionsInSingleCompressionGroupUDFFails_IgnoreCompressionGroup) {
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(R"(
+request_metadata {
+  fields {
+    key: "hostname"
+    value {
+      string_value: "example.com"
+    }
+  }
+}
+  )",
+                              &udf_metadata);
+  UDFArgument arg1, arg2, arg3;
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "structured"
+  }
+  values {
+    string_value: "groupNames"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "hello"
+    }
+  }
+})",
+                              &arg1);
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key1"
+    }
+  }
+})",
+                              &arg2);
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key2"
+    }
+  }
+})",
+                              &arg3);
+  nlohmann::json output = nlohmann::json::parse(R"(
+{
+  "keyGroupOutputs": [
+      {
+          "keyValues": {
+              "key1": {
+                "value": "value1"
+              }
+          },
+          "tags": [
+              "custom",
+              "keys"
+          ]
+      }
+  ]
+}
+  )");
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg1)), _))
+      .WillOnce(Return(absl::InternalError("UDF execution error")));
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg2)), _))
+      .WillOnce(Return(output.dump()));
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(arg3)), _))
+      .WillOnce(Return(absl::InternalError("UDF execution error")));
+
+  std::string core_request_body = GetTestRequestBody();
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+  int16_t http_response_code = 0;
+  if (IsCborContent()) {
+    nlohmann::json request_body_json =
+        nlohmann::json::parse(core_request_body, nullptr,
+                              /*allow_exceptions=*/false,
+                              /*ignore_comments=*/true);
+    ASSERT_FALSE(request_body_json.is_discarded());
+    std::vector<uint8_t> cbor_vector =
+        nlohmann::json::to_cbor(request_body_json);
+    core_request_body = std::string(cbor_vector.begin(), cbor_vector.end());
+  }
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result =
+      GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
+                               &response, &http_response_code, &handler);
+  ASSERT_EQ(http_response_code, 200);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  nlohmann::json expected_partition_output = {{"id", 1}};
+  expected_partition_output.update(output);
+  nlohmann::json compressed_partition_group =
+      nlohmann::json::array({expected_partition_output});
+  if (IsCborContent()) {
+    nlohmann::json expected_json = {
+        {"compressionGroups",
+         {{{"compressionGroupId", 1},
+           {"content", compressed_partition_group}}}}};
+
+    // Convert CBOR to json to check content
+    nlohmann::json actual_response_from_cbor = nlohmann::json::from_cbor(
+        response.data(), /*strict=*/true, /*allow_exceptions=*/false);
+    ASSERT_FALSE(actual_response_from_cbor.is_discarded());
+    auto a = GetPartitionOutputsInJson(
+        actual_response_from_cbor["compressionGroups"][0]["content"]);
+    actual_response_from_cbor["compressionGroups"][0]["content"] = a;
+    EXPECT_EQ(expected_json, actual_response_from_cbor);
+    return;
+  }
+
+  v2::GetValuesResponse actual_response, expected_response;
+  auto* compression_group = expected_response.add_compression_groups();
+  compression_group->set_content(compressed_partition_group.dump());
+  compression_group->set_compression_group_id(1);
+  ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response.data(),
+                                                          &actual_response)
+                  .ok());
+  EXPECT_THAT(actual_response, EqualsProto(expected_response));
+}
+
+TEST_P(GetValuesHandlerMultiplePartitionsTest,
+       AllPartitionsFail_ReturnSuccess) {
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(R"(
+request_metadata {
+  fields {
+    key: "hostname"
+    value {
+      string_value: "example.com"
+    }
+  }
+}
+  )",
+                              &udf_metadata);
+  UDFArgument arg1, arg2, arg3;
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "structured"
+  }
+  values {
+    string_value: "groupNames"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "hello"
+    }
+  }
+})",
+                              &arg1);
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key1"
+    }
+  }
+})",
+                              &arg2);
+  TextFormat::ParseFromString(R"(
+tags {
+  values {
+    string_value: "custom"
+  }
+  values {
+    string_value: "keys"
+  }
+}
+data {
+  list_value {
+    values {
+      string_value: "key2"
+    }
+  }
+})",
+                              &arg3);
+  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, EqualsProto(udf_metadata),
+                                            testing::ElementsAre(_), _))
+      .WillRepeatedly(Return(absl::InternalError("UDF execution error")));
+  std::string core_request_body = GetTestRequestBody();
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+  int16_t http_response_code = 0;
+  if (IsCborContent()) {
+    nlohmann::json request_body_json =
+        nlohmann::json::parse(core_request_body, nullptr,
+                              /*allow_exceptions=*/false,
+                              /*ignore_comments=*/true);
+    ASSERT_FALSE(request_body_json.is_discarded());
+    std::vector<uint8_t> cbor_vector =
+        nlohmann::json::to_cbor(request_body_json);
+    core_request_body = std::string(cbor_vector.begin(), cbor_vector.end());
+  }
+
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result =
+      GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
+                               &response, &http_response_code, &handler);
+  ASSERT_EQ(http_response_code, 200);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+  v2::GetValuesResponse actual_response, expected_response;
+  if (IsJsonContent()) {
+    EXPECT_THAT(actual_response, EqualsProto(expected_response));
+  }
+  if (IsCborContent()) {
+    nlohmann::json expected_json = {
+        {"compressionGroups", nlohmann::json::array()}};
+
+    // Convert CBOR to json to check content
+    nlohmann::json actual_response_from_cbor = nlohmann::json::from_cbor(
+        response.data(), /*strict=*/true, /*allow_exceptions=*/false);
+    ASSERT_FALSE(actual_response_from_cbor.is_discarded());
+    EXPECT_EQ(expected_json, actual_response_from_cbor);
+  }
+}
+
+TEST_F(GetValuesHandlerTest, PureGRPCTest_Success) {
   v2::GetValuesRequest req;
   ExecutionMetadata execution_metadata;
   TextFormat::ParseFromString(
       R"pb(partitions {
              id: 9
              arguments { data { string_value: "ECHO" } }
+           }
+           metadata {
+             fields {
+               key: "is_pas"
+               value { string_value: "true" }
+             }
            })pb",
       &req);
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
@@ -634,8 +1285,10 @@ TEST_F(GetValuesHandlerTest, PureGRPCTest) {
       .WillOnce(Return("ECHO"));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
-  const auto result = handler.GetValues(*request_context_factory, req, &resp,
-                                        execution_metadata);
+  JsonV2EncoderDecoder v2_codec;
+  const auto result = handler.GetValues(
+      *request_context_factory, req, &resp, execution_metadata,
+      /*single_partition_use_case=*/true, v2_codec);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -652,6 +1305,12 @@ TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
       R"pb(partitions {
              id: 9
              arguments { data { string_value: "ECHO" } }
+           }
+           metadata {
+             fields {
+               key: "is_pas"
+               value { string_value: "true" }
+             }
            })pb",
       &req);
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
@@ -663,8 +1322,10 @@ TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
       .WillOnce(Return(absl::InternalError("UDF execution error")));
   v2::GetValuesResponse resp;
   auto request_context_factory = std::make_unique<RequestContextFactory>();
-  const auto result = handler.GetValues(*request_context_factory, req, &resp,
-                                        execution_metadata);
+  JsonV2EncoderDecoder v2_codec;
+  const auto result = handler.GetValues(
+      *request_context_factory, req, &resp, execution_metadata,
+      /*single_partition_use_case=*/true, v2_codec);
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
@@ -676,6 +1337,136 @@ TEST_F(GetValuesHandlerTest, PureGRPCTestFailure) {
            })pb",
       &res);
   EXPECT_THAT(resp, EqualsProto(res));
+}
+
+TEST_F(GetValuesHandlerTest,
+       PureGRPCTest_SinglePartitionUseCase_PassesPartitionMetadata) {
+  v2::GetValuesRequest req;
+  ExecutionMetadata execution_metadata;
+  TextFormat::ParseFromString(
+      R"pb(partitions {
+             id: 9
+             arguments { data { string_value: "ECHO" } }
+             metadata {
+               fields {
+                 key: "partition_metadata_key"
+                 value: { string_value: "my_value" }
+               }
+             }
+           }
+           metadata {
+             fields {
+               key: "is_pas"
+               value { string_value: "true" }
+             }
+           })pb",
+      &req);
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(R"(
+  request_metadata {
+    fields {
+      key: "is_pas"
+      value {
+        string_value: "true"
+      }
+    }
+  }
+  partition_metadata {
+    fields {
+      key: "partition_metadata_key"
+      value {
+        string_value: "my_value"
+      }
+    }
+  }
+  )",
+                              &udf_metadata);
+
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+  EXPECT_CALL(
+      mock_udf_client_,
+      ExecuteCode(
+          _, EqualsProto(udf_metadata),
+          testing::ElementsAre(EqualsProto(req.partitions(0).arguments(0))), _))
+      .WillOnce(Return("ECHO"));
+  v2::GetValuesResponse resp;
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  JsonV2EncoderDecoder v2_codec;
+  const auto result = handler.GetValues(
+      *request_context_factory, req, &resp, execution_metadata,
+      /*single_partition_use_case=*/true, v2_codec);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  v2::GetValuesResponse res;
+  TextFormat::ParseFromString(
+      R"pb(single_partition { id: 9 string_output: "ECHO" })pb", &res);
+  EXPECT_THAT(resp, EqualsProto(res));
+}
+
+TEST_F(GetValuesHandlerTest, PureGRPCTest_CBOR_Success) {
+  v2::GetValuesRequest req;
+  ExecutionMetadata execution_metadata;
+  TextFormat::ParseFromString(
+      R"pb(partitions {
+             id: 9
+             arguments { data { string_value: "ECHO" } }
+           }
+           metadata {
+             fields {
+               key: "is_pas"
+               value { string_value: "true" }
+             }
+           })pb",
+      &req);
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+  EXPECT_CALL(
+      mock_udf_client_,
+      ExecuteCode(
+          _, _,
+          testing::ElementsAre(EqualsProto(req.partitions(0).arguments(0))), _))
+      .WillOnce(Return("ECHO"));
+  v2::GetValuesResponse resp;
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  JsonV2EncoderDecoder v2_codec;
+  const auto result = handler.GetValues(
+      *request_context_factory, req, &resp, execution_metadata,
+      /*single_partition_use_case=*/true, v2_codec);
+  ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
+                           << ", msg: " << result.error_message();
+
+  v2::GetValuesResponse res;
+  TextFormat::ParseFromString(
+      R"pb(single_partition { id: 9 string_output: "ECHO" })pb", &res);
+  EXPECT_THAT(resp, EqualsProto(res));
+}
+
+TEST_F(GetValuesHandlerTest, IsSinglePartitionUseCaseIsPasReturnsTrue) {
+  v2::GetValuesRequest req;
+  TextFormat::ParseFromString(
+      R"pb(
+        metadata {
+          fields {
+            key: "is_pas"
+            value { string_value: "true" }
+          }
+        })pb",
+      &req);
+  EXPECT_TRUE(IsSinglePartitionUseCase(req));
+}
+
+TEST_F(GetValuesHandlerTest, IsSinglePartitonUseCaseNotIsPasReturnsFalse) {
+  v2::GetValuesRequest req;
+  TextFormat::ParseFromString(
+      R"pb(
+        metadata {
+          fields {
+            key: "some"
+            value { string_value: "other data" }
+          }
+        })pb",
+      &req);
+  EXPECT_FALSE(IsSinglePartitionUseCase(req));
 }
 
 }  // namespace

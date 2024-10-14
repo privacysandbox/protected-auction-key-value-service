@@ -14,25 +14,40 @@
 
 #include "public/applications/pa/response_utils.h"
 
+#include "components/errors/error_tag.h"
 #include "google/protobuf/util/json_util.h"
 #include "src/util/status_macro/status_macros.h"
 
 namespace kv_server::application_pa {
 
+enum class ErrorTag : int {
+  kJsonStringToMessageError = 1,
+  kMessageToJsonStringError = 2
+};
+
 using google::protobuf::util::JsonStringToMessage;
 using google::protobuf::util::MessageToJsonString;
 
-absl::StatusOr<KeyGroupOutputs> KeyGroupOutputsFromJson(
+absl::StatusOr<PartitionOutput> PartitionOutputFromJson(
     std::string_view json_str) {
-  KeyGroupOutputs outputs_proto;
-  PS_RETURN_IF_ERROR(JsonStringToMessage(json_str, &outputs_proto));
-  return outputs_proto;
+  PartitionOutput partition_output_proto;
+  if (const auto status =
+          JsonStringToMessage(json_str, &partition_output_proto);
+      !status.ok()) {
+    return StatusWithErrorTag(status, __FILE__,
+                              ErrorTag::kJsonStringToMessageError);
+  }
+  return partition_output_proto;
 }
 
-absl::StatusOr<std::string> KeyGroupOutputsToJson(
-    const KeyGroupOutputs& key_group_outputs) {
+absl::StatusOr<std::string> PartitionOutputToJson(
+    const PartitionOutput& partition_output) {
   std::string json_str;
-  PS_RETURN_IF_ERROR(MessageToJsonString(key_group_outputs, &json_str));
+  if (const auto status = MessageToJsonString(partition_output, &json_str);
+      !status.ok()) {
+    return StatusWithErrorTag(status, __FILE__,
+                              ErrorTag::kMessageToJsonStringError);
+  }
   return json_str;
 }
 

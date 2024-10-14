@@ -79,7 +79,7 @@ TEST_F(GetValuesAdapterTest, EmptyRequestReturnsEmptyResponse) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -109,7 +109,7 @@ data {
   }
 })",
                               &arg);
-  application_pa::KeyGroupOutputs key_group_outputs;
+  application_pa::PartitionOutput partition_output;
   TextFormat::ParseFromString(R"(
   key_group_outputs: {
     tags: "custom"
@@ -132,12 +132,12 @@ data {
     }
   }
 )",
-                              &key_group_outputs);
+                              &partition_output);
   EXPECT_CALL(mock_udf_client_,
               ExecuteCode(testing::_, EqualsProto(udf_metadata),
                           testing::ElementsAre(EqualsProto(arg)), testing::_))
       .WillOnce(Return(
-          application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
+          application_pa::PartitionOutputToJson(partition_output).value()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1");
@@ -145,7 +145,7 @@ data {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
       R"pb(
@@ -194,7 +194,7 @@ data {
   }
 })",
                               &arg);
-  application_pa::KeyGroupOutputs key_group_outputs;
+  application_pa::PartitionOutput partition_output;
   TextFormat::ParseFromString(R"(
   key_group_outputs: {
     tags: "custom"
@@ -217,19 +217,19 @@ data {
     }
   }
 )",
-                              &key_group_outputs);
+                              &partition_output);
   EXPECT_CALL(mock_udf_client_,
               ExecuteCode(testing::_, EqualsProto(udf_metadata),
                           testing::ElementsAre(EqualsProto(arg)), testing::_))
       .WillOnce(Return(
-          application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
+          application_pa::PartitionOutputToJson(partition_output).value()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_keys("key1,key2");
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
       R"pb(
@@ -292,7 +292,7 @@ data {
   }
 })",
                               &arg2);
-  application_pa::KeyGroupOutputs key_group_outputs;
+  application_pa::PartitionOutput partition_output;
   TextFormat::ParseFromString(R"(
   key_group_outputs: {
     tags: "custom"
@@ -319,14 +319,14 @@ data {
     }
   }
 )",
-                              &key_group_outputs);
+                              &partition_output);
   EXPECT_CALL(
       mock_udf_client_,
       ExecuteCode(testing::_, EqualsProto(udf_metadata),
                   testing::ElementsAre(EqualsProto(arg1), EqualsProto(arg2)),
                   testing::_))
       .WillOnce(Return(
-          application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
+          application_pa::PartitionOutputToJson(partition_output).value()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_render_urls("key1");
@@ -334,7 +334,7 @@ data {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb(
                                 render_urls {
@@ -383,7 +383,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithEmptyKVsReturnsOk) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok()) << status.error_message();
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -405,7 +405,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithInvalidNamespaceTagIsIgnored) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok()) << status.error_message();
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -427,7 +427,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoCustomTagIsIgnored) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -449,7 +449,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputWithNoNamespaceTagIsIgnored) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb()pb", &v1_expected);
   EXPECT_THAT(v1_response, EqualsProto(v1_expected));
@@ -476,7 +476,7 @@ TEST_F(GetValuesAdapterTest,
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok()) << status.error_message();
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(R"pb(
                                 keys {
@@ -511,7 +511,7 @@ TEST_F(GetValuesAdapterTest, KeyGroupOutputHasDifferentValueTypesReturnsOk) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
       R"pb(
@@ -592,7 +592,7 @@ TEST_F(GetValuesAdapterTest, ValueWithStatusSuccess) {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
       R"pb(
@@ -648,7 +648,7 @@ data {
   }
 })",
                               &arg);
-  application_pa::KeyGroupOutputs key_group_outputs;
+  application_pa::PartitionOutput partition_output;
   TextFormat::ParseFromString(R"(
   key_group_outputs: {
     tags: "custom"
@@ -671,12 +671,12 @@ data {
     }
   }
 )",
-                              &key_group_outputs);
+                              &partition_output);
   EXPECT_CALL(mock_udf_client_,
               ExecuteCode(testing::_, EqualsProto(udf_metadata),
                           testing::ElementsAre(EqualsProto(arg)), testing::_))
       .WillOnce(Return(
-          application_pa::KeyGroupOutputsToJson(key_group_outputs).value()));
+          application_pa::PartitionOutputToJson(partition_output).value()));
 
   v1::GetValuesRequest v1_request;
   v1_request.add_interest_group_names("interestGroup1");
@@ -684,7 +684,7 @@ data {
   v1::GetValuesResponse v1_response;
   auto status = get_values_adapter_->CallV2Handler(*request_context_factory_,
                                                    v1_request, v1_response);
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok()) << status.error_message();
   v1::GetValuesResponse v1_expected;
   TextFormat::ParseFromString(
       R"pb(

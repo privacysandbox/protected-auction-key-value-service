@@ -30,7 +30,6 @@ cc_library(
     ],
     deps = [
         "@com_google_absl//absl/container:flat_hash_set",
-        "@roaring_bitmap//:c_roaring",
     ],
 )
 
@@ -42,8 +41,8 @@ cc_test(
     ],
     deps = [
         ":sets",
+        "//components/data_server/cache:uint_value_set",
         "@com_google_googletest//:gtest_main",
-        "@roaring_bitmap//:c_roaring",
     ],
 )
 
@@ -60,6 +59,10 @@ cc_library(
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
+        "@roaring_bitmap//:c_roaring",
     ],
 )
 
@@ -68,12 +71,12 @@ cc_test(
     size = "small",
     srcs = [
         "ast_test.cc",
+        "template_test_utils.h",
     ],
     deps = [
         ":ast",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_googletest//:gtest_main",
-        "@roaring_bitmap//:c_roaring",
     ],
 )
 
@@ -100,6 +103,7 @@ cc_test(
     size = "small",
     srcs = [
         "driver_test.cc",
+        "template_test_utils.h",
     ],
     deps = [
         ":driver",
@@ -107,7 +111,9 @@ cc_test(
         ":scanner",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/strings",
         "@com_google_googletest//:gtest_main",
+        "@roaring_bitmap//:c_roaring",
     ],
 )
 

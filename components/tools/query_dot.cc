@@ -14,11 +14,13 @@
 
 #include "components/tools/query_dot.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/strings/str_join.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server::query_toy {
 
@@ -28,10 +30,24 @@ namespace {
 // upon inspection.
 class ASTNameVisitor : public ASTStringVisitor {
  public:
-  virtual std::string Visit(const UnionNode&) { return "Union"; }
-  virtual std::string Visit(const DifferenceNode&) { return "Difference"; }
-  virtual std::string Visit(const IntersectionNode&) { return "Intersection"; }
-  virtual std::string Visit(const ValueNode&) { return "Value"; }
+  virtual absl::StatusOr<std::string> Visit(const UnionNode&) {
+    return "Union";
+  }
+  virtual absl::StatusOr<std::string> Visit(const DifferenceNode&) {
+    return "Difference";
+  }
+  virtual absl::StatusOr<std::string> Visit(const IntersectionNode&) {
+    return "Intersection";
+  }
+  virtual absl::StatusOr<std::string> Visit(const ValueNode&) {
+    return "Value";
+  }
+  virtual absl::StatusOr<std::string> Visit(const NumberSetNode&) {
+    return "NumberSet";
+  }
+  virtual absl::StatusOr<std::string> Visit(const StringViewSetNode&) {
+    return "StringViewSet";
+  }
 };
 
 class ASTDotGraphLabelVisitor : public ASTStringVisitor {
@@ -42,23 +58,36 @@ class ASTDotGraphLabelVisitor : public ASTStringVisitor {
           lookup_fn)
       : lookup_fn_(std::move(lookup_fn)) {}
 
-  virtual std::string Visit(const UnionNode& node) {
+  virtual absl::StatusOr<std::string> Visit(const UnionNode& node) {
     return name_visitor_.Visit(node);
   }
 
-  virtual std::string Visit(const DifferenceNode& node) {
+  virtual absl::StatusOr<std::string> Visit(const DifferenceNode& node) {
     return name_visitor_.Visit(node);
   }
 
-  virtual std::string Visit(const IntersectionNode& node) {
+  virtual absl::StatusOr<std::string> Visit(const IntersectionNode& node) {
     return name_visitor_.Visit(node);
   }
 
-  virtual std::string Visit(const ValueNode& node) {
-    return absl::StrCat(
-        ToString(node.Keys()), "->",
-        ToString(Eval<absl::flat_hash_set<std::string_view>>(
-            node, [this](std::string_view key) { return lookup_fn_(key); })));
+  virtual absl::StatusOr<std::string> Visit(const ValueNode& node) {
+    PS_ASSIGN_OR_RETURN(
+        auto values,
+        Eval<absl::flat_hash_set<std::string_view>>(
+            node, [this](std::string_view key) { return lookup_fn_(key); }));
+    return absl::StrCat(ToString(node.Keys()), "->", ToString(values));
+  }
+
+  virtual absl::StatusOr<std::string> Visit(const NumberSetNode& node) {
+    auto numbers = node.GetValues();
+    std::vector<std::string> strings(numbers.size());
+    std::transform(numbers.begin(), numbers.end(), strings.begin(),
+                   [](uint64_t num) { return std::to_string(num); });
+    return absl::StrCat("NumberSet(", ToString(strings), ")");
+  }
+
+  virtual absl::StatusOr<std::string> Visit(const StringViewSetNode& node) {
+    return absl::StrCat("StringViewSet(", ToString(node.GetValues()), ")");
   }
 
  private:
@@ -68,48 +97,54 @@ class ASTDotGraphLabelVisitor : public ASTStringVisitor {
       lookup_fn_;
 };
 
-std::string DotNodeName(const Node& node, uint32_t namecnt) {
+absl::StatusOr<std::string> DotNodeName(const Node& node, uint32_t namecnt) {
   ASTNameVisitor name_visitor;
-  return absl::StrCat(node.Accept(name_visitor), namecnt);
+  PS_ASSIGN_OR_RETURN(auto name, node.Accept(name_visitor));
+  return absl::StrCat(name, namecnt);
 }
 
-std::string ToDotGraphBody(
+absl::StatusOr<std::string> ToDotGraphBody(
     const Node& node, uint32_t* namecnt,
     std::function<absl::flat_hash_set<std::string_view>(std::string_view)>
         lookup_fn) {
   ASTDotGraphLabelVisitor label_visitor(lookup_fn);
-  const std::string label = node.Accept(label_visitor);
-  const std::string node_name = DotNodeName(node, *namecnt);
+  PS_ASSIGN_OR_RETURN(const std::string label, node.Accept(label_visitor));
+  PS_ASSIGN_OR_RETURN(const std::string node_name, DotNodeName(node, *namecnt));
   std::string dot_str = absl::StrCat(node_name, " [label=\"", label, "\"]\n");
   if (node.Left() != nullptr) {
     *namecnt = *namecnt + 1;
-    const std::string arrow =
-        absl::StrCat(node_name, " -- ", DotNodeName(*node.Left(), *namecnt));
-    absl::StrAppend(&dot_str, arrow, "\n",
-                    ToDotGraphBody(*node.Left(), namecnt, lookup_fn));
+    PS_ASSIGN_OR_RETURN(const auto node_name_left,
+                        DotNodeName(*node.Left(), *namecnt));
+    const std::string arrow = absl::StrCat(node_name, " -- ", node_name_left);
+    PS_ASSIGN_OR_RETURN(const auto dgb,
+                        ToDotGraphBody(*node.Left(), namecnt, lookup_fn));
+    absl::StrAppend(&dot_str, arrow, "\n", dgb);
   }
   if (node.Right() != nullptr) {
     *namecnt = *namecnt + 1;
-    const std::string arrow =
-        absl::StrCat(node_name, " -- ", DotNodeName(*node.Right(), *namecnt));
-    absl::StrAppend(&dot_str, arrow, "\n",
-                    ToDotGraphBody(*node.Right(), namecnt, lookup_fn));
+    PS_ASSIGN_OR_RETURN(const auto node_name_right,
+                        DotNodeName(*node.Right(), *namecnt));
+    const std::string arrow = absl::StrCat(node_name, " -- ", node_name_right);
+    PS_ASSIGN_OR_RETURN(const auto dgb,
+                        ToDotGraphBody(*node.Right(), namecnt, lookup_fn));
+    absl::StrAppend(&dot_str, arrow, "\n", dgb);
   }
   return dot_str;
 }
 
 }  // namespace
 
-void QueryDotWriter::WriteAst(
+absl::Status QueryDotWriter::WriteAst(
     std::string_view query, const Node& node,
     std::function<absl::flat_hash_set<std::string_view>(std::string_view)>
         lookup_fn) {
   uint32_t namecnt = 0;
   const std::string title =
       absl::StrCat("labelloc=\"t\"\nlabel=\"AST for Query: ", query, "\"\n");
-  file_ << absl::StrCat("graph {\n", title,
-                        ToDotGraphBody(node, &namecnt, std::move(lookup_fn)),
-                        "\n}\n");
+  PS_ASSIGN_OR_RETURN(const auto dgb,
+                      ToDotGraphBody(node, &namecnt, std::move(lookup_fn)));
+  file_ << absl::StrCat("graph {\n", title, dgb, "\n}\n");
+  return absl::OkStatus();
 }
 
 void QueryDotWriter::Flush() { file_.flush(); }

@@ -7,17 +7,19 @@ local_repository(
     path = "testing/functionaltest-system",
 )
 
-load("//builders/bazel:deps.bzl", "python_deps")
+load("//builders/bazel:deps.bzl", "python_deps", "python_register_toolchains")
 
-python_deps("//builders/bazel")
+python_deps()
+
+python_register_toolchains("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit 34445c1 2024-07-01
-    sha256 = "ce300bc178b1eedd88d7545b89d1d672b3b9bfb62c138ab3f4a845f159436285",
-    strip_prefix = "data-plane-shared-libraries-37522d6ac55c8592060f636d68f50feddcb9598a",
+    # commit cc49da3 2024-10-09
+    sha256 = "7a0337420161304c7429c727b1f82394bc27e1e2586d2da30e6d6100ba92b437",
+    strip_prefix = "data-plane-shared-libraries-158593616a63df924af1cb689f3915b8d32e9db1",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/37522d6ac55c8592060f636d68f50feddcb9598a.zip",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/158593616a63df924af1cb689f3915b8d32e9db1.zip",
     ],
 )
 
@@ -51,27 +53,9 @@ load(
 
 cpp_repositories()
 
-http_archive(
-    name = "io_bazel_rules_docker",
-    sha256 = "b1e80761a8a8243d03ebca8845e9cc1ba6c82ce7c5179ce2b295cd36f7e394bf",
-    urls = ["https://github.com/bazelbuild/rules_docker/releases/download/v0.25.0/rules_docker-v0.25.0.tar.gz"],
-)
-
-load("@io_bazel_rules_docker//repositories:repositories.bzl", container_repositories = "repositories")
-
-container_repositories()
-
-load("@io_bazel_rules_docker//repositories:deps.bzl", io_bazel_rules_docker_deps = "deps")
-
-io_bazel_rules_docker_deps()
-
 load("//third_party_deps:container_deps.bzl", "container_deps")
 
 container_deps()
-
-load("@io_bazel_rules_docker//go:image.bzl", go_image_repos = "repositories")
-
-go_image_repos()
 
 # googleapis
 http_archive(
@@ -86,6 +70,16 @@ http_archive(
     sha256 = "19cd27b36b0ceba683c02fc6c80e61339397afc3385b91d54210c5db0a254ef8",
     strip_prefix = "distributed_point_functions-45da5f54836c38b73a1392e846c9db999c548711",
     urls = ["https://github.com/google/distributed_point_functions/archive/45da5f54836c38b73a1392e846c9db999c548711.tar.gz"],
+)
+
+http_archive(
+    name = "libcbor",
+    build_file = "//third_party_deps:libcbor.BUILD",
+    patch_args = ["-p1"],
+    patches = ["//third_party_deps:libcbor.patch"],
+    sha256 = "9fec8ce3071d5c7da8cda397fab5f0a17a60ca6cbaba6503a09a47056a53a4d7",
+    strip_prefix = "libcbor-0.10.2/src",
+    urls = ["https://github.com/PJK/libcbor/archive/refs/tags/v0.10.2.zip"],
 )
 
 # Dependencies for Flex/Bison build rules
@@ -131,6 +125,15 @@ load("@word2vec//:requirements.bzl", word2vec_install_deps = "install_deps")
 latency_benchmark_install_deps()
 
 word2vec_install_deps()
+
+http_archive(
+    name = "io_bazel_rules_go",
+    sha256 = "16e9fca53ed6bd4ff4ad76facc9b7b651a89db1689a2877d6fd7b82aa824e366",
+    urls = [
+        "https://mirror.bazel.build/github.com/bazelbuild/rules_go/releases/download/v0.34.0/rules_go-v0.34.0.zip",
+        "https://github.com/bazelbuild/rules_go/releases/download/v0.34.0/rules_go-v0.34.0.zip",
+    ],
+)
 
 # Use nogo to run `go vet` with bazel
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")

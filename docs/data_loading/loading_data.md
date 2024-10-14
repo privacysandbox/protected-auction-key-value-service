@@ -268,7 +268,7 @@ delta file to a dedicated broadcast topic.
 
 In the case of AWS it is a Simple Notification Service (SNS) topic. That topic is created in
 terraform
-[here](https://github.com/privacysandbox/fledge-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/production/terraform/aws/services/data_storage/main.tf#L107).
+[here](https://github.com/privacysandbox/protected-auction-key-value-service/blob/7f3710b1f1c944d7879718a334afd5cb8f80f3d9/production/terraform/aws/services/data_storage/main.tf#L107).
 Delta files contain multiple rows, which allows you to batch multiple updates together. There is a
 [limit](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html)
 of 256KB for the message size.

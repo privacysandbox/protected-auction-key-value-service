@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 
 def cpp_repositories():
     """Entry point for all external repositories used for C++/C dependencies."""
@@ -100,4 +100,16 @@ def cpp_repositories():
         urls = [
             "https://github.com/RoaringBitmap/CRoaring/archive/refs/tags/v3.0.1.zip",
         ],
+    )
+
+    http_file(
+        name = "otel_collector_aarch64",
+        url = "https://aws-otel-collector.s3.amazonaws.com/amazon_linux/arm64/v0.40.0/aws-otel-collector.rpm",
+        sha256 = "c1860bac86d2c8b21a7448bb41b548589f3a65507f7768be94a9bf36ec188801",
+    )
+
+    http_file(
+        name = "otel_collector_amd64",
+        url = "https://aws-otel-collector.s3.amazonaws.com/amazon_linux/amd64/v0.40.0/aws-otel-collector.rpm",
+        sha256 = "3d3837ad0b0a32b905b94713ab3534eb58c377cf211a9c75d89d39f35b0f4152",
     )

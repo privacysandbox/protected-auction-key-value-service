@@ -18,45 +18,46 @@
 
 #include <utility>
 
+#include "components/data_server/cache/uint_value_set.h"
 #include "gtest/gtest.h"
 
 namespace kv_server {
 namespace {
 
 TEST(SetsTest, VerifyBitwiseUnion) {
-  roaring::Roaring left({1, 2, 3, 4, 5});
-  roaring::Roaring right({6, 7, 8, 9, 10});
+  UInt32ValueSet::bitset_type left({1, 2, 3, 4, 5});
+  UInt32ValueSet::bitset_type right({6, 7, 8, 9, 10});
   EXPECT_EQ(Union(std::move(left), std::move(right)),
-            roaring::Roaring({1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
+            UInt32ValueSet::bitset_type({1, 2, 3, 4, 5, 6, 7, 8, 9, 10}));
 }
 
 TEST(SetsTest, VerifyBitwiseIntersection) {
   {
-    roaring::Roaring left({1, 2, 3, 4, 5});
-    roaring::Roaring right({6, 7, 8, 9, 10});
+    UInt32ValueSet::bitset_type left({1, 2, 3, 4, 5});
+    UInt32ValueSet::bitset_type right({6, 7, 8, 9, 10});
     EXPECT_EQ(Intersection(std::move(left), std::move(right)),
-              roaring::Roaring());
+              UInt32ValueSet::bitset_type());
   }
   {
-    roaring::Roaring left({1, 2, 3, 4, 5});
-    roaring::Roaring right({1, 2, 3, 9, 10});
+    UInt32ValueSet::bitset_type left({1, 2, 3, 4, 5});
+    UInt32ValueSet::bitset_type right({1, 2, 3, 9, 10});
     EXPECT_EQ(Intersection(std::move(left), std::move(right)),
-              roaring::Roaring({1, 2, 3}));
+              UInt32ValueSet::bitset_type({1, 2, 3}));
   }
 }
 
 TEST(SetsTest, VerifyBitwiseDifference) {
   {
-    roaring::Roaring left({1, 2, 3, 4, 5});
-    roaring::Roaring right({6, 7, 8, 9, 10});
+    UInt32ValueSet::bitset_type left({1, 2, 3, 4, 5});
+    UInt32ValueSet::bitset_type right({6, 7, 8, 9, 10});
     EXPECT_EQ(Difference(std::move(left), std::move(right)),
-              roaring::Roaring({1, 2, 3, 4, 5}));
+              UInt32ValueSet::bitset_type({1, 2, 3, 4, 5}));
   }
   {
-    roaring::Roaring left({1, 2, 3, 4, 5});
-    roaring::Roaring right({1, 2, 3, 9, 10});
+    UInt32ValueSet::bitset_type left({1, 2, 3, 4, 5});
+    UInt32ValueSet::bitset_type right({1, 2, 3, 9, 10});
     EXPECT_EQ(Difference(std::move(left), std::move(right)),
-              roaring::Roaring({4, 5}));
+              UInt32ValueSet::bitset_type({4, 5}));
   }
 }
 

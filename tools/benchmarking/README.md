@@ -61,25 +61,28 @@ Usage:
 
 Flags:
 
+-   `--help` Display full list of flags.
+
 -   `--server-address`
 
     Required. gRPC host and port.
 
     Example: `--server-address my-server:8443`
 
--   `--snapshot-dir`
+-   `--snapshot-dir`, `--snapshot-csv-dir`, or `lookup-keys-file`
 
-    Required if `--snapshot-csv-dir` is not provided. Full path to a directory of snapshot files.
-    These snapshot files are converted to CSVs using the
-    [`data cli`](/docs/data_loading/loading_data.md). The keys from the snapshot file are used to
-    create requests.
+    One of these options is required.
 
--   `--snapshot-csv-dir`
+    -   `--snapshot-dir`: Full path to a directory of snapshot files. These snapshot files are
+        converted to CSVs using the [`data cli`](/docs/data_loading/loading_data.md). The keys from
+        the snapshot file are used to create requests.
 
-    Required if `--snapshot-dir` is not provided. Full path to a directory of only snapshot CSV
-    files (i.e. converted using the [`data cli`](/docs/data_loading/loading_data.md)). This avoids
-    doing the conversion in the tool, which saves some time for multiple runs on the same snapshot
-    files.
+    -   `--snapshot-csv-dir`: Full path to a directory of only snapshot CSV files (i.e. converted
+        using the [`data cli`](/docs/data_loading/loading_data.md)). This avoids doing the
+        conversion in the tool, which saves some time for multiple runs on the same snapshot files.
+
+    -   `--lookup-keys-file`: Full path to file with lookup keys. Each line should have one key.
+        Ignores the `filter-snapshot-by-sets` option.
 
 -   `--number-of-lookup-keys-list` (Optional)
 
@@ -177,10 +180,11 @@ Flags:
 
     Example: "<https://demo.kv-server.your-domain.example/>"
 
--   `--snapshot-dir`
+-   `--snapshot-dir` or `--lookup-keys-file`
 
-    Required. Full path to a directory of snapshot files. The keys from the snapshot file are used
-    to create requests.
+    One of these options is required. Full path to a directory of snapshot files or a file with
+    lookup keys. The keys are used to create requests. For the `lookup-keys-file`, each line should
+    have one key. Ignores the `filter-snapshot-by-sets` option.
 
 -   `--csv-output` (Optional)
 

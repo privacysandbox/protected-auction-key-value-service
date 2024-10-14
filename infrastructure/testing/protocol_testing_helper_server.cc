@@ -20,21 +20,47 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "components/data/converters/cbor_converter.h"
 #include "grpcpp/ext/proto_server_reflection_plugin.h"
 #include "grpcpp/grpcpp.h"
 #include "infrastructure/testing/protocol_testing_helper_server.grpc.pb.h"
 #include "public/constants.h"
-#include "quiche/binary_http/binary_http_message.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
+#include "src/communication/encoding_utils.h"
+#include "src/communication/framing_utils.h"
 
 ABSL_FLAG(uint16_t, port, 50050,
           "Port the server is listening on. Defaults to 50050.");
 
 namespace kv_server {
 
+namespace {
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
+
+absl::Status CborDecodeToGetValuesResponseJsonString(
+    std::string_view cbor_raw, std::string& json_response) {
+  nlohmann::json json_from_cbor = nlohmann::json::from_cbor(
+      cbor_raw, /*strict=*/true, /*allow_exceptions=*/false);
+  if (json_from_cbor.is_discarded()) {
+    return absl::InternalError("Failed to convert raw CBOR buffer to JSON");
+  }
+  for (auto& json_compression_group : json_from_cbor["compressionGroups"]) {
+    // Convert CBOR serialized list to a JSON list of partition outputs
+    auto json_partition_outputs =
+        GetPartitionOutputsInJson(json_compression_group["content"]);
+    if (!json_partition_outputs.ok()) {
+      LOG(ERROR) << json_partition_outputs.status();
+      return json_partition_outputs.status();
+    }
+    LOG(INFO) << "json_partition_outputs" << json_partition_outputs->dump();
+    json_compression_group["content"] = json_partition_outputs->dump();
+  }
+  json_response = json_from_cbor.dump();
+  return absl::OkStatus();
+}
+}  // namespace
 
 class ProtocolTestingHelperServiceImpl final
     : public ProtocolTestingHelper::Service {
@@ -43,47 +69,6 @@ class ProtocolTestingHelperServiceImpl final
                              GetTestConfigResponse* response) override {
     response->set_public_key(public_key_);
     return grpc::Status::OK;
-  }
-
-  grpc::Status BHTTPEncapsulate(ServerContext* context,
-                                const BHTTPEncapsulateRequest* request,
-                                BHTTPEncapsulateResponse* response) override {
-    const auto process = [&request, &response](auto&& bhttp_layer) {
-      bhttp_layer.set_body(request->body());
-      auto maybe_serialized = bhttp_layer.Serialize();
-      if (!maybe_serialized.ok()) {
-        return grpc::Status(grpc::INTERNAL,
-                            std::string(maybe_serialized.status().message()));
-      }
-      response->set_bhttp_message(*maybe_serialized);
-      return grpc::Status::OK;
-    };
-    if (request->is_request()) {
-      return process(quiche::BinaryHttpRequest({}));
-    }
-    return process(quiche::BinaryHttpResponse(200));
-  }
-
-  grpc::Status BHTTPDecapsulate(ServerContext* context,
-                                const BHTTPDecapsulateRequest* request,
-                                BHTTPDecapsulateResponse* response) override {
-    const auto process = [&request, &response](auto&& maybe_bhttp_layer) {
-      if (!maybe_bhttp_layer.ok()) {
-        return grpc::Status(grpc::INTERNAL,
-                            std::string(maybe_bhttp_layer.status().message()));
-      }
-      std::string body;
-      maybe_bhttp_layer->swap_body(body);
-      response->set_body(std::move(body));
-      return grpc::Status::OK;
-    };
-
-    if (request->is_request()) {
-      return process(
-          quiche::BinaryHttpRequest::Create(request->bhttp_message()));
-    }
-    return process(
-        quiche::BinaryHttpResponse::Create(request->bhttp_message()));
   }
 
   grpc::Status OHTTPEncapsulate(ServerContext* context,
@@ -96,15 +81,30 @@ class ProtocolTestingHelperServiceImpl final
       return grpc::Status(grpc::INTERNAL,
                           std::string(maybe_config.status().message()));
     }
-
-    auto client = quiche::ObliviousHttpClient::Create(request->public_key(),
-                                                      *maybe_config);
-    if (!client.ok()) {
+    const auto maybe_cbor_body =
+        V2GetValuesRequestJsonStringCborEncode(request->body());
+    if (!maybe_cbor_body.ok()) {
+      LOG(ERROR) << "Converting JSON to CBOR failed: "
+                 << maybe_cbor_body.status().message();
       return grpc::Status(grpc::INTERNAL,
-                          std::string(client.status().message()));
+                          std::string(maybe_cbor_body.status().message()));
     }
-
-    auto encrypted_req = client->CreateObliviousHttpRequest(request->body());
+    auto encoded_data_size = privacy_sandbox::server_common::GetEncodedDataSize(
+        maybe_cbor_body->size(), kMinResponsePaddingBytes);
+    auto maybe_padded_request =
+        privacy_sandbox::server_common::EncodeResponsePayload(
+            privacy_sandbox::server_common::CompressionType::kUncompressed,
+            std::move(*maybe_cbor_body), encoded_data_size);
+    if (!maybe_padded_request.ok()) {
+      LOG(ERROR) << "Padding failed: "
+                 << maybe_padded_request.status().message();
+      return grpc::Status(grpc::INTERNAL,
+                          std::string(maybe_padded_request.status().message()));
+    }
+    auto encrypted_req =
+        quiche::ObliviousHttpRequest::CreateClientObliviousRequest(
+            std::move(*maybe_padded_request), request->public_key(),
+            *std::move(maybe_config), kKVOhttpRequestLabel);
     if (!encrypted_req.ok()) {
       return grpc::Status(grpc::INTERNAL,
                           std::string(encrypted_req.status().message()));
@@ -149,9 +149,26 @@ class ProtocolTestingHelperServiceImpl final
       quiche::ObliviousHttpRequest::Context context =
           std::move(context_iter->second);
       context_map_.erase(context_iter);
-      auto decrypted_response = client->DecryptObliviousHttpResponse(
-          request->ohttp_response(), context);
-      response->set_body(decrypted_response->GetPlaintextData());
+      auto decrypted_response =
+          quiche::ObliviousHttpResponse::CreateClientObliviousResponse(
+              request->ohttp_response(), context, kKVOhttpResponseLabel);
+      if (!decrypted_response.ok()) {
+        LOG(ERROR) << decrypted_response.status();
+      }
+
+      auto deframed_req = privacy_sandbox::server_common::DecodeRequestPayload(
+          std::move(*decrypted_response).ConsumePlaintextData());
+      if (!deframed_req.ok()) {
+        LOG(ERROR) << "unpadding response failed!";
+        return grpc::Status(grpc::INTERNAL,
+                            std::string(deframed_req.status().message()));
+      }
+
+      std::string resp_json_string;
+      CborDecodeToGetValuesResponseJsonString(deframed_req->compressed_data,
+                                              resp_json_string);
+
+      response->set_body(resp_json_string);
       return grpc::Status::OK;
     }
   }

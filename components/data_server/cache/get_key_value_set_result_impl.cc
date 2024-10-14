@@ -27,6 +27,8 @@ namespace {
 
 using UInt32ValueSetNodePtr =
     ThreadSafeHashMap<std::string, UInt32ValueSet>::ConstLockedNodePtr;
+using UInt64ValueSetNodePtr =
+    ThreadSafeHashMap<std::string, UInt64ValueSet>::ConstLockedNodePtr;
 
 // Class that holds the data retrieved from cache lookup and read locks for
 // the lookup keys
@@ -51,8 +53,16 @@ class GetKeyValueSetResultImpl : public GetKeyValueSetResult {
   }
 
   const UInt32ValueSet* GetUInt32ValueSet(std::string_view key) const override {
-    if (auto iter = uin32t_sets_map_.find(key);
-        iter != uin32t_sets_map_.end() && iter->second.is_present()) {
+    if (auto iter = uint32_sets_map_.find(key);
+        iter != uint32_sets_map_.end() && iter->second.is_present()) {
+      return iter->second.value();
+    }
+    return nullptr;
+  }
+
+  const UInt64ValueSet* GetUInt64ValueSet(std::string_view key) const override {
+    if (auto iter = uint64_sets_map_.find(key);
+        iter != uint64_sets_map_.end() && iter->second.is_present()) {
       return iter->second.value();
     }
     return nullptr;
@@ -68,15 +78,21 @@ class GetKeyValueSetResultImpl : public GetKeyValueSetResult {
     data_map_.emplace(key, std::move(value_set));
   }
 
-  void AddUInt32ValueSet(std::string_view key,
-                         UInt32ValueSetNodePtr value_set_ptr) override {
-    uin32t_sets_map_.emplace(key, std::move(value_set_ptr));
+  void AddUIntValueSet(std::string_view key,
+                       UInt32ValueSetNodePtr value_set_ptr) override {
+    uint32_sets_map_.emplace(key, std::move(value_set_ptr));
+  }
+
+  void AddUIntValueSet(std::string_view key,
+                       UInt64ValueSetNodePtr value_set_ptr) override {
+    uint64_sets_map_.emplace(key, std::move(value_set_ptr));
   }
 
   std::vector<std::unique_ptr<absl::ReaderMutexLock>> read_locks_;
   absl::flat_hash_map<std::string_view, absl::flat_hash_set<std::string_view>>
       data_map_;
-  absl::flat_hash_map<std::string_view, UInt32ValueSetNodePtr> uin32t_sets_map_;
+  absl::flat_hash_map<std::string_view, UInt32ValueSetNodePtr> uint32_sets_map_;
+  absl::flat_hash_map<std::string_view, UInt64ValueSetNodePtr> uint64_sets_map_;
 };
 }  // namespace
 

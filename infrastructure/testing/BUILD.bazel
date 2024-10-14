@@ -21,14 +21,16 @@ cc_binary(
     srcs = ["protocol_testing_helper_server.cc"],
     deps = [
         ":protocol_testing_helper_server_cc_grpc",
+        "//components/data/converters:cbor_converter",
         "//public:constants",
-        "@com_github_google_quiche//quiche:binary_http_unstable_api",
         "@com_github_google_quiche//quiche:oblivious_http_unstable_api",
         "@com_github_grpc_grpc//:grpc++",
         "@com_github_grpc_grpc//:grpc++_reflection",  # for grpc_cli
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/communication:encoding_utils",
+        "@google_privacysandbox_servers_common//src/communication:framing_utils",
     ],
 )
 

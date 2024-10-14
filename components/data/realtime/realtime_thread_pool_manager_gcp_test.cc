@@ -39,14 +39,7 @@ using testing::Return;
 
 class RealtimeThreadPoolNotifierGcpTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
-    config_proto.set_mode(
-        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
-    kv_server::KVServerContextMap(
-        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
-            config_proto));
-  }
+  void SetUp() override { kv_server::InitMetricsContextMap(); }
   int32_t thread_number_ = 4;
   std::unique_ptr<MockSleepFor> mock_sleep_for_ =
       std::make_unique<MockSleepFor>();

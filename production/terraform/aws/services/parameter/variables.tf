@@ -104,6 +104,11 @@ variable "add_missing_keys_v1_parameter_value" {
   type        = bool
 }
 
+variable "add_chaff_sharding_clusters_parameter_value" {
+  description = "Add chaff when querying sharding clusters."
+  type        = bool
+}
+
 variable "use_real_coordinators_parameter_value" {
   description = "Number of parallel threads for reading and loading data files."
   type        = bool
@@ -131,6 +136,16 @@ variable "data_loading_file_format_parameter_value" {
 
 variable "logging_verbosity_level_parameter_value" {
   description = "Logging verbosity."
+  type        = number
+}
+
+variable "logging_verbosity_update_sns_arn_parameter_value" {
+  description = "Value for the logging verbosity update SNS ARN parameter."
+  type        = string
+}
+
+variable "logging_verbosity_backup_poll_frequency_secs_parameter_value" {
+  description = "Backup poll frequency in seconds for the logging verbosity parameter"
   type        = number
 }
 

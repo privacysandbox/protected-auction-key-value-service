@@ -18,7 +18,7 @@ load("@rules_pkg//pkg:zip.bzl", "pkg_zip")
 pkg_zip(
     name = "aws_artifacts",
     srcs = [
-        "//components/aws:sqs_lambda.tar",
+        "//components/aws:sqs_lambda_tarball",
         "//production/packaging/aws/otel_collector:aws-otel-collector.rpm",
         "//production/packaging/aws/otel_collector:aws_otel_collector_cfg",
         "@google_privacysandbox_servers_common//src/aws/proxy",

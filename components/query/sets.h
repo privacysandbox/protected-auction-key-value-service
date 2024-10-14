@@ -17,20 +17,26 @@
 #ifndef COMPONENTS_QUERY_SETS_H_
 #define COMPONENTS_QUERY_SETS_H_
 
-#include "absl/container/flat_hash_set.h"
+#include <utility>
 
-#include "roaring.hh"
+#include "absl/container/flat_hash_set.h"
 
 namespace kv_server {
 
-template <typename SetT>
-SetT Union(SetT&&, SetT&&);
+template <typename SetType>
+SetType Union(SetType&& left, SetType&& right) {
+  return std::forward<SetType>(left) | std::forward<SetType>(right);
+}
 
-template <typename SetT>
-SetT Intersection(SetT&&, SetT&&);
+template <typename SetType>
+SetType Intersection(SetType&& left, SetType&& right) {
+  return std::forward<SetType>(left) & std::forward<SetType>(right);
+}
 
-template <typename SetT>
-SetT Difference(SetT&&, SetT&&);
+template <typename SetType>
+SetType Difference(SetType&& left, SetType&& right) {
+  return std::forward<SetType>(left) - std::forward<SetType>(right);
+}
 
 template <>
 absl::flat_hash_set<std::string_view> Union(
@@ -46,17 +52,6 @@ template <>
 absl::flat_hash_set<std::string_view> Difference(
     absl::flat_hash_set<std::string_view>&& left,
     absl::flat_hash_set<std::string_view>&& right);
-
-template <>
-roaring::Roaring Union(roaring::Roaring&& left, roaring::Roaring&& right);
-
-template <>
-roaring::Roaring Intersection(roaring::Roaring&& left,
-                              roaring::Roaring&& right);
-
-// Subtracts `right` from `left`.
-template <>
-roaring::Roaring Difference(roaring::Roaring&& left, roaring::Roaring&& right);
 
 }  // namespace kv_server
 #endif  // COMPONENTS_QUERY_SETS_H_

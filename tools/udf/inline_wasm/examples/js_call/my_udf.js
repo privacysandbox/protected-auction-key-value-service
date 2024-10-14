@@ -15,12 +15,12 @@
  */
 
 async function HandleRequest(executionMetadata, ...input) {
-  console.log('Handling request');
+  logMessage('Handling request');
   const module = await getModule();
-  console.log('Done loading WASM Module');
+  logMessage('Done loading WASM Module');
 
   // Pass in the getValues function for the C++ code to call.
   const result = module.handleRequestCc(getValues, input);
-  console.log('handleRequestCc result: ' + JSON.stringify(result));
+  logMessage('handleRequestCc result: ' + JSON.stringify(result));
   return result;
 }

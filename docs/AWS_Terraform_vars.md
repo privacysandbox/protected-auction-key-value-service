@@ -1,5 +1,10 @@
 # AWS Key Value Server Terraform vars documentation
 
+-   **add_chaff_sharding_clusters**
+
+    Whether to add chaff sharding clusters. Only works for nonprod. For prod mode requests are
+    always chaffed.
+
 -   **add_missing_keys_v1**
 
     Add missing keys v1.
@@ -122,6 +127,10 @@
     Set the instance type. Use instances with at least four vCPUs. Learn more about which types are
     supported from the
     [AWS article](https://docs.aws.amazon.com/enclaves/latest/user/nitro-enclave.html).
+
+-   **logging_verbosity_backup_poll_frequency_secs**
+
+    Backup poll frequency in seconds for the logging verbosity parameter.
 
 -   **logging_verbosity_level**
 

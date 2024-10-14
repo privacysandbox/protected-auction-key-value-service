@@ -58,6 +58,13 @@ ValueUnion BuildValueUnion(const KeyValueMutationRecordValueT& value,
               .value = CreateUInt32Set(builder, values_offset).Union(),
           };
         }
+        if constexpr (std::is_same_v<VariantT, std::vector<uint64_t>>) {
+          auto values_offset = builder.CreateVector(arg);
+          return ValueUnion{
+              .value_type = Value::UInt64Set,
+              .value = CreateUInt64Set(builder, values_offset).Union(),
+          };
+        }
         if constexpr (std::is_same_v<VariantT, std::monostate>) {
           return ValueUnion{
               .value_type = Value::NONE,
@@ -161,6 +168,11 @@ absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
        kv_mutation_record.value_as_UInt32Set()->value() == nullptr)) {
     return absl::InvalidArgumentError("UInt32Set value not set.");
   }
+  if (kv_mutation_record.value_type() == Value::UInt64Set &&
+      (kv_mutation_record.value_as_UInt64Set() == nullptr ||
+       kv_mutation_record.value_as_UInt64Set()->value() == nullptr)) {
+    return absl::InvalidArgumentError("UInt64Set value not set.");
+  }
   return absl::OkStatus();
 }
 
@@ -217,6 +229,9 @@ KeyValueMutationRecordValueT GetRecordStructValue(
   }
   if (fbs_record.value_type() == Value::UInt32Set) {
     value = GetRecordValue<std::vector<uint32_t>>(fbs_record);
+  }
+  if (fbs_record.value_type() == Value::UInt64Set) {
+    value = GetRecordValue<std::vector<uint64_t>>(fbs_record);
   }
   return value;
 }
@@ -371,6 +386,12 @@ template <>
 std::vector<uint32_t> GetRecordValue(const KeyValueMutationRecord& record) {
   return std::vector<uint32_t>(record.value_as_UInt32Set()->value()->begin(),
                                record.value_as_UInt32Set()->value()->end());
+}
+
+template <>
+std::vector<uint64_t> GetRecordValue(const KeyValueMutationRecord& record) {
+  return std::vector<uint64_t>(record.value_as_UInt64Set()->value()->begin(),
+                               record.value_as_UInt64Set()->value()->end());
 }
 
 template <>

@@ -92,6 +92,11 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     resources = [var.sns_realtime_topic_arn]
   }
   statement {
+    sid       = "AllowInstancesToSubscribeToLoggingVerbosityParameterUpdates"
+    actions   = ["sns:Subscribe"]
+    resources = [var.logging_verbosity_updates_topic_arn]
+  }
+  statement {
     sid = "AllowXRay"
     actions = [
       "xray:PutTraceSegments",
@@ -146,6 +151,11 @@ resource "aws_iam_policy" "instance_policy" {
 resource "aws_iam_role_policy_attachment" "instance_role_policy_attachment" {
   policy_arn = aws_iam_policy.instance_policy.arn
   role       = var.server_instance_role_name
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_instance_role_attachment" {
+  role       = var.server_instance_role_name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 # Set up access policies for the SQS cleanup lambda function.

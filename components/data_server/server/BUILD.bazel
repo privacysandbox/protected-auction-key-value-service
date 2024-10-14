@@ -37,6 +37,9 @@ cc_library(
         "//:aws_platform": ["parameter_fetcher_aws.cc"],
         "//:gcp_platform": ["parameter_fetcher_gcp.cc"],
         "//:local_platform": ["parameter_fetcher_local.cc"],
+    }) + select({
+        "//:nonprod_mode": ["nonprod_parameter_fetcher.cc"],
+        "//:prod_mode": ["prod_parameter_fetcher.cc"],
     }) + ["parameter_fetcher.cc"],
     hdrs = ["parameter_fetcher.h"],
     visibility = [
@@ -135,6 +138,7 @@ cc_library(
         ":server_log_init",
         "//components/cloud_config:instance_client",
         "//components/cloud_config:parameter_client",
+        "//components/cloud_config/parameter_update:parameter_notifier",
         "//components/data/blob_storage:blob_storage_client",
         "//components/data/blob_storage:delta_file_notifier",
         "//components/data/realtime:realtime_thread_pool_manager",

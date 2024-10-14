@@ -2,6 +2,112 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.69.0 (2024-09-15)
+
+
+### Features
+
+* Pin build-debian ubuntu base image from 20.04 to focal-20240530
+
+## 0.68.1 (2024-08-21)
+
+### Bug Fixes
+
+* Fix load bazel_tools import for Python deps
+
+## 0.68.0 (2024-08-21)
+
+
+### Features
+
+* **deps:** Split python deps and registering toolchains
+* **deps:** Update rules_python to 0.35.0
+
+## 0.67.0 (2024-07-31)
+
+
+### Bug Fixes
+
+* Add EXTRA_CBUILD_ARGS to tools/bazel-* scripts
+
+
+### Dependencies
+
+* **deps:** Update buildozer to 6.1.1
+* **deps:** Upgrade amazonlinux2023 to 5.20240722.0
+
+## 0.66.1 (2024-06-24)
+
+
+### Bug Fixes
+
+* Add --compilation_mode=opt to build:profiler config
+
+## 0.66.0 (2024-06-20)
+
+
+### Features
+
+* Add cpu-profiler flags to cbuild
+* Add profiler config in .profiler.bazelrc
+
+## 0.65.1 (2024-06-04)
+
+
+### Bug Fixes
+
+* Support multiple etc files in a single image
+
+## 0.65.0 (2024-06-04)
+
+
+### Features
+
+* Add DOCKER_NETWORK env var for test-tools
+
+## 0.64.1 (2024-05-29)
+
+
+### Bug Fixes
+
+* Support container reuse when --cmd not specified
+* Use find to identify bazel symlinks
+
+## 0.64.0 (2024-05-27)
+
+
+### Features
+
+* Support cmd-profiler mode with/without --cmd
+
+
+### Bug Fixes
+
+* cbuild should find container with exact name match
+* Ensure normalize-bazel-symlinks is in the workspace dir
+
+
+### Dependencies
+
+* **deps:** Upgrade clang-format pre-commit hook
+
+## 0.63.0 (2024-05-26)
+
+
+### Features
+
+* Support cmd-profiler mode with/without --cmd
+
+
+### Bug Fixes
+
+* Ensure normalize-bazel-symlinks is in the workspace dir
+
+
+### Dependencies
+
+* **deps:** Upgrade clang-format pre-commit hook
+
 ## 0.62.0 (2024-05-10)
 
 

@@ -17,7 +17,7 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 package(default_visibility = [
     "//components:__subpackages__",
     "//production/packaging:__subpackages__",
-    "//public/data_loading:__subpackages__",
+    "//public:__subpackages__",
 ])
 
 cc_library(

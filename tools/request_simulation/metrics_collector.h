@@ -71,9 +71,9 @@ inline constexpr absl::Span<
     kRequestSimulationMetricsSpan = kRequestSimulationMetricsList;
 
 inline auto* RequestSimulationContextMap(
-    std::optional<
+    std::unique_ptr<
         privacy_sandbox::server_common::telemetry::BuildDependentConfig>
-        config = std::nullopt,
+        config = nullptr,
     std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
     absl::string_view service = "Request-simulation",
     absl::string_view version = "") {

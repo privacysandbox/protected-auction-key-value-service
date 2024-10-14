@@ -25,8 +25,8 @@ namespace {
 
 using google::protobuf::TextFormat;
 
-TEST(ResponseUtils, KeyGroupOutputsFromAndToJson) {
-  KeyGroupOutputs proto;
+TEST(ResponseUtils, PartitionOutputFromAndToJson) {
+  PartitionOutput proto;
   TextFormat::ParseFromString(
       R"(
         key_group_outputs {
@@ -61,16 +61,26 @@ TEST(ResponseUtils, KeyGroupOutputsFromAndToJson) {
         }
       )",
       &proto);
-  auto maybe_json = KeyGroupOutputsToJson(proto);
+  auto maybe_json = PartitionOutputToJson(proto);
   ASSERT_TRUE(maybe_json.ok());
   std::string expected_json =
       "{\"keyGroupOutputs\":[{\"tags\":[\"tag1\",\"tag2\"],\"keyValues\":{"
       "\"key1\":{\"value\":\"str_val\"},\"key2\":{\"value\":[\"item1\","
       "\"item2\",\"item3\"]}}}]}";
   EXPECT_EQ(*maybe_json, expected_json);
-  auto maybe_proto = KeyGroupOutputsFromJson(expected_json);
+  auto maybe_proto = PartitionOutputFromJson(expected_json);
   ASSERT_TRUE(maybe_proto.ok());
   EXPECT_THAT(*maybe_proto, EqualsProto(proto));
 }
+
+TEST(ResponseUtils, PartitionOutputFromJson_InvalidJsonError) {
+  std::string expected_json =
+      "{\"keyGroupOutputs\":{\"tags\":[\"tag1\",\"tag2\"],\"keyValues\":{"
+      "\"key1\":{\"value\":\"str_val\"},\"key2\":{\"value\":[\"item1\","
+      "\"item2\",\"item3\"]}}}]}";
+  const auto maybe_proto = PartitionOutputFromJson(expected_json);
+  ASSERT_FALSE(maybe_proto.ok());
+}
+
 }  // namespace
 }  // namespace kv_server::application_pa

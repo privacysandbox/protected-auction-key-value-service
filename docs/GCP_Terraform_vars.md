@@ -1,5 +1,10 @@
 # GCP Key Value Server Terraform vars documentation
 
+-   **add_chaff_sharding_clusters**
+
+    Whether to add chaff sharding clusters. Only works for nonprod. For prod mode requests are
+    always chaffed.
+
 -   **add_missing_keys_v1**
 
     Add missing keys v1.
@@ -27,6 +32,10 @@
 -   **collector_service_port**
 
     The grpc port that receives traffic destined for the OpenTelemetry collector
+
+-   **collector_startup_script_path**
+
+    Relative path from main.tf to collector service startup script.
 
 -   **consented_debug_token**
 
@@ -93,6 +102,10 @@
 -   **kv_service_port**
 
     The grpc port that receives traffic destined for the frontend service.
+
+-   **logging_verbosity_backup_poll_frequency_secs**
+
+    Backup poll frequency in seconds for the logging verbosity parameter.
 
 -   **logging_verbosity_level**
 

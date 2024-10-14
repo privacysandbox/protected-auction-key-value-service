@@ -22,7 +22,7 @@
 #include <vector>
 
 #include "absl/log/check.h"
-#include "components/data_server/cache/uint32_value_set.h"
+#include "components/data_server/cache/uint_value_set.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/lookup.pb.h"
 #include "components/internal_server/remote_lookup_client.h"
@@ -71,12 +71,13 @@ class ShardedLookup : public Lookup {
   explicit ShardedLookup(const Lookup& local_lookup, const int32_t num_shards,
                          const int32_t current_shard_num,
                          const ShardManager& shard_manager,
-                         KeySharder key_sharder)
+                         KeySharder key_sharder, bool add_chaff = true)
       : local_lookup_(local_lookup),
         num_shards_(num_shards),
         current_shard_num_(current_shard_num),
         shard_manager_(shard_manager),
-        key_sharder_(std::move(key_sharder)) {
+        key_sharder_(std::move(key_sharder)),
+        add_chaff_(add_chaff) {
     CHECK_GT(num_shards, 1) << "num_shards for ShardedLookup must be > 1";
   }
 
@@ -100,13 +101,109 @@ class ShardedLookup : public Lookup {
   absl::StatusOr<InternalLookupResponse> GetKeyValueSet(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& keys) const override {
-    return GetKeyValueSets<std::string>(request_context, keys);
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupGetKeyValueSetLatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
+    InternalLookupResponse response;
+    if (keys.empty()) {
+      return response;
+    }
+    auto maybe_result =
+        GetShardedKeyValueSet<std::string>(request_context, keys);
+    if (!maybe_result.ok()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedGetKeyValueSetKeySetRetrievalFailure);
+      return maybe_result.status();
+    }
+    for (const auto& key : keys) {
+      SingleLookupResult result;
+      if (const auto key_iter = maybe_result->find(key);
+          key_iter == maybe_result->end()) {
+        auto status = result.mutable_status();
+        status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                                 kShardedGetKeyValueSetKeySetNotFound);
+      } else {
+        auto* keyset_values = result.mutable_keyset_values();
+        keyset_values->mutable_values()->Reserve(key_iter->second.size());
+        keyset_values->mutable_values()->Add(key_iter->second.begin(),
+                                             key_iter->second.end());
+      }
+      (*response.mutable_kv_pairs())[key] = std::move(result);
+    }
+    return response;
   }
 
   absl::StatusOr<InternalLookupResponse> GetUInt32ValueSet(
       const RequestContext& request_context,
       const absl::flat_hash_set<std::string_view>& key_set) const override {
-    return GetKeyValueSets<uint32_t>(request_context, key_set);
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupGetUInt32ValueSetLatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
+    InternalLookupResponse response;
+    if (key_set.empty()) {
+      return response;
+    }
+    auto maybe_result =
+        GetShardedKeyValueSet<uint32_t>(request_context, key_set);
+    if (!maybe_result.ok()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedGetUInt32ValueSetKeySetRetrievalFailure);
+      return maybe_result.status();
+    }
+    for (const auto& key : key_set) {
+      SingleLookupResult result;
+      if (const auto key_iter = maybe_result->find(key);
+          key_iter == maybe_result->end()) {
+        auto status = result.mutable_status();
+        status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                                 kShardedGetUInt32ValueSetKeySetNotFound);
+      } else {
+        auto* uint32set_values = result.mutable_uint32set_values();
+        uint32set_values->mutable_values()->Reserve(key_iter->second.size());
+        uint32set_values->mutable_values()->Add(key_iter->second.begin(),
+                                                key_iter->second.end());
+      }
+      (*response.mutable_kv_pairs())[key] = std::move(result);
+    }
+    return response;
+  }
+
+  absl::StatusOr<InternalLookupResponse> GetUInt64ValueSet(
+      const RequestContext& request_context,
+      const absl::flat_hash_set<std::string_view>& key_set) const override {
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupGetUInt64ValueSetLatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
+    InternalLookupResponse response;
+    if (key_set.empty()) {
+      return response;
+    }
+    auto maybe_result =
+        GetShardedKeyValueSet<uint64_t>(request_context, key_set);
+    if (!maybe_result.ok()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedGetUInt64ValueSetKeySetRetrievalFailure);
+      return maybe_result.status();
+    }
+    for (const auto& key : key_set) {
+      SingleLookupResult result;
+      if (const auto key_iter = maybe_result->find(key);
+          key_iter == maybe_result->end()) {
+        auto status = result.mutable_status();
+        status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
+        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                                 kShardedGetUInt64ValueSetKeySetNotFound);
+      } else {
+        auto* uint64set_values = result.mutable_uint64set_values();
+        uint64set_values->mutable_values()->Reserve(key_iter->second.size());
+        uint64set_values->mutable_values()->Add(key_iter->second.begin(),
+                                                key_iter->second.end());
+      }
+      (*response.mutable_kv_pairs())[key] = std::move(result);
+    }
+    return response;
   }
 
   absl::StatusOr<InternalRunQueryResponse> RunQuery(
@@ -114,15 +211,20 @@ class ShardedLookup : public Lookup {
     ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
                                 kShardedLookupRunQueryLatencyInMicros>
         latency_recorder(request_context.GetUdfRequestMetricsContext());
-    InternalRunQueryResponse response;
     if (query.empty()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kShardedRunQueryEmptyQuery);
-      return response;
+      return InternalRunQueryResponse();
     }
-    auto result =
-        RunSetQuery<absl::flat_hash_set<std::string_view>, std::string>(
-            request_context, query);
+    auto result = RunSetQuery<absl::flat_hash_set<std::string_view>,
+                              std::string, InternalRunQueryResponse>(
+        request_context, query, [](const auto& result_set) {
+          InternalRunQueryResponse response;
+          response.mutable_elements()->Reserve(result_set.size());
+          response.mutable_elements()->Assign(result_set.begin(),
+                                              result_set.end());
+          return response;
+        });
     if (!result.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kShardedRunQueryFailure);
@@ -130,42 +232,80 @@ class ShardedLookup : public Lookup {
     }
     PS_VLOG(8, request_context.GetPSLogContext())
         << "Driver results for query " << query;
-    for (const auto& value : *result) {
+    for (const auto& value : result->elements()) {
       PS_VLOG(8, request_context.GetPSLogContext())
           << "Value: " << value << "\n";
     }
-    response.mutable_elements()->Assign(result->begin(), result->end());
-    return response;
+    return result;
   }
 
-  absl::StatusOr<InternalRunSetQueryIntResponse> RunSetQueryInt(
+  absl::StatusOr<InternalRunSetQueryUInt32Response> RunSetQueryUInt32(
       const RequestContext& request_context, std::string query) const override {
     ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
-                                kShardedLookupRunSetQueryIntLatencyInMicros>
+                                kShardedLookupRunSetQueryUInt32LatencyInMicros>
         latency_recorder(request_context.GetUdfRequestMetricsContext());
-    InternalRunSetQueryIntResponse response;
     if (query.empty()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                               kShardedRunQueryEmptyQuery);
-      return response;
+                               kShardedRunSetQueryUInt32EmptyQuery);
+      return InternalRunSetQueryUInt32Response();
     }
-    auto result =
-        RunSetQuery<roaring::Roaring, uint32_t>(request_context, query);
+    auto result = RunSetQuery<UInt32ValueSet::bitset_type, uint32_t,
+                              InternalRunSetQueryUInt32Response>(
+        request_context, query, [](const auto& result_set) {
+          InternalRunSetQueryUInt32Response response;
+          auto uint32_set = BitSetToUint32Set(result_set);
+          response.mutable_elements()->Reserve(uint32_set.size());
+          response.mutable_elements()->Assign(uint32_set.begin(),
+                                              uint32_set.end());
+          return response;
+        });
     if (!result.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                               kShardedRunQueryFailure);
+                               kShardedRunSetQueryUInt32Failure);
       return result.status();
     }
     PS_VLOG(8, request_context.GetPSLogContext())
         << "Driver results for query " << query;
-    for (const auto& value : *result) {
+    for (const auto& value : result->elements()) {
       PS_VLOG(8, request_context.GetPSLogContext())
           << "Value: " << value << "\n";
     }
-    auto uint32_set = BitSetToUint32Set(*result);
-    response.mutable_elements()->Reserve(uint32_set.size());
-    response.mutable_elements()->Assign(uint32_set.begin(), uint32_set.end());
-    return response;
+    return result;
+  }
+
+  absl::StatusOr<InternalRunSetQueryUInt64Response> RunSetQueryUInt64(
+      const RequestContext& request_context, std::string query) const override {
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kShardedLookupRunSetQueryUInt64LatencyInMicros>
+        latency_recorder(request_context.GetUdfRequestMetricsContext());
+    InternalRunSetQueryUInt64Response response;
+    if (query.empty()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunSetQueryUInt64EmptyQuery);
+      return response;
+    }
+    auto result = RunSetQuery<UInt64ValueSet::bitset_type, uint64_t,
+                              InternalRunSetQueryUInt64Response>(
+        request_context, query, [](const auto& result_set) {
+          InternalRunSetQueryUInt64Response response;
+          auto uint64_set = BitSetToUint64Set(result_set);
+          response.mutable_elements()->Reserve(uint64_set.size());
+          response.mutable_elements()->Assign(uint64_set.begin(),
+                                              uint64_set.end());
+          return response;
+        });
+    if (!result.ok()) {
+      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
+                               kShardedRunSetQueryUInt64Failure);
+      return result.status();
+    }
+    PS_VLOG(8, request_context.GetPSLogContext())
+        << "Driver results for query " << query;
+    for (const auto& value : result->elements()) {
+      PS_VLOG(8, request_context.GetPSLogContext())
+          << "Value: " << value << "\n";
+    }
+    return result;
   }
 
  private:
@@ -264,10 +404,18 @@ class ShardedLookup : public Lookup {
         }
         responses.push_back(std::async(
             std::launch::async,
-            [client, &request_context](std::string_view serialized_request,
-                                       int32_t padding) {
-              return client->GetValues(request_context, serialized_request,
-                                       padding);
+            [client, &request_context, add_chaff = add_chaff_,
+             keys = shard_lookup_input.keys](
+                std::string_view serialized_request, int32_t padding) {
+              if (!add_chaff && keys.empty()) {
+                InternalLookupResponse response;
+                absl::StatusOr<InternalLookupResponse> maybe_response =
+                    response;
+                return maybe_response;
+              } else {
+                return client->GetValues(request_context, serialized_request,
+                                         padding);
+              }
             },
             shard_lookup_input.serialized_request, shard_lookup_input.padding));
       }
@@ -292,8 +440,11 @@ class ShardedLookup : public Lookup {
     if constexpr (result_type == SingleLookupResult::kKeysetValues) {
       return local_lookup_.GetKeyValueSet(request_context, keys);
     }
-    if constexpr (result_type == SingleLookupResult::kUintsetValues) {
+    if constexpr (result_type == SingleLookupResult::kUint32SetValues) {
       return local_lookup_.GetUInt32ValueSet(request_context, keys);
+    }
+    if constexpr (result_type == SingleLookupResult::kUint64SetValues) {
+      return local_lookup_.GetUInt64ValueSet(request_context, keys);
     }
   }
 
@@ -353,8 +504,18 @@ class ShardedLookup : public Lookup {
       }
       if constexpr (std::is_same_v<SetElementType, uint32_t>) {
         if (keyset_lookup_result.single_lookup_result_case() ==
-            SingleLookupResult::kUintsetValues) {
-          for (auto& v : keyset_lookup_result.uintset_values().values()) {
+            SingleLookupResult::kUint32SetValues) {
+          for (auto& v : keyset_lookup_result.uint32set_values().values()) {
+            PS_VLOG(8, request_context.GetPSLogContext())
+                << "keyset name: " << key << " value: " << v;
+            value_set.emplace(std::move(v));
+          }
+        }
+      }
+      if constexpr (std::is_same_v<SetElementType, uint64_t>) {
+        if (keyset_lookup_result.single_lookup_result_case() ==
+            SingleLookupResult::kUint64SetValues) {
+          for (auto& v : keyset_lookup_result.uint64set_values().values()) {
             PS_VLOG(8, request_context.GetPSLogContext())
                 << "keyset name: " << key << " value: " << v;
             value_set.emplace(std::move(v));
@@ -391,7 +552,11 @@ class ShardedLookup : public Lookup {
                 request_context, key_list);
           }
           if constexpr (std::is_same_v<SetElementType, uint32_t>) {
-            return GetLocalLookupResponse<SingleLookupResult::kUintsetValues>(
+            return GetLocalLookupResponse<SingleLookupResult::kUint32SetValues>(
+                request_context, key_list);
+          }
+          if constexpr (std::is_same_v<SetElementType, uint64_t>) {
+            return GetLocalLookupResponse<SingleLookupResult::kUint64SetValues>(
                 request_context, key_list);
           }
         });
@@ -415,57 +580,20 @@ class ShardedLookup : public Lookup {
     return key_sets;
   }
 
-  template <typename SetElementType>
-  absl::StatusOr<InternalLookupResponse> GetKeyValueSets(
-      const RequestContext& request_context,
-      const absl::flat_hash_set<std::string_view>& keys) const {
-    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
-                                kShardedLookupGetKeyValueSetLatencyInMicros>
-        latency_recorder(request_context.GetUdfRequestMetricsContext());
-    InternalLookupResponse response;
-    if (keys.empty()) {
-      return response;
+  template <typename ElementType, typename BitsetType>
+  static BitsetType ToBitset(const absl::flat_hash_set<ElementType>& set) {
+    BitsetType bitset;
+    for (const auto& element : set) {
+      bitset.add(element);
     }
-    absl::flat_hash_map<std::string, absl::flat_hash_set<SetElementType>>
-        key_sets;
-    auto get_key_value_set_result_maybe =
-        GetShardedKeyValueSet<SetElementType>(request_context, keys);
-    if (!get_key_value_set_result_maybe.ok()) {
-      LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                               kShardedGetKeyValueSetKeySetRetrievalFailure);
-      return get_key_value_set_result_maybe.status();
-    }
-    key_sets = *std::move(get_key_value_set_result_maybe);
-    for (const auto& key : keys) {
-      SingleLookupResult result;
-      if (const auto key_iter = key_sets.find(key);
-          key_iter == key_sets.end()) {
-        auto status = result.mutable_status();
-        status->set_code(static_cast<int>(absl::StatusCode::kNotFound));
-        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                                 kShardedGetKeyValueSetKeySetNotFound);
-      } else {
-        if constexpr (std::is_same_v<SetElementType, std::string>) {
-          auto* keyset_values = result.mutable_keyset_values();
-          keyset_values->mutable_values()->Reserve(key_iter->second.size());
-          keyset_values->mutable_values()->Add(key_iter->second.begin(),
-                                               key_iter->second.end());
-        }
-        if constexpr (std::is_same_v<SetElementType, uint32_t>) {
-          auto* uint32set_values = result.mutable_uintset_values();
-          uint32set_values->mutable_values()->Reserve(key_iter->second.size());
-          uint32set_values->mutable_values()->Add(key_iter->second.begin(),
-                                                  key_iter->second.end());
-        }
-      }
-      (*response.mutable_kv_pairs())[key] = std::move(result);
-    }
-    return response;
+    bitset.runOptimize();
+    return bitset;
   }
 
-  template <typename SetType, typename SetElementType>
-  absl::StatusOr<SetType> RunSetQuery(const RequestContext& request_context,
-                                      std::string query) const {
+  template <typename SetType, typename SetElementType, typename ResponseType>
+  absl::StatusOr<ResponseType> RunSetQuery(
+      const RequestContext& request_context, std::string query,
+      absl::AnyInvocable<ResponseType(const SetType&)> to_response_fn) const {
     kv_server::Driver driver;
     std::istringstream stream(query);
     kv_server::Scanner scanner(stream);
@@ -476,38 +604,38 @@ class ShardedLookup : public Lookup {
                                kShardedRunQueryParsingFailure);
       return absl::InvalidArgumentError("Parsing failure.");
     }
-    auto get_key_value_set_result_maybe = GetShardedKeyValueSet<SetElementType>(
+    auto key_value_result = GetShardedKeyValueSet<SetElementType>(
         request_context, driver.GetRootNode()->Keys());
-    if (!get_key_value_set_result_maybe.ok()) {
+    if (!key_value_result.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kShardedRunQueryKeySetRetrievalFailure);
-      return get_key_value_set_result_maybe.status();
+      return key_value_result.status();
     }
-    auto keysets = std::move(*get_key_value_set_result_maybe);
-    return driver.EvaluateQuery<SetType>([&keysets, &request_context](
-                                             std::string_view key) {
-      const auto key_iter = keysets.find(key);
-      if (key_iter == keysets.end()) {
-        PS_VLOG(8, request_context.GetPSLogContext())
-            << "Driver can't find " << key << "key_set. Returning empty.";
-        LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
-                                 kShardedRunQueryMissingKeySet);
-        return SetType();
-      }
-      if constexpr (std::is_same_v<SetType,
-                                   absl::flat_hash_set<std::string_view>>) {
-        return absl::flat_hash_set<std::string_view>(key_iter->second.begin(),
-                                                     key_iter->second.end());
-      }
-      if constexpr (std::is_same_v<SetType, roaring::Roaring>) {
-        roaring::Roaring bitset;
-        for (const auto& element : key_iter->second) {
-          bitset.add(element);
-        }
-        bitset.runOptimize();
-        return bitset;
-      }
-    });
+    auto query_result = driver.EvaluateQuery<SetType>(
+        [&key_value_result, &request_context](std::string_view key) {
+          const auto key_iter = key_value_result->find(key);
+          if (key_iter == key_value_result->end()) {
+            PS_VLOG(8, request_context.GetPSLogContext())
+                << "Driver can't find " << key << "key_set. Returning empty.";
+            LogUdfRequestErrorMetric(
+                request_context.GetUdfRequestMetricsContext(),
+                kShardedRunQueryMissingKeySet);
+            return SetType();
+          }
+          if constexpr (std::is_same_v<SetType,
+                                       absl::flat_hash_set<std::string_view>>) {
+            return absl::flat_hash_set<std::string_view>(
+                key_iter->second.begin(), key_iter->second.end());
+          }
+          if constexpr (std::is_same_v<SetType, UInt32ValueSet::bitset_type> ||
+                        std::is_same_v<SetType, UInt64ValueSet::bitset_type>) {
+            return ToBitset<SetElementType, SetType>(key_iter->second);
+          }
+        });
+    if (!query_result.ok()) {
+      return query_result.status();
+    }
+    return to_response_fn(*query_result);
   }
 
   const Lookup& local_lookup_;
@@ -516,6 +644,10 @@ class ShardedLookup : public Lookup {
   const std::string hashing_seed_;
   const ShardManager& shard_manager_;
   KeySharder key_sharder_;
+  // For prod this flag is always true.
+  // When this flag is on we always query all shards. This is done for
+  // privacy reasons.
+  const bool add_chaff_;
 };
 
 }  // namespace
@@ -524,10 +656,11 @@ std::unique_ptr<Lookup> CreateShardedLookup(const Lookup& local_lookup,
                                             const int32_t num_shards,
                                             const int32_t current_shard_num,
                                             const ShardManager& shard_manager,
-                                            KeySharder key_sharder) {
+                                            KeySharder key_sharder,
+                                            bool add_chaff) {
   return std::make_unique<ShardedLookup>(local_lookup, num_shards,
                                          current_shard_num, shard_manager,
-                                         std::move(key_sharder));
+                                         std::move(key_sharder), add_chaff);
 }
 
 }  // namespace kv_server

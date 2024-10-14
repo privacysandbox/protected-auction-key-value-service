@@ -1,0 +1,44 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This file contains a Github Action that syncs with
+# the Bidding and Auction Servers repo, including tags,
+# on a regular schedule. It will push any new tags
+# to your repo, and you can use Cloud Build,
+# CodeBuild, or any webhook-based system to trigger
+# an automatic build based on the new tag.
+name: Sync with github.com/privacysandbox/protected-auction-key-value-service
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' # every 30 minutes
+  workflow_dispatch: # on button click
+
+jobs:
+  sync_code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: tgymnich/fork-sync@v1.8
+        continue-on-error: true
+        with:
+          base: main
+          head: main
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        if: always()       # Always checkout, even if sync fails
+      - name: Sync Tags with Upstream
+        if: always()       # Always sync tags, even if sync or checkout fails
+        run: |
+          git fetch https://github.com/privacysandbox/protected-auction-key-value-service --tags --force
+          git push origin --tags --force

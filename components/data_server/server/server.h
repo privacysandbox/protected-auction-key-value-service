@@ -24,6 +24,7 @@
 #include "absl/time/time.h"
 #include "components/cloud_config/instance_client.h"
 #include "components/cloud_config/parameter_client.h"
+#include "components/cloud_config/parameter_update/parameter_notifier.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/blob_storage/delta_file_notifier.h"
 #include "components/data/realtime/realtime_thread_pool_manager.h"
@@ -107,6 +108,9 @@ class Server {
                   absl::optional<std::string> collector_endpoint,
                   const ParameterFetcher& parameter_fetcher);
 
+  // Updates max logging verbosity level for global absl and ps vlog
+  void UpdateLoggingVerbosity(int32_t verbosity_string_value);
+
   // This must be first, otherwise the AWS SDK will crash when it's called:
   PlatformInitializer platform_initializer_;
 
@@ -119,7 +123,8 @@ class Server {
   std::unique_ptr<GetValuesAdapter> get_values_adapter_;
   std::unique_ptr<GetValuesHook> string_get_values_hook_;
   std::unique_ptr<GetValuesHook> binary_get_values_hook_;
-  std::unique_ptr<RunSetQueryIntHook> run_set_query_int_hook_;
+  std::unique_ptr<RunSetQueryUInt32Hook> run_set_query_uint32_hook_;
+  std::unique_ptr<RunSetQueryUInt64Hook> run_set_query_uint64_hook_;
   std::unique_ptr<RunSetQueryStringHook> run_set_query_string_hook_;
 
   // BlobStorageClient must outlive DeltaFileNotifier
@@ -152,6 +157,9 @@ class Server {
 
   int32_t shard_num_;
   int32_t num_shards_;
+
+  std::unique_ptr<MessageService> message_service_verbosity_param_update_;
+  std::unique_ptr<ParameterNotifier> logging_verbosity_param_notifier_;
 
   std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
       key_fetcher_manager_;

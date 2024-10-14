@@ -24,7 +24,8 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
-#include "components/data_server/request_handler/v2_response_data.pb.h"
+#include "components/data_server/request_handler/content_type/encoder.h"
+#include "components/errors/error_tag.h"
 #include "google/protobuf/util/json_util.h"
 #include "public/api_schema.pb.h"
 #include "public/applications/pa/api_overlay.pb.h"
@@ -34,6 +35,13 @@
 
 namespace kv_server {
 namespace {
+
+enum class ErrorTag : int {
+  kInvalidNumberOfTagsError = 1,
+  kNoNamespaceTagsFoundError = 2,
+  kNoSinglePartitionInResponseError = 3
+};
+
 using google::protobuf::RepeatedPtrField;
 using google::protobuf::Struct;
 using google::protobuf::Value;
@@ -120,8 +128,9 @@ void ProcessKeyValues(
 // Find the namespace tag that is paired with the "custom" tag.
 absl::StatusOr<std::string> FindNamespace(RepeatedPtrField<std::string> tags) {
   if (tags.size() != 2) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Expected 2 tags, found ", tags.size()));
+    return StatusWithErrorTag(absl::InvalidArgumentError(absl::StrCat(
+                                  "Expected 2 tags, found ", tags.size())),
+                              __FILE__, ErrorTag::kInvalidNumberOfTagsError);
   }
 
   bool has_custom_tag = false;
@@ -137,7 +146,9 @@ absl::StatusOr<std::string> FindNamespace(RepeatedPtrField<std::string> tags) {
   if (has_custom_tag) {
     return maybe_namespace_tag;
   }
-  return absl::InvalidArgumentError("No namespace tags found");
+  return StatusWithErrorTag(
+      absl::InvalidArgumentError("No namespace tags found"), __FILE__,
+      ErrorTag::kNoNamespaceTagsFoundError);
 }
 
 void ProcessKeyGroupOutput(application_pa::KeyGroupOutput key_group_output,
@@ -170,14 +181,17 @@ void ProcessKeyGroupOutput(application_pa::KeyGroupOutput key_group_output,
 }
 
 // Converts a v2 response into v1 response.
-absl::Status ConvertToV1Response(const v2::GetValuesResponse& v2_response,
+absl::Status ConvertToV1Response(RequestContextFactory& request_context_factory,
+                                 const v2::GetValuesResponse& v2_response,
                                  v1::GetValuesResponse& v1_response) {
   if (!v2_response.has_single_partition()) {
     // This should not happen. V1 request always maps to 1 partition so the
     // output should always have 1 partition.
-    return absl::InternalError(
-        "Bug in KV server! response does not have single_partition set for V1 "
-        "response.");
+    return StatusWithErrorTag(
+        absl::InternalError("Bug in KV server! response does not have "
+                            "single_partition set for V1 "
+                            "response."),
+        __FILE__, ErrorTag::kNoSinglePartitionInResponseError);
   }
   if (v2_response.single_partition().has_status()) {
     return absl::Status(static_cast<absl::StatusCode>(
@@ -187,9 +201,15 @@ absl::Status ConvertToV1Response(const v2::GetValuesResponse& v2_response,
   const std::string& string_output =
       v2_response.single_partition().string_output();
   // string_output should be a JSON object
-  PS_ASSIGN_OR_RETURN(application_pa::KeyGroupOutputs outputs,
-                      application_pa::KeyGroupOutputsFromJson(string_output));
-  for (const auto& key_group_output : outputs.key_group_outputs()) {
+  PS_VLOG(7, request_context_factory.Get().GetPSLogContext())
+      << "Received v2 response: " << v2_response.DebugString();
+  const auto outputs = application_pa::PartitionOutputFromJson(string_output);
+  if (!outputs.ok()) {
+    PS_LOG(ERROR, request_context_factory.Get().GetPSLogContext())
+        << outputs.status();
+    return outputs.status();
+  }
+  for (const auto& key_group_output : outputs->key_group_outputs()) {
     ProcessKeyGroupOutput(key_group_output, v1_response);
   }
 
@@ -213,9 +233,11 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
         << " to v2 request " << v2_request.DebugString();
     v2::GetValuesResponse v2_response;
     ExecutionMetadata execution_metadata;
-    if (auto status =
-            v2_handler_->GetValues(request_context_factory, v2_request,
-                                   &v2_response, execution_metadata);
+    auto v2_codec =
+        V2EncoderDecoder::Create(V2EncoderDecoder::ContentType::kJson);
+    if (auto status = v2_handler_->GetValues(
+            request_context_factory, v2_request, &v2_response,
+            execution_metadata, /*single_partition_use_case=*/true, *v2_codec);
         !status.ok()) {
       return status;
     }
@@ -227,7 +249,7 @@ class GetValuesAdapterImpl : public GetValuesAdapter {
     PS_VLOG(7, request_context_factory.Get().GetPSLogContext())
         << "Received v2 response: " << v2_response.DebugString();
     return privacy_sandbox::server_common::FromAbslStatus(
-        ConvertToV1Response(v2_response, v1_response));
+        ConvertToV1Response(request_context_factory, v2_response, v1_response));
   }
 
  private:

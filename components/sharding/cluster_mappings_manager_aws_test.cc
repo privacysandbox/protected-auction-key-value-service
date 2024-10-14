@@ -30,14 +30,7 @@ namespace {
 
 class ClusterMappingsAwsTest : public ::testing::Test {
  protected:
-  void SetUp() override {
-    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
-    config_proto.set_mode(
-        privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
-    KVServerContextMap(
-        privacy_sandbox::server_common::telemetry::BuildDependentConfig(
-            config_proto));
-  }
+  void SetUp() override { kv_server::InitMetricsContextMap(); }
 };
 
 TEST_F(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {

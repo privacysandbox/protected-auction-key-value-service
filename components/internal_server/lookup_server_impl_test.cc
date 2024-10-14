@@ -15,6 +15,7 @@
 
 #include "components/internal_server/lookup_server_impl.h"
 
+#include <limits>
 #include <memory>
 
 #include "components/internal_server/mocks.h"
@@ -57,74 +58,6 @@ class LookupServiceImplTest : public ::testing::Test {
   std::unique_ptr<InternalLookupService::Stub> stub_;
 };
 
-TEST_F(LookupServiceImplTest, InternalLookup_Success) {
-  InternalLookupRequest request;
-  request.add_keys("key1");
-  request.add_keys("key2");
-  InternalLookupResponse expected;
-  TextFormat::ParseFromString(R"pb(kv_pairs {
-                                     key: "key1"
-                                     value { value: "value1" }
-                                   }
-                                   kv_pairs {
-                                     key: "key2"
-                                     value { value: "value2" }
-                                   }
-                              )pb",
-                              &expected);
-  EXPECT_CALL(mock_lookup_, GetKeyValues(_, _)).WillOnce(Return(expected));
-
-  InternalLookupResponse response;
-  grpc::ClientContext context;
-
-  grpc::Status status = stub_->InternalLookup(&context, request, &response);
-  EXPECT_THAT(response, EqualsProto(expected));
-}
-
-TEST_F(LookupServiceImplTest,
-       InternalLookup_LookupReturnsStatus_EmptyResponse) {
-  InternalLookupRequest request;
-  request.add_keys("key1");
-  request.add_keys("key2");
-  EXPECT_CALL(mock_lookup_, GetKeyValues(_, _))
-      .WillOnce(Return(absl::UnknownError("Some error")));
-
-  InternalLookupResponse response;
-  grpc::ClientContext context;
-
-  grpc::Status status = stub_->InternalLookup(&context, request, &response);
-  InternalLookupResponse expected;
-  EXPECT_THAT(response, EqualsProto(expected));
-}
-
-TEST_F(LookupServiceImplTest, InternalRunQuery_Success) {
-  InternalRunQueryRequest request;
-  request.set_query("someset");
-
-  InternalRunQueryResponse expected;
-  expected.add_elements("value1");
-  expected.add_elements("value2");
-  EXPECT_CALL(mock_lookup_, RunQuery(_, _)).WillOnce(Return(expected));
-  InternalRunQueryResponse response;
-  grpc::ClientContext context;
-  grpc::Status status = stub_->InternalRunQuery(&context, request, &response);
-  auto results = response.elements();
-  EXPECT_THAT(results,
-              testing::UnorderedElementsAreArray({"value1", "value2"}));
-}
-
-TEST_F(LookupServiceImplTest, InternalRunQuery_LookupError_Failure) {
-  InternalRunQueryRequest request;
-  request.set_query("fail|||||now");
-  EXPECT_CALL(mock_lookup_, RunQuery(_, _))
-      .WillOnce(Return(absl::UnknownError("Some error")));
-  InternalRunQueryResponse response;
-  grpc::ClientContext context;
-  grpc::Status status = stub_->InternalRunQuery(&context, request, &response);
-
-  EXPECT_EQ(status.error_code(), grpc::StatusCode::INTERNAL);
-}
-
 TEST_F(LookupServiceImplTest, SecureLookupFailure) {
   SecureLookupRequest secure_lookup_request;
   secure_lookup_request.set_ohttp_request("garbage");
@@ -132,34 +65,6 @@ TEST_F(LookupServiceImplTest, SecureLookupFailure) {
   grpc::ClientContext context;
   grpc::Status status =
       stub_->SecureLookup(&context, secure_lookup_request, &response);
-  EXPECT_EQ(status.error_code(), grpc::StatusCode::INTERNAL);
-}
-
-TEST_F(LookupServiceImplTest, InternalRunSetQueryInt_Success) {
-  InternalRunSetQueryIntRequest request;
-  request.set_query("someset");
-  InternalRunSetQueryIntResponse expected;
-  expected.add_elements(1000);
-  expected.add_elements(1001);
-  expected.add_elements(1002);
-  EXPECT_CALL(mock_lookup_, RunSetQueryInt(_, _)).WillOnce(Return(expected));
-  InternalRunSetQueryIntResponse response;
-  grpc::ClientContext context;
-  grpc::Status status =
-      stub_->InternalRunSetQueryInt(&context, request, &response);
-  auto results = response.elements();
-  EXPECT_THAT(results, testing::UnorderedElementsAreArray({1000, 1001, 1002}));
-}
-
-TEST_F(LookupServiceImplTest, InternalRunSetQueryInt_LookupError_Failure) {
-  InternalRunSetQueryIntRequest request;
-  request.set_query("fail|||||now");
-  EXPECT_CALL(mock_lookup_, RunSetQueryInt(_, _))
-      .WillOnce(Return(absl::UnknownError("Some error")));
-  InternalRunSetQueryIntResponse response;
-  grpc::ClientContext context;
-  grpc::Status status =
-      stub_->InternalRunSetQueryInt(&context, request, &response);
   EXPECT_EQ(status.error_code(), grpc::StatusCode::INTERNAL);
 }
 

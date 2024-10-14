@@ -55,6 +55,9 @@ ABSL_FLAG(std::string, data_loading_file_format,
           "possible values.");
 ABSL_FLAG(std::int32_t, logging_verbosity_level, 0,
           "Loggging verbosity level.");
+ABSL_FLAG(std::int32_t, logging_verbosity_backup_poll_frequency_secs, 300,
+          "Loggging verbosity level back up poll frequency in seconds.");
+
 ABSL_FLAG(absl::Duration, udf_timeout, absl::Seconds(5),
           "Timeout for one UDF invocation");
 ABSL_FLAG(absl::Duration, udf_update_timeout, absl::Seconds(30),
@@ -132,6 +135,9 @@ class LocalParameterClient : public ParameterClient {
                                  absl::GetFlag(FLAGS_udf_num_workers)});
     int32_t_flag_values_.insert({"kv-server-local-logging-verbosity-level",
                                  absl::GetFlag(FLAGS_logging_verbosity_level)});
+    int32_t_flag_values_.insert(
+        {"kv-server-local-logging-verbosity-backup-poll-frequency-secs",
+         absl::GetFlag(FLAGS_logging_verbosity_backup_poll_frequency_secs)});
     int32_t_flag_values_.insert(
         {"kv-server-local-udf-timeout-millis",
          absl::ToInt64Milliseconds(absl::GetFlag(FLAGS_udf_timeout))});

@@ -28,10 +28,8 @@ these features on are on our roadmap and will be available when we move to GA.
 
 [Monitoring Protected Audience API Services](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/monitoring_protected_audience_api_services.md)
 has high-level suggestions for Protected Audience monitoring. All metrics available to KV server are
-defined in [server_definition.h](../../components/telemetry/server_definition.h).
-
-[Privacy safe telemetry](https://github.com/privacysandbox/protected-auction-services-docs/blob/main/monitoring_protected_audience_api_services.md#privacy-safe-telemetry)
-outlines metrics noising.
+defined in [server_definition.h](../../components/telemetry/server_definition.h), see details in
+[MonitoringDetails](monitoring_details.md).
 
 ### Logs
 

@@ -17,8 +17,9 @@
 #ifndef TOOLS_DATA_CLI_CSV_CONSTANTS_H_
 #define TOOLS_DATA_CLI_CSV_CONSTANTS_H_
 
-#include <array>
 #include <string_view>
+
+#include "riegeli/csv/csv_record.h"
 
 namespace kv_server {
 
@@ -34,6 +35,7 @@ inline constexpr std::string_view kValueTypeColumn = "value_type";
 inline constexpr std::string_view kValueTypeString = "string";
 inline constexpr std::string_view kValueTypeStringSet = "string_set";
 inline constexpr std::string_view kValueTypeUInt32Set = "uint32_set";
+inline constexpr std::string_view kValueTypeUInt64Set = "uint64_set";
 
 inline constexpr std::string_view kRecordTypeColumn = "record_type";
 inline constexpr std::string_view kRecordTypeKVMutation = "key_value_mutation";
@@ -49,16 +51,15 @@ inline constexpr std::string_view kVersionColumn = "version";
 inline constexpr std::string_view kLogicalShardColumn = "logical_shard";
 inline constexpr std::string_view kPhysicalShardColumn = "physical_shard";
 
-inline constexpr std::array<std::string_view, 5> kKeyValueMutationRecordHeader =
-    {kKeyColumn, kLogicalCommitTimeColumn, kMutationTypeColumn, kValueColumn,
-     kValueTypeColumn};
+inline constexpr riegeli::CsvHeaderConstant kKeyValueMutationRecordHeader = {
+    kKeyColumn, kLogicalCommitTimeColumn, kMutationTypeColumn, kValueColumn,
+    kValueTypeColumn};
 
-inline constexpr std::array<std::string_view, 5>
-    kUserDefinedFunctionsConfigHeader = {kCodeSnippetColumn, kHandlerNameColumn,
-                                         kLogicalCommitTimeColumn,
-                                         kLanguageColumn, kVersionColumn};
+inline constexpr riegeli::CsvHeaderConstant kUserDefinedFunctionsConfigHeader =
+    {kCodeSnippetColumn, kHandlerNameColumn, kLogicalCommitTimeColumn,
+     kLanguageColumn, kVersionColumn};
 
-inline constexpr std::array<std::string_view, 2> kShardMappingRecordHeader = {
+inline constexpr riegeli::CsvHeaderConstant kShardMappingRecordHeader = {
     kLogicalShardColumn, kPhysicalShardColumn};
 
 }  //  namespace kv_server

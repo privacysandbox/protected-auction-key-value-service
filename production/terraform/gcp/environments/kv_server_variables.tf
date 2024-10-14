@@ -196,6 +196,12 @@ variable "add_missing_keys_v1" {
   description = "Add missing keys for v1."
 }
 
+variable "add_chaff_sharding_clusters" {
+  type        = bool
+  default     = true
+  description = "Add chaff sharding clusters."
+}
+
 variable "use_real_coordinators" {
   type        = bool
   description = "Use real coordinators."
@@ -297,6 +303,13 @@ variable "logging_verbosity_level" {
   default     = "0"
   type        = string
 }
+
+variable "logging_verbosity_backup_poll_frequency_secs" {
+  description = "Backup poll frequency in seconds for the logging verbosity parameter."
+  default     = 60
+  type        = number
+}
+
 
 variable "use_sharding_key_regex" {
   description = "Use sharding key regex. This is useful if you want to use data locality feature for sharding."

@@ -32,7 +32,7 @@ class QueryDotWriter {
   explicit QueryDotWriter(std::string_view path) : file_(path.data()) {}
   ~QueryDotWriter() { file_.close(); }
   // Outputs the dot representation of the AST node to the output path.
-  void WriteAst(
+  absl::Status WriteAst(
       const std::string_view query, const Node& node,
       std::function<absl::flat_hash_set<std::string_view>(std::string_view key)>
           lookup_fn);

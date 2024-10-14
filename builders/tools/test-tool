@@ -13,7 +13,9 @@
 # limitations under the License.
 
 # environment variables (all optional):
-#   WORKSPACE                    repo root directory, must be an absolute path
+#   WORKSPACE           repo root directory, must be an absolute path
+#   DOCKER_NETWORK      docker run --network arg, defaults to "host", set to
+#                       blank to avoid setting --network
 
 set -o errexit
 
@@ -57,6 +59,9 @@ readonly REL_PWD
 WORKSPACE_MOUNT="$(builder::get_docker_workspace_mount)"
 readonly WORKSPACE_MOUNT
 
+# respect an empty DOCKER_NETWORK value
+DOCKER_NETWORK=${DOCKER_NETWORK-host}
+
 declare -a DOCKER_RUN_ARGS=(
   "--rm"
   "--interactive"
@@ -64,6 +69,11 @@ declare -a DOCKER_RUN_ARGS=(
   "--volume=${WORKSPACE_MOUNT}:/src/workspace"
   "--workdir=/src/workspace/${REL_PWD}"
 )
+if [[ -n ${DOCKER_NETWORK} ]]; then
+  DOCKER_RUN_ARGS+=(
+    "--network=${DOCKER_NETWORK}"
+  )
+fi
 if [[ -n ${EXTRA_DOCKER_RUN_ARGS} ]]; then
   # shellcheck disable=SC2207
   DOCKER_RUN_ARGS+=(

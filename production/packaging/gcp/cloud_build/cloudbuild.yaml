@@ -1,0 +1,46 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+    - build
+    - -t
+    - service-builder
+    - -f
+    - production/packaging/gcp/cloud_build/Dockerfile
+    - .
+  - name: service-builder
+    env:
+      - WORKSPACE_MOUNT=/workspace
+    script: |
+      #!/usr/bin/env bash
+      production/packaging/gcp/build_and_test \
+      --mode ${_BUILD_FLAVOR} \
+      && production/packaging/gcp/docker_push_gcp_repo \
+      --gcp-image-repo $_GCP_IMAGE_REPO \
+      --gcp-image-tag $_GCP_IMAGE_TAG
+substitutions:
+    # The following variables may be overridden via the gcloud CLI or the
+    # CloudBuild Trigger GUI.
+    # See https://cloud.google.com/build/docs/configuring-builds/substitute-variable-values
+    # for more information.
+    _BUILD_FLAVOR: prod # Default. Use nonprod for enhanced logging output.
+    _GCP_IMAGE_TAG: ${BUILD_ID} # Default. Required for server deployment later.
+    _GCP_IMAGE_REPO: us-docker.pkg.dev/${PROJECT_ID}/kvs-docker-repo-shared/kv-service # Default. Artifact Registry repo to house images.
+timeout: 3h
+options:
+  machineType: E2_HIGHCPU_32
+  automapSubstitutions: true
+  logging: CLOUD_LOGGING_ONLY

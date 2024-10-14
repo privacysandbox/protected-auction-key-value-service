@@ -10,9 +10,9 @@ different chunks of a single data file concurrently. For AWS S3, the level of co
 reader and the number of concurrent S3 client connections can be tuned using the following terraform
 parameters:
 
--   [data_loading_num_threads](https://github.com/privacysandbox/fledge-key-value-service/blob/4d6f691b0d12f9604988c14f534f6e91f4025f29/production/terraform/aws/environments/kv_server_variables.tf)
+-   [data_loading_num_threads](https://github.com/privacysandbox/protected-auction-key-value-service/blob/4d6f691b0d12f9604988c14f534f6e91f4025f29/production/terraform/aws/environments/kv_server_variables.tf)
     sets the number of concurrent threads used to read a single data file [default: 16].
--   [s3client_max_connections](https://github.com/privacysandbox/fledge-key-value-service/blob/4d6f691b0d12f9604988c14f534f6e91f4025f29/production/terraform/aws/environments/kv_server_variables.tf)
+-   [s3client_max_connections](https://github.com/privacysandbox/protected-auction-key-value-service/blob/4d6f691b0d12f9604988c14f534f6e91f4025f29/production/terraform/aws/environments/kv_server_variables.tf)
     sets the maximum number of concurrent connections used by the S3 client [default: 64].
 
 ## Benchmarking tool

@@ -141,6 +141,24 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kShardedLookupGetUInt32ValueSetLatencyInMicros(
+        "ShardedLookupGetUInt32ValueSetLatencyInMicros",
+        "Latency in executing GetUInt32ValueSet in the sharded lookup",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kShardedLookupGetUInt64ValueSetLatencyInMicros(
+        "ShardedLookupGetUInt64ValueSetLatencyInMicros",
+        "Latency in executing GetUInt64ValueSet in the sharded lookup",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kShardedLookupRunQueryLatencyInMicros(
         "ShardedLookupRunQueryLatencyInMicros",
         "Latency in executing RunQuery in the sharded lookup",
@@ -150,9 +168,18 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
-    kShardedLookupRunSetQueryIntLatencyInMicros(
-        "ShardedLookupRunSetQueryIntLatencyInMicros",
-        "Latency in executing RunQuery in the sharded lookup",
+    kShardedLookupRunSetQueryUInt32LatencyInMicros(
+        "ShardedLookupRunSetQueryUInt32LatencyInMicros",
+        "Latency in executing RunSetQueryUInt32 in the sharded lookup",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kShardedLookupRunSetQueryUInt64LatencyInMicros(
+        "ShardedLookupRunSetQueryUInt64LatencyInMicros",
+        "Latency in executing RunSetQueryUInt64 in the sharded lookup",
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
 
@@ -189,6 +216,24 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     kInternalGetKeyValueSetLatencyInMicros(
         "InternalGetKeyValueSetLatencyInMicros",
         "Latency in internal get key value set call",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kInternalGetUInt32ValueSetLatencyInMicros(
+        "InternalGetUInt32ValueSetLatencyInMicros",
+        "Latency in internal get uint32 value set call",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kInternalGetUInt64ValueSetLatencyInMicros(
+        "InternalGetUInt64ValueSetLatencyInMicros",
+        "Latency in internal get uint64 value set call",
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
 
@@ -236,6 +281,15 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     kGetUInt32ValueSetLatencyInMicros(
         "GetUInt32ValueSetLatencyInMicros",
         "Latency in executing GetUInt32ValueSet in cache",
+        kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
+        kMicroSecondsLowerBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kGetUInt64ValueSetLatencyInMicros(
+        "GetUInt64ValueSetLatencyInMicros",
+        "Latency in executing GetUInt64ValueSet in cache",
         kLatencyInMicroSecondsBoundaries, kMicroSecondsUpperBound,
         kMicroSecondsLowerBound);
 
@@ -350,7 +404,7 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kUpDownCounter>
     kReceivedLowLatencyNotificationsCount(
-        "kReceivedLowLatencyNotificationsCount",
+        "ReceivedLowLatencyNotificationsCount",
         "Count of messages received through pub/sub");
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
@@ -474,6 +528,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kUpdateUInt64ValueSetLatency("UpdateUInt64ValueSetLatency",
+                                 "Latency in uint64 key value set update",
+                                 kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kDeleteKeyLatency("DeleteKeyLatency", "Latency in deleting key",
                       kLatencyInMicroSecondsBoundaries);
 
@@ -489,6 +550,13 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
     kDeleteUInt32ValueSetLatency("DeleteUInt32ValueSetLatency",
                                  "Latency in deleting values in an uint32 set",
+                                 kLatencyInMicroSecondsBoundaries);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kDeleteUInt64ValueSetLatency("DeleteUInt64ValueSetLatency",
+                                 "Latency in deleting values in an uint64 set",
                                  kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
@@ -516,10 +584,9 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     double, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
     privacy_sandbox::server_common::metrics::Instrument::kHistogram>
-    kCleanUpUInt32SetMapLatency(
-        "CleanUpUInt32SetMapMapLatency",
-        "Latency in cleaning up key value uint32 set map",
-        kLatencyInMicroSecondsBoundaries);
+    kCleanUpUIntSetMapLatency("CleanUpUIntSetMapMapLatency",
+                              "Latency in cleaning up key value uint set maps",
+                              kLatencyInMicroSecondsBoundaries);
 
 inline constexpr privacy_sandbox::server_common::metrics::Definition<
     int, privacy_sandbox::server_common::metrics::Privacy::kNonImpacting,
@@ -598,9 +665,12 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kShardedLookupGetKeyValuesLatencyInMicros,
         &kShardedLookupGetKeyValueSetLatencyInMicros,
         &kShardedLookupRunQueryLatencyInMicros,
-        &kShardedLookupRunSetQueryIntLatencyInMicros,
+        &kShardedLookupRunSetQueryUInt32LatencyInMicros,
         &kRemoteLookupGetValuesLatencyInMicros,
         &kTotalV2LatencyWithoutCustomCode, &kUDFExecutionLatencyInMicros,
+        &kShardedLookupGetUInt32ValueSetLatencyInMicros,
+        &kShardedLookupGetUInt64ValueSetLatencyInMicros,
+        &kShardedLookupRunSetQueryUInt64LatencyInMicros,
         // Safe metrics
         &kKVServerError,
         &privacy_sandbox::server_common::metrics::kTotalRequestCount,
@@ -630,8 +700,9 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kUpdateUInt32ValueSetLatency, &kDeleteKeyLatency,
         &kDeleteValuesInSetLatency, &kDeleteUInt32ValueSetLatency,
         &kRemoveDeletedKeyLatency, &kCleanUpKeyValueMapLatency,
-        &kCleanUpKeyValueSetMapLatency, &kCleanUpUInt32SetMapLatency,
-        &kBlobStorageReadBytes};
+        &kCleanUpKeyValueSetMapLatency, &kCleanUpUIntSetMapLatency,
+        &kBlobStorageReadBytes, &kUpdateUInt64ValueSetLatency,
+        &kDeleteUInt64ValueSetLatency};
 
 // Internal lookup service metrics list contains metrics collected in the
 // internal lookup server. This separation from KV metrics list allows all
@@ -649,7 +720,9 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kInternalGetKeyValueSetLatencyInMicros,
         &kInternalSecureLookupLatencyInMicros, &kGetValuePairsLatencyInMicros,
         &kGetKeyValueSetLatencyInMicros, &kGetUInt32ValueSetLatencyInMicros,
-        &kCacheAccessEventCount};
+        &kCacheAccessEventCount, &kGetUInt64ValueSetLatencyInMicros,
+        &kInternalGetUInt32ValueSetLatencyInMicros,
+        &kInternalGetUInt64ValueSetLatencyInMicros};
 
 inline constexpr absl::Span<
     const privacy_sandbox::server_common::metrics::DefinitionName* const>
@@ -660,9 +733,9 @@ inline constexpr absl::Span<
     kInternalLookupServiceMetricsSpan = kInternalLookupServiceMetricsList;
 
 inline auto* KVServerContextMap(
-    std::optional<
+    std::unique_ptr<
         privacy_sandbox::server_common::telemetry::BuildDependentConfig>
-        config = std::nullopt,
+        config = nullptr,
     std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
     absl::string_view service = kKVServerServiceName,
     absl::string_view version = "") {
@@ -673,9 +746,9 @@ inline auto* KVServerContextMap(
 }
 
 inline auto* InternalLookupServerContextMap(
-    std::optional<
+    std::unique_ptr<
         privacy_sandbox::server_common::telemetry::BuildDependentConfig>
-        config = std::nullopt,
+        config = nullptr,
     std::unique_ptr<opentelemetry::metrics::MeterProvider> provider = nullptr,
     absl::string_view service = kInternalLookupServiceName,
     absl::string_view version = "") {
@@ -736,10 +809,12 @@ inline void InitMetricsContextMap() {
   config_proto.set_mode(
       privacy_sandbox::server_common::telemetry::TelemetryConfig::PROD);
   kv_server::KVServerContextMap(
-      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+      std::make_unique<
+          privacy_sandbox::server_common::telemetry::BuildDependentConfig>(
           config_proto));
   kv_server::InternalLookupServerContextMap(
-      privacy_sandbox::server_common::telemetry::BuildDependentConfig(
+      std::make_unique<
+          privacy_sandbox::server_common::telemetry::BuildDependentConfig>(
           config_proto));
 }
 
@@ -842,6 +917,9 @@ inline void LogV1RequestCommonSafeMetrics(
 // Measures the latency of a block of code. The latency is recorded in
 // microseconds as histogram metrics when the object of this class goes
 // out of scope. The metric can be either safe or unsafe metric.
+// For unsafe metric, the metric data point will be aggregated for the given
+// metric definition and the mean will be logged as final value at the
+// destruction of metric context
 template <typename ContextT, const auto& definition>
 class ScopeLatencyMetricsRecorder {
  public:
@@ -853,9 +931,16 @@ class ScopeLatencyMetricsRecorder {
     stopwatch_ = std::move(stopwatch);
   }
   ~ScopeLatencyMetricsRecorder<ContextT, definition>() {
-    LogIfError(metrics_context_.template LogHistogram<definition>(
-        absl::ToDoubleMicroseconds(stopwatch_->GetElapsedTime())));
+    if (definition.type_privacy ==
+        privacy_sandbox::server_common::metrics::Privacy::kImpacting) {
+      LogIfError(metrics_context_.template AggregateMetricToGetMean<definition>(
+          absl::ToDoubleMicroseconds(stopwatch_->GetElapsedTime())));
+    } else {
+      LogIfError(metrics_context_.template LogHistogram<definition>(
+          absl::ToDoubleMicroseconds(stopwatch_->GetElapsedTime())));
+    }
   }
+
   // Returns the latency so far
   absl::Duration GetLatency() { return stopwatch_->GetElapsedTime(); }
 

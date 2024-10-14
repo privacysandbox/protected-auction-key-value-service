@@ -42,25 +42,46 @@ std::vector<const Node*> ComputePostfixOrder(const Node* root) {
   return result;
 }
 
-std::string ValueNode::Accept(ASTStringVisitor& visitor) const {
+absl::StatusOr<std::string> ValueNode::Accept(ASTStringVisitor& visitor) const {
   return visitor.Visit(*this);
 }
-std::string UnionNode::Accept(ASTStringVisitor& visitor) const {
+absl::StatusOr<std::string> UnionNode::Accept(ASTStringVisitor& visitor) const {
   return visitor.Visit(*this);
 }
-std::string DifferenceNode::Accept(ASTStringVisitor& visitor) const {
+absl::StatusOr<std::string> DifferenceNode::Accept(
+    ASTStringVisitor& visitor) const {
   return visitor.Visit(*this);
 }
-std::string IntersectionNode::Accept(ASTStringVisitor& visitor) const {
+absl::StatusOr<std::string> IntersectionNode::Accept(
+    ASTStringVisitor& visitor) const {
   return visitor.Visit(*this);
 }
-
-void ValueNode::Accept(ASTVisitor& visitor) const { visitor.Visit(*this); }
-void UnionNode::Accept(ASTVisitor& visitor) const { visitor.Visit(*this); }
-void IntersectionNode::Accept(ASTVisitor& visitor) const {
-  visitor.Visit(*this);
+absl::StatusOr<std::string> NumberSetNode::Accept(
+    ASTStringVisitor& visitor) const {
+  return visitor.Visit(*this);
 }
-void DifferenceNode::Accept(ASTVisitor& visitor) const { visitor.Visit(*this); }
+absl::StatusOr<std::string> StringViewSetNode::Accept(
+    ASTStringVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
+absl::Status ValueNode::Accept(ASTVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
+absl::Status UnionNode::Accept(ASTVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
+absl::Status IntersectionNode::Accept(ASTVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
+absl::Status DifferenceNode::Accept(ASTVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
+absl::Status NumberSetNode::Accept(ASTVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
+absl::Status StringViewSetNode::Accept(ASTVisitor& visitor) const {
+  return visitor.Visit(*this);
+}
 
 absl::flat_hash_set<std::string_view> OpNode::Keys() const {
   std::vector<const Node*> nodes;

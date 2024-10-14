@@ -54,7 +54,7 @@ function handlePas(udf_arguments) {
   if (udf_arguments.length != 1) {
     const error_message =
       'For PAS default UDF exactly one argument should be provided, but was provided ' + udf_arguments.length;
-    console.error(error_message);
+    logMessage(error_message);
     throw new Error(error_message);
   }
   const kv_result = JSON.parse(getValues(udf_arguments[0]));
@@ -63,7 +63,7 @@ function handlePas(udf_arguments) {
   }
   const error_message = "Error executing handle PAS:" +
         JSON.stringify(kv_result);
-  console.error(error_message);
+  logMessage(error_message);
   throw new Error(error_message);
 }
 
@@ -73,9 +73,10 @@ function handlePA(udf_arguments) {
 }
 
 function HandleRequest(executionMetadata, ...udf_arguments) {
+  logMessage("Executing UDF");
   if(executionMetadata.requestMetadata &&
     executionMetadata.requestMetadata.is_pas) {
-    console.log('Executing PAS branch');
+    logMessage('Executing PAS branch');
     return handlePas(udf_arguments);
   }
   return handlePA(udf_arguments);

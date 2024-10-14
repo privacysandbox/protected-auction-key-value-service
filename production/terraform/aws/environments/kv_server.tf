@@ -88,9 +88,10 @@ module "kv_server" {
   data_loading_blob_prefix_allowlist = var.data_loading_blob_prefix_allowlist
 
   # Variables related to sharding.
-  num_shards             = var.num_shards
-  use_sharding_key_regex = var.use_sharding_key_regex
-  sharding_key_regex     = var.sharding_key_regex
+  num_shards                  = var.num_shards
+  use_sharding_key_regex      = var.use_sharding_key_regex
+  sharding_key_regex          = var.sharding_key_regex
+  add_chaff_sharding_clusters = var.add_chaff_sharding_clusters
 
   # Variables related to UDF execution.
   udf_num_workers           = var.udf_num_workers
@@ -109,10 +110,11 @@ module "kv_server" {
   public_key_endpoint                        = var.public_key_endpoint
 
   # Variables related to logging
-  logging_verbosity_level = var.logging_verbosity_level
-  enable_otel_logger      = var.enable_otel_logger
-  consented_debug_token   = var.consented_debug_token
-  enable_consented_log    = var.enable_consented_log
+  logging_verbosity_level                      = var.logging_verbosity_level
+  logging_verbosity_backup_poll_frequency_secs = var.logging_verbosity_backup_poll_frequency_secs
+  enable_otel_logger                           = var.enable_otel_logger
+  consented_debug_token                        = var.consented_debug_token
+  enable_consented_log                         = var.enable_consented_log
 }
 
 output "kv_server_url" {

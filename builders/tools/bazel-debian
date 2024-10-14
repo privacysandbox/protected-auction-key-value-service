@@ -19,6 +19,7 @@
 #     BAZEL_STARTUP_ARGS           Additional startup arguments to pass to bazel invocations
 #     BAZEL_EXTRA_ARGS             Additional command arguments to pass to bazel invocations
 #     EXTRA_DOCKER_RUN_ARGS        Additional arguments to pass to docker run invocations
+#     EXTRA_CBUILD_ARGS            Additional arguments to pass to tools/cbuild
 
 set -o pipefail
 set -o errexit
@@ -63,7 +64,8 @@ declare -a APP_ARGS
 declare -r -a ARGLIST=("$@")
 partition_array ARGLIST BAZEL_ARGS APP_ARGS
 
-"${CBUILD}" --seccomp-unconfined --image "${IMAGE}" --cmd "
+# shellcheck disable=SC2086
+"${CBUILD}" ${EXTRA_CBUILD_ARGS} --seccomp-unconfined --image "${IMAGE}" --cmd "
 printf 'bazel output_base: [%s]\n' \"\$(bazel info output_base 2>/dev/null)\"
 bazel ${BAZEL_STARTUP_ARGS} ${BAZEL_ARGS[*]@Q} ${BAZEL_EXTRA_ARGS} ${APP_ARGS[*]@Q}
 "

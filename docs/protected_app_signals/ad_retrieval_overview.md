@@ -90,8 +90,8 @@ This section describes how data is loaded into the server.
 #### Deployment
 
 The ad tech builds the service system by downloading the source code from the
-[Github repository](https://github.com/privacysandbox/fledge-key-value-service) and following the
-documentation in the repository.
+[Github repository](https://github.com/privacysandbox/protected-auction-key-value-service) and
+following the documentation in the repository.
 
 The ad tech deploys the system to a supported public cloud of their choice. At time of publication,
 the system will be available on GCP and AWS.
@@ -246,7 +246,7 @@ below.
 -   `runQuery(query_string)`: UDF can construct a query to perform set operations, such as union,
     intersection and difference. The query uses keys to represent the sets. The keys are defined as
     the sets are loaded into the dataset. See the exact grammar
-    [here](https://github.com/privacysandbox/fledge-key-value-service/blob/main/components/query/parser.yy).
+    [here](https://github.com/privacysandbox/protected-auction-key-value-service/blob/main/components/query/parser.yy).
 
 For more information, see
 [the UDF spec](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_user_defined_functions.md).
@@ -405,7 +405,8 @@ The service codebase has an end-to-end example in the context of information ret
 Documentation:
 
 -   High level: <https://github.com/privacysandbox/fledge-docs>
--   Lower level: <https://github.com/privacysandbox/fledge-key-value-service/tree/main/docs>
+-   Lower level:
+    <https://github.com/privacysandbox/protected-auction-key-value-service/tree/main/docs>
 
 Getting started & Example:
-<https://github.com/privacysandbox/fledge-key-value-service/tree/main/getting_started>
+<https://github.com/privacysandbox/protected-auction-key-value-service/tree/main/getting_started>

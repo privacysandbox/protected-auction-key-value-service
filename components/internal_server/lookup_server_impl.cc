@@ -20,7 +20,7 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
-#include "components/data_server/request_handler/ohttp_server_encryptor.h"
+#include "components/data_server/request_handler/encryption/ohttp_server_encryptor.h"
 #include "components/internal_server/lookup.h"
 #include "components/internal_server/string_padder.h"
 #include "google/protobuf/message.h"
@@ -66,18 +66,6 @@ void LookupServiceImpl::ProcessKeysetKeys(
   if (key_value_set_result.ok()) {
     response = *std::move(key_value_set_result);
   }
-}
-
-grpc::Status LookupServiceImpl::InternalLookup(
-    grpc::ServerContext* context, const InternalLookupRequest* request,
-    InternalLookupResponse* response) {
-  RequestContext request_context;
-  if (context->IsCancelled()) {
-    return grpc::Status(grpc::StatusCode::CANCELLED,
-                        "Deadline exceeded or client cancelled, abandoning.");
-  }
-  ProcessKeys(request_context, request->keys(), *response);
-  return grpc::Status::OK;
 }
 
 grpc::Status LookupServiceImpl::SecureLookup(
@@ -151,28 +139,6 @@ std::string LookupServiceImpl::GetPayload(
     ProcessKeys(request_context, keys, response);
   }
   return response.SerializeAsString();
-}
-
-grpc::Status LookupServiceImpl::InternalRunQuery(
-    grpc::ServerContext* context, const InternalRunQueryRequest* request,
-    InternalRunQueryResponse* response) {
-  return RunSetQuery<InternalRunQueryRequest, InternalRunQueryResponse>(
-      context, request, response,
-      [this](const RequestContext& request_context, std::string query) {
-        return lookup_.RunQuery(request_context, query);
-      });
-}
-
-grpc::Status LookupServiceImpl::InternalRunSetQueryInt(
-    grpc::ServerContext* context,
-    const kv_server::InternalRunSetQueryIntRequest* request,
-    kv_server::InternalRunSetQueryIntResponse* response) {
-  return RunSetQuery<InternalRunSetQueryIntRequest,
-                     InternalRunSetQueryIntResponse>(
-      context, request, response,
-      [this](const RequestContext& request_context, std::string query) {
-        return lookup_.RunSetQueryInt(request_context, query);
-      });
 }
 
 }  // namespace kv_server

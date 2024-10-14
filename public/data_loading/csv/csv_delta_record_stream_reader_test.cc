@@ -39,10 +39,11 @@ StringSetT GetStringSetValue(const std::vector<std::string_view>& values) {
   return string_set;
 }
 
-UInt32SetT GetUInt32SetValue(const std::vector<uint32_t>& values) {
-  UInt32SetT uint32_set;
-  uint32_set.value = {values.begin(), values.end()};
-  return uint32_set;
+template <typename ElementType, typename UIntSetType>
+UIntSetType GetUIntSetValue(const std::vector<ElementType>& values) {
+  UIntSetType uint_set;
+  uint_set.value = {values.begin(), values.end()};
+  return uint_set;
 }
 
 template <typename ValueT>
@@ -228,8 +229,34 @@ TEST(CsvDeltaRecordStreamReaderTest,
   };
   std::stringstream string_stream;
   CsvDeltaRecordStreamWriter record_writer(string_stream);
-  auto [legacy_mutation, mutation] =
-      GetKVMutationRecord(GetUInt32SetValue(values), values);
+  auto [legacy_mutation, mutation] = GetKVMutationRecord(
+      GetUIntSetValue<uint32_t, UInt32SetT>(values), values);
+  auto input = GetDataRecord(legacy_mutation);
+  auto expected = GetNativeDataRecord(mutation);
+  EXPECT_TRUE(record_writer.WriteRecord(input).ok());
+  EXPECT_TRUE(record_writer.Flush().ok());
+  LOG(INFO) << string_stream.str();
+  CsvDeltaRecordStreamReader record_reader(string_stream);
+  auto status =
+      record_reader.ReadRecords([&expected](const DataRecord& record) {
+        std::unique_ptr<DataRecordT> native_type_record(record.UnPack());
+        EXPECT_EQ(*native_type_record, expected);
+        return absl::OkStatus();
+      });
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(CsvDeltaRecordStreamReaderTest,
+     ValidateReadingAndWriting_KVMutation_UInt64SetValues_Success) {
+  const std::vector<uint64_t> values{
+      18446744073709551613UL,
+      18446744073709551614UL,
+      18446744073709551615UL,
+  };
+  std::stringstream string_stream;
+  CsvDeltaRecordStreamWriter record_writer(string_stream);
+  auto [legacy_mutation, mutation] = GetKVMutationRecord(
+      GetUIntSetValue<uint64_t, UInt64SetT>(values), values);
   auto input = GetDataRecord(legacy_mutation);
   auto expected = GetNativeDataRecord(mutation);
   EXPECT_TRUE(record_writer.WriteRecord(input).ok());

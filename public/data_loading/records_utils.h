@@ -35,7 +35,8 @@ enum class DataRecordType : int {
 
 using KeyValueMutationRecordValueT =
     std::variant<std::monostate, std::string_view,
-                 std::vector<std::string_view>, std::vector<uint32_t>>;
+                 std::vector<std::string_view>, std::vector<uint32_t>,
+                 std::vector<uint64_t>>;
 
 struct KeyValueMutationRecordStruct {
   KeyValueMutationType mutation_type;
@@ -140,6 +141,8 @@ std::vector<std::string_view> GetRecordValue(
     const KeyValueMutationRecord& record);
 template <>
 std::vector<uint32_t> GetRecordValue(const KeyValueMutationRecord& record);
+template <>
+std::vector<uint64_t> GetRecordValue(const KeyValueMutationRecord& record);
 
 // Utility function to get the union record set on the `data_record`. Must
 // be called after checking the type of the union record using

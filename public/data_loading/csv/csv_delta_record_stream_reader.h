@@ -19,7 +19,6 @@
 
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "absl/log/log.h"
 #include "public/data_loading/csv/constants.h"
@@ -116,26 +115,21 @@ riegeli::CsvReaderBase::Options GetRecordReaderOptions(
   riegeli::CsvReaderBase::Options reader_options;
   reader_options.set_field_separator(options.field_separator);
 
-  std::vector<std::string_view> header;
+  riegeli::CsvHeader header;
   switch (options.record_type) {
     case Record::KeyValueMutationRecord:
-      header =
-          std::vector<std::string_view>(kKeyValueMutationRecordHeader.begin(),
-                                        kKeyValueMutationRecordHeader.end());
+      header = *kKeyValueMutationRecordHeader;
       break;
     case Record::UserDefinedFunctionsConfig:
-      header = std::vector<std::string_view>(
-          kUserDefinedFunctionsConfigHeader.begin(),
-          kUserDefinedFunctionsConfigHeader.end());
+      header = *kUserDefinedFunctionsConfigHeader;
       break;
     case Record::ShardMappingRecord:
-      header = std::vector<std::string_view>(kShardMappingRecordHeader.begin(),
-                                             kShardMappingRecordHeader.end());
+      header = *kShardMappingRecordHeader;
       break;
     default:
       LOG(ERROR) << "Unable to set CSV reader header";
   }
-  reader_options.set_required_header(riegeli::CsvHeader(std::move(header)));
+  reader_options.set_required_header(std::move(header));
   return reader_options;
 }
 }  // namespace internal

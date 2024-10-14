@@ -38,6 +38,9 @@ resource "aws_service_discovery_service" "cloud_map_service" {
   health_check_custom_config {
     failure_threshold = 1
   }
+
+  # Ensure all cloud map entries are deleted.
+  force_destroy = true
 }
 
 resource "aws_appmesh_virtual_node" "appmesh_virtual_node" {

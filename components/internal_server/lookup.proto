@@ -21,20 +21,8 @@ import "src/logger/logger.proto";
 
 // Internal Lookup Service API.
 service InternalLookupService {
-  // Endpoint for querying the server's internal datastore. Should only be used
-  // within TEEs.
-  rpc InternalLookup(InternalLookupRequest) returns (InternalLookupResponse) {}
-
   // Endpoint for querying the datastore over the network.
   rpc SecureLookup(SecureLookupRequest) returns (SecureLookupResponse) {}
-
-  // Endpoint for running a query on the server's internal datastore. Should
-  // only be used within TEEs.
-  rpc InternalRunQuery(InternalRunQueryRequest) returns (InternalRunQueryResponse) {}
-
-  // Endpoint for running a set query over unsigned int sets in the server's
-  // internal datastore. Should only be used within TEEs.
-  rpc InternalRunSetQueryInt(InternalRunSetQueryIntRequest) returns (InternalRunSetQueryIntResponse) {}
 }
 
 // Lookup request for internal datastore.
@@ -89,7 +77,8 @@ message SingleLookupResult {
     string value = 1;
     google.rpc.Status status = 2;
     KeysetValues keyset_values = 3;
-    UInt32SetValues uintset_values = 4;
+    UInt32SetValues uint32set_values = 4;
+    UInt64SetValues uint64set_values = 5;
   }
 }
 
@@ -101,6 +90,11 @@ message KeysetValues {
 // UInt32 set values
 message UInt32SetValues {
   repeated uint32 values = 1;
+}
+
+// UInt64 set values
+message UInt64SetValues {
+  repeated uint64 values = 1;
 }
 
 // Run Query request.
@@ -120,7 +114,7 @@ message InternalRunQueryResponse {
 }
 
 // Run Query request.
-message InternalRunSetQueryIntRequest {
+message InternalRunSetQueryUInt32Request {
   // Query to run.
   optional string query = 1;
   // Context useful for logging and tracing requests
@@ -130,6 +124,21 @@ message InternalRunSetQueryIntRequest {
 }
 
 // Response for running a set query using sets of unsigned ints as input.
-message InternalRunSetQueryIntResponse {
+message InternalRunSetQueryUInt32Response {
   repeated uint32 elements = 1;
+}
+
+// Run Query request.
+message InternalRunSetQueryUInt64Request {
+  // Query to run.
+  optional string query = 1;
+  // Context useful for logging and tracing requests
+  privacy_sandbox.server_common.LogContext log_context = 2;
+  // Consented debugging configuration
+  privacy_sandbox.server_common.ConsentedDebugConfiguration consented_debug_config = 3;
+}
+
+// Response for running a set query using sets of unsigned ints as input.
+message InternalRunSetQueryUInt64Response {
+  repeated uint64 elements = 1;
 }

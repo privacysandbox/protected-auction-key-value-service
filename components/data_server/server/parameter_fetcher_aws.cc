@@ -28,6 +28,10 @@ constexpr std::string_view kDataLoadingFileChannelBucketSNSParameterSuffix =
 constexpr std::string_view kDataLoadingRealtimeChannelSNSParameterSuffix =
     "data-loading-realtime-channel-sns-arn";
 
+// SNS ARN for logging verbosity parameter value updates
+constexpr std::string_view kLoggingVerbositySNSParameterSuffix =
+    "logging-verbosity-update-sns-arn";
+
 // Max connections for AWS's blob storage client
 constexpr std::string_view kS3ClientMaxConnectionsParameterSuffix =
     "s3client-max-connections";
@@ -72,6 +76,17 @@ NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
       << " parameter: " << realtime_sns_arn;
   return AwsNotifierMetadata{"QueueNotifier_", std::move(realtime_sns_arn),
                              .num_shards = num_shards, .shard_num = shard_num,
+                             .environment = environment_};
+}
+
+NotifierMetadata
+ParameterFetcher::GetLoggingVerbosityParameterNotifierMetadata() const {
+  std::string sns_arn = GetParameter(kLoggingVerbositySNSParameterSuffix);
+  PS_LOG(INFO, log_context_)
+      << "Retrieved " << kLoggingVerbositySNSParameterSuffix
+      << " parameter: " << sns_arn;
+  return AwsNotifierMetadata{.queue_prefix = "ParameterNotifier_",
+                             .sns_arn = std::move(sns_arn),
                              .environment = environment_};
 }
 

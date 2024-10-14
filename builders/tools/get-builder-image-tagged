@@ -199,7 +199,7 @@ function _tar_for_dir() {
     # shellcheck disable=SC2012
     ls -A -1 "${FILEPATH}" "${ETC_DIR}" | sort | uniq -d
     ls -A -1 "${WORKSPACE}"
-  } | sort | uniq -d)"
+  } | sort | uniq -d | tr '\n' ' ')"
   # create a deterministic tarball of the collected files
   docker run \
     --rm \

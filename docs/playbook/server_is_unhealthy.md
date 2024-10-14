@@ -2,23 +2,88 @@
 
 ## Overview
 
-This alert means that all kv servers (ec2/vm instances) are down and cannot serve traffic.
+This alert means that kv server is unhelathy and cannot fully serve traffic.
 
 If you see this alert, there is a big chance you'll see most, if not all, other alerts firing too.
 
+## Background
+
+AdTechs can define their uptime off the load balancer response codes.
+
+Specifically, they would get a distribution over a period of time K seconds of 2xx's - Y%, which
+AdTechs can map to "up" and the rest to "down".
+
+KV server is a grpc server which returns grpc status codes. Those are mapped to http codes as
+explained
+[here](https://chromium.googlesource.com/external/github.com/grpc/grpc/+/refs/tags/v1.21.4-pre1/doc/statuscodes.md)
+
 ## Recommended alert level
 
-Fire an alert if over 90% of response did not return OK over 5 mins. Probe interval = 300 ms.
+An AdTechs starts the downtime stopwatch once 10% error rate (non-2xx's responses) is hit. An alert
+is fired after 1 minute of 10% error rate (non-2xx's responses). Once the error rate goes down below
+10% the stopwatch is stopped. Once the error rate is below the 10% for 10 continuous seconds, the
+alert auto resolves.
 
 ## Alert Severity
 
 Critical.
 
-The service is down, and is fully unavailable to serve read requests.
+The service is down, and is unavailable to serve read requests.
 
 This condition directly affects the uptime SLO.
 
 ## Verification
+
+### Load balancer
+
+#### GCP
+
+[Load balancers](https://cloud.google.com/load-balancing/docs/https/https-logging-monitoring) come
+with all sorts of monitoring for different response codes, request counts, latency, throughput etc
+with easy ways of setting up alerts.
+
+#### AWS
+
+Similarly, AWS load balancers and target groups provide breakdowns by code and other metrics, on top
+of which alerts can be defined.
+
+### Mesh / Traffic director (internal load balancer)
+
+#### GCP
+
+[Less automated](https://cloud.google.com/traffic-director/docs/control-plane-observability) than
+the external load balancer.
+
+Operator needs to enable cloud logging for the backend service and then have a dashboard that
+monitors the access logs for 500s, and other metrics.
+
+#### AWS
+
+This is being defined atm, but it's probably going to be similar to GCP.
+
+## Shard cluster uptime definition
+
+A shard can be down, but KV still serves requests.
+
+Autoscaling group level alerts can be set up, for example, on the minimum number of available
+healthy machines.
+
+### GCP
+
+Alerts can be defined for instanceGroups. In addition, this resource has good monitoring dashboards
+with different tiles, as well as error logs.
+
+### AWS
+
+Alerts can defined for autoscaling groups. A number of userful tiles for the default dashboard is
+provided. Logs are available to see the actions that are taken by the autoscaling groups to detect
+anomalies.
+
+#### Other signals for uptime
+
+AWS and GCP have vm/ec2 level checks.
+
+#### Checking a specific kv server instance
 
 _Http_
 
@@ -119,9 +184,9 @@ verbosity and analyze the last few entries before the machine crashes.
 A common technique to address this bug is to revert to a previous more stable build.
 
 If you believe that this is a KV server issue, you should escalate using the info from
-[here](index.md)
+[here](index.md).
 
 ## Related Links
 
-[Server initialization](../server_initialization.md) -- provides extra details on the server
+[Server initialization](../server_initialization.md) provides extra details on the server
 initialization lifecycle and how it affects the health check.

@@ -53,6 +53,11 @@ void RegisterRequiredTelemetryExpectations(MockParameterClient& client) {
   EXPECT_CALL(client, GetInt32Parameter(
                           "kv-server-environment-backup-poll-frequency-secs"))
       .WillOnce(::testing::Return(123));
+  EXPECT_CALL(
+      client,
+      GetInt32Parameter(
+          "kv-server-environment-logging-verbosity-backup-poll-frequency-secs"))
+      .WillOnce(::testing::Return(300));
   EXPECT_CALL(client,
               GetBoolParameter("kv-server-environment-enable-otel-logger"))
       .WillOnce(::testing::Return(false));
@@ -146,7 +151,8 @@ TEST_F(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   EXPECT_CALL(
       *parameter_client,
       GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
-      .WillOnce(::testing::Return(0));
+      .Times(3)
+      .WillRepeatedly(::testing::Return(0));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
@@ -159,6 +165,7 @@ TEST_F(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
                   std::move(mock_udf_client));
+  server.ForceShutdown();
   EXPECT_FALSE(status.ok());
 }
 
@@ -219,7 +226,8 @@ TEST_F(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   EXPECT_CALL(
       *parameter_client,
       GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
-      .WillOnce(::testing::Return(0));
+      .Times(3)
+      .WillRepeatedly(::testing::Return(0));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));
@@ -235,6 +243,7 @@ TEST_F(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
                   std::move(mock_udf_client));
+  server.ForceShutdown();
   EXPECT_TRUE(status.ok());
 }
 
@@ -253,7 +262,8 @@ TEST_F(ServerLocalTest, GracefulServerShutdown) {
   EXPECT_CALL(
       *parameter_client,
       GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
-      .WillOnce(::testing::Return(0));
+      .Times(3)
+      .WillRepeatedly(::testing::Return(0));
   EXPECT_CALL(*parameter_client, GetParameter("kv-server-environment-directory",
                                               testing::Eq(std::nullopt)))
       .WillOnce(::testing::Return(::testing::TempDir()));
@@ -373,7 +383,8 @@ TEST_F(ServerLocalTest, ForceServerShutdown) {
   EXPECT_CALL(
       *parameter_client,
       GetInt32Parameter("kv-server-environment-logging-verbosity-level"))
-      .WillOnce(::testing::Return(0));
+      .Times(3)
+      .WillRepeatedly(::testing::Return(0));
   EXPECT_CALL(*parameter_client,
               GetBoolParameter("kv-server-environment-use-sharding-key-regex"))
       .WillOnce(::testing::Return(false));

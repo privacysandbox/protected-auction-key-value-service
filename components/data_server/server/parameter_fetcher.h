@@ -62,13 +62,15 @@ class ParameterFetcher {
 
   virtual NotifierMetadata GetRealtimeNotifierMetadata(int32_t num_shards,
                                                        int32_t shard_num) const;
+  virtual NotifierMetadata GetLoggingVerbosityParameterNotifierMetadata() const;
+  virtual bool ShouldAddChaffCalloutsToShardCluster() const;
+
+  std::string GetParamName(std::string_view parameter_suffix) const;
 
  protected:
   privacy_sandbox::server_common::log::PSLogContext& log_context_;
 
  private:
-  std::string GetParamName(std::string_view parameter_suffix) const;
-
   const std::string environment_;
   const ParameterClient& parameter_client_;
   absl::AnyInvocable<void(const absl::Status& status, int count) const>

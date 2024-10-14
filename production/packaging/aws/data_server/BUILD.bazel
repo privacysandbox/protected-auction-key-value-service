@@ -13,7 +13,7 @@
 # limitations under the License.
 
 load("@container_structure_test//:defs.bzl", "container_structure_test")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_tarball")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load(
     "@rules_pkg//pkg:mappings.bzl",
     "pkg_attributes",
@@ -63,8 +63,8 @@ pkg_tar(
 oci_image(
     name = "server_docker_image",
     base = select({
-        "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64//image",
-        "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64//image",
+        "@platforms//cpu:arm64": "@runtime-debian-debug-nonroot-arm64",
+        "@platforms//cpu:x86_64": "@runtime-debian-debug-nonroot-amd64",
     }),
     entrypoint = [
         "/init_server_basic",
@@ -75,21 +75,27 @@ oci_image(
         "--port=50051",
         # These affect PCR0, so changing these would result in the loss of ability to communicate with
         # the downstream components
-        "--public_key_endpoint=https://publickeyservice.pa-3.aws.privacysandboxservices.com/v1alpha/publicKeys",
+        "--public_key_endpoint=https://publickeyservice.pa.aws.privacysandboxservices.com/.well-known/protected-auction/v1/public-keys",
         "--stderrthreshold=0",
     ],
     tars = [
         "@google_privacysandbox_servers_common//src/aws/proxy:libnsm_and_proxify_tar",
         "@google_privacysandbox_servers_common//src/cpio/client_providers/kms_client_provider/aws:kms_binaries",
-        "//production/packaging/aws/resolv:resolv_config_layer",
+        "//production/packaging/aws/resolv:resolv_config_tar",
         ":server_binaries_tar",
     ],
 )
 
-oci_tarball(
+oci_load(
     name = "server_docker_tarball",
     image = ":server_docker_image",
     repo_tags = ["bazel/production/packaging/aws/data_server:server_docker_image"],
+)
+
+filegroup(
+    name = "server_docker_tarball.tar",
+    srcs = [":server_docker_tarball"],
+    output_group = "tarball",
 )
 
 container_structure_test(
@@ -97,7 +103,7 @@ container_structure_test(
     size = "medium",
     configs = ["test/structure.yaml"],
     driver = "tar",
-    image = ":server_docker_tarball",
+    image = ":server_docker_tarball.tar",
 )
 
 container_structure_test(
@@ -118,14 +124,14 @@ genrule(
     name = "copy_to_dist",
     srcs = [
         ":server_artifacts",
-        ":server_docker_tarball",
+        ":server_docker_tarball.tar",
         "//public/query:query_api_descriptor_set",
     ],
     outs = ["copy_to_dist.bin"],
     cmd_bash = """cat << EOF > '$@'
 mkdir -p dist/debian
 cp $(execpath :server_artifacts) dist/debian
-cp $(execpath :server_docker_tarball) dist/server_docker_image.tar
+cp $(execpath :server_docker_tarball.tar) dist/server_docker_image.tar
 cp $(execpath //public/query:query_api_descriptor_set) dist
 # retain previous server_docker_image.tar location as a symlink
 ln -rsf dist/server_docker_image.tar dist/debian/server_docker_image.tar

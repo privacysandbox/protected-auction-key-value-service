@@ -25,14 +25,13 @@
 #include "benchmark/benchmark.h"
 #include "components/data_server/cache/cache.h"
 #include "components/data_server/cache/key_value_cache.h"
+#include "components/data_server/cache/uint_value_set.h"
 #include "components/query/ast.h"
 #include "components/query/driver.h"
 #include "components/query/scanner.h"
 #include "components/query/sets.h"
 #include "components/tools/benchmarks/benchmark_util.h"
 #include "components/tools/util/configure_telemetry_tools.h"
-
-#include "roaring.hh"
 
 ABSL_FLAG(int64_t, set_size, 1000, "Number of elements in a set.");
 ABSL_FLAG(std::string, query, "(A - B) | (C & D)", "Query to evaluate");
@@ -45,11 +44,13 @@ ABSL_FLAG(std::vector<std::string>, set_names,
 namespace kv_server {
 namespace {
 
-using RoaringBitSet = roaring::Roaring;
+using UInt32Set = UInt32ValueSet::bitset_type;
+using UInt64Set = UInt64ValueSet::bitset_type;
 using StringSet = absl::flat_hash_set<std::string_view>;
 
 std::unique_ptr<GetKeyValueSetResult> STRING_SET_RESULT = nullptr;
 std::unique_ptr<GetKeyValueSetResult> UINT32_SET_RESULT = nullptr;
+std::unique_ptr<GetKeyValueSetResult> UINT64_SET_RESULT = nullptr;
 
 template <typename ValueT>
 ValueT Lookup(std::string_view);
@@ -60,8 +61,13 @@ StringSet Lookup(std::string_view key) {
 }
 
 template <>
-RoaringBitSet Lookup(std::string_view key) {
+UInt32Set Lookup(std::string_view key) {
   return UINT32_SET_RESULT->GetUInt32ValueSet(key)->GetValuesBitSet();
+}
+
+template <>
+UInt64Set Lookup(std::string_view key) {
+  return UINT64_SET_RESULT->GetUInt64ValueSet(key)->GetValuesBitSet();
 }
 
 Driver* GetDriver() {
@@ -87,7 +93,11 @@ void SetUpKeyValueCache(int64_t set_size, uint32_t range_min,
     }
     GetKeyValueCache()->UpdateKeyValueSet(log_context, set_name,
                                           absl::MakeSpan(nums), 1);
-
+    auto nums64 = std::vector<uint64_t>();
+    std::transform(nums.begin(), nums.end(), std::back_inserter(nums64),
+                   [](auto elem) { return elem; });
+    GetKeyValueCache()->UpdateKeyValueSet(log_context, set_name,
+                                          absl::MakeSpan(nums64), 1);
     auto strings = std::vector<std::string>();
     std::transform(nums.begin(), nums.end(), std::back_inserter(strings),
                    [](uint32_t elem) { return absl::StrCat(elem); });
@@ -150,28 +160,32 @@ void BM_AstTreeEvaluation(::benchmark::State& state) {
 }  // namespace
 }  // namespace kv_server
 
-BENCHMARK(kv_server::BM_SetUnion<kv_server::RoaringBitSet>);
+BENCHMARK(kv_server::BM_SetUnion<kv_server::UInt32Set>);
+BENCHMARK(kv_server::BM_SetUnion<kv_server::UInt64Set>);
 BENCHMARK(kv_server::BM_SetUnion<kv_server::StringSet>);
-BENCHMARK(kv_server::BM_SetDifference<kv_server::RoaringBitSet>);
+BENCHMARK(kv_server::BM_SetDifference<kv_server::UInt32Set>);
+BENCHMARK(kv_server::BM_SetDifference<kv_server::UInt64Set>);
 BENCHMARK(kv_server::BM_SetDifference<kv_server::StringSet>);
-BENCHMARK(kv_server::BM_SetIntersection<kv_server::RoaringBitSet>);
+BENCHMARK(kv_server::BM_SetIntersection<kv_server::UInt32Set>);
+BENCHMARK(kv_server::BM_SetIntersection<kv_server::UInt64Set>);
 BENCHMARK(kv_server::BM_SetIntersection<kv_server::StringSet>);
-BENCHMARK(kv_server::BM_AstTreeEvaluation<kv_server::RoaringBitSet>);
+BENCHMARK(kv_server::BM_AstTreeEvaluation<kv_server::UInt32Set>);
+BENCHMARK(kv_server::BM_AstTreeEvaluation<kv_server::UInt64Set>);
 BENCHMARK(kv_server::BM_AstTreeEvaluation<kv_server::StringSet>);
 
 using kv_server::ConfigureTelemetryForTools;
 using kv_server::GetKeyValueCache;
 using kv_server::RequestContext;
-using kv_server::RoaringBitSet;
 using kv_server::SetUpKeyValueCache;
 using kv_server::StringSet;
+using kv_server::UInt32Set;
 
 // Sample run:
 //
 // bazel run -c opt //components/tools/benchmarks:query_evaluation_benchmark \
 // -- --benchmark_counters_tabular=true \
 //    --benchmark_time_unit=us \
-//    --benchmark_filter="*" \
+//    --benchmark_filter="." \
 //    --range_min=1000000 --range_max=2000000 \
 //    --set_size=10000 \
 //    --query="A & B - C | D" \
@@ -198,6 +212,9 @@ int main(int argc, char** argv) {
       request_context, absl::flat_hash_set<std::string_view>(set_names.begin(),
                                                              set_names.end()));
   kv_server::UINT32_SET_RESULT = GetKeyValueCache()->GetUInt32ValueSet(
+      request_context, absl::flat_hash_set<std::string_view>(set_names.begin(),
+                                                             set_names.end()));
+  kv_server::UINT64_SET_RESULT = GetKeyValueCache()->GetUInt64ValueSet(
       request_context, absl::flat_hash_set<std::string_view>(set_names.begin(),
                                                              set_names.end()));
   std::istringstream stream(absl::GetFlag(FLAGS_query));

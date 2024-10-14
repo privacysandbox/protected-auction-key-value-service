@@ -26,19 +26,20 @@
 
 namespace kv_server {
 
-// Logging function to register with Roma.
-inline void LoggingFunction(absl::LogSeverity severity,
-                            const std::weak_ptr<RequestContext>& context,
-                            std::string_view msg) {
-  std::shared_ptr<RequestContext> request_context = context.lock();
+// UDF hook for logging a string.
+// TODO(b/285331079): Disable for production builds.
+inline void LogMessage(
+    google::scp::roma::FunctionBindingPayload<std::weak_ptr<RequestContext>>&
+        payload) {
+  std::shared_ptr<RequestContext> request_context = payload.metadata.lock();
   if (request_context == nullptr) {
     PS_VLOG(1) << "Request context is not available, the request might "
                   "have been marked as complete";
     return;
   }
-  PS_VLOG(9, request_context->GetPSLogContext()) << "Called logging hook";
-  privacy_sandbox::server_common::log::LogWithPSLog(
-      severity, request_context->GetPSLogContext(), msg);
+  PS_VLOG(10, request_context->GetPSLogContext()) << "Called logging hook";
+  PS_LOG(INFO, request_context->GetPSLogContext())
+      << payload.io_proto.input_string();
 }
 
 }  // namespace kv_server

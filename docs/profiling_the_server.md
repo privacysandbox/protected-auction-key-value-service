@@ -33,7 +33,7 @@ After the build completes successfully, the generated docker image tar is locate
 docker image using the following command:
 
 ```bash
-docker load -i bazel-bin/production/packaging/local/data_server/server_profiling_docker_image.tar
+docker load -i bazel-bin/production/packaging/local/data_server/server_profiling_docker_tarball/tarball.tar
 ```
 
 # Some things to callout
@@ -58,7 +58,7 @@ docker run \
     --security-opt=seccomp=unconfined \
     --privileged=true \
     --cpus=4 \
-    --entrypoint=/server \
+    --entrypoint=/server/bin/init_server_with_profiler \
     bazel/production/packaging/local/data_server:server_profiling_docker_image \
     --port 50051 -delta_directory=/data --realtime_directory=/data/realtime \
     --stderrthreshold=0
@@ -85,7 +85,7 @@ docker run -it --rm \
     --cpus=4 \
     --entrypoint=pprof \
     bazel/production/packaging/local/data_server:server_profiling_docker_image \
-    --http=":" /server /data/profiles/server.cpu.prof.0
+    --http=":" /server/bin/server /data/profiles/server.cpu.prof.0
 ```
 
 This should open an interactive `pprof` web app showing the CPU profile information. The image below
@@ -111,7 +111,7 @@ docker run \
     --security-opt=seccomp=unconfined \
     --privileged=true \
     --cpus=4 \
-    --entrypoint=/server \
+    --entrypoint=/server/bin/init_server_with_profiler\
     bazel/production/packaging/local/data_server:server_profiling_docker_image \
     --port 50051 -delta_directory=/data --realtime_directory=/data/realtime \
     --stderrthreshold=0
@@ -138,7 +138,7 @@ docker run -it --rm \
     --cpus=4 \
     --entrypoint=pprof \
     bazel/production/packaging/local/data_server:server_profiling_docker_image \
-    --http=":" /server /data/profiles/server.heap.hprof.0001.heap
+    --http=":" /server/bin/server /data/profiles/server.heap.hprof.0001.heap
 ```
 
 This should open an interactive `pprof` web app showing the heap profile information. The image
@@ -190,7 +190,7 @@ docker run \
     --security-opt=seccomp=unconfined \
     --privileged=true \
     --cpus=4 \
-    --entrypoint=/server \
+    --entrypoint=/server/bin/server \
     bazel/production/packaging/local/data_server:server_profiling_docker_image \
     --port 50051 -delta_directory=/data --realtime_directory=/data/realtime \
     --stderrthreshold=0

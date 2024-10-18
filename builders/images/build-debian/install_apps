@@ -68,13 +68,15 @@ function install_misc() {
     bsdmainutils \
     ca-certificates \
     chrpath="0.16-*" \
-    libcurl4="7.68.*" \
     curl="7.68.*" \
     file="1:5.*" \
+    gawk="1:5.*" \
     gettext="0.19.*" \
     git="1:2.25.*" \
     gnupg="2.2.*" \
     google-perftools="2.*" \
+    jq="1.6-*" \
+    libcurl4="7.68.*" \
     locales="2.31-*" \
     lsb-release="11.1.*" \
     openssh-client="1:8.2*" \
@@ -85,6 +87,7 @@ function install_misc() {
     wget="1.20.*" \
     xz-utils="5.2.*" \
     zip="3.0-*"
+
   if [[ -n ${INSTALL_LOCALE} ]]; then
     printf "\nSetting locale to: %s\n" "${INSTALL_LOCALE}"
     locale-gen "${INSTALL_LOCALE}"

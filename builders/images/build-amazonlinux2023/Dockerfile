@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM amazonlinux:2023.5.20240722.0
+FROM amazonlinux:2023.5.20241001.1
 
 COPY /install_apps install_golang_apps install_go.sh generate_system_bazelrc .bazelversion /scripts/
 COPY get_workspace_mount /usr/local/bin

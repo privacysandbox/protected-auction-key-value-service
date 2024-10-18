@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG BASE_IMAGE=ubuntu:focal-20240530
+# Use fixed manifest digest to ensure reproducible.
+# https://hub.docker.com/layers/library/ubuntu/focal-20240530/images/sha256-85c08a37b74bc18a7b3f8cf89aabdfac51c525cdbc193a753f7907965e310ec2
+# ubuntu v20.04, focal-20240530
+ARG BASE_IMAGE=ubuntu@sha256:fa17826afb526a9fc7250e0fbcbfd18d03fe7a54849472f86879d8bf562c629e
 
 # ignore this hadolint error as BASE_IMAGE contains an image tag
 # hadolint ignore=DL3006

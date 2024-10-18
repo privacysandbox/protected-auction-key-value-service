@@ -82,8 +82,8 @@ function install_docker() {
 function install_precommit() {
   /usr/bin/python3.12 -m venv "${PRE_COMMIT_VENV_DIR}"
   "${PRE_COMMIT_VENV_DIR}"/bin/pip install \
-    pre-commit~=3.7 \
-    pylint~=3.1.0
+    pre-commit~=4.0 \
+    pylint~=3.1
   "${PRE_COMMIT_TOOL}" --version
 
   # initialize pre-commit cache, which needs a git repo (a temporary will suffice)

@@ -38,7 +38,7 @@ sudo chmod 555 /opt/privacysandbox/health.proto
 sudo dnf update -y
 sudo dnf install -y docker
 sudo dnf localinstall -y /home/ec2-user/aws-otel-collector.rpm
-sudo dnf install aws-nitro-enclaves-cli -y
+sudo dnf install aws-nitro-enclaves-cli-1.3.3 -y
 
 sudo usermod -a -G docker ec2-user
 sudo usermod -a -G ne ec2-user

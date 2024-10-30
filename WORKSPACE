@@ -168,27 +168,3 @@ load("@pybind11_bazel//:python_configure.bzl", "python_configure")
 python_configure(
     name = "local_config_python",
 )
-
-http_archive(
-    name = "io_bazel_rules_webtesting",
-    sha256 = "f1f4d2c2f88d2beac64c82499a1e762b037966675dd892da89c87e39d72b33f6",
-    urls = [
-        "https://github.com/bazelbuild/rules_webtesting/releases/download/0.3.4/rules_webtesting.tar.gz",
-    ],
-)
-
-load("@io_bazel_rules_webtesting//web:repositories.bzl", "web_test_repositories")
-
-web_test_repositories()
-
-load("//google_internal/kv_chrome_e2e:BROWSER.bzl", "browser_repositories")
-
-browser_repositories()
-
-load("@io_bazel_rules_webtesting//web:py_repositories.bzl", "py_repositories")
-
-py_repositories()
-
-load("@io_bazel_rules_webtesting//web:go_repositories.bzl", "com_github_gorilla_mux")
-
-com_github_gorilla_mux()

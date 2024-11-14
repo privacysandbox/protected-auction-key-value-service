@@ -46,6 +46,11 @@ absl::StatusOr<std::string> JsonV2EncoderDecoder::EncodePartitionOutputs(
           << "json parse failed for " << partition_output_pair.second;
       continue;
     }
+    if (!partition_output_json.is_object()) {
+      PS_VLOG(2, request_context_factory.Get().GetPSLogContext())
+          << "json parse returned a non object" << partition_output_pair.second;
+      continue;
+    }
     partition_output_json["id"] = partition_output_pair.first;
     json_partition_output_list.emplace_back(partition_output_json);
   }

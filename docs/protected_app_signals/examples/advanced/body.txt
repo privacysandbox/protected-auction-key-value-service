@@ -1,4 +1,8 @@
 '{
+   "metadata":
+   {
+      "is_pas": "true"
+   },
    "partitions":[
       {
         "id":0,

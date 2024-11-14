@@ -87,6 +87,7 @@ Build the local server:
 Run the local server:
 
 ```sh
+  mkdir /tmp/realtime
   ./bazel-bin/components/data_server/server/server \
   --delta_directory=/tmp/deltas \
   --realtime_directory=/tmp/realtime --stderrthreshold=0

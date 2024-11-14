@@ -218,7 +218,7 @@ TEST(JsonEncoderTest,
      EncodePartitionOutputsNonJsonObjectReturnedByUdfDoesntCrashServer) {
   InitMetricsContextMap();
   std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {
-      {1, "non_json_string"}};
+      {1, "\"json_string_not_object\""}};
   auto request_context_factory = std::make_unique<RequestContextFactory>();
   JsonV2EncoderDecoder encoder;
   const auto maybe_json_content = encoder.EncodePartitionOutputs(

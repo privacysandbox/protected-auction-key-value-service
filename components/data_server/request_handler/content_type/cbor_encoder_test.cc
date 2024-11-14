@@ -227,6 +227,18 @@ TEST(CborEncoderTest, EncodePartitionOutputsAllInvalidPartitionOutputFails) {
   ASSERT_FALSE(maybe_cbor_content.ok()) << maybe_cbor_content.status();
 }
 
+TEST(CborEncoderTest,
+     EncodePartitionOutputsNonJsonObjectReturnedByUdfDoesntCrashServer) {
+  InitMetricsContextMap();
+  std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {
+      {1, "\"json_string_not_object\""}};
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  CborV2EncoderDecoder encoder;
+  const auto maybe_cbor_content = encoder.EncodePartitionOutputs(
+      partition_output_pairs, *request_context_factory);
+  ASSERT_FALSE(maybe_cbor_content.ok()) << maybe_cbor_content.status();
+}
+
 TEST(CborEncoderTest, DecodeToV2GetValuesRequestProtoEmptyStringSuccess) {
   std::string request = "";
   CborV2EncoderDecoder encoder;

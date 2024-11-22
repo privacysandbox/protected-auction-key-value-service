@@ -83,6 +83,7 @@ cc_library(
     ],
     deps = [
         ":code_config",
+        "//components/udf/hooks:custom_metric_hook",
         "//components/udf/hooks:get_values_hook",
         "//components/udf/hooks:logging_hook",
         "//components/udf/hooks:run_query_hook",

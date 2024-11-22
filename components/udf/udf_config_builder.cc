@@ -21,9 +21,11 @@
 #include <utility>
 #include <vector>
 
+#include "components/udf/hooks/custom_metric_hook.h"
 #include "components/udf/hooks/get_values_hook.h"
 #include "components/udf/hooks/logging_hook.h"
 #include "components/udf/hooks/run_query_hook.h"
+#include "hooks/custom_metric_hook.h"
 #include "src/roma/config/config.h"
 #include "src/roma/config/function_binding_object_v2.h"
 #include "src/roma/interface/roma.h"
@@ -41,6 +43,7 @@ constexpr char kRunQueryHookJsName[] = "runQuery";
 constexpr char kRunSetQueryUInt32HookJsName[] = "runSetQueryUInt32";
 constexpr char kRunSetQueryUInt64HookJsName[] = "runSetQueryUInt64";
 constexpr char kLoggingHookJsName[] = "logMessage";
+constexpr char kLogCustomMetricFunctionName[] = "logCustomMetric";
 
 std::unique_ptr<FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>
 GetValuesFunctionObject(GetValuesHook& get_values_hook,
@@ -120,6 +123,15 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterLoggingHook() {
   logging_function_object->function_name = kLoggingHookJsName;
   logging_function_object->function = LogMessage;
   config_.RegisterFunctionBinding(std::move(logging_function_object));
+  return *this;
+}
+
+UdfConfigBuilder& UdfConfigBuilder::RegisterCustomMetricHook() {
+  auto custom_metric_function_object = std::make_unique<
+      FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>();
+  custom_metric_function_object->function_name = kLogCustomMetricFunctionName;
+  custom_metric_function_object->function = LogCustomMetric;
+  config_.RegisterFunctionBinding(std::move(custom_metric_function_object));
   return *this;
 }
 

@@ -671,6 +671,9 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kShardedLookupGetUInt32ValueSetLatencyInMicros,
         &kShardedLookupGetUInt64ValueSetLatencyInMicros,
         &kShardedLookupRunSetQueryUInt64LatencyInMicros,
+        &privacy_sandbox::server_common::metrics::kCustom1,
+        &privacy_sandbox::server_common::metrics::kCustom2,
+        &privacy_sandbox::server_common::metrics::kCustom3,
         // Safe metrics
         &kKVServerError,
         &privacy_sandbox::server_common::metrics::kTotalRequestCount,

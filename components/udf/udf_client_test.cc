@@ -62,11 +62,45 @@ class UdfClientTest : public ::testing::Test {
   UdfClientTest() {
     privacy_sandbox::server_common::log::ServerToken(
         kExampleConsentedDebugToken);
-    InitMetricsContextMap();
+    const std::string telemetry_config_str = R"pb(
+      mode: PROD
+      custom_metric {
+        name: "m_1"
+        description: "log metric 1"
+        lower_bound: 1
+        upper_bound: 10
+      }
+      custom_metric {
+        name: "m_2"
+        description: "log metric 2"
+        lower_bound: 1
+        upper_bound: 100
+      }
+    )pb";
+    privacy_sandbox::server_common::telemetry::TelemetryConfig config_proto;
+    TextFormat::ParseFromString(telemetry_config_str, &config_proto);
+    kv_server::KVServerContextMap(
+        std::make_unique<
+            privacy_sandbox::server_common::telemetry::BuildDependentConfig>(
+            config_proto));
+    kv_server::InternalLookupServerContextMap(
+        std::make_unique<
+            privacy_sandbox::server_common::telemetry::BuildDependentConfig>(
+            config_proto));
     request_context_factory_ = std::make_unique<RequestContextFactory>(
         privacy_sandbox::server_common::LogContext(),
         privacy_sandbox::server_common::ConsentedDebugConfiguration());
+    auto* logger_provider =
+        opentelemetry::sdk::logs::LoggerProviderFactory::Create(
+            opentelemetry::sdk::logs::SimpleLogRecordProcessorFactory::Create(
+                std::make_unique<
+                    opentelemetry::exporter::logs::OStreamLogRecordExporter>(
+                    consented_log_output_)))
+            .release();
+    privacy_sandbox::server_common::log::logger_private =
+        logger_provider->GetLogger("test").get();
   }
+  std::stringstream consented_log_output_;
   std::unique_ptr<RequestContextFactory> request_context_factory_;
   ExecutionMetadata execution_metadata_;
 };
@@ -493,17 +527,6 @@ TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
 }
 
 TEST_F(UdfClientTest, JsCallsLogMessageConsentedSucceeds) {
-  std::stringstream log_ss;
-  auto* logger_provider =
-      opentelemetry::sdk::logs::LoggerProviderFactory::Create(
-          opentelemetry::sdk::logs::SimpleLogRecordProcessorFactory::Create(
-              std::make_unique<
-                  opentelemetry::exporter::logs::OStreamLogRecordExporter>(
-                  log_ss)))
-          .release();
-  privacy_sandbox::server_common::log::logger_private =
-      logger_provider->GetLogger("test").get();
-
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
       UdfClient::Create(std::move(
@@ -533,7 +556,7 @@ TEST_F(UdfClientTest, JsCallsLogMessageConsentedSucceeds) {
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
-  auto output_log = log_ss.str();
+  auto output_log = consented_log_output_.str();
   EXPECT_THAT(output_log, ContainsRegex("first message"));
 
   absl::Status stop = udf_client.value()->Stop();
@@ -541,16 +564,6 @@ TEST_F(UdfClientTest, JsCallsLogMessageConsentedSucceeds) {
 }
 
 TEST_F(UdfClientTest, JsCallsLoggingFunctionNoLogForNonConsentedRequests) {
-  std::stringstream log_ss;
-  auto* logger_provider =
-      opentelemetry::sdk::logs::LoggerProviderFactory::Create(
-          opentelemetry::sdk::logs::SimpleLogRecordProcessorFactory::Create(
-              std::make_unique<
-                  opentelemetry::exporter::logs::OStreamLogRecordExporter>(
-                  log_ss)))
-          .release();
-  privacy_sandbox::server_common::log::logger_private =
-      logger_provider->GetLogger("test").get();
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
       UdfClient::Create(std::move(
@@ -580,7 +593,7 @@ TEST_F(UdfClientTest, JsCallsLoggingFunctionNoLogForNonConsentedRequests) {
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
   EXPECT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
-  auto output_log = log_ss.str();
+  auto output_log = consented_log_output_.str();
   EXPECT_TRUE(output_log.empty());
   absl::Status stop = udf_client.value()->Stop();
   EXPECT_TRUE(stop.ok());
@@ -926,6 +939,169 @@ TEST_F(UdfClientTest, VerifyJsRunSetQueryUInt64HookSucceeds) {
   EXPECT_EQ(*result, "[\"18446744073709551614\",\"18446744073709551615\"]");
   absl::Status stop = udf_client.value()->Stop();
   EXPECT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, JsCallsLogCustomMetricSuccess) {
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
+      UdfClient::Create(std::move(config_builder.RegisterLoggingHook()
+                                      .RegisterCustomMetricHook()
+                                      .SetNumberOfWorkers(1)
+                                      .Config()));
+  EXPECT_TRUE(udf_client.ok());
+
+  // The metric name will need to match the name defined for custom metric in
+  // the telemetry config proto
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(input) {
+          let keys = input.keys;
+          let keyCount = 0;
+          for (const key of keys) {
+            ++keyCount;
+          };
+          let logMetricRequest1 = {
+            name: 'm_1',
+            value: keyCount,
+          };
+          let logMetricRequest2 = {
+            name: 'm_2',
+            value: 5,
+          };
+          let jsonBatchLogMetrics = {
+            udf_metric: [logMetricRequest1, logMetricRequest2],
+          };
+          const batchMetricsString = JSON.stringify(jsonBatchLogMetrics);
+          const output = logCustomMetric(batchMetricsString);
+          logMessage(output);
+          return "";
+        }
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  // Turn on consented logging to execute the logging callback to capture
+  // custom metrics logging outcome.
+  privacy_sandbox::server_common::ConsentedDebugConfiguration
+      consented_debug_configuration;
+  consented_debug_configuration.set_is_consented(true);
+  consented_debug_configuration.set_token(kExampleConsentedDebugToken);
+  privacy_sandbox::server_common::LogContext log_context;
+  request_context_factory_->UpdateLogContext(log_context,
+                                             consented_debug_configuration);
+  EXPECT_TRUE(code_obj_status.ok());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"("")");
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+  auto metrics_logging_outcome = consented_log_output_.str();
+  EXPECT_THAT(metrics_logging_outcome, ContainsRegex("Log metrics success"));
+}
+
+TEST_F(UdfClientTest, JsCallsLogCustomMetricJsonParseError) {
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
+      UdfClient::Create(std::move(config_builder.RegisterLoggingHook()
+                                      .RegisterCustomMetricHook()
+                                      .SetNumberOfWorkers(1)
+                                      .Config()));
+  EXPECT_TRUE(udf_client.ok());
+
+  // The metric name will need to match the name defined for custom metric in
+  // the telemetry config proto
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(input) {
+          let logMetricRequest1 = {
+            name: 'm_2',
+            value: 5,
+          };
+          let jsonBatchLogMetrics = {
+            wrong_field_name: [logMetricRequest1],
+          };
+          const batchMetricsString = JSON.stringify(jsonBatchLogMetrics);
+          const output = logCustomMetric(batchMetricsString);
+          logMessage(output);
+          return "";
+        }
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  // Turn on consented logging to execute the logging callback to capture
+  // custom metrics logging outcome.
+  privacy_sandbox::server_common::ConsentedDebugConfiguration
+      consented_debug_configuration;
+  consented_debug_configuration.set_is_consented(true);
+  consented_debug_configuration.set_token(kExampleConsentedDebugToken);
+  privacy_sandbox::server_common::LogContext log_context;
+  request_context_factory_->UpdateLogContext(log_context,
+                                             consented_debug_configuration);
+  EXPECT_TRUE(code_obj_status.ok());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"("")");
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+  auto metrics_logging_outcome = consented_log_output_.str();
+  EXPECT_THAT(metrics_logging_outcome,
+              ContainsRegex("Failed to parse metrics in Json string"));
+}
+
+TEST_F(UdfClientTest, JsCallsLogCustomMetricFailedToLogError) {
+  UdfConfigBuilder config_builder;
+  absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
+      UdfClient::Create(std::move(config_builder.RegisterLoggingHook()
+                                      .RegisterCustomMetricHook()
+                                      .SetNumberOfWorkers(1)
+                                      .Config()));
+  EXPECT_TRUE(udf_client.ok());
+
+  // The metric name will need to match the name defined for custom metric in
+  // the telemetry config proto
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = R"(
+        function hello(input) {
+          let logMetricRequest1 = {
+            name: 'not_configured_metric_name',
+            value: 5,
+          };
+          let jsonBatchLogMetrics = {
+            udf_metric: [logMetricRequest1],
+          };
+          const batchMetricsString = JSON.stringify(jsonBatchLogMetrics);
+          const output = logCustomMetric(batchMetricsString);
+          logMessage(output);
+          return "";
+        }
+      )",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  // Turn on consented logging to execute the logging callback to capture
+  // custom metrics logging outcome.
+  privacy_sandbox::server_common::ConsentedDebugConfiguration
+      consented_debug_configuration;
+  consented_debug_configuration.set_is_consented(true);
+  consented_debug_configuration.set_token(kExampleConsentedDebugToken);
+  privacy_sandbox::server_common::LogContext log_context;
+  request_context_factory_->UpdateLogContext(log_context,
+                                             consented_debug_configuration);
+  EXPECT_TRUE(code_obj_status.ok());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
+  EXPECT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"("")");
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+  auto metrics_logging_outcome = consented_log_output_.str();
+  EXPECT_THAT(metrics_logging_outcome, ContainsRegex("Failed to log metrics"));
 }
 
 }  // namespace

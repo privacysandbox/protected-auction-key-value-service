@@ -38,6 +38,8 @@ class UdfConfigBuilder {
 
   UdfConfigBuilder& RegisterLoggingHook();
 
+  UdfConfigBuilder& RegisterCustomMetricHook();
+
   UdfConfigBuilder& SetNumberOfWorkers(int number_of_workers);
 
   google::scp::roma::Config<std::weak_ptr<RequestContext>>& Config();

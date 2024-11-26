@@ -14,6 +14,7 @@
 
 #include "components/data/converters/cbor_converter.h"
 
+#include <utility>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -543,6 +544,20 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeKeyValueMapOrderSuccess) {
   ASSERT_TRUE(cbor_encoded_proto_maybe.ok())
       << cbor_encoded_proto_maybe.status();
   EXPECT_EQ(json_etalon, ordered_json::from_cbor(*cbor_encoded_proto_maybe));
+}
+
+TEST(SortKeysByLengthThenLexicographicOrderTest, SortSuccess) {
+  std::vector<std::pair<std::string, cbor_pair>> kv_vector;
+  struct cbor_pair unused_cbor_pair;
+  kv_vector.emplace_back("ab", unused_cbor_pair);
+  kv_vector.emplace_back("a", unused_cbor_pair);
+  kv_vector.emplace_back("aa", unused_cbor_pair);
+  kv_vector.emplace_back("1a", unused_cbor_pair);
+  SortKeysByLengthThenLexicographicOrder(kv_vector);
+  EXPECT_EQ(kv_vector[0].first, "a");
+  EXPECT_EQ(kv_vector[1].first, "1a");
+  EXPECT_EQ(kv_vector[2].first, "aa");
+  EXPECT_EQ(kv_vector[3].first, "ab");
 }
 
 }  // namespace

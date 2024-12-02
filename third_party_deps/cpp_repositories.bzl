@@ -23,34 +23,36 @@ def cpp_repositories():
         repo_mapping = {
             "@org_brotli": "@brotli",
         },
-        sha256 = "0aad9af403e5f394cf30330658a361c622a0155499d8726112b8fb1716750cf9",
-        strip_prefix = "riegeli-0bf809f36ae5be8a5684f63d8238b5440b42bbec",
-        url = "https://github.com/google/riegeli/archive/0bf809f36ae5be8a5684f63d8238b5440b42bbec.zip",
+        patch_args = ["-p1"],
+        patches = ["//third_party_deps:riegeli.patch"],
+        sha256 = "856788984a1c13916dde67aed7a26bca7b4b92b9c092974203660502d7c92ffc",
+        strip_prefix = "riegeli-d6eed6e5673c946af8976869e4dee647b065774f",
+        url = "https://github.com/google/riegeli/archive/d6eed6e5673c946af8976869e4dee647b065774f.zip",
     )
 
     #external deps for riegeli
     http_archive(
         name = "net_zstd",
         build_file = "//third_party_deps:zstd.BUILD",
-        sha256 = "7c42d56fac126929a6a85dbc73ff1db2411d04f104fae9bdea51305663a83fd0",
-        strip_prefix = "zstd-1.5.2/lib",
-        urls = ["https://github.com/facebook/zstd/releases/download/v1.5.2/zstd-1.5.2.tar.gz"],
+        sha256 = "8c29e06cf42aacc1eafc4077ae2ec6c6fcb96a626157e0593d5e82a34fd403c1",
+        strip_prefix = "zstd-1.5.6/lib",
+        urls = ["https://github.com/facebook/zstd/releases/download/v1.5.6/zstd-1.5.6.tar.gz"],
     )
 
     http_archive(
         name = "snappy",
         build_file = "@com_google_riegeli//third_party:snappy.BUILD",
-        sha256 = "e170ce0def2c71d0403f5cda61d6e2743373f9480124bcfcd0fa9b3299d428d9",
-        strip_prefix = "snappy-1.1.9",
-        urls = ["https://github.com/google/snappy/archive/1.1.9.zip"],
+        sha256 = "7ee7540b23ae04df961af24309a55484e7016106e979f83323536a1322cedf1b",
+        strip_prefix = "snappy-1.2.0",
+        urls = ["https://github.com/google/snappy/archive/1.2.0.zip"],
     )
 
     http_archive(
         name = "highwayhash",
         build_file = "//third_party_deps:highwayhash.BUILD",
-        sha256 = "cf891e024699c82aabce528a024adbe16e529f2b4e57f954455e0bf53efae585",
-        strip_prefix = "highwayhash-276dd7b4b6d330e4734b756e97ccfb1b69cc2e12",
-        urls = ["https://github.com/google/highwayhash/archive/276dd7b4b6d330e4734b756e97ccfb1b69cc2e12.zip"],
+        sha256 = "8be5e0af6ede048c54c8355e0d7bb87305531021d19b1f6334d5c16edb290c81",
+        strip_prefix = "highwayhash-5ad3bf8444cfc663b11bf367baaa31f36e7ff7c8",
+        urls = ["https://github.com/google/highwayhash/archive/5ad3bf8444cfc663b11bf367baaa31f36e7ff7c8.zip"],
     )
 
     http_archive(

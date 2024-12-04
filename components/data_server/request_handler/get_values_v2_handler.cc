@@ -53,9 +53,6 @@ using v2::GetValuesHttpRequest;
 using v2::KeyValueService;
 using v2::ObliviousGetValuesRequest;
 
-constexpr std::string_view kAcceptEncodingHeader = "accept-encoding";
-constexpr std::string_view kContentEncodingHeader = "content-encoding";
-constexpr std::string_view kBrotliAlgorithmHeader = "br";
 constexpr std::string_view kIsPas = "is_pas";
 
 absl::Status GetCompressionGroupContentAsJsonList(
@@ -288,6 +285,7 @@ grpc::Status GetValuesV2Handler::GetValues(
                           "This use case only accepts single partitions, but "
                           "multiple partitions were found.");
     }
+    // TODO(b/355434272): Return early on CBOR content type (not supported)
     const auto response_status = ProcessOnePartition(
         request_context_factory, request.metadata(), request.partitions(0),
         *response->mutable_single_partition(), execution_metadata);

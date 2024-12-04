@@ -20,17 +20,29 @@
 #include <vector>
 
 #include "absl/strings/str_cat.h"
+#include "components/errors/error_tag.h"
 #include "nlohmann/json.hpp"
 #include "public/applications/pa/api_overlay.pb.h"
 
 namespace kv_server {
+
+namespace {
+enum class ErrorTag : int {
+  kProtoEncodeV2GetValuesResponse = 1,
+  kNoPartitionOutputsInCompressionGroup = 2,
+  kEmptyV2GetValuesRequest = 3,
+  kParseV2GetValuesProto = 4,
+};
+}  // namespace
 
 absl::StatusOr<std::string> ProtoV2EncoderDecoder::EncodeV2GetValuesResponse(
     v2::GetValuesResponse& response_proto) const {
   std::string response;
   if (!response_proto.SerializeToString(&response)) {
     auto error_message = "Cannot serialize the response as a proto.";
-    return absl::InvalidArgumentError(error_message);
+    return StatusWithErrorTag(absl::InvalidArgumentError(error_message),
+                              __FILE__,
+                              ErrorTag::kProtoEncodeV2GetValuesResponse);
   }
   return response;
 }
@@ -58,8 +70,10 @@ absl::StatusOr<std::string> ProtoV2EncoderDecoder::EncodePartitionOutputs(
     json_partition_output_list.emplace_back(partition_output_json);
   }
   if (json_partition_output_list.size() == 0) {
-    return absl::InvalidArgumentError(
-        "No partition outputs were added to compression group content");
+    return StatusWithErrorTag(
+        absl::InvalidArgumentError(
+            "No partition outputs were added to compression group content"),
+        __FILE__, ErrorTag::kNoPartitionOutputsInCompressionGroup);
   }
   return json_partition_output_list.dump();
 }
@@ -69,13 +83,16 @@ ProtoV2EncoderDecoder::DecodeToV2GetValuesRequestProto(
     std::string_view request) const {
   v2::GetValuesRequest request_proto;
   if (request.empty()) {
-    return absl::InvalidArgumentError(
-        "Received empty request, not converting to v2::GetValuesRequest proto");
+    return StatusWithErrorTag(
+        absl::InvalidArgumentError("Received empty request, not converting to "
+                                   "v2::GetValuesRequest proto"),
+        __FILE__, ErrorTag::kEmptyV2GetValuesRequest);
   }
   if (!request_proto.ParseFromString(request)) {
     auto error_message = absl::StrCat(
         "Cannot parse request as a valid serialized proto object: ", request);
-    return absl::InvalidArgumentError(error_message);
+    return StatusWithErrorTag(absl::InvalidArgumentError(error_message),
+                              __FILE__, ErrorTag::kParseV2GetValuesProto);
   }
   return request_proto;
 }

@@ -19,16 +19,31 @@
 #include <utility>
 #include <vector>
 
+#include "components/errors/error_tag.h"
 #include "nlohmann/json.hpp"
 
 namespace kv_server {
 
+namespace {
+
 using google::protobuf::util::MessageToJsonString;
+
+enum class ErrorTag : int {
+  kJsonEncodeV2GetValuesResponse = 1,
+  kNoPartitionOutputsInCompressionGroup = 2,
+  kJsonDecodeGetValuesRequest = 3,
+};
+}  // namespace
 
 absl::StatusOr<std::string> JsonV2EncoderDecoder::EncodeV2GetValuesResponse(
     v2::GetValuesResponse& response_proto) const {
   std::string response;
-  PS_RETURN_IF_ERROR(MessageToJsonString(response_proto, &response));
+  auto status = MessageToJsonString(response_proto, &response);
+  if (!status.ok()) {
+    return StatusWithErrorTag(absl::InvalidArgumentError(status.message()),
+                              __FILE__,
+                              ErrorTag::kJsonEncodeV2GetValuesResponse);
+  }
   return response;
 }
 
@@ -55,8 +70,10 @@ absl::StatusOr<std::string> JsonV2EncoderDecoder::EncodePartitionOutputs(
     json_partition_output_list.emplace_back(partition_output_json);
   }
   if (json_partition_output_list.size() == 0) {
-    return absl::InvalidArgumentError(
-        "No partition outputs were added to compression group content");
+    return StatusWithErrorTag(
+        absl::InvalidArgumentError(
+            "No partition outputs were added to compression group content"),
+        __FILE__, ErrorTag::kNoPartitionOutputsInCompressionGroup);
   }
   return json_partition_output_list.dump();
 }
@@ -65,8 +82,12 @@ absl::StatusOr<v2::GetValuesRequest>
 JsonV2EncoderDecoder::DecodeToV2GetValuesRequestProto(
     std::string_view request) const {
   v2::GetValuesRequest request_proto;
-  PS_RETURN_IF_ERROR(
-      google::protobuf::util::JsonStringToMessage(request, &request_proto));
+  auto status =
+      google::protobuf::util::JsonStringToMessage(request, &request_proto);
+  if (!status.ok()) {
+    return StatusWithErrorTag(absl::InvalidArgumentError(status.message()),
+                              __FILE__, ErrorTag::kJsonDecodeGetValuesRequest);
+  }
   return request_proto;
 }
 

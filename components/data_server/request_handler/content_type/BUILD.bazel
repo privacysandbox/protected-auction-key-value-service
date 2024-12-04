@@ -35,6 +35,7 @@ cc_library(
     ],
     deps = [
         "//components/data/converters:cbor_converter",
+        "//components/errors:error_tag",
         "//components/util:request_context",
         "//public:constants",
         "//public/applications/pa:response_utils",

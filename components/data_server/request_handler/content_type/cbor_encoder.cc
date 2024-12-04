@@ -20,16 +20,22 @@
 #include <vector>
 
 #include "components/data/converters/cbor_converter.h"
+#include "components/errors/error_tag.h"
 #include "public/applications/pa/response_utils.h"
 #include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
+namespace {
+
+enum class ErrorTag : int {
+  kParsePartitionOutput = 1,
+};
+
+}  // namespace
 
 absl::StatusOr<std::string> CborV2EncoderDecoder::EncodeV2GetValuesResponse(
     v2::GetValuesResponse& response_proto) const {
-  PS_ASSIGN_OR_RETURN(std::string response,
-                      V2GetValuesResponseCborEncode(response_proto));
-  return response;
+  return V2GetValuesResponseCborEncode(response_proto);
 }
 
 absl::StatusOr<std::string> CborV2EncoderDecoder::EncodePartitionOutputs(
@@ -50,8 +56,10 @@ absl::StatusOr<std::string> CborV2EncoderDecoder::EncodePartitionOutputs(
   }
 
   if (partition_outputs.empty()) {
-    return absl::InternalError(
-        "Parsing partition output proto from json failed for all outputs");
+    return StatusWithErrorTag(
+        absl::InternalError(
+            "Parsing partition output proto from json failed for all outputs"),
+        __FILE__, ErrorTag::kParsePartitionOutput);
   }
 
   const auto cbor_string = PartitionOutputsCborEncode(partition_outputs);

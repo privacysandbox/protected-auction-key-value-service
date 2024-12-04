@@ -20,6 +20,8 @@
 
 namespace kv_server::application_pa {
 
+namespace {
+
 enum class ErrorTag : int {
   kJsonStringToMessageError = 1,
   kMessageToJsonStringError = 2
@@ -27,6 +29,8 @@ enum class ErrorTag : int {
 
 using google::protobuf::util::JsonStringToMessage;
 using google::protobuf::util::MessageToJsonString;
+
+}  // namespace
 
 absl::StatusOr<PartitionOutput> PartitionOutputFromJson(
     std::string_view json_str) {

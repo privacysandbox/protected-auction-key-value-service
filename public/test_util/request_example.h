@@ -135,7 +135,7 @@ constexpr std::string_view kExampleConsentedV2RequestWithLogContextInJson = R"(
   "log_context": {
       "generation_id": "client_UUID",
       "adtech_debug_id": "adtech_debug_test"
-  },
+  }
   })";
 
 //  Non-consented V2 request example with multiple partitions

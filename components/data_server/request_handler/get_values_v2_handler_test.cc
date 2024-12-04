@@ -424,6 +424,29 @@ INSTANTIATE_TEST_SUITE_P(
             .content_type = kContentEncodingCborHeaderValue,
             .core_request_body = kv_server::
                 kConsentedV2RequestMultiPartWithDebugInfoResponseInJson,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingProtoHeaderValue,
+            .core_request_body = kv_server::kV2RequestMultiplePartitionsInJson,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingProtoHeaderValue,
+            .core_request_body =
+                kv_server::kConsentedV2RequestMultiplePartitionsInJson,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingProtoHeaderValue,
+            .core_request_body = kv_server::
+                kConsentedV2RequestMultiplePartitionsWithLogContextInJson,
+        },
+        TestingParameters{
+            .protocol_type = ProtocolType::kObliviousHttp,
+            .content_type = kContentEncodingProtoHeaderValue,
+            .core_request_body = kv_server::
+                kConsentedV2RequestMultiPartWithDebugInfoResponseInJson,
         }));
 
 TEST_P(GetValuesHandlerTest, Success) {

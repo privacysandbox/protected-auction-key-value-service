@@ -16,6 +16,8 @@
 
 #include "absl/flags/flag.h"
 #include "absl/flags/parse.h"
+#include "absl/log/flags.h"
+#include "absl/log/initialize.h"
 #include "absl/log/log.h"
 #include "absl/strings/substitute.h"
 #include "components/data_server/cache/cache.h"
@@ -223,6 +225,7 @@ absl::Status TestUdf(const std::string& kv_delta_file_path,
 
 int main(int argc, char** argv) {
   absl::ParseCommandLine(argc, argv);
+  absl::InitializeLog();
   const std::string kv_delta_file_path =
       absl::GetFlag(FLAGS_kv_delta_file_path);
   const std::string udf_delta_file_path =

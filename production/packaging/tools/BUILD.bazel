@@ -47,12 +47,32 @@ pkg_files(
     prefix = "/tools/realtime",
 )
 
+pkg_files(
+    name = "udf_delta_file_tester",
+    srcs = [
+        "//tools/udf/udf_tester:udf_delta_file_tester",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/tools/udf",
+)
+
+pkg_files(
+    name = "udf_delta_file_generator",
+    srcs = [
+        "//tools/udf/udf_generator:udf_delta_file_generator",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/tools/udf",
+)
+
 pkg_filegroup(
     name = "tools_executables",
     srcs = [
         ":benchmarks",
         ":data_cli",
         ":realtime",
+        ":udf_delta_file_generator",
+        ":udf_delta_file_tester",
     ],
     prefix = "/",
 )
@@ -60,22 +80,6 @@ pkg_filegroup(
 pkg_zip(
     name = "tools_binaries",
     srcs = [":tools_executables"],
-)
-
-pkg_files(
-    name = "udf_tester_executables",
-    srcs = [
-        "//tools/udf/udf_tester:udf_delta_file_tester",
-    ],
-    attributes = pkg_attributes(mode = "0555"),
-)
-
-pkg_files(
-    name = "udf_generator_executables",
-    srcs = [
-        "//tools/udf/udf_generator:udf_delta_file_generator",
-    ],
-    attributes = pkg_attributes(mode = "0555"),
 )
 
 pkg_tar(
@@ -122,22 +126,4 @@ EOF""",
     executable = True,
     local = True,
     message = "Copying tools to dist/debian directory",
-)
-
-genrule(
-    name = "copy_to_dist_udf",
-    srcs = [
-        ":udf_tester_executables",
-        ":udf_generator_executables",
-    ],
-    outs = ["copy_to_dist_udf.bin"],
-    cmd_bash = """cat << EOF > '$@'
-mkdir -p dist/debian
-cp $(execpath :udf_tester_executables) dist/debian
-cp $(execpath :udf_generator_executables) dist/debian
-builders/tools/normalize-dist
-EOF""",
-    executable = True,
-    local = True,
-    message = "copying tools to dist/debian directory",
 )

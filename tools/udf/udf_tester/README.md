@@ -39,11 +39,28 @@ It requires two delta files:
         `bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000001`.
 
 1. Build the tester.
-   `./builders/tools/bazel-debian build //getting_started/examples/canonical_examples:udf_delta_file_tester`
+   `./builders/tools/bazel-debian build //tools/udf/udf_tester:udf_delta_file_tester`
 1. Run the tester.
+
+    Option 1: Run the tester binary built from the build command above.
 
     ```sh
     bazel-bin/tools/udf/udf_tester/udf_delta_file_tester --kv_delta_file_path bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000001 --udf_delta_file_path bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000002 --input_arguments='[{"data":["a"]}]'
+    ```
+
+    Option 2: Alternatively, you can also run the tester from
+    [tools binaries docker image](/docs/generating_udf_files.md#2-generate-a-udf-delta-file)
+
+    ```sh
+    export DATA_DIR=$PWD/bazel-bin/getting_started/examples/canonical_examples
+    docker run -it --rm \
+      --volume=$DATA_DIR:$DATA_DIR \
+      --user $(id -u ${USER}):$(id -g ${USER}) \
+      --entrypoint=/tools/udf/udf_delta_file_tester \
+      bazel/production/packaging/tools:tools_binaries_docker_image \
+      --kv_delta_file_path $DATA_DIR/DELTA_0000000000000001 \
+      --udf_delta_file_path $DATA_DIR/DELTA_0000000000000002 \
+      --input_arguments='[{"data":["a"]}]'
     ```
 
 ## Examples

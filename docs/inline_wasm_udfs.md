@@ -166,7 +166,7 @@ To test the UDF delta file, use the provided UDF tools.
 1. Build the UDF testing tool executables:
 
     ```sh
-    -$ builders/tools/bazel-debian run //production/packaging/tools:copy_to_dist_udf
+    -$ ./builders/tools/bazel-debian build //tools/udf/udf_tester:udf_delta_file_tester
     ```
 
 1. Have a delta/snapshot file with key-value pairs ready. If you don't have one, you can use
@@ -187,7 +187,7 @@ To test the UDF delta file, use the provided UDF tools.
 
     ```sh
     UDF_DELTA=path/to/udf/delta
-    dist/debian/udf_delta_file_tester  --input_arguments="$TEST_KEY" --kv_delta_file_path="$KV_DELTA" --udf_delta_file_path="$UDF_DELTA" --v=10
+    bazel-bin/tools/udf/udf_tester/udf_delta_file_tester  --input_arguments="$TEST_KEY" --kv_delta_file_path="$KV_DELTA" --udf_delta_file_path="$UDF_DELTA" --v=10 --stderrthreshold=0
     ```
 
     See the [generating UDF files doc](./generating_udf_files.md#3-test-the-udf-delta-file) for more

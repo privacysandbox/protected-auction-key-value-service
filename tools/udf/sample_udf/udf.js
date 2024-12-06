@@ -61,7 +61,7 @@ function handlePA(udf_arguments) {
 
 function HandleRequest(executionMetadata, ...udf_arguments) {
   if (executionMetadata.requestMetadata && executionMetadata.requestMetadata.is_pas) {
-    console.log('Executing PAS branch');
+    logMessage('Executing PAS branch');
     return handlePas(udf_arguments);
   }
   return handlePA(udf_arguments);

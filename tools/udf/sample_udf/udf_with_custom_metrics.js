@@ -84,7 +84,7 @@ function HandleRequest(executionMetadata, ...udf_arguments) {
     udf_metric: [udfArgumentsErrorCount, lookupFailureCount, keyWithValueCount],
   };
   if (executionMetadata.requestMetadata && executionMetadata.requestMetadata.is_pas) {
-    console.log('Executing PAS branch');
+    logMessage('Executing PAS branch');
     const result = handlePas(udf_arguments, batchLogMetrics);
     logCustomMetric(JSON.stringify(batchLogMetrics));
     return result;

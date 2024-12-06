@@ -15,6 +15,7 @@
 #include "components/udf/udf_client.h"
 
 #include <functional>
+#include <future>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -159,6 +160,55 @@ class UdfClientImpl : public UdfClient {
         absl::ToInt64Milliseconds(latency_recorder.GetLatency());
     return *result;
   }
+
+  absl::StatusOr<absl::flat_hash_map<int32_t, std::string>> BatchExecuteCode(
+      const RequestContextFactory& request_context_factory,
+      absl::flat_hash_map<int32_t, UDFInput>& udf_input_map,
+      ExecutionMetadata& metadata) const {
+    absl::flat_hash_map<int32_t, std::string> results;
+    if (udf_input_map.empty()) {
+      PS_VLOG(5, request_context_factory.Get().GetPSLogContext())
+          << "UDF input map is empty. Not executing any UDFs.";
+      return results;
+    }
+
+    absl::flat_hash_map<int32_t, std::future<absl::StatusOr<std::string>>>
+        responses;
+    metadata.custom_code_total_execution_time_micros = 0;
+    for (auto&& [id, udf_input] : udf_input_map) {
+      responses[id] = std::async(
+          std::launch::async,
+          [this, &request_context_factory, &metadata](UDFInput&& udf_input) {
+            ExecutionMetadata single_run_metadata;
+            auto result =
+                this->ExecuteCode(request_context_factory,
+                                  std::move(udf_input.execution_metadata),
+                                  udf_input.arguments, single_run_metadata);
+            // Record the longest UDF execution time across all parallel
+            // executions
+            metadata.custom_code_total_execution_time_micros = std::max(
+                metadata.custom_code_total_execution_time_micros,
+                single_run_metadata.custom_code_total_execution_time_micros);
+            return result;
+          },
+          std::move(udf_input));
+    }
+
+    // Process responses
+    for (auto&& [id, response] : responses) {
+      auto result = response.get();
+
+      if (result.ok()) {
+        results[id] = std::move(result.value());
+      } else {
+        PS_LOG(ERROR, request_context_factory.Get().GetPSLogContext())
+            << "UDF Execution failed for partition id " << id << ": "
+            << result.status();
+      }
+    }
+    return results;
+  }
+
   absl::Status Init() { return roma_service_.Init(); }
 
   absl::Status Stop() { return roma_service_.Stop(); }
@@ -256,13 +306,13 @@ class UdfClientImpl : public UdfClient {
   const absl::Duration udf_timeout_;
   const absl::Duration udf_update_timeout_;
   int udf_min_log_level_;
-  // Per b/299667930, RomaService has been extended to support metadata storage
-  // as a side effect of RomaService::Execute(), making it no longer const.
-  // However, UDFClient::ExecuteCode() remains logically const, so RomaService
-  // is marked as mutable to allow usage within UDFClient::ExecuteCode(). For
-  // concerns about mutable or go/totw/174, RomaService is thread-safe, so
-  // losing the thread-safety of usage within a const function is a lesser
-  // concern.
+  // Per b/299667930, RomaService has been extended to support metadata
+  // storage as a side effect of RomaService::Execute(), making it no longer
+  // const. However, UDFClient::ExecuteCode() remains logically const, so
+  // RomaService is marked as mutable to allow usage within
+  // UDFClient::ExecuteCode(). For concerns about mutable or go/totw/174,
+  // RomaService is thread-safe, so losing the thread-safety of usage within a
+  // const function is a lesser concern.
   mutable RomaService<std::weak_ptr<RequestContext>> roma_service_;
 };
 

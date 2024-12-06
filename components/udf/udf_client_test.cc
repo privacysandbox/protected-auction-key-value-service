@@ -51,6 +51,18 @@ using testing::Return;
 
 namespace kv_server {
 namespace {
+
+constexpr std::string_view kEmptyMetadata = R"(
+request_metadata {
+  fields {
+    key: "hostname"
+    value {
+      string_value: ""
+    }
+  }
+}
+  )";
+
 absl::StatusOr<std::unique_ptr<UdfClient>> CreateUdfClient() {
   Config<std::weak_ptr<RequestContext>> config;
   config.number_of_workers = 1;
@@ -1104,5 +1116,123 @@ TEST_F(UdfClientTest, JsCallsLogCustomMetricFailedToLogError) {
   EXPECT_THAT(metrics_logging_outcome, ContainsRegex("Failed to log metrics"));
 }
 
+TEST_F(UdfClientTest, BatchExecuteCodeSuccess) {
+  auto udf_client = CreateUdfClient();
+  EXPECT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = (metadata, data) => 'Hello world! ' + "
+            "JSON.stringify(metadata) + JSON.stringify(data);",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
+
+  google::protobuf::RepeatedPtrField<UDFArgument> args1;
+  args1.Add([] {
+    UDFArgument arg;
+    arg.mutable_tags()->add_values()->set_string_value("tag1");
+    arg.mutable_data()->set_string_value("key1");
+    return arg;
+  }());
+  google::protobuf::RepeatedPtrField<UDFArgument> args2;
+  args2.Add([] {
+    UDFArgument arg;
+    arg.mutable_tags()->add_values()->set_string_value("tag2");
+    arg.mutable_data()->set_string_value("key2");
+    return arg;
+  }());
+
+  absl::flat_hash_map<int32_t, UDFInput> input;
+  input[1] = {.arguments = args1};
+  input[2] = {.execution_metadata = udf_metadata, .arguments = args2};
+  auto result = udf_client.value()->BatchExecuteCode(
+      *request_context_factory_, input, execution_metadata_);
+  ASSERT_TRUE(result.ok());
+  auto udf_outputs = std::move(result.value());
+  EXPECT_EQ(udf_outputs.size(), 2);
+  EXPECT_EQ(
+      udf_outputs[1],
+      R"("Hello world! {\"udfInterfaceVersion\":1}{\"tags\":[\"tag1\"],\"data\":\"key1\"}")");
+  EXPECT_EQ(
+      udf_outputs[2],
+      R"("Hello world! {\"udfInterfaceVersion\":1,\"requestMetadata\":{\"hostname\":\"\"}}{\"tags\":[\"tag2\"],\"data\":\"key2\"}")");
+
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, BatchExecuteCodeIgnoresFailedPartition) {
+  auto udf_client = CreateUdfClient();
+  EXPECT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js =
+          R"js(function hello(metadata, data) {
+            if(data.data == "valid_key") {return 'Hello world!';}
+            throw new Error('Oh no!');
+          })js",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
+
+  google::protobuf::RepeatedPtrField<UDFArgument> args1;
+  args1.Add([] {
+    UDFArgument arg;
+    arg.mutable_tags()->add_values()->set_string_value("some_tag");
+    arg.mutable_data()->set_string_value("valid_key");
+    return arg;
+  }());
+  google::protobuf::RepeatedPtrField<UDFArgument> args2;
+  args2.Add([] {
+    UDFArgument arg;
+    arg.mutable_data()->set_string_value("invalid key");
+    return arg;
+  }());
+
+  absl::flat_hash_map<int32_t, UDFInput> input;
+  input[1] = {.arguments = args1};
+  input[2] = {.arguments = args2};
+  auto result = udf_client.value()->BatchExecuteCode(
+      *request_context_factory_, input, execution_metadata_);
+  ASSERT_TRUE(result.ok());
+  auto udf_outputs = std::move(result.value());
+  EXPECT_EQ(udf_outputs.size(), 1);
+  EXPECT_EQ(udf_outputs[1], R"("Hello world!")");
+
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, BatchExecuteCodeEmptyReturnsSuccess) {
+  auto udf_client = CreateUdfClient();
+  EXPECT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = (metadata, data) => 'Hello world! ' + "
+            "JSON.stringify(metadata) + JSON.stringify(data);",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+  });
+  EXPECT_TRUE(code_obj_status.ok());
+
+  absl::flat_hash_map<int32_t, UDFInput> input;
+  auto result = udf_client.value()->BatchExecuteCode(
+      *request_context_factory_, input, execution_metadata_);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(result->size(), 0);
+  absl::Status stop = udf_client.value()->Stop();
+  EXPECT_TRUE(stop.ok());
+}
 }  // namespace
 }  // namespace kv_server

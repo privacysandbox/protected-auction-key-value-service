@@ -45,6 +45,17 @@ class NoopUdfClientImpl : public UdfClient {
     return "";
   }
 
+  absl::StatusOr<absl::flat_hash_map<int32_t, std::string>> BatchExecuteCode(
+      const RequestContextFactory& request_context_factory,
+      absl::flat_hash_map<int32_t, UDFInput>& udf_input_map,
+      ExecutionMetadata& metadata) const {
+    absl::flat_hash_map<int32_t, std::string> response;
+    for (auto&& [k, v] : udf_input_map) {
+      response[k] = "";
+    }
+    return response;
+  }
+
   absl::Status Stop() { return absl::OkStatus(); }
 
   absl::Status SetCodeObject(

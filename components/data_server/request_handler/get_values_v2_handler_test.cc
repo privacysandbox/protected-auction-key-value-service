@@ -728,18 +728,24 @@ data {
   ]
 }
   )");
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, EqualsProto(udf_metadata),
-                          testing::ElementsAre(EqualsProto(arg1)), _))
-      .WillOnce(Return(output1.dump()));
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, EqualsProto(udf_metadata),
-                          testing::ElementsAre(EqualsProto(arg2)), _))
-      .WillOnce(Return(output2.dump()));
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, EqualsProto(udf_metadata),
-                          testing::ElementsAre(EqualsProto(arg3)), _))
-      .WillOnce(Return(output3.dump()));
+  absl::flat_hash_map<int32_t, std::string> batch_execute_output = {
+      {0, output1.dump()}, {1, output2.dump()}, {2, output3.dump()}};
+  EXPECT_CALL(
+      mock_udf_client_,
+      BatchExecuteCode(
+          _,
+          testing::UnorderedElementsAre(
+              testing::Pair(0, testing::FieldsAre(
+                                   EqualsProto(udf_metadata),
+                                   testing::ElementsAre(EqualsProto(arg1)))),
+              testing::Pair(1, testing::FieldsAre(
+                                   EqualsProto(udf_metadata),
+                                   testing::ElementsAre(EqualsProto(arg2)))),
+              testing::Pair(2, testing::FieldsAre(
+                                   EqualsProto(udf_metadata),
+                                   testing::ElementsAre(EqualsProto(arg3))))),
+          _))
+      .WillOnce(Return(batch_execute_output));
 
   std::string core_request_body = GetTestRequestBody();
   google::api::HttpBody http_response;
@@ -779,70 +785,6 @@ data {
 
 TEST_P(GetValuesHandlerMultiplePartitionsTest,
        SinglePartitionUDFFails_IgnorePartition) {
-  UDFExecutionMetadata udf_metadata;
-  TextFormat::ParseFromString(R"(
-request_metadata {
-  fields {
-    key: "hostname"
-    value {
-      string_value: "example.com"
-    }
-  }
-}
-  )",
-                              &udf_metadata);
-  UDFArgument arg1, arg2, arg3;
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "structured"
-  }
-  values {
-    string_value: "groupNames"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "hello"
-    }
-  }
-})",
-                              &arg1);
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "custom"
-  }
-  values {
-    string_value: "keys"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "key1"
-    }
-  }
-})",
-                              &arg2);
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "custom"
-  }
-  values {
-    string_value: "keys"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "key2"
-    }
-  }
-})",
-                              &arg3);
   nlohmann::json output1 = nlohmann::json::parse(R"(
 {
   "keyGroupOutputs": [
@@ -877,18 +819,10 @@ data {
   ]
 }
   )");
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, EqualsProto(udf_metadata),
-                          testing::ElementsAre(EqualsProto(arg1)), _))
-      .WillOnce(Return(output1.dump()));
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, EqualsProto(udf_metadata),
-                          testing::ElementsAre(EqualsProto(arg2)), _))
-      .WillOnce(Return(output2.dump()));
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, EqualsProto(udf_metadata),
-                          testing::ElementsAre(EqualsProto(arg3)), _))
-      .WillOnce(Return(absl::InternalError("UDF execution error")));
+  absl::flat_hash_map<int32_t, std::string> batch_execute_output = {
+      {0, output1.dump()}, {1, output2.dump()}};
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _))
+      .WillOnce(Return(batch_execute_output));
 
   std::string core_request_body = GetTestRequestBody();
   google::api::HttpBody http_response;
@@ -926,70 +860,6 @@ data {
 
 TEST_P(GetValuesHandlerMultiplePartitionsTest,
        AllPartitionsInSingleCompressionGroupUDFFails_IgnoreCompressionGroup) {
-  UDFExecutionMetadata udf_metadata;
-  TextFormat::ParseFromString(R"(
-request_metadata {
-  fields {
-    key: "hostname"
-    value {
-      string_value: "example.com"
-    }
-  }
-}
-  )",
-                              &udf_metadata);
-  UDFArgument arg1, arg2, arg3;
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "structured"
-  }
-  values {
-    string_value: "groupNames"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "hello"
-    }
-  }
-})",
-                              &arg1);
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "custom"
-  }
-  values {
-    string_value: "keys"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "key1"
-    }
-  }
-})",
-                              &arg2);
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "custom"
-  }
-  values {
-    string_value: "keys"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "key2"
-    }
-  }
-})",
-                              &arg3);
   nlohmann::json output = nlohmann::json::parse(R"(
 {
   "keyGroupOutputs": [
@@ -1007,18 +877,10 @@ data {
   ]
 }
   )");
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, EqualsProto(udf_metadata),
-                          testing::ElementsAre(EqualsProto(arg1)), _))
-      .WillOnce(Return(absl::InternalError("UDF execution error")));
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, EqualsProto(udf_metadata),
-                          testing::ElementsAre(EqualsProto(arg2)), _))
-      .WillOnce(Return(output.dump()));
-  EXPECT_CALL(mock_udf_client_,
-              ExecuteCode(_, EqualsProto(udf_metadata),
-                          testing::ElementsAre(EqualsProto(arg3)), _))
-      .WillOnce(Return(absl::InternalError("UDF execution error")));
+  absl::flat_hash_map<int32_t, std::string> batch_execute_output = {
+      {1, output.dump()}};
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _))
+      .WillOnce(Return(batch_execute_output));
 
   std::string core_request_body = GetTestRequestBody();
   google::api::HttpBody http_response;
@@ -1048,73 +910,9 @@ data {
 
 TEST_P(GetValuesHandlerMultiplePartitionsTest,
        AllPartitionsFail_ReturnSuccess) {
-  UDFExecutionMetadata udf_metadata;
-  TextFormat::ParseFromString(R"(
-request_metadata {
-  fields {
-    key: "hostname"
-    value {
-      string_value: "example.com"
-    }
-  }
-}
-  )",
-                              &udf_metadata);
-  UDFArgument arg1, arg2, arg3;
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "structured"
-  }
-  values {
-    string_value: "groupNames"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "hello"
-    }
-  }
-})",
-                              &arg1);
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "custom"
-  }
-  values {
-    string_value: "keys"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "key1"
-    }
-  }
-})",
-                              &arg2);
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "custom"
-  }
-  values {
-    string_value: "keys"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "key2"
-    }
-  }
-})",
-                              &arg3);
-  EXPECT_CALL(mock_udf_client_, ExecuteCode(_, EqualsProto(udf_metadata),
-                                            testing::ElementsAre(_), _))
-      .WillRepeatedly(Return(absl::InternalError("UDF execution error")));
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _))
+      .WillOnce(Return(absl::InternalError("Batch UDF execution error")));
+
   std::string core_request_body = GetTestRequestBody();
   google::api::HttpBody http_response;
   GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);

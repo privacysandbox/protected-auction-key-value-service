@@ -206,6 +206,10 @@ class UdfClientImpl : public UdfClient {
             << result.status();
       }
     }
+    if (results.empty()) {
+      return absl::InvalidArgumentError(
+          "BatchExecuteCode failed for all UDF invocations.");
+    }
     return results;
   }
 

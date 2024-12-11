@@ -36,6 +36,7 @@ cc_library(
     deps = [
         "//components/data/converters:cbor_converter",
         "//components/util:request_context",
+        "//public:constants",
         "//public/applications/pa:response_utils",
         "//public/query/v2:get_values_v2_cc_grpc",
         "@com_google_absl//absl/status:statusor",

@@ -19,6 +19,7 @@
 #include "components/data_server/request_handler/content_type/cbor_encoder.h"
 #include "components/data_server/request_handler/content_type/json_encoder.h"
 #include "components/data_server/request_handler/content_type/proto_encoder.h"
+#include "public/constants.h"
 
 namespace kv_server {
 

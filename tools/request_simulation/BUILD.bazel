@@ -68,6 +68,7 @@ cc_library(
     hdrs = ["grpc_client.h"],
     deps = [
         "//components/data_server/request_handler:get_values_v2_handler",
+        "//public:constants",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/status:statusor",

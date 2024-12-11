@@ -39,13 +39,13 @@ It requires two delta files:
         `bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000001`.
 
 1. Build the tester.
-   `./builders/tools/bazel-debian build //tools/udf/udf_tester:udf_delta_file_tester`
+   `./builders/tools/bazel-debian build --config nonprod_mode //tools/udf/udf_tester:udf_delta_file_tester`
 1. Run the tester.
 
     Option 1: Run the tester binary built from the build command above.
 
     ```sh
-    bazel-bin/tools/udf/udf_tester/udf_delta_file_tester --kv_delta_file_path bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000001 --udf_delta_file_path bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000002 --input_arguments='[{"data":["a"]}]'
+    bazel-bin/tools/udf/udf_tester/udf_delta_file_tester --kv_delta_file_path bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000001 --udf_delta_file_path bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000002 --input_arguments='[{"data":["a"]}]' --v=5 --stderrthreshold=0
     ```
 
     Option 2: Alternatively, you can also run the tester from

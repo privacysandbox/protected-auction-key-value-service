@@ -44,6 +44,12 @@ struct ExecutionMetadata {
   std::optional<int64_t> custom_code_total_execution_time_micros;
 };
 
+struct CodeObjectMetadata {
+  std::string handler_name;
+  int64_t logical_commit_time = -1;
+  int64_t version = 1;
+};
+
 // Client to execute UDF
 class UdfClient {
  public:

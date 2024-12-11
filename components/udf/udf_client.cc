@@ -220,12 +220,15 @@ class UdfClientImpl : public UdfClient {
   absl::Status SetCodeObject(
       CodeConfig code_config,
       privacy_sandbox::server_common::log::PSLogContext& log_context) {
+    absl::MutexLock lock(&mutex_);
     // Only update code if logical commit time is larger.
-    if (logical_commit_time_ >= code_config.logical_commit_time) {
+    if (code_object_metadata_.logical_commit_time >=
+        code_config.logical_commit_time) {
       PS_VLOG(1, log_context)
           << "Not updating code object. logical_commit_time "
           << code_config.logical_commit_time
-          << " too small, should be greater than " << logical_commit_time_;
+          << " too small, should be greater than "
+          << code_object_metadata_.logical_commit_time;
       return absl::OkStatus();
     }
     std::shared_ptr<absl::Status> response_status =
@@ -262,12 +265,13 @@ class UdfClientImpl : public UdfClient {
           << "Error compiling UDF code object. " << *response_status;
       return *response_status;
     }
-    handler_name_ = std::move(code_config.udf_handler_name);
-    logical_commit_time_ = code_config.logical_commit_time;
-    version_ = code_config.version;
+    code_object_metadata_.handler_name =
+        std::move(code_config.udf_handler_name);
+    code_object_metadata_.logical_commit_time = code_config.logical_commit_time;
+    code_object_metadata_.version = code_config.version;
     PS_VLOG(5, log_context)
         << "Successfully set UDF code object with handler_name "
-        << handler_name_;
+        << code_object_metadata_.handler_name;
     return absl::OkStatus();
   }
 
@@ -286,9 +290,10 @@ class UdfClientImpl : public UdfClient {
   InvocationStrRequest<std::weak_ptr<RequestContext>> BuildInvocationRequest(
       const RequestContextFactory& request_context_factory,
       std::vector<std::string> input) const {
+    absl::ReaderMutexLock lock(&mutex_);
     return {.id = kInvocationRequestId,
-            .version_string = absl::StrCat("v", version_),
-            .handler_name = handler_name_,
+            .version_string = absl::StrCat("v", code_object_metadata_.version),
+            .handler_name = code_object_metadata_.handler_name,
             .tags = {{std::string(kTimeoutDurationTag),
                       FormatDuration(udf_timeout_)}},
             .input = std::move(input),
@@ -304,9 +309,9 @@ class UdfClientImpl : public UdfClient {
             .wasm = std::move(wasm)};
   }
 
-  std::string handler_name_;
-  int64_t logical_commit_time_ = -1;
-  int64_t version_ = 1;
+  // Mutex for code_object_metadata_;
+  mutable absl::Mutex mutex_;
+  CodeObjectMetadata code_object_metadata_ ABSL_GUARDED_BY(mutex_);
   const absl::Duration udf_timeout_;
   const absl::Duration udf_update_timeout_;
   int udf_min_log_level_;

@@ -371,6 +371,7 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
                   .RegisterLoggingHook()
                   .RegisterCustomMetricHook()
                   .SetNumberOfWorkers(number_of_workers)
+                  .DisableUdfStackTraces(true)
                   .Config()),
           absl::Milliseconds(udf_timeout_ms),
           absl::Milliseconds(udf_update_timeout_ms), udf_min_log_level);

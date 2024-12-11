@@ -42,6 +42,8 @@ class UdfConfigBuilder {
 
   UdfConfigBuilder& SetNumberOfWorkers(int number_of_workers);
 
+  UdfConfigBuilder& DisableUdfStackTraces(bool disable_stacktrace);
+
   google::scp::roma::Config<std::weak_ptr<RequestContext>>& Config();
 
  private:

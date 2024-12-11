@@ -141,6 +141,12 @@ UdfConfigBuilder& UdfConfigBuilder::SetNumberOfWorkers(
   return *this;
 }
 
+UdfConfigBuilder& UdfConfigBuilder::DisableUdfStackTraces(
+    bool disable_stacktrace) {
+  config_.disable_udf_stacktraces_in_response = disable_stacktrace;
+  return *this;
+}
+
 google::scp::roma::Config<std::weak_ptr<RequestContext>>&
 UdfConfigBuilder::Config() {
   return config_;

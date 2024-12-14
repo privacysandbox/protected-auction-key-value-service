@@ -105,12 +105,10 @@ CloudKeyFetcherFactory::CreateKeyFetcherManager(
   std::unique_ptr<PrivateKeyFetcherInterface> private_key_fetcher =
       PrivateKeyFetcherFactory::Create(primary, {secondary},
                                        kPrivateKeyCacheTtl, log_context_);
-  auto event_engine = std::make_unique<EventEngineExecutor>(
-      grpc_event_engine::experimental::GetDefaultEventEngine());
   std::unique_ptr<KeyFetcherManagerInterface> manager =
-      KeyFetcherManagerFactory::Create(
-          kKeyRefreshFlowRunFrequency, std::move(public_key_fetcher),
-          std::move(private_key_fetcher), std::move(event_engine));
+      KeyFetcherManagerFactory::Create(kKeyRefreshFlowRunFrequency,
+                                       std::move(public_key_fetcher),
+                                       std::move(private_key_fetcher));
   manager->Start();
 
   return manager;

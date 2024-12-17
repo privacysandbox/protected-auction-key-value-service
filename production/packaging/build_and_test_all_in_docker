@@ -160,6 +160,7 @@ if [[ ${PLATFORM} == gcp ]]; then
   bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/gcp/data_server:copy_to_dist
 elif [[ ${PLATFORM} == local ]]; then
   bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/local/data_server:copy_to_dist
+  bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/tools:copy_to_dist
 else
   bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/aws/data_server:copy_to_dist
 fi

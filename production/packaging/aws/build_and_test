@@ -133,9 +133,12 @@ if ! "${WORKSPACE}"/production/packaging/build_and_test_all_in_docker "${BUILD_A
   fail "Failed to run build_and_test_all_in_docker"
 fi
 
+ARCHITECTURE="$("${WORKSPACE}"/builders/tools/get-architecture)"
+
 printf "==== Creating dist dir =====\n"
 mkdir -p "${DIST}"/aws
-chmod 770 "${DIST}" "${DIST}"/aws
+mkdir -p "${DIST}"/artifacts
+chmod 770 "${DIST}" "${DIST}"/aws "${DIST}"/artifacts
 
 if [[ ${SKIP_EIF} -eq 0  ]]; then
   printf "==== build AWS artifacts using build-amazonlinux2023 =====\n"
@@ -157,6 +160,7 @@ if [[ ${SKIP_EIF} -eq 0  ]]; then
   jq --compact-output '{PCR0: .Measurements.PCR0}' dist/aws/server_enclave_image.json >dist/aws/pcr0.json
   jq --compact-output --raw-output '.Measurements.PCR0' dist/aws/server_enclave_image.json >dist/aws/pcr0.txt
   cat dist/aws/pcr0.json
+  cp dist/aws/server_enclave_image.eif dist/artifacts/${ARCHITECTURE}_aws_server_${MODE}_enclave_image.eif
   exit 0
   "
   docker image rm --force ${IMAGE_URI}:"${IMAGE_TAG}" || fail "Unable to remove Docker image"
@@ -174,6 +178,7 @@ function _collect_logs() {
 set -o errexit
 bazel ${BAZEL_STARTUP_ARGS} run ${BAZEL_EXTRA_ARGS} //production/packaging/aws/data_server/ami:copy_to_dist
 cp dist/server_docker_image.tar dist/aws/server_docker_image.tar
+cp dist/aws/server_docker_image.tar dist/artifacts/${ARCHITECTURE}_aws_server_${MODE}_docker_image.tar
 "
 
 printf "==== Running normalize_dist.sh =====\n"

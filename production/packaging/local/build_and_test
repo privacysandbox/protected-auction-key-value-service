@@ -108,8 +108,20 @@ if [[ ! -f ${BUILDER} ]]; then
 fi
 # shellcheck source=builders/tools/builder.sh
 source "${BUILDER}" || fail "Failed to source builder.sh"
+DIST="${WORKSPACE}"/dist
+readonly DIST
 
 printf "==== Running build_and_test_all_in_docker =====\n"
 if ! "${WORKSPACE}"/production/packaging/build_and_test_all_in_docker "${BUILD_AND_TEST_ARGS[@]}" --instance local --platform local --mode "${MODE}"; then
   fail "Failed to run build_and_test_all_in_docker"
 fi
+
+
+ARCHITECTURE="$("${WORKSPACE}"/builders/tools/get-architecture)"
+
+printf "==== Creating dist/artifacts dir and copy artifacts =====\n"
+
+mkdir -p "${DIST}"/artifacts
+chmod 770 "${DIST}" "${DIST}"/artifacts
+cp "${DIST}"/server_docker_image.tar "${DIST}"/artifacts/"${ARCHITECTURE}"_local_server_"${MODE}"_docker_image.tar
+cp "${DIST}"/tools_binaries_docker_image.tar "${DIST}"/artifacts/"${ARCHITECTURE}"_tools_binaries_docker_image.tar

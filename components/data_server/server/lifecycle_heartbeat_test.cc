@@ -24,10 +24,12 @@
 
 namespace kv_server {
 
+using ::privacy_sandbox::server_common::PeriodicClosure;
+
 class FakePeriodicClosure : public PeriodicClosure {
  public:
   absl::Status StartNow(absl::Duration interval,
-                        std::function<void()> closure) override {
+                        absl::AnyInvocable<void()> closure) override {
     if (is_running_) {
       return absl::FailedPreconditionError("Already running.");
     }
@@ -37,7 +39,7 @@ class FakePeriodicClosure : public PeriodicClosure {
   }
 
   absl::Status StartDelayed(absl::Duration interval,
-                            std::function<void()> closure) override {
+                            absl::AnyInvocable<void()> closure) override {
     return StartNow(interval, std::move(closure));
   }
 
@@ -49,7 +51,7 @@ class FakePeriodicClosure : public PeriodicClosure {
 
  private:
   bool is_running_ = false;
-  std::function<void()> closure_;
+  absl::AnyInvocable<void()> closure_;
 };
 
 class LifecycleHeartbeatTest : public ::testing::Test {

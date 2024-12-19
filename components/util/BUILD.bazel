@@ -13,35 +13,12 @@
 # limitations under the License.
 
 load("@bazel_skylib//lib:selects.bzl", "selects")
-load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+load("@rules_cc//cc:defs.bzl", "cc_library")
 
 package(default_visibility = [
     "//components:__subpackages__",
     "//tools:__subpackages__",
 ])
-
-cc_library(
-    name = "periodic_closure",
-    srcs = [
-        "periodic_closure.cc",
-    ],
-    hdrs = ["periodic_closure.h"],
-    deps = [
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/synchronization",
-        "@com_google_absl//absl/time",
-    ],
-)
-
-cc_test(
-    name = "periodic_closure_test",
-    size = "small",
-    srcs = ["periodic_closure_test.cc"],
-    deps = [
-        ":periodic_closure",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
 
 selects.config_setting_group(
     name = "local_otel_otlp",

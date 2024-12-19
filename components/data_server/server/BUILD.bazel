@@ -51,12 +51,12 @@ cc_library(
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_change_notifier",
         "//components/data/blob_storage:blob_storage_client",
-        "//components/util:periodic_closure",
         "//public:constants",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@google_privacysandbox_servers_common//src/errors:retry",
+        "@google_privacysandbox_servers_common//src/util:periodic_closure",
     ],
 )
 
@@ -160,7 +160,6 @@ cc_library(
         "//components/udf:udf_client",
         "//components/udf:udf_config_builder",
         "//components/udf/hooks:get_values_hook",
-        "//components/util:periodic_closure",
         "//components/util:platform_initializer",
         "//components/util:safe_path_log_context",
         "//components/util:version_linkstamp",
@@ -183,6 +182,7 @@ cc_library(
         "@google_privacysandbox_servers_common//src/telemetry",
         "@google_privacysandbox_servers_common//src/telemetry:init",
         "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/util:periodic_closure",
     ],
 )
 

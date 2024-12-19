@@ -24,6 +24,7 @@ namespace kv_server {
 
 namespace {
 
+using ::privacy_sandbox::server_common::PeriodicClosure;
 using ::privacy_sandbox::server_common::TraceRetryUntilOk;
 
 constexpr absl::string_view kLaunchHookParameterSuffix = "launch-hook";

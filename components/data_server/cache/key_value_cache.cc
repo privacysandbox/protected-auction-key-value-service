@@ -276,12 +276,18 @@ void KeyValueCache::DeleteKey(
     privacy_sandbox::server_common::log::PSLogContext& log_context,
     std::string_view key, int64_t logical_commit_time,
     std::string_view prefix) {
+  PS_VLOG(9, log_context) << "Received delete for [" << key << "] at "
+                          << logical_commit_time;
   ScopeLatencyMetricsRecorder<ServerSafeMetricsContext, kDeleteKeyLatency>
       latency_recorder(KVServerContextMap()->SafeMetric());
   absl::MutexLock lock(&mutex_);
   auto max_cleanup_logical_commit_time =
       max_cleanup_logical_commit_time_map_[prefix];
   if (logical_commit_time <= max_cleanup_logical_commit_time) {
+    PS_VLOG(1, log_context)
+        << "Skipping the update as its logical_commit_time: "
+        << logical_commit_time << " is older than the current cutoff time:"
+        << max_cleanup_logical_commit_time;
     return;
   }
   const auto key_iter = map_.find(key);

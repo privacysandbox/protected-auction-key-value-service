@@ -385,6 +385,82 @@ TEST(DataRecordTest,
   EXPECT_EQ(status.message(), "Key not set.");
 }
 
+TEST(DataRecordTest, DeserializeDataRecordWithNoValueDeleteMutationSuccess) {
+  // Serialize
+  KeyValueMutationRecordT kv_mutation_record_native;
+  kv_mutation_record_native.logical_commit_time = 5;
+  kv_mutation_record_native.key = "key";
+  StringValueT string_native;
+  string_native.value = "";
+  kv_mutation_record_native.value.Set(std::move(string_native));
+  kv_mutation_record_native.mutation_type = KeyValueMutationType::Delete;
+  DataRecordT data_record_native;
+  data_record_native.record.Set(std::move(kv_mutation_record_native));
+  auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
+
+  // Deserialize
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(1)
+      .WillOnce([](const DataRecord& fbs_record) {
+        const KeyValueMutationRecord& kv_mutation_record =
+            *fbs_record.record_as_KeyValueMutationRecord();
+        EXPECT_EQ(kv_mutation_record.key()->string_view(), "key");
+        EXPECT_EQ(kv_mutation_record.logical_commit_time(), 5);
+        absl::StatusOr<std::string_view> maybe_record_value =
+            MaybeGetRecordValue<std::string_view>(kv_mutation_record);
+        EXPECT_TRUE(maybe_record_value.ok()) << maybe_record_value.status();
+        EXPECT_EQ(*maybe_record_value, "");
+        return absl::OkStatus();
+      });
+  auto status = DeserializeRecord(serialized_string_view,
+                                  record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call)
+      .Times(1)
+      .WillOnce([&data_record_native](const DataRecordT& actual_record) {
+        EXPECT_EQ(data_record_native, actual_record);
+        return absl::OkStatus();
+      });
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(DataRecordTest, DeserializeDataRecordWithNoValueUpdateMutationFailure) {
+  // Serialize
+  KeyValueMutationRecordT kv_mutation_record_native;
+  kv_mutation_record_native.logical_commit_time = 5;
+  kv_mutation_record_native.key = "key";
+  StringValueT string_native;
+  string_native.value = "";
+  kv_mutation_record_native.value.Set(std::move(string_native));
+  kv_mutation_record_native.mutation_type = KeyValueMutationType::Update;
+  DataRecordT data_record_native;
+  data_record_native.record.Set(std::move(kv_mutation_record_native));
+  auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
+
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  EXPECT_CALL(record_callback, Call).Times(0);
+  auto status = DeserializeRecord(serialized_string_view,
+                                  record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "String value not set.");
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call).Times(0);
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "String value not set.");
+}
+
 TEST(DataRecordTest,
      DeserializeDataRecord_ToFbsRecord_KVMutation_ValueNotSet_Failure) {
   // Serialize

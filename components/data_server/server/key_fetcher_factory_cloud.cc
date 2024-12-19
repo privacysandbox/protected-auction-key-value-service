@@ -26,6 +26,7 @@
 #include "src/core/lib/event_engine/default_event_engine.h"
 #include "src/encryption/key_fetcher/fake_key_fetcher_manager.h"
 #include "src/encryption/key_fetcher/interface/key_fetcher_manager_interface.h"
+#include "src/errors/retry.h"
 
 ABSL_FLAG(std::string, public_key_endpoint, "", "Public key endpoint.");
 
@@ -40,6 +41,7 @@ using ::privacy_sandbox::server_common::PrivateKeyFetcherFactory;
 using ::privacy_sandbox::server_common::PrivateKeyFetcherInterface;
 using ::privacy_sandbox::server_common::PublicKeyFetcherFactory;
 using ::privacy_sandbox::server_common::PublicKeyFetcherInterface;
+using ::privacy_sandbox::server_common::RetryUntilOk;
 
 namespace {
 constexpr std::string_view kUseRealCoordinatorsParameterSuffix =
@@ -109,7 +111,8 @@ CloudKeyFetcherFactory::CreateKeyFetcherManager(
       KeyFetcherManagerFactory::Create(kKeyRefreshFlowRunFrequency,
                                        std::move(public_key_fetcher),
                                        std::move(private_key_fetcher));
-  manager->Start();
+  RetryUntilOk([&manager = *manager] { return manager.Start(); },
+               "InitialKeyFetch", [](const absl::Status&, int) {});
 
   return manager;
 }

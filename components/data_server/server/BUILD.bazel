@@ -322,6 +322,7 @@ cc_library(
             "@google_privacysandbox_servers_common//src/encryption/key_fetcher:key_fetcher_manager",
             "@google_privacysandbox_servers_common//src/encryption/key_fetcher:private_key_fetcher",
             "@google_privacysandbox_servers_common//src/encryption/key_fetcher:public_key_fetcher",
+            "@google_privacysandbox_servers_common//src/errors:retry",
         ],
 )
 

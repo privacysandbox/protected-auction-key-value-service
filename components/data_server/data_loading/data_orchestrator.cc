@@ -24,12 +24,12 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "components/data/file_group/file_group_search_utils.h"
-#include "components/errors/retry.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
 #include "public/sharding/sharding_function.h"
+#include "src/errors/retry.h"
 #include "src/telemetry/tracing.h"
 #include "src/util/status_macro/status_macros.h"
 
@@ -41,6 +41,7 @@ namespace {
 constexpr std::string_view kDefaultPrefixForRealTimeUpdates = "";
 constexpr std::string_view kDefaultDataSourceForRealtimeUpdates = "realtime";
 
+using ::privacy_sandbox::server_common::RetryUntilOk;
 using privacy_sandbox::server_common::TraceWithStatusOr;
 
 // Holds an input stream pointing to a blob of Riegeli records.

@@ -23,7 +23,8 @@
 
 #include "absl/flags/flag.h"
 #include "components/data/common/thread_manager.h"
-#include "components/util/sleepfor.h"
+#include "src/metric/context_map.h"
+#include "src/util/sleep/sleepfor.h"
 #include "test/core/util/histogram.h"
 
 namespace kv_server {
@@ -86,7 +87,8 @@ inline auto* RequestSimulationContextMap(
 // Otel
 class MetricsCollector {
  public:
-  explicit MetricsCollector(std::unique_ptr<SleepFor> sleep_for);
+  explicit MetricsCollector(
+      std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for);
   // Increments server response status event
   virtual void IncrementServerResponseStatusEvent(const absl::Status& status);
   // Increments requests sent counter for the current interval
@@ -131,7 +133,7 @@ class MetricsCollector {
   mutable std::atomic<int64_t> requests_with_error_response_per_interval_;
   absl::Duration report_interval_;
   std::unique_ptr<ThreadManager> report_thread_manager_;
-  std::unique_ptr<SleepFor> sleep_for_;
+  std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for_;
   grpc_histogram* histogram_per_interval_ ABSL_GUARDED_BY(mutex_);
   friend class MetricsCollectorPeer;
 };

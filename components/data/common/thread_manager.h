@@ -20,7 +20,7 @@
 #include <memory>
 #include <string>
 
-#include "components/errors/retry.h"
+#include "src/errors/retry.h"
 #include "src/logger/request_context_logger.h"
 
 namespace kv_server {

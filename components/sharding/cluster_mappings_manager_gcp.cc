@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#include "components/errors/retry.h"
 #include "components/sharding/cluster_mappings_manager.h"
+#include "src/errors/retry.h"
 
 namespace kv_server {
 namespace {
@@ -37,14 +37,16 @@ class GcpClusterMappingsManager : public ClusterMappingsManager {
   std::vector<absl::flat_hash_set<std::string>> GetClusterMappings() override {
     DescribeInstanceGroupInput describe_instance_group_input =
         GcpDescribeInstanceGroupInput{.project_id = project_id_};
-    auto instance_group_instances = TraceRetryUntilOk(
-        [&instance_client = instance_client_, &describe_instance_group_input] {
-          return instance_client.DescribeInstanceGroupInstances(
-              describe_instance_group_input);
-        },
-        "DescribeInstanceGroupInstances",
-        LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>(),
-        GetLogContext());
+    auto instance_group_instances =
+        privacy_sandbox::server_common::TraceRetryUntilOk(
+            [&instance_client = instance_client_,
+             &describe_instance_group_input] {
+              return instance_client.DescribeInstanceGroupInstances(
+                  describe_instance_group_input);
+            },
+            "DescribeInstanceGroupInstances",
+            LogStatusSafeMetricsFn<kDescribeInstanceGroupInstancesStatus>(),
+            GetLogContext());
 
     return GroupInstancesToClusterMappings(instance_group_instances);
   }

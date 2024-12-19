@@ -23,9 +23,9 @@
 #include "components/data/common/notifier_metadata.h"
 #include "components/data/common/thread_manager.h"
 #include "components/data/realtime/realtime_notifier_metadata.h"
-#include "components/errors/retry.h"
-#include "components/util/sleepfor.h"
+#include "src/errors/retry.h"
 #include "src/logger/request_context_logger.h"
+#include "src/util/sleep/sleepfor.h"
 
 namespace kv_server {
 struct DataLoadingStats {

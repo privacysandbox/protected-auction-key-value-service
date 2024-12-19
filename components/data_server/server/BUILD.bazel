@@ -51,12 +51,12 @@ cc_library(
         "//components/cloud_config:parameter_client",
         "//components/data/blob_storage:blob_storage_change_notifier",
         "//components/data/blob_storage:blob_storage_client",
-        "//components/errors:retry",
         "//components/util:periodic_closure",
         "//public:constants",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/errors:retry",
     ],
 )
 
@@ -85,10 +85,10 @@ cc_library(
     deps = [
         "//components/cloud_config:instance_client",
         "//components/data_server/server:parameter_fetcher",
-        "//components/errors:retry",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
+        "@google_privacysandbox_servers_common//src/errors:retry",
         "@google_privacysandbox_servers_common//src/logger:request_context_logger",
     ],
 )
@@ -148,7 +148,6 @@ cc_library(
         "//components/data_server/request_handler:get_values_adapter",
         "//components/data_server/request_handler:get_values_handler",
         "//components/data_server/request_handler:get_values_v2_handler",
-        "//components/errors:retry",
         "//components/internal_server:constants",
         "//components/internal_server:local_lookup",
         "//components/internal_server:lookup",
@@ -180,6 +179,7 @@ cc_library(
         "@com_google_absl//absl/functional:bind_front",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/errors:retry",
         "@google_privacysandbox_servers_common//src/telemetry",
         "@google_privacysandbox_servers_common//src/telemetry:init",
         "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",

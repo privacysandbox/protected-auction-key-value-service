@@ -16,7 +16,8 @@
 
 namespace kv_server {
 
-using privacy_sandbox::server_common::SteadyClock;
+using ::privacy_sandbox::server_common::SleepFor;
+using ::privacy_sandbox::server_common::SteadyClock;
 
 absl::StatusOr<std::string> ParameterNotifier::WaitForNotification(
     absl::Duration wait_duration,

@@ -18,11 +18,13 @@
 #include <utility>
 
 #include "absl/log/log.h"
-#include "components/errors/retry.h"
+#include "src/errors/retry.h"
 
 namespace kv_server {
 
 namespace {
+
+using ::privacy_sandbox::server_common::TraceRetryUntilOk;
 
 constexpr absl::string_view kLaunchHookParameterSuffix = "launch-hook";
 constexpr absl::Duration kLifecycleHeartbeatFrequency = absl::Seconds(30);

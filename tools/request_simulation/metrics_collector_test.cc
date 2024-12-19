@@ -19,13 +19,14 @@
 #include <utility>
 #include <vector>
 
-#include "components/util/sleepfor_mock.h"
 #include "gtest/gtest.h"
 #include "src/telemetry/mocks.h"
+#include "src/util/sleep/sleepfor_mock.h"
 
 namespace kv_server {
 
 using privacy_sandbox::server_common::MockMetricsRecorder;
+using ::privacy_sandbox::server_common::MockSleepFor;
 using privacy_sandbox::server_common::SimulatedSteadyClock;
 using privacy_sandbox::server_common::SteadyTime;
 using testing::_;

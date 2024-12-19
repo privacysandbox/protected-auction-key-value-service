@@ -28,9 +28,9 @@
 #include "components/cloud_config/instance_client.h"
 #include "components/cloud_config/parameter_client.h"
 #include "components/data_server/server/parameter_fetcher.h"
-#include "components/errors/retry.h"
 #include "components/telemetry/server_definition.h"
 #include "components/util/platform_initializer.h"
+#include "src/errors/retry.h"
 
 ABSL_DECLARE_FLAG(std::string, gcp_project_id);
 
@@ -53,7 +53,7 @@ bool PrepareTlsKeyCertForEnvoy() {
   if (environment == "NOT_SPECIFIED") {
     std::unique_ptr<kv_server::InstanceClient> instance_client =
         kv_server::InstanceClient::Create();
-    environment = kv_server::TraceRetryUntilOk(
+    environment = privacy_sandbox::server_common::TraceRetryUntilOk(
         [&instance_client]() { return instance_client->GetEnvironmentTag(); },
         "GetEnvironment", kv_server::LogMetricsNoOpCallback());
   }

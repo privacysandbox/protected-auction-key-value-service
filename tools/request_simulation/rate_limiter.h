@@ -24,18 +24,19 @@
 
 #include "absl/status/statusor.h"
 #include "absl/synchronization/mutex.h"
-#include "components/util/sleepfor.h"
 #include "src/util/duration.h"
+#include "src/util/sleep/sleepfor.h"
 namespace kv_server {
 
 // A simple permit-based rate limiter. The permits are refilled at given rate
 // passed in the constructor. The fill rate can also be updated during runtime
 class RateLimiter {
  public:
-  RateLimiter(int64_t initial_permits, int64_t permits_per_second,
-              privacy_sandbox::server_common::SteadyClock& clock,
-              std::unique_ptr<SleepFor> sleep_for,
-              const absl::Duration& timeout)
+  RateLimiter(
+      int64_t initial_permits, int64_t permits_per_second,
+      privacy_sandbox::server_common::SteadyClock& clock,
+      std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for,
+      const absl::Duration& timeout)
       : permits_fill_rate_(permits_per_second),
         last_refill_time_(clock),
         clock_(clock),
@@ -66,7 +67,7 @@ class RateLimiter {
   // Number of permits available
   mutable std::atomic<int64_t> permits_;
   privacy_sandbox::server_common::SteadyClock& clock_;
-  std::unique_ptr<SleepFor> sleep_for_;
+  std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for_;
   // Timeout period for acquiring permits
   absl::Duration timeout_;
   friend class RateLimiterTestPeer;

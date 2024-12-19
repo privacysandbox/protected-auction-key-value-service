@@ -28,8 +28,9 @@
 #include "components/data/common/change_notifier.h"
 #include "components/data/common/notifier_metadata.h"
 #include "components/data/common/thread_manager.h"
-#include "components/util/sleepfor.h"
 #include "src/logger/request_context_logger.h"
+#include "src/util/duration.h"
+#include "src/util/sleep/sleepfor.h"
 
 namespace kv_server {
 
@@ -44,7 +45,8 @@ class ParameterNotifier {
  public:
   explicit ParameterNotifier(
       std::unique_ptr<ChangeNotifier> notifier, std::string parameter_name,
-      const absl::Duration poll_frequency, std::unique_ptr<SleepFor> sleep_for,
+      const absl::Duration poll_frequency,
+      std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for,
       privacy_sandbox::server_common::SteadyClock& clock,
       privacy_sandbox::server_common::log::PSLogContext& log_context)
       : notifier_(std::move(notifier)),
@@ -97,7 +99,7 @@ class ParameterNotifier {
   const std::string parameter_name_;
   std::unique_ptr<ThreadManager> thread_manager_;
   const absl::Duration poll_frequency_;
-  std::unique_ptr<SleepFor> sleep_for_;
+  std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for_;
   privacy_sandbox::server_common::SteadyClock& clock_;
   privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
@@ -130,7 +132,8 @@ void ParameterNotifier::Watch(
       ++sequential_failures;
       const absl::Duration backoff_time =
           std::min(expiring_flag.GetTimeRemaining(),
-                   ExponentialBackoffForRetry(sequential_failures));
+                   privacy_sandbox::server_common::ExponentialBackoffForRetry(
+                       sequential_failures));
       PS_LOG(ERROR, log_context_)
           << "Failed to get parameter update notifications: " << parameter_name_
           << ", " << should_get_parameter.status() << ".  Waiting for "

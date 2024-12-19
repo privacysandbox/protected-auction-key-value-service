@@ -13,10 +13,12 @@
 // limitations under the License.
 
 #include "components/cloud_config/parameter_update/parameter_notifier.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 
-using privacy_sandbox::server_common::SteadyClock;
+using ::privacy_sandbox::server_common::SleepFor;
+using ::privacy_sandbox::server_common::SteadyClock;
 
 absl::StatusOr<std::string> ParameterNotifier::WaitForNotification(
     absl::Duration wait_duration,

@@ -21,13 +21,15 @@
 #include "components/data/common/mocks_aws.h"
 #include "components/data/realtime/realtime_notifier.h"
 #include "components/data/realtime/realtime_thread_pool_manager.h"
-#include "components/util/sleepfor_mock.h"
+#include "components/telemetry/server_definition.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "src/util/sleep/sleepfor_mock.h"
 
 namespace kv_server {
 namespace {
 using privacy_sandbox::server_common::GetTracer;
+using ::privacy_sandbox::server_common::MockSleepFor;
 using testing::_;
 using testing::Field;
 using testing::Return;

@@ -114,7 +114,8 @@ using opentelemetry::sdk::resource::Resource;
 using opentelemetry::sdk::resource::ResourceAttributes;
 using privacy_sandbox::server_common::ConfigurePrivateMetrics;
 using privacy_sandbox::server_common::InitTelemetry;
-using privacy_sandbox::server_common::SteadyClock;
+using ::privacy_sandbox::server_common::SleepFor;
+using ::privacy_sandbox::server_common::SteadyClock;
 namespace semantic_conventions =
     opentelemetry::sdk::resource::SemanticConventions;
 

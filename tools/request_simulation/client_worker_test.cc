@@ -20,19 +20,20 @@
 #include <utility>
 #include <vector>
 
-#include "components/util/sleepfor_mock.h"
 #include "google/protobuf/text_format.h"
 #include "grpcpp/grpcpp.h"
 #include "gtest/gtest.h"
 #include "public/testing/fake_key_value_service_impl.h"
 #include "src/telemetry/mocks.h"
 #include "src/util/duration.h"
+#include "src/util/sleep/sleepfor_mock.h"
 #include "tools/request_simulation/mocks.h"
 #include "tools/request_simulation/request/raw_request.pb.h"
 #include "tools/request_simulation/request_generation_util.h"
 
 namespace kv_server {
 
+using ::privacy_sandbox::server_common::MockSleepFor;
 using privacy_sandbox::server_common::SimulatedSteadyClock;
 using privacy_sandbox::server_common::SteadyTime;
 using testing::_;

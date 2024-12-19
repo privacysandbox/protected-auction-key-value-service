@@ -20,10 +20,11 @@
 #include "components/data/common/mocks.h"
 #include "components/data/common/mocks_aws.h"
 #include "components/data/realtime/realtime_notifier.h"
-#include "components/util/sleepfor_mock.h"
+#include "components/telemetry/server_definition.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/filename_utils.h"
+#include "src/util/sleep/sleepfor_mock.h"
 
 using testing::_;
 using testing::Field;
@@ -33,6 +34,7 @@ namespace kv_server {
 namespace {
 
 using privacy_sandbox::server_common::GetTracer;
+using ::privacy_sandbox::server_common::MockSleepFor;
 
 class RealtimeNotifierAwsTest : public ::testing::Test {
  protected:

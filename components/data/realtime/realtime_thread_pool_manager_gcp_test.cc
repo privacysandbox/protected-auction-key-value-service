@@ -20,11 +20,12 @@
 #include "components/data/common/mocks.h"
 #include "components/data/realtime/realtime_notifier.h"
 #include "components/data/realtime/realtime_thread_pool_manager.h"
-#include "components/util/sleepfor_mock.h"
+#include "components/telemetry/server_definition.h"
 #include "gmock/gmock.h"
 #include "google/cloud/pubsub/mocks/mock_subscriber_connection.h"
 #include "google/cloud/pubsub/subscriber.h"
 #include "gtest/gtest.h"
+#include "src/util/sleep/sleepfor_mock.h"
 
 namespace kv_server {
 namespace {
@@ -33,6 +34,7 @@ using ::google::cloud::pubsub::Subscriber;
 using ::google::cloud::pubsub::SubscriberConnection;
 using ::google::cloud::pubsub_mocks::MockSubscriberConnection;
 using privacy_sandbox::server_common::GetTracer;
+using ::privacy_sandbox::server_common::MockSleepFor;
 using testing::_;
 using testing::Field;
 using testing::Return;

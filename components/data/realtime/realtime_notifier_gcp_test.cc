@@ -21,7 +21,7 @@
 #include "absl/synchronization/notification.h"
 #include "components/data/common/mocks.h"
 #include "components/data/realtime/realtime_notifier.h"
-#include "components/util/sleepfor_mock.h"
+#include "components/telemetry/server_definition.h"
 #include "gmock/gmock.h"
 #include "google/cloud/pubsub/message.h"
 #include "google/cloud/pubsub/mocks/mock_ack_handler.h"
@@ -29,6 +29,7 @@
 #include "google/cloud/pubsub/subscriber.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/filename_utils.h"
+#include "src/util/sleep/sleepfor_mock.h"
 
 namespace kv_server {
 namespace {
@@ -40,6 +41,7 @@ using ::google::cloud::pubsub::SubscriberConnection;
 using ::google::cloud::pubsub_mocks::MockAckHandler;
 using ::google::cloud::pubsub_mocks::MockSubscriberConnection;
 using privacy_sandbox::server_common::GetTracer;
+using ::privacy_sandbox::server_common::MockSleepFor;
 using testing::_;
 using testing::Field;
 using testing::Return;

@@ -21,7 +21,7 @@
 #include <string>
 
 #include "components/data/common/notifier_metadata.h"
-#include "components/util/sleepfor.h"
+#include "src/util/sleep/sleepfor.h"
 
 namespace google {
 namespace cloud {
@@ -48,7 +48,7 @@ struct AwsRealtimeNotifierMetadata {
   // Realtime notifier takes ownership of this if set.
   DeltaFileRecordChangeNotifier* change_notifier_for_unit_testing = nullptr;
   // Used for tests only.
-  std::unique_ptr<SleepFor> maybe_sleep_for;
+  std::unique_ptr<privacy_sandbox::server_common::SleepFor> maybe_sleep_for;
 };
 
 struct GcpRealtimeNotifierMetadata {
@@ -59,7 +59,7 @@ struct GcpRealtimeNotifierMetadata {
   ::google::cloud::pubsub::v2_17::Subscriber* gcp_subscriber_for_unit_testing =
       nullptr;
   // Used for tests only.
-  std::unique_ptr<SleepFor> maybe_sleep_for;
+  std::unique_ptr<privacy_sandbox::server_common::SleepFor> maybe_sleep_for;
 };
 
 struct LocalRealtimeNotifierMetadata {};

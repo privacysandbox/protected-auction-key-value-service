@@ -16,9 +16,9 @@ cc_binary(
         "//components/cloud_config:instance_client",
         "//components/cloud_config:parameter_client",
         "//components/data_server/server:parameter_fetcher",
-        "//components/errors:retry",
         "//components/telemetry:server_definition",
         "//components/util:platform_initializer",
         "@com_google_absl//absl/flags:parse",
+        "@google_privacysandbox_servers_common//src/errors:retry",
     ],
 )

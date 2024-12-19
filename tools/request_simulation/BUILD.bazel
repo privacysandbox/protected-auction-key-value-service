@@ -44,10 +44,10 @@ cc_library(
     srcs = ["rate_limiter.cc"],
     hdrs = ["rate_limiter.h"],
     deps = [
-        "//components/util:sleepfor",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@google_privacysandbox_servers_common//src/util:duration",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor",
     ],
 )
 
@@ -81,10 +81,10 @@ cc_library(
     hdrs = ["metrics_collector.h"],
     deps = [
         "//components/data/common:thread_manager",
-        "//components/util:sleepfor",
         "@com_github_grpc_grpc//test/core/util:grpc_test_util_base",
         "@com_google_absl//absl/log",
         "@google_privacysandbox_servers_common//src/metric:context_map",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor",
     ],
 )
 
@@ -232,8 +232,8 @@ cc_test(
     srcs = ["rate_limiter_test.cc"],
     deps = [
         ":rate_limiter",
-        "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 
@@ -244,8 +244,8 @@ cc_test(
     deps = [
         ":request_generation_util",
         ":synthetic_request_generator",
-        "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 
@@ -269,11 +269,11 @@ cc_test(
         ":client_worker",
         ":mocks",
         ":request_generation_util",
-        "//components/util:sleepfor_mock",
         "//public/testing:fake_key_value_service_impl",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 
@@ -283,9 +283,9 @@ cc_test(
     srcs = ["metrics_collector_test.cc"],
     deps = [
         ":metrics_collector",
-        "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 
@@ -303,12 +303,12 @@ cc_test(
     deps = [
         ":request_generation_util",
         ":request_simulation_system",
-        "//components/util:sleepfor_mock",
         "//public/testing:fake_key_value_service_impl",
         "//tools/request_simulation:mocks",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 

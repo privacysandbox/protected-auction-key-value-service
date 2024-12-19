@@ -14,10 +14,14 @@
  * limitations under the License.
  */
 
-#include "components/errors/retry.h"
 #include "components/sharding/cluster_mappings_manager.h"
+#include "src/errors/retry.h"
 
 namespace kv_server {
+
+using ::privacy_sandbox::server_common::SleepFor;
+using ::privacy_sandbox::server_common::TraceRetryUntilOk;
+
 class AwsClusterMappingsManager : public ClusterMappingsManager {
  public:
   AwsClusterMappingsManager(

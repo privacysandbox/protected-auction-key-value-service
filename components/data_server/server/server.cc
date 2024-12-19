@@ -32,7 +32,6 @@
 #include "components/data_server/server/key_value_service_impl.h"
 #include "components/data_server/server/key_value_service_v2_impl.h"
 #include "components/data_server/server/server_log_init.h"
-#include "components/errors/retry.h"
 #include "components/internal_server/constants.h"
 #include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup_server_impl.h"
@@ -52,6 +51,7 @@
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/readers/stream_record_reader_factory.h"
 #include "public/udf/constants.h"
+#include "src/errors/retry.h"
 #include "src/google/protobuf/struct.pb.h"
 #include "src/telemetry/init.h"
 #include "src/telemetry/telemetry.h"
@@ -67,7 +67,9 @@ using privacy_sandbox::server_common::ConfigurePrivateMetrics;
 using privacy_sandbox::server_common::ConfigureTracer;
 using privacy_sandbox::server_common::GetTracer;
 using privacy_sandbox::server_common::InitTelemetry;
+using ::privacy_sandbox::server_common::RetryUntilOk;
 using privacy_sandbox::server_common::TelemetryProvider;
+using ::privacy_sandbox::server_common::TraceRetryUntilOk;
 using privacy_sandbox::server_common::log::PSLogContext;
 using privacy_sandbox::server_common::telemetry::BuildDependentConfig;
 using privacy_sandbox::server_common::telemetry::TelemetryConfig;

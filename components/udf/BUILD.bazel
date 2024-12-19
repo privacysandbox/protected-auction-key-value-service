@@ -40,7 +40,6 @@ cc_library(
     deps = [
         ":code_config",
         "//components/errors:error_tag",
-        "//components/errors:retry",
         "//components/udf/hooks:get_values_hook",
         "//components/udf/hooks:run_query_hook",
         "//public:api_schema_cc_proto",
@@ -49,6 +48,7 @@ cc_library(
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/time",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/errors:retry",
         "@google_privacysandbox_servers_common//src/logger:request_context_logger",
         "@google_privacysandbox_servers_common//src/roma/interface",
         "@google_privacysandbox_servers_common//src/roma/roma_service",
@@ -68,8 +68,8 @@ cc_library(
     deps = [
         ":code_config",
         ":udf_client",
-        "//components/errors:retry",
         "@com_google_absl//absl/status",
+        "@google_privacysandbox_servers_common//src/errors:retry",
     ],
 )
 

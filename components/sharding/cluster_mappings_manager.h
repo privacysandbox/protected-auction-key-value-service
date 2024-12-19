@@ -29,8 +29,8 @@
 #include "components/cloud_config/instance_client.h"
 #include "components/data/common/thread_manager.h"
 #include "components/data_server/server/parameter_fetcher.h"
-#include "components/errors/retry.h"
 #include "components/sharding/shard_manager.h"
+#include "src/errors/retry.h"
 
 namespace kv_server {
 // Continously updates shard manager's cluster mappings every
@@ -47,7 +47,8 @@ class ClusterMappingsManager {
       std::string environment, int32_t num_shards,
       InstanceClient& instance_client,
       privacy_sandbox::server_common::log::PSLogContext& log_context,
-      std::unique_ptr<SleepFor> sleep_for = std::make_unique<SleepFor>(),
+      std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for =
+          std::make_unique<privacy_sandbox::server_common::SleepFor>(),
       int32_t update_interval_millis = 1000);
   // Retreives cluster mappings for the given `environment`, which are
   // necessary for the ShardManager.
@@ -75,7 +76,7 @@ class ClusterMappingsManager {
   InstanceClient& instance_client_;
   std::unique_ptr<ThreadManager> thread_manager_;
   privacy_sandbox::server_common::log::PSLogContext& log_context_;
-  std::unique_ptr<SleepFor> sleep_for_;
+  std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for_;
   int32_t update_interval_millis_;
 };
 

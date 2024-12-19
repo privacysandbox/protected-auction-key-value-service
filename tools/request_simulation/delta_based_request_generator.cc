@@ -20,6 +20,7 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/records_utils.h"
+#include "src/errors/retry.h"
 #include "src/telemetry/tracing.h"
 
 using privacy_sandbox::server_common::MetricsRecorder;
@@ -27,6 +28,9 @@ using privacy_sandbox::server_common::TraceWithStatusOr;
 
 namespace kv_server {
 namespace {
+
+using ::privacy_sandbox::server_common::RetryUntilOk;
+
 // Holds an input stream pointing to a blob of Riegeli records.
 class BlobRecordStream : public RecordStream {
  public:

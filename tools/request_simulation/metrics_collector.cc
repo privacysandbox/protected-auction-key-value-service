@@ -24,6 +24,9 @@ ABSL_FLAG(absl::Duration, metrics_report_interval, absl::Minutes(1),
 namespace kv_server {
 
 namespace {
+
+using ::privacy_sandbox::server_common::SleepFor;
+
 constexpr double kDefaultHistogramResolution = 0.1;
 constexpr double kDefaultHistogramMaxBucket = 60e9;
 }  // namespace

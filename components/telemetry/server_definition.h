@@ -26,6 +26,7 @@
 #include "opentelemetry/metrics/provider.h"
 #include "src/core/common/uuid/uuid.h"
 #include "src/metric/context_map.h"
+#include "src/metric/definition.h"
 #include "src/util/duration.h"
 #include "src/util/read_system.h"
 

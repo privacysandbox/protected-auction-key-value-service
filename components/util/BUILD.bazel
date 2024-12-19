@@ -171,43 +171,6 @@ cc_library(
 )
 
 cc_library(
-    name = "sleepfor",
-    srcs = [
-        "sleepfor.cc",
-    ],
-    hdrs = [
-        "sleepfor.h",
-    ],
-    deps = [
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/time",
-    ],
-)
-
-cc_test(
-    name = "sleepfor_test",
-    size = "small",
-    srcs = [
-        "sleepfor_test.cc",
-    ],
-    deps = [
-        ":sleepfor",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_library(
-    name = "sleepfor_mock",
-    testonly = 1,
-    hdrs = ["sleepfor_mock.h"],
-    deps = [
-        ":sleepfor",
-        "@com_google_googletest//:gtest",
-    ],
-)
-
-cc_library(
     name = "request_context",
     srcs = [
         "request_context.cc",

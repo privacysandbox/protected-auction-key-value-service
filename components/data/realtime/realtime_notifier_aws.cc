@@ -23,13 +23,17 @@
 #include "components/data/common/thread_manager.h"
 #include "components/data/realtime/delta_file_record_change_notifier.h"
 #include "components/data/realtime/realtime_notifier.h"
-#include "components/errors/retry.h"
+#include "components/telemetry/server_definition.h"
 #include "public/constants.h"
+#include "src/errors/retry.h"
 #include "src/telemetry/telemetry.h"
 #include "src/util/duration.h"
 
 namespace kv_server {
 namespace {
+
+using ::privacy_sandbox::server_common::ExponentialBackoffForRetry;
+using ::privacy_sandbox::server_common::SleepFor;
 
 class RealtimeNotifierImpl : public RealtimeNotifier {
  public:

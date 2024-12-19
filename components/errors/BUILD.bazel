@@ -77,38 +77,6 @@ cc_test(
 )
 
 cc_library(
-    name = "retry",
-    srcs = [
-        "retry.cc",
-    ],
-    hdrs = [
-        "retry.h",
-    ],
-    deps = [
-        "//components/telemetry:server_definition",
-        "//components/util:sleepfor",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/time",
-        "@google_privacysandbox_servers_common//src/logger:request_context_logger",
-        "@google_privacysandbox_servers_common//src/telemetry:tracing",
-    ],
-)
-
-cc_test(
-    name = "retry_test",
-    size = "small",
-    srcs = [
-        "retry_test.cc",
-    ],
-    deps = [
-        ":retry",
-        "//components/util:sleepfor_mock",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_library(
     name = "error_tag",
     srcs = [
         "error_tag.h",

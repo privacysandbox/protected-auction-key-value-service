@@ -89,7 +89,7 @@ cc_test(
         ],
         "//:local_platform": [
             "//components/data/common:mocks",
-            "//components/util:sleepfor_mock",
+            "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
             "@com_google_absl//absl/log",
             "@com_github_grpc_grpc//:grpc++",
         ],

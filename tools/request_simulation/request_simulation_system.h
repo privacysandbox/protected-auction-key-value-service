@@ -104,10 +104,12 @@ class RequestSimulationSystem {
   // Defaults SleepFors and MetricsCollector to nullptr to
   // allow mocking SleepFors in unit tests
   absl::Status Init(
-      std::unique_ptr<SleepFor> sleep_for_request_generator = nullptr,
-      std::unique_ptr<SleepFor> sleep_for_request_generator_rate_limiter =
-          nullptr,
-      std::unique_ptr<SleepFor> sleep_for_client_worker_rate_limiter = nullptr,
+      std::unique_ptr<privacy_sandbox::server_common::SleepFor>
+          sleep_for_request_generator = nullptr,
+      std::unique_ptr<privacy_sandbox::server_common::SleepFor>
+          sleep_for_request_generator_rate_limiter = nullptr,
+      std::unique_ptr<privacy_sandbox::server_common::SleepFor>
+          sleep_for_client_worker_rate_limiter = nullptr,
       std::unique_ptr<MetricsCollector> metrics_collector = nullptr);
   // Starts the system to generate requests and send requests to target server
   absl::Status Start();
@@ -128,7 +130,7 @@ class RequestSimulationSystem {
   std::unique_ptr<StreamRecordReaderFactory> CreateStreamRecordReaderFactory();
   std::unique_ptr<RateLimiter> CreateRateLimiter(
       int64_t per_second_rate, int64_t initial_permits, absl::Duration timeout,
-      std::unique_ptr<SleepFor> sleep_for);
+      std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for);
   absl::Status InitializeGrpcClientWorkers();
   absl::AnyInvocable<std::string(std::string_view)> CreateRequestFromKeyFn();
   // This must be first, otherwise the AWS SDK will crash when it's called:

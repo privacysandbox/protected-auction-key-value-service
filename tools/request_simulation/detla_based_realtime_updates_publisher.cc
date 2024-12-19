@@ -18,6 +18,7 @@
 #include "public/data_loading/filename_utils.h"
 #include "src/util/status_macro/status_macros.h"
 
+using ::privacy_sandbox::server_common::RetryUntilOk;
 using privacy_sandbox::server_common::TraceWithStatusOr;
 
 namespace kv_server {

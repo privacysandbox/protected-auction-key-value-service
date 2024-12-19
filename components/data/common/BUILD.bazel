@@ -89,13 +89,13 @@ cc_library(
     }) + [
         ":message_service",
         "//components/telemetry:server_definition",
-        "//components/util:sleepfor",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
         "@google_privacysandbox_servers_common//src/logger:request_context_logger",
         "@google_privacysandbox_servers_common//src/telemetry:telemetry_provider",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor",
     ],
 )
 
@@ -141,7 +141,6 @@ cc_library(
         "thread_manager.h",
     ],
     deps = [
-        "//components/errors:retry",
         "//public:constants",
         "//public/data_loading:filename_utils",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -150,6 +149,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
+        "@google_privacysandbox_servers_common//src/errors:retry",
         "@google_privacysandbox_servers_common//src/logger:request_context_logger",
         "@google_privacysandbox_servers_common//src/util:duration",
     ],

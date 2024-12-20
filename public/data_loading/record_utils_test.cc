@@ -58,7 +58,7 @@ TEST(RecordUtilsTest, KeyValueMutationRecordWithStringValue) {
   auto [fbs_buffer, serialized_string_view] =
       Serialize(kv_mutation_record_native);
 
-  // Deserialize
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const KeyValueMutationRecord&)>
       record_callback;
   EXPECT_CALL(record_callback, Call)
@@ -77,6 +77,20 @@ TEST(RecordUtilsTest, KeyValueMutationRecordWithStringValue) {
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const KeyValueMutationRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call)
+      .Times(1)
+      .WillOnce([&kv_mutation_record_native](
+                    const KeyValueMutationRecordT& actual_record) {
+        EXPECT_EQ(kv_mutation_record_native, actual_record);
+        return absl::OkStatus();
+      });
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST(RecordUtilsTest, KeyValueMutationRecordWithStringSetValue) {
@@ -90,7 +104,7 @@ TEST(RecordUtilsTest, KeyValueMutationRecordWithStringSetValue) {
   auto [fbs_buffer, serialized_string_view] =
       Serialize(kv_mutation_record_native);
 
-  // Deserialize
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const KeyValueMutationRecord&)>
       record_callback;
   EXPECT_CALL(record_callback, Call)
@@ -110,6 +124,20 @@ TEST(RecordUtilsTest, KeyValueMutationRecordWithStringSetValue) {
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const KeyValueMutationRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call)
+      .Times(1)
+      .WillOnce([&kv_mutation_record_native](
+                    const KeyValueMutationRecordT& actual_record) {
+        EXPECT_EQ(kv_mutation_record_native, actual_record);
+        return absl::OkStatus();
+      });
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithStringValue) {
@@ -124,7 +152,7 @@ TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithStringValue) {
   data_record_native.record.Set(std::move(kv_mutation_record_native));
   auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
 
-  // Deserialize
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(1)
@@ -144,6 +172,19 @@ TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithStringValue) {
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call)
+      .Times(1)
+      .WillOnce([&data_record_native](const DataRecordT& actual_record) {
+        EXPECT_EQ(data_record_native, actual_record);
+        return absl::OkStatus();
+      });
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithStringSetValue) {
@@ -158,7 +199,7 @@ TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithStringSetValue) {
   data_record_native.record.Set(std::move(kv_mutation_record_native));
   auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
 
-  // Deserialize
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(1)
@@ -181,6 +222,19 @@ TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithStringSetValue) {
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call)
+      .Times(1)
+      .WillOnce([&data_record_native](const DataRecordT& actual_record) {
+        EXPECT_EQ(data_record_native, actual_record);
+        return absl::OkStatus();
+      });
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithUInt32SetValue) {
@@ -194,7 +248,7 @@ TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithUInt32SetValue) {
   DataRecordT data_record_native;
   data_record_native.record.Set(std::move(kv_mutation_record_native));
   auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
-  // Deserialize
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(1)
@@ -213,6 +267,19 @@ TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithUInt32SetValue) {
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call)
+      .Times(1)
+      .WillOnce([&data_record_native](const DataRecordT& actual_record) {
+        EXPECT_EQ(data_record_native, actual_record);
+        return absl::OkStatus();
+      });
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithUInt64SetValue) {
@@ -230,7 +297,7 @@ TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithUInt64SetValue) {
   DataRecordT data_record_native;
   data_record_native.record.Set(std::move(kv_mutation_record_native));
   auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
-  // Deserialize
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(1)
@@ -251,16 +318,39 @@ TEST(RecordUtilsTest, DataRecordWithKeyValueMutationRecordWithUInt64SetValue) {
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call)
+      .Times(1)
+      .WillOnce([&data_record_native](const DataRecordT& actual_record) {
+        EXPECT_EQ(data_record_native, actual_record);
+        return absl::OkStatus();
+      });
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST(DataRecordTest, DeserializeDataRecordEmptyRecordFailure) {
   DataRecordT data_record_native;
   auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
 
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call).Times(0);
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "Record not set.");
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call).Times(0);
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_EQ(status.message(), "Record not set.");
 }
@@ -277,10 +367,20 @@ TEST(DataRecordTest,
   data_record_native.record.Set(std::move(kv_mutation_record_native));
   auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
 
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call).Times(0);
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "Key not set.");
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call).Times(0);
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_EQ(status.message(), "Key not set.");
 }
@@ -295,10 +395,20 @@ TEST(DataRecordTest,
   data_record_native.record.Set(std::move(kv_mutation_record_native));
   auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
 
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call).Times(0);
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "Value not set.");
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call).Times(0);
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_EQ(status.message(), "Value not set.");
 }
@@ -331,6 +441,19 @@ TEST(RecordUtilsTest, DataRecordWithUDFConfig) {
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call)
+      .Times(1)
+      .WillOnce([&data_record_native](const DataRecordT& actual_record) {
+        EXPECT_EQ(data_record_native, actual_record);
+        return absl::OkStatus();
+      });
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
 }
 
 TEST(DataRecordTest, DeserializeRecord_UdfConfig_CodeSnippetNotSet_Failure) {
@@ -343,10 +466,20 @@ TEST(DataRecordTest, DeserializeRecord_UdfConfig_CodeSnippetNotSet_Failure) {
   data_record_native.record.Set(std::move(udf_config_native));
   auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
 
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call).Times(0);
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "code_snippet not set.");
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call).Times(0);
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_EQ(status.message(), "code_snippet not set.");
 }
@@ -362,10 +495,20 @@ TEST(DataRecordTest,
   data_record_native.record.Set(std::move(udf_config_native));
   auto [fbs_buffer, serialized_string_view] = Serialize(data_record_native);
 
+  // Deserialize native fb
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call).Times(0);
   auto status = DeserializeRecord(serialized_string_view,
                                   record_callback.AsStdFunction());
+  EXPECT_FALSE(status.ok()) << status;
+  EXPECT_EQ(status.message(), "handler_name not set.");
+
+  // Deserialize native fb struct
+  testing::MockFunction<absl::Status(const DataRecordT&)>
+      struct_record_callback;
+  EXPECT_CALL(struct_record_callback, Call).Times(0);
+  status = DeserializeRecord(serialized_string_view,
+                             struct_record_callback.AsStdFunction());
   EXPECT_FALSE(status.ok()) << status;
   EXPECT_EQ(status.message(), "handler_name not set.");
 }

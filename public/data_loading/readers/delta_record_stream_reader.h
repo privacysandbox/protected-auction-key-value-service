@@ -24,7 +24,7 @@
 
 namespace kv_server {
 
-// A `DeltaRecordStreamReader` reads records as `DataRecordStruct`s
+// A `DeltaRecordStreamReader` reads records as `DataRecordT`s
 // from a delta record input stream source.
 //
 // A `DeltaRecordStreamReader` can be used to read records as follows:
@@ -32,7 +32,7 @@ namespace kv_server {
 // std::ifstream delta_file(my_filename);
 // DeltaRecordStreamReader record_reader(delta_file);
 // absl::Status status = record_reader.ReadRecords(
-//  [](const DataRecordStruct& record) {
+//  [](const DataRecordT& record) {
 //    UseRecord(record);
 //    return absl::OkStatus();
 //  }

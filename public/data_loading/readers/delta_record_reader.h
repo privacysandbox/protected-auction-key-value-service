@@ -44,7 +44,7 @@ namespace kv_server {
 class DeltaRecordReader {
  public:
   virtual ~DeltaRecordReader() = default;
-  // Reads `DataRecordStruct` records from the underlying record
+  // Reads `DataRecord` records from the underlying record
   // source and passes them to `record_callback` function.
   virtual absl::Status ReadRecords(
       const std::function<absl::Status(const DataRecord&)>&

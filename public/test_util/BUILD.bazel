@@ -42,3 +42,9 @@ cc_library(
     testonly = 1,
     hdrs = ["request_example.h"],
 )
+
+cc_library(
+    name = "data_record",
+    testonly = 1,
+    hdrs = ["data_record.h"],
+)

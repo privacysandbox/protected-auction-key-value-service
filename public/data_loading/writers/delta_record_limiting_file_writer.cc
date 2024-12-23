@@ -72,10 +72,10 @@ absl::Status DeltaRecordLimitingFileWriter::ProcessWritingFailure() {
 }
 
 absl::Status DeltaRecordLimitingFileWriter::WriteRecord(
-    const DataRecordStruct& data_record) {
+    const DataRecordT& data_record) {
   file_writer_pos_ = file_writer_.pos();
-  if (!record_writer_.WriteRecord(
-          ToStringView(ToFlatBufferBuilder(data_record)))) {
+  auto [fbs_buffer, bytes_to_write] = Serialize(data_record);
+  if (!record_writer_.WriteRecord(bytes_to_write)) {
     return ProcessWritingFailure();
   }
 

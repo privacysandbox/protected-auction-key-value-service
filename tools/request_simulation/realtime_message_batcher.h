@@ -36,8 +36,7 @@ namespace kv_server {
 class RealtimeMessageBatcher {
  public:
   // Not thread safe.
-  absl::Status Insert(
-      kv_server::KeyValueMutationRecordStruct key_value_mutation);
+  absl::Status Insert(kv_server::KeyValueMutationRecordT key_value_mutation);
   ~RealtimeMessageBatcher();
   // `queue_mutex` and `realtime_messages` are not owned by
   // RealtimeMessageBatcher and must outlive it.

@@ -53,10 +53,13 @@ class DeltaRecordLimitingFileWriter : public DeltaRecordWriter {
   // has reached it's hard size limit. Please create a new
   // `DeltaRecordLimitingFileWriter` writing to a new file. Note that multiple
   // records might be dropped, and not just the latest one.
-  absl::Status WriteRecord(const DataRecordT& data_record) override {
-    return absl::UnimplementedError("To be implemented");
+  absl::Status WriteRecord(const DataRecordT& data_record) override;
+  [[deprecated("Use corresponding DataRecordT-based function")]]
+  absl::Status WriteRecord(const DataRecordStruct& record) override {
+    return absl::UnimplementedError(
+        "DeltaRecordLimitingFileWriter is updated to use newer data "
+        "structures");
   };
-  absl::Status WriteRecord(const DataRecordStruct& data_record) override;
   const Options& GetOptions() const override;
   // If ResourceExhaustedStatus is returned, it means that the underlying file
   // has reached it's hard size limit. Please create a new

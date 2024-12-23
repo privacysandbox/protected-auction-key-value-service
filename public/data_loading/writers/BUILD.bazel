@@ -142,6 +142,7 @@ cc_test(
     deps = [
         ":delta_record_limiting_file_writer",
         "//public/data_loading/readers:delta_record_stream_reader",
+        "//public/test_util:data_record",
         "@com_google_googletest//:gtest_main",
     ],
 )

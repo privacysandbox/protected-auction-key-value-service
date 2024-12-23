@@ -345,6 +345,7 @@ cc_test(
     deps = [
         ":realtime_message_batcher",
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
+        "//public/test_util:data_record",
         "@com_google_googletest//:gtest_main",
     ],
 )

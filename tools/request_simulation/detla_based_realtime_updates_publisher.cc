@@ -128,25 +128,25 @@ DeltaBasedRealtimeUpdatesPublisher::CreateRealtimeMessagesAndAddToQueue(
                 blob_client.GetBlobReader(location));
           });
   DataLoadingStats data_loading_stats;
-  const auto process_data_record_fn =
-      [this, &data_loading_stats](const DataRecord& data_record) {
-        if (data_record.record_type() == Record::KeyValueMutationRecord) {
-          KeyValueMutationRecordStruct kv_mutation_struct;
-          const auto* kv_mutation_record =
-              data_record.record_as_KeyValueMutationRecord();
-          if (kv_mutation_record->value_type() == Value::StringValue) {
-            const auto record =
-                GetTypedRecordStruct<KeyValueMutationRecordStruct>(data_record);
-            realtime_message_batcher_->Insert(std::move(record));
-            if (record.mutation_type == KeyValueMutationType::Update) {
-              data_loading_stats.total_updated_records++;
-            } else if (record.mutation_type == KeyValueMutationType::Delete) {
-              data_loading_stats.total_deleted_records++;
-            }
-            return absl::OkStatus();
-          }
+  const auto process_data_record_fn = [this, &data_loading_stats](
+                                          const DataRecord& data_record) {
+    if (data_record.record_type() == Record::KeyValueMutationRecord) {
+      const auto* kv_mutation_record =
+          data_record.record_as_KeyValueMutationRecord();
+      if (kv_mutation_record->value_type() == Value::StringValue) {
+        KeyValueMutationRecordT kv_record_struct;
+        kv_mutation_record->UnPackTo(&kv_record_struct);
+        realtime_message_batcher_->Insert(std::move(kv_record_struct));
+        if (kv_record_struct.mutation_type == KeyValueMutationType::Update) {
+          data_loading_stats.total_updated_records++;
+        } else if (kv_record_struct.mutation_type ==
+                   KeyValueMutationType::Delete) {
+          data_loading_stats.total_deleted_records++;
         }
-      };
+        return absl::OkStatus();
+      }
+    }
+  };
   PS_RETURN_IF_ERROR(record_reader->ReadStreamRecords(
       [&process_data_record_fn](std::string_view raw) {
         return DeserializeDataRecord(raw, process_data_record_fn);

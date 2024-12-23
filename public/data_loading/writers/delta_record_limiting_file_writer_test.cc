@@ -21,6 +21,7 @@
 
 #include "gtest/gtest.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
+#include "public/test_util/data_record.h"
 
 namespace kv_server {
 namespace {
@@ -38,16 +39,8 @@ void Write(std::string file_name, int num_records) {
   auto record_writer = std::move(*maybe_record_writer);
   int cur_record = 1;
   while (cur_record <= num_records) {
-    const std::string key = "key";
-    const std::string value = "value";
-    auto kv_mutation_record = KeyValueMutationRecordStruct{
-        .mutation_type = kv_server::KeyValueMutationType::Update,
-        .logical_commit_time = absl::ToUnixSeconds(absl::Now()),
-        .key = key,
-        .value = value,
-    };
     auto data_record =
-        DataRecordStruct{.record = std::move(kv_mutation_record)};
+        GetNativeDataRecord(GetKVMutationRecord(GetSimpleStringValue()));
     auto result = record_writer->WriteRecord(data_record);
     if (!result.ok()) {
       return;
@@ -63,18 +56,9 @@ int Read(std::ifstream input_stream) {
   absl::Status status = record_reader.ReadRecords(
       [&records_count](const kv_server::DataRecord& data_record) {
         records_count++;
-        std::unique_ptr<kv_server::DataRecordT> data_record_native(
-            data_record.UnPack());
-        auto [fbs_buffer, serialized_string_view] =
-            Serialize(*data_record_native);
-        return kv_server::DeserializeDataRecord(
-            serialized_string_view,
-            [&records_count](const kv_server::DataRecordStruct& data_record_2) {
-              auto kv_record =
-                  std::get<KeyValueMutationRecordStruct>(data_record_2.record);
-              EXPECT_EQ(kv_record.key, "key");
-              return absl::OkStatus();
-            });
+        EXPECT_EQ(data_record.UnPack()->record.AsKeyValueMutationRecord()->key,
+                  "key");
+        return absl::OkStatus();
       });
   EXPECT_TRUE(status.ok());
   return records_count;

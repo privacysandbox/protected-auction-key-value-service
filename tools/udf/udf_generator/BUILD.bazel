@@ -43,5 +43,6 @@ cc_binary(
         "@com_google_absl//absl/strings",
         "@com_google_riegeli//riegeli/bytes:ostream_writer",
         "@com_google_riegeli//riegeli/records:record_writer",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )

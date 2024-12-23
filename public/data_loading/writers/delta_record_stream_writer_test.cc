@@ -24,6 +24,7 @@
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/records_utils.h"
+#include "public/test_util/data_record.h"
 
 namespace kv_server {
 namespace {
@@ -31,40 +32,6 @@ namespace {
 KVFileMetadata GetMetadata() {
   KVFileMetadata metadata;
   return metadata;
-}
-
-KeyValueMutationRecordStruct GetKeyValueMutationRecord() {
-  KeyValueMutationRecordStruct kv_mutation_record;
-  kv_mutation_record.key = "key";
-  kv_mutation_record.value = "value";
-  kv_mutation_record.logical_commit_time = 1234567890;
-  kv_mutation_record.mutation_type = KeyValueMutationType::Update;
-  return kv_mutation_record;
-}
-
-UserDefinedFunctionsConfigStruct GetUserDefinedFunctionsConfig() {
-  UserDefinedFunctionsConfigStruct udf_config_record;
-  udf_config_record.language = UserDefinedFunctionsLanguage::Javascript;
-  udf_config_record.code_snippet = "function hello(){}";
-  udf_config_record.handler_name = "hello";
-  udf_config_record.logical_commit_time = 1234567890;
-  udf_config_record.version = 1;
-  return udf_config_record;
-}
-
-DataRecordStruct GetDataRecord(const RecordT& record) {
-  DataRecordStruct data_record;
-  data_record.record = record;
-  return data_record;
-}
-
-KeyValueMutationRecordStruct GetDeltaSetRecord() {
-  KeyValueMutationRecordStruct record;
-  record.key = "key";
-  record.value = std::vector<std::string_view>{"v1", "v2"};
-  record.logical_commit_time = 1234567890;
-  record.mutation_type = KeyValueMutationType::Update;
-  return record;
 }
 
 class DeltaRecordStreamWriterTest
@@ -92,77 +59,8 @@ TEST_P(DeltaRecordStreamWriterTest,
   auto record_writer = CreateDeltaRecordStreamWriter(string_stream);
   EXPECT_TRUE(record_writer.ok());
 
-  KeyValueMutationRecordStruct expected_kv = GetKeyValueMutationRecord();
-  DataRecordStruct data_record = GetDataRecord(expected_kv);
-  EXPECT_TRUE((*record_writer)->WriteRecord(data_record).ok())
-      << "Failed to write delta record.";
-  (*record_writer)->Close();
-  EXPECT_FALSE((*record_writer)->IsOpen());
-  auto stream_reader_factory =
-      std::make_unique<RiegeliStreamRecordReaderFactory>();
-  auto stream_reader = stream_reader_factory->CreateReader(string_stream);
-  absl::StatusOr<KVFileMetadata> metadata = stream_reader->GetKVFileMetadata();
-  EXPECT_TRUE(metadata.ok()) << "Failed to read metadata";
-  EXPECT_TRUE(
-      stream_reader
-          ->ReadStreamRecords(
-              [&expected_kv](std::string_view record_string) -> absl::Status {
-                const auto* data_record =
-                    flatbuffers::GetRoot<DataRecord>(record_string.data());
-                EXPECT_EQ(data_record->record_type(),
-                          Record::KeyValueMutationRecord);
-                const auto kv_record =
-                    GetTypedRecordStruct<KeyValueMutationRecordStruct>(
-                        *data_record);
-                EXPECT_EQ(kv_record, expected_kv);
-                return absl::OkStatus();
-              })
-          .ok());
-}
-
-TEST_P(DeltaRecordStreamWriterTest,
-       ValidateWritingAndReadingWithUdfConfigDeltaStream) {
-  std::stringstream string_stream;
-  auto record_writer = CreateDeltaRecordStreamWriter(string_stream);
-  EXPECT_TRUE(record_writer.ok());
-
-  UserDefinedFunctionsConfigStruct expected_udf_config =
-      GetUserDefinedFunctionsConfig();
-  DataRecordStruct data_record = GetDataRecord(expected_udf_config);
-  EXPECT_TRUE((*record_writer)->WriteRecord(data_record).ok())
-      << "Failed to write delta record.";
-  (*record_writer)->Close();
-  EXPECT_FALSE((*record_writer)->IsOpen());
-  auto stream_reader_factory =
-      std::make_unique<RiegeliStreamRecordReaderFactory>();
-  auto stream_reader = stream_reader_factory->CreateReader(string_stream);
-  absl::StatusOr<KVFileMetadata> metadata = stream_reader->GetKVFileMetadata();
-  EXPECT_TRUE(metadata.ok()) << "Failed to read metadata";
-  EXPECT_TRUE(
-      stream_reader
-          ->ReadStreamRecords(
-              [&expected_udf_config](
-                  std::string_view record_string) -> absl::Status {
-                const auto* data_record =
-                    flatbuffers::GetRoot<DataRecord>(record_string.data());
-                EXPECT_EQ(data_record->record_type(),
-                          Record::UserDefinedFunctionsConfig);
-                const auto udf_config =
-                    GetTypedRecordStruct<UserDefinedFunctionsConfigStruct>(
-                        *data_record);
-                EXPECT_EQ(udf_config, expected_udf_config);
-                return absl::OkStatus();
-              })
-          .ok());
-}
-
-TEST_P(DeltaRecordStreamWriterTest,
-       ValidateWritingAndReadingDeltaStreamForSet) {
-  std::stringstream string_stream;
-  auto record_writer = CreateDeltaRecordStreamWriter(string_stream);
-  EXPECT_TRUE(record_writer.ok());
-
-  DataRecordStruct expected = GetDataRecord(GetDeltaSetRecord());
+  auto expected =
+      GetNativeDataRecord(GetKVMutationRecord(GetSimpleStringValue()));
   EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok())
       << "Failed to write delta record.";
   (*record_writer)->Close();
@@ -176,11 +74,73 @@ TEST_P(DeltaRecordStreamWriterTest,
       stream_reader
           ->ReadStreamRecords(
               [&expected](std::string_view record_string) -> absl::Status {
-                return DeserializeDataRecord(
-                    record_string, [&expected](DataRecordStruct record) {
-                      EXPECT_EQ(record, expected);
-                      return absl::OkStatus();
-                    });
+                const auto* data_record =
+                    flatbuffers::GetRoot<DataRecord>(record_string.data());
+                EXPECT_EQ(*data_record->UnPack(), expected);
+                return absl::OkStatus();
+              })
+          .ok());
+}
+
+TEST_P(DeltaRecordStreamWriterTest,
+       ValidateWritingAndReadingWithUdfConfigDeltaStream) {
+  std::stringstream string_stream;
+  auto record_writer = CreateDeltaRecordStreamWriter(string_stream);
+  EXPECT_TRUE(record_writer.ok());
+
+  auto expected =
+      GetNativeDataRecord(GetKVMutationRecord(GetUserDefinedFunctionsConfig()));
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok())
+      << "Failed to write delta record.";
+  (*record_writer)->Close();
+  EXPECT_FALSE((*record_writer)->IsOpen());
+  auto stream_reader_factory =
+      std::make_unique<RiegeliStreamRecordReaderFactory>();
+  auto stream_reader = stream_reader_factory->CreateReader(string_stream);
+  absl::StatusOr<KVFileMetadata> metadata = stream_reader->GetKVFileMetadata();
+  EXPECT_TRUE(metadata.ok()) << "Failed to read metadata";
+  EXPECT_TRUE(
+      stream_reader
+          ->ReadStreamRecords(
+              [&expected](std::string_view record_string) -> absl::Status {
+                const auto* data_record =
+                    flatbuffers::GetRoot<DataRecord>(record_string.data());
+                EXPECT_EQ(*data_record->UnPack(), expected);
+                return absl::OkStatus();
+              })
+          .ok());
+}
+
+TEST_P(DeltaRecordStreamWriterTest,
+       ValidateWritingAndReadingDeltaStreamForSet) {
+  std::stringstream string_stream;
+  auto record_writer = CreateDeltaRecordStreamWriter(string_stream);
+  EXPECT_TRUE(record_writer.ok());
+
+  const std::vector<std::string_view> values{
+      "elem1",
+      "elem2",
+      "elem3",
+  };
+  auto expected =
+      GetNativeDataRecord(GetKVMutationRecord(GetStringSetValue(values)));
+  EXPECT_TRUE((*record_writer)->WriteRecord(expected).ok())
+      << "Failed to write delta record.";
+  (*record_writer)->Close();
+  EXPECT_FALSE((*record_writer)->IsOpen());
+  auto stream_reader_factory =
+      std::make_unique<RiegeliStreamRecordReaderFactory>();
+  auto stream_reader = stream_reader_factory->CreateReader(string_stream);
+  absl::StatusOr<KVFileMetadata> metadata = stream_reader->GetKVFileMetadata();
+  EXPECT_TRUE(metadata.ok()) << "Failed to read metadata";
+  EXPECT_TRUE(
+      stream_reader
+          ->ReadStreamRecords(
+              [&expected](std::string_view record_string) -> absl::Status {
+                const auto* data_record =
+                    flatbuffers::GetRoot<DataRecord>(record_string.data());
+                EXPECT_EQ(*data_record->UnPack(), expected);
+                return absl::OkStatus();
               })
           .ok());
 }
@@ -192,8 +152,9 @@ TEST(DeltaRecordStreamWriterTest, ValidateWritingFailsAfterClose) {
       string_stream, std::move(options));
   EXPECT_TRUE(record_writer.ok());
   (*record_writer)->Close();
-  auto status =
-      (*record_writer)->WriteRecord(GetDataRecord(GetKeyValueMutationRecord()));
+  auto status = (*record_writer)
+                    ->WriteRecord(GetNativeDataRecord(
+                        GetKVMutationRecord(GetSimpleStringValue())));
   EXPECT_FALSE(status.ok());
 }
 

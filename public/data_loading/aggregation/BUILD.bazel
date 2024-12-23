@@ -41,6 +41,7 @@ cc_test(
         ":record_aggregator",
         "//public/data_loading:records_utils",
         "//public/data_loading/readers:delta_record_stream_reader",
+        "//public/test_util:data_record",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",

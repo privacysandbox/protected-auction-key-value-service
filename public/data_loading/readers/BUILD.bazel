@@ -189,6 +189,7 @@ cc_test(
         ":delta_record_stream_reader",
         "//public/data_loading:records_utils",
         "//public/data_loading/writers:delta_record_stream_writer",
+        "//public/test_util:data_record",
         "@com_google_googletest//:gtest_main",
     ],
 )

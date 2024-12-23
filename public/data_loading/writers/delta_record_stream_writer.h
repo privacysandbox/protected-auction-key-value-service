@@ -42,10 +42,12 @@ class DeltaRecordStreamWriter : public DeltaRecordWriter {
 
   static absl::StatusOr<std::unique_ptr<DeltaRecordStreamWriter>> Create(
       DestStreamT& dest_stream, Options options);
-  absl::Status WriteRecord(const DataRecordT& data_record) override {
-    return absl::UnimplementedError("To be implemented");
+  absl::Status WriteRecord(const DataRecordT& data_record) override;
+  [[deprecated("Use corresponding DataRecordT-based function")]]
+  absl::Status WriteRecord(const DataRecordStruct& record) override {
+    return absl::UnimplementedError(
+        "DeltaRecordStreamWriter is updated to use newer data structures");
   };
-  absl::Status WriteRecord(const DataRecordStruct& record) override;
   const Options& GetOptions() const override { return options_; }
   absl::Status Flush() override;
   void Close() override { record_writer_->Close(); }
@@ -82,11 +84,11 @@ DeltaRecordStreamWriter<DestStreamT>::Create(DestStreamT& dest_stream,
 
 template <typename DestStreamT>
 absl::Status DeltaRecordStreamWriter<DestStreamT>::WriteRecord(
-    const DataRecordStruct& data_record) {
-  if (!record_writer_->WriteRecord(
-          ToStringView(ToFlatBufferBuilder(data_record))) &&
-      options_.recovery_function) {
-    options_.recovery_function(data_record);
+    const DataRecordT& data_record) {
+  auto [fbs_buffer, bytes_to_write] = Serialize(data_record);
+  if (!record_writer_->WriteRecord(bytes_to_write) &&
+      options_.fb_struct_recovery_function) {
+    options_.fb_struct_recovery_function(data_record);
   }
   return record_writer_->status();
 }

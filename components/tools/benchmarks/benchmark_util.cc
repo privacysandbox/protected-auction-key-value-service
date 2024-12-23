@@ -70,16 +70,16 @@ absl::Status WriteRecords(int64_t num_records, const int64_t record_size,
   }
   while (num_records > 0) {
     const std::string key = absl::StrCat("foo", num_records);
-    const std::string value = GenerateRandomString(record_size);
-    auto kv_mutation_record = KeyValueMutationRecordStruct{
+    StringValueT string_value = {.value = GenerateRandomString(record_size)};
+    KeyValueMutationRecordT kv_mutation_record = {
         .mutation_type = KeyValueMutationType::Update,
         .logical_commit_time = absl::ToUnixSeconds(absl::Now()),
         .key = key,
-        .value = value,
     };
-    auto status = (*record_writer)
-                      ->WriteRecord(DataRecordStruct{
-                          .record = std::move(kv_mutation_record)});
+    kv_mutation_record.value.Set(std::move(string_value));
+    DataRecordT data_record;
+    data_record.record.Set(std::move(kv_mutation_record));
+    auto status = (*record_writer)->WriteRecord(data_record);
     if (!status.ok()) {
       return status;
     }

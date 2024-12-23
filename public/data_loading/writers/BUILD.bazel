@@ -20,6 +20,7 @@ cc_library(
     name = "delta_record_writer",
     hdrs = ["delta_record_writer.h"],
     deps = [
+        "//public/data_loading:record_utils",
         "//public/data_loading:records_utils",
         "//public/data_loading:riegeli_metadata_cc_proto",
         "@com_google_absl//absl/status",
@@ -32,6 +33,7 @@ cc_library(
     hdrs = ["delta_record_stream_writer.h"],
     deps = [
         ":delta_record_writer",
+        "//public/data_loading:record_utils",
         "//public/data_loading:records_utils",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
@@ -62,6 +64,7 @@ cc_test(
         ":delta_record_stream_writer",
         "//public/data_loading/readers:riegeli_stream_io",
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
+        "//public/test_util:data_record",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
     ],
@@ -90,6 +93,7 @@ cc_test(
     deps = [
         ":snapshot_stream_writer",
         "//public/data_loading:records_utils",
+        "//public/test_util:data_record",
         "@com_google_googletest//:gtest_main",
     ],
 )

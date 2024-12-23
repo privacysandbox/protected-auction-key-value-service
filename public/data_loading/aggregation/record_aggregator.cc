@@ -116,21 +116,20 @@ class RecordRowCallback {
 class DeltaRecordCallback : public RecordRowCallback {
  public:
   explicit DeltaRecordCallback(
-      std::function<absl::Status(KeyValueMutationRecordStruct)> delta_callback)
+      std::function<absl::Status(KeyValueMutationRecordT)> delta_callback)
       : delta_callback_(std::move(delta_callback)) {}
   absl::Status operator()(RecordRow record_row) override {
     return DeserializeRecord(record_row.record_blob, delta_callback_);
   }
 
  private:
-  std::function<absl::Status(const KeyValueMutationRecordStruct&)>
-      delta_callback_;
+  std::function<absl::Status(const KeyValueMutationRecordT&)> delta_callback_;
 };
 
 class ReadRecordsCallback : public RecordRowCallback {
  public:
   explicit ReadRecordsCallback(
-      std::function<absl::Status(KeyValueMutationRecordStruct)> delta_callback)
+      std::function<absl::Status(KeyValueMutationRecordT)> delta_callback)
       : delta_callback_(DeltaRecordCallback(std::move(delta_callback))) {}
   const int64_t& LastProcessedRecordKey() const { return last_processed_key_; }
   absl::Status operator()(RecordRow record_row) {
@@ -157,11 +156,11 @@ absl::Status CreateRecordsTable(sqlite3* db) {
   return absl::OkStatus();
 }
 
-absl::Status ValidateRecord(const KeyValueMutationRecordStruct& record) {
+absl::Status ValidateRecord(const KeyValueMutationRecordT& record) {
   if (record.key.empty()) {
     return absl::InvalidArgumentError("Record key must not be empty.");
   }
-  if (IsEmptyValue(record.value)) {
+  if (record.value.type == Value::NONE) {
     return absl::InvalidArgumentError("Record value must not be empty.");
   }
   return absl::OkStatus();
@@ -270,18 +269,18 @@ RecordAggregator::CreateFileBackedAggregator(std::string_view data_file) {
 
 absl::StatusOr<std::vector<std::string>>
 RecordAggregator::MergeSetValueIfRecordExists(
-    int64_t record_key, const KeyValueMutationRecordStruct& record) {
-  auto new_values_set = std::get<std::vector<std::string_view>>(record.value);
+    int64_t record_key, const KeyValueMutationRecordT& record) {
+  const auto* string_set = record.value.AsStringSet();
+  auto new_values_set = string_set->value;
   absl::flat_hash_set<std::string_view> merged_values_set;
   std::copy(new_values_set.begin(), new_values_set.end(),
             std::inserter(merged_values_set, merged_values_set.end()));
   auto status = ReadRecord(
       record_key,
-      [&merged_values_set](KeyValueMutationRecordStruct existing_record) {
-        if (std::holds_alternative<std::vector<std::string_view>>(
-                existing_record.value)) {
-          auto existing_values_set =
-              std::get<std::vector<std::string_view>>(existing_record.value);
+      [&merged_values_set](KeyValueMutationRecordT existing_record) {
+        if (existing_record.value.type == Value::StringSet) {
+          auto* string_set = existing_record.value.AsStringSet();
+          auto existing_values_set = string_set->value;
           std::copy(existing_values_set.begin(), existing_values_set.end(),
                     std::inserter(merged_values_set, merged_values_set.end()));
         }
@@ -298,21 +297,22 @@ RecordAggregator::MergeSetValueIfRecordExists(
 }
 
 absl::Status RecordAggregator::InsertOrUpdateRecord(
-    int64_t record_key, const KeyValueMutationRecordStruct& record) {
+    int64_t record_key, const KeyValueMutationRecordT& record) {
   if (absl::Status status = ValidateRecord(record); !status.ok()) {
     return status;
   }
-  KeyValueMutationRecordStruct mutable_record = record;
+  KeyValueMutationRecordT mutable_record = record;
   std::vector<std::string> values;
-  if (std::holds_alternative<std::vector<std::string_view>>(
-          mutable_record.value)) {
+  if (record.value.type == Value::StringSet) {
     auto maybe_values = MergeSetValueIfRecordExists(record_key, mutable_record);
     if (!maybe_values.ok()) {
       return maybe_values.status();
     }
     values = std::move(*maybe_values);
-    mutable_record.value =
-        std::vector<std::string_view>(values.begin(), values.end());
+    StringSetT string_set = {
+        .value = {values.begin(), values.end()},
+    };
+    mutable_record.value.Set(std::move(string_set));
   }
   sqlite3_stmt* insert_stmt;
   if (absl::Status status =
@@ -333,9 +333,9 @@ absl::Status RecordAggregator::InsertOrUpdateRecord(
       !status.ok()) {
     return status;
   }
-  if (absl::Status status =
-          BindBlob(ToStringView(ToFlatBufferBuilder(mutable_record)),
-                   kRecordBlobBindValueIdx, owned_stmt.get());
+  auto [fbs_buffer, serialized_string_view] = Serialize(mutable_record);
+  if (absl::Status status = BindBlob(serialized_string_view,
+                                     kRecordBlobBindValueIdx, owned_stmt.get());
       !status.ok()) {
     return status;
   }
@@ -349,7 +349,7 @@ absl::Status RecordAggregator::InsertOrUpdateRecord(
 
 absl::Status RecordAggregator::ReadRecord(
     int64_t record_key,
-    std::function<absl::Status(KeyValueMutationRecordStruct)> record_callback) {
+    std::function<absl::Status(KeyValueMutationRecordT)> record_callback) {
   sqlite3_stmt* select_stmt;
   if (absl::Status status =
           PrepareStatement(kSelectRecordSql, &select_stmt, db_.get());
@@ -377,7 +377,7 @@ absl::Status RecordAggregator::ReadRecord(
 }
 
 absl::Status RecordAggregator::ReadRecords(
-    std::function<absl::Status(KeyValueMutationRecordStruct)> record_callback) {
+    std::function<absl::Status(KeyValueMutationRecordT)> record_callback) {
   sqlite3_stmt* batch_select_stmt;
   if (absl::Status status = PrepareStatement(kBatchSelectRecordsSql,
                                              &batch_select_stmt, db_.get());

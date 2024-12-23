@@ -19,9 +19,12 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "public/data_loading/csv/constants.h"
+#include "public/data_loading/record_utils.h"
+#include "public/data_loading/records_utils.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 #include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/csv/csv_record.h"
@@ -84,6 +87,9 @@ class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
   CsvDeltaRecordStreamWriter& operator=(const CsvDeltaRecordStreamWriter&) =
       delete;
 
+  absl::Status WriteRecord(const DataRecordT& data_record) override {
+    return absl::UnimplementedError("To be implemented");
+  };
   absl::Status WriteRecord(const DataRecordStruct& record) override;
   absl::Status Flush() override;
   const Options& GetOptions() const override { return options_; }
@@ -141,6 +147,7 @@ absl::Status CsvDeltaRecordStreamWriter<DestStreamT>::WriteRecord(
     return csv_record.status();
   }
   if (!record_writer_.WriteRecord(*csv_record) && options_.recovery_function) {
+    LOG(WARNING) << "WriteRecord failed, attempting recovery function";
     options_.recovery_function(data_record);
   }
   return record_writer_.status();

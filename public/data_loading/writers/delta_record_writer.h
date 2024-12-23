@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/records_utils.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 
@@ -54,13 +55,19 @@ class DeltaRecordWriter {
     // record.
     std::function<void(const DataRecordStruct&)> recovery_function;
 
+    // If writing a record fails, this function will be called with the failed
+    // record.
+    std::function<void(const DataRecordT&)> fb_struct_recovery_function;
+
     // Metadata required for delta files.
     KVFileMetadata metadata;
   };
   virtual ~DeltaRecordWriter() = default;
 
-  // Writes a `DataRecordStruct` record to the underlying
+  // Writes a `DataRecordT` native flatbuffer struct record to the underlying
   // destination.
+  virtual absl::Status WriteRecord(const DataRecordT& data_record) = 0;
+  // Writes a `DataRecord` record to the underlying destination.
   virtual absl::Status WriteRecord(const DataRecordStruct& data_record) = 0;
   // Flushes any written data to the underlying destination and makes it
   // visible outside the writing process. `Flush()` is different from

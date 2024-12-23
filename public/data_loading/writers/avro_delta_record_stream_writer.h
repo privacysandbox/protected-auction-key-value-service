@@ -43,7 +43,10 @@ class AvroDeltaRecordStreamWriter : public DeltaRecordWriter {
   template <typename DestStreamT = std::iostream>
   static absl::StatusOr<std::unique_ptr<AvroDeltaRecordStreamWriter>> Create(
       DestStreamT& dest_stream, Options options);
-  absl::Status WriteRecord(const DataRecordStruct& data_record) override;
+  absl::Status WriteRecord(const DataRecordT& data_record) override {
+    return absl::UnimplementedError("To be implemented");
+  };
+  absl::Status WriteRecord(const DataRecordStruct& record) override;
   const Options& GetOptions() const override { return options_; }
   absl::Status Flush() override;
   void Close() override { record_writer_->close(); }

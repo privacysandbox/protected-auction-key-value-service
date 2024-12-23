@@ -24,6 +24,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/records_utils.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 #include "riegeli/bytes/ostream_writer.h"
@@ -41,7 +42,10 @@ class DeltaRecordStreamWriter : public DeltaRecordWriter {
 
   static absl::StatusOr<std::unique_ptr<DeltaRecordStreamWriter>> Create(
       DestStreamT& dest_stream, Options options);
-  absl::Status WriteRecord(const DataRecordStruct& data_record) override;
+  absl::Status WriteRecord(const DataRecordT& data_record) override {
+    return absl::UnimplementedError("To be implemented");
+  };
+  absl::Status WriteRecord(const DataRecordStruct& record) override;
   const Options& GetOptions() const override { return options_; }
   absl::Status Flush() override;
   void Close() override { record_writer_->Close(); }

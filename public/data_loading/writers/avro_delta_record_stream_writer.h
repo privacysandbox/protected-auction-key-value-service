@@ -43,10 +43,12 @@ class AvroDeltaRecordStreamWriter : public DeltaRecordWriter {
   template <typename DestStreamT = std::iostream>
   static absl::StatusOr<std::unique_ptr<AvroDeltaRecordStreamWriter>> Create(
       DestStreamT& dest_stream, Options options);
-  absl::Status WriteRecord(const DataRecordT& data_record) override {
-    return absl::UnimplementedError("To be implemented");
+  absl::Status WriteRecord(const DataRecordT& data_record) override;
+  [[deprecated("Use corresponding DataRecordT-based function")]]
+  absl::Status WriteRecord(const DataRecordStruct& record) override {
+    return absl::UnimplementedError(
+        "AvroDeltaRecordStreamWriter is updated to use newer data structures");
   };
-  absl::Status WriteRecord(const DataRecordStruct& record) override;
   const Options& GetOptions() const override { return options_; }
   absl::Status Flush() override;
   void Close() override { record_writer_->close(); }
@@ -77,9 +79,8 @@ AvroDeltaRecordStreamWriter::Create(DestStreamT& dest_stream, Options options) {
 }
 
 absl::Status AvroDeltaRecordStreamWriter::WriteRecord(
-    const DataRecordStruct& data_record) {
-  auto fbs_builder = ToFlatBufferBuilder(data_record);
-  std::string_view bytes_to_write = ToStringView(fbs_builder);
+    const DataRecordT& data_record) {
+  auto [fbs_buffer, bytes_to_write] = Serialize(data_record);
   record_writer_->write(std::string(bytes_to_write));
   return absl::OkStatus();
 }

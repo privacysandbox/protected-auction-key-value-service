@@ -30,8 +30,8 @@ struct ValueStruct {
 };
 
 absl::StatusOr<std::string_view> GetMutationType(
-    const KeyValueMutationRecordStruct& record) {
-  switch (record.mutation_type) {
+    const KeyValueMutationRecordT& kv_record) {
+  switch (kv_record.mutation_type) {
     case KeyValueMutationType::Update:
       return kUpdateMutationType;
     case KeyValueMutationType::Delete:
@@ -39,7 +39,7 @@ absl::StatusOr<std::string_view> GetMutationType(
     default:
       return absl::InvalidArgumentError(
           absl::StrCat("Invalid mutation type: ",
-                       EnumNameKeyValueMutationType(record.mutation_type)));
+                       EnumNameKeyValueMutationType(kv_record.mutation_type)));
   }
 }
 
@@ -67,76 +67,94 @@ std::vector<std::string> MaybeEncode(std::vector<ElementType> values,
 }
 
 absl::StatusOr<ValueStruct> GetRecordValue(
-    const KeyValueMutationRecordValueT& value, std::string_view value_separator,
+    const KeyValueMutationRecordT& kv_record, std::string_view value_separator,
     const CsvEncoding& csv_encoding) {
-  return std::visit(
-      [value_separator,
-       &csv_encoding](auto&& arg) -> absl::StatusOr<ValueStruct> {
-        using VariantT = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same_v<VariantT, std::string_view>) {
-          return ValueStruct{
-              .value_type = std::string(kValueTypeString),
-              .value = MaybeEncode(arg, csv_encoding),
-          };
-        }
-        if constexpr (std::is_same_v<VariantT, std::vector<std::string_view>>) {
-          return ValueStruct{
-              .value_type = std::string(kValueTypeStringSet),
-              .value = absl::StrJoin(MaybeEncode(arg, csv_encoding),
-                                     value_separator),
-          };
-        }
-        if constexpr (std::is_same_v<VariantT, std::vector<uint32_t>>) {
-          return ValueStruct{
-              .value_type = std::string(kValueTypeUInt32Set),
-              .value = absl::StrJoin(MaybeEncode(arg, csv_encoding),
-                                     value_separator),
-          };
-        }
-        if constexpr (std::is_same_v<VariantT, std::vector<uint64_t>>) {
-          return ValueStruct{
-              .value_type = std::string(kValueTypeUInt64Set),
-              .value = absl::StrJoin(MaybeEncode(arg, csv_encoding),
-                                     value_separator),
-          };
-        }
-        return absl::InvalidArgumentError("Value must be set.");
-      },
-      value);
+  switch (kv_record.value.type) {
+    case Value::StringValue:
+      if (const auto* string_value = kv_record.value.AsStringValue();
+          string_value != nullptr) {
+        return ValueStruct{
+            .value_type = std::string(kValueTypeString),
+            .value = MaybeEncode(string_value->value, csv_encoding),
+        };
+      }
+      return absl::InvalidArgumentError(
+          "KeyValueMutationRecord string value is null");
+
+    case Value::StringSet:
+      if (const auto* string_set = kv_record.value.AsStringSet();
+          string_set != nullptr) {
+        return ValueStruct{
+            .value_type = std::string(kValueTypeStringSet),
+            .value = absl::StrJoin(MaybeEncode(string_set->value, csv_encoding),
+                                   value_separator),
+        };
+      }
+      return absl::InvalidArgumentError(
+          "KeyValueMutationRecord string set value is null");
+
+    case Value::UInt32Set:
+      if (const auto* uint32_set = kv_record.value.AsUInt32Set();
+          uint32_set != nullptr) {
+        return ValueStruct{
+            .value_type = std::string(kValueTypeUInt32Set),
+            .value = absl::StrJoin(MaybeEncode(uint32_set->value, csv_encoding),
+                                   value_separator),
+        };
+      }
+      return absl::InvalidArgumentError(
+          "KeyValueMutationRecord uint32 set value is null");
+
+    case Value::UInt64Set:
+      if (const auto* uint64_set = kv_record.value.AsUInt64Set();
+          uint64_set != nullptr) {
+        return ValueStruct{
+            .value_type = std::string(kValueTypeUInt64Set),
+            .value = absl::StrJoin(MaybeEncode(uint64_set->value, csv_encoding),
+                                   value_separator),
+        };
+      }
+      return absl::InvalidArgumentError(
+          "KeyValueMutationRecord uint64 set value is null");
+
+    default:
+      return absl::InvalidArgumentError("KeyValueMutation value type unknown");
+  }
 }
 
 absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithKVMutation(
-    const DataRecordStruct& data_record, const CsvEncoding& csv_encoding,
+    const DataRecordT& data_record, const CsvEncoding& csv_encoding,
     char value_separator) {
-  if (!std::holds_alternative<KeyValueMutationRecordStruct>(
-          data_record.record)) {
+  if (data_record.record.type != Record::KeyValueMutationRecord) {
     return absl::InvalidArgumentError(
         "DataRecord must contain a KeyValueMutationRecord.");
   }
-  const auto record =
-      std::get<KeyValueMutationRecordStruct>(data_record.record);
+  const auto* kv_record = data_record.record.AsKeyValueMutationRecord();
+  if (kv_record == nullptr) {
+    return absl::InvalidArgumentError("KeyValueMutationRecord is nullptr.");
+  }
 
   riegeli::CsvRecord csv_record(*kKeyValueMutationRecordHeader);
-  csv_record[kKeyColumn] = record.key;
-  absl::StatusOr<ValueStruct> value = GetRecordValue(
-      record.value, std::string(1, value_separator), csv_encoding);
+  csv_record[kKeyColumn] = kv_record->key;
+  absl::StatusOr<ValueStruct> value =
+      GetRecordValue(*kv_record, std::string(1, value_separator), csv_encoding);
   if (!value.ok()) {
     return value.status();
   }
   csv_record[kValueColumn] = value->value;
   csv_record[kValueTypeColumn] = value->value_type;
-  absl::StatusOr<std::string_view> mutation_type = GetMutationType(record);
+  absl::StatusOr<std::string_view> mutation_type = GetMutationType(*kv_record);
   if (!mutation_type.ok()) {
     return mutation_type.status();
   }
   csv_record[kMutationTypeColumn] = *mutation_type;
   csv_record[kLogicalCommitTimeColumn] =
-      absl::StrCat(record.logical_commit_time);
+      absl::StrCat(kv_record->logical_commit_time);
   return csv_record;
 }
 
 absl::StatusOr<std::string_view> GetUdfLanguage(
-    const UserDefinedFunctionsConfigStruct& udf_config) {
+    const UserDefinedFunctionsConfigT& udf_config) {
   switch (udf_config.language) {
     case UserDefinedFunctionsLanguage::Javascript:
       return kLanguageJavascript;
@@ -148,24 +166,26 @@ absl::StatusOr<std::string_view> GetUdfLanguage(
 }
 
 absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithUdfConfig(
-    const DataRecordStruct& data_record) {
-  if (!std::holds_alternative<UserDefinedFunctionsConfigStruct>(
-          data_record.record)) {
+    const DataRecordT& data_record) {
+  if (data_record.record.type != Record::UserDefinedFunctionsConfig) {
     return absl::InvalidArgumentError(
         "DataRecord must contain a UserDefinedFunctionsConfig.");
   }
-  const auto udf_config =
-      std::get<UserDefinedFunctionsConfigStruct>(data_record.record);
+
+  const auto* udf_config = data_record.record.AsUserDefinedFunctionsConfig();
+  if (udf_config == nullptr) {
+    return absl::InvalidArgumentError("UserDefinedFunctionsConfig is nullptr.");
+  }
 
   riegeli::CsvRecord csv_record(*kUserDefinedFunctionsConfigHeader);
 
-  csv_record[kCodeSnippetColumn] = udf_config.code_snippet;
-  csv_record[kHandlerNameColumn] = udf_config.handler_name;
+  csv_record[kCodeSnippetColumn] = udf_config->code_snippet;
+  csv_record[kHandlerNameColumn] = udf_config->handler_name;
   csv_record[kLogicalCommitTimeColumn] =
-      absl::StrCat(udf_config.logical_commit_time);
-  csv_record[kVersionColumn] = absl::StrCat(udf_config.version);
+      absl::StrCat(udf_config->logical_commit_time);
+  csv_record[kVersionColumn] = absl::StrCat(udf_config->version);
 
-  auto udf_language = GetUdfLanguage(udf_config);
+  auto udf_language = GetUdfLanguage(*udf_config);
   if (!udf_language.ok()) {
     return udf_language.status();
   }
@@ -174,18 +194,22 @@ absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithUdfConfig(
 }
 
 absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithShardMapping(
-    const DataRecordStruct& data_record) {
-  if (!std::holds_alternative<ShardMappingRecordStruct>(data_record.record)) {
+    const DataRecordT& data_record) {
+  if (data_record.record.type != Record::ShardMappingRecord) {
     return absl::InvalidArgumentError(
         "DataRecord must contain a ShardMappingRecord.");
   }
-  const auto shard_mapping_struct =
-      std::get<ShardMappingRecordStruct>(data_record.record);
+
+  const auto* shard_mapping_record = data_record.record.AsShardMappingRecord();
+  if (shard_mapping_record == nullptr) {
+    return absl::InvalidArgumentError("ShardMappingRecord is nullptr.");
+  }
+
   riegeli::CsvRecord csv_record(*kShardMappingRecordHeader);
   csv_record[kLogicalShardColumn] =
-      absl::StrCat(shard_mapping_struct.logical_shard);
+      absl::StrCat(shard_mapping_record->logical_shard);
   csv_record[kPhysicalShardColumn] =
-      absl::StrCat(shard_mapping_struct.physical_shard);
+      absl::StrCat(shard_mapping_record->physical_shard);
   return csv_record;
 }
 
@@ -193,7 +217,7 @@ absl::StatusOr<riegeli::CsvRecord> MakeCsvRecordWithShardMapping(
 
 namespace internal {
 absl::StatusOr<riegeli::CsvRecord> MakeCsvRecord(
-    const DataRecordStruct& data_record, const DataRecordType& record_type,
+    const DataRecordT& data_record, const DataRecordType& record_type,
     const CsvEncoding& csv_encoding, char value_separator) {
   // TODO: Consider using ctor with fields for performance gain if order is
   // known ahead of time.

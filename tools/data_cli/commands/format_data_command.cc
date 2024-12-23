@@ -228,6 +228,10 @@ absl::Status FormatDataCommand::Execute() {
       LOG(INFO) << "Formatting record: " << records_count;
     }
     std::unique_ptr<DataRecordT> data_record_native(data_record.UnPack());
+    if (const auto status = record_writer_->WriteRecord(*data_record_native);
+        status.ok()) {
+      return absl::OkStatus();
+    }
     auto [fbs_buffer, serialized_string_view] = Serialize(*data_record_native);
     return DeserializeDataRecord(
         serialized_string_view, [this](const DataRecordStruct& data_record) {

@@ -33,8 +33,10 @@ cc_library(
     deps = [
         ":constants",
         "//public/data_loading:data_loading_fbs",
+        "//public/data_loading:record_utils",
         "//public/data_loading:records_utils",
         "//public/data_loading/writers:delta_record_writer",
+        "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -51,6 +53,7 @@ cc_test(
     deps = [
         ":csv_delta_record_stream_reader",
         ":csv_delta_record_stream_writer",
+        "//public/test_util:data_record",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -80,6 +83,7 @@ cc_test(
     deps = [
         ":csv_delta_record_stream_reader",
         ":csv_delta_record_stream_writer",
+        "//public/test_util:data_record",
         "@com_google_absl//absl/log",
         "@com_google_googletest//:gtest_main",
     ],

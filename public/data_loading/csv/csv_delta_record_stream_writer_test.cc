@@ -21,61 +21,28 @@
 #include "gtest/gtest.h"
 #include "public/data_loading/csv/csv_delta_record_stream_reader.h"
 #include "public/data_loading/records_utils.h"
+#include "public/test_util/data_record.h"
 
 namespace kv_server {
 namespace {
-
-KeyValueMutationRecordStruct GetKVMutationRecord(
-    KeyValueMutationRecordValueT value = "value") {
-  KeyValueMutationRecordStruct record;
-  record.key = "key";
-  record.value = value;
-  record.logical_commit_time = 1234567890;
-  record.mutation_type = KeyValueMutationType::Update;
-  return record;
-}
-
-UserDefinedFunctionsConfigStruct GetUserDefinedFunctionsConfig() {
-  UserDefinedFunctionsConfigStruct udf_config_record;
-  udf_config_record.language = UserDefinedFunctionsLanguage::Javascript;
-  udf_config_record.code_snippet = "function hello(){}";
-  udf_config_record.handler_name = "hello";
-  udf_config_record.logical_commit_time = 1234567890;
-  udf_config_record.version = 1;
-  return udf_config_record;
-}
-
-DataRecordStruct GetDataRecord(const RecordT& record) {
-  DataRecordStruct data_record;
-  data_record.record = record;
-  return data_record;
-}
 
 TEST(CsvDeltaRecordStreamWriterTest,
      ValidateWritingCsvRecord_KVMutation_StringValue_Success) {
   std::stringstream string_stream;
   CsvDeltaRecordStreamWriter record_writer(string_stream);
 
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
-  EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
+  DataRecordT expected =
+      GetNativeDataRecord(GetKVMutationRecord(GetSimpleStringValue()));
+  const auto write_record_status = record_writer.WriteRecord(expected);
+  EXPECT_TRUE(write_record_status.ok()) << write_record_status;
   EXPECT_TRUE(record_writer.Flush().ok());
   CsvDeltaRecordStreamReader record_reader(string_stream);
-  EXPECT_TRUE(
-      record_reader
-          .ReadRecords([&expected](const DataRecord& record) {
-            std::unique_ptr<DataRecordT> data_record_native(record.UnPack());
-            auto [fbs_buffer, serialized_string_view] =
-                Serialize(*data_record_native);
-            EXPECT_TRUE(DeserializeDataRecord(
-                            serialized_string_view,
-                            [&expected](const DataRecordStruct& data_record) {
-                              EXPECT_EQ(data_record, expected);
-                              return absl::OkStatus();
-                            })
-                            .ok());
-            return absl::OkStatus();
-          })
-          .ok());
+  EXPECT_TRUE(record_reader
+                  .ReadRecords([&expected](const DataRecord& record) {
+                    EXPECT_EQ(*record.UnPack(), expected);
+                    return absl::OkStatus();
+                  })
+                  .ok());
 }
 
 TEST(CsvDeltaRecordStreamWriterTest,
@@ -85,96 +52,69 @@ TEST(CsvDeltaRecordStreamWriterTest,
       string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
                          .csv_encoding = CsvEncoding::kBase64});
 
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
+  DataRecordT expected =
+      GetNativeDataRecord(GetKVMutationRecord(GetSimpleStringValue()));
+
   EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
   EXPECT_TRUE(record_writer.Flush().ok());
   CsvDeltaRecordStreamReader record_reader(
       string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
                          .csv_encoding = CsvEncoding::kBase64});
-  EXPECT_TRUE(
-      record_reader
-          .ReadRecords([&expected](const DataRecord& record) {
-            std::unique_ptr<DataRecordT> data_record_native(record.UnPack());
-            auto [fbs_buffer, serialized_string_view] =
-                Serialize(*data_record_native);
-            EXPECT_TRUE(DeserializeDataRecord(
-                            serialized_string_view,
-                            [&expected](const DataRecordStruct& data_record) {
-                              EXPECT_EQ(data_record, expected);
-                              return absl::OkStatus();
-                            })
-                            .ok());
-            return absl::OkStatus();
-          })
-          .ok());
+  EXPECT_TRUE(record_reader
+                  .ReadRecords([&expected](const DataRecord& record) {
+                    EXPECT_EQ(*record.UnPack(), expected);
+                    return absl::OkStatus();
+                  })
+                  .ok());
 }
 
 TEST(CsvDeltaRecordStreamWriterTest,
-     ValidateWritingCsvRecord_KVMutation_SetValue_Success) {
-  const std::vector<std::string_view> values{
-      "elem1",
-      "elem2",
-      "elem3",
-  };
+     ValidateWritingCsvRecord_KVMutation_StringSetValue_Success) {
   std::stringstream string_stream;
   CsvDeltaRecordStreamWriter record_writer(string_stream);
 
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord(values));
+  DataRecordT expected =
+      GetNativeDataRecord(GetKVMutationRecord(GetStringSetValue({
+          "elem1",
+          "elem2",
+          "elem3",
+      })));
   EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
   EXPECT_TRUE(record_writer.Flush().ok());
   CsvDeltaRecordStreamReader record_reader(string_stream);
-  EXPECT_TRUE(
-      record_reader
-          .ReadRecords([&expected](const DataRecord& record) {
-            std::unique_ptr<DataRecordT> data_record_native(record.UnPack());
-            auto [fbs_buffer, serialized_string_view] =
-                Serialize(*data_record_native);
-            EXPECT_TRUE(DeserializeDataRecord(
-                            serialized_string_view,
-                            [&expected](const DataRecordStruct& data_record) {
-                              EXPECT_EQ(data_record, expected);
-                              return absl::OkStatus();
-                            })
-                            .ok());
-            return absl::OkStatus();
-          })
-          .ok());
+  EXPECT_TRUE(record_reader
+                  .ReadRecords([&expected](const DataRecord& record) {
+                    EXPECT_EQ(*record.UnPack(), expected);
+                    return absl::OkStatus();
+                  })
+                  .ok());
 }
 
 TEST(CsvDeltaRecordStreamWriterTest,
-     ValidateWritingCsvRecord_KVMutation_SetValue_Base64_Success) {
-  const std::vector<std::string_view> values{
-      "elem1",
-      "elem2",
-      "elem3",
-  };
+     ValidateWritingCsvRecord_KVMutation_StringSetValue_Base64_Success) {
   std::stringstream string_stream;
   CsvDeltaRecordStreamWriter record_writer(
       string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
                          .csv_encoding = CsvEncoding::kBase64});
 
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord(values));
+  DataRecordT expected =
+      GetNativeDataRecord(GetKVMutationRecord(GetStringSetValue({
+          "elem1",
+          "elem2",
+          "elem3",
+      })));
+
   EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
   EXPECT_TRUE(record_writer.Flush().ok());
   CsvDeltaRecordStreamReader record_reader(
       string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
                          .csv_encoding = CsvEncoding::kBase64});
-  EXPECT_TRUE(
-      record_reader
-          .ReadRecords([&expected](const DataRecord& record) {
-            std::unique_ptr<DataRecordT> data_record_native(record.UnPack());
-            auto [fbs_buffer, serialized_string_view] =
-                Serialize(*data_record_native);
-            EXPECT_TRUE(DeserializeDataRecord(
-                            serialized_string_view,
-                            [&expected](const DataRecordStruct& data_record) {
-                              EXPECT_EQ(data_record, expected);
-                              return absl::OkStatus();
-                            })
-                            .ok());
-            return absl::OkStatus();
-          })
-          .ok());
+  EXPECT_TRUE(record_reader
+                  .ReadRecords([&expected](const DataRecord& record) {
+                    EXPECT_EQ(*record.UnPack(), expected);
+                    return absl::OkStatus();
+                  })
+                  .ok());
 }
 
 TEST(CsvDeltaRecordStreamWriterTest,
@@ -186,7 +126,8 @@ TEST(CsvDeltaRecordStreamWriterTest,
       CsvDeltaRecordStreamWriter<std::stringstream>::Options{
           .record_type = DataRecordType::kUserDefinedFunctionsConfig});
 
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
+  DataRecordT expected =
+      GetNativeDataRecord(GetKVMutationRecord(GetSimpleStringValue()));
   EXPECT_FALSE(record_writer.WriteRecord(expected).ok());
   record_writer.Close();
 }
@@ -200,28 +141,19 @@ TEST(CsvDeltaRecordStreamWriterTest,
       CsvDeltaRecordStreamWriter<std::stringstream>::Options{
           .record_type = DataRecordType::kUserDefinedFunctionsConfig});
 
-  DataRecordStruct expected = GetDataRecord(GetUserDefinedFunctionsConfig());
+  DataRecordT expected = GetNativeDataRecord(GetUserDefinedFunctionsConfig());
+
   EXPECT_TRUE(record_writer.WriteRecord(expected).ok());
   EXPECT_TRUE(record_writer.Flush().ok());
   CsvDeltaRecordStreamReader record_reader(
       string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
                          .record_type = Record::UserDefinedFunctionsConfig});
-  EXPECT_TRUE(
-      record_reader
-          .ReadRecords([&expected](const DataRecord& record) {
-            std::unique_ptr<DataRecordT> data_record_native(record.UnPack());
-            auto [fbs_buffer, serialized_string_view] =
-                Serialize(*data_record_native);
-            EXPECT_TRUE(DeserializeDataRecord(
-                            serialized_string_view,
-                            [&expected](const DataRecordStruct& data_record) {
-                              EXPECT_EQ(data_record, expected);
-                              return absl::OkStatus();
-                            })
-                            .ok());
-            return absl::OkStatus();
-          })
-          .ok());
+  EXPECT_TRUE(record_reader
+                  .ReadRecords([&expected](const DataRecord& record) {
+                    EXPECT_EQ(*record.UnPack(), expected);
+                    return absl::OkStatus();
+                  })
+                  .ok());
 }
 
 TEST(CsvDeltaRecordStreamWriterTest,
@@ -233,7 +165,8 @@ TEST(CsvDeltaRecordStreamWriterTest,
       CsvDeltaRecordStreamWriter<std::stringstream>::Options{
           .record_type = DataRecordType::kKeyValueMutationRecord});
 
-  DataRecordStruct expected = GetDataRecord(GetUserDefinedFunctionsConfig());
+  DataRecordT expected = GetNativeDataRecord(GetUserDefinedFunctionsConfig());
+
   EXPECT_FALSE(record_writer.WriteRecord(expected).ok());
   record_writer.Close();
 }
@@ -243,26 +176,27 @@ TEST(CsvDeltaRecordStreamWriterTest,
   std::stringstream string_stream;
   CsvDeltaRecordStreamWriter record_writer(string_stream);
   record_writer.Close();
-  EXPECT_FALSE(
-      record_writer.WriteRecord(GetDataRecord(GetKVMutationRecord())).ok());
+  EXPECT_FALSE(record_writer.WriteRecord(DataRecordT{}).ok());
 }
 
 TEST(CsvDeltaRecordStreamWriterTest, ValidateThatFailedRecordsAreRecoverable) {
-  DataRecordStruct recovered_record;
+  DataRecordT recovered_record;
   CsvDeltaRecordStreamWriter<std::stringstream>::Options options;
-  options.recovery_function =
-      [&recovered_record](DataRecordStruct failed_record) {
+  options.fb_struct_recovery_function =
+      [&recovered_record](DataRecordT failed_record) {
         recovered_record = failed_record;
       };
   std::stringstream string_stream;
   CsvDeltaRecordStreamWriter record_writer(string_stream, options);
   record_writer.Close();
 
-  DataRecordStruct empty_record;
+  DataRecordT empty_record;
   EXPECT_EQ(recovered_record, empty_record);
 
   // Writer is closed, so writing fails.
-  DataRecordStruct expected = GetDataRecord(GetKVMutationRecord());
+  DataRecordT expected =
+      GetNativeDataRecord(GetKVMutationRecord(GetSimpleStringValue()));
+
   EXPECT_FALSE(record_writer.WriteRecord(expected).ok());
 
   EXPECT_EQ(recovered_record, expected);
@@ -271,7 +205,7 @@ TEST(CsvDeltaRecordStreamWriterTest, ValidateThatFailedRecordsAreRecoverable) {
 TEST(CsvDeltaRecordStreamWriterTest, ValidateWritingDefaultRecordFails) {
   std::stringstream string_stream;
   CsvDeltaRecordStreamWriter record_writer(string_stream);
-  auto status = record_writer.WriteRecord(DataRecordStruct{});
+  auto status = record_writer.WriteRecord(DataRecordT{});
   EXPECT_FALSE(status.ok()) << status;
 }
 
@@ -288,8 +222,12 @@ TEST(CsvDeltaRecordStreamWriterTest,
   CsvDeltaRecordStreamWriter record_writer(
       string_stream, CsvDeltaRecordStreamWriter<std::stringstream>::Options{
                          .record_type = DataRecordType::kShardMappingRecord});
-  DataRecordStruct expected = GetDataRecord(
-      ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
+
+  ShardMappingRecordT shard_mapping_record{.logical_shard = 0,
+                                           .physical_shard = 0};
+  DataRecordT expected;
+  expected.record.Set(std::move(shard_mapping_record));
+
   auto status = record_writer.WriteRecord(expected);
   EXPECT_TRUE(status.ok()) << status;
   status = record_writer.Flush();
@@ -298,15 +236,7 @@ TEST(CsvDeltaRecordStreamWriterTest,
       string_stream, CsvDeltaRecordStreamReader<std::stringstream>::Options{
                          .record_type = Record::ShardMappingRecord});
   status = record_reader.ReadRecords([&expected](const DataRecord& record) {
-    std::unique_ptr<DataRecordT> data_record_native(record.UnPack());
-    auto [fbs_buffer, serialized_string_view] = Serialize(*data_record_native);
-    EXPECT_TRUE(
-        DeserializeDataRecord(serialized_string_view,
-                              [&expected](const DataRecordStruct& data_record) {
-                                EXPECT_EQ(data_record, expected);
-                                return absl::OkStatus();
-                              })
-            .ok());
+    EXPECT_EQ(*record.UnPack(), expected);
     return absl::OkStatus();
   });
   EXPECT_TRUE(status.ok()) << status;
@@ -319,8 +249,12 @@ TEST(CsvDeltaRecordStreamWriterTest,
       string_stream,
       CsvDeltaRecordStreamWriter<std::stringstream>::Options{
           .record_type = DataRecordType::kKeyValueMutationRecord});
-  DataRecordStruct expected = GetDataRecord(
-      ShardMappingRecordStruct{.logical_shard = 0, .physical_shard = 0});
+
+  ShardMappingRecordT shard_mapping_record{.logical_shard = 0,
+                                           .physical_shard = 0};
+  DataRecordT expected;
+  expected.record.Set(std::move(shard_mapping_record));
+
   EXPECT_FALSE(record_writer.WriteRecord(expected).ok());
   record_writer.Close();
 }

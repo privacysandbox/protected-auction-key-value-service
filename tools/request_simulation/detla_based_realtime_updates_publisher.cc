@@ -149,7 +149,7 @@ DeltaBasedRealtimeUpdatesPublisher::CreateRealtimeMessagesAndAddToQueue(
   };
   PS_RETURN_IF_ERROR(record_reader->ReadStreamRecords(
       [&process_data_record_fn](std::string_view raw) {
-        return DeserializeDataRecord(raw, process_data_record_fn);
+        return DeserializeRecord(raw, process_data_record_fn);
       }));
   return data_loading_stats;
 }

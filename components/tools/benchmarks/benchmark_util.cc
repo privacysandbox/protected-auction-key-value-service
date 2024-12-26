@@ -23,7 +23,6 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
-#include "public/data_loading/records_utils.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 
 namespace kv_server::benchmark {

@@ -29,19 +29,13 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "src/telemetry/telemetry_provider.h"
 
 ABSL_FLAG(std::string, local_directory, "", "Local directory");
 
 namespace kv_server {
 namespace {
-using kv_server::DataRecord;
-using kv_server::DeserializeDataRecord;
-using kv_server::GetRecordValue;
-using kv_server::KeyValueMutationRecord;
-using kv_server::Record;
-using kv_server::Value;
 using privacy_sandbox::server_common::TelemetryProvider;
 
 std::unique_ptr<kv_server::MessageService> queue_manager_;
@@ -52,35 +46,12 @@ void Print(std::string string_decoded) {
       std::make_unique<kv_server::RiegeliStreamRecordReaderFactory>();
   auto record_reader = delta_stream_reader_factory->CreateReader(is);
   auto result = record_reader->ReadStreamRecords([](std::string_view raw) {
-    return DeserializeDataRecord(raw, [](const DataRecord& data_record) {
-      if (data_record.record_type() == Record::KeyValueMutationRecord) {
-        const auto* record = data_record.record_as_KeyValueMutationRecord();
-        auto update_type = "update";
-        switch (record->mutation_type()) {
-          case KeyValueMutationType::Delete: {
-            update_type = "delete";
-            break;
-          }
-        }
-        auto format_value_func =
-            [](const KeyValueMutationRecord& record) -> std::string {
-          if (record.value_type() == Value::StringValue) {
-            return std::string(GetRecordValue<std::string_view>(record));
-          }
-          if (record.value_type() == Value::StringSet) {
-            return absl::StrJoin(
-                GetRecordValue<std::vector<std::string_view>>(record), ",");
-          }
-          return "";
-        };
-        LOG(INFO) << "key: " << record->key()->string_view();
-        LOG(INFO) << "value: " << format_value_func(*record);
-        LOG(INFO) << "logical_commit_time: " << record->logical_commit_time();
-        LOG(INFO) << "update_type: " << update_type;
-      }
+    return DeserializeRecord(raw, [](const DataRecord& data_record) {
+      DataRecordT record_struct;
+      data_record.UnPackTo(&record_struct);
+      LOG(INFO) << "DataRecord: " << record_struct;
       return absl::OkStatus();
     });
-    return absl::OkStatus();
   });
 }
 

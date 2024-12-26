@@ -19,7 +19,7 @@
 #include "absl/functional/bind_front.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "src/errors/retry.h"
 #include "src/telemetry/tracing.h"
 
@@ -143,7 +143,7 @@ DeltaBasedRequestGenerator::CreateRequestsAndAddToMessageQueue(
   };
   auto status = record_reader->ReadStreamRecords(
       [&process_data_record_fn](std::string_view raw) {
-        return DeserializeDataRecord(raw, process_data_record_fn);
+        return DeserializeRecord(raw, process_data_record_fn);
       });
   if (!status.ok()) {
     return status;

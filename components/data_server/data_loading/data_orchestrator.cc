@@ -87,27 +87,32 @@ absl::Status ApplyUpdateMutation(
     std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
     privacy_sandbox::server_common::log::PSLogContext& log_context) {
   if (record.value_type() == Value::StringValue) {
-    cache.UpdateKeyValue(log_context, record.key()->string_view(),
-                         GetRecordValue<std::string_view>(record),
+    PS_ASSIGN_OR_RETURN(auto value,
+                        MaybeGetRecordValue<std::string_view>(record));
+    cache.UpdateKeyValue(log_context, record.key()->string_view(), value,
                          record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
-    auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    PS_ASSIGN_OR_RETURN(
+        auto values,
+        MaybeGetRecordValue<std::vector<std::string_view>>(record));
     cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::UInt32Set) {
-    auto values = GetRecordValue<std::vector<uint32_t>>(record);
+    PS_ASSIGN_OR_RETURN(auto values,
+                        MaybeGetRecordValue<std::vector<uint32_t>>(record));
     cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::UInt64Set) {
-    auto values = GetRecordValue<std::vector<uint64_t>>(record);
+    PS_ASSIGN_OR_RETURN(auto values,
+                        MaybeGetRecordValue<std::vector<uint64_t>>(record));
     cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
@@ -127,21 +132,25 @@ absl::Status ApplyDeleteMutation(
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
-    auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    PS_ASSIGN_OR_RETURN(
+        auto values,
+        MaybeGetRecordValue<std::vector<std::string_view>>(record));
     cache.DeleteValuesInSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::UInt32Set) {
-    auto values = GetRecordValue<std::vector<uint32_t>>(record);
+    PS_ASSIGN_OR_RETURN(auto values,
+                        MaybeGetRecordValue<std::vector<uint32_t>>(record));
     cache.DeleteValuesInSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::UInt64Set) {
-    auto values = GetRecordValue<std::vector<uint64_t>>(record);
+    PS_ASSIGN_OR_RETURN(auto values,
+                        MaybeGetRecordValue<std::vector<uint64_t>>(record));
     cache.DeleteValuesInSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);

@@ -69,6 +69,7 @@ cc_test(
         "//components/udf:mocks",
         "//public/data_loading:filename_utils",
         "//public/data_loading:records_utils",
+        "//public/test_util:data_record",
         "//public/test_util:mocks",
         "//public/test_util:proto_matcher",
         "@com_google_absl//absl/log",

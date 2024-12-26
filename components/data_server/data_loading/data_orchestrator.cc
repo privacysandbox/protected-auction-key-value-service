@@ -24,6 +24,7 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "components/data/file_group/file_group_search_utils.h"
+#include "components/errors/error_tag.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
@@ -35,6 +36,11 @@
 
 namespace kv_server {
 namespace {
+
+enum class ErrorTag : int {
+  kUnsupportedRecordTypeError = 1,
+};
+
 // TODO(b/321716836): use the default prefix to apply cache updates for realtime
 //  for now. This needs to be removed after we are done with directory support
 //  for file updates.
@@ -239,14 +245,17 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
           },
           log_context);
     }
-    return absl::InvalidArgumentError("Received unsupported record.");
+    return StatusWithErrorTag(
+        absl::InvalidArgumentError(
+            "Received unsupported record type while reading DataRecord."),
+        __FILE__, ErrorTag::kUnsupportedRecordTypeError);
   };
   // TODO(b/314302953): ReadStreamRecords will skip over individual records that
   // have errors. We should pass the file name to the function so that it will
   // appear in error logs.
   PS_RETURN_IF_ERROR(record_reader.ReadStreamRecords(
       [&process_data_record_fn](std::string_view raw) {
-        return DeserializeDataRecord(raw, process_data_record_fn);
+        return DeserializeRecord(raw, process_data_record_fn);
       }));
   LogDataLoadingMetrics(data_source, data_loading_stats);
   return data_loading_stats;

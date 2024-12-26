@@ -34,38 +34,11 @@
 #include "public/data_loading/records_utils.h"
 #include "public/sharding/key_sharder.h"
 #include "public/sharding/sharding_function.h"
+#include "public/test_util/data_record.h"
 #include "public/test_util/mocks.h"
 #include "public/test_util/proto_matcher.h"
 
-using kv_server::BlobPrefixAllowlist;
-using kv_server::BlobStorageChangeNotifier;
-using kv_server::BlobStorageClient;
-using kv_server::CodeConfig;
-using kv_server::DataOrchestrator;
-using kv_server::DataRecordStruct;
-using kv_server::FilePrefix;
-using kv_server::FileType;
-using kv_server::KeyValueMutationRecordStruct;
-using kv_server::KeyValueMutationType;
-using kv_server::KVFileMetadata;
-using kv_server::MockBlobReader;
-using kv_server::MockBlobStorageChangeNotifier;
-using kv_server::MockBlobStorageClient;
-using kv_server::MockCache;
-using kv_server::MockDeltaFileNotifier;
-using kv_server::MockRealtimeNotifier;
-using kv_server::MockRealtimeThreadPoolManager;
-using kv_server::MockStreamRecordReader;
-using kv_server::MockStreamRecordReaderFactory;
-using kv_server::MockUdfClient;
-using kv_server::Record;
-using kv_server::ToDeltaFileName;
-using kv_server::ToFlatBufferBuilder;
-using kv_server::ToSnapshotFileName;
-using kv_server::ToStringView;
-using kv_server::UserDefinedFunctionsConfigStruct;
-using kv_server::UserDefinedFunctionsLanguage;
-using kv_server::Value;
+namespace kv_server {
 using testing::_;
 using testing::AllOf;
 using testing::ByMove;
@@ -323,12 +296,16 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
       .Times(1)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
-            callback(ToStringView(ToFlatBufferBuilder(
-                         DataRecordStruct{.record =
-                                              KeyValueMutationRecordStruct{
-                                                  KeyValueMutationType::Update,
-                                                  3, "bar", "bar value"}})))
-                .IgnoreError();
+            KeyValueMutationRecordT kv_mutation_record = {
+                .mutation_type = KeyValueMutationType::Update,
+                .logical_commit_time = 3,
+                .key = "bar",
+            };
+            kv_mutation_record.value.Set(GetSimpleStringValue("bar value"));
+            DataRecordT data_record =
+                GetNativeDataRecord(std::move(kv_mutation_record));
+            auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+            callback(serialized_string_view).IgnoreError();
             return absl::OkStatus();
           });
   auto delete_reader = std::make_unique<MockStreamRecordReader>();
@@ -339,12 +316,16 @@ TEST_F(DataOrchestratorTest, InitCacheSuccess) {
       .Times(1)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
-            callback(ToStringView(ToFlatBufferBuilder(
-                         DataRecordStruct{.record =
-                                              KeyValueMutationRecordStruct{
-                                                  KeyValueMutationType::Delete,
-                                                  3, "bar", "bar value"}})))
-                .IgnoreError();
+            KeyValueMutationRecordT kv_mutation_record = {
+                .mutation_type = KeyValueMutationType::Delete,
+                .logical_commit_time = 3,
+                .key = "bar",
+            };
+            kv_mutation_record.value.Set(StringValueT{.value = ""});
+            DataRecordT data_record =
+                GetNativeDataRecord(std::move(kv_mutation_record));
+            auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+            callback(serialized_string_view).IgnoreError();
             return absl::OkStatus();
           });
   EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
@@ -390,15 +371,17 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeSuccess) {
   EXPECT_CALL(*reader, ReadStreamRecords)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
-            callback(ToStringView(ToFlatBufferBuilder(DataRecordStruct{
-                         .record =
-                             UserDefinedFunctionsConfigStruct{
-                                 .code_snippet = "function hello(){}",
-                                 .handler_name = "hello",
-                                 .language =
-                                     UserDefinedFunctionsLanguage::Javascript,
-                                 .logical_commit_time = 1}})))
-                .IgnoreError();
+            UserDefinedFunctionsConfigT udf_config_record = {
+                .language = UserDefinedFunctionsLanguage::Javascript,
+                .code_snippet = "function hello(){}",
+                .handler_name = "hello",
+                .logical_commit_time = 1,
+                .version = 1,
+            };
+            DataRecordT data_record =
+                GetNativeDataRecord(std::move(udf_config_record));
+            auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+            callback(serialized_string_view).IgnoreError();
             return absl::OkStatus();
           });
   EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
@@ -406,7 +389,8 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeSuccess) {
 
   EXPECT_CALL(udf_client_, SetCodeObject(CodeConfig{.js = "function hello(){}",
                                                     .udf_handler_name = "hello",
-                                                    .logical_commit_time = 1},
+                                                    .logical_commit_time = 1,
+                                                    .version = 1},
                                          _))
       .WillOnce(Return(absl::OkStatus()));
   auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
@@ -443,15 +427,17 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeFails_OrchestratorContinues) {
   EXPECT_CALL(*reader, ReadStreamRecords)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
-            callback(ToStringView(ToFlatBufferBuilder(DataRecordStruct{
-                         .record =
-                             UserDefinedFunctionsConfigStruct{
-                                 .code_snippet = "function hello(){}",
-                                 .handler_name = "hello",
-                                 .language =
-                                     UserDefinedFunctionsLanguage::Javascript,
-                                 .logical_commit_time = 1}})))
-                .IgnoreError();
+            UserDefinedFunctionsConfigT udf_config_record = {
+                .language = UserDefinedFunctionsLanguage::Javascript,
+                .code_snippet = "function hello(){}",
+                .handler_name = "hello",
+                .logical_commit_time = 1,
+                .version = 1,
+            };
+            DataRecordT data_record =
+                GetNativeDataRecord(std::move(udf_config_record));
+            auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+            callback(serialized_string_view).IgnoreError();
             return absl::OkStatus();
           });
   EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
@@ -459,7 +445,8 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeFails_OrchestratorContinues) {
 
   EXPECT_CALL(udf_client_, SetCodeObject(CodeConfig{.js = "function hello(){}",
                                                     .udf_handler_name = "hello",
-                                                    .logical_commit_time = 1},
+                                                    .logical_commit_time = 1,
+                                                    .version = 1},
                                          _))
       .WillOnce(Return(absl::UnknownError("Some error.")));
   auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
@@ -506,12 +493,16 @@ TEST_F(DataOrchestratorTest, StartLoading) {
       .Times(1)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
-            callback(ToStringView(ToFlatBufferBuilder(
-                         DataRecordStruct{.record =
-                                              KeyValueMutationRecordStruct{
-                                                  KeyValueMutationType::Update,
-                                                  3, "bar", "bar value"}})))
-                .IgnoreError();
+            KeyValueMutationRecordT kv_mutation_record = {
+                .mutation_type = KeyValueMutationType::Update,
+                .logical_commit_time = 3,
+                .key = "bar",
+            };
+            kv_mutation_record.value.Set(GetSimpleStringValue("bar value"));
+            DataRecordT data_record =
+                GetNativeDataRecord(std::move(kv_mutation_record));
+            auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+            callback(serialized_string_view).IgnoreError();
             return absl::OkStatus();
           });
   auto delete_reader = std::make_unique<MockStreamRecordReader>();
@@ -523,12 +514,16 @@ TEST_F(DataOrchestratorTest, StartLoading) {
       .WillOnce(
           [&all_records_loaded](
               const std::function<absl::Status(std::string_view)>& callback) {
-            callback(ToStringView(ToFlatBufferBuilder(
-                         DataRecordStruct{.record =
-                                              KeyValueMutationRecordStruct{
-                                                  KeyValueMutationType::Delete,
-                                                  3, "bar", "bar value"}})))
-                .IgnoreError();
+            KeyValueMutationRecordT kv_mutation_record = {
+                .mutation_type = KeyValueMutationType::Delete,
+                .logical_commit_time = 3,
+                .key = "bar",
+            };
+            kv_mutation_record.value.Set(StringValueT{.value = ""});
+            DataRecordT data_record =
+                GetNativeDataRecord(std::move(kv_mutation_record));
+            auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+            callback(serialized_string_view).IgnoreError();
             all_records_loaded.Notify();
             return absl::OkStatus();
           });
@@ -584,12 +579,16 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
             // key: "shard1" -> shard num: 0
-            callback(ToStringView(ToFlatBufferBuilder(
-                         DataRecordStruct{.record =
-                                              KeyValueMutationRecordStruct{
-                                                  KeyValueMutationType::Update,
-                                                  3, "shard1", "bar value"}})))
-                .IgnoreError();
+            KeyValueMutationRecordT kv_mutation_record = {
+                .mutation_type = KeyValueMutationType::Update,
+                .logical_commit_time = 3,
+                .key = "shard1",
+            };
+            kv_mutation_record.value.Set(GetSimpleStringValue("bar value"));
+            DataRecordT data_record =
+                GetNativeDataRecord(std::move(kv_mutation_record));
+            auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+            callback(serialized_string_view).IgnoreError();
             return absl::OkStatus();
           });
   auto delete_reader = std::make_unique<MockStreamRecordReader>();
@@ -601,12 +600,16 @@ TEST_F(DataOrchestratorTest, InitCacheShardedSuccessSkipRecord) {
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
             // key: "shard2" -> shard num: 1
-            callback(ToStringView(ToFlatBufferBuilder(
-                         DataRecordStruct{.record =
-                                              KeyValueMutationRecordStruct{
-                                                  KeyValueMutationType::Delete,
-                                                  3, "shard2", "bar value"}})))
-                .IgnoreError();
+            KeyValueMutationRecordT kv_mutation_record = {
+                .mutation_type = KeyValueMutationType::Delete,
+                .logical_commit_time = 3,
+                .key = "shard2",
+            };
+            kv_mutation_record.value.Set(StringValueT{.value = ""});
+            DataRecordT data_record =
+                GetNativeDataRecord(std::move(kv_mutation_record));
+            auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+            callback(serialized_string_view).IgnoreError();
             return absl::OkStatus();
           });
   EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
@@ -691,3 +694,4 @@ TEST_F(DataOrchestratorTest, VerifyLoadingDataFromPrefixes) {
 }
 
 }  // namespace
+}  // namespace kv_server

@@ -57,31 +57,41 @@ using google::protobuf::util::JsonStringToMessage;
 // string_view to non-const string_view. Since this tool is for simple testing,
 // the current solution is to pass by value.
 absl::Status LoadCacheFromKVMutationRecord(
-    UDFDeltaFileTestLogContext& log_context,
-    KeyValueMutationRecordStruct record, Cache& cache) {
+    UDFDeltaFileTestLogContext& log_context, KeyValueMutationRecordT record,
+    Cache& cache) {
   switch (record.mutation_type) {
     case KeyValueMutationType::Update: {
       LOG(INFO) << "Updating cache with key " << record.key
                 << ", logical commit time " << record.logical_commit_time;
-      std::visit(
-          [&cache, &record, &log_context](auto& value) {
-            using VariantT = std::decay_t<decltype(value)>;
-            if constexpr (std::is_same_v<VariantT, std::string_view>) {
-              cache.UpdateKeyValue(log_context, record.key, value,
-                                   record.logical_commit_time);
-              return;
-            }
-            constexpr bool is_list =
-                (std::is_same_v<VariantT, std::vector<std::string_view>>);
-            if constexpr (is_list) {
-              cache.UpdateKeyValueSet(log_context, record.key,
-                                      absl::MakeSpan(value),
-                                      record.logical_commit_time);
-              return;
-            }
-          },
-          record.value);
-      break;
+      if (record.value.type == Value::StringValue) {
+        cache.UpdateKeyValue(log_context, record.key,
+                             record.value.AsStringValue()->value,
+                             record.logical_commit_time);
+        return absl::OkStatus();
+      }
+      if (record.value.type == Value::StringSet) {
+        std::vector<std::string> values_str = record.value.AsStringSet()->value;
+        std::vector<std::string_view> values(values_str.begin(),
+                                             values_str.end());
+        cache.UpdateKeyValueSet(log_context, record.key, absl::MakeSpan(values),
+                                record.logical_commit_time);
+        return absl::OkStatus();
+      }
+      if (record.value.type == Value::UInt32Set) {
+        auto values = record.value.AsUInt32Set()->value;
+        cache.UpdateKeyValueSet(log_context, record.key, absl::MakeSpan(values),
+                                record.logical_commit_time);
+        return absl::OkStatus();
+      }
+      if (record.value.type == Value::UInt64Set) {
+        auto values = record.value.AsUInt64Set()->value;
+        cache.UpdateKeyValueSet(log_context, record.key, absl::MakeSpan(values),
+                                record.logical_commit_time);
+        return absl::OkStatus();
+      }
+      return absl::InvalidArgumentError(
+          absl::StrCat("Record with key: ", record.key,
+                       " has unsupported value type: ", record.value.type));
     }
     case KeyValueMutationType::Delete: {
       cache.DeleteKey(log_context, record.key, record.logical_commit_time);
@@ -89,8 +99,7 @@ absl::Status LoadCacheFromKVMutationRecord(
     }
     default:
       return absl::InvalidArgumentError(
-          absl::StrCat("Invalid mutation type: ",
-                       EnumNameKeyValueMutationType(record.mutation_type)));
+          absl::StrCat("Invalid mutation type: ", record.mutation_type));
   }
   return absl::OkStatus();
 }
@@ -100,23 +109,22 @@ absl::Status LoadCacheFromFile(UDFDeltaFileTestLogContext& log_context,
   std::ifstream delta_file(file_path);
   DeltaRecordStreamReader record_reader(delta_file);
   absl::Status status = record_reader.ReadRecords(
-      [&cache, &log_context](const DataRecordStruct& data_record) {
+      [&cache, &log_context](const DataRecord& data_record) {
+        DataRecordT data_record_struct;
+        data_record.UnPackTo(&data_record_struct);
         // Only load KVMutationRecords into cache.
-        if (std::holds_alternative<KeyValueMutationRecordStruct>(
-                data_record.record)) {
+        if (data_record_struct.record.type == Record::KeyValueMutationRecord) {
           return LoadCacheFromKVMutationRecord(
               log_context,
-              std::get<KeyValueMutationRecordStruct>(data_record.record),
-              cache);
+              *data_record_struct.record.AsKeyValueMutationRecord(), cache);
         }
         return absl::OkStatus();
       });
   return status;
 }
 
-void ReadCodeConfigFromUdfConfig(
-    const UserDefinedFunctionsConfigStruct& udf_config,
-    CodeConfig& code_config) {
+void ReadCodeConfigFromUdfConfig(const UserDefinedFunctionsConfigT& udf_config,
+                                 CodeConfig& code_config) {
   code_config.js = udf_config.code_snippet;
   code_config.logical_commit_time = udf_config.logical_commit_time;
   code_config.udf_handler_name = udf_config.handler_name;
@@ -127,17 +135,18 @@ absl::Status ReadCodeConfigFromFile(std::string file_path,
                                     CodeConfig& code_config) {
   std::ifstream delta_file(file_path);
   DeltaRecordStreamReader record_reader(delta_file);
-  return record_reader.ReadRecords(
-      [&code_config](const DataRecordStruct& data_record) {
-        if (std::holds_alternative<UserDefinedFunctionsConfigStruct>(
-                data_record.record)) {
-          ReadCodeConfigFromUdfConfig(
-              std::get<UserDefinedFunctionsConfigStruct>(data_record.record),
-              code_config);
-          return absl::OkStatus();
-        }
-        return absl::InvalidArgumentError("Invalid record type.");
-      });
+  return record_reader.ReadRecords([&code_config](
+                                       const DataRecord& data_record) {
+    DataRecordT data_record_struct;
+    data_record.UnPackTo(&data_record_struct);
+    if (data_record_struct.record.type == Record::UserDefinedFunctionsConfig) {
+      ReadCodeConfigFromUdfConfig(
+          *data_record_struct.record.AsUserDefinedFunctionsConfig(),
+          code_config);
+      return absl::OkStatus();
+    }
+    return absl::InvalidArgumentError("Invalid record type.");
+  });
 }
 
 void ShutdownUdf(UdfClient& udf_client) {

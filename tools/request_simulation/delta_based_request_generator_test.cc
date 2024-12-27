@@ -24,18 +24,20 @@
 #include "gtest/gtest.h"
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
+#include "public/test_util/data_record.h"
 #include "public/test_util/mocks.h"
 #include "src/telemetry/mocks.h"
 #include "tools/request_simulation/request_generation_util.h"
 
 using kv_server::BlobStorageChangeNotifier;
 using kv_server::BlobStorageClient;
-using kv_server::DataRecordStruct;
+using kv_server::DataRecordT;
 using kv_server::DeltaBasedRequestGenerator;
 using kv_server::FilePrefix;
 using kv_server::FileType;
-using kv_server::KeyValueMutationRecordStruct;
+using kv_server::GetSimpleStringValue;
+using kv_server::KeyValueMutationRecordT;
 using kv_server::KeyValueMutationType;
 using kv_server::KVFileMetadata;
 using kv_server::MessageQueue;
@@ -47,11 +49,8 @@ using kv_server::MockRealtimeNotifier;
 using kv_server::MockStreamRecordReader;
 using kv_server::MockStreamRecordReaderFactory;
 using kv_server::Record;
+using kv_server::Serialize;
 using kv_server::ToDeltaFileName;
-using kv_server::ToFlatBufferBuilder;
-using kv_server::ToStringView;
-using kv_server::UserDefinedFunctionsConfigStruct;
-using kv_server::UserDefinedFunctionsLanguage;
 using kv_server::Value;
 using privacy_sandbox::server_common::MockMetricsRecorder;
 using testing::_;
@@ -128,12 +127,16 @@ TEST_F(GenerateRequestsFromDeltaFilesTest, LoadingDataFromDeltaFiles) {
       .Times(1)
       .WillOnce(
           [](const std::function<absl::Status(std::string_view)>& callback) {
-            callback(
-                ToStringView(ToFlatBufferBuilder(DataRecordStruct{
-                    .record =
-                        KeyValueMutationRecordStruct{
-                            KeyValueMutationType::Update, 3, "key", "value"}})))
-                .IgnoreError();
+            KeyValueMutationRecordT kv_mutation_record = {
+                .mutation_type = KeyValueMutationType::Update,
+                .logical_commit_time = 3,
+                .key = "key",
+            };
+            kv_mutation_record.value.Set(GetSimpleStringValue("value"));
+            DataRecordT data_record =
+                GetNativeDataRecord(std::move(kv_mutation_record));
+            auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+            callback(serialized_string_view).IgnoreError();
             return absl::OkStatus();
           });
   EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)

@@ -22,7 +22,7 @@
 #include "absl/log/log.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "public/sharding/sharding_function.h"
 #include "riegeli/bytes/ostream_writer.h"
@@ -52,24 +52,32 @@ ABSL_FLAG(int, num_set_records, 5, "Number of records to generate");
 ABSL_FLAG(uint32_t, range_min, 0, "Minimum element in set records.");
 ABSL_FLAG(uint32_t, range_max, 2147483647, "Maximum element in set records.");
 
-using kv_server::DataRecordStruct;
-using kv_server::KeyValueMutationRecordStruct;
+using kv_server::DataRecordT;
+using kv_server::KeyValueMutationRecordT;
 using kv_server::KeyValueMutationType;
 using kv_server::KVFileMetadata;
 using kv_server::ShardingMetadata;
+using kv_server::StringSetT;
+using kv_server::StringValueT;
 using kv_server::ToDeltaFileName;
-using kv_server::ToFlatBufferBuilder;
 using kv_server::ToStringView;
+using kv_server::UInt32SetT;
 
 const std::array<std::string, 3> kSetOps = {" - ", " | ", " & "};
 
 void WriteKeyValueRecord(std::string_view key, std::string_view value,
                          int64_t logical_commit_time,
                          riegeli::RecordWriterBase& writer) {
-  auto kv_record = KeyValueMutationRecordStruct{
-      KeyValueMutationType::Update, logical_commit_time, key, value};
-  writer.WriteRecord(ToStringView(
-      ToFlatBufferBuilder(DataRecordStruct{.record = std::move(kv_record)})));
+  KeyValueMutationRecordT kv_record = {
+      .mutation_type = KeyValueMutationType::Update,
+      .logical_commit_time = logical_commit_time,
+      .key = std::string(key),
+  };
+  kv_record.value.Set(StringValueT{.value = std::string(value)});
+  DataRecordT data_record;
+  data_record.record.Set(std::move(kv_record));
+  auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+  writer.WriteRecord(serialized_string_view);
 }
 
 std::vector<std::string> WriteKeyValueRecords(
@@ -127,23 +135,28 @@ void WriteKeyValueSetRecords(const std::vector<std::string>& keys,
       }
     }
     auto set_value_key = absl::StrCat(set_key_prefix, i);
-    KeyValueMutationRecordStruct record;
-    record.mutation_type = KeyValueMutationType::Update;
-    record.logical_commit_time = timestamp++;
-    record.key = set_value_key;
+    KeyValueMutationRecordT kv_record = {
+        .mutation_type = KeyValueMutationType::Update,
+        .logical_commit_time = timestamp++,
+        .key = set_value_key,
+    };
     if (absl::GetFlag(FLAGS_generate_int_set_records)) {
-      record.value = uint32_set;
-      writer.WriteRecord(ToStringView(
-          ToFlatBufferBuilder(DataRecordStruct{.record = std::move(record)})));
+      kv_record.value.Set(UInt32SetT{.value = std::move(uint32_set)});
+      DataRecordT data_record;
+      data_record.record.Set(std::move(kv_record));
+      auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+      writer.WriteRecord(serialized_string_view);
     }
     if (absl::GetFlag(FLAGS_generate_string_set_records)) {
       std::vector<std::string_view> string_set_view;
       for (const auto& v : string_set) {
         string_set_view.emplace_back(v);
       }
-      record.value = string_set_view;
-      writer.WriteRecord(ToStringView(
-          ToFlatBufferBuilder(DataRecordStruct{.record = std::move(record)})));
+      kv_record.value.Set(StringSetT{.value = std::move(string_set)});
+      DataRecordT data_record;
+      data_record.record.Set(std::move(kv_record));
+      auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+      writer.WriteRecord(serialized_string_view);
     }
     absl::StrAppend(&query, set_value_key,
                     kSetOps[std::rand() % kSetOps.size()]);

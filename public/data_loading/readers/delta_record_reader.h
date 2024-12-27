@@ -19,7 +19,7 @@
 
 #include "absl/status/status.h"
 #include "public/data_loading/data_loading_generated.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 
 namespace kv_server {
 
@@ -50,11 +50,6 @@ class DeltaRecordReader {
       const std::function<absl::Status(const DataRecord&)>&
           record_callback) = 0;
 
-  ABSL_DEPRECATED(
-      "Use ReadRecords(std::function<absl::Status(const DataRecord&)>&) "
-      "instead")
-  virtual absl::Status ReadRecords(
-      const std::function<absl::Status(DataRecordStruct)>& record_callback) = 0;
   // Returns true if the reader is open for reading records.
   virtual bool IsOpen() const = 0;
   // Returns status of the `DeltaRecordReader`.

@@ -30,6 +30,12 @@
 
 namespace kv_server {
 
+enum class DataRecordType : int {
+  kKeyValueMutationRecord,
+  kUserDefinedFunctionsConfig,
+  kShardMappingRecord
+};
+
 enum class CsvEncoding : int { kPlaintext, kBase64 };
 
 inline std::ostream& operator<<(std::ostream& os,

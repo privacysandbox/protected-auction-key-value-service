@@ -20,7 +20,7 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/delta_record_reader.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 
 namespace kv_server {
 
@@ -60,8 +60,6 @@ class DeltaRecordStreamReader : public DeltaRecordReader {
   DeltaRecordStreamReader(const DeltaRecordStreamReader&) = delete;
   DeltaRecordStreamReader& operator=(const DeltaRecordStreamReader&) = delete;
 
-  absl::Status ReadRecords(const std::function<absl::Status(DataRecordStruct)>&
-                               record_callback) override;
   absl::Status ReadRecords(const std::function<absl::Status(const DataRecord&)>&
                                record_callback) override;
   bool IsOpen() const override { return stream_reader_.IsOpen(); };
@@ -74,15 +72,6 @@ class DeltaRecordStreamReader : public DeltaRecordReader {
   RiegeliStreamReader<std::string_view> stream_reader_;
   privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
-
-template <typename SrcStreamT>
-absl::Status DeltaRecordStreamReader<SrcStreamT>::ReadRecords(
-    const std::function<absl::Status(DataRecordStruct)>& record_callback) {
-  return stream_reader_.ReadStreamRecords(
-      [&record_callback](std::string_view record_string) {
-        return DeserializeDataRecord(record_string, record_callback);
-      });
-}
 
 template <typename SrcStreamT>
 absl::Status DeltaRecordStreamReader<SrcStreamT>::ReadRecords(

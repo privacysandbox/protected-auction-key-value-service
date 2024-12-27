@@ -27,7 +27,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 
 #include "sqlite3.h"
 

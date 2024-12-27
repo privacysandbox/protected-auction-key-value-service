@@ -18,7 +18,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/test_util/data_record.h"
 

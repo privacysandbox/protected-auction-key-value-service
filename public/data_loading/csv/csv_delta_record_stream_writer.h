@@ -24,7 +24,6 @@
 #include "absl/status/statusor.h"
 #include "public/data_loading/csv/constants.h"
 #include "public/data_loading/record_utils.h"
-#include "public/data_loading/records_utils.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 #include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/csv/csv_record.h"
@@ -89,10 +88,6 @@ class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
 
   absl::Status WriteRecord(const DataRecordT& data_record) override;
   [[deprecated("Use corresponding DataRecordT-based function")]]
-  absl::Status WriteRecord(const DataRecordStruct& record) override {
-    return absl::UnimplementedError(
-        "CsvDeltaRecordStreamWriter is updated to use newer data structures");
-  };
   absl::Status Flush() override;
   const Options& GetOptions() const override { return options_; }
   void Close() override { record_writer_.Close(); }

@@ -89,11 +89,6 @@ class CsvDeltaRecordStreamReader : public DeltaRecordReader {
 
   absl::Status ReadRecords(const std::function<absl::Status(const DataRecord&)>&
                                record_callback) override;
-  absl::Status ReadRecords(const std::function<absl::Status(DataRecordStruct)>&
-                               record_callback) override {
-    return absl::UnimplementedError(
-        "CSV reader is updated to use newer data structures");
-  }
   bool IsOpen() const override { return record_reader_.is_open(); };
   absl::Status Status() const override { return record_reader_.status(); }
 

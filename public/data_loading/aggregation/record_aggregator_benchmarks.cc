@@ -19,7 +19,6 @@
 #include "benchmark/benchmark.h"
 #include "public/data_loading/aggregation/record_aggregator.h"
 #include "public/data_loading/record_utils.h"
-#include "public/data_loading/records_utils.h"
 
 using kv_server::KeyValueMutationType;
 using kv_server::RecordAggregator;

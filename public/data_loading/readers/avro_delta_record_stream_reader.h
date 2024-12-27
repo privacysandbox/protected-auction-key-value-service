@@ -22,7 +22,7 @@
 
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/delta_record_reader.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "third_party/avro/api/DataFile.hh"
 #include "third_party/avro/api/Schema.hh"
@@ -30,7 +30,7 @@
 
 namespace kv_server {
 
-// A `AvroDeltaRecordStreamReader` reads records as `DataRecordStruct`s
+// A `AvroDeltaRecordStreamReader` reads records as `DataRecordT`s
 // from a delta record input stream source.
 //
 // A `AvroDeltaRecordStreamReader` can be used to read records as follows:
@@ -38,7 +38,7 @@ namespace kv_server {
 // std::ifstream delta_file(my_filename);
 // AvroDeltaRecordStreamReader record_reader(delta_file);
 // absl::Status status = record_reader.ReadRecords(
-//  [](const DataRecordStruct& record) {
+//  [](const DataRecordT& record) {
 //    UseRecord(record);
 //    return absl::OkStatus();
 //  }
@@ -57,8 +57,6 @@ class AvroDeltaRecordStreamReader : public DeltaRecordReader {
   AvroDeltaRecordStreamReader& operator=(const AvroDeltaRecordStreamReader&) =
       delete;
 
-  absl::Status ReadRecords(const std::function<absl::Status(DataRecordStruct)>&
-                               record_callback) override;
   absl::Status ReadRecords(const std::function<absl::Status(const DataRecord&)>&
                                record_callback) override;
   bool IsOpen() const override { return true; };
@@ -68,12 +66,6 @@ class AvroDeltaRecordStreamReader : public DeltaRecordReader {
  private:
   std::unique_ptr<avro::DataFileReader<std::string>> data_file_reader_;
 };
-
-template <typename SrcStreamT>
-absl::Status AvroDeltaRecordStreamReader<SrcStreamT>::ReadRecords(
-    const std::function<absl::Status(DataRecordStruct)>& record_callback) {
-  return absl::UnimplementedError("This function is not supported");
-}
 
 template <typename SrcStreamT>
 absl::Status AvroDeltaRecordStreamReader<SrcStreamT>::ReadRecords(

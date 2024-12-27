@@ -25,7 +25,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "public/data_loading/record_utils.h"
-#include "public/data_loading/records_utils.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 #include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/records/record_writer.h"
@@ -43,11 +42,6 @@ class DeltaRecordStreamWriter : public DeltaRecordWriter {
   static absl::StatusOr<std::unique_ptr<DeltaRecordStreamWriter>> Create(
       DestStreamT& dest_stream, Options options);
   absl::Status WriteRecord(const DataRecordT& data_record) override;
-  [[deprecated("Use corresponding DataRecordT-based function")]]
-  absl::Status WriteRecord(const DataRecordStruct& record) override {
-    return absl::UnimplementedError(
-        "DeltaRecordStreamWriter is updated to use newer data structures");
-  };
   const Options& GetOptions() const override { return options_; }
   absl::Status Flush() override;
   void Close() override { record_writer_->Close(); }

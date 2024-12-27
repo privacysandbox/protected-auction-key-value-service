@@ -23,7 +23,7 @@
 #include "google/protobuf/util/message_differencer.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/test_util/data_record.h"
 

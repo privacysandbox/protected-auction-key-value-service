@@ -23,7 +23,7 @@
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/test_util/data_record.h"
 
 namespace kv_server {

@@ -30,7 +30,7 @@
 #include "public/data_loading/aggregation/record_aggregator.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_writer.h"
@@ -86,12 +86,6 @@ class SnapshotStreamWriter {
   static absl::StatusOr<std::unique_ptr<SnapshotStreamWriter>> Create(
       Options options, DestStreamT& dest_snapshot_stream);
   absl::Status WriteRecord(const DataRecordT& record);
-  [[deprecated("Use corresponding DataRecordT-based function")]]
-  absl::Status WriteRecord(const DataRecordStruct& record) {
-    return absl::UnimplementedError(
-        "SnapshotStreamWriter is updated to use newer data "
-        "structures");
-  }
   // Writes `DataRecordT` records from `src_stream` to the
   // output snapshot stream, `dest_snapshot_stream`. Valid source streams can be
   // snapshot files generated using `SnapshotStreamWriter` instances or

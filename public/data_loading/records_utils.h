@@ -27,12 +27,6 @@
 
 namespace kv_server {
 
-enum class DataRecordType : int {
-  kKeyValueMutationRecord,
-  kUserDefinedFunctionsConfig,
-  kShardMappingRecord
-};
-
 using KeyValueMutationRecordValueT =
     std::variant<std::monostate, std::string_view,
                  std::vector<std::string_view>, std::vector<uint32_t>,

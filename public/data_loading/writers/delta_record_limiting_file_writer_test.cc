@@ -26,8 +26,6 @@
 namespace kv_server {
 namespace {
 
-using kv_server::DataRecordStruct;
-using kv_server::KeyValueMutationRecordStruct;
 using privacy_sandbox::server_common::TelemetryProvider;
 
 const int file_size_limit_bytes = 10000;

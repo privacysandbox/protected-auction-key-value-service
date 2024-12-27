@@ -22,7 +22,6 @@
 
 #include "absl/status/status.h"
 #include "public/data_loading/record_utils.h"
-#include "public/data_loading/records_utils.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 
 namespace kv_server {
@@ -36,7 +35,7 @@ namespace kv_server {
 // ```
 // DeltaRecordWriter record_writer = ...
 // while(more records to write) {
-//    DataRecordStruct record = ...
+//    DataRecordT record = ...
 //    if (absl::Status status = record_writer.WriteRecord(record); !status.ok())
 //    {
 //        LOG(WARN) << "Failed to write record.";
@@ -51,9 +50,6 @@ class DeltaRecordWriter {
   struct Options {
     // If true, record compression will be enabled.
     bool enable_compression;
-    // If writing a record fails, this function will be called with the failed
-    // record.
-    std::function<void(const DataRecordStruct&)> recovery_function;
 
     // If writing a record fails, this function will be called with the failed
     // record.
@@ -67,8 +63,6 @@ class DeltaRecordWriter {
   // Writes a `DataRecordT` native flatbuffer struct record to the underlying
   // destination.
   virtual absl::Status WriteRecord(const DataRecordT& data_record) = 0;
-  // Writes a `DataRecord` record to the underlying destination.
-  virtual absl::Status WriteRecord(const DataRecordStruct& data_record) = 0;
   // Flushes any written data to the underlying destination and makes it
   // visible outside the writing process. `Flush()` is different from
   // `Close()` in that it allows for more records to be written after some data

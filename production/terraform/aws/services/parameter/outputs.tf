@@ -11,6 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
+ * See the License for the specific language governing permissions and
  * limitations under the License.
  */
 
@@ -160,6 +161,10 @@ output "udf_update_timeout_millis_parameter_arn" {
 
 output "udf_min_log_level_parameter_arn" {
   value = aws_ssm_parameter.udf_min_log_level_parameter.arn
+}
+
+output "udf_enable_stacktrace_parameter_arn" {
+  value = aws_ssm_parameter.udf_enable_stacktrace_parameter.arn
 }
 
 output "enable_otel_logger_parameter_arn" {

@@ -307,6 +307,12 @@ variable "udf_min_log_level" {
   type        = number
 }
 
+variable "udf_enable_stacktrace" {
+  description = "Whether to enable stacktraces from the UDF. The stacktraces will also be included in the V2 response."
+  default     = false
+  type        = bool
+}
+
 variable "enable_otel_logger" {
   description = "Whether to enable otel logger."
   type        = bool

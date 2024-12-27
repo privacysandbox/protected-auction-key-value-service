@@ -212,6 +212,7 @@ module "parameter" {
   public_key_endpoint_parameter_value                        = var.public_key_endpoint
   consented_debug_token_parameter_value                      = var.consented_debug_token
   enable_consented_log_parameter_value                       = var.enable_consented_log
+  udf_enable_stacktrace_parameter_value                      = var.udf_enable_stacktrace
 
 
   data_loading_file_format_parameter_value                     = var.data_loading_file_format
@@ -293,6 +294,7 @@ module "iam_role_policies" {
     module.parameter.udf_timeout_millis_parameter_arn,
     module.parameter.udf_update_timeout_millis_parameter_arn,
     module.parameter.udf_min_log_level_parameter_arn,
+    module.parameter.udf_enable_stacktrace_parameter_arn,
     module.parameter.enable_otel_logger_parameter_arn,
     module.parameter.enable_consented_log_parameter_arn,
   module.parameter.data_loading_blob_prefix_allowlist_parameter_arn]

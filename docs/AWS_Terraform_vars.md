@@ -266,6 +266,11 @@
     PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics),
     mode: OFF(no metrics)
 
+-   **udf_enable_stacktrace**
+
+    Whether to enable stacktraces from the UDF. The stacktraces will also be included in the V2
+    response.
+
 -   **udf_min_log_level**
 
     Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for

@@ -116,6 +116,7 @@ constexpr std::string_view kDataLoadingBlobPrefixAllowlistSuffix =
 constexpr std::string_view kTelemetryConfigSuffix = "telemetry-config";
 constexpr std::string_view kConsentedDebugTokenSuffix = "consented-debug-token";
 constexpr std::string_view kEnableConsentedLogSuffix = "enable-consented-log";
+constexpr std::string_view kUdfEnableStacktraceSuffix = "udf-enable-stacktrace";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -359,6 +360,8 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
     return absl::OkStatus();
   }
   UdfConfigBuilder config_builder;
+  bool enable_udf_stacktrace =
+      parameter_fetcher.GetBoolParameter(kUdfEnableStacktraceSuffix);
   // TODO(b/289244673): Once roma interface is updated, internal lookup client
   // can be removed and we can own the unique ptr to the hooks.
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
@@ -373,7 +376,7 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
                   .RegisterLoggingHook()
                   .RegisterCustomMetricHook()
                   .SetNumberOfWorkers(number_of_workers)
-                  .DisableUdfStackTraces(true)
+                  .DisableUdfStackTraces(!enable_udf_stacktrace)
                   .Config()),
           absl::Milliseconds(udf_timeout_ms),
           absl::Milliseconds(udf_update_timeout_ms), udf_min_log_level);

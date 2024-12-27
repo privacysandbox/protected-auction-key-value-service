@@ -304,3 +304,10 @@ resource "aws_ssm_parameter" "enable_consented_log_parameter" {
   value     = var.enable_consented_log_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "udf_enable_stacktrace_parameter" {
+  name      = "${var.service}-${var.environment}-udf-enable-stacktrace"
+  type      = "String"
+  value     = var.udf_enable_stacktrace_parameter_value
+  overwrite = true
+}

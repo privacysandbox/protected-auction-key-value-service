@@ -26,7 +26,7 @@
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/writers/avro_delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_writer.h"

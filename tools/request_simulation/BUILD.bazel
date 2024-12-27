@@ -364,7 +364,7 @@ cc_library(
         "//components/data/common:change_notifier",
         "//components/data/common:thread_manager",
         "//components/data/realtime:realtime_notifier",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/log",

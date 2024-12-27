@@ -31,7 +31,7 @@
 #include "gtest/gtest.h"
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/sharding/key_sharder.h"
 #include "public/sharding/sharding_function.h"
 #include "public/test_util/data_record.h"

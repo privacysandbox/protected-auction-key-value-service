@@ -28,7 +28,7 @@ cc_binary(
     deps = [
         "//components/util:platform_initializer",
         "//public/data_loading:filename_utils",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//tools/data_cli/commands:command",
         "//tools/data_cli/commands:format_data_command",
         "//tools/data_cli/commands:generate_snapshot_command",

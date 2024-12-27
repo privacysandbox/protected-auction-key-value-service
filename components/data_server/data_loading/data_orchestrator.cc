@@ -28,7 +28,7 @@
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/sharding/sharding_function.h"
 #include "src/errors/retry.h"
 #include "src/telemetry/tracing.h"

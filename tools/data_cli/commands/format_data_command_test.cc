@@ -46,23 +46,37 @@ KVFileMetadata GetMetadata() {
   return metadata;
 }
 
-class FormatDataCommandTest
-    : public testing::TestWithParam<KeyValueMutationRecordValueT> {
+template <class T>
+T GetSampleValue();
+
+template <>
+StringValueT GetSampleValue<StringValueT>() {
+  return StringValueT{.value = "value"};
+}
+
+template <>
+StringSetT GetSampleValue<StringSetT>() {
+  return StringSetT{.value =
+                        std::vector<std::string>{"value1", "value2", "value3"}};
+}
+
+template <class T>
+class FormatDataCommandTest : public testing::TestWithParam<T> {
  protected:
-  KeyValueMutationRecordValueT GetValue() { return GetParam(); }
+  T GetSampleRecordValue() { return GetSampleValue<T>(); }
 };
 
-INSTANTIATE_TEST_SUITE_P(KVMutationValue, FormatDataCommandTest,
-                         testing::Values("value",
-                                         std::vector<std::string_view>{
-                                             "value1", "value2", "value3"}));
+using testing::Types;
+typedef Types<StringValueT, StringSetT> ValueTypes;
+TYPED_TEST_SUITE(FormatDataCommandTest, ValueTypes);
 
-TEST_P(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData_KVMutations) {
+TYPED_TEST(FormatDataCommandTest,
+           ValidateGeneratingCsvToDeltaData_KVMutations) {
   std::stringstream csv_stream;
   std::stringstream delta_stream;
   CsvDeltaRecordStreamWriter csv_writer(csv_stream);
   const auto& record =
-      GetNativeDataRecord(GetKVMutationRecord(GetSimpleStringValue()));
+      GetNativeDataRecord(GetKVMutationRecord(this->GetSampleRecordValue()));
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
@@ -83,13 +97,14 @@ TEST_P(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData_KVMutations) {
   EXPECT_TRUE(delta_reader.ReadRecords(record_callback.AsStdFunction()).ok());
 }
 
-TEST_P(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_KvMutations) {
+TYPED_TEST(FormatDataCommandTest,
+           ValidateGeneratingDeltaToCsvData_KvMutations) {
   std::stringstream delta_stream;
   std::stringstream csv_stream;
   auto delta_writer = DeltaRecordStreamWriter<std::stringstream>::Create(
       delta_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
   const auto& record =
-      GetNativeDataRecord(GetKVMutationRecord(GetSimpleStringValue()));
+      GetNativeDataRecord(GetKVMutationRecord(this->GetSampleRecordValue()));
   EXPECT_TRUE(delta_writer.ok()) << delta_writer.status();
   EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
   EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());

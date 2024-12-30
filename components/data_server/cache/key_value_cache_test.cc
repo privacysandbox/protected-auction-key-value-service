@@ -45,10 +45,10 @@ class KeyValueCacheTestPeer {
                ? std::multimap<int64_t, std::string>()
                : c.deleted_nodes_map_.find(prefix)->second;
   }
-  static absl::flat_hash_map<std::string, kv_server::KeyValueCache::CacheValue>&
-  ReadNodes(KeyValueCache& c) {
+
+  static int ReadNodesSize(KeyValueCache& c) {
     absl::MutexLock lock(&c.mutex_);
-    return c.map_;
+    return c.map_.size();
   }
 
   static int GetDeletedSetNodesMapSize(const KeyValueCache& c,
@@ -497,8 +497,7 @@ TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeysRemovesOldRecords) {
   auto deleted_nodes = KeyValueCacheTestPeer::ReadDeletedNodes(*cache);
   EXPECT_EQ(deleted_nodes.size(), 0);
 
-  auto& nodes = KeyValueCacheTestPeer::ReadNodes(*cache);
-  EXPECT_EQ(nodes.size(), 0);
+  EXPECT_EQ(KeyValueCacheTestPeer::ReadNodesSize(*cache), 0);
 }
 
 TEST_F(CacheTest, CleanupTimestampsRemoveDeletedKeysDoesntAffectNewRecords) {

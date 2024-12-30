@@ -101,7 +101,7 @@ BAZEL_EXTRA_ARGS="${BAZEL_EXTRA_ARGS} --config=aws_instance --config=aws_platfor
 printf "EXTRA ARGS: %s\n" "${BAZEL_EXTRA_ARGS}"
 
 printf "==== Copying to dist for aws artifacts =====\n"
-builder::cbuild_al2 $"
+builder::cbuild_al2023 $"
 trap _collect_logs EXIT
 function _collect_logs() {
   local -r -i STATUS=\$?
@@ -138,7 +138,7 @@ fi
 if [[ -n ${AMI_REGIONS[0]} ]]; then
   printf "==== build AWS AMI (using packer) =====\n"
   regions="$(arr_to_string_list AMI_REGIONS)"
-  builder::cbuild_al2 "
+  builder::cbuild_al2023 "
 set -o errexit
 packer build -var=regions='${regions}' -var=commit_version=$(git rev-parse HEAD) -var=distribution_dir=dist/request_simulation/aws -var=workspace=/src/workspace production/packaging/tools/request_simulation/ami/image.pkr.hcl
 "

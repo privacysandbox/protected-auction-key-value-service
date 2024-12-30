@@ -22,7 +22,7 @@ function cleanup() {
   exit ${status}
 }
 
-declare BUILDER_IMAGE_NAME=build-amazonlinux2
+declare BUILDER_IMAGE_NAME=build-amazonlinux2023
 
 function usage() {
   declare -r -i exitval=${1-1}

@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 0.76.0 (2024-12-16)
+
+
+### Features
+
+* Remove support for Amazon Linux 2
+
+## 0.75.1 (2024-11-22)
+
+
+### Bug Fixes
+
+* Revert to ubuntu:20
+
+## 0.75.0 (2024-11-21)
+
+
+### Features
+
+* Add gVisor dependencies to build-debian image
+
+## 0.74.0 (2024-11-21)
+
+
+### Features
+
+* Add cbuild flag --one-time to create a new container
+* Print message when reusing a cbuild container
+
+## 0.73.0 (2024-10-31)
+
+
+### Features
+
+* Create .clang.bazelrc
+
+
+### Dependencies
+
+* **deps:** Upgrade clang to v18
+
+## 0.72.0 (2024-10-23)
+
+
+### Features
+
+* Update build-debian image to Ubuntu 22.04 LTS
+
 ## 0.71.0 (2024-10-18)
 
 

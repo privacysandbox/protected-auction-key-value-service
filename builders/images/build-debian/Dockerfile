@@ -22,7 +22,7 @@ ARG BASE_IMAGE=ubuntu@sha256:fa17826afb526a9fc7250e0fbcbfd18d03fe7a54849472f8687
 FROM ${BASE_IMAGE} as libprofiler-builder
 ENV CC=clang \
     CXX=clang++
-ADD https://github.com/gperftools/gperftools/releases/download/gperftools-2.13/gperftools-2.13.tar.gz /build/gperftools.tar.gz
+ADD https://github.com/gperftools/gperftools/releases/download/gperftools-2.16/gperftools-2.16.tar.gz /build/gperftools.tar.gz
 ADD https://apt.llvm.org/llvm.sh /build/llvm.sh
 COPY compile_libprofiler /scripts/
 RUN /scripts/compile_libprofiler

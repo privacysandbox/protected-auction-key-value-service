@@ -159,6 +159,9 @@ absl::StatusOr<cbor_item_t*> EncodePartitionOutput(
       cbor_new_definite_array(partition_output.key_group_outputs().size());
   for (auto& key_group_output :
        *(partition_output.mutable_key_group_outputs())) {
+    if (key_group_output.key_values().empty()) {
+      continue;
+    }
     PS_ASSIGN_OR_RETURN(auto* serialized_key_group_output,
                         EncodeKeyGroupOutput(key_group_output));
     if (!cbor_array_push(serialized_key_group_outputs,

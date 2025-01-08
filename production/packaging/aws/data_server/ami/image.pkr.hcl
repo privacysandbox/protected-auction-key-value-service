@@ -30,6 +30,11 @@ variable "build_mode" {
   type    = string
 }
 
+variable "ami_users_env" {
+  type    = string
+  default = ""
+}
+
 # Directory path where the built artifacts appear
 variable "distribution_dir" {
   type = string
@@ -66,6 +71,8 @@ locals { timestamp = regex_replace(timestamp(), "[- TZ:]", "") }
 # source.
 source "amazon-ebs" "dataserver" {
   ami_name      = "data-server-${local.timestamp}"
+  ami_users = var.ami_users_env != "" ? split(",", var.ami_users_env) : null
+
   instance_type = "m5.xlarge"
   region        = var.regions[0]
   ami_regions   = var.regions

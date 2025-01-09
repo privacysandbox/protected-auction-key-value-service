@@ -172,6 +172,15 @@ class UdfClientImpl : public UdfClient {
       return results;
     }
 
+    UdfRequestMetricsContext& metrics_context =
+        request_context_factory.Get().GetUdfRequestMetricsContext();
+    LogIfError(metrics_context.LogHistogram<kUDFExecutionCount>(
+        (static_cast<double>(udf_input_map.size()))));
+    ScopeLatencyMetricsRecorder<UdfRequestMetricsContext,
+                                kBatchUDFExecutionLatencyInMicros>
+        latency_recorder(
+            request_context_factory.Get().GetUdfRequestMetricsContext());
+
     absl::flat_hash_map<int32_t, std::future<absl::StatusOr<std::string>>>
         responses;
     metadata.custom_code_total_execution_time_micros = 0;

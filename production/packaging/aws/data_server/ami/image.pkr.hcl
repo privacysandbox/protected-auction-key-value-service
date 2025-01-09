@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# To test this file, add the relevant files and from the root of the repo run:
+# $ packer build  -var 'regions=["us-east-1"]' -var=commit_version=$(git rev-parse HEAD) -var=build_mode=prod -var=distribution_dir=/tmp/dist -var=workspace=/tmp/ws production/packaging/aws/data_server/ami/image.pkr.hcl
+
 variable "regions" {
   type    = list(string)
   validation {
@@ -28,6 +31,12 @@ variable "commit_version" {
 
 variable "build_mode" {
   type    = string
+  default = ""
+}
+
+variable "release_candidate" {
+  type    = string
+  default = ""
 }
 
 variable "ami_users_env" {
@@ -70,7 +79,7 @@ locals { timestamp = regex_replace(timestamp(), "[- TZ:]", "") }
 # build blocks. A build block runs provisioners and post-processors on a
 # source.
 source "amazon-ebs" "dataserver" {
-  ami_name      = "data-server-${local.timestamp}"
+  ami_name      = "data-server-${var.build_mode}-${var.release_candidate}-${local.timestamp}"
   ami_users = var.ami_users_env != "" ? split(",", var.ami_users_env) : null
 
   instance_type = "m5.xlarge"
@@ -88,6 +97,7 @@ source "amazon-ebs" "dataserver" {
   tags = {
     commit_version = var.commit_version
     build_mode = var.build_mode
+    release_candidate = var.release_candidate
   }
   ssh_username = "ec2-user"
 }

@@ -37,3 +37,18 @@ message Ad {
   //meta data in random JSON array.
   google.protobuf.ListValue metadata = 2;
 }
+
+// This proto is the original BYOS GetValuesResponse proto.
+// It is different from KV V1 GetValuesResponse proto in public/query folder
+// The V1 proto is no longer compatible with original BYOS response,
+// as it now returns the reason why the value is not returned.
+message BYOSGetValuesResponse {
+  // Map of key value pairs for namespace keys.
+  google.protobuf.Struct keys = 1;
+
+  // Map of key value pairs for namespace renderUrls.
+  google.protobuf.Struct render_urls = 2;
+
+  // Map of key value pairs for namespace adComponentRenderUrls.
+  google.protobuf.Struct ad_component_render_urls = 3;
+}

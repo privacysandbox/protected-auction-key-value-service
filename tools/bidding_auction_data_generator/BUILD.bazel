@@ -58,12 +58,13 @@ cc_library(
 )
 
 cc_library(
-    name = "value_fetch_util",
-    srcs = ["value_fetch_util.cc"],
-    hdrs = ["value_fetch_util.h"],
+    name = "json_to_proto_util",
+    srcs = ["json_to_proto_util.cc"],
+    hdrs = ["json_to_proto_util.h"],
     deps = [
-        "//public/query:get_values_cc_grpc",
+        ":custom_audience_data_cc_proto",
         "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_protobuf//:protobuf",
@@ -88,9 +89,9 @@ cc_library(
     srcs = ["http_value_retriever.cc"],
     hdrs = ["http_value_retriever.h"],
     deps = [
+        ":custom_audience_data_cc_proto",
         ":http_url_fetch_client",
-        ":value_fetch_util",
-        "//public/query:get_values_cc_grpc",
+        ":json_to_proto_util",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/container:flat_hash_set",
         "@com_google_absl//absl/log",
@@ -111,6 +112,25 @@ cc_binary(
         "//public/data_loading:filename_utils",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/flags:parse",
+    ],
+)
+
+cc_binary(
+    name = "generate_data_from_kv_response",
+    srcs = ["generate_data_from_kv_response.cc"],
+    deps = [
+        ":custom_audience_data_cc_proto",
+        ":delta_key_value_writer",
+        ":json_to_proto_util",
+        "//public/data_loading:filename_utils",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_util",
     ],
 )
 
@@ -143,11 +163,28 @@ cc_test(
     size = "small",
     srcs = ["http_value_retriever_test.cc"],
     deps = [
+        ":custom_audience_data_cc_proto",
         ":http_value_retriever",
         ":mocks",
-        "//public/query:get_values_cc_grpc",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "json_to_proto_util_test",
+    size = "small",
+    srcs = ["json_to_proto_util_test.cc"],
+    data = [
+        "//tools/bidding_auction_data_generator/data/test:buyer_kv_byos_response/response.json",
+        "//tools/bidding_auction_data_generator/data/test:seller_kv_byos_response/response.json",
+    ],
+    deps = [
+        ":custom_audience_data_cc_proto",
+        ":json_to_proto_util",
+        "@com_github_grpc_grpc//:grpc++",
+        "@com_google_googletest//:gtest_main",
+        "@nlohmann_json//:lib",
     ],
 )
 

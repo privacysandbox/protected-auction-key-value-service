@@ -72,6 +72,7 @@ absl::StatusOr<std::unique_ptr<UdfClient>> CreateUdfClient() {
 class UdfClientTest : public ::testing::Test {
  protected:
   UdfClientTest() {
+    privacy_sandbox::server_common::log::SetGlobalPSVLogLevel(1);
     privacy_sandbox::server_common::log::ServerToken(
         kExampleConsentedDebugToken);
     const std::string telemetry_config_str = R"pb(

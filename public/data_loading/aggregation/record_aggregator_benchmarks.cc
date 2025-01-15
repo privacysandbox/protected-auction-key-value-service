@@ -18,9 +18,8 @@
 #include "absl/strings/str_cat.h"
 #include "benchmark/benchmark.h"
 #include "public/data_loading/aggregation/record_aggregator.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 
-using kv_server::KeyValueMutationRecordStruct;
 using kv_server::KeyValueMutationType;
 using kv_server::RecordAggregator;
 
@@ -30,11 +29,12 @@ static std::string GenerateRecordValue(int64_t char_count) {
 
 static void BM_InMemoryRecordAggregator_InsertRecord(benchmark::State& state) {
   auto record_aggregator = RecordAggregator::CreateInMemoryAggregator();
-  std::string record_value = GenerateRecordValue(state.range(0));
-  KeyValueMutationRecordStruct record{
-      .mutation_type = KeyValueMutationType::Update,
-      .logical_commit_time = 1234567890,
-      .value = record_value};
+  kv_server::StringValueT string_value;
+  string_value.value = GenerateRecordValue(state.range(0));
+  kv_server::KeyValueMutationRecordT record;
+  record.mutation_type = KeyValueMutationType::Update;
+  record.logical_commit_time = 1234567890;
+  record.value.Set(string_value);
   for (auto _ : state) {
     state.PauseTiming();
     std::string record_key = absl::StrCat("key", std::rand() % 10'000);

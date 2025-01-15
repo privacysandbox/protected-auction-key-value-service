@@ -15,11 +15,11 @@ python_register_toolchains("//builders/bazel")
 
 http_archive(
     name = "google_privacysandbox_servers_common",
-    # commit cc49da3 2024-10-09
-    sha256 = "7a0337420161304c7429c727b1f82394bc27e1e2586d2da30e6d6100ba92b437",
-    strip_prefix = "data-plane-shared-libraries-158593616a63df924af1cb689f3915b8d32e9db1",
+    # commit 2fc3d6c 2024-12-26
+    sha256 = "321893a0733f5172b4cfeb085551d4c7507a2683b01bf4af4ec4017f948477b6",
+    strip_prefix = "data-plane-shared-libraries-2fc3d6cfa9a4ea6f424348a9b2740c025404b520",
     urls = [
-        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/158593616a63df924af1cb689f3915b8d32e9db1.zip",
+        "https://github.com/privacysandbox/data-plane-shared-libraries/archive/2fc3d6cfa9a4ea6f424348a9b2740c025404b520.zip",
     ],
 )
 
@@ -153,3 +153,18 @@ http_archive(
 load("@container_structure_test//:repositories.bzl", "container_structure_test_register_toolchain")
 
 container_structure_test_register_toolchain(name = "cst")
+
+# Initialize Python headers
+
+http_archive(
+    name = "pybind11_bazel",
+    sha256 = "b72c5b44135b90d1ffaba51e08240be0b91707ac60bea08bb4d84b47316211bb",
+    strip_prefix = "pybind11_bazel-b162c7c88a253e3f6b673df0c621aca27596ce6b",
+    urls = ["https://github.com/pybind/pybind11_bazel/archive/b162c7c88a253e3f6b673df0c621aca27596ce6b.zip"],
+)
+
+load("@pybind11_bazel//:python_configure.bzl", "python_configure")
+
+python_configure(
+    name = "local_config_python",
+)

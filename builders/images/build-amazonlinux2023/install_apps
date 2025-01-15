@@ -46,9 +46,19 @@ function install_python() {
 }
 
 function install_nitro() {
+  local -r arch="$1"
+  local -r -A extensions=(
+    [amd64]="x86_64"
+    [arm64]="aarch64"
+  )
+  local -r ext="${extensions[${arch}]}"
+  if [[ -z ${ext} ]]; then
+    printf "Unrecognized or unsupported architecture for nitro: %s\n" "${arch}" &>/dev/stderr
+    return 1
+  fi
   dnf install -y \
-    "aws-nitro-enclaves-cli-1.3.*" \
-    "aws-nitro-enclaves-cli-devel-1.3.*"
+    "aws-nitro-enclaves-cli-1.3.1-0.amzn2023.${ext}" \
+    "aws-nitro-enclaves-cli-devel-1.3.1-0.amzn2023.${ext}"
 }
 
 function install_gcc() {
@@ -91,7 +101,7 @@ fi
 
 install_python
 dnf_update
-install_nitro
+install_nitro "${BUILD_ARCH}"
 install_misc
 install_clang
 install_golang "${BUILD_ARCH}"

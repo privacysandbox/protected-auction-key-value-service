@@ -40,28 +40,23 @@ riegeli::LimitingWriterBase::Options GetLimitingWriterOptions(
 DeltaRecordLimitingFileWriter::DeltaRecordLimitingFileWriter(
     std::string file_name, Options options, int64_t max_file_size_bytes)
     : options_(std::move(options)),
-      file_writer_(std::make_unique<riegeli::FdWriter<riegeli::OwnedFd>>(
-          std::move(file_name))),
-      record_writer_(
-          std::make_unique<riegeli::RecordWriter<
-              riegeli::LimitingWriter<riegeli::FdWriter<riegeli::OwnedFd>*>>>(
-              riegeli::RecordWriter(
-                  riegeli::LimitingWriter(
-                      &(*file_writer_),
-                      GetLimitingWriterOptions(max_file_size_bytes)),
-                  GetRecordWriterOptions(options_)))),
-      file_writer_pos_(file_writer_->pos()) {}
+      file_writer_(std::move(file_name)),
+      record_writer_(riegeli::RecordWriter(
+          riegeli::Maker<riegeli::LimitingWriter>(
+              &file_writer_, GetLimitingWriterOptions(max_file_size_bytes)),
+          GetRecordWriterOptions(options_))),
+      file_writer_pos_(file_writer_.pos()) {}
 
 absl::StatusOr<std::unique_ptr<DeltaRecordLimitingFileWriter>>
 DeltaRecordLimitingFileWriter::Create(std::string file_name, Options options,
                                       int64_t max_file_size_bytes) {
   return absl::WrapUnique(new DeltaRecordLimitingFileWriter(
-      file_name, options, max_file_size_bytes));
+      std::move(file_name), std::move(options), max_file_size_bytes));
 }
 
 absl::Status DeltaRecordLimitingFileWriter::ProcessWritingFailure() {
-  if (!absl::IsResourceExhausted(record_writer_->status())) {
-    return record_writer_->status();
+  if (!absl::IsResourceExhausted(record_writer_.status())) {
+    return record_writer_.status();
   }
   // If writing/flushing the record fails, the limit was exceeded, but the file
   // now contains an incomplete chunk after the remembered position.
@@ -69,36 +64,36 @@ absl::Status DeltaRecordLimitingFileWriter::ProcessWritingFailure() {
              "the last known chunk border: "
           << file_writer_pos_;
 
-  file_writer_->Truncate(file_writer_pos_);
-  file_writer_->Close();
+  file_writer_.Truncate(file_writer_pos_);
+  file_writer_.Close();
   return absl::ResourceExhaustedError(
       "The capacity of the underlying file has been exhausted. Please "
       "recreate limiting file writer.");
 }
 
 absl::Status DeltaRecordLimitingFileWriter::WriteRecord(
-    const DataRecordStruct& data_record) {
-  file_writer_pos_ = file_writer_->pos();
-  if (!record_writer_->WriteRecord(
-          ToStringView(ToFlatBufferBuilder(data_record)))) {
+    const DataRecordT& data_record) {
+  file_writer_pos_ = file_writer_.pos();
+  auto [fbs_buffer, bytes_to_write] = Serialize(data_record);
+  if (!record_writer_.WriteRecord(bytes_to_write)) {
     return ProcessWritingFailure();
   }
 
-  return record_writer_->status();
+  return record_writer_.status();
 }
 
 absl::Status DeltaRecordLimitingFileWriter::Flush() {
-  if (!record_writer_->Flush()) {
+  if (!record_writer_.Flush()) {
     return ProcessWritingFailure();
   }
   return absl::OkStatus();
 }
 
 void DeltaRecordLimitingFileWriter::Close() {
-  if (!record_writer_->Close()) {
-    if (!absl::IsResourceExhausted(record_writer_->status())) {
+  if (!record_writer_.Close()) {
+    if (!absl::IsResourceExhausted(record_writer_.status())) {
       // still attempting to close the file writer.
-      file_writer_->Close();
+      file_writer_.Close();
       return;
     }
     VLOG(5) << "Failed flushing to the underlying file, truncating to the last "
@@ -106,9 +101,9 @@ void DeltaRecordLimitingFileWriter::Close() {
             << file_writer_pos_;
     // If flushing fails, the limit was exceeded, but the file now
     // contains an incomplete chunk after the remembered position.
-    file_writer_->Truncate(file_writer_pos_);
+    file_writer_.Truncate(file_writer_pos_);
   }
-  file_writer_->Close();
+  file_writer_.Close();
 }
 
 const DeltaRecordLimitingFileWriter::Options&
@@ -116,10 +111,10 @@ DeltaRecordLimitingFileWriter::GetOptions() const {
   return options_;
 }
 bool DeltaRecordLimitingFileWriter::IsOpen() {
-  return record_writer_->is_open();
+  return record_writer_.is_open();
 }
 absl::Status DeltaRecordLimitingFileWriter::Status() {
-  return record_writer_->status();
+  return record_writer_.status();
 }
 
 }  // namespace kv_server

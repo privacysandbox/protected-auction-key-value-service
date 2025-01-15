@@ -19,10 +19,12 @@
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/common/change_notifier.h"
-#include "components/util/sleepfor.h"
+#include "src/util/sleep/sleepfor.h"
 
 namespace kv_server {
 namespace {
+
+using ::privacy_sandbox::server_common::SleepFor;
 
 class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
  public:

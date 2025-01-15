@@ -52,7 +52,8 @@ class CloudKeyFetcherFactory : public KeyFetcherFactory {
   explicit CloudKeyFetcherFactory(
       privacy_sandbox::server_common::log::PSLogContext& log_context)
       : log_context_(log_context) {}
-  // Creates KeyFetcherManager.
+  // Creates KeyFetcherManager. This also makes a blocking call to fetch recent
+  // encryption keys and will retry that call until it succeeds.
   std::unique_ptr<privacy_sandbox::server_common::KeyFetcherManagerInterface>
   CreateKeyFetcherManager(
       const ParameterFetcher& parameter_fetcher) const override;

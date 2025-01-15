@@ -44,10 +44,10 @@ cc_library(
     srcs = ["rate_limiter.cc"],
     hdrs = ["rate_limiter.h"],
     deps = [
-        "//components/util:sleepfor",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@google_privacysandbox_servers_common//src/util:duration",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor",
     ],
 )
 
@@ -68,6 +68,7 @@ cc_library(
     hdrs = ["grpc_client.h"],
     deps = [
         "//components/data_server/request_handler:get_values_v2_handler",
+        "//public:constants",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/status:statusor",
@@ -80,10 +81,10 @@ cc_library(
     hdrs = ["metrics_collector.h"],
     deps = [
         "//components/data/common:thread_manager",
-        "//components/util:sleepfor",
         "@com_github_grpc_grpc//test/core/util:grpc_test_util_base",
         "@com_google_absl//absl/log",
         "@google_privacysandbox_servers_common//src/metric:context_map",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor",
     ],
 )
 
@@ -115,7 +116,7 @@ cc_library(
         "//components/data/common:thread_manager",
         "//components/data/realtime:realtime_notifier",
         "//public/data_loading:data_loading_fbs",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading/readers:riegeli_stream_io",
         "//public/data_loading/readers:stream_record_reader_factory",
         "@com_github_google_flatbuffers//:flatbuffers",
@@ -231,8 +232,8 @@ cc_test(
     srcs = ["rate_limiter_test.cc"],
     deps = [
         ":rate_limiter",
-        "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 
@@ -243,8 +244,8 @@ cc_test(
     deps = [
         ":request_generation_util",
         ":synthetic_request_generator",
-        "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 
@@ -268,11 +269,11 @@ cc_test(
         ":client_worker",
         ":mocks",
         ":request_generation_util",
-        "//components/util:sleepfor_mock",
         "//public/testing:fake_key_value_service_impl",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 
@@ -282,9 +283,9 @@ cc_test(
     srcs = ["metrics_collector_test.cc"],
     deps = [
         ":metrics_collector",
-        "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 
@@ -302,12 +303,12 @@ cc_test(
     deps = [
         ":request_generation_util",
         ":request_simulation_system",
-        "//components/util:sleepfor_mock",
         "//public/testing:fake_key_value_service_impl",
         "//tools/request_simulation:mocks",
         "//tools/request_simulation/request:raw_request_cc_proto",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/telemetry:mocks",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 
@@ -318,6 +319,7 @@ cc_test(
     deps = [
         ":delta_based_request_generator",
         "//components/data/common:mocks",
+        "//public/test_util:data_record",
         "//public/test_util:mocks",
         "@com_google_googletest//:gtest_main",
         "@google_privacysandbox_servers_common//src/telemetry:mocks",
@@ -344,6 +346,7 @@ cc_test(
     deps = [
         ":realtime_message_batcher",
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
+        "//public/test_util:data_record",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -361,7 +364,7 @@ cc_library(
         "//components/data/common:change_notifier",
         "//components/data/common:thread_manager",
         "//components/data/realtime:realtime_notifier",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_absl//absl/log",

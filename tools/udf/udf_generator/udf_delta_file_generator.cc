@@ -26,11 +26,12 @@
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/writers/avro_delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 #include "public/udf/constants.h"
+#include "src/util/status_macro/status_macros.h"
 
 ABSL_FLAG(std::string, udf_file_path, "", "UDF file path");
 ABSL_FLAG(std::string, udf_handler_name, "HandleRequest", "UDF handler_name");
@@ -48,16 +49,12 @@ ABSL_FLAG(std::string, data_loading_file_format,
               kv_server::FileFormat::kRiegeli)]),
           "File format of the input data files.");
 
-using kv_server::DataRecordStruct;
+using kv_server::DataRecordT;
 using kv_server::DeltaRecordStreamWriter;
 using kv_server::DeltaRecordWriter;
-using kv_server::KeyValueMutationRecordStruct;
-using kv_server::KeyValueMutationType;
 using kv_server::KVFileMetadata;
 using kv_server::ToDeltaFileName;
-using kv_server::ToFlatBufferBuilder;
-using kv_server::ToStringView;
-using kv_server::UserDefinedFunctionsConfigStruct;
+using kv_server::UserDefinedFunctionsConfigT;
 using kv_server::UserDefinedFunctionsLanguage;
 
 absl::StatusOr<std::string> ReadCodeSnippetAsString(std::string udf_file_path) {
@@ -85,34 +82,34 @@ absl::Status WriteUdfConfig(std::ostream* output_stream) {
   }
 
   KVFileMetadata metadata;
-  absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> delta_record_writer;
+  std::unique_ptr<DeltaRecordWriter> delta_record_writer;
   if (absl::GetFlag(FLAGS_data_loading_file_format) ==
       kv_server::kFileFormats[static_cast<int>(
           kv_server::FileFormat::kRiegeli)]) {
-    delta_record_writer = DeltaRecordStreamWriter<std::ostream>::Create(
-        *output_stream, DeltaRecordWriter::Options{.metadata = metadata});
+    PS_ASSIGN_OR_RETURN(
+        delta_record_writer,
+        DeltaRecordStreamWriter<std::ostream>::Create(
+            *output_stream, DeltaRecordWriter::Options{.metadata = metadata}));
   } else if (absl::GetFlag(FLAGS_data_loading_file_format) ==
              kv_server::kFileFormats[static_cast<int>(
                  kv_server::FileFormat::kAvro)]) {
-    delta_record_writer = kv_server::AvroDeltaRecordStreamWriter::Create(
-        *output_stream, DeltaRecordWriter::Options{.metadata = metadata});
-  }
-  if (!delta_record_writer.ok()) {
-    return delta_record_writer.status();
+    PS_ASSIGN_OR_RETURN(
+        delta_record_writer,
+        kv_server::AvroDeltaRecordStreamWriter::Create(
+            *output_stream, DeltaRecordWriter::Options{.metadata = metadata}));
   }
 
-  UserDefinedFunctionsConfigStruct udf_config = {
+  UserDefinedFunctionsConfigT udf_config = {
+      .language = UserDefinedFunctionsLanguage::Javascript,
       .code_snippet = std::move(*code_snippet),
       .handler_name = std::move(udf_handler_name),
       .logical_commit_time = logical_commit_time,
       .version = version,
-      .language = UserDefinedFunctionsLanguage::Javascript};
-  if (absl::Status status = delta_record_writer.value()->WriteRecord(
-          DataRecordStruct{.record = std::move(udf_config)});
-      !status.ok()) {
-    return status;
-  }
-  delta_record_writer.value()->Close();
+  };
+  DataRecordT data_record;
+  data_record.record.Set(std::move(udf_config));
+  PS_RETURN_IF_ERROR(delta_record_writer->WriteRecord(data_record));
+  delta_record_writer->Close();
   return absl::OkStatus();
 }
 

@@ -74,6 +74,8 @@ ABSL_FLAG(bool, add_missing_keys_v1, false,
           "Whether to add missing keys for v1.");
 ABSL_FLAG(bool, enable_consented_log, false, "Whether to enable consented log");
 ABSL_FLAG(std::string, consented_debug_token, "", "Consented debug token");
+ABSL_FLAG(bool, udf_enable_stacktrace, false,
+          "Whether to include UDF stack traces in the V2 response");
 
 namespace kv_server {
 namespace {
@@ -159,6 +161,8 @@ class LocalParameterClient : public ParameterClient {
                               absl::GetFlag(FLAGS_enable_otel_logger)});
     bool_flag_values_.insert({"kv-server-local-enable-consented-log",
                               absl::GetFlag(FLAGS_enable_consented_log)});
+    bool_flag_values_.insert({"kv-server-local-udf-enable-stacktrace",
+                              absl::GetFlag(FLAGS_udf_enable_stacktrace)});
     // Insert more bool flag values here.
   }
 

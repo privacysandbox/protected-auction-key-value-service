@@ -20,6 +20,7 @@
 #include "components/data/common/msg_svc.h"
 #include "components/data/common/thread_manager.h"
 #include "components/data/realtime/realtime_notifier.h"
+#include "components/telemetry/server_definition.h"
 #include "google/cloud/pubsub/message.h"
 #include "google/cloud/pubsub/subscriber.h"
 #include "src/telemetry/telemetry.h"
@@ -32,6 +33,7 @@ using ::google::cloud::future;
 using ::google::cloud::GrpcBackgroundThreadPoolSizeOption;
 using ::google::cloud::Options;
 using ::google::cloud::pubsub::Subscriber;
+using ::privacy_sandbox::server_common::SleepFor;
 
 class RealtimeNotifierGcp : public RealtimeNotifier {
  public:

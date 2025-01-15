@@ -19,13 +19,14 @@
 #include "absl/synchronization/notification.h"
 #include "components/cloud_config/parameter_update/parameter_notifier.h"
 #include "components/data/common/mocks.h"
-#include "components/util/sleepfor_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "src/util/sleep/sleepfor_mock.h"
 
 namespace kv_server {
 namespace {
 
+using ::privacy_sandbox::server_common::MockSleepFor;
 using privacy_sandbox::server_common::SimulatedSteadyClock;
 using testing::_;
 using testing::AllOf;

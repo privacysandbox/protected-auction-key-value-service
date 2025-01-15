@@ -53,9 +53,6 @@ using v2::GetValuesHttpRequest;
 using v2::KeyValueService;
 using v2::ObliviousGetValuesRequest;
 
-constexpr std::string_view kAcceptEncodingHeader = "accept-encoding";
-constexpr std::string_view kContentEncodingHeader = "content-encoding";
-constexpr std::string_view kBrotliAlgorithmHeader = "br";
 constexpr std::string_view kIsPas = "is_pas";
 
 absl::Status GetCompressionGroupContentAsJsonList(
@@ -230,20 +227,33 @@ absl::Status GetValuesV2Handler::ProcessMultiplePartitions(
     const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
     ExecutionMetadata& execution_metadata,
     const V2EncoderDecoder& v2_codec) const {
+  absl::flat_hash_map<int32_t, UDFInput> udf_input_map;
+  for (const auto& partition : request.partitions()) {
+    UDFExecutionMetadata udf_metadata;
+    *udf_metadata.mutable_request_metadata() = request.metadata();
+    if (!partition.metadata().fields().empty()) {
+      *udf_metadata.mutable_partition_metadata() = partition.metadata();
+    }
+    udf_input_map.emplace(
+        partition.id(), UDFInput{.execution_metadata = std::move(udf_metadata),
+                                 .arguments = partition.arguments()});
+  }
+  PS_ASSIGN_OR_RETURN(
+      auto partition_id_to_output_map,
+      udf_client_.BatchExecuteCode(request_context_factory, udf_input_map,
+                                   execution_metadata));
+
   absl::flat_hash_map<int32_t, std::vector<std::pair<int32_t, std::string>>>
       compression_group_map;
   for (const auto& partition : request.partitions()) {
     int32_t compression_group_id = partition.compression_group_id();
-    v2::ResponsePartition resp_partition;
-    if (auto single_partition_status =
-            ProcessOnePartition(request_context_factory, request.metadata(),
-                                partition, resp_partition, execution_metadata);
-        single_partition_status.ok()) {
+    auto it = partition_id_to_output_map.find(partition.id());
+    if (it != partition_id_to_output_map.end()) {
       compression_group_map[compression_group_id].emplace_back(
-          partition.id(), std::move(resp_partition.string_output()));
+          partition.id(), std::move(it->second));
     } else {
       PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
-          << "Failed to process partition: " << single_partition_status;
+          << "Failed to execute UDF for partition: " << partition.id();
     }
   }
 
@@ -288,6 +298,7 @@ grpc::Status GetValuesV2Handler::GetValues(
                           "This use case only accepts single partitions, but "
                           "multiple partitions were found.");
     }
+    // TODO(b/355434272): Return early on CBOR content type (not supported)
     const auto response_status = ProcessOnePartition(
         request_context_factory, request.metadata(), request.partitions(0),
         *response->mutable_single_partition(), execution_metadata);

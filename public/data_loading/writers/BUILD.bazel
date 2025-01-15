@@ -20,7 +20,7 @@ cc_library(
     name = "delta_record_writer",
     hdrs = ["delta_record_writer.h"],
     deps = [
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading:riegeli_metadata_cc_proto",
         "@com_google_absl//absl/status",
     ],
@@ -32,7 +32,7 @@ cc_library(
     hdrs = ["delta_record_stream_writer.h"],
     deps = [
         ":delta_record_writer",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -46,7 +46,7 @@ cc_library(
     hdrs = ["avro_delta_record_stream_writer.h"],
     deps = [
         ":delta_record_writer",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "@avro//:avrocpp",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
@@ -62,6 +62,7 @@ cc_test(
         ":delta_record_stream_writer",
         "//public/data_loading/readers:riegeli_stream_io",
         "//public/data_loading/readers:riegeli_stream_record_reader_factory",
+        "//public/test_util:data_record",
         "@com_google_absl//absl/status:statusor",
         "@com_google_googletest//:gtest_main",
     ],
@@ -74,7 +75,7 @@ cc_library(
         ":delta_record_stream_writer",
         ":delta_record_writer",
         "//public/data_loading:filename_utils",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading/aggregation:record_aggregator",
         "//public/data_loading/readers:delta_record_stream_reader",
         "@com_google_absl//absl/hash",
@@ -89,33 +90,8 @@ cc_test(
     srcs = ["snapshot_stream_writer_test.cc"],
     deps = [
         ":snapshot_stream_writer",
-        "//public/data_loading:records_utils",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_library(
-    name = "sharded_record_buffer",
-    srcs = ["sharded_record_buffer.cc"],
-    hdrs = ["sharded_record_buffer.h"],
-    deps = [
-        "//public/data_loading:records_utils",
-        "//public/sharding:sharding_function",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-        "@com_google_riegeli//riegeli/bytes:ostream_writer",
-        "@com_google_riegeli//riegeli/records:record_writer",
-    ],
-)
-
-cc_test(
-    name = "sharded_record_buffer_test",
-    srcs = ["sharded_record_buffer_test.cc"],
-    deps = [
-        ":sharded_record_buffer",
-        "//public/data_loading/readers:delta_record_stream_reader",
+        "//public/data_loading:record_utils",
+        "//public/test_util:data_record",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -142,6 +118,7 @@ cc_test(
     deps = [
         ":delta_record_limiting_file_writer",
         "//public/data_loading/readers:delta_record_stream_reader",
+        "//public/test_util:data_record",
         "@com_google_googletest//:gtest_main",
     ],
 )

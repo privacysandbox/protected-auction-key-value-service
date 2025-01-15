@@ -52,17 +52,19 @@ TEST(BenchmarkUtilTest, VerifyWriteRecords) {
   auto status = WriteRecords(num_records, record_size, data_stream);
   EXPECT_TRUE(status.ok()) << status;
   DeltaRecordStreamReader record_reader(data_stream);
-  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(num_records)
-      .WillRepeatedly([record_size](DataRecordStruct data_record) {
-        if (std::holds_alternative<KeyValueMutationRecordStruct>(
-                data_record.record)) {
-          auto kv_record =
-              std::get<KeyValueMutationRecordStruct>(data_record.record);
-          EXPECT_EQ(std::get<std::string_view>(kv_record.value).size(),
-                    record_size);
-        }
+      .WillRepeatedly([record_size](const DataRecord& data_record) {
+        DataRecordT data_record_struct;
+        data_record.UnPackTo(&data_record_struct);
+        EXPECT_EQ(data_record_struct.record.type,
+                  Record::KeyValueMutationRecord);
+        const auto kv_record =
+            *data_record_struct.record.AsKeyValueMutationRecord();
+        EXPECT_EQ(kv_record.value.type, Value::StringValue);
+        const auto value = *kv_record.value.AsStringValue();
+        EXPECT_EQ(value.value.size(), record_size);
         return absl::OkStatus();
       });
   status = record_reader.ReadRecords(record_callback.AsStdFunction());

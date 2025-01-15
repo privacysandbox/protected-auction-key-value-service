@@ -20,7 +20,7 @@ cc_library(
     name = "delta_record_reader",
     hdrs = ["delta_record_reader.h"],
     deps = [
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -156,7 +156,7 @@ cc_library(
     deps = [
         ":delta_record_reader",
         ":riegeli_stream_io",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
     ],
@@ -173,7 +173,7 @@ cc_library(
     ],
     deps = [
         ":delta_record_reader",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "@avro//:avrocpp",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
@@ -187,8 +187,9 @@ cc_test(
     srcs = ["delta_record_stream_reader_test.cc"],
     deps = [
         ":delta_record_stream_reader",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading/writers:delta_record_stream_writer",
+        "//public/test_util:data_record",
         "@com_google_googletest//:gtest_main",
     ],
 )

@@ -98,6 +98,7 @@ module "kv_server" {
   udf_timeout_millis        = var.udf_timeout_millis
   udf_update_timeout_millis = var.udf_update_timeout_millis
   udf_min_log_level         = var.udf_min_log_level
+  udf_enable_stacktrace     = var.udf_enable_stacktrace
 
   # Variables related to coordinators
   use_real_coordinators                      = var.use_real_coordinators

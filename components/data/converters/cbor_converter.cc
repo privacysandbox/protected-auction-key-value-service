@@ -127,17 +127,11 @@ absl::StatusOr<cbor_item_t*> EncodeKeyGroupOutput(
     };
     kv_vector.emplace_back(key, serialized_key_value_pair);
   }
-  // Following the chromium implementation, we only need to check that
-  // the length and lexicographic order of the plaintext string
-  // https://chromium.googlesource.com/chromium/src/components/cbor/+/10d0a11b998d2cca774189ba26159ad4e1eacb7f/values.h#59
-  // https://chromium.googlesource.com/chromium/src/components/cbor/+/10d0a11b998d2cca774189ba26159ad4e1eacb7f/values.cc#109
-  std::sort(kv_vector.begin(), kv_vector.end(), [](auto& left, auto& right) {
-    const auto left_size = left.first.size();
-    const auto& left_str = left.first;
-    const auto right_size = right.first.size();
-    const auto& right_str = right.first;
-    return std::tie(left_size, left_str) < std::tie(right_size, right_str);
-  });
+
+  // This is a requirement by Chrome to follow
+  // https://datatracker.ietf.org/doc/html/rfc7049#section-3.9
+  SortKeysByLengthThenLexicographicOrder(kv_vector);
+
   for (auto&& [key, serialized_key_value_pair] : kv_vector) {
     if (!cbor_map_add(serialized_key_values, serialized_key_value_pair)) {
       return absl::InternalError(absl::StrCat(
@@ -165,6 +159,9 @@ absl::StatusOr<cbor_item_t*> EncodePartitionOutput(
       cbor_new_definite_array(partition_output.key_group_outputs().size());
   for (auto& key_group_output :
        *(partition_output.mutable_key_group_outputs())) {
+    if (key_group_output.key_values().empty()) {
+      continue;
+    }
     PS_ASSIGN_OR_RETURN(auto* serialized_key_group_output,
                         EncodeKeyGroupOutput(key_group_output));
     if (!cbor_array_push(serialized_key_group_outputs,
@@ -309,6 +306,17 @@ absl::Status CborDecodeToNonBytesProto(std::string_view cbor_raw,
   }
   return google::protobuf::util::JsonStringToMessage(json_from_cbor.dump(),
                                                      &message);
+}
+
+void SortKeysByLengthThenLexicographicOrder(
+    std::vector<std::pair<std::string, cbor_pair>>& kv_vector) {
+  std::sort(kv_vector.begin(), kv_vector.end(), [](auto& left, auto& right) {
+    const auto left_size = left.first.size();
+    const auto& left_str = left.first;
+    const auto right_size = right.first.size();
+    const auto& right_str = right.first;
+    return std::tie(left_size, left_str) < std::tie(right_size, right_str);
+  });
 }
 
 }  // namespace kv_server

@@ -38,7 +38,7 @@ inline void LogMessage(
     return;
   }
   PS_VLOG(10, request_context->GetPSLogContext()) << "Called logging hook";
-  PS_LOG(INFO, request_context->GetPSLogContext())
+  PS_VLOG(1, request_context->GetPSLogContext())
       << payload.io_proto.input_string();
 }
 

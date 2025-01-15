@@ -3,7 +3,7 @@
 set -o pipefail
 set -o errexit
 
-declare -r -i CLANG_VER=15
+declare -r -i CLANG_VER=18
 
 function apt_update() {
   apt-get --quiet -o 'Acquire::https::No-Cache=True' -o 'Acquire::http::No-Cache=True' update
@@ -35,7 +35,7 @@ function install_profiler() {
   tar xz --strip-components 1 -f gperftools.tar.gz
   ./configure
   make libprofiler.la
-  declare -r ver=0.5.9
+  declare -r ver=0.5.13
   cp .libs/libprofiler.so.${ver} /usr/lib
   ls -l /usr/lib/libprofiler*
 }

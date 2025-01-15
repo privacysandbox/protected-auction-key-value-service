@@ -27,14 +27,42 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_join.h"
 #include "google/protobuf/util/json_util.h"
-#include "public/query/get_values.pb.h"
-#include "tools/bidding_auction_data_generator/value_fetch_util.h"
+#include "tools/bidding_auction_data_generator/data/custom_audience_data.pb.h"
+#include "tools/bidding_auction_data_generator/json_to_proto_util.h"
 
 namespace kv_server {
 namespace {
 constexpr int64_t kTimeoutInMs = 5000;
-using v1::GetValuesResponse;
+using BYOSGetValuesResponse =
+    kv_server::tools::bidding_auction_data_generator::BYOSGetValuesResponse;
+
+std::string EncodeParam(std::string param) {
+  char* encoded_chars = curl_easy_escape(NULL, param.c_str(), param.length());
+  std::string encoded_string(encoded_chars);
+  curl_free(encoded_chars);
+  return encoded_string;
+}
+
+// Appends query parameters to the url
+std::string AppendQueryParametersToUrl(const std::string& base_url,
+                                       const std::string& key,
+                                       const std::vector<std::string>& params,
+                                       bool need_encode) {
+  std::string url(base_url);
+  absl::StrAppend(&url, key, "=");
+  if (need_encode) {
+    std::vector<std::string> encoded_params(params.size());
+    std::transform(params.cbegin(), params.cend(), encoded_params.begin(),
+                   [](const std::string& param) { return EncodeParam(param); });
+    absl::StrAppend(&url, absl::StrJoin(encoded_params, ","));
+  } else {
+    absl::StrAppend(&url, absl::StrJoin(params, ","));
+  }
+  return url;
+}
+
 }  // namespace
 
 std::vector<std::string> HttpValueRetriever::GetBatchedUrls(
@@ -46,7 +74,7 @@ std::vector<std::string> HttpValueRetriever::GetBatchedUrls(
   std::vector<std::string> keys_in_the_batch;
   for (const auto& k : keys) {
     if (keys_in_the_batch.size() == num_keys_in_batch) {
-      std::string batch_url = kv_server::AppendQueryParametersToUrl(
+      std::string batch_url = AppendQueryParametersToUrl(
           base_url, key_namespace, keys_in_the_batch, need_encode);
       urls.emplace_back(std::move(batch_url));
       keys_in_the_batch.clear();
@@ -54,7 +82,7 @@ std::vector<std::string> HttpValueRetriever::GetBatchedUrls(
     keys_in_the_batch.emplace_back(k);
   }
   if (!keys_in_the_batch.empty()) {
-    std::string batch_url = kv_server::AppendQueryParametersToUrl(
+    std::string batch_url = AppendQueryParametersToUrl(
         base_url, key_namespace, keys_in_the_batch, need_encode);
     urls.emplace_back(std::move(batch_url));
   }
@@ -68,7 +96,7 @@ HttpValueRetriever::RetrieveValues(
     const absl::flat_hash_set<std::string>& keys, const std::string& base_url,
     const std::string& key_namespace,
     std::function<
-        void(GetValuesResponse& response,
+        void(BYOSGetValuesResponse& response,
              absl::flat_hash_map<std::string, std::string>& key_value_map)>
         callback,
     bool need_encode, int num_keys_per_batch) {
@@ -101,7 +129,7 @@ HttpValueRetriever::RetrieveValues(
           responses.value()[i + num_responses_processed];
       threads.push_back(std::move(std::thread([json_res, callback, offset,
                                                &json_parse_options, &output]() {
-        GetValuesResponse response;
+        BYOSGetValuesResponse response;
         absl::flat_hash_map<std::string, std::string> key_value_map;
         absl::Status status = google::protobuf::util::JsonStringToMessage(
             json_res, &response, json_parse_options);

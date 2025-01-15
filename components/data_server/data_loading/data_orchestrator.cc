@@ -24,23 +24,30 @@
 #include "absl/log/log.h"
 #include "absl/strings/str_cat.h"
 #include "components/data/file_group/file_group_search_utils.h"
-#include "components/errors/retry.h"
+#include "components/errors/error_tag.h"
 #include "public/constants.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/filename_utils.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/sharding/sharding_function.h"
+#include "src/errors/retry.h"
 #include "src/telemetry/tracing.h"
 #include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {
+
+enum class ErrorTag : int {
+  kUnsupportedRecordTypeError = 1,
+};
+
 // TODO(b/321716836): use the default prefix to apply cache updates for realtime
 //  for now. This needs to be removed after we are done with directory support
 //  for file updates.
 constexpr std::string_view kDefaultPrefixForRealTimeUpdates = "";
 constexpr std::string_view kDefaultDataSourceForRealtimeUpdates = "realtime";
 
+using ::privacy_sandbox::server_common::RetryUntilOk;
 using privacy_sandbox::server_common::TraceWithStatusOr;
 
 // Holds an input stream pointing to a blob of Riegeli records.
@@ -80,27 +87,32 @@ absl::Status ApplyUpdateMutation(
     std::string_view prefix, const KeyValueMutationRecord& record, Cache& cache,
     privacy_sandbox::server_common::log::PSLogContext& log_context) {
   if (record.value_type() == Value::StringValue) {
-    cache.UpdateKeyValue(log_context, record.key()->string_view(),
-                         GetRecordValue<std::string_view>(record),
+    PS_ASSIGN_OR_RETURN(auto value,
+                        MaybeGetRecordValue<std::string_view>(record));
+    cache.UpdateKeyValue(log_context, record.key()->string_view(), value,
                          record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
-    auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    PS_ASSIGN_OR_RETURN(
+        auto values,
+        MaybeGetRecordValue<std::vector<std::string_view>>(record));
     cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::UInt32Set) {
-    auto values = GetRecordValue<std::vector<uint32_t>>(record);
+    PS_ASSIGN_OR_RETURN(auto values,
+                        MaybeGetRecordValue<std::vector<uint32_t>>(record));
     cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::UInt64Set) {
-    auto values = GetRecordValue<std::vector<uint64_t>>(record);
+    PS_ASSIGN_OR_RETURN(auto values,
+                        MaybeGetRecordValue<std::vector<uint64_t>>(record));
     cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
@@ -120,21 +132,25 @@ absl::Status ApplyDeleteMutation(
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
-    auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    PS_ASSIGN_OR_RETURN(
+        auto values,
+        MaybeGetRecordValue<std::vector<std::string_view>>(record));
     cache.DeleteValuesInSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::UInt32Set) {
-    auto values = GetRecordValue<std::vector<uint32_t>>(record);
+    PS_ASSIGN_OR_RETURN(auto values,
+                        MaybeGetRecordValue<std::vector<uint32_t>>(record));
     cache.DeleteValuesInSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
     return absl::OkStatus();
   }
   if (record.value_type() == Value::UInt64Set) {
-    auto values = GetRecordValue<std::vector<uint64_t>>(record);
+    PS_ASSIGN_OR_RETURN(auto values,
+                        MaybeGetRecordValue<std::vector<uint64_t>>(record));
     cache.DeleteValuesInSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time(), prefix);
@@ -238,14 +254,17 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
           },
           log_context);
     }
-    return absl::InvalidArgumentError("Received unsupported record.");
+    return StatusWithErrorTag(
+        absl::InvalidArgumentError(
+            "Received unsupported record type while reading DataRecord."),
+        __FILE__, ErrorTag::kUnsupportedRecordTypeError);
   };
   // TODO(b/314302953): ReadStreamRecords will skip over individual records that
   // have errors. We should pass the file name to the function so that it will
   // appear in error logs.
   PS_RETURN_IF_ERROR(record_reader.ReadStreamRecords(
       [&process_data_record_fn](std::string_view raw) {
-        return DeserializeDataRecord(raw, process_data_record_fn);
+        return DeserializeRecord(raw, process_data_record_fn);
       }));
   LogDataLoadingMetrics(data_source, data_loading_stats);
   return data_loading_stats;

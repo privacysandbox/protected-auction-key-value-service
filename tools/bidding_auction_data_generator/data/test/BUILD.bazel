@@ -1,4 +1,4 @@
-# Copyright 2022 Google LLC
+# Copyright 2024 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,18 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# refer to docs at https://github.com/GoogleContainerTools/container-structure-test
-
-schemaVersion: 2.0.0
-
-# command tests require the docker toolchain
-commandTests:
-  - name: nitro-cli version
-    command: "nitro-cli"
-    args: ["--version"]
-    exitCode: 0
-
-  - name: nitro-cli build-enclave help
-    command: "nitro-cli"
-    args: ["build-enclave", "--help"]
-    exitCode: 0
+exports_files([
+    "buyer_kv_byos_response/response.json",
+    "seller_kv_byos_response/response.json",
+])

@@ -27,6 +27,7 @@
 #include "components/data_server/request_handler/get_values_v2_handler.h"
 #include "grpcpp/generic/generic_stub.h"
 #include "grpcpp/grpcpp.h"
+#include "public/constants.h"
 #include "src/google/protobuf/message.h"
 
 namespace kv_server {

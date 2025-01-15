@@ -130,11 +130,11 @@ cc_test(
     }) + [
         ":blob_storage_client",
         "//components/data/common:mocks",
-        "//components/util:sleepfor_mock",
         "//public/data_loading:filename_utils",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/flags:flag",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )
 
@@ -152,7 +152,7 @@ cc_library(
     ],
     deps = select({
         "//:gcp_platform": [
-            "//components/util:sleepfor",
+            "@google_privacysandbox_servers_common//src/util/sleep:sleepfor",
         ],
         "//conditions:default": [],
     }) + [
@@ -204,8 +204,6 @@ cc_library(
         ":blob_storage_change_notifier",
         ":blob_storage_client",
         "//components/data/common:thread_manager",
-        "//components/errors:retry",
-        "//components/util:sleepfor",
         "//public:constants",
         "//public/data_loading:filename_utils",
         "@com_google_absl//absl/container:flat_hash_map",
@@ -215,7 +213,9 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
+        "@google_privacysandbox_servers_common//src/errors:retry",
         "@google_privacysandbox_servers_common//src/util:duration",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor",
     ],
 )
 
@@ -228,9 +228,9 @@ cc_test(
     deps = [
         ":delta_file_notifier",
         "//components/data/common:mocks",
-        "//components/util:sleepfor_mock",
         "//public/data_loading:filename_utils",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )

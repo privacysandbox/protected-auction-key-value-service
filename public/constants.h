@@ -117,6 +117,22 @@ inline constexpr absl::string_view kKVOhttpResponseLabel =
 
 constexpr std::string_view kServiceName = "kv-server";
 
+// Header in clear text http request/response that indicates which format is
+// used by the payload. The more common "Content-Type" header is not used
+// because most importantly that has CORS implications, and in addition, may not
+// be forwarded by Envoy to gRPC.
+inline constexpr std::string_view kKVContentTypeHeader = "kv-content-type";
+
+// Protobuf Content Type Header Value.
+inline constexpr std::string_view kContentEncodingProtoHeaderValue =
+    "message/ad-auction-trusted-signals-request+proto";
+// Json Content Type Header Value.
+inline constexpr std::string_view kContentEncodingJsonHeaderValue =
+    "message/ad-auction-trusted-signals-request+json";
+// Cbor Content Type Header Value.
+inline constexpr std::string_view kContentEncodingCborHeaderValue =
+    "message/ad-auction-trusted-signals-request";
+
 // Returns a compiled logical sharding config file name regex defined as
 // follows:
 //

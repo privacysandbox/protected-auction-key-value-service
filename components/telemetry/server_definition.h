@@ -26,6 +26,7 @@
 #include "opentelemetry/metrics/provider.h"
 #include "src/core/common/uuid/uuid.h"
 #include "src/metric/context_map.h"
+#include "src/metric/definition.h"
 #include "src/util/duration.h"
 #include "src/util/read_system.h"
 
@@ -59,6 +60,12 @@ inline constexpr double kLatencyInMicroSecondsBoundaries[] = {
     40'000,    80'000,    160'000,   320'000,   640'000,
     1'000'000, 1'300'000, 2'600'000, 5'000'000, 10'000'000'000,
 };
+
+inline constexpr int kCountHistogramLowerBound = 1;
+inline constexpr int kCountHistogramUpperBound = 5000;
+inline constexpr double kCountHistogram[] = {
+    1,  2,  3,  4,  5,  6,   7,   8,   9,   10,  20,   30,  40,
+    50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 1000, 5000};
 
 // String literals for absl status partition, the string list and literals match
 // those implemented in the absl::StatusCodeToString method
@@ -656,6 +663,23 @@ inline constexpr privacy_sandbox::server_common::metrics::Definition<
         "GetValues adapter latency in milliseconds",
         privacy_sandbox::server_common::metrics::kTimeHistogram);
 
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kUDFExecutionCount("UDFExecutionCount",
+                       "UDF Executions scheduled for a request",
+                       kCountHistogram, kCountHistogramLowerBound,
+                       kCountHistogramUpperBound);
+
+inline constexpr privacy_sandbox::server_common::metrics::Definition<
+    double, privacy_sandbox::server_common::metrics::Privacy::kImpacting,
+    privacy_sandbox::server_common::metrics::Instrument::kHistogram>
+    kBatchUDFExecutionLatencyInMicros("BatchUDFExecutionLatencyInMicros",
+                                      "Batch UDF execution time",
+                                      kLatencyInMicroSecondsBoundaries,
+                                      kMicroSecondsUpperBound,
+                                      kMicroSecondsLowerBound);
+
 // KV server metrics list contains non request related safe metrics
 // and request metrics collected before stage of internal lookups
 inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
@@ -670,7 +694,11 @@ inline constexpr const privacy_sandbox::server_common::metrics::DefinitionName*
         &kTotalV2LatencyWithoutCustomCode, &kUDFExecutionLatencyInMicros,
         &kShardedLookupGetUInt32ValueSetLatencyInMicros,
         &kShardedLookupGetUInt64ValueSetLatencyInMicros,
-        &kShardedLookupRunSetQueryUInt64LatencyInMicros,
+        &kShardedLookupRunSetQueryUInt64LatencyInMicros, &kUDFExecutionCount,
+        &kBatchUDFExecutionLatencyInMicros,
+        &privacy_sandbox::server_common::metrics::kCustom1,
+        &privacy_sandbox::server_common::metrics::kCustom2,
+        &privacy_sandbox::server_common::metrics::kCustom3,
         // Safe metrics
         &kKVServerError,
         &privacy_sandbox::server_common::metrics::kTotalRequestCount,

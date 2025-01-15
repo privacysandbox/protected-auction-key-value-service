@@ -14,12 +14,13 @@
 
 #include "tools/request_simulation/synthetic_request_generator.h"
 
-#include "components/util/sleepfor_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "src/util/sleep/sleepfor_mock.h"
 #include "tools/request_simulation/request_generation_util.h"
 
 namespace kv_server {
+using ::privacy_sandbox::server_common::MockSleepFor;
 using privacy_sandbox::server_common::SimulatedSteadyClock;
 using privacy_sandbox::server_common::SteadyTime;
 using testing::_;

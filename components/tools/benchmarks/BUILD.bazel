@@ -23,7 +23,7 @@ cc_library(
     srcs = ["benchmark_util.cc"],
     hdrs = ["benchmark_util.h"],
     deps = [
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading/writers:delta_record_stream_writer",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
@@ -58,7 +58,7 @@ cc_binary(
         "//components/tools/util:configure_telemetry_tools",
         "//components/util:platform_initializer",
         "//public/data_loading:data_loading_fbs",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading/readers:riegeli_stream_io",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/flags:flag",

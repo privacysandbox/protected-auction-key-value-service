@@ -40,6 +40,10 @@ absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
   if (kv_mutation_record.value() == nullptr) {
     return absl::InvalidArgumentError("Value not set.");
   }
+  if (kv_mutation_record.mutation_type() == KeyValueMutationType::Delete &&
+      kv_mutation_record.value_type() == Value::StringValue) {
+    return absl::OkStatus();
+  }
   if (kv_mutation_record.value_type() == Value::StringValue &&
       (kv_mutation_record.value_as_StringValue() == nullptr ||
        kv_mutation_record.value_as_StringValue()->value() == nullptr)) {
@@ -86,7 +90,6 @@ absl::Status ValidateData(const DataRecord& data_record) {
   if (data_record.record() == nullptr) {
     return absl::InvalidArgumentError("Record not set.");
   }
-
   if (data_record.record_type() == Record::KeyValueMutationRecord) {
     if (const auto status = ValidateKeyValueMutationRecord(
             *data_record.record_as_KeyValueMutationRecord());
@@ -124,6 +127,19 @@ absl::Status DeserializeRecord(
 
 absl::Status DeserializeRecord(
     std::string_view record_bytes,
+    const std::function<absl::Status(const KeyValueMutationRecordT&)>&
+        record_callback) {
+  return DeserializeRecord(
+      record_bytes,
+      [&record_callback](const KeyValueMutationRecord& kv_record) {
+        KeyValueMutationRecordT kv_record_native;
+        kv_record.UnPackTo(&kv_record_native);
+        return record_callback(kv_record_native);
+      });
+}
+
+absl::Status DeserializeRecord(
+    std::string_view record_bytes,
     const std::function<absl::Status(const DataRecord&)>& record_callback) {
   auto fbs_record = DeserializeAndVerifyRecord<DataRecord>(record_bytes);
   if (!fbs_record.ok()) {
@@ -138,6 +154,17 @@ absl::Status DeserializeRecord(
   return record_callback(**fbs_record);
 }
 
+absl::Status DeserializeRecord(
+    std::string_view record_bytes,
+    const std::function<absl::Status(const DataRecordT&)>& record_callback) {
+  return DeserializeRecord(record_bytes,
+                           [&record_callback](const DataRecord& data_record) {
+                             DataRecordT data_record_native;
+                             data_record.UnPackTo(&data_record_native);
+                             return record_callback(data_record_native);
+                           });
+}
+
 template <>
 absl::StatusOr<std::string_view> MaybeGetRecordValue(
     const KeyValueMutationRecord& record) {
@@ -148,8 +175,7 @@ absl::StatusOr<std::string_view> MaybeGetRecordValue(
         "Expected: String",
         ". Actual: ", EnumNameValue(record.value_type())));
   }
-
-  return maybe_value->value()->string_view();
+  return flatbuffers::GetStringView(maybe_value->value());
 }
 
 template <>

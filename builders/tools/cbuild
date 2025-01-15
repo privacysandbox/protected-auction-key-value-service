@@ -19,7 +19,6 @@ IMAGE="build-debian"
 VERBOSE=0
 declare -r -a IMAGE_LIST=(
   "build-debian"
-  "build-amazonlinux2"
   "build-amazonlinux2023"
   "presubmit"
 )
@@ -50,6 +49,7 @@ USAGE
 
   cat &>/dev/stderr << USAGE
     --env <key>[=<value>]      Name (or name=value) of exported environment variable, propagated into container
+    --one-time                 Create a new container, avoid container reuse
     --without-shared-cache     Containers will not mount ${HOME}/.cache/bazel
     --without-embedded-docker  Disable docker client within container
     --docker-network <value>   Specify docker network type or name, value passed to docker run --network. Default: ${DOCKER_NETWORK}
@@ -81,6 +81,7 @@ declare -i WITH_DOCKER_SOCK=1
 declare -i WITH_CMD_PROFILER=0
 DOCKER_NETWORK="${DOCKER_NETWORK:-bridge}"
 declare -i DOCKER_SECCOMP_UNCONFINED=0
+declare -i ONE_TIME_CONTAINER=0
 declare -i KEEP_CONTAINER_RUNNING=0
 declare LONG_RUNNING_CONTAINER_TIMEOUT=8h
 declare CPU_PROFILER_FILENAME=benchmark.prof
@@ -91,6 +92,10 @@ while [[ $# -gt 0 ]]; do
     --cmd)
       CMD="$2"
       shift 2 || usage
+      ;;
+    --one-time)
+      ONE_TIME_CONTAINER=1
+      shift
       ;;
     --cmd-profiler)
       WITH_CMD_PROFILER=1
@@ -110,9 +115,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --image)
       IMAGE="$2"
-      if [[ ${IMAGE} =~ ^build-* ]]; then
-        KEEP_CONTAINER_RUNNING=1
-      fi
       shift 2 || usage
       ;;
     --without-shared-cache)
@@ -146,6 +148,9 @@ done
 if [[ -z ${IMAGE} ]]; then
   printf -- "error: --image must be specified\n" &>/dev/stderr
   usage 1
+fi
+if [[ ${ONE_TIME_CONTAINER} -eq 0 ]] && [[ ${IMAGE} =~ ^build-* ]]; then
+  KEEP_CONTAINER_RUNNING=1
 fi
 # shellcheck disable=SC2076
 if ! [[ " ${IMAGE_LIST[*]} " =~ " ${IMAGE} " ]]; then
@@ -257,8 +262,6 @@ EOF
 DOCKER_CONTAINER_NAME="$(get_container_name)"
 readonly DOCKER_CONTAINER_NAME
 
-DOCKER_RUN_ARGS+=("--name=${DOCKER_CONTAINER_NAME}")
-
 if [[ ${VERBOSE} -eq 1 ]]; then
   set -o xtrace
 fi
@@ -302,6 +305,7 @@ timeout ${LONG_RUNNING_CONTAINER_TIMEOUT} tail --pid=\${pid} -f /dev/null
 }
 
 if [[ ${KEEP_CONTAINER_RUNNING} -eq 1 ]]; then
+  DOCKER_RUN_ARGS+=("--name=${DOCKER_CONTAINER_NAME}")
   if [[ -z ${CMD} ]]; then
     # shellcheck disable=SC2068
     docker run \
@@ -310,6 +314,7 @@ if [[ ${KEEP_CONTAINER_RUNNING} -eq 1 ]]; then
       "${IMAGE_TAGGED}"
   else
     DOCKER_RUNNING_CONTAINER="$(long_running_container "${DOCKER_CONTAINER_NAME}")"
+    printf "reusing container [%s]\n" "${DOCKER_RUNNING_CONTAINER}" &>/dev/stderr
     if [[ ${WITH_CMD_PROFILER} -eq 1 ]]; then
       docker exec \
         "${DOCKER_EXEC_RUN_ARGS[@]}" \

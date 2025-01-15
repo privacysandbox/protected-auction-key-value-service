@@ -28,12 +28,13 @@ constexpr int64_t kTestLogicalCommitTime = 1234567890;
 constexpr KeyValueMutationType kTestDeltaMutationType =
     KeyValueMutationType::Update;
 
-KeyValueMutationRecordStruct GetKVMutationRecord() {
-  KeyValueMutationRecordStruct record;
-  record.key = "key1";
-  record.value = R"({"field": "test"})";
-  record.logical_commit_time = kTestLogicalCommitTime;
-  record.mutation_type = kTestDeltaMutationType;
+KeyValueMutationRecordT GetKVMutationRecord() {
+  KeyValueMutationRecordT record = {
+      .mutation_type = kTestDeltaMutationType,
+      .logical_commit_time = kTestLogicalCommitTime,
+      .key = "key1",
+  };
+  record.value.Set(StringValueT{.value = R"({"field": "test"})"});
   return record;
 }
 
@@ -56,21 +57,23 @@ TEST(DeltaKeyValueWriterTest, ValidateDeltaDataTest) {
   auto stream_reader_factory =
       std::make_unique<RiegeliStreamRecordReaderFactory>();
   auto stream_reader = stream_reader_factory->CreateReader(delta_stream);
-  EXPECT_TRUE(stream_reader
-                  ->ReadStreamRecords(
-                      [](std::string_view record_string) -> absl::Status {
-                        const auto* data_record =
-                            flatbuffers::GetRoot<DataRecord>(
-                                record_string.data());
-                        EXPECT_EQ(data_record->record_type(),
-                                  Record::KeyValueMutationRecord);
-                        const auto kv_record =
-                            GetTypedRecordStruct<KeyValueMutationRecordStruct>(
-                                *data_record);
-                        EXPECT_EQ(kv_record, GetKVMutationRecord());
-                        return absl::OkStatus();
-                      })
-                  .ok());
+  EXPECT_TRUE(
+      stream_reader
+          ->ReadStreamRecords(
+              [](std::string_view record_string) -> absl::Status {
+                return DeserializeRecord(
+                    record_string, [](const DataRecord& data_record) {
+                      DataRecordT data_record_struct;
+                      data_record.UnPackTo(&data_record_struct);
+                      EXPECT_EQ(data_record_struct.record.type,
+                                Record::KeyValueMutationRecord);
+                      const auto kv_record =
+                          *data_record_struct.record.AsKeyValueMutationRecord();
+                      EXPECT_EQ(kv_record, GetKVMutationRecord());
+                      return absl::OkStatus();
+                    });
+              })
+          .ok());
 }
 }  // namespace
 }  // namespace kv_server

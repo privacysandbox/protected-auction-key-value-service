@@ -25,6 +25,7 @@
 #include "public/data_loading/csv/csv_delta_record_stream_writer.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
+#include "public/test_util/data_record.h"
 
 namespace kv_server {
 namespace {
@@ -40,53 +41,42 @@ FormatDataCommand::Params GetParams(
   };
 }
 
-KeyValueMutationRecordStruct GetKVMutationRecord(
-    KeyValueMutationRecordValueT value = "value") {
-  KeyValueMutationRecordStruct record;
-  record.key = "key";
-  record.value = value;
-  record.logical_commit_time = 1234567890;
-  record.mutation_type = KeyValueMutationType::Update;
-  return record;
-}
-
-UserDefinedFunctionsConfigStruct GetUdfConfig() {
-  UserDefinedFunctionsConfigStruct udf_config_record;
-  udf_config_record.language = UserDefinedFunctionsLanguage::Javascript;
-  udf_config_record.code_snippet = "function hello(){}";
-  udf_config_record.handler_name = "hello";
-  udf_config_record.logical_commit_time = 1234567890;
-  udf_config_record.version = 1;
-  return udf_config_record;
-}
-
-DataRecordStruct GetDataRecord(const RecordT& record) {
-  DataRecordStruct data_record;
-  data_record.record = record;
-  return data_record;
-}
-
 KVFileMetadata GetMetadata() {
   KVFileMetadata metadata;
   return metadata;
 }
 
-class FormatDataCommandTest
-    : public testing::TestWithParam<KeyValueMutationRecordValueT> {
+template <class T>
+T GetSampleValue();
+
+template <>
+StringValueT GetSampleValue<StringValueT>() {
+  return StringValueT{.value = "value"};
+}
+
+template <>
+StringSetT GetSampleValue<StringSetT>() {
+  return StringSetT{.value =
+                        std::vector<std::string>{"value1", "value2", "value3"}};
+}
+
+template <class T>
+class FormatDataCommandTest : public testing::TestWithParam<T> {
  protected:
-  KeyValueMutationRecordValueT GetValue() { return GetParam(); }
+  T GetSampleRecordValue() { return GetSampleValue<T>(); }
 };
 
-INSTANTIATE_TEST_SUITE_P(KVMutationValue, FormatDataCommandTest,
-                         testing::Values("value",
-                                         std::vector<std::string_view>{
-                                             "value1", "value2", "value3"}));
+using testing::Types;
+typedef Types<StringValueT, StringSetT> ValueTypes;
+TYPED_TEST_SUITE(FormatDataCommandTest, ValueTypes);
 
-TEST_P(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData_KVMutations) {
+TYPED_TEST(FormatDataCommandTest,
+           ValidateGeneratingCsvToDeltaData_KVMutations) {
   std::stringstream csv_stream;
   std::stringstream delta_stream;
   CsvDeltaRecordStreamWriter csv_writer(csv_stream);
-  const auto& record = GetDataRecord(GetKVMutationRecord(GetValue()));
+  const auto& record =
+      GetNativeDataRecord(GetKVMutationRecord(this->GetSampleRecordValue()));
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
@@ -97,22 +87,24 @@ TEST_P(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData_KVMutations) {
   EXPECT_TRUE(command.ok()) << command.status();
   EXPECT_TRUE((*command)->Execute().ok());
   DeltaRecordStreamReader delta_reader(delta_stream);
-  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(3)
-      .WillRepeatedly([&record](DataRecordStruct actual_record) {
-        EXPECT_EQ(actual_record, record);
+      .WillRepeatedly([&record](const DataRecord& actual_record) {
+        EXPECT_EQ(*actual_record.UnPack(), record);
         return absl::OkStatus();
       });
   EXPECT_TRUE(delta_reader.ReadRecords(record_callback.AsStdFunction()).ok());
 }
 
-TEST_P(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_KvMutations) {
+TYPED_TEST(FormatDataCommandTest,
+           ValidateGeneratingDeltaToCsvData_KvMutations) {
   std::stringstream delta_stream;
   std::stringstream csv_stream;
   auto delta_writer = DeltaRecordStreamWriter<std::stringstream>::Create(
       delta_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
-  const auto& record = GetDataRecord(GetKVMutationRecord(GetValue()));
+  const auto& record =
+      GetNativeDataRecord(GetKVMutationRecord(this->GetSampleRecordValue()));
   EXPECT_TRUE(delta_writer.ok()) << delta_writer.status();
   EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
   EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
@@ -136,17 +128,7 @@ TEST_P(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_KvMutations) {
   EXPECT_CALL(record_callback, Call)
       .Times(5)
       .WillRepeatedly([&record](const DataRecord& actual_record) {
-        std::unique_ptr<DataRecordT> data_record_native(actual_record.UnPack());
-        auto [fbs_buffer, serialized_string_view] =
-            Serialize(*data_record_native);
-        EXPECT_TRUE(DeserializeDataRecord(
-                        serialized_string_view,
-                        [&record](const DataRecordStruct& data_record) {
-                          EXPECT_EQ(data_record, record);
-                          return absl::OkStatus();
-                        })
-                        .ok());
-
+        EXPECT_EQ(*actual_record.UnPack(), record);
         return absl::OkStatus();
       });
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
@@ -161,7 +143,8 @@ TEST(FormatDataCommandTest,
   std::string plaintext_value = "value";
   std::string base64_value;
   absl::Base64Escape(plaintext_value, &base64_value);
-  const auto& base64_record = GetDataRecord(GetKVMutationRecord(base64_value));
+  const auto& base64_record = GetNativeDataRecord(
+      GetKVMutationRecord(GetSimpleStringValue(base64_value)));
   EXPECT_TRUE(csv_writer.WriteRecord(base64_record).ok());
   EXPECT_TRUE(csv_writer.WriteRecord(base64_record).ok());
   EXPECT_TRUE(csv_writer.WriteRecord(base64_record).ok());
@@ -173,13 +156,13 @@ TEST(FormatDataCommandTest,
   EXPECT_TRUE(command.ok()) << command.status();
   EXPECT_TRUE((*command)->Execute().ok());
   DeltaRecordStreamReader delta_reader(delta_stream);
-  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
-  const auto expected_record =
-      GetDataRecord(GetKVMutationRecord(plaintext_value));
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
+  const auto expected_record = GetNativeDataRecord(
+      GetKVMutationRecord(GetSimpleStringValue(plaintext_value)));
   EXPECT_CALL(record_callback, Call)
       .Times(3)
-      .WillRepeatedly([&expected_record](DataRecordStruct actual_record) {
-        EXPECT_EQ(actual_record, expected_record);
+      .WillRepeatedly([&expected_record](const DataRecord& actual_record) {
+        EXPECT_EQ(*actual_record.UnPack(), expected_record);
         return absl::OkStatus();
       });
   EXPECT_TRUE(delta_reader.ReadRecords(record_callback.AsStdFunction()).ok());
@@ -192,8 +175,8 @@ TEST(FormatDataCommandTest,
   auto delta_writer = DeltaRecordStreamWriter<std::stringstream>::Create(
       delta_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
   std::string plaintext_value = "value";
-  const auto& plaintext_record =
-      GetDataRecord(GetKVMutationRecord(plaintext_value));
+  const auto& plaintext_record = GetNativeDataRecord(
+      GetKVMutationRecord(GetSimpleStringValue(plaintext_value)));
   EXPECT_TRUE(delta_writer.ok()) << delta_writer.status();
   EXPECT_TRUE((*delta_writer)->WriteRecord(plaintext_record).ok());
   EXPECT_TRUE((*delta_writer)->WriteRecord(plaintext_record).ok());
@@ -218,23 +201,12 @@ TEST(FormatDataCommandTest,
 
   std::string base64_value;
   absl::Base64Escape(plaintext_value, &base64_value);
-  const auto& expected_record =
-      GetDataRecord(GetKVMutationRecord(base64_value));
+  const auto& expected_record = GetNativeDataRecord(
+      GetKVMutationRecord(GetSimpleStringValue(base64_value)));
   EXPECT_CALL(record_callback, Call)
       .Times(5)
       .WillRepeatedly([&expected_record](const DataRecord& actual_record) {
-        std::unique_ptr<DataRecordT> data_record_native(actual_record.UnPack());
-        auto [fbs_buffer, serialized_string_view] =
-            Serialize(*data_record_native);
-        EXPECT_TRUE(
-            DeserializeDataRecord(
-                serialized_string_view,
-                [&expected_record](const DataRecordStruct& data_record) {
-                  EXPECT_EQ(data_record, expected_record);
-                  return absl::OkStatus();
-                })
-                .ok());
-
+        EXPECT_EQ(*actual_record.UnPack(), expected_record);
         return absl::OkStatus();
       });
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
@@ -249,7 +221,8 @@ TEST(FormatDataCommandTest,
   std::string plaintext_value;
   std::string base64_value;
   absl::Base64Escape(plaintext_value, &base64_value);
-  const auto& record = GetDataRecord(GetKVMutationRecord(base64_value));
+  const auto& record = GetNativeDataRecord(
+      GetKVMutationRecord(GetSimpleStringValue(base64_value)));
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
@@ -268,9 +241,10 @@ TEST(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData_UdfConfig) {
       csv_stream,
       CsvDeltaRecordStreamWriter<std::stringstream>::Options{
           .record_type = DataRecordType::kUserDefinedFunctionsConfig});
-  EXPECT_TRUE(csv_writer.WriteRecord(GetDataRecord(GetUdfConfig())).ok());
-  EXPECT_TRUE(csv_writer.WriteRecord(GetDataRecord(GetUdfConfig())).ok());
-  EXPECT_TRUE(csv_writer.WriteRecord(GetDataRecord(GetUdfConfig())).ok());
+  auto udf_config_record = GetNativeDataRecord(GetUserDefinedFunctionsConfig());
+  EXPECT_TRUE(csv_writer.WriteRecord(udf_config_record).ok());
+  EXPECT_TRUE(csv_writer.WriteRecord(udf_config_record).ok());
+  EXPECT_TRUE(csv_writer.WriteRecord(udf_config_record).ok());
   csv_writer.Close();
   EXPECT_FALSE(csv_stream.str().empty());
   auto command = FormatDataCommand::Create(
@@ -279,11 +253,11 @@ TEST(FormatDataCommandTest, ValidateGeneratingCsvToDeltaData_UdfConfig) {
   EXPECT_TRUE(command.ok()) << command.status();
   EXPECT_TRUE((*command)->Execute().ok());
   DeltaRecordStreamReader delta_reader(delta_stream);
-  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(3)
-      .WillRepeatedly([](DataRecordStruct record) {
-        EXPECT_EQ(record, GetDataRecord(GetUdfConfig()));
+      .WillRepeatedly([&udf_config_record](const DataRecord& actual_record) {
+        EXPECT_EQ(*actual_record.UnPack(), udf_config_record);
         return absl::OkStatus();
       });
   EXPECT_TRUE(delta_reader.ReadRecords(record_callback.AsStdFunction()).ok());
@@ -295,9 +269,10 @@ TEST(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_UdfConfig) {
   auto delta_writer = DeltaRecordStreamWriter<std::stringstream>::Create(
       delta_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
   EXPECT_TRUE(delta_writer.ok()) << delta_writer.status();
-  EXPECT_TRUE((*delta_writer)->WriteRecord(GetDataRecord(GetUdfConfig())).ok());
-  EXPECT_TRUE((*delta_writer)->WriteRecord(GetDataRecord(GetUdfConfig())).ok());
-  EXPECT_TRUE((*delta_writer)->WriteRecord(GetDataRecord(GetUdfConfig())).ok());
+  auto record = GetNativeDataRecord(GetUserDefinedFunctionsConfig());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
   (*delta_writer)->Close();
   auto command = FormatDataCommand::Create(
       FormatDataCommand::Params{
@@ -317,18 +292,8 @@ TEST(FormatDataCommandTest, ValidateGeneratingDeltaToCsvData_UdfConfig) {
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(3)
-      .WillRepeatedly([](const DataRecord& actual_record) {
-        std::unique_ptr<DataRecordT> data_record_native(actual_record.UnPack());
-        auto [fbs_buffer, serialized_string_view] =
-            Serialize(*data_record_native);
-        EXPECT_TRUE(DeserializeDataRecord(
-                        serialized_string_view,
-                        [](const DataRecordStruct& data_record) {
-                          EXPECT_EQ(data_record, GetDataRecord(GetUdfConfig()));
-                          return absl::OkStatus();
-                        })
-                        .ok());
-
+      .WillRepeatedly([&record](const DataRecord& actual_record) {
+        EXPECT_EQ(*actual_record.UnPack(), record);
         return absl::OkStatus();
       });
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
@@ -341,24 +306,13 @@ TEST(FormatDataCommandTest,
   auto delta_writer = DeltaRecordStreamWriter<std::stringstream>::Create(
       delta_stream, DeltaRecordWriter::Options{.metadata = GetMetadata()});
   EXPECT_TRUE(delta_writer.ok()) << delta_writer.status();
-  EXPECT_TRUE((*delta_writer)
-                  ->WriteRecord(GetDataRecord(ShardMappingRecordStruct{
-                      .logical_shard = 0,
-                      .physical_shard = 0,
-                  }))
-                  .ok());
-  EXPECT_TRUE((*delta_writer)
-                  ->WriteRecord(GetDataRecord(ShardMappingRecordStruct{
-                      .logical_shard = 0,
-                      .physical_shard = 0,
-                  }))
-                  .ok());
-  EXPECT_TRUE((*delta_writer)
-                  ->WriteRecord(GetDataRecord(ShardMappingRecordStruct{
-                      .logical_shard = 0,
-                      .physical_shard = 0,
-                  }))
-                  .ok());
+  auto record = GetNativeDataRecord(ShardMappingRecordT{
+      .logical_shard = 0,
+      .physical_shard = 0,
+  });
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
+  EXPECT_TRUE((*delta_writer)->WriteRecord(record).ok());
   (*delta_writer)->Close();
   auto command = FormatDataCommand::Create(
       FormatDataCommand::Params{
@@ -379,22 +333,8 @@ TEST(FormatDataCommandTest,
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(3)
-      .WillRepeatedly([](const DataRecord& actual_record) {
-        std::unique_ptr<DataRecordT> data_record_native(actual_record.UnPack());
-        auto [fbs_buffer, serialized_string_view] =
-            Serialize(*data_record_native);
-        EXPECT_TRUE(DeserializeDataRecord(
-                        serialized_string_view,
-                        [](const DataRecordStruct& data_record) {
-                          EXPECT_EQ(data_record,
-                                    GetDataRecord(ShardMappingRecordStruct{
-                                        .logical_shard = 0,
-                                        .physical_shard = 0,
-                                    }));
-                          return absl::OkStatus();
-                        })
-                        .ok());
-
+      .WillRepeatedly([&record](const DataRecord& actual_record) {
+        EXPECT_EQ(*actual_record.UnPack(), record);
         return absl::OkStatus();
       });
   EXPECT_TRUE(csv_reader.ReadRecords(record_callback.AsStdFunction()).ok());
@@ -459,7 +399,8 @@ TEST(FormatDataCommandTest,
   std::stringstream csv_stream;
   std::stringstream delta_stream;
   CsvDeltaRecordStreamWriter csv_writer(csv_stream);
-  const auto& record = GetDataRecord(GetKVMutationRecord());
+  const auto& record =
+      GetNativeDataRecord(GetKVMutationRecord(GetSimpleStringValue()));
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
   EXPECT_TRUE(csv_writer.WriteRecord(record).ok());
@@ -475,11 +416,11 @@ TEST(FormatDataCommandTest,
   auto metadata = delta_reader.ReadMetadata();
   EXPECT_TRUE(metadata.ok());
   EXPECT_EQ(metadata->sharding_metadata().shard_num(), 2);
-  testing::MockFunction<absl::Status(DataRecordStruct)> record_callback;
+  testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call)
       .Times(3)
-      .WillRepeatedly([&record](DataRecordStruct actual_record) {
-        EXPECT_EQ(actual_record, record);
+      .WillRepeatedly([&record](const DataRecord& actual_record) {
+        EXPECT_EQ(*actual_record.UnPack(), record);
         return absl::OkStatus();
       });
   EXPECT_TRUE(delta_reader.ReadRecords(record_callback.AsStdFunction()).ok());

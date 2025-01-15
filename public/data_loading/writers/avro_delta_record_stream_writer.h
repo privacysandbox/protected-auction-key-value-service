@@ -25,7 +25,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 #include "third_party/avro/api/DataFile.hh"
 #include "third_party/avro/api/Schema.hh"
@@ -43,7 +43,7 @@ class AvroDeltaRecordStreamWriter : public DeltaRecordWriter {
   template <typename DestStreamT = std::iostream>
   static absl::StatusOr<std::unique_ptr<AvroDeltaRecordStreamWriter>> Create(
       DestStreamT& dest_stream, Options options);
-  absl::Status WriteRecord(const DataRecordStruct& data_record) override;
+  absl::Status WriteRecord(const DataRecordT& data_record) override;
   const Options& GetOptions() const override { return options_; }
   absl::Status Flush() override;
   void Close() override { record_writer_->close(); }
@@ -74,9 +74,8 @@ AvroDeltaRecordStreamWriter::Create(DestStreamT& dest_stream, Options options) {
 }
 
 absl::Status AvroDeltaRecordStreamWriter::WriteRecord(
-    const DataRecordStruct& data_record) {
-  auto fbs_builder = ToFlatBufferBuilder(data_record);
-  std::string_view bytes_to_write = ToStringView(fbs_builder);
+    const DataRecordT& data_record) {
+  auto [fbs_buffer, bytes_to_write] = Serialize(data_record);
   record_writer_->write(std::string(bytes_to_write));
   return absl::OkStatus();
 }

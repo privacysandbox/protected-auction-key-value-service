@@ -47,6 +47,55 @@ Note that valid queries always have an operator between two operands. For exampl
 `A`, `B` and `C`, valid queries include `A | B & C`, `A - B - C`, `B & C - A`, but `A | B | C &` is
 invalid because of the last `&`.
 
+## Inline sets
+
+Inline sets allow you to define a set of values directly within a query, rather than referencing a
+set stored in the K/V server. This is useful when the set data is only known at runtime.
+
+### Syntax:
+
+To define an inline set, use the Set() function followed by a comma-separated list of values
+enclosed in parentheses. The values can be either numbers or strings, but they must all be of the
+same data type.
+
+#### String Inline Set:
+
+`Set("apple", "banana", "cherry")`
+
+#### Number Inline Set:
+
+`Set(1, 2, 3)`
+
+#### Examples:
+
+Find the intersection of set A and the inline set {"apple", "banana"}:
+
+`A & Set("apple", "banana")`
+
+Find the union of the inline sets {1, 2} and {2, 3}:
+
+`Set(1, 2) | Set(2, 3)`
+
+Subtract the inline set {"x", "y"} from set B:
+
+`B - Set("x", "y")`
+
+#### Usage Notes:
+
+-   The data types in the inline set must match the data types of the other sets used in the query.
+    For example, if set A contains strings, the inline set must also contain strings.
+-   There is no hard limit on the number of elements in an inline set.
+-   Keep in mind that inline sets have some parsing overhead.
+
+#### When to use Inline Sets:
+
+Inline sets are particularly useful in situations where the set data is dynamic or not known until
+the query is executed. For example:
+
+-   When you need to create a temporary set for a specific query.
+-   When the set data is generated or calculated at runtime.
+-   When you want to avoid storing a small set in the K/V server.
+
 ## Visualizing ASTs for queries
 
 We provide a tool [query_toy.cc](/components/tools/query_toy.cc) that can be used to visualize AST

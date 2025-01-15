@@ -77,10 +77,10 @@ cc_library(
         "//components/cloud_config:instance_client",
         "//components/data/common:thread_manager",
         "//components/data_server/server:parameter_fetcher",
-        "//components/errors:retry",
         "@com_google_absl//absl/base",
         "@com_google_absl//absl/container:flat_hash_map",
         "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/errors:retry",
         "@google_privacysandbox_servers_common//src/logger:request_context_logger",
     ],
 )

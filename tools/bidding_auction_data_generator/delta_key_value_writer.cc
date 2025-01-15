@@ -36,14 +36,15 @@ absl::Status DeltaKeyValueWriter::Write(
     const absl::flat_hash_map<std::string, std::string>& key_value_map,
     int64_t logical_commit_time, KeyValueMutationType mutation_type) {
   for (const auto& [k, v] : key_value_map) {
-    KeyValueMutationRecordStruct kv_mutation_struct;
-    kv_mutation_struct.key = k;
-    kv_mutation_struct.value = v;
-    kv_mutation_struct.logical_commit_time = logical_commit_time;
-    kv_mutation_struct.mutation_type = mutation_type;
+    KeyValueMutationRecordT kv_mutation_struct = {
+        .mutation_type = mutation_type,
+        .logical_commit_time = logical_commit_time,
+        .key = k,
+    };
+    kv_mutation_struct.value.Set(StringValueT{.value = v});
 
-    DataRecordStruct data_record_struct;
-    data_record_struct.record = kv_mutation_struct;
+    DataRecordT data_record_struct;
+    data_record_struct.record.Set(std::move(kv_mutation_struct));
 
     if (const auto status =
             delta_record_writer_->WriteRecord(data_record_struct);

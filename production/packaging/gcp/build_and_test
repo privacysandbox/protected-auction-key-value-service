@@ -108,8 +108,18 @@ if [[ ! -f ${BUILDER} ]]; then
 fi
 # shellcheck source=builders/tools/builder.sh
 source "${BUILDER}" || fail "Failed to source builder.sh"
+DIST="${WORKSPACE}"/dist
+readonly DIST
+
+ARCHITECTURE="$("${WORKSPACE}"/builders/tools/get-architecture)"
 
 printf "==== Running build_and_test_all_in_docker =====\n"
 if ! "${WORKSPACE}"/production/packaging/build_and_test_all_in_docker "${BUILD_AND_TEST_ARGS[@]}" --instance gcp --platform gcp --mode "${MODE}"; then
   fail "Failed to run build_and_test_all_in_docker"
 fi
+
+printf "==== Creating dist/artifacts dir and copy artifacts =====\n"
+
+mkdir -p "${DIST}"/artifacts
+chmod 770 "${DIST}" "${DIST}"/artifacts
+cp "${DIST}"/server_docker_image.tar "${DIST}"/artifacts/"${ARCHITECTURE}"_gcp_server_"${MODE}"_docker_image.tar

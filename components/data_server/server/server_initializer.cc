@@ -28,6 +28,7 @@
 namespace kv_server {
 namespace {
 using privacy_sandbox::server_common::KeyFetcherManagerInterface;
+using ::privacy_sandbox::server_common::TraceRetryUntilOk;
 
 absl::Status InitializeUdfHooksInternal(
     std::function<std::unique_ptr<Lookup>()> get_lookup,

@@ -16,14 +16,15 @@
 
 #include "components/sharding/cluster_mappings_manager.h"
 
-#include "components/errors/retry.h"
+#include "src/errors/retry.h"
 
 namespace kv_server {
 ClusterMappingsManager::ClusterMappingsManager(
     std::string environment, int32_t num_shards,
     InstanceClient& instance_client,
     privacy_sandbox::server_common::log::PSLogContext& log_context,
-    std::unique_ptr<SleepFor> sleep_for, int32_t update_interval_millis)
+    std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for,
+    int32_t update_interval_millis)
     : environment_{std::move(environment)},
       num_shards_{num_shards},
       instance_client_{instance_client},

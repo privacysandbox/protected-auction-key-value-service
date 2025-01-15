@@ -81,3 +81,20 @@ run_binary(
     ],
     tool = "//tools/udf/udf_generator:udf_delta_file_generator",
 )
+
+run_binary(
+    name = "generate_udf_with_custom_metrics_delta",
+    srcs = [
+        ":udf_with_custom_metrics.js",
+    ],
+    outs = [
+        "DELTA_0000000000000009",
+    ],
+    args = [
+        "--udf_file_path",
+        "$(location :udf_with_custom_metrics.js)",
+        "--output_path",
+        "$(location DELTA_0000000000000009)",
+    ],
+    tool = "//tools/udf/udf_generator:udf_delta_file_generator",
+)

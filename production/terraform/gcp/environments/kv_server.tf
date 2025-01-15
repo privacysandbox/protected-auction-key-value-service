@@ -84,6 +84,7 @@ module "kv_server" {
     udf-timeout-millis                           = var.udf_timeout_millis
     udf-update-timeout-millis                    = var.udf_update_timeout_millis
     udf-min-log-level                            = var.udf_min_log_level
+    udf-enable-stacktrace                        = var.udf_enable_stacktrace
     route-v1-to-v2                               = var.route_v1_to_v2
     add-missing-keys-v1                          = var.add_missing_keys_v1
     add-chaff-sharding-clusters                  = var.add_chaff_sharding_clusters

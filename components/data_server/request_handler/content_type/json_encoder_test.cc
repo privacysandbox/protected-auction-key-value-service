@@ -214,5 +214,17 @@ TEST(JsonEncoderTest, DecodeToV2GetValuesRequestSuccess) {
   EXPECT_THAT(expected, EqualsProto(*maybe_request));
 }
 
+TEST(JsonEncoderTest,
+     EncodePartitionOutputsNonJsonObjectReturnedByUdfDoesntCrashServer) {
+  InitMetricsContextMap();
+  std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {
+      {1, "\"json_string_not_object\""}};
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  JsonV2EncoderDecoder encoder;
+  const auto maybe_json_content = encoder.EncodePartitionOutputs(
+      partition_output_pairs, *request_context_factory);
+  ASSERT_FALSE(maybe_json_content.ok()) << maybe_json_content.status();
+}
+
 }  // namespace
 }  // namespace kv_server

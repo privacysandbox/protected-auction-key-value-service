@@ -50,19 +50,6 @@ buf_lint_test(
 )
 
 cc_library(
-    name = "records_utils",
-    srcs = ["records_utils.cc"],
-    hdrs = ["records_utils.h"],
-    deps = [
-        ":data_loading_fbs",
-        ":record_utils",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-    ],
-)
-
-cc_library(
     name = "record_utils",
     srcs = ["record_utils.cc"],
     hdrs = ["record_utils.h"],
@@ -81,18 +68,6 @@ cc_test(
     srcs = ["record_utils_test.cc"],
     deps = [
         ":record_utils",
-        "@com_google_absl//absl/hash:hash_testing",
-        "@com_google_googletest//:gtest_main",
-    ],
-)
-
-cc_test(
-    name = "records_utils_test",
-    size = "small",
-    srcs = ["records_utils_test.cc"],
-    deps = [
-        ":record_utils",
-        ":records_utils",
         "@com_google_absl//absl/hash:hash_testing",
         "@com_google_googletest//:gtest_main",
     ],

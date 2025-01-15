@@ -18,11 +18,15 @@
 #define COMPONENTS_DATA_CONVERTER_H
 
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/status/statusor.h"
 #include "nlohmann/json.hpp"
 #include "public/applications/pa/api_overlay.pb.h"
 #include "public/query/v2/get_values_v2.pb.h"
+
+#include "cbor.h"
 
 namespace kv_server {
 
@@ -49,5 +53,13 @@ absl::StatusOr<nlohmann::json> GetPartitionOutputsInJson(
 // field. Will return error if the proto contains `bytes`.
 absl::Status CborDecodeToNonBytesProto(std::string_view cbor_raw,
                                        google::protobuf::Message& message);
+
+// Following the chromium implementation, we only need to check
+// the length and lexicographic order of the plaintext string
+// https://chromium.googlesource.com/chromium/src/components/cbor/+/10d0a11b998d2cca774189ba26159ad4e1eacb7f/values.h#59
+// https://chromium.googlesource.com/chromium/src/components/cbor/+/10d0a11b998d2cca774189ba26159ad4e1eacb7f/values.cc#109
+void SortKeysByLengthThenLexicographicOrder(
+    std::vector<std::pair<std::string, cbor_pair>>& kv_vector);
+
 }  // namespace kv_server
 #endif  // COMPONENTS_DATA_CONVERTER_H

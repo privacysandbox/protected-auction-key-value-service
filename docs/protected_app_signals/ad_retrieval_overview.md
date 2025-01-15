@@ -191,7 +191,7 @@ In the initial version, the server uses a JavaScript wrapper layer even if WASM 
 `byte[]` inputs, the input will be a base64 encoded string.
 
 ```javascript
-string HandleRequest(
+string getCandidateAds(
   requestMetadata,
   protectedSignals,
   deviceMetadata,

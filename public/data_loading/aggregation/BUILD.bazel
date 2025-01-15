@@ -22,7 +22,7 @@ cc_library(
     hdrs = ["record_aggregator.h"],
     deps = [
         "//public/data_loading:data_loading_fbs",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading/writers:delta_record_stream_writer",
         "//public/data_loading/writers:delta_record_writer",
         "@com_google_absl//absl/container:flat_hash_set",
@@ -39,8 +39,9 @@ cc_test(
     srcs = ["record_aggregator_test.cc"],
     deps = [
         ":record_aggregator",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading/readers:delta_record_stream_reader",
+        "//public/test_util:data_record",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
@@ -54,7 +55,7 @@ cc_binary(
     malloc = "@com_google_tcmalloc//tcmalloc",
     deps = [
         ":record_aggregator",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/strings",
         "@com_google_benchmark//:benchmark",

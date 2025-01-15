@@ -25,9 +25,9 @@
 #include "components/data/blob_storage/blob_storage_change_notifier.h"
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "components/data/common/thread_manager.h"
-#include "components/errors/retry.h"
-#include "components/util/sleepfor.h"
+#include "src/errors/retry.h"
 #include "src/util/duration.h"
+#include "src/util/sleep/sleepfor.h"
 
 namespace kv_server {
 
@@ -70,7 +70,7 @@ class DeltaFileNotifier {
   // Used for test
   static std::unique_ptr<DeltaFileNotifier> Create(
       BlobStorageClient& client, const absl::Duration poll_frequency,
-      std::unique_ptr<SleepFor> sleep_for,
+      std::unique_ptr<privacy_sandbox::server_common::SleepFor> sleep_for,
       privacy_sandbox::server_common::SteadyClock& clock,
       BlobPrefixAllowlist blob_prefix_allowlist = BlobPrefixAllowlist(""),
       privacy_sandbox::server_common::log::PSLogContext& log_context =

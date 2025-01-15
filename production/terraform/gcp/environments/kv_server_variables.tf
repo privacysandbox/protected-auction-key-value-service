@@ -186,6 +186,12 @@ variable "udf_min_log_level" {
   description = "Minimum log level for UDFs. Info = 0, Warn = 1, Error = 2. The UDF will only attempt to log for min_log_level and above. Default is 0(info)."
 }
 
+variable "udf_enable_stacktrace" {
+  description = "Whether to enable stacktraces from the UDF. The stacktraces will also be included in the V2 response."
+  default     = false
+  type        = bool
+}
+
 variable "route_v1_to_v2" {
   type        = bool
   description = "Whether to route V1 requests through V2."

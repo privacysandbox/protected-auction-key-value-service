@@ -5,7 +5,7 @@ set -o errexit
 
 declare -i VERBOSE=0
 declare INSTALL_LOCALE=en_US.UTF-8
-declare -r -i CLANG_VER=15
+declare -r -i CLANG_VER=18
 
 usage() {
   local exitval=${1-1}
@@ -63,18 +63,21 @@ function install_python() {
 }
 
 function install_misc() {
+  declare -r arch="$1"
   apt-get --quiet install -y --no-install-recommends \
     apt-transport-https="2.0.*" \
     bsdmainutils \
     ca-certificates \
     chrpath="0.16-*" \
-    libcurl4="7.68.*" \
     curl="7.68.*" \
     file="1:5.*" \
+    gawk="1:5.*" \
     gettext="0.19.*" \
     git="1:2.25.*" \
     gnupg="2.2.*" \
     google-perftools="2.*" \
+    jq="1.6-*" \
+    libcurl4="7.68.*" \
     locales="2.31-*" \
     lsb-release="11.1.*" \
     openssh-client="1:8.2*" \
@@ -85,6 +88,7 @@ function install_misc() {
     wget="1.20.*" \
     xz-utils="5.2.*" \
     zip="3.0-*"
+
   if [[ -n ${INSTALL_LOCALE} ]]; then
     printf "\nSetting locale to: %s\n" "${INSTALL_LOCALE}"
     locale-gen "${INSTALL_LOCALE}"
@@ -96,7 +100,7 @@ function install_clang() {
   curl --silent --fail --show-error --location --remote-name https://apt.llvm.org/llvm.sh
   chmod +x llvm.sh
   ./llvm.sh ${CLANG_VER}
-  apt-get --quiet install -y --no-install-recommends libc++-${CLANG_VER}-dev
+  apt-get --quiet install -y --no-install-recommends libc++-${CLANG_VER}-dev libc++abi-${CLANG_VER}-dev libclang-${CLANG_VER}-dev
   for prog in clang lldb lld ld.lld llvm-cov llvm-profdata; do
     update-alternatives --install /usr/bin/${prog} ${prog} /usr/bin/${prog}-${CLANG_VER} 100
   done
@@ -124,9 +128,26 @@ function install_docker() {
 }
 
 function install_clang_tidy() {
-  apt-get --quiet install -y clang-tidy
-  printf "clang-tidy version: %s\n" "$(clang-tidy --version)"
-  printf "clang-tidy config: %s\n" "$(clang-tidy -dump-config)"
+  printf "clang-tidy version: %s\n" "$(apt-cache show clang-tidy)"
+  apt-get --quiet install -y clang-tidy-${CLANG_VER}
+  printf "clang-tidy version: %s\n" "$(clang-tidy-${CLANG_VER} --version)"
+  printf "clang-tidy config: %s\n" "$(clang-tidy-${CLANG_VER} -dump-config)"
+  installed_clang_tidy=$(which clang-tidy-${CLANG_VER})
+  installed_dir="$(dirname "${installed_clang_tidy}")"
+  ln -s "${installed_clang_tidy}" "${installed_dir}"/clang-tidy
+}
+
+# Minimal list of dependencies for building gVisor runsc from source.
+# Derived from - https://github.com/google/gvisor/blob/4c89bb77d8bb65325288dc046ebd86122ebc6c05/images/default/Dockerfile
+function install_gvisor_deps() {
+  declare -r arch="$1"
+  apt-get --quiet install -y --no-install-recommends \
+    crossbuild-essential-amd64="12.8*" \
+    crossbuild-essential-arm64="12.8*" \
+    libbpf-dev="1:0.5.0-*"
+  if [[ ${arch} == amd64 ]]; then
+    apt-get install -y --no-install-recommends libc6-dev-i386="2.31-*"
+  fi
 }
 
 function cleanup() {
@@ -146,10 +167,11 @@ fi
 declare -x -r DEBIAN_FRONTEND=noninteractive
 
 apt_update
-install_misc
+install_misc "${BUILD_ARCH}"
 install_clang
 install_clang_tidy
 install_golang "${BUILD_ARCH}"
+install_gvisor_deps "${BUILD_ARCH}"
 install_docker "${BUILD_ARCH}"
 install_python # should run after other install_*
 cleanup

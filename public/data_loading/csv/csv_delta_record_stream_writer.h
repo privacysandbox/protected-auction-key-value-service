@@ -19,9 +19,11 @@
 
 #include <utility>
 
+#include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "public/data_loading/csv/constants.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 #include "riegeli/bytes/ostream_writer.h"
 #include "riegeli/csv/csv_record.h"
@@ -29,7 +31,7 @@
 
 namespace kv_server {
 
-// A `CsvDeltaRecordStreamWriter` writes `DataRecordStruct` records
+// A `CsvDeltaRecordStreamWriter` writes flatbuffer native `DataRecordT` records
 // as CSV records to a `std::iostream` or `std::ostream.` or other subclasses of
 // these two streams.
 //
@@ -37,8 +39,8 @@ namespace kv_server {
 // ```
 // std::stringstream ostream;
 // CsvDeltaRecordStreamWriter record_writer(ostream);
-// DataRecordStruct record = ...;
-// if (absl::Status status = record_writer.WriteRecord(); !status.ok()) {
+// DataRecordT record = ...;
+// if (absl::Status status = record_writer.WriteRecord(record); !status.ok()) {
 //   LOG(ERROR) << "Failed to write record: " << status;
 // }
 // ```
@@ -84,7 +86,8 @@ class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
   CsvDeltaRecordStreamWriter& operator=(const CsvDeltaRecordStreamWriter&) =
       delete;
 
-  absl::Status WriteRecord(const DataRecordStruct& record) override;
+  absl::Status WriteRecord(const DataRecordT& data_record) override;
+  [[deprecated("Use corresponding DataRecordT-based function")]]
   absl::Status Flush() override;
   const Options& GetOptions() const override { return options_; }
   void Close() override { record_writer_.Close(); }
@@ -98,7 +101,7 @@ class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
 
 namespace internal {
 absl::StatusOr<riegeli::CsvRecord> MakeCsvRecord(
-    const DataRecordStruct& data_record, const DataRecordType& record_type,
+    const DataRecordT& data_record, const DataRecordType& record_type,
     const CsvEncoding& csv_encoding, char value_separator);
 
 template <typename DestStreamT>
@@ -133,15 +136,17 @@ CsvDeltaRecordStreamWriter<DestStreamT>::CsvDeltaRecordStreamWriter(
 
 template <typename DestStreamT>
 absl::Status CsvDeltaRecordStreamWriter<DestStreamT>::WriteRecord(
-    const DataRecordStruct& data_record) {
+    const DataRecordT& data_record) {
   absl::StatusOr<riegeli::CsvRecord> csv_record =
       internal::MakeCsvRecord(data_record, options_.record_type,
                               options_.csv_encoding, options_.value_separator);
   if (!csv_record.ok()) {
     return csv_record.status();
   }
-  if (!record_writer_.WriteRecord(*csv_record) && options_.recovery_function) {
-    options_.recovery_function(data_record);
+  if (!record_writer_.WriteRecord(*csv_record) &&
+      options_.fb_struct_recovery_function) {
+    LOG(WARNING) << "WriteRecord failed, attempting recovery function";
+    options_.fb_struct_recovery_function(data_record);
   }
   return record_writer_.status();
 }

@@ -19,10 +19,12 @@
 #include <vector>
 
 #include "absl/strings/str_join.h"
-#include "components/errors/retry.h"
 #include "public/constants.h"
+#include "src/errors/retry.h"
 
 namespace kv_server {
+
+using ::privacy_sandbox::server_common::TraceRetryUntilOk;
 
 ParameterFetcher::ParameterFetcher(
     std::string environment, const ParameterClient& parameter_client,

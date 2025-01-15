@@ -14,6 +14,7 @@
 
 #include "components/data/converters/cbor_converter.h"
 
+#include <utility>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -466,6 +467,59 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeSuccess) {
   EXPECT_EQ(json_etalon, ordered_json::from_cbor(*cbor_encoded_proto_maybe));
 }
 
+TEST(CborConverterTest,
+     PartitionOutputsCborEncodeIgnoresKeyGroupOutputWithoutKVsSuccess) {
+  ordered_json json_etalon = ordered_json::parse(R"(
+    [
+      {
+        "id": 0,
+        "keyGroupOutputs": []
+      },
+      {
+        "id": 1,
+        "keyGroupOutputs": [
+          {
+            "tags": [
+              "custom",
+              "keys"
+            ],
+            "keyValues": {
+              "hello2": {
+                "value": "world2"
+              }
+            }
+          }
+        ]
+      }
+    ]
+)");
+
+  application_pa::V2CompressionGroup compression_group;
+  TextFormat::ParseFromString(
+      R"pb(partition_outputs {
+             id: 0
+             key_group_outputs { tags: "custom" tags: "keys" }
+           }
+           partition_outputs {
+             id: 1
+             key_group_outputs {
+               tags: "custom"
+               tags: "keys"
+               key_values {
+                 key: "hello2"
+                 value { value { string_value: "world2" } }
+               }
+             }
+           })pb",
+      &compression_group);
+  absl::StatusOr<std::string> cbor_encoded_proto_maybe =
+      PartitionOutputsCborEncode(
+          *compression_group.mutable_partition_outputs());
+  ASSERT_TRUE(cbor_encoded_proto_maybe.ok())
+      << cbor_encoded_proto_maybe.status();
+  EXPECT_EQ(json_etalon, ordered_json::from_cbor(*cbor_encoded_proto_maybe));
+}
+
 TEST(CborConverterTest, PartitionOutputsCborEncodeEmptyKeyGroupOutputsSuccess) {
   ordered_json json_etalon = nlohmann::ordered_json::parse(R"(
    [
@@ -543,6 +597,20 @@ TEST(CborConverterTest, PartitionOutputsCborEncodeKeyValueMapOrderSuccess) {
   ASSERT_TRUE(cbor_encoded_proto_maybe.ok())
       << cbor_encoded_proto_maybe.status();
   EXPECT_EQ(json_etalon, ordered_json::from_cbor(*cbor_encoded_proto_maybe));
+}
+
+TEST(SortKeysByLengthThenLexicographicOrderTest, SortSuccess) {
+  std::vector<std::pair<std::string, cbor_pair>> kv_vector;
+  struct cbor_pair unused_cbor_pair;
+  kv_vector.emplace_back("ab", unused_cbor_pair);
+  kv_vector.emplace_back("a", unused_cbor_pair);
+  kv_vector.emplace_back("aa", unused_cbor_pair);
+  kv_vector.emplace_back("1a", unused_cbor_pair);
+  SortKeysByLengthThenLexicographicOrder(kv_vector);
+  EXPECT_EQ(kv_vector[0].first, "a");
+  EXPECT_EQ(kv_vector[1].first, "1a");
+  EXPECT_EQ(kv_vector[2].first, "aa");
+  EXPECT_EQ(kv_vector[3].first, "ab");
 }
 
 }  // namespace

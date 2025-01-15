@@ -91,13 +91,14 @@ cc_library(
         ],
         "//conditions:default": [
             ":delta_file_record_change_notifier",
-            "//components/errors:retry",
-            "//components/util:sleepfor",
             "//public:constants",
+            "@google_privacysandbox_servers_common//src/errors:retry",
             "@google_privacysandbox_servers_common//src/util:duration",
+            "@google_privacysandbox_servers_common//src/util/sleep:sleepfor",
         ],
     }) + [
         "//components/data/common:thread_manager",
+        "//components/telemetry:server_definition",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
@@ -126,10 +127,10 @@ cc_test(
         }) + [
             ":realtime_notifier",
             "//components/data/common:mocks",
-            "//components/util:sleepfor_mock",
             "//public/data_loading:filename_utils",
             "@com_github_grpc_grpc//:grpc++",
             "@com_google_googletest//:gtest_main",
+            "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
         ],
 )
 
@@ -149,7 +150,6 @@ cc_library(
     deps = [
         ":realtime_notifier",
         "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
     ],
 )
 
@@ -174,8 +174,9 @@ cc_test(
     }) + [
         ":realtime_thread_pool_manager",
         "//components/data/common:mocks",
-        "//components/util:sleepfor_mock",
+        "//components/telemetry:server_definition",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )

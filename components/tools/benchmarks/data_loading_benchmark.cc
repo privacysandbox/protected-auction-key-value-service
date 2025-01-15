@@ -39,7 +39,7 @@
 #include "components/util/platform_initializer.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/riegeli_stream_io.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 
 ABSL_FLAG(std::string, data_directory, "",
           "Data directory or bucket to store benchmark input data files in.");
@@ -74,11 +74,11 @@ using kv_server::BlobStorageClientFactory;
 using kv_server::Cache;
 using kv_server::ConcurrentStreamRecordReader;
 using kv_server::DataRecord;
-using kv_server::DeserializeDataRecord;
-using kv_server::GetRecordValue;
+using kv_server::DeserializeRecord;
 using kv_server::KeyValueCache;
 using kv_server::KeyValueMutationRecord;
 using kv_server::KeyValueMutationType;
+using kv_server::MaybeGetRecordValue;
 using kv_server::NoOpKeyValueCache;
 using kv_server::Record;
 using kv_server::RecordStream;
@@ -182,13 +182,16 @@ absl::Status ApplyUpdateMutation(
     kv_server::benchmark::BenchmarkLogContext& log_context,
     const KeyValueMutationRecord& record, Cache& cache) {
   if (record.value_type() == Value::StringValue) {
-    cache.UpdateKeyValue(log_context, record.key()->string_view(),
-                         GetRecordValue<std::string_view>(record),
+    PS_ASSIGN_OR_RETURN(auto value,
+                        MaybeGetRecordValue<std::string_view>(record));
+    cache.UpdateKeyValue(log_context, record.key()->string_view(), value,
                          record.logical_commit_time());
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
-    auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    PS_ASSIGN_OR_RETURN(
+        auto values,
+        MaybeGetRecordValue<std::vector<std::string_view>>(record));
     cache.UpdateKeyValueSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time());
@@ -208,7 +211,9 @@ absl::Status ApplyDeleteMutation(
     return absl::OkStatus();
   }
   if (record.value_type() == Value::StringSet) {
-    auto values = GetRecordValue<std::vector<std::string_view>>(record);
+    PS_ASSIGN_OR_RETURN(
+        auto values,
+        MaybeGetRecordValue<std::vector<std::string_view>>(record));
     cache.DeleteValuesInSet(log_context, record.key()->string_view(),
                             absl::MakeSpan(values),
                             record.logical_commit_time());
@@ -249,8 +254,8 @@ void BM_LoadDataIntoCache(benchmark::State& state, BenchmarkArgs args) {
         [&num_records_read, &log_context,
          cache = cache.get()](std::string_view raw) {
           num_records_read++;
-          return DeserializeDataRecord(raw, [cache, &log_context](
-                                                const DataRecord& data_record) {
+          return DeserializeRecord(raw, [cache, &log_context](
+                                            const DataRecord& data_record) {
             if (data_record.record_type() == Record::KeyValueMutationRecord) {
               const auto* record =
                   data_record.record_as_KeyValueMutationRecord();

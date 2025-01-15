@@ -24,10 +24,12 @@
 #include "absl/status/statusor.h"
 #include "absl/time/clock.h"
 #include "components/data/common/change_notifier.h"
-#include "components/util/sleepfor.h"
+#include "src/util/sleep/sleepfor.h"
 
 namespace kv_server {
 namespace {
+
+using ::privacy_sandbox::server_common::SleepFor;
 
 // TODO fix this or delete
 

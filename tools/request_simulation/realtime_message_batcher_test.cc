@@ -21,13 +21,14 @@
 #include "absl/strings/substitute.h"
 #include "gtest/gtest.h"
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
+#include "public/test_util/data_record.h"
 
 namespace kv_server {
 namespace {
 
-absl::StatusOr<std::vector<kv_server::KeyValueMutationRecordStruct>> Convert(
+absl::StatusOr<std::vector<kv_server::KeyValueMutationRecordT>> Convert(
     RealtimeMessage rt) {
-  std::vector<kv_server::KeyValueMutationRecordStruct> rows;
+  std::vector<kv_server::KeyValueMutationRecordT> rows;
   std::string string_decoded;
   absl::Base64Unescape(rt.message, &string_decoded);
   std::istringstream is(string_decoded);
@@ -43,10 +44,11 @@ absl::StatusOr<std::vector<kv_server::KeyValueMutationRecordStruct>> Convert(
   }
   auto result = record_reader->ReadStreamRecords([&rows](std::string_view raw) {
     const auto* data_record = flatbuffers::GetRoot<DataRecord>(raw.data());
-    const auto kv_record =
-        GetTypedRecordStruct<KeyValueMutationRecordStruct>(*data_record);
+    DataRecordT data_record_struct;
+    data_record->UnPackTo(&data_record_struct);
+    auto kv_record = *data_record_struct.record.AsKeyValueMutationRecord();
     EXPECT_TRUE(absl::StartsWith(kv_record.key, "key"));
-    rows.emplace_back(kv_record);
+    rows.emplace_back(std::move(kv_record));
     return absl::OkStatus();
   });
   return rows;
@@ -63,13 +65,12 @@ void Write(std::queue<RealtimeMessage>& realtime_messages, int num_records,
   int cur_record = 1;
   while (cur_record <= num_records) {
     const std::string key = absl::StrCat("key", std::to_string(cur_record));
-    const std::string value = "value";
-    auto kv_mutation_record = KeyValueMutationRecordStruct{
+    KeyValueMutationRecordT kv_mutation_record = {
         .mutation_type = kv_server::KeyValueMutationType::Update,
         .logical_commit_time = 1232,
         .key = key,
-        .value = value,
     };
+    kv_mutation_record.value.Set(GetSimpleStringValue("value"));
     auto result = batcher->Insert(kv_mutation_record);
     if (!result.ok()) {
       return;

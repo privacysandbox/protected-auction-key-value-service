@@ -18,12 +18,13 @@
 #include <thread>
 #include <vector>
 
-#include "components/util/sleepfor_mock.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "src/util/sleep/sleepfor_mock.h"
 
 namespace kv_server {
 
+using ::privacy_sandbox::server_common::MockSleepFor;
 using privacy_sandbox::server_common::SimulatedSteadyClock;
 using privacy_sandbox::server_common::SteadyTime;
 using testing::_;

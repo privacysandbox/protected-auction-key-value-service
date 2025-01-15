@@ -30,14 +30,14 @@
 #include "public/data_loading/aggregation/record_aggregator.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
-#include "public/data_loading/records_utils.h"
+#include "public/data_loading/record_utils.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 
 namespace kv_server {
 
-// A `SnapshotStreamWriter` writes `DataRecordStruct` records to a
+// A `SnapshotStreamWriter` writes flatbuffer native `DataRecordT` records to a
 // destination snapshot stream. The `SnapshotStreamWriter` can be used to:
 // (1) merge multiple delta files into a single snapshot file or
 // (2) merge a base snapshot file with multiple delta files into a single
@@ -85,8 +85,8 @@ class SnapshotStreamWriter {
 
   static absl::StatusOr<std::unique_ptr<SnapshotStreamWriter>> Create(
       Options options, DestStreamT& dest_snapshot_stream);
-  absl::Status WriteRecord(const DataRecordStruct& record);
-  // Writes `DataRecordStruct` records from `src_stream` to the
+  absl::Status WriteRecord(const DataRecordT& record);
+  // Writes `DataRecordT` records from `src_stream` to the
   // output snapshot stream, `dest_snapshot_stream`. Valid source streams can be
   // snapshot files generated using `SnapshotStreamWriter` instances or
   // delta files generated using `DeltaRecordStreamWriter` instances.
@@ -109,7 +109,7 @@ class SnapshotStreamWriter {
       std::unique_ptr<DeltaRecordStreamWriter<DestStreamT>> record_writer,
       std::unique_ptr<RecordAggregator> record_aggregator, Options options);
 
-  absl::Status InsertOrUpdateRecord(const DataRecordStruct& record);
+  absl::Status InsertOrUpdateRecord(const DataRecordT& record);
   template <typename SrcStreamT>
   absl::Status InsertOrUpdateRecords(SrcStreamT& src_stream);
   static absl::StatusOr<std::unique_ptr<RecordAggregator>>
@@ -123,7 +123,7 @@ class SnapshotStreamWriter {
   std::unique_ptr<RecordAggregator> record_aggregator_;
   Options options_;
   bool is_finalized_ = false;
-  std::unique_ptr<UserDefinedFunctionsConfigStruct> udf_config_;
+  std::unique_ptr<UserDefinedFunctionsConfigT> udf_config_;
 };
 
 template <typename DestStreamT>
@@ -169,29 +169,32 @@ SnapshotStreamWriter<DestStreamT>::CreateDeltaRecordWriterOptions(
       .enable_compression = options.compress_snapshot,
       // TODO: Think about the best way to handle failed records. Should this be
       // exposed as a field of `SnapshotStreamWriter::Options`?
-      .recovery_function =
-          [](const DataRecordStruct& data_record) {
-            if (std::holds_alternative<KeyValueMutationRecordStruct>(
-                    data_record.record)) {
+      .fb_struct_recovery_function =
+          [](const DataRecordT& data_record) {
+            if (data_record.record.type == Record::KeyValueMutationRecord) {
               LOG(ERROR) << "Failed to write record to snapshot stream. (key: "
-                         << std::get<KeyValueMutationRecordStruct>(
-                                data_record.record)
-                                .key
+                         << data_record.record.AsKeyValueMutationRecord()->key
                          << ")";
               return;
             }
-            if (std::holds_alternative<UserDefinedFunctionsConfigStruct>(
-                    data_record.record)) {
+            if (data_record.record.type == Record::UserDefinedFunctionsConfig) {
               LOG(ERROR) << "Failed to write record to snapshot stream. "
                             "(udf_code_snippet: "
-                         << std::get<UserDefinedFunctionsConfigStruct>(
-                                data_record.record)
-                                .code_snippet
+                         << data_record.record.AsUserDefinedFunctionsConfig()
+                                ->code_snippet
                          << ")";
+              return;
+            }
+            if (data_record.record.type == Record::ShardMappingRecord) {
+              LOG(ERROR)
+                  << "Failed to write record to snapshot stream. "
+                     "(logical_shard: "
+                  << data_record.record.AsShardMappingRecord()->logical_shard
+                  << ")";
               return;
             }
             LOG(ERROR) << "Failed to write record to snapshot stream. "
-                          "No KeyValueMutation or UdfConfig specified. ";
+                          "No valid record type specified. ";
           },
       .metadata = options.metadata,
   };
@@ -208,21 +211,17 @@ SnapshotStreamWriter<DestStreamT>::CreateRecordAggregator(
 
 template <typename DestStreamT>
 absl::Status SnapshotStreamWriter<DestStreamT>::InsertOrUpdateRecord(
-    const DataRecordStruct& data_record) {
-  if (std::holds_alternative<KeyValueMutationRecordStruct>(
-          data_record.record)) {
-    auto kv_record = std::get<KeyValueMutationRecordStruct>(data_record.record);
-    return record_aggregator_->InsertOrUpdateRecord(absl::HashOf(kv_record.key),
-                                                    kv_record);
+    const DataRecordT& data_record) {
+  if (data_record.record.type == Record::KeyValueMutationRecord) {
+    const auto* kv_record = data_record.record.AsKeyValueMutationRecord();
+    return record_aggregator_->InsertOrUpdateRecord(
+        absl::HashOf(kv_record->key), *kv_record);
   }
-  if (std::holds_alternative<UserDefinedFunctionsConfigStruct>(
-          data_record.record)) {
-    auto udf_config =
-        std::get<UserDefinedFunctionsConfigStruct>(data_record.record);
+  if (data_record.record.type == Record::UserDefinedFunctionsConfig) {
+    const auto udf_config = *data_record.record.AsUserDefinedFunctionsConfig();
     if (udf_config_ == nullptr ||
         udf_config_->logical_commit_time < udf_config.logical_commit_time) {
-      udf_config_ =
-          std::make_unique<UserDefinedFunctionsConfigStruct>(udf_config);
+      udf_config_ = std::make_unique<UserDefinedFunctionsConfigT>(udf_config);
     }
     return absl::OkStatus();
   }
@@ -239,14 +238,15 @@ absl::Status SnapshotStreamWriter<DestStreamT>::InsertOrUpdateRecords(
     return metadata.status();
   }
   return record_reader.ReadRecords(
-      [this](DataRecordStruct data_record) -> absl::Status {
-        return InsertOrUpdateRecord(data_record);
+      [this](const DataRecord& data_record) -> absl::Status {
+        std::unique_ptr<DataRecordT> data_record_struct(data_record.UnPack());
+        return InsertOrUpdateRecord(*data_record_struct);
       });
 }
 
 template <typename DestStreamT>
 absl::Status SnapshotStreamWriter<DestStreamT>::WriteRecord(
-    const DataRecordStruct& data_record) {
+    const DataRecordT& data_record) {
   if (is_finalized_) {
     return absl::FailedPreconditionError(
         "Cannot write records after finalizing the snapshot.");
@@ -272,22 +272,23 @@ absl::Status SnapshotStreamWriter<DestStreamT>::Finalize() {
   }
   if (absl::Status status = record_aggregator_->ReadRecords(
           [record_writer = record_writer_.get()](
-              KeyValueMutationRecordStruct kv_mutation_record) {
+              KeyValueMutationRecordT kv_mutation_record) {
             // By definition, snapshots do NOT contain DELETE mutations.
             if (kv_mutation_record.mutation_type ==
                 KeyValueMutationType::Delete) {
               return absl::OkStatus();
             }
-            DataRecordStruct data_record;
-            data_record.record = std::move(kv_mutation_record);
+            DataRecordT data_record;
+            data_record.record.Set(std::move(kv_mutation_record));
             return record_writer->WriteRecord(data_record);
           });
       !status.ok()) {
     return status;
   }
   if (udf_config_ != nullptr) {
-    if (absl::Status status = record_writer_->WriteRecord(
-            DataRecordStruct{.record = *udf_config_});
+    DataRecordT data_record;
+    data_record.record.Set(std::move(*udf_config_));
+    if (absl::Status status = record_writer_->WriteRecord(data_record);
         !status.ok()) {
       return status;
     }

@@ -24,7 +24,6 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "public/data_loading/writers/delta_record_writer.h"
-#include "riegeli/bytes/fd_dependency.h"
 #include "riegeli/bytes/fd_writer.h"
 #include "riegeli/bytes/limiting_writer.h"
 #include "riegeli/records/record_writer.h"
@@ -54,7 +53,7 @@ class DeltaRecordLimitingFileWriter : public DeltaRecordWriter {
   // has reached it's hard size limit. Please create a new
   // `DeltaRecordLimitingFileWriter` writing to a new file. Note that multiple
   // records might be dropped, and not just the latest one.
-  absl::Status WriteRecord(const DataRecordStruct& data_record) override;
+  absl::Status WriteRecord(const DataRecordT& data_record) override;
   const Options& GetOptions() const override;
   // If ResourceExhaustedStatus is returned, it means that the underlying file
   // has reached it's hard size limit. Please create a new
@@ -71,9 +70,9 @@ class DeltaRecordLimitingFileWriter : public DeltaRecordWriter {
       int64_t max_file_size_bytes = std::numeric_limits<int64_t>::max());
   Options options_;
   absl::Status ProcessWritingFailure();
-  std::unique_ptr<riegeli::FdWriter<riegeli::OwnedFd>> file_writer_;
-  std::unique_ptr<riegeli::RecordWriter<
-      riegeli::LimitingWriter<riegeli::FdWriter<riegeli::OwnedFd>*>>>
+  riegeli::FdWriter<> file_writer_;
+  riegeli::RecordWriter<
+      riegeli::LimitingWriter<riegeli::FdWriter<riegeli::OwnedFd>*>>
       record_writer_;
   int file_writer_pos_;
 };

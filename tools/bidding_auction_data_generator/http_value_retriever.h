@@ -25,9 +25,8 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "public/query/get_values.pb.h"
+#include "tools/bidding_auction_data_generator/data/custom_audience_data.pb.h"
 #include "tools/bidding_auction_data_generator/http_url_fetch_client.h"
-#include "tools/bidding_auction_data_generator/value_fetch_util.h"
 
 namespace kv_server {
 // Defines the class that retrieves values from KV server for buyer keys and
@@ -52,7 +51,8 @@ class HttpValueRetriever {
   RetrieveValues(
       const absl::flat_hash_set<std::string>& keys, const std::string& base_url,
       const std::string& key_namespace,
-      std::function<void(v1::GetValuesResponse&,
+      std::function<void(kv_server::tools::bidding_auction_data_generator::
+                             BYOSGetValuesResponse&,
                          absl::flat_hash_map<std::string, std::string>&)>
           callback,
       bool need_encode, int num_keys_per_batch);

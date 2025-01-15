@@ -100,11 +100,12 @@ RealtimeMessage RealtimeMessageBatcher::GetMessage(int shard_num) const {
 }
 
 absl::Status RealtimeMessageBatcher::Insert(
-    kv_server::KeyValueMutationRecordStruct key_value_mutation) {
+    kv_server::KeyValueMutationRecordT key_value_mutation) {
   const int shard_num =
       key_sharder_.GetShardNumForKey(key_value_mutation.key, num_shards_)
           .shard_num;
-  auto data_record = DataRecordStruct{.record = std::move(key_value_mutation)};
+  DataRecordT data_record;
+  data_record.record.Set(std::move(key_value_mutation));
   auto write_result = GetWriter(shard_num).WriteRecord(data_record);
   if (write_result.ok()) {
     return absl::OkStatus();

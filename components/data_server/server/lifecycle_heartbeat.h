@@ -22,10 +22,12 @@
 #include "absl/status/status.h"
 #include "components/cloud_config/instance_client.h"
 #include "components/data_server/server/parameter_fetcher.h"
-#include "components/util/periodic_closure.h"
 #include "src/logger/request_context_logger.h"
+#include "src/util/periodic_closure.h"
 
 namespace kv_server {
+
+using ::privacy_sandbox::server_common::PeriodicClosure;
 
 class LifecycleHeartbeat {
  public:

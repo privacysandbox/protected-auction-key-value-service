@@ -30,6 +30,12 @@
 
 namespace kv_server {
 
+enum class DataRecordType : int {
+  kKeyValueMutationRecord,
+  kUserDefinedFunctionsConfig,
+  kShardMappingRecord
+};
+
 enum class CsvEncoding : int { kPlaintext, kBase64 };
 
 inline std::ostream& operator<<(std::ostream& os,
@@ -173,6 +179,16 @@ absl::Status DeserializeRecord(
     const std::function<absl::Status(const KeyValueMutationRecord&)>&
         record_callback);
 
+// Deserializes "data_loading.fbs:KeyValueMutationRecord" raw flatbuffer
+// record bytes and calls `record_callback` with the resulting
+// flatbuffer native `KeyValueMutationRecordT` object. Returns
+// `absl::InvalidArgumentError` if deserialization fails, otherwise returns the
+// result of calling `record_callback`.
+absl::Status DeserializeRecord(
+    std::string_view record_bytes,
+    const std::function<absl::Status(const KeyValueMutationRecordT&)>&
+        record_callback);
+
 // Deserializes "data_loading.fbs:DataRecord" raw flatbuffer record
 // bytes and calls `record_callback` with the resulting `DataRecord`
 // object.
@@ -181,6 +197,14 @@ absl::Status DeserializeRecord(
 absl::Status DeserializeRecord(
     std::string_view record_bytes,
     const std::function<absl::Status(const DataRecord&)>& record_callback);
+
+// Deserializes "data_loading.fbs:DataRecord" raw flatbuffer record
+// bytes and calls `record_callback` with the resulting flatbuffer native
+// `DataRecordT` object. Returns `absl::InvalidArgumentError` if deserialization
+// fails, otherwise returns the result of calling `record_callback`.
+absl::Status DeserializeRecord(
+    std::string_view record_bytes,
+    const std::function<absl::Status(const DataRecordT&)>& record_callback);
 
 // Utility function to get the union value set on the `record`. Must
 // be called after checking the type of the union value using

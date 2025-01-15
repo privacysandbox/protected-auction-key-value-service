@@ -102,7 +102,7 @@ TEST(ProtoEncoderTest, EncodePartitionOutputsSuccess) {
   EXPECT_EQ(expected.dump(), *maybe_proto_content);
 }
 
-TEST(JsonEncoderTest, EncodePartitionOutputsEmptyFails) {
+TEST(ProtoEncoderTest, EncodePartitionOutputsEmptyFails) {
   InitMetricsContextMap();
   std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {};
   std::string content;
@@ -112,6 +112,18 @@ TEST(JsonEncoderTest, EncodePartitionOutputsEmptyFails) {
       partition_output_pairs, *request_context_factory);
 
   ASSERT_FALSE(maybe_proto_content.ok()) << maybe_proto_content.status();
+}
+
+TEST(ProtoEncoderTest,
+     EncodePartitionOutputsNonJsonObjectReturnedByUdfDoesntCrashServer) {
+  InitMetricsContextMap();
+  std::vector<std::pair<int32_t, std::string>> partition_output_pairs = {
+      {1, "\"json_string_not_object\""}};
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  ProtoV2EncoderDecoder encoder;
+  const auto maybe_json_content = encoder.EncodePartitionOutputs(
+      partition_output_pairs, *request_context_factory);
+  ASSERT_FALSE(maybe_json_content.ok()) << maybe_json_content.status();
 }
 
 TEST(ProtoEncoderTest, DecodeToV2GetValuesRequestProtoEmptyStringFailure) {

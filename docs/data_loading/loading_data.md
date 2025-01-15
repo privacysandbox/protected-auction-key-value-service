@@ -122,7 +122,7 @@ key,mutation_type,logical_commit_time,value,value_type
 key1,UPDATE,1680815895468055,value1,string
 key2,UPDATE,1680815895468056,value2,string
 key1,UPDATE,1680815895468057,value11,string
-key2,DELETE,1680815895468058,value2,string
+key2,DELETE,1680815895468058,,string
 
 # The following csv example shows csv with set values.
 # By default, column delimiter = "," and value delimiter = "|"

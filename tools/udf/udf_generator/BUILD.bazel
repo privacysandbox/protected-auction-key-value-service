@@ -31,7 +31,7 @@ cc_binary(
         "//public:constants",
         "//public/data_loading:data_loading_fbs",
         "//public/data_loading:filename_utils",
-        "//public/data_loading:records_utils",
+        "//public/data_loading:record_utils",
         "//public/data_loading:riegeli_metadata_cc_proto",
         "//public/data_loading/writers:avro_delta_record_stream_writer",
         "//public/data_loading/writers:delta_record_stream_writer",
@@ -43,5 +43,6 @@ cc_binary(
         "@com_google_absl//absl/strings",
         "@com_google_riegeli//riegeli/bytes:ostream_writer",
         "@com_google_riegeli//riegeli/records:record_writer",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )

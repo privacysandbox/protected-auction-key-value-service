@@ -41,6 +41,12 @@ class MockUdfClient : public UdfClient {
                const google::protobuf::RepeatedPtrField<UDFArgument>&,
                ExecutionMetadata& execution_metadata),
               (const, override));
+  MOCK_METHOD((absl::StatusOr<absl::flat_hash_map<int32_t, std::string>>),
+              BatchExecuteCode,
+              (const RequestContextFactory& request_context_factory,
+               (absl::flat_hash_map<int32_t, UDFInput> & udf_input_map),
+               ExecutionMetadata& metadata),
+              (const, override));
   MOCK_METHOD((absl::Status), Stop, (), (override));
   MOCK_METHOD((absl::Status), SetCodeObject,
               (CodeConfig, privacy_sandbox::server_common::log::PSLogContext&),

@@ -137,12 +137,13 @@ absl::Status WriteRecordsToSnapshotStream(
   ShardingFunction sharding_function(/*seed=*/"");
   return record_reader.ReadRecords(
       [&params, &snapshot_writer,
-       &sharding_function](DataRecordStruct data_record) {
+       &sharding_function](const DataRecord& data_record) {
+        DataRecordT data_record_struct;
+        data_record.UnPackTo(&data_record_struct);
         if (params.shard_number >= 0 &&
-            std::holds_alternative<KeyValueMutationRecordStruct>(
-                data_record.record)) {
-          KeyValueMutationRecordStruct record_struct =
-              std::get<KeyValueMutationRecordStruct>(data_record.record);
+            data_record_struct.record.type == Record::KeyValueMutationRecord) {
+          KeyValueMutationRecordT record_struct =
+              *data_record_struct.record.AsKeyValueMutationRecord();
           auto record_shard_num = sharding_function.GetShardNumForKey(
               record_struct.key, params.number_of_shards);
           if (params.shard_number != record_shard_num) {
@@ -152,7 +153,7 @@ absl::Status WriteRecordsToSnapshotStream(
             return absl::OkStatus();
           }
         }
-        return snapshot_writer.WriteRecord(data_record);
+        return snapshot_writer.WriteRecord(data_record_struct);
       });
 }
 

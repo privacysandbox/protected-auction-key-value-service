@@ -44,14 +44,19 @@ We provide a [simple reference implementation](/tools/udf/sample_udf/udf.js):
 
 Tools to generate UDF delta files and test them are in the `tools/udf` directory.
 
-1. Build the executables:
+1. Build the tools binaries docker image:
 
     ```sh
-    -$ builders/tools/bazel-debian build -c opt //tools/udf/udf_generator:udf_delta_file_generator
+    -$ builders/tools/bazel-debian run //production/packaging/tools:copy_to_dist --config=local_instance --config=local_platform
     ```
 
-2. Generate a UDF delta file using the `bazel-bin/tools/udf/udf_generator/udf_delta_file_generator`
-   executable.
+2. Load the tools binaries docker image:
+
+    ```sh
+    -$ docker load -i dist/tools_binaries_docker_image.tar
+    ```
+
+3. Generate a UDF delta file using the `udf_delta_file_generator` executable.
 
     Flags:
 
@@ -64,7 +69,14 @@ Tools to generate UDF delta files and test them are in the `tools/udf` directory
     Example:
 
     ```sh
-    -$ bazel-bin/tools/udf/udf_generator/udf_delta_file_generator --output_dir="$PWD" --udf_file_path="path/to/my/udf/udf.js"
+    -$ export DATA_DIR=<data_dir>
+    docker run -it --rm \
+      --volume=$DATA_DIR:$DATA_DIR \
+      --user $(id -u ${USER}):$(id -g ${USER}) \
+      --entrypoint=/tools/udf/udf_delta_file_generator \
+      bazel/production/packaging/tools:tools_binaries_docker_image \
+      --output_dir="$DATA_DIR" \
+      --udf_file_path="$DATA_DIR/udf.js"
     ```
 
 ### Option 2. Generating your own delta file

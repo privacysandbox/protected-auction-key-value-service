@@ -40,10 +40,17 @@ function install_bazelisk() {
   rm -rf /bazel_root/*
 }
 
+function install_crane() {
+   go install github.com/google/go-containerregistry/cmd/crane@v0.20.2
+   CRANE="$(go env GOPATH)"/bin/crane
+   ln -s "${CRANE}" /usr/bin/crane
+}
+
 function cleanup() {
   cd /
   go clean -cache -modcache
 }
 
 install_bazelisk
+install_crane
 cleanup

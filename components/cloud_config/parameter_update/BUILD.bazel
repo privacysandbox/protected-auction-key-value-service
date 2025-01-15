@@ -18,12 +18,14 @@ cc_library(
     deps = [
         "//components/data/common:change_notifier",
         "//components/data/common:thread_manager",
-        "//components/util:sleepfor",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/synchronization",
         "@google_privacysandbox_servers_common//src/logger:request_context_logger",
+        "@google_privacysandbox_servers_common//src/util:duration",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )
 
@@ -38,7 +40,7 @@ cc_test(
     deps = [
         ":parameter_notifier",
         "//components/data/common:mocks",
-        "//components/util:sleepfor_mock",
         "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/util/sleep:sleepfor_mock",
     ],
 )

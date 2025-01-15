@@ -204,40 +204,37 @@ absl::Status FormatDataCommand::Execute() {
   LOG(INFO) << "Formatting records ...";
   int64_t records_count = 0;
   ShardingFunction sharding_function(/*seed=*/"");
-  absl::Status status = record_reader_->ReadRecords([&records_count,
-                                                     &sharding_function,
-                                                     this](const DataRecord&
-                                                               data_record) {
-    if (params_.shard_number >= 0 &&
-        data_record.record_type() == Record::KeyValueMutationRecord) {
-      auto record_shard_num = sharding_function.GetShardNumForKey(
-          data_record.record_as_KeyValueMutationRecord()->key()->string_view(),
-          params_.number_of_shards);
-      if (params_.shard_number != record_shard_num) {
-        LOG(INFO) << "Skipping record with key: "
-                  << data_record.record_as_KeyValueMutationRecord()
-                         ->key()
-                         ->string_view()
-                  << " . The record belongs to shard: " << record_shard_num
-                  << ", but shard_number is " << params_.shard_number;
-        return absl::OkStatus();
-      }
-    }
-    records_count++;
-    if ((double)std::rand() / RAND_MAX <= kSamplingThreshold) {
-      LOG(INFO) << "Formatting record: " << records_count;
-    }
-    std::unique_ptr<DataRecordT> data_record_native(data_record.UnPack());
-    auto [fbs_buffer, serialized_string_view] = Serialize(*data_record_native);
-    return DeserializeDataRecord(
-        serialized_string_view, [this](const DataRecordStruct& data_record) {
-          auto status = record_writer_->WriteRecord(data_record);
-          if (!status.ok()) {
-            LOG(ERROR) << "Failed to write record: " << status;
+  absl::Status status =
+      record_reader_->ReadRecords([&records_count, &sharding_function,
+                                   this](const DataRecord& data_record) {
+        if (params_.shard_number >= 0 &&
+            data_record.record_type() == Record::KeyValueMutationRecord) {
+          auto record_shard_num = sharding_function.GetShardNumForKey(
+              data_record.record_as_KeyValueMutationRecord()
+                  ->key()
+                  ->string_view(),
+              params_.number_of_shards);
+          if (params_.shard_number != record_shard_num) {
+            LOG(INFO) << "Skipping record with key: "
+                      << data_record.record_as_KeyValueMutationRecord()
+                             ->key()
+                             ->string_view()
+                      << " . The record belongs to shard: " << record_shard_num
+                      << ", but shard_number is " << params_.shard_number;
+            return absl::OkStatus();
           }
-          return status;
-        });
-  });
+        }
+        records_count++;
+        if ((double)std::rand() / RAND_MAX <= kSamplingThreshold) {
+          LOG(INFO) << "Formatting record: " << records_count;
+        }
+        std::unique_ptr<DataRecordT> data_record_native(data_record.UnPack());
+        auto status = record_writer_->WriteRecord(*data_record_native);
+        if (!status.ok()) {
+          LOG(ERROR) << "Failed to write record: " << status;
+        }
+        return status;
+      });
   record_writer_->Close();
   if (status.ok()) {
     LOG(INFO) << "Sucessfully formated records.";

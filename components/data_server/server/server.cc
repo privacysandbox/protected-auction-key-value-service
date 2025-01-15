@@ -32,7 +32,6 @@
 #include "components/data_server/server/key_value_service_impl.h"
 #include "components/data_server/server/key_value_service_v2_impl.h"
 #include "components/data_server/server/server_log_init.h"
-#include "components/errors/retry.h"
 #include "components/internal_server/constants.h"
 #include "components/internal_server/local_lookup.h"
 #include "components/internal_server/lookup_server_impl.h"
@@ -52,6 +51,7 @@
 #include "public/data_loading/readers/riegeli_stream_record_reader_factory.h"
 #include "public/data_loading/readers/stream_record_reader_factory.h"
 #include "public/udf/constants.h"
+#include "src/errors/retry.h"
 #include "src/google/protobuf/struct.pb.h"
 #include "src/telemetry/init.h"
 #include "src/telemetry/telemetry.h"
@@ -67,7 +67,9 @@ using privacy_sandbox::server_common::ConfigurePrivateMetrics;
 using privacy_sandbox::server_common::ConfigureTracer;
 using privacy_sandbox::server_common::GetTracer;
 using privacy_sandbox::server_common::InitTelemetry;
+using ::privacy_sandbox::server_common::RetryUntilOk;
 using privacy_sandbox::server_common::TelemetryProvider;
+using ::privacy_sandbox::server_common::TraceRetryUntilOk;
 using privacy_sandbox::server_common::log::PSLogContext;
 using privacy_sandbox::server_common::telemetry::BuildDependentConfig;
 using privacy_sandbox::server_common::telemetry::TelemetryConfig;
@@ -114,6 +116,7 @@ constexpr std::string_view kDataLoadingBlobPrefixAllowlistSuffix =
 constexpr std::string_view kTelemetryConfigSuffix = "telemetry-config";
 constexpr std::string_view kConsentedDebugTokenSuffix = "consented-debug-token";
 constexpr std::string_view kEnableConsentedLogSuffix = "enable-consented-log";
+constexpr std::string_view kUdfEnableStacktraceSuffix = "udf-enable-stacktrace";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -357,6 +360,8 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
     return absl::OkStatus();
   }
   UdfConfigBuilder config_builder;
+  bool enable_udf_stacktrace =
+      parameter_fetcher.GetBoolParameter(kUdfEnableStacktraceSuffix);
   // TODO(b/289244673): Once roma interface is updated, internal lookup client
   // can be removed and we can own the unique ptr to the hooks.
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client_or_status =
@@ -369,7 +374,9 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
                   .RegisterRunSetQueryUInt64Hook(*run_set_query_uint64_hook_)
                   .RegisterRunSetQueryStringHook(*run_set_query_string_hook_)
                   .RegisterLoggingHook()
+                  .RegisterCustomMetricHook()
                   .SetNumberOfWorkers(number_of_workers)
+                  .DisableUdfStackTraces(!enable_udf_stacktrace)
                   .Config()),
           absl::Milliseconds(udf_timeout_ms),
           absl::Milliseconds(udf_update_timeout_ms), udf_min_log_level);

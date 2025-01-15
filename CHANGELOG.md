@@ -2,6 +2,53 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 1.1.0 (2025-01-15)
+
+
+### Features
+
+* Add Batch UDF execution metrics
+* Add BatchExecuteCode function to UdfClient
+* Add custom metrics UDF callback hook to udf configuration
+* Add udf-enable-stacktrace parameter
+* Enable UDF custom metric hook for the server
+* Parallel UDF execution for multi partition requests
+* Switch AvroDeltaRecordStreamWriter to use native fb struct
+* Switch CsvDeltaRecordStreamWriter and consumers to fb native
+* Switch DeltaRecordLimitingFileWriter and consumers to native fb
+* Switch DeltaRecordStreamWriter and consumers to fb native
+
+
+### Bug Fixes
+
+* Accept empty string value for delete records
+* Adjust ad retrieval UDF signature
+* Delete records should still require value type
+* Disable UDF stack traces by default
+* Do not require Delete KVMutations to have a value
+* Downgrade markdownlint
+* Drop `keyGroupOutput` objects that do not have keyValues
+* Fix building failure of GitHub main
+* Fix udf tester to recognize absl logging flags
+* Loading data in order for aws e2e workflow
+* Proto encoder should check that partition output is json object
+* Remove extra comma in request example json for log context
+* Remove logging from default UDF
+* Resolve e2e workflow key conflict
+* Sample UDFs should use logMessage instead of console.log
+* Udf code object should have mutex
+
+### Dependencies
+
+* Bump nltk from 3.8.1 to 3.9.1 in /third_party_deps
+* Bump tqdm that has a security fix to 4.67.1
+* Upgrade common repo
+
+### Documentation
+
+* Add markdown documentation on inline set feature in set queries.
+* Add udf example to log custom metrics
+
 ## 1.0.0 (2024-10-14)
 
 

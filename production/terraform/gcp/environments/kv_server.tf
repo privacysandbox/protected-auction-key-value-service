@@ -114,5 +114,6 @@ module "kv_server" {
     data-loading-blob-prefix-allowlist           = var.data_loading_blob_prefix_allowlist
     consented-debug-token                        = var.consented_debug_token
     enable-consented-log                         = var.enable_consented_log
+    data-loading-file-format                     = var.data_loading_file_format
   }
 }

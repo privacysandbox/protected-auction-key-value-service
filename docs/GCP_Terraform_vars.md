@@ -55,6 +55,11 @@
 
     A comma separated list of prefixes (i.e., directories) where data is loaded from.
 
+-   **data_loading_file_format**
+
+    Data file format for blob storage and realtime updates. See /public/constants.h for possible
+    values.
+
 -   **data_loading_num_threads**
 
     Number of parallel threads for reading and loading data files.
@@ -234,6 +239,11 @@
     Telemetry configuration to control whether metrics are raw or noised. Options are: mode:
     PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics),
     mode: OFF(no metrics)
+
+-   **udf_enable_stacktrace**
+
+    Whether to enable stacktraces from the UDF. The stacktraces will also be included in the V2
+    response.
 
 -   **udf_num_workers**
 

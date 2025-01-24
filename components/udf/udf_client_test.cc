@@ -77,13 +77,13 @@ class UdfClientTest : public ::testing::Test {
         kExampleConsentedDebugToken);
     const std::string telemetry_config_str = R"pb(
       mode: PROD
-      custom_metric {
+      custom_udf_metric {
         name: "m_1"
         description: "log metric 1"
         lower_bound: 1
         upper_bound: 10
       }
-      custom_metric {
+      custom_udf_metric {
         name: "m_2"
         description: "log metric 2"
         lower_bound: 1

@@ -64,7 +64,7 @@ function handlePA(udf_arguments, batchLogMetrics) {
 
 // 1. The telemetry_config that defines the custom metrics instrumented in the UDF need to be passed to the server parameter.
 // Example telemetry_config to log custom metrics instrumented in this UDF example:
-// mode: PROD custom_metric { name: \"udf_argument_error_count\" description: \"udf argument error count\" lower_bound: 0 upper_bound: 2 } custom_metric { name: \"lookup_failure_count\" description: \"lookup failure count\" lower_bound: 0 upper_bound: 10 } custom_metric { name: \"key_with_value_count\" description: \"key with value count\" lower_bound: 0 upper_bound: 100 }
+// mode: PROD custom_udf_metric { name: \"udf_argument_error_count\" description: \"udf argument error count\" lower_bound: 0 upper_bound: 2 } custom_udf_metric { name: \"lookup_failure_count\" description: \"lookup failure count\" lower_bound: 0 upper_bound: 10 } custom_udf_metric { name: \"key_with_value_count\" description: \"key with value count\" lower_bound: 0 upper_bound: 100 }
 // 2. Currently we only support logging UDF custom metrics up to 3 counter metrics
 // 3. If a metric is loggged multiple times for a given request, the value will be accumulated and the sum will be published as final value.
 function HandleRequest(executionMetadata, ...udf_arguments) {

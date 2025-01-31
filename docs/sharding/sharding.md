@@ -74,7 +74,7 @@ created.
 ## Enabling sharding
 
 The number of shards is controlled by the `num_shards`
-([AWS](https://source.corp.google.com/h/team/kiwi-air-force-eng-team/kv-server/+/main:docs/AWS_Terraform_vars.md),[GCP](https://source.corp.google.com/h/team/kiwi-air-force-eng-team/kv-server/+/main:docs/GCP_Terraform_vars.md))
+([AWS](https://github.com/privacysandbox/protected-auction-key-value-service/blob/main/docs/AWS_Terraform_vars.md),[GCP](https://github.com/privacysandbox/protected-auction-key-value-service/blob/main/docs/GCP_Terraform_vars.md))
 parameter.
 
 If this parameter is not set or set to 1, then no additional cost associated with sharding is

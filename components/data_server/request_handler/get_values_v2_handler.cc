@@ -43,7 +43,6 @@
 #include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
-namespace {
 using google::protobuf::RepeatedPtrField;
 using google::protobuf::util::JsonStringToMessage;
 using google::protobuf::util::MessageToJsonString;
@@ -55,62 +54,13 @@ using v2::ObliviousGetValuesRequest;
 
 constexpr std::string_view kIsPas = "is_pas";
 
-absl::Status GetCompressionGroupContentAsJsonList(
-    const std::vector<std::string>& partition_output_strings,
-    std::string& content,
-    const RequestContextFactory& request_context_factory) {
-  nlohmann::json json_partition_output_list = nlohmann::json::array();
-  for (auto&& partition_output_string : partition_output_strings) {
-    auto partition_output_json =
-        nlohmann::json::parse(partition_output_string, nullptr,
-                              /*allow_exceptions=*/false,
-                              /*ignore_comments=*/true);
-    if (partition_output_json.is_discarded()) {
-      PS_VLOG(2, request_context_factory.Get().GetPSLogContext())
-          << "json parse failed for " << partition_output_string;
-      continue;
-    }
-    json_partition_output_list.emplace_back(partition_output_json);
-  }
-  if (json_partition_output_list.size() == 0) {
-    return absl::InvalidArgumentError(
-        "Converting partition outputs to JSON returned empty list");
-  }
-  content = json_partition_output_list.dump();
-  return absl::OkStatus();
-}
-
-absl::Status GetCompressionGroupContentAsCborList(
-    std::vector<std::string>& partition_output_strings, std::string& content,
-    const RequestContextFactory& request_context_factory) {
-  RepeatedPtrField<application_pa::PartitionOutput> partition_outputs;
-  for (auto& partition_output_string : partition_output_strings) {
-    auto partition_output =
-        application_pa::PartitionOutputFromJson(partition_output_string);
-    if (partition_output.ok()) {
-      *partition_outputs.Add() = partition_output.value();
-    } else {
-      PS_VLOG(2, request_context_factory.Get().GetPSLogContext())
-          << partition_output.status();
-    }
-  }
-
-  const auto cbor_string = PartitionOutputsCborEncode(partition_outputs);
-  if (!cbor_string.ok()) {
-    PS_VLOG(2, request_context_factory.Get().GetPSLogContext())
-        << "CBOR encode failed for partition outputs";
-  }
-  content = cbor_string.value();
-  return absl::OkStatus();
-}
-
-}  // namespace
-
 grpc::Status GetValuesV2Handler::GetValuesHttp(
     RequestContextFactory& request_context_factory,
     const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
     const GetValuesHttpRequest& request, google::api::HttpBody* response,
     ExecutionMetadata& execution_metadata) const {
+  PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+      << "GetValuesHttpRequest with headers: " << request;
   auto v2_codec = V2EncoderDecoder::Create(V2EncoderDecoder::GetContentType(
       headers, V2EncoderDecoder::ContentType::kJson));
   return FromAbslStatus(
@@ -122,12 +72,12 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
     RequestContextFactory& request_context_factory, std::string_view request,
     std::string& response, ExecutionMetadata& execution_metadata,
     const V2EncoderDecoder& v2_codec) const {
+  PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+      << "GetValuesHttpRequest body: " << request;
   PS_ASSIGN_OR_RETURN(v2::GetValuesRequest request_proto,
                       v2_codec.DecodeToV2GetValuesRequestProto(request));
-  PS_VLOG(9) << "Converted the http request to proto: "
-             << request_proto.DebugString();
-  v2::GetValuesResponse response_proto;
 
+  v2::GetValuesResponse response_proto;
   PS_RETURN_IF_ERROR(GetValues(
       request_context_factory, request_proto, &response_proto,
       execution_metadata, IsSinglePartitionUseCase(request_proto), v2_codec));
@@ -148,7 +98,8 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
     const ObliviousGetValuesRequest& oblivious_request,
     google::api::HttpBody* oblivious_response,
     ExecutionMetadata& execution_metadata) const {
-  PS_VLOG(9) << "Received ObliviousGetValues request. ";
+  PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+      << "Received ObliviousGetValues request.";
   OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto maybe_padded_plain_text =
       encryptor.DecryptRequest(oblivious_request.raw_body().data(),
@@ -288,6 +239,8 @@ grpc::Status GetValuesV2Handler::GetValues(
   request_context_factory.UpdateLogContext(
       request.log_context(), request.consented_debug_config(),
       [response]() { return response->mutable_debug_info(); });
+  PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+      << "v2 GetValuesRequest: " << request;
   if (request.partitions().empty()) {
     return grpc::Status(StatusCode::INTERNAL,
                         "At least 1 partition is required");

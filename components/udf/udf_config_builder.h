@@ -36,7 +36,11 @@ class UdfConfigBuilder {
   UdfConfigBuilder& RegisterRunSetQueryUInt64Hook(
       RunSetQueryUInt64Hook& run_set_query_uint64_hook);
 
-  UdfConfigBuilder& RegisterLoggingHook();
+  // Registers V8 logMessage function
+  UdfConfigBuilder& RegisterLogMessageHook();
+
+  // Registers V8 console logging function
+  UdfConfigBuilder& RegisterConsoleLogHook();
 
   UdfConfigBuilder& RegisterCustomMetricHook();
 

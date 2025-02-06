@@ -117,12 +117,17 @@ UdfConfigBuilder& UdfConfigBuilder::RegisterRunSetQueryUInt64Hook(
   return *this;
 }
 
-UdfConfigBuilder& UdfConfigBuilder::RegisterLoggingHook() {
+UdfConfigBuilder& UdfConfigBuilder::RegisterLogMessageHook() {
   auto logging_function_object = std::make_unique<
       FunctionBindingObjectV2<std::weak_ptr<RequestContext>>>();
   logging_function_object->function_name = kLoggingHookJsName;
   logging_function_object->function = LogMessage;
   config_.RegisterFunctionBinding(std::move(logging_function_object));
+  return *this;
+}
+
+UdfConfigBuilder& UdfConfigBuilder::RegisterConsoleLogHook() {
+  config_.SetLoggingFunction(LoggingFunction);
   return *this;
 }
 

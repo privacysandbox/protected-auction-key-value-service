@@ -70,6 +70,7 @@ resource "google_compute_instance_template" "kv_server" {
   }
 
   confidential_instance_config {
+    confidential_instance_type  = "SEV"
     enable_confidential_compute = true
   }
 

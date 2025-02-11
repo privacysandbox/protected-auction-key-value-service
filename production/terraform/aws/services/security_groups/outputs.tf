@@ -22,10 +22,6 @@ output "elb_security_group_id" {
   value = var.use_existing_vpc ? data.aws_security_group.existing_elb_security_group[0].id : aws_security_group.elb_security_group[0].id
 }
 
-output "ssh_security_group_id" {
-  value = var.use_existing_vpc ? data.aws_security_group.existing_ssh_security_group[0].id : aws_security_group.ssh_security_group[0].id
-}
-
 output "vpc_endpoint_security_group_id" {
   value = var.use_existing_vpc ? data.aws_security_group.existing_vpce_security_group[0].id : aws_security_group.vpce_security_group[0].id
 }

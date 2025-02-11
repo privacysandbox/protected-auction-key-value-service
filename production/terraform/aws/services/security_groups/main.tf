@@ -27,11 +27,6 @@ data "aws_security_group" "existing_elb_security_group" {
   name  = "${var.existing_vpc_operator}-${var.existing_vpc_environment}-elb-sg"
 }
 
-data "aws_security_group" "existing_ssh_security_group" {
-  count = var.use_existing_vpc ? 1 : 0
-  name  = "${var.existing_vpc_operator}-${var.existing_vpc_environment}-ssh-sg"
-}
-
 data "aws_security_group" "existing_instance_security_group" {
   count = var.use_existing_vpc ? 1 : 0
   name  = "${var.existing_vpc_operator}-${var.existing_vpc_environment}-instance-sg"
@@ -54,17 +49,6 @@ resource "aws_security_group" "elb_security_group" {
 
   tags = {
     Name = "${var.service}-${var.environment}-elb-sg"
-  }
-}
-
-# Security group to control ingress and egress traffic for the ssh ec2 instance.
-resource "aws_security_group" "ssh_security_group" {
-  count  = var.use_existing_vpc ? 0 : 1
-  name   = "${var.service}-${var.environment}-ssh-sg"
-  vpc_id = var.vpc_id
-
-  tags = {
-    Name = "${var.service}-${var.environment}-ssh-sg"
   }
 }
 

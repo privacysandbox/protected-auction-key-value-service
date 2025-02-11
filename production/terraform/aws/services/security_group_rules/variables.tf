@@ -48,10 +48,6 @@ variable "vpce_security_group_id" {
   type        = string
 }
 
-variable "ssh_security_group_id" {
-  description = "Id of the security group for the ssh ec2 instance."
-}
-
 variable "gateway_endpoints_prefix_list_ids" {
   description = "Prefix lists for backend vpc gateway endpoints."
   type        = set(string)
@@ -60,11 +56,6 @@ variable "gateway_endpoints_prefix_list_ids" {
 variable "server_instance_port" {
   description = "The port on which EC2 server instances listen for connections."
   type        = number
-}
-
-variable "ssh_source_cidr_blocks" {
-  description = "Source ips allowed to send ssh traffic to the ssh instance."
-  type        = set(string)
 }
 
 variable "use_existing_vpc" {

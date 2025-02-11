@@ -79,7 +79,3 @@ variable "logging_verbosity_updates_topic_arn" {
   description = "ARN for the sns topic that receives logging verbosity parameter updates."
   type        = string
 }
-
-variable "ssh_instance_role_name" {
-  description = "Role for SSH instance (bastion)."
-}

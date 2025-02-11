@@ -256,10 +256,6 @@
 
     Clean up queues not updated within the timeout period.
 
--   **ssh_source_cidr_blocks**
-
-    Source ips allowed to send ssh traffic to the ssh instance.
-
 -   **telemetry_config**
 
     Telemetry configuration to control whether metrics are raw or noised. Options are: mode:

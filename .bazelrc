@@ -7,6 +7,7 @@ build --workspace_status_command="bash tools/get_workspace_status"
 build --copt=-Werror=thread-safety
 build --config=clang
 build --config=noexcept
+
 # Disable some ROMA error checking
 build --per_file_copt=.*sandboxed_api.*@-Wno-return-type
 
@@ -39,6 +40,10 @@ build:clang --host_cxxopt=-std=c++17
 build:clang --client_env=BAZEL_CXXOPTS=-std=c++17
 build:clang --per_file_copt=external/nitrokmscli_.*\.c@-Wno-int-conversion
 build:clang --per_file_copt=external/(json_c|nitrokmscli_).*\.c@-Wno-implicit-function-declaration
+# Ignore deprecated declarations and redefined macro warnings from differential privacy library
+build:clang --per_file_copt=(components|public/data_loading)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+build:clang --per_file_copt=production/packaging/gcp/data_server/bin/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+build:clang --per_file_copt=tools/(data_cli|request_simulation|udf)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
 
 build:cpp_nowarn --copt=-Werror
 build:cpp_nowarn --per_file_copt=external/.*@-Wno-error

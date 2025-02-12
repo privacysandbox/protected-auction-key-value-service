@@ -19,6 +19,8 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "public/data_loading/record_utils.h"
+#include "public/test_util/proto_matcher.h"
 #include "third_party/avro/api/DataFile.hh"
 #include "third_party/avro/api/Schema.hh"
 #include "third_party/avro/api/ValidSchema.hh"
@@ -28,6 +30,8 @@ namespace {
 
 constexpr std::string_view kTestRecord = "testrecord";
 constexpr int64_t kIterations = 1024 * 1024 * 9;
+constexpr size_t kAvroDefaultSyncInterval = 16 * 1024;
+constexpr avro::Codec kAvroDefaultCodec = avro::Codec::NULL_CODEC;
 
 void WriteInvalidFile(const std::vector<std::string_view>& records,
                       std::ostream& dest_stream) {
@@ -35,12 +39,14 @@ void WriteInvalidFile(const std::vector<std::string_view>& records,
 }
 
 void WriteAvroToFile(const std::vector<std::string_view>& records,
-                     std::ostream& dest_stream) {
+                     std::ostream& dest_stream, int64_t iterations,
+                     const std::map<std::string, std::string>& metadata = {}) {
   avro::OutputStreamPtr avro_output_stream =
       avro::ostreamOutputStream(dest_stream);
   avro::DataFileWriter<std::string> record_writer(
-      std::move(avro_output_stream), avro::ValidSchema(avro::BytesSchema()));
-  for (int64_t i = 0; i < kIterations; i++) {
+      std::move(avro_output_stream), avro::ValidSchema(avro::BytesSchema()),
+      kAvroDefaultSyncInterval, kAvroDefaultCodec, metadata);
+  for (int64_t i = 0; i < iterations; i++) {
     for (const std::string_view& record : records) {
       record_writer.write(std::string(record));
     }
@@ -84,7 +90,7 @@ TEST(AvroStreamIO, ConcurrentReading) {
   const std::filesystem::path path =
       std::filesystem::path(::testing::TempDir()) / kFileName;
   std::ofstream output_stream(path);
-  WriteAvroToFile({kTestRecord}, output_stream);
+  WriteAvroToFile({kTestRecord}, output_stream, kIterations);
   output_stream.close();
 
   AvroConcurrentStreamRecordReader::Options options;
@@ -109,7 +115,7 @@ TEST(AvroStreamIO, SequentialReading) {
   const std::filesystem::path path =
       std::filesystem::path(::testing::TempDir()) / kFileName;
   std::ofstream output_stream(path);
-  WriteAvroToFile({kTestRecord}, output_stream);
+  WriteAvroToFile({kTestRecord}, output_stream, kIterations);
   output_stream.close();
 
   std::ifstream is(path);
@@ -126,6 +132,195 @@ TEST(AvroStreamIO, SequentialReading) {
       record_reader.ReadStreamRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
+
+TEST(AvroStreamIO, ConcurrentReadingGetKVFileMetadata) {
+  kv_server::InitMetricsContextMap();
+  constexpr std::string_view kFileName = "ConcurrentReading.avro";
+  const std::filesystem::path path =
+      std::filesystem::path(::testing::TempDir()) / kFileName;
+  std::ofstream output_stream(path);
+
+  KVFileMetadata kv_metadata;
+  kv_metadata.mutable_sharding_metadata()->set_shard_num(17);
+  std::string kv_metadata_serialized;
+  kv_metadata.SerializeToString(&kv_metadata_serialized);
+
+  WriteAvroToFile({kTestRecord}, output_stream, 2,
+                  {{kAvroKVFileMetadataKey, kv_metadata_serialized}});
+  output_stream.close();
+
+  AvroConcurrentStreamRecordReader::Options options;
+  AvroConcurrentStreamRecordReader record_reader(
+      [&path] { return std::make_unique<iStreamRecordStream>(path); }, options);
+
+  auto actual_metadata = record_reader.GetKVFileMetadata();
+  ASSERT_TRUE(actual_metadata.ok()) << actual_metadata.status();
+  EXPECT_THAT(*actual_metadata, EqualsProto(kv_metadata));
+
+  // Check that reading metadata does not interfere with reading records.
+  testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(2)
+      .WillRepeatedly([](std::string_view raw) {
+        EXPECT_EQ(raw, kTestRecord);
+        return absl::OkStatus();
+      });
+  auto status =
+      record_reader.ReadStreamRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(AvroStreamIO, SequentialReadingGetKVFileMetadata) {
+  kv_server::InitMetricsContextMap();
+  constexpr std::string_view kFileName = "SequentialReading.avro";
+  const std::filesystem::path path =
+      std::filesystem::path(::testing::TempDir()) / kFileName;
+  std::ofstream output_stream(path);
+
+  KVFileMetadata kv_metadata;
+  kv_metadata.mutable_sharding_metadata()->set_shard_num(17);
+  std::string kv_metadata_serialized;
+  kv_metadata.SerializeToString(&kv_metadata_serialized);
+
+  WriteAvroToFile({kTestRecord}, output_stream, 2,
+                  {{kAvroKVFileMetadataKey, kv_metadata_serialized}});
+  output_stream.close();
+
+  std::ifstream is(path);
+  AvroStreamReader record_reader(is);
+  auto actual_metadata = record_reader.GetKVFileMetadata();
+  ASSERT_TRUE(actual_metadata.ok()) << actual_metadata.status();
+  EXPECT_THAT(*actual_metadata, EqualsProto(kv_metadata));
+
+  // Check that reading metadata does not interfere with reading records.
+  testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(2)
+      .WillRepeatedly([](std::string_view raw) {
+        EXPECT_EQ(raw, kTestRecord);
+        return absl::OkStatus();
+      });
+  auto status =
+      record_reader.ReadStreamRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(AvroStreamIO, ConcurrentReadingKVFileMetadataNotFound) {
+  kv_server::InitMetricsContextMap();
+  constexpr std::string_view kFileName = "ConcurrentReading.avro";
+  const std::filesystem::path path =
+      std::filesystem::path(::testing::TempDir()) / kFileName;
+  std::ofstream output_stream(path);
+
+  WriteAvroToFile({kTestRecord}, output_stream, 2);
+  output_stream.close();
+
+  AvroConcurrentStreamRecordReader::Options options;
+  AvroConcurrentStreamRecordReader record_reader(
+      [&path] { return std::make_unique<iStreamRecordStream>(path); }, options);
+
+  auto actual_metadata = record_reader.GetKVFileMetadata();
+  ASSERT_FALSE(actual_metadata.ok()) << actual_metadata.status();
+
+  testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(2)
+      .WillRepeatedly([](std::string_view raw) {
+        EXPECT_EQ(raw, kTestRecord);
+        return absl::OkStatus();
+      });
+  auto status =
+      record_reader.ReadStreamRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(AvroStreamIO, SequentialReadingKVFileMetadataNotFound) {
+  kv_server::InitMetricsContextMap();
+  constexpr std::string_view kFileName = "SequentialReading.avro";
+  const std::filesystem::path path =
+      std::filesystem::path(::testing::TempDir()) / kFileName;
+  std::ofstream output_stream(path);
+
+  WriteAvroToFile({kTestRecord}, output_stream, 2);
+  output_stream.close();
+
+  std::ifstream is(path);
+  AvroStreamReader record_reader(is);
+  auto actual_metadata = record_reader.GetKVFileMetadata();
+  ASSERT_FALSE(actual_metadata.ok()) << actual_metadata.status();
+
+  testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(2)
+      .WillRepeatedly([](std::string_view raw) {
+        EXPECT_EQ(raw, kTestRecord);
+        return absl::OkStatus();
+      });
+  auto status =
+      record_reader.ReadStreamRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(AvroStreamIO, ConcurrentReadingKVMetadataInvalidProto) {
+  kv_server::InitMetricsContextMap();
+  constexpr std::string_view kFileName = "ConcurrentReading.avro";
+  const std::filesystem::path path =
+      std::filesystem::path(::testing::TempDir()) / kFileName;
+  std::ofstream output_stream(path);
+
+  WriteAvroToFile({kTestRecord}, output_stream, 2,
+                  {{kAvroKVFileMetadataKey, "not a KVFileMetadataProto"}});
+  output_stream.close();
+
+  AvroConcurrentStreamRecordReader::Options options;
+  AvroConcurrentStreamRecordReader record_reader(
+      [&path] { return std::make_unique<iStreamRecordStream>(path); }, options);
+
+  auto actual_metadata = record_reader.GetKVFileMetadata();
+  ASSERT_FALSE(actual_metadata.ok()) << actual_metadata.status();
+
+  // Check that reading metadata does not interfere with reading records.
+  testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(2)
+      .WillRepeatedly([](std::string_view raw) {
+        EXPECT_EQ(raw, kTestRecord);
+        return absl::OkStatus();
+      });
+  auto status =
+      record_reader.ReadStreamRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
+TEST(AvroStreamIO, SequentialReadingKVMetadataInvalidProto) {
+  kv_server::InitMetricsContextMap();
+  constexpr std::string_view kFileName = "SequentialReading.avro";
+  const std::filesystem::path path =
+      std::filesystem::path(::testing::TempDir()) / kFileName;
+  std::ofstream output_stream(path);
+
+  WriteAvroToFile({kTestRecord}, output_stream, 2,
+                  {{kAvroKVFileMetadataKey, "not a KVFileMetadataProto"}});
+  output_stream.close();
+
+  std::ifstream is(path);
+  AvroStreamReader record_reader(is);
+  auto actual_metadata = record_reader.GetKVFileMetadata();
+  ASSERT_FALSE(actual_metadata.ok()) << actual_metadata.status();
+
+  // Check that reading metadata does not interfere with reading records.
+  testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
+  EXPECT_CALL(record_callback, Call)
+      .Times(2)
+      .WillRepeatedly([](std::string_view raw) {
+        EXPECT_EQ(raw, kTestRecord);
+        return absl::OkStatus();
+      });
+  auto status =
+      record_reader.ReadStreamRecords(record_callback.AsStdFunction());
+  EXPECT_TRUE(status.ok()) << status;
+}
+
 TEST(AvroStreamIO, ConcurrentReadingInvalidFile) {
   kv_server::InitMetricsContextMap();
   constexpr std::string_view kFileName = "ConcurrentReading.invalid";

@@ -58,7 +58,9 @@ cc_library(
     ],
     deps = [
         ":stream_record_reader",
+        "//components/errors:error_tag",
         "//components/telemetry:server_definition",
+        "//public/data_loading:record_utils",
         "//public/data_loading:riegeli_metadata_cc_proto",
         "@avro//:avrocpp",
         "@com_google_absl//absl/base",

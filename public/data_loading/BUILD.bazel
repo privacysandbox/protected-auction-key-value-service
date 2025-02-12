@@ -55,6 +55,8 @@ cc_library(
     hdrs = ["record_utils.h"],
     deps = [
         ":data_loading_fbs",
+        "//components/errors:error_tag",
+        "//public/data_loading:riegeli_metadata_cc_proto",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",

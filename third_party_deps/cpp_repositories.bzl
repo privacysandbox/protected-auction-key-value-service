@@ -86,6 +86,8 @@ def cpp_repositories():
         name = "avro",
         build_file = "//third_party_deps:avro.BUILD",
         sha256 = "c849ef7f7af58ce66e7b999b8d9815507d69ae434e7e058a44f7818515455a03",
+        patch_args = ["-p1"],
+        patches = ["//third_party_deps:avro.patch"],
         strip_prefix = "avro-release-1.10.2/lang/c++",
         add_prefix = "third_party/avro",
         urls = [

@@ -94,7 +94,7 @@ shows a sample of what the visualization should look like.
 ![pprof cpu profile visualization](assets/pprof_server_cpu_visualization.png)
 
 More detailed instructions on how to analyze CPU profiles are here:
-[gperftools cpu profiles docs](https://gperftools.github.io/gperftools/cpuprofile.html).
+[gperftools cpu profiles docs](https://github.com/gperftools/gperftools/blob/master/docs/cpuprofile.adoc).
 
 # Generating and visualize heap profiles
 
@@ -119,8 +119,8 @@ docker run \
 
 The command above may generate a number of heap profiles during startup depending on how much data
 needs to be loaded by the server. The
-[gperftools heap profiling docs](https://gperftools.github.io/gperftools/heapprofile.html) has more
-details on env variables that can be used to control the behavior of the heap profiler.
+[gperftools heap profiling docs](https://github.com/gperftools/gperftools/blob/master/docs/heapprofile.adoc)
+has more details on env variables that can be used to control the behavior of the heap profiler.
 
 **STEP 2:** Run the following command to take a heap profile snapshot:
 
@@ -147,7 +147,7 @@ below shows a sample of what the visualization should look like.
 ![pprof heap profile visualization](assets/pprof_server_memory_visualization.png)
 
 More detailed instructions on how to analyze heap profiles are here:
-[gperftools heap profiles docs](https://gperftools.github.io/gperftools/heapprofile.html).
+[gperftools heap profiles docs](https://github.com/gperftools/gperftools/blob/master/docs/heapprofile.adoc).
 
 # Profiling using linux perf
 

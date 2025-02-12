@@ -37,6 +37,10 @@ absl::StatusOr<const FbsRecordT*> DeserializeAndVerifyRecord(
 }
 
 absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
+  // The server must know what value_type the record, even for Delete records.
+  // To set the value_type, flatbuffer requires setting the value to a
+  // StringValue, StringSetValue, etc.
+  // However, the actual value in StringValue can be unset.
   if (kv_mutation_record.value() == nullptr) {
     return absl::InvalidArgumentError("Value not set.");
   }

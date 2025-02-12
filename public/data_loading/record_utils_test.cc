@@ -391,7 +391,6 @@ TEST(DataRecordTest, DeserializeDataRecordWithNoValueDeleteMutationSuccess) {
   kv_mutation_record_native.logical_commit_time = 5;
   kv_mutation_record_native.key = "key";
   StringValueT string_native;
-  string_native.value = "";
   kv_mutation_record_native.value.Set(std::move(string_native));
   kv_mutation_record_native.mutation_type = KeyValueMutationType::Delete;
   DataRecordT data_record_native;

@@ -17,6 +17,7 @@
 #ifndef PUBLIC_DATA_LOADING_WRITERS_AVRO_DELTA_RECORD_STREAM_WRITER_H_
 #define PUBLIC_DATA_LOADING_WRITERS_AVRO_DELTA_RECORD_STREAM_WRITER_H_
 
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -65,12 +66,21 @@ AvroDeltaRecordStreamWriter::AvroDeltaRecordStreamWriter(
 template <typename DestStreamT>
 absl::StatusOr<std::unique_ptr<AvroDeltaRecordStreamWriter>>
 AvroDeltaRecordStreamWriter::Create(DestStreamT& dest_stream, Options options) {
-  avro::OutputStreamPtr avro_output_stream =
-      avro::ostreamOutputStream(dest_stream);
-  auto stream_writer = std::make_unique<avro::DataFileWriter<std::string>>(
-      std::move(avro_output_stream), avro::ValidSchema(avro::BytesSchema()));
-  return absl::WrapUnique(
-      new AvroDeltaRecordStreamWriter(std::move(stream_writer)));
+  try {
+    std::string kv_file_metadata;
+    options.metadata.SerializeToString(&kv_file_metadata);
+    std::map<std::string, std::string> metadata = {
+        {kAvroKVFileMetadataKey, std::move(kv_file_metadata)}};
+    avro::OutputStreamPtr avro_output_stream =
+        avro::ostreamOutputStream(dest_stream);
+    auto stream_writer = std::make_unique<avro::DataFileWriter<std::string>>(
+        std::move(avro_output_stream), avro::ValidSchema(avro::BytesSchema()),
+        16 * 1024, avro::Codec::NULL_CODEC, std::move(metadata));
+    return absl::WrapUnique(
+        new AvroDeltaRecordStreamWriter(std::move(stream_writer)));
+  } catch (const std::exception& e) {
+    return absl::InternalError(e.what());
+  }
 }
 
 absl::Status AvroDeltaRecordStreamWriter::WriteRecord(

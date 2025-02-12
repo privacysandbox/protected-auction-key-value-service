@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/delta_record_reader.h"
@@ -50,8 +51,7 @@ template <typename SrcStreamT = std::iostream>
 class AvroDeltaRecordStreamReader : public DeltaRecordReader {
  public:
   explicit AvroDeltaRecordStreamReader(SrcStreamT& src_stream)
-      : data_file_reader_(std::make_unique<avro::DataFileReader<std::string>>(
-            avro::istreamInputStream(src_stream))) {}
+      : src_stream_(src_stream) {}
 
   AvroDeltaRecordStreamReader(const AvroDeltaRecordStreamReader&) = delete;
   AvroDeltaRecordStreamReader& operator=(const AvroDeltaRecordStreamReader&) =
@@ -61,10 +61,10 @@ class AvroDeltaRecordStreamReader : public DeltaRecordReader {
                                record_callback) override;
   bool IsOpen() const override { return true; };
   absl::Status Status() const override { return absl::OkStatus(); }
-  absl::StatusOr<KVFileMetadata> ReadMetadata() { return KVFileMetadata(); }
+  absl::StatusOr<KVFileMetadata> ReadMetadata();
 
  private:
-  std::unique_ptr<avro::DataFileReader<std::string>> data_file_reader_;
+  SrcStreamT& src_stream_;
 };
 
 template <typename SrcStreamT>
@@ -72,12 +72,33 @@ absl::Status AvroDeltaRecordStreamReader<SrcStreamT>::ReadRecords(
     const std::function<absl::Status(const DataRecord&)>& record_callback) {
   std::string record_string;
   absl::Status status = absl::OkStatus();
-  while (data_file_reader_->read(record_string)) {
+  avro::DataFileReader<std::string> reader(
+      avro::istreamInputStream(src_stream_));
+  while (reader.read(record_string)) {
     const DataRecord* fbs_record =
         flatbuffers::GetRoot<DataRecord>(record_string.data());
     status.Update(record_callback(*fbs_record));
   }
   return status;
+}
+
+template <typename SrcStreamT>
+absl::StatusOr<KVFileMetadata>
+AvroDeltaRecordStreamReader<SrcStreamT>::ReadMetadata() {
+  try {
+    // Reset stream to beginning
+    src_stream_.clear();
+    src_stream_.seekg(0);
+    avro::DataFileReader<std::string> reader(
+        avro::istreamInputStream(src_stream_));
+    std::string serialized_metadata =
+        reader.getMetadata(kAvroKVFileMetadataKey);
+    src_stream_.clear();
+    src_stream_.seekg(0);
+    return GetKVFileMetadataFromString(serialized_metadata);
+  } catch (const std::exception& e) {
+    return absl::InternalError(e.what());
+  }
 }
 
 }  // namespace kv_server

@@ -195,3 +195,20 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "avro_delta_record_stream_reader_test",
+    size = "small",
+    srcs = ["avro_delta_record_stream_reader_test.cc"],
+    copts = [
+        "-fexceptions",
+    ],
+    deps = [
+        ":avro_delta_record_stream_reader",
+        "//public/data_loading:record_utils",
+        "//public/data_loading/writers:avro_delta_record_stream_writer",
+        "//public/test_util:data_record",
+        "//public/test_util:proto_matcher",
+        "@com_google_googletest//:gtest_main",
+    ],
+)

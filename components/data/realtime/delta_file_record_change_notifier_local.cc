@@ -25,7 +25,7 @@ namespace {
 
 using privacy_sandbox::server_common::GetTracer;
 
-constexpr char* kReceivedLowLatencyNotificationsLocally =
+constexpr char kReceivedLowLatencyNotificationsLocally[] =
     "ReceivedLowLatencyNotificationsLocally";
 
 class LocalDeltaFileRecordChangeNotifier

@@ -104,11 +104,11 @@ ABSL_FLAG(bool, use_default_generation_id, true,
 
 namespace kv_server {
 
-constexpr char* kRequestSimulationServiceName = "request-simulation";
-constexpr char* kTestingServer = "testing.server";
+constexpr char kRequestSimulationServiceName[] = "request-simulation";
+constexpr char kTestingServer[] = "testing.server";
 constexpr int kMetricsExportIntervalInMs = 5000;
 constexpr int kMetricsExportTimeoutInMs = 500;
-constexpr char* kDefaultGenerationIdForConsentedRequests = "consented";
+constexpr char kDefaultGenerationIdForConsentedRequests[] = "consented";
 
 using opentelemetry::sdk::resource::Resource;
 using opentelemetry::sdk::resource::ResourceAttributes;

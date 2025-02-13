@@ -54,8 +54,6 @@ constexpr char kAdComponentRenderUrlsTag[] = "adComponentRenderUrls";
 constexpr char kKvInternalTag[] = "kvInternal";
 constexpr char kCustomTag[] = "custom";
 
-constexpr int kUdfInputApiVersion = 1;
-
 UDFArgument BuildArgument(const RepeatedPtrField<std::string>& keys,
                           std::string namespace_tag) {
   UDFArgument arg;

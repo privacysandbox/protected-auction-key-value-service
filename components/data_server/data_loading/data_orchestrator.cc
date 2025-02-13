@@ -464,7 +464,7 @@ class DataOrchestratorImpl : public DataOrchestrator {
         continue;
       }
       RetryUntilOk(
-          [this, &basename, &blob] {
+          [this, &blob] {
             // TODO: distinguish status. Some can be retried while others
             // are fatal.
             return TraceLoadCacheWithDataFromFile(
@@ -530,8 +530,11 @@ class DataOrchestratorImpl : public DataOrchestrator {
         }
         PS_LOG(INFO, options.log_context)
             << "Loading snapshot file: " << snapshot_blob;
-        PS_ASSIGN_OR_RETURN(
-            auto stats, TraceLoadCacheWithDataFromFile(snapshot_blob, options));
+        if (const auto s =
+                TraceLoadCacheWithDataFromFile(snapshot_blob, options);
+            !s.ok()) {
+          return s.status();
+        }
         if (auto iter = ending_delta_files.find(prefix);
             iter == ending_delta_files.end() ||
             metadata.snapshot().ending_delta_file() > iter->second) {

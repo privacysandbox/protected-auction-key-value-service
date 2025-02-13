@@ -29,9 +29,9 @@ namespace {
 
 using privacy_sandbox::server_common::GetTracer;
 
-constexpr char* kReceivedLowLatencyNotifications =
+constexpr char kReceivedLowLatencyNotifications[] =
     "ReceivedLowLatencyNotifications";
-constexpr char* kDeltaFileRecordChangeNotifierParsingFailure =
+constexpr char kDeltaFileRecordChangeNotifierParsingFailure[] =
     "DeltaFileRecordChangeNotifierParsingFailure";
 
 struct ParsedBody {

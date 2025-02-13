@@ -150,13 +150,12 @@ TEST_F(RateLimiterTest,
   std::atomic<int> acquire_success_count = 0;
   for (int i = 0; i < std::min(50, (int)std::thread::hardware_concurrency());
        ++i) {
-    threads.emplace_back(
-        [&rate_limiter, &start, &acquire_success_count, this]() {
-          start.WaitForNotification();
-          if (rate_limiter.Acquire().ok()) {
-            acquire_success_count.fetch_add(1, std::memory_order_relaxed);
-          }
-        });
+    threads.emplace_back([&rate_limiter, &start, &acquire_success_count]() {
+      start.WaitForNotification();
+      if (rate_limiter.Acquire().ok()) {
+        acquire_success_count.fetch_add(1, std::memory_order_relaxed);
+      }
+    });
   }
   start.Notify();
   for (auto& thread : threads) {

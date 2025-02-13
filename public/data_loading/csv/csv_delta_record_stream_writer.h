@@ -87,7 +87,6 @@ class CsvDeltaRecordStreamWriter : public DeltaRecordWriter {
       delete;
 
   absl::Status WriteRecord(const DataRecordT& data_record) override;
-  [[deprecated("Use corresponding DataRecordT-based function")]]
   absl::Status Flush() override;
   const Options& GetOptions() const override { return options_; }
   void Close() override { record_writer_.Close(); }

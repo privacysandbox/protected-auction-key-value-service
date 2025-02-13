@@ -243,11 +243,8 @@ At least the following AWS resources should have been generated:
 
 -   EC2
     -   Visit the EC2 console and confirm that new instances have been generated.
-    -   There should be at least 2 instances, depending on the autoscaling capacity you have
-        specified.
-        -   There is an SSH instance that you will use to SSH into the Key/Value server instances.
-        -   There are at least one or more Key/Value server instances that run the actual server
-            code.
+    -   There should be at least 1 Key/Value server instance, depending on the autoscaling capacity
+        you have specified.
     -   Confirm that "Instance state" is showing "Running", and "Status check" shows "2/2 checks
         passed".
 -   S3
@@ -328,8 +325,9 @@ grpcurl --protoset dist/query_api_descriptor_set.pb -d '{"raw_body": {"data": "'
 ```
 
 If you deploy the Key/Value server under the same VPC as the B&A servers (terraform variable
-`use_existing_vpc` is set to `true`), you can ssh into the target B&A server (must be a server that
-is configured to query the Key/Value server), and then use the following command to place a query:
+`use_existing_vpc` is set to `true`), you can connect to the target B&A server (must be a server
+that is configured to query the Key/Value server) via Session Manager, and then use the following
+command to place a query:
 
 ```sh
 grpcurl --plaintext -d '{"kv_internal":"hi"}'  kv-server-<kv_environment>-appmesh-virtual-service.kv-server.privacysandboxdemo.app:50051 kv_server.v1.KeyValueService.GetValues
@@ -337,63 +335,10 @@ grpcurl --plaintext -d '{"kv_internal":"hi"}'  kv-server-<kv_environment>-appmes
 
 where `<kv_environment>` should be replaced by the Key/Value server's `environment`.
 
-## SSH into EC2
-
-![how a single SSH instance is used to log into multiple server instances](../assets/ssh_instance.png)
-
-### Step 1: SSH into the SSH EC2 instance
-
-The SSH instance is a dedicated EC2 instance for operators to SSH from the public internet. Access
-to this instance is controlled by an IAM group named `kv-server-[[ENVIRONMENT]]-ssh-users` created
-as part of [applying terraform](#apply-terraform). Membership is managed through the
-[AWS Console](https://aws.amazon.com) and we need to make sure that our IAM user is a member before
-proceeding. We will need either the instance id (if connecting using EC2 instance connect cli) or
-the public IP dns (if connecting using own key and SSH client) of the SSH instance and both can be
-retrieved from the EC2 dashboard.
-
-![where to find the instance id or public dns for the EC2 instance](../assets/ec2_instance_id_and_public_dns.png)
-
-Confirm that you can SSH into your SSH EC2 instance by following the instructions on
-[Connect using EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html).
-For example, to connect to the SSH instance using EC2 instance connect cli from a Linux machine,
-install the cli using the following command and restart your terminal.
-
-Note: the following command assumes you've created a
-[python3 virtualenv](https://docs.python.org/3/tutorial/venv.html) named `ec2cli`, though you can
-choose to install this tool a different way.
-
-```sh
-ec2cli/bin/pip3 install ec2instanceconnectcli
-```
-
-Then, login into the SSH instance using the instance id and specifying the [[REGION]]:
-
-```sh
-ec2cli/bin/mssh i-0b427bcab8fe23afb --region us-east-1
-```
-
-If you are having trouble connecting to your EC2 instance, look through the
-[AWS SSH connection article](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html#ec2-instance-connect-connecting-aws-cli).
-To perform advanced operations such as copying files, follow the instructions in the article to set
-up connection using your own keys.
-
-### Step 2: SSH into the actual EC2 instance from the SSH instance
-
-Once you have logged into the SSH instance, login to the desired server instance by following the
-instructions on
-[Connect using EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html)
-again. For example, to connect to our desired server instance using EC2 instance connect cli, use
-the following (note that `mssh` is already pre-installed on the SSH instance and our desired server
-instance id is `i-00f54fe22aa47367f`):
-
-```sh
-mssh i-00f54fe22aa47367f --region us-east-1
-```
-
-### Alternative: Connect via Session Manager
+## Connect to EC2 instance via Session Manager
 
 Navigate to actual EC2 instance and connect via Session Manager by following the instructions on
-[Connect to your Amazon EC2 instance using Session Manager](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-methods.html)
+[Connect to your Amazon EC2 instance using Session Manager](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-with-systems-manager-session-manager.html)
 
 Once you have connected to the instance, run `ls` to see the content of the server. The output
 should look similar to something like this:
@@ -407,8 +352,8 @@ proxy  server_enclave_image.eif  vsockproxy.service
 ## Check the Key/Value server
 
 The server EC2 instance is set up to automatically start the Key/Value server on setup, and when you
-SSH into your server instance the first time, the server should be already running. Verify the
-server is running by executing:
+connect to your server instance (via Session manager) the first time, the server should be already
+running. Verify the server is running by executing:
 
 ```sh
 nitro-cli describe-enclaves
@@ -508,9 +453,10 @@ To inspect container logs:
 
 1. Use the `docker logs` [command](https://docs.docker.com/engine/reference/commandline/logs/).
 
-### 2. SSH into instance & run Docker
+### 2. Connect to instance & run Docker
 
-Alternatively, you can SSH into an existing server instance and start the Docker container manually.
+Alternatively, you can connect to an existing server instance and start the Docker container
+manually.
 
 1. Load the docker image
 

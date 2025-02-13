@@ -136,9 +136,10 @@ class ShardedServerInitializer : public ServerInitializer {
                             num_shards = num_shards_,
                             current_shard_num = current_shard_num_,
                             &shard_manager = *maybe_shard_state->shard_manager,
-                            &key_sharder = key_sharder_]() {
+                            &key_sharder = key_sharder_,
+                            add_chaff = add_chaff]() {
       return CreateShardedLookup(local_lookup, num_shards, current_shard_num,
-                                 shard_manager, key_sharder);
+                                 shard_manager, key_sharder, add_chaff);
     };
     InitializeUdfHooksInternal(
         std::move(lookup_supplier), string_get_values_hook,

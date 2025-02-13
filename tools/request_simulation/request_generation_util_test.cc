@@ -29,8 +29,9 @@ TEST(TestCreateMessage, ProtoMessageMatchJson) {
   const auto request = kv_server::CreatePlainTextRequest(request_in_json);
   EXPECT_EQ(request_in_json, request.raw_body().data());
   std::string encoded_request_body;
-  google::protobuf::util::MessageToJsonString(request.raw_body(),
-                                              &encoded_request_body);
+  ASSERT_TRUE(google::protobuf::util::MessageToJsonString(request.raw_body(),
+                                                          &encoded_request_body)
+                  .ok());
   std::string expect_encoded_request_body = absl::StrCat(
       "{\"data\":", "\"", absl::Base64Escape(request_in_json), "\"", "}");
   EXPECT_EQ(encoded_request_body, expect_encoded_request_body);

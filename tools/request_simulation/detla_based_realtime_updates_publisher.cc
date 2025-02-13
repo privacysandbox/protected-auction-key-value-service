@@ -136,7 +136,11 @@ DeltaBasedRealtimeUpdatesPublisher::CreateRealtimeMessagesAndAddToQueue(
       if (kv_mutation_record->value_type() == Value::StringValue) {
         KeyValueMutationRecordT kv_record_struct;
         kv_mutation_record->UnPackTo(&kv_record_struct);
-        realtime_message_batcher_->Insert(std::move(kv_record_struct));
+        auto insert_status =
+            realtime_message_batcher_->Insert(std::move(kv_record_struct));
+        if (!insert_status.ok()) {
+          LOG(ERROR) << "Error inserting KV record: " << insert_status;
+        }
         if (kv_record_struct.mutation_type == KeyValueMutationType::Update) {
           data_loading_stats.total_updated_records++;
         } else if (kv_record_struct.mutation_type ==

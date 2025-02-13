@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "absl/log/log.h"
+#include "components/telemetry/server_definition.h"
 
 ABSL_FLAG(absl::Duration, metrics_report_interval, absl::Minutes(1),
           "The interval for reporting metrics");
@@ -85,16 +86,24 @@ void MetricsCollector::PublishMetrics() {
     auto p50_latency = GetPercentileLatency(0.5);
     auto p90_latency = GetPercentileLatency(0.9);
     auto p99_latency = GetPercentileLatency(0.99);
-    RequestSimulationContextMap()->SafeMetric().LogUpDownCounter<kRequestsSent>(
-        (int)requests_sent);
-    RequestSimulationContextMap()->SafeMetric().LogUpDownCounter<kEstimatedQPS>(
-        (int)estimated_qps);
-    RequestSimulationContextMap()->SafeMetric().LogHistogram<kP99GrpcLatencyMs>(
-        ((int)absl::ToInt64Milliseconds(p99_latency)));
-    RequestSimulationContextMap()->SafeMetric().LogHistogram<kP90GrpcLatencyMs>(
-        ((int)absl::ToInt64Milliseconds(p90_latency)));
-    RequestSimulationContextMap()->SafeMetric().LogHistogram<kP50GrpcLatencyMs>(
-        ((int)absl::ToInt64Milliseconds(p50_latency)));
+    LogIfError(RequestSimulationContextMap()
+                   ->SafeMetric()
+                   .LogUpDownCounter<kRequestsSent>((int)requests_sent));
+    LogIfError(RequestSimulationContextMap()
+                   ->SafeMetric()
+                   .LogUpDownCounter<kEstimatedQPS>((int)estimated_qps));
+    LogIfError(RequestSimulationContextMap()
+                   ->SafeMetric()
+                   .LogHistogram<kP99GrpcLatencyMs>(
+                       ((int)absl::ToInt64Milliseconds(p99_latency))));
+    LogIfError(RequestSimulationContextMap()
+                   ->SafeMetric()
+                   .LogHistogram<kP90GrpcLatencyMs>(
+                       ((int)absl::ToInt64Milliseconds(p90_latency))));
+    LogIfError(RequestSimulationContextMap()
+                   ->SafeMetric()
+                   .LogHistogram<kP50GrpcLatencyMs>(
+                       ((int)absl::ToInt64Milliseconds(p50_latency))));
     LOG(INFO) << "Metrics Summary: ";
     LOG(INFO) << "Number of requests sent:" << requests_sent;
     LOG(INFO) << "Number of requests with ok responses:"
@@ -131,10 +140,10 @@ int64_t MetricsCollector::GetQPS() {
 }
 void MetricsCollector::IncrementServerResponseStatusEvent(
     const absl::Status& status) {
-  RequestSimulationContextMap()
-      ->SafeMetric()
-      .LogUpDownCounter<kServerResponseStatus>(
-          {{absl::StatusCodeToString(status.code()), 1}});
+  LogIfError(RequestSimulationContextMap()
+                 ->SafeMetric()
+                 .LogUpDownCounter<kServerResponseStatus>(
+                     {{absl::StatusCodeToString(status.code()), 1}}));
 }
 
 }  // namespace kv_server

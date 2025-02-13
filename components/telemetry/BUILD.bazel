@@ -18,6 +18,7 @@ package(default_visibility = [
     "//components:__subpackages__",
     "//production/packaging:__subpackages__",
     "//public:__subpackages__",
+    "//tools:__subpackages__",
 ])
 
 # TODO: b/272282272 move/refactor this code when telemetry is moved to common

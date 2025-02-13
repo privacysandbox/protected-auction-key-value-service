@@ -30,7 +30,7 @@ namespace {
 using privacy_sandbox::server_common::KeyFetcherManagerInterface;
 using ::privacy_sandbox::server_common::TraceRetryUntilOk;
 
-absl::Status InitializeUdfHooksInternal(
+void InitializeUdfHooksInternal(
     std::function<std::unique_ptr<Lookup>()> get_lookup,
     GetValuesHook& string_get_values_hook,
     GetValuesHook& binary_get_values_hook,
@@ -48,7 +48,6 @@ absl::Status InitializeUdfHooksInternal(
   run_set_query_uint32_hook.FinishInit(get_lookup());
   PS_VLOG(9, log_context) << "Finishing runSetQueryUInt64 init";
   run_set_query_uint64_hook.FinishInit(get_lookup());
-  return absl::OkStatus();
 }
 
 class NonshardedServerInitializer : public ServerInitializer {

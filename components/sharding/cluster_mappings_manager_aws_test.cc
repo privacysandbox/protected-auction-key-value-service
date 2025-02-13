@@ -246,7 +246,7 @@ TEST_F(ClusterMappingsAwsTest, UpdateMappings) {
   MockParameterFetcher parameter_fetcher;
   auto mgr = ClusterMappingsManager::Create(
       environment, num_shards, *instance_client, parameter_fetcher);
-  mgr->Start(*shard_manager);
+  ASSERT_TRUE(mgr->Start(*shard_manager).ok());
   finished.WaitForNotification();
   ASSERT_TRUE(mgr->Stop().ok());
   EXPECT_FALSE(mgr->IsRunning());

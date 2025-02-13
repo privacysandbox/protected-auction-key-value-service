@@ -136,7 +136,10 @@ SnapshotStreamWriter<DestStreamT>::SnapshotStreamWriter(
 
 template <typename DestStreamT>
 SnapshotStreamWriter<DestStreamT>::~SnapshotStreamWriter() {
-  Finalize();
+  auto status = Finalize();
+  if (!status.ok()) {
+    LOG(ERROR) << status;
+  }
 }
 
 template <typename DestStreamT>

@@ -81,6 +81,7 @@ cc_library(
     hdrs = ["metrics_collector.h"],
     deps = [
         "//components/data/common:thread_manager",
+        "//components/telemetry:server_definition",
         "@com_github_grpc_grpc//test/core/util:grpc_test_util_base",
         "@com_google_absl//absl/log",
         "@google_privacysandbox_servers_common//src/metric:context_map",

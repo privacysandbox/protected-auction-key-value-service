@@ -283,6 +283,7 @@ TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
       "key1": { "value": [[[1,2,3,4]],null,["123456789","123456789"],["v1"]] },
       "key2":{ "value": {"k2":"v","k1":123} },
       "key3":{ "value": "v3" }
+    }
   })json";
 
   EXPECT_CALL(mock_cache_,
@@ -304,8 +305,9 @@ TEST_F(GetValuesHandlerTest, TestResponseOnDifferentValueFormats) {
   TextFormat::ParseFromString(response_pb_string, &expected_from_pb);
   EXPECT_THAT(response, EqualsProto(expected_from_pb));
   GetValuesResponse expected_from_json;
-  google::protobuf::util::JsonStringToMessage(response_json_string,
-                                              &expected_from_json);
+  ASSERT_TRUE(google::protobuf::util::JsonStringToMessage(response_json_string,
+                                                          &expected_from_json)
+                  .ok());
   EXPECT_THAT(response, EqualsProto(expected_from_json));
 }
 

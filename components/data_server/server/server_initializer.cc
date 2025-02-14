@@ -24,6 +24,7 @@
 #include "components/internal_server/lookup_server_impl.h"
 #include "components/internal_server/sharded_lookup.h"
 #include "src/encryption/key_fetcher/key_fetcher_manager.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 namespace {
@@ -130,17 +131,17 @@ class ShardedServerInitializer : public ServerInitializer {
     if (!maybe_shard_state.ok()) {
       return maybe_shard_state.status();
     }
-    const bool add_chaff =
-        parameter_fetcher_.ShouldAddChaffCalloutsToShardCluster();
-    auto lookup_supplier = [&local_lookup = local_lookup_,
-                            num_shards = num_shards_,
-                            current_shard_num = current_shard_num_,
-                            &shard_manager = *maybe_shard_state->shard_manager,
-                            &key_sharder = key_sharder_,
-                            add_chaff = add_chaff]() {
-      return CreateShardedLookup(local_lookup, num_shards, current_shard_num,
-                                 shard_manager, key_sharder, add_chaff);
-    };
+    auto lookup_supplier =
+        [&local_lookup = local_lookup_, num_shards = num_shards_,
+         current_shard_num = current_shard_num_,
+         &shard_manager = *maybe_shard_state->shard_manager,
+         &key_sharder = key_sharder_,
+         add_chaff =
+             parameter_fetcher_.ShouldAddChaffCalloutsToShardCluster()]() {
+          return CreateShardedLookup(local_lookup, num_shards,
+                                     current_shard_num, shard_manager,
+                                     key_sharder, add_chaff);
+        };
     InitializeUdfHooksInternal(
         std::move(lookup_supplier), string_get_values_hook,
         binary_get_values_hook, run_set_query_string_hook,

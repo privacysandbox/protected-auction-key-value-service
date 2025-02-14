@@ -64,7 +64,7 @@ TEST(CompressionGroupConcatenatorTest, Success) {
   BrotliCompressionGroupConcatenator concatenator;
   concatenator.AddCompressionGroup(std::string(kTestString));
   concatenator.AddCompressionGroup(std::string(kTestString2));
-  std::string large_message('a', 500);
+  std::string large_message(500, 'a');
   concatenator.AddCompressionGroup(large_message);
 
   auto maybe_output = concatenator.Build();

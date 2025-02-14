@@ -31,10 +31,8 @@ class RealtimeThreadPoolManagerAws : public RealtimeThreadPoolManager {
         log_context_(log_context) {}
 
   ~RealtimeThreadPoolManagerAws() override {
-    auto status = Stop();
-    if (!status.ok()) {
-      PS_LOG(ERROR, log_context_)
-          << "Error stopping RealtimeThreadPoolManagerAWS: " << status;
+    if (auto status = Stop(); !status.ok()) {
+      LOG(ERROR) << "Failed to Stop(): " << status;
     }
   }
 

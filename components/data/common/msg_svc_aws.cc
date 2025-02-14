@@ -73,8 +73,7 @@ class AwsMessageService : public MessageService {
       : prefix_(std::move(prefix)),
         sns_arn_(std::move(sns_arn)),
         environment_(std::move(environment)),
-        shard_num_(shard_num),
-        log_context_(log_context) {}
+        shard_num_(shard_num) {}
 
   bool IsSetupComplete() const {
     absl::ReaderMutexLock lock(&mutex_);
@@ -198,7 +197,6 @@ class AwsMessageService : public MessageService {
   std::string sqs_arn_;
   bool are_attributes_set_ = false;
   std::optional<int32_t> shard_num_;
-  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace

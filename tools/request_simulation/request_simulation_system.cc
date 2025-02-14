@@ -259,12 +259,12 @@ absl::Status RequestSimulationSystem::Init(
           std::move(concurrent_publishing_engine_),
           DeltaBasedRealtimeUpdatesPublisher::Options{
               .data_bucket = absl::GetFlag(FLAGS_delta_file_bucket),
+              .realtime_messages = realtime_messages_,
+              .realtime_messages_mutex = realtime_messages_mutex_,
               .blob_client = *blob_storage_client_,
               .delta_notifier = *realtime_delta_file_notifier_,
               .change_notifier = *realtime_blob_change_notifier_,
               .delta_stream_reader_factory = *delta_stream_reader_factory_,
-              .realtime_messages = realtime_messages_,
-              .realtime_messages_mutex = realtime_messages_mutex_,
           });
 
   LOG(INFO) << "Request simulation system is initialized,"

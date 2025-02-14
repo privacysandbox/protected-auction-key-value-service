@@ -74,8 +74,10 @@ NotifierMetadata ParameterFetcher::GetRealtimeNotifierMetadata(
   PS_LOG(INFO, log_context_)
       << "Retrieved " << kDataLoadingRealtimeChannelSNSParameterSuffix
       << " parameter: " << realtime_sns_arn;
-  return AwsNotifierMetadata{"QueueNotifier_", std::move(realtime_sns_arn),
-                             .num_shards = num_shards, .shard_num = shard_num,
+  return AwsNotifierMetadata{.queue_prefix = "QueueNotifier_",
+                             .sns_arn = std::move(realtime_sns_arn),
+                             .num_shards = num_shards,
+                             .shard_num = shard_num,
                              .environment = environment_};
 }
 

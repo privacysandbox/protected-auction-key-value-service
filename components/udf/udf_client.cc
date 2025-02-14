@@ -68,8 +68,8 @@ class UdfClientImpl : public UdfClient {
                          int udf_min_log_level = 0)
       : udf_timeout_(udf_timeout),
         udf_update_timeout_(udf_update_timeout),
-        roma_service_(std::move(config)),
-        udf_min_log_level_(udf_min_log_level) {}
+        udf_min_log_level_(udf_min_log_level),
+        roma_service_(std::move(config)) {}
 
   // Converts the arguments into plain JSON strings to pass to Roma.
   absl::StatusOr<std::string> ExecuteCode(
@@ -306,8 +306,8 @@ class UdfClientImpl : public UdfClient {
             .tags = {{std::string(kTimeoutDurationTag),
                       FormatDuration(udf_timeout_)}},
             .input = std::move(input),
-            .metadata = request_context_factory.GetWeakCopy(),
-            .min_log_level = absl::LogSeverity(udf_min_log_level_)};
+            .min_log_level = absl::LogSeverity(udf_min_log_level_),
+            .metadata = request_context_factory.GetWeakCopy()};
   }
 
   CodeObject BuildCodeObject(std::string js, std::string wasm,

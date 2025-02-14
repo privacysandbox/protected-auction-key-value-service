@@ -54,8 +54,7 @@ class ShardManagerImpl : public ShardManager {
       privacy_sandbox::server_common::log::PSLogContext& log_context)
       : num_shards_{num_shards},
         client_factory_{client_factory},
-        random_generator_{std::move(random_generator)},
-        log_context_(log_context) {}
+        random_generator_{std::move(random_generator)} {}
 
   // taking in a set to exclude duplicates.
   // set doesn't have an O(1) lookup --> converting to vector.
@@ -111,7 +110,6 @@ class ShardManagerImpl : public ShardManager {
   std::function<std::unique_ptr<RemoteLookupClient>(const std::string& ip)>
       client_factory_;
   std::unique_ptr<RandomGenerator> random_generator_;
-  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 absl::Status ValidateMapping(

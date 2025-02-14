@@ -242,8 +242,7 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
   SetQueueManager(metadata, message_service_verbosity_param_update_.get());
   auto logging_verbosity_notifier_status = ParameterNotifier::Create(
       metadata,
-      std::move(parameter_fetcher.GetParamName(
-          kLoggingVerbosityLevelParameterSuffix)),
+      parameter_fetcher.GetParamName(kLoggingVerbosityLevelParameterSuffix),
       absl::Seconds(backup_poll_frequency_secs), server_safe_log_context_);
   if (logging_verbosity_notifier_status.ok()) {
     logging_verbosity_param_notifier_ =
@@ -343,8 +342,7 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
 
   ParameterFetcher parameter_fetcher(
       environment_, *parameter_client_,
-      std::move(LogStatusSafeMetricsFn<kGetParameterStatus>()),
-      server_safe_log_context_);
+      LogStatusSafeMetricsFn<kGetParameterStatus>(), server_safe_log_context_);
 
   int32_t number_of_workers =
       parameter_fetcher.GetInt32Parameter(kUdfNumWorkersParameterSuffix);
@@ -439,8 +437,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       LifecycleHeartbeat::Create(*instance_client_, server_safe_log_context_);
   ParameterFetcher parameter_fetcher(
       environment_, *parameter_client_,
-      std::move(LogStatusSafeMetricsFn<kGetParameterStatus>()),
-      server_safe_log_context_);
+      LogStatusSafeMetricsFn<kGetParameterStatus>(), server_safe_log_context_);
   if (absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
       status != absl::OkStatus()) {
     return status;
@@ -689,8 +686,8 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
             .delta_notifier = *notifier_,
             .change_notifier = *change_notifier_,
             .delta_stream_reader_factory = *delta_stream_reader_factory_,
-            .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
             .udf_client = *udf_client_,
+            .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
             .shard_num = shard_num_,
             .num_shards = num_shards_,
             .key_sharder = std::move(key_sharder),
@@ -748,7 +745,7 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
       std::string(kAutoscalerHealthcheck), true);
   server->GetHealthCheckService()->SetServingStatus(
       std::string(kLoadbalancerHealthcheck), false);
-  return std::move(server);
+  return server;
 }
 
 absl::Status Server::SetDefaultUdfCodeObject() {

@@ -57,8 +57,8 @@ class AwsChangeNotifier : public ChangeNotifier {
   explicit AwsChangeNotifier(
       AwsNotifierMetadata notifier_metadata,
       privacy_sandbox::server_common::log::PSLogContext& log_context)
-      : sns_arn_(std::move(notifier_metadata.sns_arn)),
-        queue_manager_(notifier_metadata.queue_manager),
+      : queue_manager_(notifier_metadata.queue_manager),
+        sns_arn_(std::move(notifier_metadata.sns_arn)),
         log_context_(log_context) {
     if (notifier_metadata.only_for_testing_sqs_client_ != nullptr) {
       sqs_.reset(notifier_metadata.only_for_testing_sqs_client_);
@@ -175,7 +175,7 @@ class AwsChangeNotifier : public ChangeNotifier {
 
     std::vector<std::string> keys;
     keys.reserve(messages.size());
-    size_t total_message_size;
+    size_t total_message_size = 0;
     for (const auto& message : messages) {
       keys.push_back(message.GetBody());
       total_message_size += message.GetBody().size();

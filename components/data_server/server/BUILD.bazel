@@ -346,6 +346,7 @@ cc_library(
         "//components/udf/hooks:run_query_hook",
         "//public/sharding:key_sharder",
         "@com_google_absl//absl/log",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )
 

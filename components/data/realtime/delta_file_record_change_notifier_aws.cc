@@ -59,8 +59,8 @@ class AwsDeltaFileRecordChangeNotifier : public DeltaFileRecordChangeNotifier {
     }
 
     auto span = GetTracer()->StartSpan(kReceivedLowLatencyNotifications);
-    NotificationsContext nc = {.scope = opentelemetry::trace::Scope(span),
-                               .notifications_received = absl::Now()};
+    NotificationsContext nc = {.notifications_received = absl::Now(),
+                               .scope = opentelemetry::trace::Scope(span)};
     std::vector<std::string> realtime_messages;
     for (const auto& message : *notifications) {
       const auto parsedMessage = ParseObjectKeyFromJson(message);

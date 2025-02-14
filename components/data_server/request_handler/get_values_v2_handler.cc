@@ -43,13 +43,9 @@
 #include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
-using google::protobuf::RepeatedPtrField;
-using google::protobuf::util::JsonStringToMessage;
-using google::protobuf::util::MessageToJsonString;
 using grpc::StatusCode;
 using privacy_sandbox::server_common::FromAbslStatus;
 using v2::GetValuesHttpRequest;
-using v2::KeyValueService;
 using v2::ObliviousGetValuesRequest;
 
 constexpr std::string_view kIsPas = "is_pas";

@@ -64,13 +64,13 @@ RealtimeMessageBatcher::RealtimeMessageBatcher(
     std::vector<DeltaRecordLimitingFileWriterWrapper> writer_wrappers,
     std::queue<RealtimeMessage>& realtime_messages, absl::Mutex& queue_mutex,
     int num_shards, int message_size_kb)
-    : writer_wrappers_(std::move(writer_wrappers)),
+    : mutex_(queue_mutex),
       realtime_messages_(realtime_messages),
-      mutex_(queue_mutex),
-      num_shards_(num_shards),
-      message_size_kb_(message_size_kb),
+      writer_wrappers_(std::move(writer_wrappers)),
       key_sharder_(
-          kv_server::KeySharder(kv_server::ShardingFunction{/*seed=*/""})) {}
+          kv_server::KeySharder(kv_server::ShardingFunction{/*seed=*/""})),
+      num_shards_(num_shards),
+      message_size_kb_(message_size_kb) {}
 
 DeltaRecordLimitingFileWriter& RealtimeMessageBatcher::GetWriter(
     int shard_num) const {

@@ -46,8 +46,8 @@ TEST_F(RealtimeThreadPoolNotifierAwsTest, SuccesfullyCreated) {
     auto change_notifier =
         std::make_unique<MockDeltaFileRecordChangeNotifier>();
     AwsRealtimeNotifierMetadata metadatum = {
-        .maybe_sleep_for = std::make_unique<MockSleepFor>(),
         .change_notifier_for_unit_testing = change_notifier.release(),
+        .maybe_sleep_for = std::make_unique<MockSleepFor>(),
     };
     test_metadata.push_back(std::move(metadatum));
   }
@@ -63,8 +63,8 @@ TEST_F(RealtimeThreadPoolNotifierAwsTest, SuccesfullyStartsAndStops) {
     auto change_notifier =
         std::make_unique<MockDeltaFileRecordChangeNotifier>();
     AwsRealtimeNotifierMetadata metadatum = {
-        .maybe_sleep_for = std::make_unique<MockSleepFor>(),
         .change_notifier_for_unit_testing = change_notifier.release(),
+        .maybe_sleep_for = std::make_unique<MockSleepFor>(),
     };
     test_metadata.push_back(std::move(metadatum));
   }

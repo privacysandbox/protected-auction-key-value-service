@@ -44,6 +44,10 @@ build:clang --per_file_copt=external/(json_c|nitrokmscli_).*\.c@-Wno-implicit-fu
 build:clang --per_file_copt=(components|public/data_loading)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
 build:clang --per_file_copt=production/packaging/gcp/data_server/bin/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
 build:clang --per_file_copt=tools/(data_cli|request_simulation|udf)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+# Use --host_per_file_copt to ignore warnings from genrule
+build:clang --host_per_file_copt=(components|public/data_loading)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+build:clang --host_per_file_copt=production/packaging/gcp/data_server/bin/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+build:clang --host_per_file_copt=tools/(data_cli|request_simulation|udf)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
 
 build:cpp_nowarn --copt=-Werror
 build:cpp_nowarn --per_file_copt=external/.*@-Wno-error

@@ -72,6 +72,11 @@ Each row is a serialized Flatbuffers record.
 -   [Java example](https://github.com/privacysandbox/protected-auction-key-value-service/issues/39):
     This is not maintained by the dev team and may be out of date.
 
+For snapshots files, specifying Avro metadata is required. Avro's native metadata is part of the
+Avro file header. Snapshot metadata must be a serialized
+[metadata proto](/public/data_loading/riegeli_metadata.proto) saved to the Avro native metadata
+property `ad_retrieval.file_metadata`.
+
 #### Riegeli
 
 The system also supports [Riegeli](https://github.com/google/riegeli). Similarly each file contains

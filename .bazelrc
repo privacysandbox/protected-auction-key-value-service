@@ -48,6 +48,10 @@ build:clang --per_file_copt=tools/(data_cli|request_simulation|udf)/.*@-Wno-macr
 build:clang --host_per_file_copt=(components|public/data_loading)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
 build:clang --host_per_file_copt=production/packaging/gcp/data_server/bin/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
 build:clang --host_per_file_copt=tools/(data_cli|request_simulation|udf)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+# Ignore warnings from generated parser
+build:clang --per_file_copt=components/query/.*@-Wno-unused-but-set-variable
+# Telemetry has some unchecked results after registering observers.
+build:clang --per_file_copt=(tools/request_simulation/request_simulation_system.cc|components/data_server/server/server.cc)@-Wno-unused-variable
 
 build:cpp_nowarn --copt=-Werror
 build:cpp_nowarn --per_file_copt=external/.*@-Wno-error

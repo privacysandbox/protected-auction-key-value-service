@@ -52,8 +52,8 @@ class RealtimeThreadPoolNotifierGcpTest : public ::testing::Test {
 TEST_F(RealtimeThreadPoolNotifierGcpTest, SuccessfullyCreated) {
   auto subscriber = std::make_unique<Subscriber>(Subscriber(mock_));
   GcpRealtimeNotifierMetadata option = GcpRealtimeNotifierMetadata{
-      .maybe_sleep_for = std::move(mock_sleep_for_),
       .gcp_subscriber_for_unit_testing = subscriber.release(),
+      .maybe_sleep_for = std::move(mock_sleep_for_),
   };
   std::vector<RealtimeNotifierMetadata> options;
   options.push_back(std::move(option));
@@ -72,8 +72,8 @@ TEST_F(RealtimeThreadPoolNotifierGcpTest, SuccessfullyStartsAndStops) {
       });
   auto subscriber = std::make_unique<Subscriber>(Subscriber(mock_));
   GcpRealtimeNotifierMetadata option = GcpRealtimeNotifierMetadata{
-      .maybe_sleep_for = std::move(mock_sleep_for_),
       .gcp_subscriber_for_unit_testing = subscriber.release(),
+      .maybe_sleep_for = std::move(mock_sleep_for_),
   };
   std::vector<RealtimeNotifierMetadata> options;
   options.push_back(std::move(option));

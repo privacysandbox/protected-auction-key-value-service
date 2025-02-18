@@ -88,9 +88,7 @@ class GcpInstanceClient : public InstanceClient {
   GcpInstanceClient(
       privacy_sandbox::server_common::log::PSLogContext& log_context)
       : instance_client_(google::scp::cpio::InstanceClientFactory::Create()),
-        log_context_(log_context) {
-    instance_client_->Init();
-  }
+        log_context_(log_context) {}
 
   absl::StatusOr<std::string> GetEnvironmentTag() override {
     if (environment_.empty()) {

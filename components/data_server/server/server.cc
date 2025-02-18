@@ -457,8 +457,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       << " parameter: " << num_shards_;
 
   blob_client_ = CreateBlobClient(parameter_fetcher);
-  delta_stream_reader_factory_ =
-      CreateStreamRecordReaderFactory(parameter_fetcher);
+  PS_ASSIGN_OR_RETURN(delta_stream_reader_factory_,
+                      CreateStreamRecordReaderFactory(parameter_fetcher));
+
   notifier_ = CreateDeltaFileNotifier(parameter_fetcher);
   auto factory = KeyFetcherFactory::Create(server_safe_log_context_);
   key_fetcher_manager_ = factory->CreateKeyFetcherManager(parameter_fetcher);
@@ -645,7 +646,7 @@ std::unique_ptr<BlobStorageClient> Server::CreateBlobClient(
       std::move(client_options), server_safe_log_context_);
 }
 
-std::unique_ptr<StreamRecordReaderFactory>
+absl::StatusOr<std::unique_ptr<StreamRecordReaderFactory>>
 Server::CreateStreamRecordReaderFactory(
     const ParameterFetcher& parameter_fetcher) {
   const int32_t data_loading_num_threads = parameter_fetcher.GetInt32Parameter(
@@ -665,6 +666,9 @@ Server::CreateStreamRecordReaderFactory(
     options.num_worker_threads = data_loading_num_threads;
     options.log_context = server_safe_log_context_;
     return std::make_unique<RiegeliStreamRecordReaderFactory>(options);
+  } else {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Unknown StreamRecordReader file format: ", file_format));
   }
 }
 
@@ -685,8 +689,8 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
             .blob_client = *blob_client_,
             .delta_notifier = *notifier_,
             .change_notifier = *change_notifier_,
-            .delta_stream_reader_factory = *delta_stream_reader_factory_,
             .udf_client = *udf_client_,
+            .delta_stream_reader_factory = *delta_stream_reader_factory_,
             .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
             .shard_num = shard_num_,
             .num_shards = num_shards_,

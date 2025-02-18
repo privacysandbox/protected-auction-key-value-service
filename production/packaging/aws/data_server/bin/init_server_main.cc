@@ -64,7 +64,7 @@ absl::StatusOr<std::string> GetRegion() {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  std::vector<char*> exec_args = {"/proxify", "--", "/server"};
+  std::vector<const char*> exec_args = {"/proxify", "--", "/server"};
 
   // Forward extra flags to `/server`.
   const std::vector<char*> positional_args = absl::ParseCommandLine(argc, argv);
@@ -81,9 +81,9 @@ int main(int argc, char* argv[]) {
     } else {
       std::cout << "AWS_DEFAULT_REGION " << *region << std::endl;
     }
-    execv(exec_args[0], &exec_args[0]);
+    execv(exec_args[0], const_cast<char* const*>(&exec_args[0]));
   } else {
-    execv(exec_args[2], &exec_args[2]);
+    execv(exec_args[2], const_cast<char* const*>(&exec_args[2]));
   }
   std::cerr << "exec failure: " << std::strerror(errno) << std::endl;
   return errno;

@@ -150,6 +150,8 @@ DeltaBasedRealtimeUpdatesPublisher::CreateRealtimeMessagesAndAddToQueue(
         return absl::OkStatus();
       }
     }
+    // Ignore records that are not KeyValueMutationRecord
+    return absl::OkStatus();
   };
   PS_RETURN_IF_ERROR(record_reader->ReadStreamRecords(
       [&process_data_record_fn](std::string_view raw) {

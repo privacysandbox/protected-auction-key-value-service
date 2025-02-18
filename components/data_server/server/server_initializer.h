@@ -51,6 +51,7 @@ struct ShardManagerState {
 // Encapsulates logic that differs for sharded and non-sharded implementations.
 class ServerInitializer {
  public:
+  virtual ~ServerInitializer() = default;
   virtual RemoteLookup CreateAndStartRemoteLookupServer() = 0;
   virtual absl::StatusOr<ShardManagerState> InitializeUdfHooks(
       GetValuesHook& string_get_values_hook,

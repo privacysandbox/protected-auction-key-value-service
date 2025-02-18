@@ -54,7 +54,8 @@ class ShardManagerImpl : public ShardManager {
       privacy_sandbox::server_common::log::PSLogContext& log_context)
       : num_shards_{num_shards},
         client_factory_{client_factory},
-        random_generator_{std::move(random_generator)} {}
+        random_generator_{std::move(random_generator)},
+        log_context_(log_context) {}
 
   // taking in a set to exclude duplicates.
   // set doesn't have an O(1) lookup --> converting to vector.
@@ -83,16 +84,25 @@ class ShardManagerImpl : public ShardManager {
     absl::ReaderMutexLock lock(&mutex_);
     if (shard_num < 0 || shard_num >= num_shards_ ||
         cluster_mappings_.size() != num_shards_) {
+      PS_VLOG(1, log_context_)
+          << "Invalid shard_num or num_shards_. shard_num: " << shard_num
+          << ". num_shards_: " << num_shards_
+          << ". cluster_mappings_size_: " << cluster_mappings_.size();
       return nullptr;
     }
     const auto& shard_replicas = cluster_mappings_[shard_num];
     if (shard_replicas.size() == 0) {
+      PS_VLOG(1, log_context_) << "Shard replica size is 0. Not returning "
+                                  "RemoteLookupClient for shard_num "
+                               << shard_num;
       return nullptr;
     }
     const auto replica_idx = random_generator_->Get(shard_replicas.size());
     const auto& ip_address = shard_replicas[replica_idx];
     const auto key_iter = remote_lookup_clients_.find(ip_address);
     if (key_iter == remote_lookup_clients_.end()) {
+      PS_VLOG(1, log_context_)
+          << "Cannot find RemoteLookupClient for shard_num " << shard_num;
       return nullptr;
     } else {
       return key_iter->second.get();
@@ -110,6 +120,7 @@ class ShardManagerImpl : public ShardManager {
   std::function<std::unique_ptr<RemoteLookupClient>(const std::string& ip)>
       client_factory_;
   std::unique_ptr<RandomGenerator> random_generator_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 absl::Status ValidateMapping(

@@ -117,7 +117,6 @@ class GcpMessageService : public MessageService {
 
   pubsub::SubscriptionAdminClient subscription_admin_client_;
 
-  bool are_attributes_set_ = false;
   std::optional<int32_t> shard_num_;
   privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };

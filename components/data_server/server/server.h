@@ -83,8 +83,8 @@ class Server {
 
   std::unique_ptr<BlobStorageClient> CreateBlobClient(
       const ParameterFetcher& parameter_fetcher);
-  std::unique_ptr<StreamRecordReaderFactory> CreateStreamRecordReaderFactory(
-      const ParameterFetcher& parameter_fetcher);
+  absl::StatusOr<std::unique_ptr<StreamRecordReaderFactory>>
+  CreateStreamRecordReaderFactory(const ParameterFetcher& parameter_fetcher);
   std::unique_ptr<DataOrchestrator> CreateDataOrchestrator(
       const ParameterFetcher& parameter_fetcher, KeySharder key_sharder);
 

@@ -140,6 +140,8 @@ DeltaBasedRequestGenerator::CreateRequestsAndAddToMessageQueue(
         return absl::OkStatus();
       }
     }
+    // Ignore records that are not KeyValueMutationRecord
+    return absl::OkStatus();
   };
   auto status = record_reader->ReadStreamRecords(
       [&process_data_record_fn](std::string_view raw) {

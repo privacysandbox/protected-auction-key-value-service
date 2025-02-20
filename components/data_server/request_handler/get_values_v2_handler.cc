@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -43,12 +44,26 @@
 #include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
+namespace {
+
 using grpc::StatusCode;
 using privacy_sandbox::server_common::FromAbslStatus;
 using v2::GetValuesHttpRequest;
 using v2::ObliviousGetValuesRequest;
 
 constexpr std::string_view kIsPas = "is_pas";
+
+bool HasDuplicatePartitionIds(const v2::GetValuesRequest& request) {
+  std::unordered_set<int32_t> ids;
+  for (auto&& partition : request.partitions()) {
+    if (ids.find(partition.id()) != ids.end()) {
+      return true;
+    }
+    ids.insert(partition.id());
+  }
+  return false;
+}
+}  // namespace
 
 grpc::Status GetValuesV2Handler::GetValuesHttp(
     RequestContextFactory& request_context_factory,
@@ -240,6 +255,10 @@ grpc::Status GetValuesV2Handler::GetValues(
   if (request.partitions().empty()) {
     return grpc::Status(StatusCode::INTERNAL,
                         "At least 1 partition is required");
+  }
+  if (HasDuplicatePartitionIds(request)) {
+    return grpc::Status(StatusCode::INVALID_ARGUMENT,
+                        "Request partition IDs must be unique.");
   }
   if (single_partition_use_case) {
     if (request.partitions().size() > 1) {

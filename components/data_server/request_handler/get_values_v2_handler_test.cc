@@ -573,6 +573,58 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
   EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
 }
 
+TEST_P(GetValuesHandlerTest, DuplicatePartitionIdsFails) {
+  std::string core_request_body = R"(
+{
+    "metadata": {
+      "hostname": "example.com"
+    },
+    "partitions": [
+      {
+        "id": 1,
+        "compressionGroupId": 1,
+        "arguments": [
+          {
+            "tags": [
+              "custom",
+              "keys"
+            ],
+            "data": [
+              "key1"
+            ]
+          }
+        ]
+
+      },
+      {
+        "id": 1,
+        "compressionGroupId": 1,
+        "arguments": [
+          {
+            "tags": [
+              "structured",
+              "groupNames"
+            ],
+            "data": [
+              "hello"
+            ]
+          }
+        ]
+      }
+    ]
+})";
+  google::api::HttpBody response;
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+  int16_t http_response_code = 0;
+
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result =
+      GetValuesBasedOnProtocol(*request_context_factory, core_request_body,
+                               &response, &http_response_code, &handler);
+  ASSERT_FALSE(result.ok());
+  EXPECT_EQ(result.error_code(), grpc::StatusCode::INVALID_ARGUMENT);
+}
+
 TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
   EXPECT_CALL(mock_udf_client_, ExecuteCode(_, _, testing::IsEmpty(), _))
       .WillOnce(Return(absl::InternalError("UDF execution error")));

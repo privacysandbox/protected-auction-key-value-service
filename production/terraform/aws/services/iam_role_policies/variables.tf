@@ -79,3 +79,8 @@ variable "logging_verbosity_updates_topic_arn" {
   description = "ARN for the sns topic that receives logging verbosity parameter updates."
   type        = string
 }
+
+variable "coordinator_role_arns" {
+  description = "ARNs for coordinator roles."
+  type        = list(string)
+}

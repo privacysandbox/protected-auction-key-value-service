@@ -67,7 +67,7 @@ data "aws_iam_policy_document" "instance_policy_doc" {
     sid       = "AllowInstancesToAssumeRole"
     actions   = ["sts:AssumeRole"]
     effect    = "Allow"
-    resources = ["*"]
+    resources = var.coordinator_role_arns
   }
   statement {
     sid = "AllowInstancesToManageSqsQueues"

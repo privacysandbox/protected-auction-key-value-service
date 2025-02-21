@@ -243,6 +243,7 @@ module "iam_role_policies" {
   sns_data_updates_topic_arn          = module.data_storage.sns_data_updates_topic_arn
   sns_realtime_topic_arn              = module.data_storage.sns_realtime_topic_arn
   logging_verbosity_updates_topic_arn = module.parameter_notification.logging_verbosity_updates_topic_arn
+  coordinator_role_arns               = var.coordinator_role_arns
   server_parameter_arns = [
     module.parameter.s3_bucket_parameter_arn,
     module.parameter.bucket_update_sns_arn_parameter_arn,

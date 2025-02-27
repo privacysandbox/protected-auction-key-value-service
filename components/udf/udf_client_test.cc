@@ -1206,19 +1206,21 @@ TEST_F(UdfClientTest, BatchExecuteCodeSuccess) {
     return arg;
   }());
 
-  absl::flat_hash_map<int32_t, UDFInput> input;
-  input[1] = {.arguments = args1};
-  input[2] = {.execution_metadata = udf_metadata, .arguments = args2};
+  absl::flat_hash_map<UniquePartitionIdTuple, UDFInput> input;
+  UniquePartitionIdTuple id1 = {1, 0};
+  UniquePartitionIdTuple id2 = {1, 1};
+  input[id1] = {.arguments = args1};
+  input[id2] = {.execution_metadata = udf_metadata, .arguments = args2};
   auto result = udf_client.value()->BatchExecuteCode(
       *request_context_factory_, input, execution_metadata_);
   ASSERT_TRUE(result.ok());
   auto udf_outputs = std::move(result.value());
   EXPECT_EQ(udf_outputs.size(), 2);
   EXPECT_EQ(
-      udf_outputs[1],
+      udf_outputs[id1],
       R"("Hello world! {\"udfInterfaceVersion\":1}{\"tags\":[\"tag1\"],\"data\":\"key1\"}")");
   EXPECT_EQ(
-      udf_outputs[2],
+      udf_outputs[id2],
       R"("Hello world! {\"udfInterfaceVersion\":1,\"requestMetadata\":{\"hostname\":\"\"}}{\"tags\":[\"tag2\"],\"data\":\"key2\"}")");
 
   absl::Status stop = udf_client.value()->Stop();
@@ -1258,15 +1260,18 @@ TEST_F(UdfClientTest, BatchExecuteCodeIgnoresFailedPartition) {
     return arg;
   }());
 
-  absl::flat_hash_map<int32_t, UDFInput> input;
-  input[1] = {.arguments = args1};
-  input[2] = {.arguments = args2};
+  absl::flat_hash_map<UniquePartitionIdTuple, UDFInput> input;
+  UniquePartitionIdTuple id1 = {1, 0};
+  UniquePartitionIdTuple id2 = {1, 1};
+
+  input[id1] = {.arguments = args1};
+  input[id2] = {.arguments = args2};
   auto result = udf_client.value()->BatchExecuteCode(
       *request_context_factory_, input, execution_metadata_);
   ASSERT_TRUE(result.ok());
   auto udf_outputs = std::move(result.value());
   EXPECT_EQ(udf_outputs.size(), 1);
-  EXPECT_EQ(udf_outputs[1], R"("Hello world!")");
+  EXPECT_EQ(udf_outputs[id1], R"("Hello world!")");
 
   absl::Status stop = udf_client.value()->Stop();
   EXPECT_TRUE(stop.ok());
@@ -1285,7 +1290,7 @@ TEST_F(UdfClientTest, BatchExecuteCodeEmptyReturnsSuccess) {
   });
   EXPECT_TRUE(code_obj_status.ok());
 
-  absl::flat_hash_map<int32_t, UDFInput> input;
+  absl::flat_hash_map<UniquePartitionIdTuple, UDFInput> input;
   auto result = udf_client.value()->BatchExecuteCode(
       *request_context_factory_, input, execution_metadata_);
   ASSERT_TRUE(result.ok());

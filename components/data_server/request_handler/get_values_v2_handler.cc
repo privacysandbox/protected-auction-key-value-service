@@ -53,16 +53,42 @@ using v2::ObliviousGetValuesRequest;
 
 constexpr std::string_view kIsPas = "is_pas";
 
-bool HasDuplicatePartitionIds(const v2::GetValuesRequest& request) {
-  std::unordered_set<int32_t> ids;
+bool HasDuplicatePartitionAndCompressionGroupIds(
+    const v2::GetValuesRequest& request) {
+  absl::flat_hash_set<UniquePartitionIdTuple> unique_ids;
   for (auto&& partition : request.partitions()) {
-    if (ids.find(partition.id()) != ids.end()) {
+    if (unique_ids.contains(
+            {partition.id(), partition.compression_group_id()})) {
       return true;
     }
-    ids.insert(partition.id());
+    unique_ids.insert({partition.id(), partition.compression_group_id()});
   }
   return false;
 }
+
+absl::flat_hash_map<int32_t, std::vector<std::pair<int32_t, std::string>>>
+BuildCompressionGroupToPartitionOutputMap(
+    const v2::GetValuesRequest& request,
+    const absl::flat_hash_map<UniquePartitionIdTuple, std::string>&
+        id_to_output_map,
+    const RequestContextFactory& request_context_factory) {
+  absl::flat_hash_map<int32_t, std::vector<std::pair<int32_t, std::string>>>
+      compression_group_map;
+  for (const auto& partition : request.partitions()) {
+    int32_t compression_group_id = partition.compression_group_id();
+    auto it = id_to_output_map.find({partition.id(), compression_group_id});
+    if (it != id_to_output_map.end()) {
+      compression_group_map[compression_group_id].emplace_back(
+          partition.id(), std::move(it->second));
+    } else {
+      PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
+          << "Failed to execute UDF for partition " << partition.id()
+          << " and compression_group_id " << compression_group_id;
+    }
+  }
+  return compression_group_map;
+}
+
 }  // namespace
 
 grpc::Status GetValuesV2Handler::GetValuesHttp(
@@ -189,35 +215,27 @@ absl::Status GetValuesV2Handler::ProcessMultiplePartitions(
     const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
     ExecutionMetadata& execution_metadata,
     const V2EncoderDecoder& v2_codec) const {
-  absl::flat_hash_map<int32_t, UDFInput> udf_input_map;
+  absl::flat_hash_map<UniquePartitionIdTuple, UDFInput> udf_input_map;
   for (const auto& partition : request.partitions()) {
     UDFExecutionMetadata udf_metadata;
     *udf_metadata.mutable_request_metadata() = request.metadata();
     if (!partition.metadata().fields().empty()) {
       *udf_metadata.mutable_partition_metadata() = partition.metadata();
     }
-    udf_input_map.emplace(
-        partition.id(), UDFInput{.execution_metadata = std::move(udf_metadata),
-                                 .arguments = partition.arguments()});
+    udf_input_map.insert_or_assign(
+        {partition.id(), partition.compression_group_id()},
+        UDFInput{.execution_metadata = std::move(udf_metadata),
+                 .arguments = partition.arguments()});
   }
   PS_ASSIGN_OR_RETURN(
-      auto partition_id_to_output_map,
+      auto id_to_output_map,
       udf_client_.BatchExecuteCode(request_context_factory, udf_input_map,
                                    execution_metadata));
 
+  // Build a map of compression_group_id to <partition_id, udf_output>
   absl::flat_hash_map<int32_t, std::vector<std::pair<int32_t, std::string>>>
-      compression_group_map;
-  for (const auto& partition : request.partitions()) {
-    int32_t compression_group_id = partition.compression_group_id();
-    auto it = partition_id_to_output_map.find(partition.id());
-    if (it != partition_id_to_output_map.end()) {
-      compression_group_map[compression_group_id].emplace_back(
-          partition.id(), std::move(it->second));
-    } else {
-      PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
-          << "Failed to execute UDF for partition: " << partition.id();
-    }
-  }
+      compression_group_map = BuildCompressionGroupToPartitionOutputMap(
+          request, id_to_output_map, request_context_factory);
 
   // The content of each compressed blob is a CBOR/JSON list of partition
   // outputs or a V2CompressionGroup protobuf message.
@@ -256,10 +274,6 @@ grpc::Status GetValuesV2Handler::GetValues(
     return grpc::Status(StatusCode::INTERNAL,
                         "At least 1 partition is required");
   }
-  if (HasDuplicatePartitionIds(request)) {
-    return grpc::Status(StatusCode::INVALID_ARGUMENT,
-                        "Request partition IDs must be unique.");
-  }
   if (single_partition_use_case) {
     if (request.partitions().size() > 1) {
       return grpc::Status(StatusCode::UNIMPLEMENTED,
@@ -271,6 +285,16 @@ grpc::Status GetValuesV2Handler::GetValues(
         request_context_factory, request.metadata(), request.partitions(0),
         *response->mutable_single_partition(), execution_metadata);
     return GetExternalStatusForV2(response_status);
+  }
+  // Ideally, this would live in ProcessMultiplePartitions, but we want to
+  // return the actual error status in the response if the request has duplicate
+  // <partition_id, compression_group_id> tuples. The return status of
+  // ProcessMultiplePartitions is masked and will always return OK in prod.
+  if (HasDuplicatePartitionAndCompressionGroupIds(request)) {
+    return grpc::Status(
+        StatusCode::INVALID_ARGUMENT,
+        "Each partition must have a unique <id, "
+        "compression_group_id> tuple, but duplicates were found.");
   }
   const auto response_status =
       ProcessMultiplePartitions(request_context_factory, request, *response,

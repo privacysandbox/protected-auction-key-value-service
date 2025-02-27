@@ -573,7 +573,7 @@ TEST_P(GetValuesHandlerTest, NoPartition) {
   EXPECT_EQ(result.error_code(), grpc::StatusCode::INTERNAL);
 }
 
-TEST_P(GetValuesHandlerTest, DuplicatePartitionIdsFails) {
+TEST_P(GetValuesHandlerTest, DuplicatePartitionAndCompressionGroupIdFails) {
   std::string core_request_body = R"(
 {
     "metadata": {
@@ -780,22 +780,27 @@ data {
   ]
 }
   )");
-  absl::flat_hash_map<int32_t, std::string> batch_execute_output = {
-      {0, output1.dump()}, {1, output2.dump()}, {2, output3.dump()}};
+  absl::flat_hash_map<UniquePartitionIdTuple, std::string>
+      batch_execute_output = {{{0, 0}, output1.dump()},
+                              {{0, 1}, output2.dump()},
+                              {{2, 0}, output3.dump()}};
   EXPECT_CALL(
       mock_udf_client_,
       BatchExecuteCode(
           _,
           testing::UnorderedElementsAre(
-              testing::Pair(0, testing::FieldsAre(
-                                   EqualsProto(udf_metadata),
-                                   testing::ElementsAre(EqualsProto(arg1)))),
-              testing::Pair(1, testing::FieldsAre(
-                                   EqualsProto(udf_metadata),
-                                   testing::ElementsAre(EqualsProto(arg2)))),
-              testing::Pair(2, testing::FieldsAre(
-                                   EqualsProto(udf_metadata),
-                                   testing::ElementsAre(EqualsProto(arg3))))),
+              testing::Pair(
+                  UniquePartitionIdTuple({0, 0}),
+                  testing::FieldsAre(EqualsProto(udf_metadata),
+                                     testing::ElementsAre(EqualsProto(arg1)))),
+              testing::Pair(
+                  UniquePartitionIdTuple({0, 1}),
+                  testing::FieldsAre(EqualsProto(udf_metadata),
+                                     testing::ElementsAre(EqualsProto(arg2)))),
+              testing::Pair(
+                  UniquePartitionIdTuple({2, 0}),
+                  testing::FieldsAre(EqualsProto(udf_metadata),
+                                     testing::ElementsAre(EqualsProto(arg3))))),
           _))
       .WillOnce(Return(batch_execute_output));
 
@@ -813,7 +818,7 @@ data {
 
   nlohmann::json partition_output1 = {{"id", 0}};
   partition_output1.update(output1);
-  nlohmann::json partition_output2 = {{"id", 1}};
+  nlohmann::json partition_output2 = {{"id", 0}};
   partition_output2.update(output2);
   nlohmann::json partition_output3 = {{"id", 2}};
   partition_output3.update(output3);
@@ -871,8 +876,9 @@ TEST_P(GetValuesHandlerMultiplePartitionsTest,
   ]
 }
   )");
-  absl::flat_hash_map<int32_t, std::string> batch_execute_output = {
-      {0, output1.dump()}, {1, output2.dump()}};
+  absl::flat_hash_map<UniquePartitionIdTuple, std::string>
+      batch_execute_output = {{{0, 0}, output1.dump()},
+                              {{0, 1}, output2.dump()}};
   EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _))
       .WillOnce(Return(batch_execute_output));
 
@@ -891,7 +897,7 @@ TEST_P(GetValuesHandlerMultiplePartitionsTest,
 
   nlohmann::json partition_output1 = {{"id", 0}};
   partition_output1.update(output1);
-  nlohmann::json partition_output2 = {{"id", 1}};
+  nlohmann::json partition_output2 = {{"id", 0}};
   partition_output2.update(output2);
   nlohmann::json compressed_partition_group0 =
       nlohmann::json::array({partition_output1});
@@ -929,8 +935,8 @@ TEST_P(GetValuesHandlerMultiplePartitionsTest,
   ]
 }
   )");
-  absl::flat_hash_map<int32_t, std::string> batch_execute_output = {
-      {1, output.dump()}};
+  absl::flat_hash_map<UniquePartitionIdTuple, std::string>
+      batch_execute_output = {{{0, 1}, output.dump()}};
   EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _))
       .WillOnce(Return(batch_execute_output));
 
@@ -946,7 +952,7 @@ TEST_P(GetValuesHandlerMultiplePartitionsTest,
   ASSERT_TRUE(result.ok()) << "code: " << result.error_code()
                            << ", msg: " << result.error_message();
 
-  nlohmann::json expected_partition_output = {{"id", 1}};
+  nlohmann::json expected_partition_output = {{"id", 0}};
   expected_partition_output.update(output);
   nlohmann::json compressed_partition_group =
       nlohmann::json::array({expected_partition_output});

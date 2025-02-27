@@ -161,11 +161,12 @@ class UdfClientImpl : public UdfClient {
     return *result;
   }
 
-  absl::StatusOr<absl::flat_hash_map<int32_t, std::string>> BatchExecuteCode(
+  absl::StatusOr<absl::flat_hash_map<UniquePartitionIdTuple, std::string>>
+  BatchExecuteCode(
       const RequestContextFactory& request_context_factory,
-      absl::flat_hash_map<int32_t, UDFInput>& udf_input_map,
+      absl::flat_hash_map<UniquePartitionIdTuple, UDFInput>& udf_input_map,
       ExecutionMetadata& metadata) const {
-    absl::flat_hash_map<int32_t, std::string> results;
+    absl::flat_hash_map<UniquePartitionIdTuple, std::string> results;
     if (udf_input_map.empty()) {
       PS_VLOG(5, request_context_factory.Get().GetPSLogContext())
           << "UDF input map is empty. Not executing any UDFs.";
@@ -181,7 +182,8 @@ class UdfClientImpl : public UdfClient {
         latency_recorder(
             request_context_factory.Get().GetUdfRequestMetricsContext());
 
-    absl::flat_hash_map<int32_t, std::future<absl::StatusOr<std::string>>>
+    absl::flat_hash_map<UniquePartitionIdTuple,
+                        std::future<absl::StatusOr<std::string>>>
         responses;
     metadata.custom_code_total_execution_time_micros = 0;
     for (auto&& [id, udf_input] : udf_input_map) {
@@ -211,7 +213,8 @@ class UdfClientImpl : public UdfClient {
         results[id] = std::move(result.value());
       } else {
         PS_LOG(ERROR, request_context_factory.Get().GetPSLogContext())
-            << "UDF Execution failed for partition id " << id << ": "
+            << "UDF Execution failed for partition id " << std::get<0>(id)
+            << " and compression_group_id " << std::get<1>(id) << ": "
             << result.status();
       }
     }

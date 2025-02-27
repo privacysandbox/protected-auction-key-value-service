@@ -43,6 +43,7 @@ cc_library(
         "//components/udf/hooks:get_values_hook",
         "//components/udf/hooks:run_query_hook",
         "//public:api_schema_cc_proto",
+        "//public:constants",
         "@com_google_absl//absl/flags:flag",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/synchronization",

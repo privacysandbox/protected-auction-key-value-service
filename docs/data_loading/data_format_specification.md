@@ -38,6 +38,8 @@ lexicographically greater than older delta files. Delta files have the following
     the system makes no assumption on the relation between the record timestamps and the file names.
 -   There are no enforced size limits for delta files, but smaller files are faster to read.
 -   Server instances continually watch for newer delta files and update their in-memory caches.
+-   May optionally contain [`KVFileMetadata`](/public/data_loading/riegeli_metadata.proto) with
+    `ShardingMetadata` set. Refer to the file format section for the expected metadata format.
 
 ## Snapshot files
 
@@ -53,6 +55,11 @@ lexicographically greater than older snapshot files. Snpashot files have the fol
         snapshot file.
 -   Contains the entire set of key/value records since the beginning of time.
 -   There are no enforced size limits for snapshot files.
+-   Should contain [`KVFileMetadata`](/public/data_loading/riegeli_metadata.proto) with
+    `SnapshotMetadata` set. `SnapshotMetadata` must specify the first and last delta files captured
+    in the snapshot file. Refer to the file format section for the expected metadata format.
+-   May optionally contain [`KVFileMetadata`](/public/data_loading/riegeli_metadata.proto) with
+    `ShardingMetadata` set. Refer to the file format section for the expected metadata format.
 
 See [File groups](file_groups.md#file-groups) on how to improve snapshot generation scalability and
 throughput.
@@ -72,12 +79,20 @@ Each row is a serialized Flatbuffers record.
 -   [Java example](https://github.com/privacysandbox/protected-auction-key-value-service/issues/39):
     This is not maintained by the dev team and may be out of date.
 
-For snapshots files, specifying Avro metadata is required. Avro's native metadata is part of the
-Avro file header. Snapshot metadata must be a serialized
-[metadata proto](/public/data_loading/riegeli_metadata.proto) saved to the Avro native metadata
-property `ad_retrieval.file_metadata`.
+#### Metadata
+
+Avro's native metadata is part of the Avro file header. Any KV data file metadata must be a
+serialized [KVFileMetadata proto](/public/data_loading/riegeli_metadata.proto) set to the Avro
+native metadata property `ad_retrieval.file_metadata`.
 
 #### Riegeli
 
 The system also supports [Riegeli](https://github.com/google/riegeli). Similarly each file contains
 one or more serialized Flatbuffers records.
+
+#### Metadata
+
+Riegeli's native metadata uses protobufs. The
+[KVFileMetadata proto](/public/data_loading/riegeli_metadata.proto) is an extension of the Riegeli
+`RecordsMetadata`. Any KV data file metadata must be specified in a KVFileMetadata that is an
+extension of the file's `RecordsMetadata`.

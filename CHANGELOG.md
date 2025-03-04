@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 1.2.0 (2025-03-04)
+
+
+### Features
+
+* Add Avro metadata support for data cli
+* Add metadata support when reading Avro files
+* Add UDF console logging
+* Use partition,compression_group_id to uniquely id a partition
+
+
+### Bug Fixes
+
+* Add GCP Terraform parameter for data loading file format.
+* C++ compiler warnings
+* Explicitly set confidential_instance_type
+* Pass chaffing to lookup
+
+
+### Documentation
+
+* Add Avro metadata spec
+* Remove AWS ssh from docs.
+* Replace google internal link with public link for variables.
+* Use gperftools github doc pages
+
 ## 1.1.0 (2025-01-15)
 
 

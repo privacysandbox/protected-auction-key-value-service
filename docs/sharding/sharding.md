@@ -56,7 +56,7 @@ approach the limit, e.g. within 10%, you should consider this feature.
 ## AdTech sharding related responsibilities
 
 To take advantage of sharding capabilities, an AdTech needs to update how they load data on the
-[standard](#standard-path) and [realime](#relatime-update-path) updates. Please refer to each
+[standard](#standard-path) and [realime](#realtime-update-path) updates. Please refer to each
 section for more details.
 
 Additionally, please refer to this [doc](./sharding_debugging.md) to see the additional metrics and
@@ -114,7 +114,7 @@ However, only records that belong to that particular shard will be loaded in mem
 number in the file does not match the server's shard number, the server can skip the file without
 reading the records.
 
-### Relatime update path
+### Realtime update path
 
 A message published to SNS, for AWS, or PubSub, for GCP _must_ be tagged with a shard number.
 SNS/PubSub will fan out such messages only

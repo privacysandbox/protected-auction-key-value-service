@@ -43,7 +43,9 @@ namespace kv_server {
 class AvroStreamReader : public StreamRecordReader {
  public:
   // `data_input` must be at the file beginning when passed in.
-  explicit AvroStreamReader(std::istream& data_input);
+  explicit AvroStreamReader(
+      std::istream& data_input,
+      privacy_sandbox::server_common::log::PSLogContext& log_context);
 
   absl::StatusOr<KVFileMetadata> GetKVFileMetadata() override;
 
@@ -56,6 +58,7 @@ class AvroStreamReader : public StreamRecordReader {
 
  private:
   std::istream& data_input_;
+  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 // An `AvroConcurrentStreamRecordReader` reads a Avro data stream containing

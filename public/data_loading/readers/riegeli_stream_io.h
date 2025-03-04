@@ -63,8 +63,11 @@ class RiegeliStreamReader : public StreamRecordReader {
     riegeli::RecordsMetadata metadata;
     if (!reader_.ReadMetadata(metadata)) {
       if (reader_.ok()) {
-        return absl::UnavailableError(
-            "Metadata not found. Please ensure metadata is set properly.");
+        PS_LOG(WARNING, log_context_)
+            << "KVFileMetadata not found. Proceeding since metadata may not be "
+               "required. Please ensure KVFileMetadata is set properly if "
+               "needed.";
+        return KVFileMetadata();
       }
       return reader_.status();
     }

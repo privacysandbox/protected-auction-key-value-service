@@ -236,12 +236,6 @@ absl::StatusOr<std::vector<uint64_t>> MaybeGetRecordValue(
 
 absl::StatusOr<KVFileMetadata> GetKVFileMetadataFromString(
     std::string_view serialized_metadata) {
-  if (serialized_metadata.empty()) {
-    return StatusWithErrorTag(
-        absl::InvalidArgumentError(
-            "KVFileMetadata string is empty. Ensure that it is set."),
-        __FILE__, ErrorTag::kKVFileMetadataNotFound);
-  }
   KVFileMetadata metadata;
   if (!metadata.ParseFromString(serialized_metadata)) {
     return StatusWithErrorTag(

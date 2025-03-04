@@ -32,11 +32,11 @@ using kv_server::GenerateSnapshotCommand;
 
 ABSL_FLAG(std::string, input_file, "-", "Input file to convert records from.");
 ABSL_FLAG(std::string, input_format, "CSV",
-          "Format of the input file. Possible options=(CSV|DELTA)");
+          "Format of the input file. Possible options=(CSV|DELTA|AVRO_DELTA)");
 ABSL_FLAG(std::string, output_file, "-",
           "Output file to write converted records to.");
 ABSL_FLAG(std::string, output_format, "DELTA",
-          "Format of output file. Possible options=(CSV|DELTA)");
+          "Format of output file. Possible options=(CSV|DELTA|AVRO_DELTA)");
 ABSL_FLAG(std::string, starting_file, "",
           "Name of the file to use as the starting file for a snapshot, it can "
           "be an existing snapshot or delta file.");
@@ -77,9 +77,9 @@ Usage: data_cli <command> <flags>
 Commands:
 - format_data          Converts input to output format.
     [--input_file]       (Optional) Defaults to stdin. Input file to convert records from.
-    [--input_format]     (Optional) Defaults to "CSV". Possible options=(CSV|DELTA)
+    [--input_format]     (Optional) Defaults to "CSV". Possible options=(CSV|DELTA|AVRO_DELTA)
     [--output_file]      (Optional) Defaults to stdout. Output file to write converted records to.
-    [--output_format]    (Optional) Defaults to "DELTA". Possible options=(CSV|DELTA).
+    [--output_format]    (Optional) Defaults to "DELTA". Possible options=(CSV|DELTA|AVRO_DELTA).
     [--record_type]      (Optional) Defaults to "KEY_VALUE_MUTATION_RECORD". Possible
                                   options=(KEY_VALUE_MUTATION_RECORD|USER_DEFINED_FUNCTIONS_CONFIG|SHARD_MAPPING_RECORD).
                                   If reading/writing a UDF config, use "USER_DEFINED_FUNCTIONS_CONFIG".

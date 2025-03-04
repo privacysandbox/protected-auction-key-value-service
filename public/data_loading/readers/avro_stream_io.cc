@@ -36,8 +36,10 @@ enum class ErrorTag : int {
 
 }  // namespace
 
-AvroStreamReader::AvroStreamReader(std::istream& data_input)
-    : data_input_(data_input) {}
+AvroStreamReader::AvroStreamReader(
+    std::istream& data_input,
+    privacy_sandbox::server_common::log::PSLogContext& log_context)
+    : data_input_(data_input), log_context_(log_context) {}
 
 absl::StatusOr<KVFileMetadata> AvroStreamReader::GetKVFileMetadata() {
   try {
@@ -48,6 +50,12 @@ absl::StatusOr<KVFileMetadata> AvroStreamReader::GetKVFileMetadata() {
         avro::istreamInputStream(data_input_));
     std::string serialized_metadata =
         reader.getMetadata(kAvroKVFileMetadataKey);
+    if (serialized_metadata.empty()) {
+      PS_LOG(WARNING, log_context_)
+          << "KVFileMetadata not found. Proceeding since metadata may not be "
+             "required. Please ensure KVFileMetadata is set properly if "
+             "needed.";
+    }
     return GetKVFileMetadataFromString(serialized_metadata);
   } catch (const std::exception& e) {
     return StatusWithErrorTag(absl::InternalError(e.what()), __FILE__,
@@ -94,6 +102,12 @@ AvroConcurrentStreamRecordReader::GetKVFileMetadata() {
     auto reader = std::make_unique<avro::DataFileReader<std::string>>(
         std::move(input_stream));
     auto serialized_metadata = reader->getMetadata(kAvroKVFileMetadataKey);
+    if (serialized_metadata.empty()) {
+      PS_LOG(WARNING, options_.log_context)
+          << "KVFileMetadata not found. Proceeding since metadata may not be "
+             "required. Please ensure KVFileMetadata is set properly if "
+             "needed.";
+    }
     return GetKVFileMetadataFromString(serialized_metadata);
   } catch (const std::exception& e) {
     return StatusWithErrorTag(absl::InternalError(e.what()), __FILE__,

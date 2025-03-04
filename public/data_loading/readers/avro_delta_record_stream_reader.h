@@ -21,6 +21,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/log/log.h"
 #include "public/data_loading/data_loading_generated.h"
 #include "public/data_loading/readers/delta_record_reader.h"
 #include "public/data_loading/record_utils.h"
@@ -46,7 +47,7 @@ namespace kv_server {
 // );
 // ```
 // Note that this class incurs a copy of the records,
-// consider using `RiegeliStreamReader` directly to avoid copies.
+// consider using `AvroStreamReader` directly to avoid copies.
 template <typename SrcStreamT = std::iostream>
 class AvroDeltaRecordStreamReader : public DeltaRecordReader {
  public:
@@ -95,6 +96,12 @@ AvroDeltaRecordStreamReader<SrcStreamT>::ReadMetadata() {
         reader.getMetadata(kAvroKVFileMetadataKey);
     src_stream_.clear();
     src_stream_.seekg(0);
+    if (serialized_metadata.empty()) {
+      LOG(WARNING)
+          << "KVFileMetadata not found. Proceeding since metadata may not be "
+             "required. Please ensure KVFileMetadata is set properly if "
+             "needed.";
+    }
     return GetKVFileMetadataFromString(serialized_metadata);
   } catch (const std::exception& e) {
     return absl::InternalError(e.what());

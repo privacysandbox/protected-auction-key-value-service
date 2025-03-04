@@ -38,7 +38,7 @@ namespace {
 
 constexpr std::string_view kDeltaFormat = "delta";
 constexpr std::string_view kCsvFormat = "csv";
-constexpr std::string_view kAvroFormat = "avro";
+constexpr std::string_view kAvroFormat = "avro_delta";
 constexpr std::string_view kKeyValueMutationRecord =
     "key_value_mutation_record";
 constexpr std::string_view kUserDefinedFunctionsConfig =
@@ -136,10 +136,8 @@ absl::StatusOr<std::unique_ptr<DeltaRecordReader>> CreateRecordReader(
         input_stream);
   }
   if (lw_input_format == kAvroFormat) {
-    std::unique_ptr<DeltaRecordReader> record_reader =
-        std::make_unique<AvroDeltaRecordStreamReader<std::istream>>(
-            input_stream);
-    return std::move(record_reader);
+    return std::make_unique<AvroDeltaRecordStreamReader<std::istream>>(
+        input_stream);
   }
   return absl::InvalidArgumentError(absl::StrCat(
       "Input format: ", params.input_format, " is not supported."));
@@ -159,22 +157,18 @@ absl::StatusOr<std::unique_ptr<DeltaRecordWriter>> CreateRecordWriter(
                            .csv_encoding = std::move(csv_encoding),
                        });
   }
+  KVFileMetadata metadata;
+  if (params.shard_number >= 0) {
+    auto* shard_metadata = metadata.mutable_sharding_metadata();
+    shard_metadata->set_shard_num(params.shard_number);
+  }
   if (lw_output_format == kDeltaFormat) {
-    KVFileMetadata metadata;
-    if (params.shard_number >= 0) {
-      auto* shard_metadata = metadata.mutable_sharding_metadata();
-      shard_metadata->set_shard_num(params.shard_number);
-    }
     return DeltaRecordStreamWriter<std::ostream>::Create(
         output_stream, DeltaRecordWriter::Options{.metadata = metadata});
   }
   if (lw_output_format == kAvroFormat) {
-    auto delta_record_writer = AvroDeltaRecordStreamWriter::Create(
-        output_stream, DeltaRecordWriter::Options{});
-    if (!delta_record_writer.ok()) {
-      return delta_record_writer.status();
-    }
-    return std::move(*delta_record_writer);
+    return AvroDeltaRecordStreamWriter::Create(
+        output_stream, DeltaRecordWriter::Options{.metadata = metadata});
   }
 
   return absl::InvalidArgumentError(absl::StrCat(

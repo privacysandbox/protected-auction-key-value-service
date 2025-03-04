@@ -119,7 +119,8 @@ TEST(AvroStreamIO, SequentialReading) {
   output_stream.close();
 
   std::ifstream is(path);
-  AvroStreamReader record_reader(is);
+  privacy_sandbox::server_common::log::NoOpContext log_context;
+  AvroStreamReader record_reader(is, log_context);
 
   testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
   EXPECT_CALL(record_callback, Call)
@@ -187,7 +188,8 @@ TEST(AvroStreamIO, SequentialReadingGetKVFileMetadata) {
   output_stream.close();
 
   std::ifstream is(path);
-  AvroStreamReader record_reader(is);
+  privacy_sandbox::server_common::log::NoOpContext log_context;
+  AvroStreamReader record_reader(is, log_context);
   auto actual_metadata = record_reader.GetKVFileMetadata();
   ASSERT_TRUE(actual_metadata.ok()) << actual_metadata.status();
   EXPECT_THAT(*actual_metadata, EqualsProto(kv_metadata));
@@ -220,7 +222,8 @@ TEST(AvroStreamIO, ConcurrentReadingKVFileMetadataNotFound) {
       [&path] { return std::make_unique<iStreamRecordStream>(path); }, options);
 
   auto actual_metadata = record_reader.GetKVFileMetadata();
-  ASSERT_FALSE(actual_metadata.ok()) << actual_metadata.status();
+  ASSERT_TRUE(actual_metadata.ok()) << actual_metadata.status();
+  EXPECT_THAT(*actual_metadata, EqualsProto(KVFileMetadata()));
 
   testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
   EXPECT_CALL(record_callback, Call)
@@ -245,9 +248,11 @@ TEST(AvroStreamIO, SequentialReadingKVFileMetadataNotFound) {
   output_stream.close();
 
   std::ifstream is(path);
-  AvroStreamReader record_reader(is);
+  privacy_sandbox::server_common::log::NoOpContext log_context;
+  AvroStreamReader record_reader(is, log_context);
   auto actual_metadata = record_reader.GetKVFileMetadata();
-  ASSERT_FALSE(actual_metadata.ok()) << actual_metadata.status();
+  ASSERT_TRUE(actual_metadata.ok()) << actual_metadata.status();
+  EXPECT_THAT(*actual_metadata, EqualsProto(KVFileMetadata()));
 
   testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
   EXPECT_CALL(record_callback, Call)
@@ -304,7 +309,8 @@ TEST(AvroStreamIO, SequentialReadingKVMetadataInvalidProto) {
   output_stream.close();
 
   std::ifstream is(path);
-  AvroStreamReader record_reader(is);
+  privacy_sandbox::server_common::log::NoOpContext log_context;
+  AvroStreamReader record_reader(is, log_context);
   auto actual_metadata = record_reader.GetKVFileMetadata();
   ASSERT_FALSE(actual_metadata.ok()) << actual_metadata.status();
 
@@ -351,7 +357,8 @@ TEST(AvroStreamIO, SequentialReadingInvalidFile) {
   output_stream.close();
 
   std::ifstream is(path);
-  AvroStreamReader record_reader(is);
+  privacy_sandbox::server_common::log::NoOpContext log_context;
+  AvroStreamReader record_reader(is, log_context);
 
   testing::MockFunction<absl::Status(const std::string_view&)> record_callback;
   EXPECT_CALL(record_callback, Call).Times(0);

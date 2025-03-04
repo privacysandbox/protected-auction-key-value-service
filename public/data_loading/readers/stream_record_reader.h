@@ -34,6 +34,7 @@ class StreamRecordReader {
 
   // Returns the metadata associated with this file. Can only be called once
   // before the first call to `ReadStreamRecords`.
+  // Will return empty KVFileMetadata if no KVFileMetadata found.
   virtual absl::StatusOr<KVFileMetadata> GetKVFileMetadata() = 0;
 
   // Given a `data_input` stream representing a stream of string

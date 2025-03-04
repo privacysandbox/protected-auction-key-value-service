@@ -229,12 +229,12 @@ TEST_F(ShardedLookupTest, GetKeyValues_Nochaff_Success) {
           std::make_unique<StrictMock<MockRemoteLookupClient>>());
     }
   }
-  auto shard_manager = ShardManager::Create(
-      num_shards_three, std::move(cluster_mappings),
-      std::make_unique<MockRandomGenerator>(),
-      [this, &remote_lookup_client](const std::string& ip) {
-        return std::move(remote_lookup_client[stoi(ip)]);
-      });
+  auto shard_manager =
+      ShardManager::Create(num_shards_three, std::move(cluster_mappings),
+                           std::make_unique<MockRandomGenerator>(),
+                           [&remote_lookup_client](const std::string& ip) {
+                             return std::move(remote_lookup_client[stoi(ip)]);
+                           });
   auto sharded_lookup =
       CreateShardedLookup(mock_local_lookup_, num_shards_three, shard_num_,
                           *(*shard_manager), key_sharder_, /*add_chaff=*/false);

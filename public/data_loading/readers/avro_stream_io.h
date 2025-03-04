@@ -45,9 +45,7 @@ class AvroStreamReader : public StreamRecordReader {
   // `data_input` must be at the file beginning when passed in.
   explicit AvroStreamReader(std::istream& data_input);
 
-  absl::StatusOr<KVFileMetadata> GetKVFileMetadata() override {
-    return KVFileMetadata();
-  }
+  absl::StatusOr<KVFileMetadata> GetKVFileMetadata() override;
 
   absl::Status ReadStreamRecords(
       const std::function<absl::Status(const std::string_view&)>& callback)

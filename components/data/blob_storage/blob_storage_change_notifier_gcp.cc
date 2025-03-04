@@ -33,7 +33,13 @@ class GcpBlobStorageChangeNotifier : public BlobStorageChangeNotifier {
       privacy_sandbox::server_common::log::PSLogContext& log_context)
       : notifier_(std::move(notifier)), log_context_(log_context) {}
 
-  ~GcpBlobStorageChangeNotifier() override { sleep_for_.Stop(); }
+  ~GcpBlobStorageChangeNotifier() override {
+    auto status = sleep_for_.Stop();
+    if (!status.ok()) {
+      PS_LOG(ERROR, log_context_)
+          << "Error stopping GcpBlobStorageChangeNotifier SleepFor:" << status;
+    }
+  }
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,

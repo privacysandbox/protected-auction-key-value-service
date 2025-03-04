@@ -17,10 +17,16 @@
 #include "absl/log/log.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "components/errors/error_tag.h"
 #include "flatbuffers/flatbuffer_builder.h"
 
 namespace kv_server {
 namespace {
+
+enum class ErrorTag : int {
+  kKVFileMetadataNotFound = 1,
+  kKVFileMetadataParseError = 2,
+};
 
 template <typename FbsRecordT>
 absl::StatusOr<const FbsRecordT*> DeserializeAndVerifyRecord(
@@ -37,6 +43,10 @@ absl::StatusOr<const FbsRecordT*> DeserializeAndVerifyRecord(
 }
 
 absl::Status ValidateValue(const KeyValueMutationRecord& kv_mutation_record) {
+  // The server must know what value_type the record, even for Delete records.
+  // To set the value_type, flatbuffer requires setting the value to a
+  // StringValue, StringSetValue, etc.
+  // However, the actual value in StringValue can be unset.
   if (kv_mutation_record.value() == nullptr) {
     return absl::InvalidArgumentError("Value not set.");
   }
@@ -222,6 +232,24 @@ absl::StatusOr<std::vector<uint64_t>> MaybeGetRecordValue(
   }
   return std::vector<uint64_t>(maybe_value->value()->begin(),
                                maybe_value->value()->end());
+}
+
+absl::StatusOr<KVFileMetadata> GetKVFileMetadataFromString(
+    std::string_view serialized_metadata) {
+  if (serialized_metadata.empty()) {
+    return StatusWithErrorTag(
+        absl::InvalidArgumentError(
+            "KVFileMetadata string is empty. Ensure that it is set."),
+        __FILE__, ErrorTag::kKVFileMetadataNotFound);
+  }
+  KVFileMetadata metadata;
+  if (!metadata.ParseFromString(serialized_metadata)) {
+    return StatusWithErrorTag(
+        absl::InvalidArgumentError(
+            "Could not parse KVFileMetadata from string."),
+        __FILE__, ErrorTag::kKVFileMetadataParseError);
+  }
+  return metadata;
 }
 
 }  // namespace kv_server

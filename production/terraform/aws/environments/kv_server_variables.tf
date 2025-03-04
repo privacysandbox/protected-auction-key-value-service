@@ -136,11 +136,6 @@ variable "healthcheck_grace_period_sec" {
   type        = number
 }
 
-variable "ssh_source_cidr_blocks" {
-  description = "Source ips allowed to send ssh traffic to the ssh instance."
-  type        = set(string)
-}
-
 variable "backup_poll_frequency_secs" {
   description = "Backup poll frequency for delta file notifier in seconds."
   type        = number

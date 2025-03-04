@@ -54,11 +54,6 @@ variable "server_instance_role_arn" {
   type        = string
 }
 
-variable "ssh_instance_role_arn" {
-  description = "The service role for the SSH instancce."
-  type        = string
-}
-
 variable "prometheus_service_region" {
   description = "Region where prometheus service runs that other services deployed by this file should interact with."
   type        = string

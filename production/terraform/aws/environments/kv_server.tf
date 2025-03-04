@@ -66,9 +66,6 @@ module "kv_server" {
   healthcheck_timeout_sec         = var.healthcheck_timeout_sec
   healthcheck_grace_period_sec    = var.healthcheck_grace_period_sec
 
-  # Variables related to SSH
-  ssh_source_cidr_blocks = var.ssh_source_cidr_blocks
-
   # Variables related to metrics.
   use_external_metrics_collector_endpoint = var.use_external_metrics_collector_endpoint
   metrics_collector_endpoint              = var.metrics_collector_endpoint
@@ -109,6 +106,7 @@ module "kv_server" {
   primary_coordinator_region                 = var.primary_coordinator_region
   secondary_coordinator_region               = var.secondary_coordinator_region
   public_key_endpoint                        = var.public_key_endpoint
+  coordinator_role_arns                      = [var.primary_coordinator_account_identity, var.secondary_coordinator_account_identity]
 
   # Variables related to logging
   logging_verbosity_level                      = var.logging_verbosity_level

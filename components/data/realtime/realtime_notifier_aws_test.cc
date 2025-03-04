@@ -52,8 +52,8 @@ NotificationsContext GetNotificationsContext() {
 
 TEST_F(RealtimeNotifierAwsTest, NotRunning) {
   AwsRealtimeNotifierMetadata options = {
-      .maybe_sleep_for = std::move(mock_sleep_for_),
       .change_notifier_for_unit_testing = change_notifier_.release(),
+      .maybe_sleep_for = std::move(mock_sleep_for_),
   };
   auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   ASSERT_TRUE(maybe_notifier.ok());
@@ -62,8 +62,8 @@ TEST_F(RealtimeNotifierAwsTest, NotRunning) {
 
 TEST_F(RealtimeNotifierAwsTest, ConsecutiveStartsWork) {
   AwsRealtimeNotifierMetadata options = {
-      .maybe_sleep_for = std::move(mock_sleep_for_),
       .change_notifier_for_unit_testing = change_notifier_.release(),
+      .maybe_sleep_for = std::move(mock_sleep_for_),
   };
   auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start([](const std::string&) {
@@ -78,8 +78,8 @@ TEST_F(RealtimeNotifierAwsTest, ConsecutiveStartsWork) {
 
 TEST_F(RealtimeNotifierAwsTest, StartsAndStops) {
   AwsRealtimeNotifierMetadata options = {
-      .maybe_sleep_for = std::move(mock_sleep_for_),
       .change_notifier_for_unit_testing = change_notifier_.release(),
+      .maybe_sleep_for = std::move(mock_sleep_for_),
   };
   auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start([](const std::string&) {
@@ -132,8 +132,8 @@ TEST_F(RealtimeNotifierAwsTest, NotifiesWithHighPriorityUpdates) {
         return DataLoadingStats{};
       });
   AwsRealtimeNotifierMetadata options = {
-      .maybe_sleep_for = std::move(mock_sleep_for_),
       .change_notifier_for_unit_testing = change_notifier_.release(),
+      .maybe_sleep_for = std::move(mock_sleep_for_),
   };
   auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start(callback.AsStdFunction());
@@ -176,8 +176,8 @@ TEST_F(RealtimeNotifierAwsTest, GetChangesFailure) {
       .WillOnce(Return(true));
 
   AwsRealtimeNotifierMetadata options = {
-      .maybe_sleep_for = std::move(mock_sleep_for_),
       .change_notifier_for_unit_testing = change_notifier_.release(),
+      .maybe_sleep_for = std::move(mock_sleep_for_),
   };
   auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start(callback.AsStdFunction());

@@ -7,6 +7,7 @@ build --workspace_status_command="bash tools/get_workspace_status"
 build --copt=-Werror=thread-safety
 build --config=clang
 build --config=noexcept
+
 # Disable some ROMA error checking
 build --per_file_copt=.*sandboxed_api.*@-Wno-return-type
 
@@ -32,6 +33,7 @@ build --@io_opentelemetry_cpp//api:with_abseil=true
 # Required to build OpenTelemtry with logs API.
 build --copt=-DENABLE_LOGS_PREVIEW
 
+build:clang --config=cpp_nowarn
 build:clang --cxxopt=-fbracket-depth=512
 build:clang --client_env=CC=clang
 build:clang --cxxopt=-std=c++17
@@ -39,6 +41,18 @@ build:clang --host_cxxopt=-std=c++17
 build:clang --client_env=BAZEL_CXXOPTS=-std=c++17
 build:clang --per_file_copt=external/nitrokmscli_.*\.c@-Wno-int-conversion
 build:clang --per_file_copt=external/(json_c|nitrokmscli_).*\.c@-Wno-implicit-function-declaration
+# Ignore deprecated declarations and redefined macro warnings from differential privacy library
+build:clang --per_file_copt=(components|public/data_loading)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+build:clang --per_file_copt=production/packaging/gcp/data_server/bin/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+build:clang --per_file_copt=tools/(data_cli|request_simulation|udf)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+# Use --host_per_file_copt to ignore warnings from genrule
+build:clang --host_per_file_copt=(components|public/data_loading)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+build:clang --host_per_file_copt=production/packaging/gcp/data_server/bin/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+build:clang --host_per_file_copt=tools/(data_cli|request_simulation|udf)/.*@-Wno-macro-redefined,-Wno-deprecated-declarations
+# Ignore warnings from generated parser
+build:clang --per_file_copt=components/query/.*@-Wno-unused-but-set-variable
+# Telemetry has some unchecked results after registering observers.
+build:clang --per_file_copt=(tools/request_simulation/request_simulation_system.cc|components/data_server/server/server.cc)@-Wno-unused-variable
 
 build:cpp_nowarn --copt=-Werror
 build:cpp_nowarn --per_file_copt=external/.*@-Wno-error

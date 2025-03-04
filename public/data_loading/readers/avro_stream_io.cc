@@ -15,20 +15,54 @@
 #include "public/data_loading/readers/avro_stream_io.h"
 
 #include "absl/log/check.h"
+#include "components/errors/error_tag.h"
+#include "public/data_loading/record_utils.h"
 #include "third_party/avro/api/DataFile.hh"
 #include "third_party/avro/api/Schema.hh"
 #include "third_party/avro/api/Stream.hh"
 
 namespace kv_server {
+namespace {
+
+enum class ErrorTag : int {
+  kAvroStreamMetadataException = 1,
+  kAvroStreamReadException = 2,
+  kAvroConcurrentStreamMetadataException = 3,
+  kAvroInputStreamDoesNotSupportSeeking = 4,
+  kAvroGenerateByteRangeError = 5,
+  kAvroBadStream = 6,
+  kAvroReadByteRangeException = 7
+};
+
+}  // namespace
 
 AvroStreamReader::AvroStreamReader(std::istream& data_input)
     : data_input_(data_input) {}
 
+absl::StatusOr<KVFileMetadata> AvroStreamReader::GetKVFileMetadata() {
+  try {
+    // Reset istream to beginning
+    data_input_.clear();
+    data_input_.seekg(0);
+    avro::DataFileReader<std::string> reader(
+        avro::istreamInputStream(data_input_));
+    std::string serialized_metadata =
+        reader.getMetadata(kAvroKVFileMetadataKey);
+    return GetKVFileMetadataFromString(serialized_metadata);
+  } catch (const std::exception& e) {
+    return StatusWithErrorTag(absl::InternalError(e.what()), __FILE__,
+                              ErrorTag::kAvroStreamMetadataException);
+  }
+}
+
 absl::Status AvroStreamReader::ReadStreamRecords(
     const std::function<absl::Status(const std::string_view&)>& callback) {
   try {
-    avro::InputStreamPtr input_stream = avro::istreamInputStream(data_input_);
-    avro::DataFileReader<std::string> reader(std::move(input_stream));
+    // Reset istream to beginning
+    data_input_.clear();
+    data_input_.seekg(0);
+    avro::DataFileReader<std::string> reader(
+        avro::istreamInputStream(data_input_));
 
     std::string record;
     absl::Status overall_status;
@@ -37,7 +71,8 @@ absl::Status AvroStreamReader::ReadStreamRecords(
     }
     return overall_status;
   } catch (const std::exception& e) {
-    return absl::InternalError(e.what());
+    return StatusWithErrorTag(absl::InternalError(e.what()), __FILE__,
+                              ErrorTag::kAvroStreamReadException);
   }
 }
 
@@ -49,10 +84,21 @@ AvroConcurrentStreamRecordReader::AvroConcurrentStreamRecordReader(
       << "Number of work threads must be at least 1.";
 }
 
-// TODO(b/313468899): support metadata
 absl::StatusOr<KVFileMetadata>
 AvroConcurrentStreamRecordReader::GetKVFileMetadata() {
-  return KVFileMetadata();
+  try {
+    auto record_stream = stream_factory_();
+    PS_VLOG(9, options_.log_context) << "creating input stream";
+    avro::InputStreamPtr input_stream =
+        avro::istreamInputStream(record_stream->Stream());
+    auto reader = std::make_unique<avro::DataFileReader<std::string>>(
+        std::move(input_stream));
+    auto serialized_metadata = reader->getMetadata(kAvroKVFileMetadataKey);
+    return GetKVFileMetadataFromString(serialized_metadata);
+  } catch (const std::exception& e) {
+    return StatusWithErrorTag(absl::InternalError(e.what()), __FILE__,
+                              ErrorTag::kAvroConcurrentStreamMetadataException);
+  }
 }
 
 absl::StatusOr<int64_t> AvroConcurrentStreamRecordReader::RecordStreamSize() {
@@ -61,7 +107,9 @@ absl::StatusOr<int64_t> AvroConcurrentStreamRecordReader::RecordStreamSize() {
   stream.seekg(0, std::ios_base::end);
   int64_t size = stream.tellg();
   if (size == -1) {
-    return absl::InvalidArgumentError("Input streams do not support seeking.");
+    return StatusWithErrorTag(
+        absl::InvalidArgumentError("Input streams do not support seeking."),
+        __FILE__, ErrorTag::kAvroInputStreamDoesNotSupportSeeking);
   }
   return size;
 }
@@ -91,7 +139,9 @@ AvroConcurrentStreamRecordReader::BuildByteRanges() {
     byte_range_begin_offset = end_offset + 1;
   }
   if (byte_ranges.empty() || byte_ranges.back().end_offset != *stream_size) {
-    return absl::InternalError("Failed to generate byte_ranges.");
+    return StatusWithErrorTag(
+        absl::InvalidArgumentError("Failed to generate byte_ranges."), __FILE__,
+        ErrorTag::kAvroGenerateByteRangeError);
   }
   return byte_ranges;
 }
@@ -144,7 +194,8 @@ AvroConcurrentStreamRecordReader::ReadByteRangeExceptionless(
   try {
     return ReadByteRange(byte_range, record_callback);
   } catch (const std::exception& e) {
-    return absl::InternalError(e.what());
+    return StatusWithErrorTag(absl::InternalError(e.what()), __FILE__,
+                              ErrorTag::kAvroReadByteRangeException);
   }
 }
 
@@ -168,7 +219,8 @@ AvroConcurrentStreamRecordReader::ReadByteRange(
       std::move(input_stream));
   PS_VLOG(9, options_.log_context) << "syncing to block";
   if (record_stream->Stream().bad()) {
-    return absl::InternalError("Avro stream is bad");
+    return StatusWithErrorTag(absl::InternalError("Avro stream is bad"),
+                              __FILE__, ErrorTag::kAvroBadStream);
   }
   record_stream->Stream().clear();
   record_reader->sync(byte_range.begin_offset);

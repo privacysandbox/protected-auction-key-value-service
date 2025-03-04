@@ -1,0 +1,136 @@
+diff --git a/third_party/avro/api/DataFile.hh b/third_party/avro/api/DataFile.hh
+index 50169106b..a04ec57ce 100644
+--- a/third_party/avro/api/DataFile.hh
++++ b/third_party/avro/api/DataFile.hh
+@@ -89,7 +89,7 @@ class AVRO_DECL DataFileWriterBase : boost::noncopyable {
+     /**
+      * Shared constructor portion since we aren't using C++11
+      */
+-    void init(const ValidSchema &schema, size_t syncInterval, const Codec &codec);
++    void init(const ValidSchema &schema, size_t syncInterval, const Codec &codec, const std::map<std::string, std::string>& custom_metadata);
+
+ public:
+     /**
+@@ -118,9 +118,11 @@ public:
+      * Constructs a data file writer with the given sync interval and name.
+      */
+     DataFileWriterBase(const char* filename, const ValidSchema& schema,
+-        size_t syncInterval, Codec codec = NULL_CODEC);
++        size_t syncInterval, Codec codec = NULL_CODEC,
++        const std::map<std::string, std::string>& custom_metadata = {});
+     DataFileWriterBase(std::unique_ptr<OutputStream> outputStream,
+-                       const ValidSchema& schema, size_t syncInterval, Codec codec);
++                       const ValidSchema& schema, size_t syncInterval, Codec codec,
++                       const std::map<std::string, std::string>& custom_metadata = {});
+
+     ~DataFileWriterBase();
+     /**
+@@ -151,12 +153,14 @@ public:
+      * Constructs a new data file.
+      */
+     DataFileWriter(const char* filename, const ValidSchema& schema,
+-        size_t syncInterval = 16 * 1024, Codec codec = NULL_CODEC) :
+-        base_(new DataFileWriterBase(filename, schema, syncInterval, codec)) { }
++        size_t syncInterval = 16 * 1024, Codec codec = NULL_CODEC,
++        const std::map<std::string, std::string>& custom_metadata = {}) :
++        base_(new DataFileWriterBase(filename, schema, syncInterval, codec, custom_metadata)) { }
+
+     DataFileWriter(std::unique_ptr<OutputStream> outputStream, const ValidSchema& schema,
+-        size_t syncInterval = 16 * 1024, Codec codec = NULL_CODEC) :
+-        base_(new DataFileWriterBase(std::move(outputStream), schema, syncInterval, codec)) { }
++        size_t syncInterval = 16 * 1024, Codec codec = NULL_CODEC,
++        const std::map<std::string, std::string>& custom_metadata = {}) :
++        base_(new DataFileWriterBase(std::move(outputStream), schema, syncInterval, codec, custom_metadata)) { }
+
+     /**
+      * Writes the given piece of data into the file.
+@@ -298,6 +302,8 @@ public:
+      * Return the last synchronization point before our current position.
+      */
+     int64_t previousSync();
++
++    std::string getMetadata(const std::string& key);
+ };
+
+ /**
+@@ -381,6 +387,8 @@ public:
+      */
+     const ValidSchema& readerSchema() { return base_->readerSchema(); }
+
++    std::string getMetadata(const std::string& key) { return base_->getMetadata(key); }
++
+     /**
+      * Returns the schema stored with the data file.
+      */
+diff --git a/third_party/avro/impl/DataFile.cc b/third_party/avro/impl/DataFile.cc
+index e20e60582..d731d20b5 100644
+--- a/third_party/avro/impl/DataFile.cc
++++ b/third_party/avro/impl/DataFile.cc
+@@ -64,7 +64,8 @@ boost::iostreams::zlib_params get_zlib_params() {
+ }
+
+ DataFileWriterBase::DataFileWriterBase(const char* filename, const ValidSchema& schema, size_t syncInterval,
+-                                       Codec codec) :
++                                       Codec codec,
++                                       const std::map<std::string, std::string>& custom_metadata) :
+     filename_(filename),
+     schema_(schema),
+     encoderPtr_(binaryEncoder()),
+@@ -76,11 +77,12 @@ DataFileWriterBase::DataFileWriterBase(const char* filename, const ValidSchema&
+     objectCount_(0),
+     lastSync_(0)
+ {
+-    init(schema, syncInterval, codec);
++    init(schema, syncInterval, codec, custom_metadata);
+ }
+
+ DataFileWriterBase::DataFileWriterBase(std::unique_ptr<OutputStream> outputStream,
+-    const ValidSchema& schema, size_t syncInterval, Codec codec) :
++    const ValidSchema& schema, size_t syncInterval, Codec codec,
++    const std::map<std::string, std::string>& custom_metadata) :
+     filename_(),
+     schema_(schema),
+     encoderPtr_(binaryEncoder()),
+@@ -92,10 +94,10 @@ DataFileWriterBase::DataFileWriterBase(std::unique_ptr<OutputStream> outputStrea
+     objectCount_(0),
+     lastSync_(0)
+ {
+-    init(schema, syncInterval, codec);
++    init(schema, syncInterval, codec, custom_metadata);
+ }
+
+-void DataFileWriterBase::init(const ValidSchema &schema, size_t syncInterval, const Codec &codec) {
++void DataFileWriterBase::init(const ValidSchema &schema, size_t syncInterval, const Codec &codec, const std::map<std::string, std::string>& custom_metadata) {
+     if (syncInterval < minSyncInterval || syncInterval > maxSyncInterval) {
+         throw Exception(boost::format("Invalid sync interval: %1%. "
+             "Should be between %2% and %3%") % syncInterval %
+@@ -116,6 +118,16 @@ void DataFileWriterBase::init(const ValidSchema &schema, size_t syncInterval, co
+     }
+     setMetadata(AVRO_SCHEMA_KEY, schema.toJson(false));
+
++    if (!custom_metadata.empty()) {
++        for (const auto& [key, value] : custom_metadata) {
++            if (key.rfind("avro.", 0) != 0) {
++                setMetadata(key, value);
++            } else {
++                throw Exception("Cannot set reserved metadata key: " + key);
++            }
++        }
++    }
++
+     writeHeader();
+     encoderPtr_->init(*buffer_);
+
+@@ -597,4 +609,12 @@ int64_t DataFileReaderBase::previousSync() {
+   return blockStart_;
+ }
+
++string DataFileReaderBase::getMetadata(const string& key) {
++  Metadata::const_iterator it = metadata_.find(key);
++  if (it == metadata_.end()) {
++    return "";
++  }
++  return string(it->second.begin(), it->second.end());
++}
++
+ }   // namespace avro

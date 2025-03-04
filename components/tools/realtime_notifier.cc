@@ -81,11 +81,14 @@ absl::Status Run() {
     return realtime_notifier_maybe.status();
   }
   auto realtime_notifier = std::move(*realtime_notifier_maybe);
-  realtime_notifier->Start([](const std::string& message) {
+  auto start_status = realtime_notifier->Start([](const std::string& message) {
     Print(message);
     DataLoadingStats stats;
     return stats;
   });
+  if (!start_status.ok()) {
+    return start_status;
+  }
   LOG(INFO) << "Listening ....";
   absl::SleepFor(absl::InfiniteDuration());
   return absl::OkStatus();

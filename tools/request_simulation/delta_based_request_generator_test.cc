@@ -102,7 +102,7 @@ TEST_F(GenerateRequestsFromDeltaFilesTest, LoadingDataFromDeltaFiles) {
   ON_CALL(blob_client_, ListBlobs)
       .WillByDefault(Return(std::vector<std::string>({})));
   DeltaBasedRequestGenerator request_generator(std::move(options_),
-                                               std::move(GetRequestGenFn()));
+                                               GetRequestGenFn());
   const std::string last_basename = "";
   EXPECT_CALL(notifier_,
               Start(_, GetTestLocation(),

@@ -393,3 +393,9 @@ variable "enable_consented_log" {
   description = "Enable the logging of consented requests. If it is set to true, the consented debug token parameter value must not be an empty string."
   type        = bool
 }
+
+variable "data_loading_file_format" {
+  description = "Data file format for blob storage and realtime updates. See /public/constants.h for possible values."
+  default     = "riegeli"
+  type        = string
+}

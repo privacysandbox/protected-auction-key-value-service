@@ -13,7 +13,7 @@ vpc and gateway endpoints configuration is here:
 [production/terraform/aws/services/backend_services/main.tf](/production/terraform/aws/services/backend_services/main.tf)
 Note that the endpoints are associated with an
 [IAM policy](/production/terraform/aws/services/backend_services/main.tf#L18) that only allows
-server and ssh instances to communicate with the AWS backend services.
+server to communicate with the AWS backend services.
 
 ## Adding a new backend service's vpc endpoint:
 

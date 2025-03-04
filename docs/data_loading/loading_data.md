@@ -25,7 +25,7 @@ format parameter to instruct the system to read data files as the specified form
 -   For AWS: Set the [Terraform var](/docs/AWS_Terraform_vars.md) data_loading_file_format.
 -   For Local: Set flag `--data_loading_file_format`
     ([defined here](/components/cloud_config/parameter_client_local.cc)).
--   For GCP: To be supported.
+-   For GCP: Set the [Terraform var](/docs/GCP_Terraform_vars.md) data_loading_file_format.
 
 # Experimenting with sample data
 

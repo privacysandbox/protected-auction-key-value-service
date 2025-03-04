@@ -38,7 +38,13 @@ class GcpChangeNotifier : public ChangeNotifier {
   explicit GcpChangeNotifier(
       privacy_sandbox::server_common::log::PSLogContext& log_context)
       : log_context_(log_context) {}
-  ~GcpChangeNotifier() { sleep_for_.Stop(); }
+  ~GcpChangeNotifier() {
+    auto status = sleep_for_.Stop();
+    if (!status.ok()) {
+      PS_LOG(ERROR, log_context_)
+          << "Error stopping GcpChangeNotifier SleepFor:" << status;
+    }
+  }
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,

@@ -27,8 +27,11 @@
 #include "absl/status/statusor.h"
 #include "flatbuffers/flatbuffer_builder.h"
 #include "public/data_loading/data_loading_generated.h"
+#include "public/data_loading/riegeli_metadata.pb.h"
 
 namespace kv_server {
+
+constexpr char kAvroKVFileMetadataKey[] = "ad_retrieval.file_metadata";
 
 enum class DataRecordType : int {
   kKeyValueMutationRecord,
@@ -238,6 +241,9 @@ absl::StatusOr<std::vector<uint32_t>> MaybeGetRecordValue(
 template <>
 absl::StatusOr<std::vector<uint64_t>> MaybeGetRecordValue(
     const KeyValueMutationRecord& record);
+
+absl::StatusOr<KVFileMetadata> GetKVFileMetadataFromString(
+    std::string_view serialized_metadata);
 
 }  // namespace kv_server
 

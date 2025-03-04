@@ -27,15 +27,6 @@ module "iam_roles" {
   existing_vpc_environment = var.existing_vpc_environment
 }
 
-module "iam_groups" {
-  source                   = "../../services/iam_groups"
-  environment              = var.environment
-  service                  = local.service
-  use_existing_vpc         = var.use_existing_vpc
-  existing_vpc_operator    = var.existing_vpc_operator
-  existing_vpc_environment = var.existing_vpc_environment
-}
-
 module "data_storage" {
   source                         = "../../services/data_storage"
   environment                    = var.environment
@@ -75,7 +66,6 @@ module "backend_services" {
   vpc_endpoint_subnet_ids      = module.networking.private_subnet_ids
   vpc_id                       = module.networking.vpc_id
   server_instance_role_arn     = module.iam_roles.instance_role_arn
-  ssh_instance_role_arn        = module.iam_roles.ssh_instance_role_arn
   prometheus_service_region    = var.prometheus_service_region
   use_existing_vpc             = var.use_existing_vpc
   existing_vpc_operator        = var.existing_vpc_operator
@@ -161,16 +151,6 @@ module "autoscaling" {
   healthcheck_grace_period_sec    = var.healthcheck_grace_period_sec
 }
 
-module "ssh" {
-  source                  = "../../services/ssh"
-  environment             = var.environment
-  instance_sg_id          = module.security_groups.ssh_security_group_id
-  service                 = local.service
-  ssh_instance_subnet_ids = module.networking.public_subnet_ids
-  instance_profile_name   = module.iam_roles.ssh_instance_profile_name
-}
-
-
 module "parameter_notification" {
   source      = "../../services/parameter_notification"
   service     = local.service
@@ -248,10 +228,8 @@ module "security_group_rules" {
   vpc_id                            = module.networking.vpc_id
   elb_security_group_id             = module.security_groups.elb_security_group_id
   instances_security_group_id       = module.security_groups.instance_security_group_id
-  ssh_security_group_id             = module.security_groups.ssh_security_group_id
   vpce_security_group_id            = module.security_groups.vpc_endpoint_security_group_id
   gateway_endpoints_prefix_list_ids = module.backend_services[0].gateway_endpoints_prefix_list_ids
-  ssh_source_cidr_blocks            = var.ssh_source_cidr_blocks
   use_existing_vpc                  = var.use_existing_vpc
 }
 
@@ -265,7 +243,7 @@ module "iam_role_policies" {
   sns_data_updates_topic_arn          = module.data_storage.sns_data_updates_topic_arn
   sns_realtime_topic_arn              = module.data_storage.sns_realtime_topic_arn
   logging_verbosity_updates_topic_arn = module.parameter_notification.logging_verbosity_updates_topic_arn
-  ssh_instance_role_name              = module.iam_roles.ssh_instance_role_name
+  coordinator_role_arns               = var.coordinator_role_arns
   server_parameter_arns = [
     module.parameter.s3_bucket_parameter_arn,
     module.parameter.bucket_update_sns_arn_parameter_arn,
@@ -323,15 +301,6 @@ module "iam_role_policies" {
     module.parameter.consented_debug_token_parameter_arn] : []
   )
 }
-
-module "iam_group_policies" {
-  source               = "../../services/iam_group_policies"
-  service              = local.service
-  environment          = var.environment
-  ssh_users_group_name = module.iam_groups.ssh_users_group_name
-  ssh_instance_arn     = module.ssh.ssh_instance_arn
-}
-
 
 module "dashboards" {
   source      = "../../services/dashboard"

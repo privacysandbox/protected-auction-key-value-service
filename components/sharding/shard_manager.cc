@@ -84,16 +84,25 @@ class ShardManagerImpl : public ShardManager {
     absl::ReaderMutexLock lock(&mutex_);
     if (shard_num < 0 || shard_num >= num_shards_ ||
         cluster_mappings_.size() != num_shards_) {
+      PS_VLOG(1, log_context_)
+          << "Invalid shard_num or num_shards_. shard_num: " << shard_num
+          << ". num_shards_: " << num_shards_
+          << ". cluster_mappings_size_: " << cluster_mappings_.size();
       return nullptr;
     }
     const auto& shard_replicas = cluster_mappings_[shard_num];
     if (shard_replicas.size() == 0) {
+      PS_VLOG(1, log_context_) << "Shard replica size is 0. Not returning "
+                                  "RemoteLookupClient for shard_num "
+                               << shard_num;
       return nullptr;
     }
     const auto replica_idx = random_generator_->Get(shard_replicas.size());
     const auto& ip_address = shard_replicas[replica_idx];
     const auto key_iter = remote_lookup_clients_.find(ip_address);
     if (key_iter == remote_lookup_clients_.end()) {
+      PS_VLOG(1, log_context_)
+          << "Cannot find RemoteLookupClient for shard_num " << shard_num;
       return nullptr;
     } else {
       return key_iter->second.get();

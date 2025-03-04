@@ -19,6 +19,7 @@
 
 #include <regex>
 #include <string_view>
+#include <tuple>
 
 #include "public/base_types.pb.h"
 
@@ -147,6 +148,10 @@ const std::regex& LogicalShardingConfigFileFormatRegex();
 // the corresponding format. If none is specified, Riegeli is the default.
 enum class FileFormat { kAvro, kRiegeli };
 constexpr std::array<std::string_view, 2> kFileFormats{"avro", "riegeli"};
+
+// A partition is uniquely identified using the partition id
+// and the compression group id
+using UniquePartitionIdTuple = std::tuple<int32_t, int32_t>;
 
 }  // namespace kv_server
 

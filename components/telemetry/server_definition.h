@@ -786,16 +786,6 @@ inline auto* InternalLookupServerContextMap(
       privacy_total_budget);
 }
 
-template <typename T>
-inline void AddSystemMetric(T* context_map) {
-  context_map->AddObserverable(
-      privacy_sandbox::server_common::metrics::kCpuPercent,
-      privacy_sandbox::server_common::GetCpu);
-  context_map->AddObserverable(
-      privacy_sandbox::server_common::metrics::kMemoryKB,
-      privacy_sandbox::server_common::GetMemory);
-}
-
 inline void LogIfError(const absl::Status& s,
                        absl::string_view message = "when logging metric",
                        privacy_sandbox::server_common::SourceLocation location
@@ -814,6 +804,16 @@ inline void LogIfError(const absl::StatusOr<T>& s, std::string_view message,
   ABSL_LOG_EVERY_N_SEC(WARNING, 60)
           .AtLocation(location.file_name(), location.line())
       << message << ": " << s.status();
+}
+
+template <typename T>
+inline void AddSystemMetric(T* context_map) {
+  LogIfError(context_map->AddObserverable(
+      privacy_sandbox::server_common::metrics::kCpuPercent,
+      privacy_sandbox::server_common::GetCpu));
+  LogIfError(context_map->AddObserverable(
+      privacy_sandbox::server_common::metrics::kMemoryKB,
+      privacy_sandbox::server_common::GetMemory));
 }
 
 template <const auto& definition>

@@ -242,8 +242,7 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
   SetQueueManager(metadata, message_service_verbosity_param_update_.get());
   auto logging_verbosity_notifier_status = ParameterNotifier::Create(
       metadata,
-      std::move(parameter_fetcher.GetParamName(
-          kLoggingVerbosityLevelParameterSuffix)),
+      parameter_fetcher.GetParamName(kLoggingVerbosityLevelParameterSuffix),
       absl::Seconds(backup_poll_frequency_secs), server_safe_log_context_);
   if (logging_verbosity_notifier_status.ok()) {
     logging_verbosity_param_notifier_ =
@@ -343,8 +342,7 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
 
   ParameterFetcher parameter_fetcher(
       environment_, *parameter_client_,
-      std::move(LogStatusSafeMetricsFn<kGetParameterStatus>()),
-      server_safe_log_context_);
+      LogStatusSafeMetricsFn<kGetParameterStatus>(), server_safe_log_context_);
 
   int32_t number_of_workers =
       parameter_fetcher.GetInt32Parameter(kUdfNumWorkersParameterSuffix);
@@ -373,7 +371,8 @@ absl::Status Server::CreateDefaultInstancesIfNecessaryAndGetEnvironment(
                   .RegisterRunSetQueryUInt32Hook(*run_set_query_uint32_hook_)
                   .RegisterRunSetQueryUInt64Hook(*run_set_query_uint64_hook_)
                   .RegisterRunSetQueryStringHook(*run_set_query_string_hook_)
-                  .RegisterLoggingHook()
+                  .RegisterLogMessageHook()
+                  .RegisterConsoleLogHook()
                   .RegisterCustomMetricHook()
                   .SetNumberOfWorkers(number_of_workers)
                   .DisableUdfStackTraces(!enable_udf_stacktrace)
@@ -438,8 +437,7 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       LifecycleHeartbeat::Create(*instance_client_, server_safe_log_context_);
   ParameterFetcher parameter_fetcher(
       environment_, *parameter_client_,
-      std::move(LogStatusSafeMetricsFn<kGetParameterStatus>()),
-      server_safe_log_context_);
+      LogStatusSafeMetricsFn<kGetParameterStatus>(), server_safe_log_context_);
   if (absl::Status status = lifecycle_heartbeat->Start(parameter_fetcher);
       status != absl::OkStatus()) {
     return status;
@@ -459,8 +457,9 @@ absl::Status Server::InitOnceInstancesAreCreated() {
       << " parameter: " << num_shards_;
 
   blob_client_ = CreateBlobClient(parameter_fetcher);
-  delta_stream_reader_factory_ =
-      CreateStreamRecordReaderFactory(parameter_fetcher);
+  PS_ASSIGN_OR_RETURN(delta_stream_reader_factory_,
+                      CreateStreamRecordReaderFactory(parameter_fetcher));
+
   notifier_ = CreateDeltaFileNotifier(parameter_fetcher);
   auto factory = KeyFetcherFactory::Create(server_safe_log_context_);
   key_fetcher_manager_ = factory->CreateKeyFetcherManager(parameter_fetcher);
@@ -647,7 +646,7 @@ std::unique_ptr<BlobStorageClient> Server::CreateBlobClient(
       std::move(client_options), server_safe_log_context_);
 }
 
-std::unique_ptr<StreamRecordReaderFactory>
+absl::StatusOr<std::unique_ptr<StreamRecordReaderFactory>>
 Server::CreateStreamRecordReaderFactory(
     const ParameterFetcher& parameter_fetcher) {
   const int32_t data_loading_num_threads = parameter_fetcher.GetInt32Parameter(
@@ -667,6 +666,9 @@ Server::CreateStreamRecordReaderFactory(
     options.num_worker_threads = data_loading_num_threads;
     options.log_context = server_safe_log_context_;
     return std::make_unique<RiegeliStreamRecordReaderFactory>(options);
+  } else {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Unknown StreamRecordReader file format: ", file_format));
   }
 }
 
@@ -687,9 +689,9 @@ std::unique_ptr<DataOrchestrator> Server::CreateDataOrchestrator(
             .blob_client = *blob_client_,
             .delta_notifier = *notifier_,
             .change_notifier = *change_notifier_,
+            .udf_client = *udf_client_,
             .delta_stream_reader_factory = *delta_stream_reader_factory_,
             .realtime_thread_pool_manager = *realtime_thread_pool_manager_,
-            .udf_client = *udf_client_,
             .shard_num = shard_num_,
             .num_shards = num_shards_,
             .key_sharder = std::move(key_sharder),
@@ -747,7 +749,7 @@ std::unique_ptr<grpc::Server> Server::CreateAndStartGrpcServer() {
       std::string(kAutoscalerHealthcheck), true);
   server->GetHealthCheckService()->SetServingStatus(
       std::string(kLoadbalancerHealthcheck), false);
-  return std::move(server);
+  return server;
 }
 
 absl::Status Server::SetDefaultUdfCodeObject() {

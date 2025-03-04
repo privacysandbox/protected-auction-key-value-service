@@ -42,7 +42,7 @@ data "aws_iam_policy_document" "vpce_policy_doc" {
     condition {
       test     = "ArnEquals"
       variable = "aws:PrincipalArn"
-      values   = [var.server_instance_role_arn, var.ssh_instance_role_arn]
+      values   = [var.server_instance_role_arn]
     }
   }
 }

@@ -25,16 +25,15 @@ namespace {
 
 using privacy_sandbox::server_common::GetTracer;
 
-constexpr char* kReceivedLowLatencyNotificationsLocally =
+constexpr char kReceivedLowLatencyNotificationsLocally[] =
     "ReceivedLowLatencyNotificationsLocally";
 
 class LocalDeltaFileRecordChangeNotifier
     : public DeltaFileRecordChangeNotifier {
  public:
   explicit LocalDeltaFileRecordChangeNotifier(
-      std::unique_ptr<ChangeNotifier> notifier,
-      privacy_sandbox::server_common::log::PSLogContext& log_context)
-      : notifier_(std::move(notifier)), log_context_(log_context) {}
+      std::unique_ptr<ChangeNotifier> notifier)
+      : notifier_(std::move(notifier)) {}
 
   absl::StatusOr<NotificationsContext> GetNotifications(
       absl::Duration max_wait,
@@ -52,16 +51,15 @@ class LocalDeltaFileRecordChangeNotifier
 
     auto span = GetTracer()->StartSpan(kReceivedLowLatencyNotificationsLocally);
     NotificationsContext nc = {
-        .scope = opentelemetry::trace::Scope(span),
-        .notifications_received = absl::Now(),
         .realtime_messages = realtime_messages,
+        .notifications_received = absl::Now(),
+        .scope = opentelemetry::trace::Scope(span),
     };
     return nc;
   }
 
  private:
   std::unique_ptr<ChangeNotifier> notifier_;
-  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
@@ -71,7 +69,7 @@ DeltaFileRecordChangeNotifier::Create(
     std::unique_ptr<ChangeNotifier> change_notifier,
     privacy_sandbox::server_common::log::PSLogContext& log_context) {
   return std::make_unique<LocalDeltaFileRecordChangeNotifier>(
-      std::move(change_notifier), log_context);
+      std::move(change_notifier));
 }
 
 }  // namespace kv_server

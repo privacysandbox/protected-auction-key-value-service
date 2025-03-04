@@ -125,11 +125,6 @@ absl::StatusOr<KVFileMetadata> CreateSnapshotMetadata(
   return metadata;
 }
 
-void ResetInputStream(std::istream& istream) {
-  istream.clear();
-  istream.seekg(0, std::ios::beg);
-}
-
 absl::Status WriteRecordsToSnapshotStream(
     const GenerateSnapshotCommand::Params& params,
     DeltaRecordStreamReader<std::istream>& record_reader,

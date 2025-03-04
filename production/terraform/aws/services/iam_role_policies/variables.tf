@@ -80,6 +80,7 @@ variable "logging_verbosity_updates_topic_arn" {
   type        = string
 }
 
-variable "ssh_instance_role_name" {
-  description = "Role for SSH instance (bastion)."
+variable "coordinator_role_arns" {
+  description = "ARNs for coordinator roles."
+  type        = list(string)
 }

@@ -32,7 +32,7 @@ absl::StatusOr<absl::Duration> RateLimiter::Acquire(int permits) {
       return absl::DeadlineExceededError("Acquire deadline exceeds");
     }
   }
-  permits_.fetch_sub(permits, std::memory_order_relaxed) - permits;
+  permits_.fetch_sub(permits, std::memory_order_relaxed);
   return clock_.Now() - start_time;
 }
 
@@ -44,8 +44,7 @@ void RateLimiter::RefillPermits() {
   }
   const int64_t permits_to_fill =
       (permits_fill_rate_ / 1e9) * elapsed_time_ns.count();
-  permits_.fetch_add(permits_to_fill, std::memory_order_relaxed) +
-      permits_to_fill;
+  permits_.fetch_add(permits_to_fill, std::memory_order_relaxed);
   last_refill_time_.Reset();
 }
 

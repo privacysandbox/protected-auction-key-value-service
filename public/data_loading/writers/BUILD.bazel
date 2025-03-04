@@ -44,9 +44,13 @@ cc_library(
 cc_library(
     name = "avro_delta_record_stream_writer",
     hdrs = ["avro_delta_record_stream_writer.h"],
+    copts = [
+        "-fexceptions",
+    ],
     deps = [
         ":delta_record_writer",
         "//public/data_loading:record_utils",
+        "//public/data_loading/readers:avro_stream_io",
         "@avro//:avrocpp",
         "@com_google_absl//absl/log",
         "@com_google_absl//absl/status",

@@ -30,7 +30,11 @@ class RealtimeThreadPoolManagerAws : public RealtimeThreadPoolManager {
       : realtime_notifiers_(std::move(realtime_notifiers)),
         log_context_(log_context) {}
 
-  ~RealtimeThreadPoolManagerAws() override { Stop(); }
+  ~RealtimeThreadPoolManagerAws() override {
+    if (auto status = Stop(); !status.ok()) {
+      LOG(ERROR) << "Failed to Stop(): " << status;
+    }
+  }
 
   absl::Status Start(
       std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>

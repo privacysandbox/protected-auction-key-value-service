@@ -51,7 +51,13 @@ class LocalChangeNotifier : public ChangeNotifier {
         << "Found " << files_in_directory_.size() << " files.";
   }
 
-  ~LocalChangeNotifier() { sleep_for_.Stop(); }
+  ~LocalChangeNotifier() {
+    auto status = sleep_for_.Stop();
+    if (!status.ok()) {
+      PS_LOG(ERROR, log_context_)
+          << "Error stopping LocalChangeNotifier SleepFor:" << status;
+    }
+  }
 
   absl::StatusOr<std::vector<std::string>> GetNotifications(
       absl::Duration max_wait,

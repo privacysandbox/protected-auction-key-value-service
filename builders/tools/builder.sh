@@ -177,6 +177,7 @@ function builder::cbuild_al() {
   shift
   local -r cbuild="$(builder::get_tools_dir)"/cbuild
   declare -a env_vars
+  IFS=':' read -r -a env_vars <<< "${BUILDER_CUSTOM_ENV_VARS}"
   builder::add_aws_env_vars env_vars
   declare env_args
   for evar in "${env_vars[@]}"; do

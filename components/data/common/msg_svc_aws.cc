@@ -66,15 +66,12 @@ class AwsMessageService : public MessageService {
  public:
   // `prefix` is the prefix of randomly generated SQS Queue name.
   // The queue is subscribed to the topic at `sns_arn`.
-  AwsMessageService(
-      std::string prefix, std::string sns_arn, std::string environment,
-      std::optional<int32_t> shard_num,
-      privacy_sandbox::server_common::log::PSLogContext& log_context)
+  AwsMessageService(std::string prefix, std::string sns_arn,
+                    std::string environment, std::optional<int32_t> shard_num)
       : prefix_(std::move(prefix)),
         sns_arn_(std::move(sns_arn)),
         environment_(std::move(environment)),
-        shard_num_(shard_num),
-        log_context_(log_context) {}
+        shard_num_(shard_num) {}
 
   bool IsSetupComplete() const {
     absl::ReaderMutexLock lock(&mutex_);
@@ -198,7 +195,6 @@ class AwsMessageService : public MessageService {
   std::string sqs_arn_;
   bool are_attributes_set_ = false;
   std::optional<int32_t> shard_num_;
-  privacy_sandbox::server_common::log::PSLogContext& log_context_;
 };
 
 }  // namespace
@@ -212,6 +208,6 @@ absl::StatusOr<std::unique_ptr<MessageService>> MessageService::Create(
                                : std::nullopt);
   return std::make_unique<AwsMessageService>(
       std::move(metadata.queue_prefix), std::move(metadata.sns_arn),
-      std::move(metadata.environment), shard_num, log_context);
+      std::move(metadata.environment), shard_num);
 }
 }  // namespace kv_server

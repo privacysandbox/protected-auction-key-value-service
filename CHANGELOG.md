@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 1.2.0 (2025-03-04)
+
+
+### Features
+
+* Add Avro metadata support for data cli
+* Add metadata support when reading Avro files
+* Add UDF console logging
+* Use partition,compression_group_id to uniquely id a partition
+
+
+### Bug Fixes
+
+* Add GCP Terraform parameter for data loading file format.
+* C++ compiler warnings
+* Check that partition ids are unique
+* Explicitly set confidential_instance_type
+* Pass chaffing to lookup
+* replace google internal link with public link for variables.
+* use gperftools github doc pages
+
+
+### Documentation
+
+* Add Avro metadata spec
+* Remove AWS ssh from docs.
+
 ## 1.1.0 (2025-01-15)
 
 
@@ -11,15 +38,12 @@ All notable changes to this project will be documented in this file. See [commit
 * Add BatchExecuteCode function to UdfClient
 * Add custom metrics UDF callback hook to udf configuration
 * Add udf-enable-stacktrace parameter
-* Bump nltk from 3.8.1 to 3.9.1 in /third_party_deps
-* Bump tqdm that has a security fix to 4.67.1
 * Enable UDF custom metric hook for the server
 * Parallel UDF execution for multi partition requests
 * Switch AvroDeltaRecordStreamWriter to use native fb struct
 * Switch CsvDeltaRecordStreamWriter and consumers to fb native
 * Switch DeltaRecordLimitingFileWriter and consumers to native fb
 * Switch DeltaRecordStreamWriter and consumers to fb native
-* Upgrade common repo
 
 
 ### Bug Fixes
@@ -31,16 +55,21 @@ All notable changes to this project will be documented in this file. See [commit
 * Do not require Delete KVMutations to have a value
 * Downgrade markdownlint
 * Drop `keyGroupOutput` objects that do not have keyValues
-* fix building failure of GitHub main
+* Fix building failure of GitHub main
 * Fix udf tester to recognize absl logging flags
 * Loading data in order for aws e2e workflow
 * Proto encoder should check that partition output is json object
 * Remove extra comma in request example json for log context
-* remove logging from default UDF
-* resolve e2e workflow key conflict
+* Remove logging from default UDF
+* Resolve e2e workflow key conflict
 * Sample UDFs should use logMessage instead of console.log
 * Udf code object should have mutex
 
+### Dependencies
+
+* Bump nltk from 3.8.1 to 3.9.1 in /third_party_deps
+* Bump tqdm that has a security fix to 4.67.1
+* Upgrade common repo
 
 ### Documentation
 

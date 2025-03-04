@@ -85,22 +85,23 @@ bool PrepareTlsKeyCertForEnvoy() {
 }
 
 void StartKvServer(int argc, char* argv[]) {
-  std::vector<char*> server_exec_args = {"/server"};
+  std::vector<const char*> server_exec_args = {"/server"};
   for (int i = 1; i < argc; ++i) {
     server_exec_args.push_back(argv[i]);
   }
   server_exec_args.push_back(nullptr);
   LOG(INFO) << "Starting KV-Server";
-  execv(server_exec_args[0], &server_exec_args[0]);
+  execv(server_exec_args[0], const_cast<char* const*>(&server_exec_args[0]));
   LOG(ERROR) << "Server failure:" << std::strerror(errno);
 }
 
 void StartEnvoy() {
   LOG(INFO) << "Starting Envoy";
-  std::vector<char*> envoy_exec_args = {"/usr/local/bin/envoy", "--config-path",
-                                        "/etc/envoy/envoy.yaml", "-l", "warn"};
+  std::vector<const char*> envoy_exec_args = {
+      "/usr/local/bin/envoy", "--config-path", "/etc/envoy/envoy.yaml", "-l",
+      "warn"};
   envoy_exec_args.push_back(nullptr);
-  execv(envoy_exec_args[0], &envoy_exec_args[0]);
+  execv(envoy_exec_args[0], const_cast<char* const*>(&envoy_exec_args[0]));
   LOG(ERROR) << "Envoy failure:" << std::strerror(errno);
 }
 

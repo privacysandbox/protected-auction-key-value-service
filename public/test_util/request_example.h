@@ -161,7 +161,7 @@ constexpr std::string_view kV2RequestMultiplePartitionsInJson = R"(
            ]
       },
       {
-          "id": 1,
+          "id": 0,
           "compressionGroupId": 1,
           "arguments": [
               {
@@ -218,7 +218,7 @@ constexpr std::string_view kConsentedV2RequestMultiplePartitionsInJson =
            ]
       },
       {
-          "id": 1,
+          "id": 0,
           "compressionGroupId": 1,
           "arguments": [
               {
@@ -278,7 +278,7 @@ constexpr std::string_view
            ]
       },
       {
-          "id": 1,
+          "id": 0,
           "compressionGroupId": 1,
           "arguments": [
               {
@@ -344,7 +344,7 @@ constexpr std::string_view
            ]
       },
       {
-          "id": 1,
+          "id": 0,
           "compressionGroupId": 1,
           "arguments": [
               {

@@ -51,28 +51,28 @@ TEST_F(ClusterMappingsAwsTest, RetrieveMappingsSuccessfully) {
             testing::UnorderedElementsAreArray(instance_group_names_expected));
         InstanceInfo ii1 = {
             .id = "id1",
-            .instance_group = "kv-server-testenv-0-instance-asg",
             .service_status = InstanceServiceStatus::kInService,
+            .instance_group = "kv-server-testenv-0-instance-asg",
         };
         InstanceInfo ii2 = {
             .id = "id2",
-            .instance_group = "kv-server-testenv-0-instance-asg",
             .service_status = InstanceServiceStatus::kInService,
+            .instance_group = "kv-server-testenv-0-instance-asg",
         };
         InstanceInfo ii3 = {
             .id = "id3",
-            .instance_group = "kv-server-testenv-1-instance-asg",
             .service_status = InstanceServiceStatus::kInService,
+            .instance_group = "kv-server-testenv-1-instance-asg",
         };
         InstanceInfo ii4 = {
             .id = "id4",
-            .instance_group = "kv-server-testenv-2-instance-asg",
             .service_status = InstanceServiceStatus::kPreService,
+            .instance_group = "kv-server-testenv-2-instance-asg",
         };
         InstanceInfo ii5 = {
             .id = "id5",
-            .instance_group = "garbage",
             .service_status = InstanceServiceStatus::kPreService,
+            .instance_group = "garbage",
         };
         std::vector<InstanceInfo> instances{ii1, ii2, ii3, ii4, ii5};
         return instances;
@@ -128,8 +128,9 @@ TEST_F(ClusterMappingsAwsTest, RetrieveMappingsWithRetrySuccessfully) {
             testing::UnorderedElementsAreArray(instance_group_names_expected));
         InstanceInfo ii1 = {
             .id = "id1",
+            .service_status = InstanceServiceStatus::kInService,
             .instance_group = "kv-server-testenv-0-instance-asg",
-            .service_status = InstanceServiceStatus::kInService};
+        };
 
         std::vector<InstanceInfo> instances{ii1};
         return instances;
@@ -188,9 +189,10 @@ TEST_F(ClusterMappingsAwsTest, UpdateMappings) {
             testing::UnorderedElementsAreArray(instance_group_names_expected));
         InstanceInfo ii1 = {
             .id = "id10",
-            .instance_group = "kv-server-testenv-0-instance-asg",
             .service_status = InstanceServiceStatus::kInService,
-            .private_ip_address = "ip10"};
+            .instance_group = "kv-server-testenv-0-instance-asg",
+            .private_ip_address = "ip10",
+        };
 
         std::vector<InstanceInfo> instances{ii1};
         return instances;
@@ -207,8 +209,8 @@ TEST_F(ClusterMappingsAwsTest, UpdateMappings) {
             testing::UnorderedElementsAreArray(instance_group_names_expected));
         InstanceInfo ii1 = {
             .id = "id20",
-            .instance_group = "kv-server-testenv-0-instance-asg",
             .service_status = InstanceServiceStatus::kInService,
+            .instance_group = "kv-server-testenv-0-instance-asg",
             .private_ip_address = "ip20"};
 
         std::vector<InstanceInfo> instances{ii1};
@@ -246,7 +248,7 @@ TEST_F(ClusterMappingsAwsTest, UpdateMappings) {
   MockParameterFetcher parameter_fetcher;
   auto mgr = ClusterMappingsManager::Create(
       environment, num_shards, *instance_client, parameter_fetcher);
-  mgr->Start(*shard_manager);
+  ASSERT_TRUE(mgr->Start(*shard_manager).ok());
   finished.WaitForNotification();
   ASSERT_TRUE(mgr->Stop().ok());
   EXPECT_FALSE(mgr->IsRunning());

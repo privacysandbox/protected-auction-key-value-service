@@ -137,11 +137,6 @@ variable "healthcheck_grace_period_sec" {
   type        = number
 }
 
-variable "ssh_source_cidr_blocks" {
-  description = "Source ips allowed to send ssh traffic to the ssh instance."
-  type        = set(string)
-}
-
 variable "backup_poll_frequency_secs" {
   description = "Backup poll frequency for delta file notifier in seconds."
   type        = number
@@ -375,4 +370,9 @@ variable "enable_external_traffic" {
 variable "with_existing_kv" {
   description = "In order to deploy this Key/Value server with existing Key/Value server(s) under the same VPC, you must set this var to true to avoid resource collision. In this case, use_existing_vpc must be true for all Key/Value servers under the same VPC."
   type        = bool
+}
+
+variable "coordinator_role_arns" {
+  description = "ARNs for coordinator roles."
+  type        = list(string)
 }

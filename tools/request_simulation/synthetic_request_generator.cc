@@ -37,7 +37,7 @@ void SyntheticRequestGenerator::GenerateRequests() {
     if (rate_limiter_.Acquire(number_of_requests).ok()) {
       std::vector<std::string> messages;
       for (int i = 0; i < number_of_requests; ++i) {
-        messages.push_back(std::move(request_body_generation_fn_()));
+        messages.push_back(request_body_generation_fn_());
       }
       VLOG(7) << "Filled " << number_of_requests;
       message_queue_.Push(std::move(messages));

@@ -59,46 +59,9 @@ The build command will generate the following binaries:
 ## Deploy the tool binaries to AWS EC2
 
 The tool will need to be deployed and run on the same EC2 machine where the KV server enclave is
-running. Follow the similar steps described in this
+running. Follow the similar guide in this
 [doc](/docs/developing_the_server.md#develop-and-run-the-server-inside-aws-enclave) to scp the tool
-binaries to EC2 ssh instance then to the server's EC2 instance.
-
-Here are the steps and example commands (assume EC2 instance is running AMD architecture):
-
-1.Send public key to EC2 ssh machine to establish connection (Skip this if there is no EC2 ssh
-instance setup)
-
-```shell
-# Send public key to the EC2 ssh instance
-aws ec2-instance-connect send-ssh-public-key --instance-id <EC2 ssh instance id> --availability-zone <instance availability zone> --instance-os-user ec2-user --ssh-public-key file://my_key.pub --region <instance region>
-```
-
-2.Copy diagnostic tool binaries to EC2 ssh instance (Skip this if there is no EC2 ssh instance
-setup)
-
-```shell
-# The EC2_ADDR for scp'ing from the public internet to ssh instance is the Public IPv4 DNS, e.g., ec2-3-81-186-232.compute-1.amazonaws.com
-# Copy the diagnostic_cli to the EC2 ssh instance /home/ec2-user directory
-scp -o "IdentitiesOnly=yes" -i ./my_key dist/tools/server_diagnostic/diagnostic_cli ec2-user@{EC2_ADDR}:/home/ec2-user
-# Copy the diagnostic tool box docker container to the EC2 ssh instance /home/ec2-user directory
-scp -o "IdentitiesOnly=yes" -i ./my_key dist/tools/server_diagnostic/amd64/diagnostic_tool_box_docker_image_amd64.tar ec2-user@{EC2_ADDR}:/home/ec2-user
-```
-
-3.From EC2 ssh instance, send public key to server's EC2 machine to establish connection
-
-```shell
-aws ec2-instance-connect send-ssh-public-key --instance-id <EC2 instance id> --availability-zone <instance availability zone> --instance-os-user ec2-user --ssh-public-key file://my_key.pub --region <instance region>
-```
-
-4.Copy diagnostic tool binaries from EC2 ssh instance to server's EC2 instance
-
-```shell
-# The EC2_ADDR for scp'ing from the ssh instance is the Private IP DNS name e.g., ip-10-0-226-225.ec2.internal
-# Copy the diagnostic_cli to the EC2 instance /home/ec2-user directory
-scp -o "IdentitiesOnly=yes" -i ./my_key /home/ec2-user/diagnostic_cli ec2-user@{EC2_ADDR}:/home/ec2-user
-# Copy the diagnostic tool box docker container to the EC2 instance /home/ec2-user directory
-scp -o "IdentitiesOnly=yes" -i ./my_key /home/ec2-user/diagnostic_tool_box_docker_image_amd64.tar ec2-user@{EC2_ADDR}:/home/ec2-user
-```
+binaries to the server's EC2 instance (under `/home/ec2-user/`).
 
 ## Run the diagnostic tool
 

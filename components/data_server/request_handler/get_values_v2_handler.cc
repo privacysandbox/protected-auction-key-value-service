@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -44,64 +45,48 @@
 
 namespace kv_server {
 namespace {
-using google::protobuf::RepeatedPtrField;
-using google::protobuf::util::JsonStringToMessage;
-using google::protobuf::util::MessageToJsonString;
+
 using grpc::StatusCode;
 using privacy_sandbox::server_common::FromAbslStatus;
 using v2::GetValuesHttpRequest;
-using v2::KeyValueService;
 using v2::ObliviousGetValuesRequest;
 
 constexpr std::string_view kIsPas = "is_pas";
 
-absl::Status GetCompressionGroupContentAsJsonList(
-    const std::vector<std::string>& partition_output_strings,
-    std::string& content,
-    const RequestContextFactory& request_context_factory) {
-  nlohmann::json json_partition_output_list = nlohmann::json::array();
-  for (auto&& partition_output_string : partition_output_strings) {
-    auto partition_output_json =
-        nlohmann::json::parse(partition_output_string, nullptr,
-                              /*allow_exceptions=*/false,
-                              /*ignore_comments=*/true);
-    if (partition_output_json.is_discarded()) {
-      PS_VLOG(2, request_context_factory.Get().GetPSLogContext())
-          << "json parse failed for " << partition_output_string;
-      continue;
+bool HasDuplicatePartitionAndCompressionGroupIds(
+    const v2::GetValuesRequest& request) {
+  absl::flat_hash_set<UniquePartitionIdTuple> unique_ids;
+  for (auto&& partition : request.partitions()) {
+    if (unique_ids.contains(
+            {partition.id(), partition.compression_group_id()})) {
+      return true;
     }
-    json_partition_output_list.emplace_back(partition_output_json);
+    unique_ids.insert({partition.id(), partition.compression_group_id()});
   }
-  if (json_partition_output_list.size() == 0) {
-    return absl::InvalidArgumentError(
-        "Converting partition outputs to JSON returned empty list");
-  }
-  content = json_partition_output_list.dump();
-  return absl::OkStatus();
+  return false;
 }
 
-absl::Status GetCompressionGroupContentAsCborList(
-    std::vector<std::string>& partition_output_strings, std::string& content,
+absl::flat_hash_map<int32_t, std::vector<std::pair<int32_t, std::string>>>
+BuildCompressionGroupToPartitionOutputMap(
+    const v2::GetValuesRequest& request,
+    const absl::flat_hash_map<UniquePartitionIdTuple, std::string>&
+        id_to_output_map,
     const RequestContextFactory& request_context_factory) {
-  RepeatedPtrField<application_pa::PartitionOutput> partition_outputs;
-  for (auto& partition_output_string : partition_output_strings) {
-    auto partition_output =
-        application_pa::PartitionOutputFromJson(partition_output_string);
-    if (partition_output.ok()) {
-      *partition_outputs.Add() = partition_output.value();
+  absl::flat_hash_map<int32_t, std::vector<std::pair<int32_t, std::string>>>
+      compression_group_map;
+  for (const auto& partition : request.partitions()) {
+    int32_t compression_group_id = partition.compression_group_id();
+    auto it = id_to_output_map.find({partition.id(), compression_group_id});
+    if (it != id_to_output_map.end()) {
+      compression_group_map[compression_group_id].emplace_back(
+          partition.id(), std::move(it->second));
     } else {
-      PS_VLOG(2, request_context_factory.Get().GetPSLogContext())
-          << partition_output.status();
+      PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
+          << "Failed to execute UDF for partition " << partition.id()
+          << " and compression_group_id " << compression_group_id;
     }
   }
-
-  const auto cbor_string = PartitionOutputsCborEncode(partition_outputs);
-  if (!cbor_string.ok()) {
-    PS_VLOG(2, request_context_factory.Get().GetPSLogContext())
-        << "CBOR encode failed for partition outputs";
-  }
-  content = cbor_string.value();
-  return absl::OkStatus();
+  return compression_group_map;
 }
 
 }  // namespace
@@ -111,6 +96,8 @@ grpc::Status GetValuesV2Handler::GetValuesHttp(
     const std::multimap<grpc::string_ref, grpc::string_ref>& headers,
     const GetValuesHttpRequest& request, google::api::HttpBody* response,
     ExecutionMetadata& execution_metadata) const {
+  PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+      << "GetValuesHttpRequest with headers: " << request;
   auto v2_codec = V2EncoderDecoder::Create(V2EncoderDecoder::GetContentType(
       headers, V2EncoderDecoder::ContentType::kJson));
   return FromAbslStatus(
@@ -122,12 +109,12 @@ absl::Status GetValuesV2Handler::GetValuesHttp(
     RequestContextFactory& request_context_factory, std::string_view request,
     std::string& response, ExecutionMetadata& execution_metadata,
     const V2EncoderDecoder& v2_codec) const {
+  PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+      << "GetValuesHttpRequest body: " << request;
   PS_ASSIGN_OR_RETURN(v2::GetValuesRequest request_proto,
                       v2_codec.DecodeToV2GetValuesRequestProto(request));
-  PS_VLOG(9) << "Converted the http request to proto: "
-             << request_proto.DebugString();
-  v2::GetValuesResponse response_proto;
 
+  v2::GetValuesResponse response_proto;
   PS_RETURN_IF_ERROR(GetValues(
       request_context_factory, request_proto, &response_proto,
       execution_metadata, IsSinglePartitionUseCase(request_proto), v2_codec));
@@ -148,7 +135,8 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
     const ObliviousGetValuesRequest& oblivious_request,
     google::api::HttpBody* oblivious_response,
     ExecutionMetadata& execution_metadata) const {
-  PS_VLOG(9) << "Received ObliviousGetValues request. ";
+  PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+      << "Received ObliviousGetValues request.";
   OhttpServerEncryptor encryptor(key_fetcher_manager_);
   auto maybe_padded_plain_text =
       encryptor.DecryptRequest(oblivious_request.raw_body().data(),
@@ -227,35 +215,27 @@ absl::Status GetValuesV2Handler::ProcessMultiplePartitions(
     const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
     ExecutionMetadata& execution_metadata,
     const V2EncoderDecoder& v2_codec) const {
-  absl::flat_hash_map<int32_t, UDFInput> udf_input_map;
+  absl::flat_hash_map<UniquePartitionIdTuple, UDFInput> udf_input_map;
   for (const auto& partition : request.partitions()) {
     UDFExecutionMetadata udf_metadata;
     *udf_metadata.mutable_request_metadata() = request.metadata();
     if (!partition.metadata().fields().empty()) {
       *udf_metadata.mutable_partition_metadata() = partition.metadata();
     }
-    udf_input_map.emplace(
-        partition.id(), UDFInput{.execution_metadata = std::move(udf_metadata),
-                                 .arguments = partition.arguments()});
+    udf_input_map.insert_or_assign(
+        {partition.id(), partition.compression_group_id()},
+        UDFInput{.execution_metadata = std::move(udf_metadata),
+                 .arguments = partition.arguments()});
   }
   PS_ASSIGN_OR_RETURN(
-      auto partition_id_to_output_map,
+      auto id_to_output_map,
       udf_client_.BatchExecuteCode(request_context_factory, udf_input_map,
                                    execution_metadata));
 
+  // Build a map of compression_group_id to <partition_id, udf_output>
   absl::flat_hash_map<int32_t, std::vector<std::pair<int32_t, std::string>>>
-      compression_group_map;
-  for (const auto& partition : request.partitions()) {
-    int32_t compression_group_id = partition.compression_group_id();
-    auto it = partition_id_to_output_map.find(partition.id());
-    if (it != partition_id_to_output_map.end()) {
-      compression_group_map[compression_group_id].emplace_back(
-          partition.id(), std::move(it->second));
-    } else {
-      PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
-          << "Failed to execute UDF for partition: " << partition.id();
-    }
-  }
+      compression_group_map = BuildCompressionGroupToPartitionOutputMap(
+          request, id_to_output_map, request_context_factory);
 
   // The content of each compressed blob is a CBOR/JSON list of partition
   // outputs or a V2CompressionGroup protobuf message.
@@ -288,6 +268,8 @@ grpc::Status GetValuesV2Handler::GetValues(
   request_context_factory.UpdateLogContext(
       request.log_context(), request.consented_debug_config(),
       [response]() { return response->mutable_debug_info(); });
+  PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+      << "v2 GetValuesRequest: " << request;
   if (request.partitions().empty()) {
     return grpc::Status(StatusCode::INTERNAL,
                         "At least 1 partition is required");
@@ -303,6 +285,16 @@ grpc::Status GetValuesV2Handler::GetValues(
         request_context_factory, request.metadata(), request.partitions(0),
         *response->mutable_single_partition(), execution_metadata);
     return GetExternalStatusForV2(response_status);
+  }
+  // Ideally, this would live in ProcessMultiplePartitions, but we want to
+  // return the actual error status in the response if the request has duplicate
+  // <partition_id, compression_group_id> tuples. The return status of
+  // ProcessMultiplePartitions is masked and will always return OK in prod.
+  if (HasDuplicatePartitionAndCompressionGroupIds(request)) {
+    return grpc::Status(
+        StatusCode::INVALID_ARGUMENT,
+        "Each partition must have a unique <id, "
+        "compression_group_id> tuple, but duplicates were found.");
   }
   const auto response_status =
       ProcessMultiplePartitions(request_context_factory, request, *response,

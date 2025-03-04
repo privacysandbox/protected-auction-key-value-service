@@ -188,9 +188,9 @@ absl::Status InitOnce(Operation operation) {
       .blob_client = *blob_client,
       .delta_notifier = *notifier,
       .change_notifier = change_notifier,
+      .udf_client = *noop_udf_client,
       .delta_stream_reader_factory = *delta_stream_reader_factory,
       .realtime_thread_pool_manager = realtime_thread_pool_manager,
-      .udf_client = *noop_udf_client,
       .key_sharder = KeySharder(ShardingFunction{/*seed=*/""}),
       .log_context = log_context,
   });

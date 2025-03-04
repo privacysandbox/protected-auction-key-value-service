@@ -70,6 +70,8 @@ resource "google_compute_instance_template" "kv_server" {
   }
 
   confidential_instance_config {
+    # Option unsupported by terraform 5.0
+    # confidential_instance_type  = "SEV"
     enable_confidential_compute = true
   }
 
@@ -112,7 +114,7 @@ resource "google_compute_region_instance_group_manager" "kv_server" {
     }
   }
 
-  base_instance_name = "${var.service}-${var.environment}"
+  base_instance_name = "${var.service}-${var.environment}-${var.shard_num}"
 
   auto_healing_policies {
     health_check      = google_compute_health_check.kv_server.id

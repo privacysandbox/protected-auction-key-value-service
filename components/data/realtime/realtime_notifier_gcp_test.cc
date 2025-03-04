@@ -58,8 +58,8 @@ class RealtimeNotifierGcpTest : public ::testing::Test {
 TEST_F(RealtimeNotifierGcpTest, NotRunning) {
   auto subscriber = std::make_unique<Subscriber>(Subscriber(mock_));
   GcpRealtimeNotifierMetadata options = {
-      .maybe_sleep_for = std::move(mock_sleep_for_),
       .gcp_subscriber_for_unit_testing = subscriber.release(),
+      .maybe_sleep_for = std::move(mock_sleep_for_),
   };
   auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   ASSERT_TRUE(maybe_notifier.ok());
@@ -74,8 +74,8 @@ TEST_F(RealtimeNotifierGcpTest, ConsecutiveStartsWork) {
       });
   auto subscriber = std::make_unique<Subscriber>(Subscriber(mock_));
   GcpRealtimeNotifierMetadata options = {
-      .maybe_sleep_for = std::move(mock_sleep_for_),
       .gcp_subscriber_for_unit_testing = subscriber.release(),
+      .maybe_sleep_for = std::move(mock_sleep_for_),
   };
   auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));
   absl::Status status = (*maybe_notifier)->Start([](const std::string&) {
@@ -97,8 +97,8 @@ TEST_F(RealtimeNotifierGcpTest, StartsAndStops) {
 
   auto subscriber = std::make_unique<Subscriber>(Subscriber(mock_));
   GcpRealtimeNotifierMetadata options = {
-      .maybe_sleep_for = std::move(mock_sleep_for_),
       .gcp_subscriber_for_unit_testing = subscriber.release(),
+      .maybe_sleep_for = std::move(mock_sleep_for_),
   };
 
   auto maybe_notifier = RealtimeNotifier::Create({}, std::move(options));

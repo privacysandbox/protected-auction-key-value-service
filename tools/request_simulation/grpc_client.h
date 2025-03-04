@@ -122,9 +122,9 @@ class GrpcClient {
   // channel
   explicit GrpcClient(std::shared_ptr<grpc::Channel> channel,
                       absl::Duration timeout, bool is_client_channel = true)
-      : grpc_channel_(channel),
-        is_client_channel_(is_client_channel),
-        timeout_(std::move(timeout)) {
+      : timeout_(std::move(timeout)),
+        grpc_channel_(channel),
+        is_client_channel_(is_client_channel) {
     generic_stub_ =
         std::make_unique<grpc::TemplatedGenericStub<RequestT, ResponseT>>(
             channel);

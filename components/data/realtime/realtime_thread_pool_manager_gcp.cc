@@ -30,7 +30,13 @@ class RealtimeThreadPoolManagerGCP : public RealtimeThreadPoolManager {
       privacy_sandbox::server_common::log::PSLogContext& log_context)
       : realtime_notifier_(std::move(realtime_notifier)),
         log_context_(log_context) {}
-  ~RealtimeThreadPoolManagerGCP() override { Stop(); }
+  ~RealtimeThreadPoolManagerGCP() override {
+    auto status = Stop();
+    if (!status.ok()) {
+      PS_LOG(ERROR, log_context_)
+          << "Error stopping RealtimeThreadPoolManagerGCP:" << status;
+    }
+  }
 
   absl::Status Start(
       std::function<absl::StatusOr<DataLoadingStats>(const std::string& key)>

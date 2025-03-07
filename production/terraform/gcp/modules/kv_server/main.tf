@@ -118,6 +118,7 @@ module "external_load_balancing" {
   internal_load_balancer           = module.service_mesh.internal_load_balancer
   grpc_route                       = module.service_mesh.grpc_route
   server_ip_address                = module.networking.server_ip_address
+  lb_dns_zones_project_id          = var.lb_dns_zones_project_id
 }
 
 module "parameter" {

@@ -1,26 +1,43 @@
-# How to Contribute
+## **How to Contribute**
 
-We'd love to accept your patches and contributions to this project. There are just a few small
-guidelines you need to follow.
+### **Before you begin**
 
-## Contributor License Agreement
+#### **Sign our Contributor License Agreement**
 
-Contributions to this project must be accompanied by a Contributor License Agreement (CLA). You (or
-your employer) retain the copyright to your contribution; this simply gives us permission to use and
-redistribute your contributions as part of the project. Head over to
-<https://cla.developers.google.com/> to see your current agreements on file or to sign a new one.
+Contributions to this project must be accompanied by a
+[Contributor License Agreement](https://cla.developers.google.com/about) (CLA).
 
-You generally only need to submit a CLA once, so if you've already submitted one (even if it was for
-a different project), you probably don't need to do it again.
+#### **Review our Community Guidelines**
 
-## Code Reviews
+This project follows [Google Open Source Community Guidelines](https://opensource.google/conduct/).
 
-All submissions, including submissions by project members, require review. We use GitHub pull
-requests for this purpose. Consult
-[GitHub Help](https://help.github.com/articles/about-pull-requests/) for more information on using
-pull requests.
+### **Contribution process**
 
-## Community Guidelines
+#### **Ecosystem feedback**
 
-This project follows
-[Google's Open Source Community Guidelines](https://opensource.google/conduct/).
+We welcome feedback and requests from the ecosystem, and we invite interested stakeholders to open,
+and engage with, issues on GitHub and other relevant public fora such as WICG. Facilitating public
+discussion of feedback and requests allows the Privacy Sandbox team to take into consideration
+feedback from the broader ecosystem and decide on the best course of action accordingly, based on
+ecosystem priorities and the availability of resources.
+
+#### **Pull Requests**
+
+The Privacy Sandbox team has established some guidelines for pull requests in this repository.
+Currently this repo is open for limited contribution only. We will carefully evaluate your
+submission against the guidelines set out below. For pull requests which do not meet these
+guidelines, we recommend that stakeholders instead file an issue on GitHub or raise the proposal in
+other relevant public fora for further discussion.
+
+**General Guideline**
+
+-   We will accept small bug fixes or typo, small config changes, document updates for more clarity.
+-   All changes must target the main branch.
+-   All changes must adhere to the [Google Style guide](https://google.github.io/styleguide/) for
+    the development language.
+
+#### **Merging pull requests**
+
+Currently we are unable to merge pull requests directly into the main branch. Instead, once a pull
+request is ready for merging, we will make the appropriate changes to our internal repository. They
+will then be separately merged into the main branch.

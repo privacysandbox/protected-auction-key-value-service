@@ -73,6 +73,9 @@ cc_library(
     name = "generate_snapshot_command",
     srcs = ["generate_snapshot_command.cc"],
     hdrs = ["generate_snapshot_command.h"],
+    copts = [
+        "-fexceptions",
+    ],
     deps = [
         ":command",
         "//components/data/blob_storage:blob_storage_client",

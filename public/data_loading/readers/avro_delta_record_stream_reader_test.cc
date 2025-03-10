@@ -28,7 +28,7 @@ namespace {
 
 TEST(AvroDeltaRecordStreamReaderTest, KVRecord_ValidateReadingRecords) {
   std::stringstream string_stream;
-  auto record_writer = AvroDeltaRecordStreamWriter::Create(
+  auto record_writer = AvroDeltaRecordStreamWriter<std::stringstream>::Create(
       string_stream, DeltaRecordWriter::Options{.metadata = KVFileMetadata()});
   ASSERT_TRUE(record_writer.ok());
 
@@ -49,7 +49,7 @@ TEST(AvroDeltaRecordStreamReaderTest, KVRecord_ReadMetadata) {
   std::stringstream string_stream;
   KVFileMetadata kv_metadata;
   kv_metadata.mutable_sharding_metadata()->set_shard_num(17);
-  auto record_writer = AvroDeltaRecordStreamWriter::Create(
+  auto record_writer = AvroDeltaRecordStreamWriter<std::stringstream>::Create(
       string_stream, DeltaRecordWriter::Options{.metadata = kv_metadata});
   ASSERT_TRUE(record_writer.ok());
 
@@ -73,7 +73,7 @@ TEST(AvroDeltaRecordStreamReaderTest, KVRecord_ReadMetadata) {
 TEST(AvroDeltaRecordStreamReaderTest,
      KVRecord_ValidateReadingRecordCallsRecordCallback) {
   std::stringstream string_stream;
-  auto record_writer = AvroDeltaRecordStreamWriter::Create(
+  auto record_writer = AvroDeltaRecordStreamWriter<std::stringstream>::Create(
       string_stream, DeltaRecordWriter::Options{.metadata = KVFileMetadata()});
   ASSERT_TRUE(record_writer.ok());
 
@@ -97,7 +97,7 @@ TEST(AvroDeltaRecordStreamReaderTest,
 
 TEST(AvroDeltaRecordStreamReaderTest, UdfConfig_ValidateReadingRecords) {
   std::stringstream string_stream;
-  auto record_writer = AvroDeltaRecordStreamWriter::Create(
+  auto record_writer = AvroDeltaRecordStreamWriter<std::stringstream>::Create(
       string_stream, DeltaRecordWriter::Options{.metadata = KVFileMetadata()});
   ASSERT_TRUE(record_writer.ok());
 
@@ -116,7 +116,7 @@ TEST(AvroDeltaRecordStreamReaderTest, UdfConfig_ValidateReadingRecords) {
 TEST(AvroDeltaRecordStreamReaderTest,
      UdfConfig_ValidateReadingRecordCallsRecordCallback) {
   std::stringstream string_stream;
-  auto record_writer = AvroDeltaRecordStreamWriter::Create(
+  auto record_writer = AvroDeltaRecordStreamWriter<std::stringstream>::Create(
       string_stream, DeltaRecordWriter::Options{.metadata = KVFileMetadata()});
   ASSERT_TRUE(record_writer.ok());
 

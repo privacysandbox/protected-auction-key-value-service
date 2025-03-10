@@ -44,9 +44,6 @@ cc_library(
 cc_library(
     name = "avro_delta_record_stream_writer",
     hdrs = ["avro_delta_record_stream_writer.h"],
-    copts = [
-        "-fexceptions",
-    ],
     deps = [
         ":delta_record_writer",
         "//public/data_loading:record_utils",
@@ -75,12 +72,17 @@ cc_test(
 cc_library(
     name = "snapshot_stream_writer",
     hdrs = ["snapshot_stream_writer.h"],
+    copts = [
+        "-fexceptions",
+    ],
     deps = [
+        ":avro_delta_record_stream_writer",
         ":delta_record_stream_writer",
         ":delta_record_writer",
         "//public/data_loading:filename_utils",
         "//public/data_loading:record_utils",
         "//public/data_loading/aggregation:record_aggregator",
+        "//public/data_loading/readers:avro_delta_record_stream_reader",
         "//public/data_loading/readers:delta_record_stream_reader",
         "@com_google_absl//absl/hash",
         "@com_google_absl//absl/status",
@@ -92,6 +94,9 @@ cc_library(
 cc_test(
     name = "snapshot_stream_writer_test",
     srcs = ["snapshot_stream_writer_test.cc"],
+    copts = [
+        "-fexceptions",
+    ],
     deps = [
         ":snapshot_stream_writer",
         "//public/data_loading:record_utils",

@@ -22,6 +22,7 @@
 #include "gmock/gmock.h"
 #include "google/protobuf/util/message_differencer.h"
 #include "gtest/gtest.h"
+#include "public/data_loading/readers/avro_delta_record_stream_reader.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/record_utils.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
@@ -64,6 +65,15 @@ class SnapshotStreamWriterTest
     return SnapshotStreamWriter<std::stringstream>::Create(GetParam(),
                                                            dest_stream);
   }
+
+  std::unique_ptr<DeltaRecordReader> CreateDeltaReader(
+      std::stringstream& stream) {
+    if (GetParam().file_format == FileFormat::kAvro) {
+      return std::make_unique<AvroDeltaRecordStreamReader<std::stringstream>>(
+          stream);
+    }
+    return std::make_unique<DeltaRecordStreamReader<std::stringstream>>(stream);
+  }
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -71,16 +81,36 @@ INSTANTIATE_TEST_SUITE_P(
     testing::Values(
         SnapshotWriterOptions{.metadata = GetSnapshotMetadata(),
                               .temp_data_file = "",
-                              .compress_snapshot = false},
+                              .compress_snapshot = false,
+                              .file_format = FileFormat::kRiegeli},
         SnapshotWriterOptions{.metadata = GetSnapshotMetadata(),
                               .temp_data_file = "",
-                              .compress_snapshot = true},
+                              .compress_snapshot = true,
+                              .file_format = FileFormat::kRiegeli},
         SnapshotWriterOptions{.metadata = GetSnapshotMetadata(),
                               .temp_data_file = GetRecordAggregatorDbFile(),
-                              .compress_snapshot = false},
+                              .compress_snapshot = false,
+                              .file_format = FileFormat::kRiegeli},
         SnapshotWriterOptions{.metadata = GetSnapshotMetadata(),
                               .temp_data_file = GetRecordAggregatorDbFile(),
-                              .compress_snapshot = true}));
+                              .compress_snapshot = true,
+                              .file_format = FileFormat::kRiegeli},
+        SnapshotWriterOptions{.metadata = GetSnapshotMetadata(),
+                              .temp_data_file = "",
+                              .compress_snapshot = false,
+                              .file_format = FileFormat::kAvro},
+        SnapshotWriterOptions{.metadata = GetSnapshotMetadata(),
+                              .temp_data_file = "",
+                              .compress_snapshot = true,
+                              .file_format = FileFormat::kAvro},
+        SnapshotWriterOptions{.metadata = GetSnapshotMetadata(),
+                              .temp_data_file = GetRecordAggregatorDbFile(),
+                              .compress_snapshot = false,
+                              .file_format = FileFormat::kAvro},
+        SnapshotWriterOptions{.metadata = GetSnapshotMetadata(),
+                              .temp_data_file = GetRecordAggregatorDbFile(),
+                              .compress_snapshot = true,
+                              .file_format = FileFormat::kAvro}));
 
 TEST_P(SnapshotStreamWriterTest, ValidateThatRecordsAreDedupedInSnapshot) {
   std::stringstream dest_stream;
@@ -99,7 +129,7 @@ TEST_P(SnapshotStreamWriterTest, ValidateThatRecordsAreDedupedInSnapshot) {
   auto status = (*snapshot_writer)->Finalize();
   ASSERT_TRUE(status.ok()) << status;
 
-  DeltaRecordStreamReader record_reader(dest_stream);
+  auto record_reader = SnapshotStreamWriterTest::CreateDeltaReader(dest_stream);
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   // We expect one call to record_callback because records will be deduped in
   // the snapshot stream.
@@ -109,7 +139,7 @@ TEST_P(SnapshotStreamWriterTest, ValidateThatRecordsAreDedupedInSnapshot) {
         EXPECT_EQ(expected_data_record, *data_record.UnPack());
         return absl::OkStatus();
       });
-  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  status = record_reader->ReadRecords(record_callback.AsStdFunction());
   ASSERT_TRUE(status.ok()) << status;
 }
 
@@ -132,10 +162,10 @@ TEST_P(SnapshotStreamWriterTest, ValidateThatDeletedRecordsAreNotInSnapshot) {
   status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
 
-  DeltaRecordStreamReader record_reader(dest_stream);
+  auto record_reader = SnapshotStreamWriterTest::CreateDeltaReader(dest_stream);
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call(testing::_)).Times(0);
-  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  status = record_reader->ReadRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
 
@@ -158,7 +188,7 @@ TEST_P(SnapshotStreamWriterTest,
   status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
 
-  DeltaRecordStreamReader record_reader(dest_stream);
+  auto record_reader = SnapshotStreamWriterTest::CreateDeltaReader(dest_stream);
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call(testing::_))
       .Times(1)
@@ -166,7 +196,7 @@ TEST_P(SnapshotStreamWriterTest,
         EXPECT_EQ(expected_data_record, *data_record.UnPack());
         return absl::OkStatus();
       });
-  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  status = record_reader->ReadRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
 
@@ -190,7 +220,7 @@ TEST_P(SnapshotStreamWriterTest,
   status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
 
-  DeltaRecordStreamReader record_reader(dest_stream);
+  auto record_reader = SnapshotStreamWriterTest::CreateDeltaReader(dest_stream);
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call(testing::_))
       .Times(1)
@@ -198,7 +228,7 @@ TEST_P(SnapshotStreamWriterTest,
         EXPECT_EQ(expected_data_record, *data_record.UnPack());
         return absl::OkStatus();
       });
-  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  status = record_reader->ReadRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
 
@@ -235,8 +265,8 @@ TEST_P(SnapshotStreamWriterTest,
   ASSERT_TRUE(status.ok()) << status;
   status = (*snapshot_writer)->Finalize();
   ASSERT_TRUE(status.ok()) << status;
-  DeltaRecordStreamReader record_reader(dest_stream);
-  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  auto record_reader = SnapshotStreamWriterTest::CreateDeltaReader(dest_stream);
+  status = record_reader->ReadRecords(record_callback.AsStdFunction());
   ASSERT_TRUE(status.ok()) << status;
 }
 
@@ -248,8 +278,8 @@ TEST_P(SnapshotStreamWriterTest,
   EXPECT_TRUE(snapshot_writer.ok()) << snapshot_writer.status();
   auto status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
-  DeltaRecordStreamReader record_reader(dest_stream);
-  auto metadata = record_reader.ReadMetadata();
+  auto record_reader = SnapshotStreamWriterTest::CreateDeltaReader(dest_stream);
+  auto metadata = record_reader->ReadMetadata();
   EXPECT_TRUE(metadata.ok()) << metadata.status();
   EXPECT_TRUE(google::protobuf::util::MessageDifferencer::Equals(
       GetSnapshotMetadata(), *metadata));
@@ -270,14 +300,14 @@ TEST_P(SnapshotStreamWriterTest, UdfConfig_DedupedInSnapshot) {
   auto status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
 
-  DeltaRecordStreamReader record_reader(dest_stream);
+  auto record_reader = SnapshotStreamWriterTest::CreateDeltaReader(dest_stream);
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   // We expect one call to record_callback because records will be deduped in
   // the snapshot stream.
   EXPECT_CALL(record_callback, Call(testing::_))
       .Times(1)
       .WillOnce([](const DataRecord&) { return absl::OkStatus(); });
-  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  status = record_reader->ReadRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
 
@@ -301,7 +331,7 @@ TEST_P(SnapshotStreamWriterTest,
   status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
 
-  DeltaRecordStreamReader record_reader(dest_stream);
+  auto record_reader = SnapshotStreamWriterTest::CreateDeltaReader(dest_stream);
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call(testing::_))
       .Times(1)
@@ -309,7 +339,7 @@ TEST_P(SnapshotStreamWriterTest,
         EXPECT_EQ(expected_data_record, *data_record.UnPack());
         return absl::OkStatus();
       });
-  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  status = record_reader->ReadRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
 
@@ -333,7 +363,7 @@ TEST_P(SnapshotStreamWriterTest,
   status = (*snapshot_writer)->Finalize();
   EXPECT_TRUE(status.ok()) << status;
 
-  DeltaRecordStreamReader record_reader(dest_stream);
+  auto record_reader = SnapshotStreamWriterTest::CreateDeltaReader(dest_stream);
   testing::MockFunction<absl::Status(const DataRecord&)> record_callback;
   EXPECT_CALL(record_callback, Call(testing::_))
       .Times(1)
@@ -341,7 +371,7 @@ TEST_P(SnapshotStreamWriterTest,
         EXPECT_EQ(expected_data_record, *data_record.UnPack());
         return absl::OkStatus();
       });
-  status = record_reader.ReadRecords(record_callback.AsStdFunction());
+  status = record_reader->ReadRecords(record_callback.AsStdFunction());
   EXPECT_TRUE(status.ok()) << status;
 }
 

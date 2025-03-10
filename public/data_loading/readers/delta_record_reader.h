@@ -50,6 +50,9 @@ class DeltaRecordReader {
       const std::function<absl::Status(const DataRecord&)>&
           record_callback) = 0;
 
+  // Reads KVFileMetadata from the underlying record source.
+  virtual absl::StatusOr<KVFileMetadata> ReadMetadata() = 0;
+
   // Returns true if the reader is open for reading records.
   virtual bool IsOpen() const = 0;
   // Returns status of the `DeltaRecordReader`.

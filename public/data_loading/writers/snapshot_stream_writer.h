@@ -27,11 +27,13 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
+#include "public/constants.h"
 #include "public/data_loading/aggregation/record_aggregator.h"
 #include "public/data_loading/filename_utils.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/record_utils.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
+#include "public/data_loading/writers/avro_delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_stream_writer.h"
 #include "public/data_loading/writers/delta_record_writer.h"
 
@@ -77,6 +79,8 @@ class SnapshotStreamWriter {
     std::string temp_data_file;
     // Whether to compress the snapshot stream or not.
     bool compress_snapshot;
+    // File format.
+    FileFormat file_format = FileFormat::kRiegeli;
   };
 
   ~SnapshotStreamWriter();
@@ -84,12 +88,12 @@ class SnapshotStreamWriter {
   SnapshotStreamWriter& operator=(const SnapshotStreamWriter&) = delete;
 
   static absl::StatusOr<std::unique_ptr<SnapshotStreamWriter>> Create(
-      Options options, DestStreamT& dest_snapshot_stream);
+      const Options& options, DestStreamT& dest_snapshot_stream);
   absl::Status WriteRecord(const DataRecordT& record);
   // Writes `DataRecordT` records from `src_stream` to the
   // output snapshot stream, `dest_snapshot_stream`. Valid source streams can be
   // snapshot files generated using `SnapshotStreamWriter` instances or
-  // delta files generated using `DeltaRecordStreamWriter` instances.
+  // delta files generated using `DeltaRecordWriter` instances.
   template <typename SrcStreamT = std::iostream>
   absl::Status WriteRecordStream(SrcStreamT& src_stream);
   // Finalizes the snapshot writer and flushes written records and makes them
@@ -105,21 +109,24 @@ class SnapshotStreamWriter {
   absl::Status Finalize();
 
  private:
-  SnapshotStreamWriter(
-      std::unique_ptr<DeltaRecordStreamWriter<DestStreamT>> record_writer,
-      std::unique_ptr<RecordAggregator> record_aggregator, Options options);
+  SnapshotStreamWriter(std::unique_ptr<DeltaRecordWriter> record_writer,
+                       std::unique_ptr<RecordAggregator> record_aggregator,
+                       Options options);
 
   absl::Status InsertOrUpdateRecord(const DataRecordT& record);
   template <typename SrcStreamT>
   absl::Status InsertOrUpdateRecords(SrcStreamT& src_stream);
   static absl::StatusOr<std::unique_ptr<RecordAggregator>>
   CreateRecordAggregator(std::string_view temp_data_file);
+  static absl::StatusOr<std::unique_ptr<DeltaRecordWriter>>
+  CreateDeltaRecordWriter(const Options& options,
+                          DestStreamT& dest_snapshot_stream);
   static DeltaRecordWriter::Options CreateDeltaRecordWriterOptions(
       const Options& options);
   static absl::Status ValidateRequiredSnapshotMetadata(
       const KVFileMetadata& metadata);
 
-  std::unique_ptr<DeltaRecordStreamWriter<DestStreamT>> record_writer_;
+  std::unique_ptr<DeltaRecordWriter> record_writer_;
   std::unique_ptr<RecordAggregator> record_aggregator_;
   Options options_;
   bool is_finalized_ = false;
@@ -128,7 +135,7 @@ class SnapshotStreamWriter {
 
 template <typename DestStreamT>
 SnapshotStreamWriter<DestStreamT>::SnapshotStreamWriter(
-    std::unique_ptr<DeltaRecordStreamWriter<DestStreamT>> record_writer,
+    std::unique_ptr<DeltaRecordWriter> record_writer,
     std::unique_ptr<RecordAggregator> record_aggregator, Options options)
     : record_writer_(std::move(record_writer)),
       record_aggregator_(std::move(record_aggregator)),
@@ -143,7 +150,7 @@ SnapshotStreamWriter<DestStreamT>::~SnapshotStreamWriter() {
 
 template <typename DestStreamT>
 absl::StatusOr<std::unique_ptr<SnapshotStreamWriter<DestStreamT>>>
-SnapshotStreamWriter<DestStreamT>::Create(Options options,
+SnapshotStreamWriter<DestStreamT>::Create(const Options& options,
                                           DestStreamT& dest_snapshot_stream) {
   if (absl::Status status = ValidateRequiredSnapshotMetadata(options.metadata);
       !status.ok()) {
@@ -153,14 +160,27 @@ SnapshotStreamWriter<DestStreamT>::Create(Options options,
   if (!record_aggregator.ok()) {
     return record_aggregator.status();
   }
-  auto record_writer = DeltaRecordStreamWriter<DestStreamT>::Create(
-      dest_snapshot_stream, CreateDeltaRecordWriterOptions(options));
-  if (!record_writer.ok()) {
-    return record_writer.status();
-  }
+  PS_ASSIGN_OR_RETURN(auto record_writer,
+                      CreateDeltaRecordWriter(options, dest_snapshot_stream));
   return absl::WrapUnique(new SnapshotStreamWriter<DestStreamT>(
-      std::move(*record_writer), std::move(*record_aggregator),
+      std::move(record_writer), std::move(*record_aggregator),
       std::move(options)));
+}
+
+template <typename DestStreamT>
+absl::StatusOr<std::unique_ptr<DeltaRecordWriter>>
+SnapshotStreamWriter<DestStreamT>::CreateDeltaRecordWriter(
+    const Options& options, DestStreamT& dest_snapshot_stream) {
+  switch (options.file_format) {
+    case FileFormat::kRiegeli:
+      return DeltaRecordStreamWriter<DestStreamT>::Create(
+          dest_snapshot_stream, CreateDeltaRecordWriterOptions(options));
+    case FileFormat::kAvro:
+      return AvroDeltaRecordStreamWriter<DestStreamT>::Create(
+          dest_snapshot_stream, CreateDeltaRecordWriterOptions(options));
+    default:
+      return absl::InvalidArgumentError("Unsupported file format type.");
+  }
 }
 
 template <typename DestStreamT>

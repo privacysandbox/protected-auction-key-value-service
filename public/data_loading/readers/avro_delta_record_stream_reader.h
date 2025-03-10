@@ -62,7 +62,7 @@ class AvroDeltaRecordStreamReader : public DeltaRecordReader {
                                record_callback) override;
   bool IsOpen() const override { return true; };
   absl::Status Status() const override { return absl::OkStatus(); }
-  absl::StatusOr<KVFileMetadata> ReadMetadata();
+  absl::StatusOr<KVFileMetadata> ReadMetadata() override;
 
  private:
   SrcStreamT& src_stream_;

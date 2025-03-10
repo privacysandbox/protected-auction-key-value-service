@@ -25,6 +25,9 @@ package(default_visibility = [
 cc_binary(
     name = "data_cli",
     srcs = ["data_cli.cc"],
+    copts = [
+        "-fexceptions",
+    ],
     deps = [
         "//components/util:platform_initializer",
         "//public/data_loading:filename_utils",

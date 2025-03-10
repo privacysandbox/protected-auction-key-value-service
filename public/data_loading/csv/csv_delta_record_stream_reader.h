@@ -91,6 +91,10 @@ class CsvDeltaRecordStreamReader : public DeltaRecordReader {
                                record_callback) override;
   bool IsOpen() const override { return record_reader_.is_open(); };
   absl::Status Status() const override { return record_reader_.status(); }
+  absl::StatusOr<KVFileMetadata> ReadMetadata() override {
+    return absl::InvalidArgumentError(
+        "ReadMetadata is unimplemented for CsvDeltaRecordStreamReader");
+  }
 
  private:
   Options options_;

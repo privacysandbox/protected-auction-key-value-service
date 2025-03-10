@@ -35,13 +35,13 @@
 
 namespace kv_server {
 
+template <typename DestStreamT = std::iostream>
 class AvroDeltaRecordStreamWriter : public DeltaRecordWriter {
  public:
   AvroDeltaRecordStreamWriter(const AvroDeltaRecordStreamWriter&) = delete;
   AvroDeltaRecordStreamWriter& operator=(const AvroDeltaRecordStreamWriter&) =
       delete;
 
-  template <typename DestStreamT = std::iostream>
   static absl::StatusOr<std::unique_ptr<AvroDeltaRecordStreamWriter>> Create(
       DestStreamT& dest_stream, Options options);
   absl::Status WriteRecord(const DataRecordT& data_record) override;
@@ -59,13 +59,15 @@ class AvroDeltaRecordStreamWriter : public DeltaRecordWriter {
   std::unique_ptr<avro::DataFileWriter<std::string>> record_writer_;
 };
 
-AvroDeltaRecordStreamWriter::AvroDeltaRecordStreamWriter(
+template <typename DestStreamT>
+AvroDeltaRecordStreamWriter<DestStreamT>::AvroDeltaRecordStreamWriter(
     std::unique_ptr<avro::DataFileWriter<std::string>> record_writer)
     : record_writer_(std::move(record_writer)) {}
 
 template <typename DestStreamT>
-absl::StatusOr<std::unique_ptr<AvroDeltaRecordStreamWriter>>
-AvroDeltaRecordStreamWriter::Create(DestStreamT& dest_stream, Options options) {
+absl::StatusOr<std::unique_ptr<AvroDeltaRecordStreamWriter<DestStreamT>>>
+AvroDeltaRecordStreamWriter<DestStreamT>::Create(DestStreamT& dest_stream,
+                                                 Options options) {
   try {
     std::string kv_file_metadata;
     options.metadata.SerializeToString(&kv_file_metadata);
@@ -83,14 +85,16 @@ AvroDeltaRecordStreamWriter::Create(DestStreamT& dest_stream, Options options) {
   }
 }
 
-absl::Status AvroDeltaRecordStreamWriter::WriteRecord(
+template <typename DestStreamT>
+absl::Status AvroDeltaRecordStreamWriter<DestStreamT>::WriteRecord(
     const DataRecordT& data_record) {
   auto [fbs_buffer, bytes_to_write] = Serialize(data_record);
   record_writer_->write(std::string(bytes_to_write));
   return absl::OkStatus();
 }
 
-absl::Status AvroDeltaRecordStreamWriter::Flush() {
+template <typename DestStreamT>
+absl::Status AvroDeltaRecordStreamWriter<DestStreamT>::Flush() {
   record_writer_->flush();
   return absl::OkStatus();
 }

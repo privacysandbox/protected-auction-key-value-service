@@ -64,7 +64,7 @@ class DeltaRecordStreamReader : public DeltaRecordReader {
                                record_callback) override;
   bool IsOpen() const override { return stream_reader_.IsOpen(); };
   absl::Status Status() const override { return stream_reader_.Status(); }
-  absl::StatusOr<KVFileMetadata> ReadMetadata() {
+  absl::StatusOr<KVFileMetadata> ReadMetadata() override {
     return stream_reader_.GetKVFileMetadata();
   }
 

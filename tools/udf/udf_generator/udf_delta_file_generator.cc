@@ -95,7 +95,7 @@ absl::Status WriteUdfConfig(std::ostream* output_stream) {
                  kv_server::FileFormat::kAvro)]) {
     PS_ASSIGN_OR_RETURN(
         delta_record_writer,
-        kv_server::AvroDeltaRecordStreamWriter::Create(
+        kv_server::AvroDeltaRecordStreamWriter<std::ostream>::Create(
             *output_stream, DeltaRecordWriter::Options{.metadata = metadata}));
   }
 

@@ -23,6 +23,7 @@
 
 #include "absl/status/statusor.h"
 #include "components/data/blob_storage/blob_storage_client.h"
+#include "public/constants.h"
 #include "public/data_loading/writers/snapshot_stream_writer.h"
 #include "tools/data_cli/commands/command.h"
 
@@ -39,6 +40,7 @@ class GenerateSnapshotCommand : public Command {
     bool in_memory_compaction;
     int64_t shard_number = -1;
     int64_t number_of_shards = -1;
+    FileFormat file_format;
   };
 
   ~GenerateSnapshotCommand();

@@ -18,6 +18,7 @@
 #define PUBLIC_CONSTANTS_H_
 
 #include <regex>
+#include <string>
 #include <string_view>
 #include <tuple>
 
@@ -148,6 +149,31 @@ const std::regex& LogicalShardingConfigFileFormatRegex();
 // the corresponding format. If none is specified, Riegeli is the default.
 enum class FileFormat { kAvro, kRiegeli };
 constexpr std::array<std::string_view, 2> kFileFormats{"avro", "riegeli"};
+
+inline bool AbslParseFlag(absl::string_view text, FileFormat* file_format,
+                          std::string* error) {
+  if (text == "riegeli") {
+    *file_format = FileFormat::kRiegeli;
+    return true;
+  }
+  if (text == "avro") {
+    *file_format = FileFormat::kAvro;
+    return true;
+  }
+  *error = "unknown value for file_format";
+  return false;
+}
+
+inline std::string AbslUnparseFlag(FileFormat file_format) {
+  switch (file_format) {
+    case FileFormat::kRiegeli:
+      return "riegeli";
+    case FileFormat::kAvro:
+      return "avro";
+    default:
+      return absl::StrCat(file_format);
+  }
+}
 
 // A partition is uniquely identified using the partition id
 // and the compression group id

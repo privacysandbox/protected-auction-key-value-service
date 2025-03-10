@@ -33,6 +33,7 @@
 #include "components/data/blob_storage/blob_storage_client.h"
 #include "public/constants.h"
 #include "public/data_loading/filename_utils.h"
+#include "public/data_loading/readers/avro_delta_record_stream_reader.h"
 #include "public/data_loading/readers/delta_record_stream_reader.h"
 #include "public/data_loading/riegeli_metadata.pb.h"
 #include "public/sharding/sharding_function.h"
@@ -59,6 +60,16 @@ class FileBlobReader : public BlobReader {
 };
 
 constexpr std::string_view kStdioSymbol = "-";
+
+std::unique_ptr<DeltaRecordReader> GetRecordReader(std::istream& is,
+                                                   FileFormat file_format) {
+  if (file_format == FileFormat::kAvro) {
+    LOG(INFO) << "Creating avro reader";
+    return std::make_unique<AvroDeltaRecordStreamReader<std::istream>>(is);
+  }
+  LOG(INFO) << "Creating riegeli reader";
+  return std::make_unique<DeltaRecordStreamReader<std::istream>>(is);
+}
 
 absl::Status ValidateRequiredParams(GenerateSnapshotCommand::Params& params) {
   if (params.working_dir.empty()) {
@@ -127,7 +138,7 @@ absl::StatusOr<KVFileMetadata> CreateSnapshotMetadata(
 
 absl::Status WriteRecordsToSnapshotStream(
     const GenerateSnapshotCommand::Params& params,
-    DeltaRecordStreamReader<std::istream>& record_reader,
+    DeltaRecordReader& record_reader,
     SnapshotStreamWriter<std::ostream>& snapshot_writer) {
   ShardingFunction sharding_function(/*seed=*/"");
   return record_reader.ReadRecords(
@@ -159,13 +170,14 @@ absl::StatusOr<std::string> WriteBaseSnapshotData(
   LOG(INFO) << "Compacting base snapshot file: " << params.starting_file;
   auto blob_reader = blob_client.GetBlobReader(
       {.bucket = params.data_dir.data(), .key = params.starting_file.data()});
-  DeltaRecordStreamReader record_reader(blob_reader->Stream());
-  auto metadata = record_reader.ReadMetadata();
+  std::unique_ptr<DeltaRecordReader> record_reader =
+      GetRecordReader(blob_reader->Stream(), params.file_format);
+  auto metadata = record_reader->ReadMetadata();
   if (!metadata.ok()) {
     return metadata.status();
   }
   if (auto status =
-          WriteRecordsToSnapshotStream(params, record_reader, snapshot_writer);
+          WriteRecordsToSnapshotStream(params, *record_reader, snapshot_writer);
       !status.ok()) {
     return status;
   }
@@ -192,8 +204,9 @@ absl::Status WriteDeltaFilesToSnapshot(
     }
     auto blob_reader = blob_client.GetBlobReader(
         {.bucket = params.data_dir.data(), .key = delta_file});
-    DeltaRecordStreamReader record_reader(blob_reader->Stream());
-    if (auto status = WriteRecordsToSnapshotStream(params, record_reader,
+    std::unique_ptr<DeltaRecordReader> record_reader =
+        GetRecordReader(blob_reader->Stream(), params.file_format);
+    if (auto status = WriteRecordsToSnapshotStream(params, *record_reader,
                                                    snapshot_writer);
         !status.ok()) {
       return status;
@@ -240,9 +253,9 @@ absl::Status GenerateSnapshotCommand::Execute() {
       params_.snapshot_file == kStdioSymbol ? &std::cout : &snapshot_ofstream;
   auto snapshot_writer = SnapshotStreamWriter<std::ostream>::Create(
       {.metadata = *snapshot_metadata,
-       .temp_data_file = params_.in_memory_compaction
-                             ? ""
-                             : GetTempAggregatorDbFile(params_)},
+       .temp_data_file =
+           params_.in_memory_compaction ? "" : GetTempAggregatorDbFile(params_),
+       .file_format = params_.file_format},
       *snapshot_ostream);
   if (!snapshot_writer.ok()) {
     return snapshot_writer.status();

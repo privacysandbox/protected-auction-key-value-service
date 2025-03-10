@@ -91,6 +91,8 @@ Commands:
     [--starting_file]           (Required) Oldest delta file or base snapshot to include in compaction.
     [--ending_delta_file]       (Required) Most recent delta file to include compaction.
     [--snapshot_file]           (Optional) Defaults to stdout. Output snapshot file.
+    [--file_format]             (Optional) Defaults to "riegeli". Possible options=(riegeli|avro).
+                                           File format of input and output files.
     [--data_dir]                (Required) Directory (or S3 bucket) with input delta files.
     [--working_dir]             (Optional) Defaults to "/tmp". Directory used to write temporary data.
     [--in_memory_compaction]    (Optional) Defaults to true. If false, file backed compaction is used.

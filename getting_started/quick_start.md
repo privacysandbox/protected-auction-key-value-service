@@ -152,7 +152,7 @@ cp bazel-bin/getting_started/examples/canonical_examples/DELTA_0000000000000001 
 The `data_cli` command can also be run outside the predefined build target for your own CSV:
 
 ```sh
-./builders/tools/bazel-debian build //tools/data_cli
+./builders/tools/bazel-debian build //tools/data_cli --config=local_instance --config=local_platform
 bazel-bin/tools/data_cli/data_cli format_data --input_file /path/to/your/file.csv --input_format CSV --output_file dist/deltas/DELTA_0000000000000001 --output_format DELTA
 ```
 

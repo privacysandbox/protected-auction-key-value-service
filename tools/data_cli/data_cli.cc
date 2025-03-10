@@ -30,6 +30,7 @@
 using kv_server::FormatDataCommand;
 using kv_server::GenerateSnapshotCommand;
 
+// Flags for to format_data_command
 ABSL_FLAG(std::string, input_file, "-", "Input file to convert records from.");
 ABSL_FLAG(std::string, input_format, "CSV",
           "Format of the input file. Possible options=(CSV|DELTA|AVRO_DELTA)");
@@ -37,22 +38,6 @@ ABSL_FLAG(std::string, output_file, "-",
           "Output file to write converted records to.");
 ABSL_FLAG(std::string, output_format, "DELTA",
           "Format of output file. Possible options=(CSV|DELTA|AVRO_DELTA)");
-ABSL_FLAG(std::string, starting_file, "",
-          "Name of the file to use as the starting file for a snapshot, it can "
-          "be an existing snapshot or delta file.");
-ABSL_FLAG(std::string, ending_delta_file, "",
-          "Name of the most recent delta file to be included in the snapshot.");
-ABSL_FLAG(std::string, working_dir, "/tmp",
-          "Directory to save temp data files.");
-ABSL_FLAG(std::string, snapshot_file, "-",
-          "Output file to write snapshot to. Defaults to stdout.");
-ABSL_FLAG(
-    std::string, data_dir, "",
-    "Data directory with files to be combined into a snapshot. This can be "
-    "an AWS S3 bucket or local directory.");
-ABSL_FLAG(
-    bool, in_memory_compaction, true,
-    "If true, delta file compaction to generate snapshots is done in memory.");
 ABSL_FLAG(std::string, csv_column_delimiter, ",",
           "Column delimiter for csv files");
 ABSL_FLAG(std::string, csv_value_delimiter, "|",
@@ -65,11 +50,33 @@ ABSL_FLAG(std::string, csv_encoding, "plaintext",
           "Encoding for KEY_VALUE_MUTATION_RECORD values for "
           "CSVs. options=(PLAINTEXT|BASE64)."
           "If the values are binary, BASE64 is recommended.");
+
+// Flags for to generate_snapshot_command
+ABSL_FLAG(std::string, starting_file, "",
+          "Name of the file to use as the starting file for a snapshot, it can "
+          "be an existing snapshot or delta file.");
+ABSL_FLAG(std::string, ending_delta_file, "",
+          "Name of the most recent delta file to be included in the snapshot.");
+ABSL_FLAG(std::string, working_dir, "/tmp",
+          "Directory to save temp data files.");
+ABSL_FLAG(std::string, snapshot_file, "-",
+          "Output file to write snapshot to. Defaults to stdout.");
+ABSL_FLAG(kv_server::FileFormat, file_format, kv_server::FileFormat::kRiegeli,
+          "File format of delta and snapshot files. options=(avro|riegeli)");
+ABSL_FLAG(
+    std::string, data_dir, "",
+    "Data directory with files to be combined into a snapshot. This can be "
+    "an AWS S3 bucket or local directory.");
+ABSL_FLAG(
+    bool, in_memory_compaction, true,
+    "If true, delta file compaction to generate snapshots is done in memory.");
+
+// Flags for both format_data_command and generate_snapshot_command
 ABSL_FLAG(int64_t, shard_number, -1,
           "The shard number for output DELTA or SNAPSHOT files.");
 ABSL_FLAG(
     int64_t, number_of_shards, -1,
-    "Total number of shards. Must be > --shard_number if shard_number >= 0.");
+    "Total number of shards. Must be >= shard_number if shard_number >= 0.");
 
 constexpr std::string_view kUsageMessage = R"(
 Usage: data_cli <command> <flags>
@@ -108,9 +115,12 @@ Commands:
     [--ending_delta_file]       (Required) Most recent delta file to include compaction.
     [--snapshot_file]           (Optional) Defaults to stdout. Output snapshot file.
     [--data_dir]                (Required) Directory with input delta files.
+    [--file_format]             (Optional) Defaults to "riegeli". Possible options=(riegeli|avro).
+                                           File format of input and output files.
     [--working_dir]             (Optional) Defaults to "/tmp". Directory used to write temporary data.
     [--in_memory_compaction]    (Optional) Defaults to true. If false, file backed compaction is used.
     [--shard_number]            (Optional) Defaults to -1 (i.e., not specified).
+    [--number_of_shards]        (Optional) Defaults to -1 (i.e., not specified). Must be > --shard_number if shard_number >= 0.
     [--number_of_shards]        (Optional) Defaults to -1 (i.e., not specified). Must be > --shard_number if shard_number >= 0.
   Examples:
     (1) Generate snapshot using delta files from local disk.
@@ -205,6 +215,7 @@ int main(int argc, char** argv) {
             .in_memory_compaction = absl::GetFlag(FLAGS_in_memory_compaction),
             .shard_number = absl::GetFlag(FLAGS_shard_number),
             .number_of_shards = absl::GetFlag(FLAGS_number_of_shards),
+            .file_format = absl::GetFlag(FLAGS_file_format),
         });
     if (!generate_snapshot_command.ok()) {
       LOG(ERROR) << "Failed to create command to generate snapshot. "

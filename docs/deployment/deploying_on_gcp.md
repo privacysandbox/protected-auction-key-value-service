@@ -71,7 +71,6 @@ oslogin.googleapis.com
 pubsub.googleapis.com
 secretmanager.googleapis.com
 servicemanagement.googleapis.com
-staging-cloudkms.sandbox.googleapis.com
 storage-api.googleapis.com
 storage-component.googleapis.com
 storage.googleapis.com

@@ -63,3 +63,9 @@ variable "grpc_route" {
   description = "Google network services grpc route for kv_server"
   type        = string
 }
+
+variable "lb_dns_zones_project_id" {
+  description = "The name of the Google Cloud project where DNS zones are managed."
+  type        = string
+  default     = null
+}

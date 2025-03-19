@@ -54,6 +54,13 @@ table UserDefinedFunctionsConfig {
 
   // Required. Version number.
   version:int64;
+
+  // Optional. For Javascript code snippet only.
+  // Wasm binary to be loaded alongside a Javascript code snippet as a snippet.
+  // This is the recommended way to load WASM to be run in a Javascript environment.
+  // The wasm binary will be stored as an ArrayBuffer named `wasm_array`
+  // that the Javascript code can reference.
+  wasm_bin:string;
 }
 
 table ShardMappingRecord {

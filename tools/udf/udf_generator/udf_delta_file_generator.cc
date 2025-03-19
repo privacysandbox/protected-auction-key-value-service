@@ -35,6 +35,7 @@
 
 ABSL_FLAG(std::string, udf_file_path, "", "UDF file path");
 ABSL_FLAG(std::string, udf_handler_name, "HandleRequest", "UDF handler_name");
+ABSL_FLAG(std::string, wasm_binary_file_path, "", "WASM binary file path");
 ABSL_FLAG(std::string, output_dir, "",
           "Output file directory. Ignored if output_path is specified.");
 ABSL_FLAG(std::string, output_path, "",
@@ -57,14 +58,14 @@ using kv_server::ToDeltaFileName;
 using kv_server::UserDefinedFunctionsConfigT;
 using kv_server::UserDefinedFunctionsLanguage;
 
-absl::StatusOr<std::string> ReadCodeSnippetAsString(std::string udf_file_path) {
-  std::ifstream ifs(udf_file_path);
+absl::StatusOr<std::string> ReadFileContentAsString(std::string file_path) {
+  std::ifstream ifs(file_path);
   if (!ifs) {
-    return absl::NotFoundError(absl::StrCat("File not found: ", udf_file_path));
+    return absl::NotFoundError(absl::StrCat("File not found: ", file_path));
   }
-  std::string udf((std::istreambuf_iterator<char>(ifs)),
-                  (std::istreambuf_iterator<char>()));
-  return udf;
+  std::string file_content((std::istreambuf_iterator<char>(ifs)),
+                           (std::istreambuf_iterator<char>()));
+  return file_content;
 }
 
 absl::Status WriteUdfConfig(std::ostream* output_stream) {
@@ -73,10 +74,12 @@ absl::Status WriteUdfConfig(std::ostream* output_stream) {
   }
   const std::string udf_file_path = absl::GetFlag(FLAGS_udf_file_path);
   const std::string udf_handler_name = absl::GetFlag(FLAGS_udf_handler_name);
+  const std::string wasm_binary_file_path =
+      absl::GetFlag(FLAGS_wasm_binary_file_path);
   int64_t logical_commit_time = absl::GetFlag(FLAGS_logical_commit_time);
   int64_t version = absl::GetFlag(FLAGS_code_snippet_version);
   absl::StatusOr<std::string> code_snippet =
-      ReadCodeSnippetAsString(std::move(udf_file_path));
+      ReadFileContentAsString(std::move(udf_file_path));
   if (!code_snippet.ok()) {
     return code_snippet.status();
   }
@@ -106,6 +109,16 @@ absl::Status WriteUdfConfig(std::ostream* output_stream) {
       .logical_commit_time = logical_commit_time,
       .version = version,
   };
+
+  if (!wasm_binary_file_path.empty()) {
+    absl::StatusOr<std::string> wasm_binary =
+        ReadFileContentAsString(std::move(wasm_binary_file_path));
+    if (!wasm_binary.ok()) {
+      return wasm_binary.status();
+    }
+    udf_config.wasm_bin = std::move(*wasm_binary);
+  }
+
   DataRecordT data_record;
   data_record.record.Set(std::move(udf_config));
   PS_RETURN_IF_ERROR(delta_record_writer->WriteRecord(data_record));

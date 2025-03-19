@@ -75,7 +75,10 @@ async function getModule() {
 }
 ```
 
-You will need to call this function from your custom UDF to access your C++ bindings.
+Note the `new WebAssembly.Module(wasm_array)` call. The script assumes that there is an array named
+`wasm_array` that holds the wasm binary.
+
+You will need to call the `getModule` function from your custom UDF to access your C++ bindings.
 
 Example:
 
@@ -96,6 +99,15 @@ The macro will
 1. Compile an inline WASM binary with JS glue
 2. Appends the custom JS
 3. Generates a UDF delta file
+
+There are two options for how to include the inlined WASM binary with the JavaScript code. Both are
+supported by the scripts.
+
+1. As a module, by passing it as the `wasm_bin` field of the `UserDefinedFunctionsConfig` in
+   [data_loading.fbs](/public/data_loading/data_loading.fbs). The wasm binary is then available as a
+   global array named `wasm_array` that the JavaScript code can reference. This is the recommended,
+   more memory-efficient approach and the default when using the provided scripts.
+2. As an ArrayBuffer in the actual JavaScript code snippet.
 
 -   Define your BUILD target:
 

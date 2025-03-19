@@ -15,6 +15,8 @@ UDF configurations can be updated as the server is running using delta/snapshot 
     `logical_commit_time`. The UDF will only be updated for configs with a higher
     `logical_commit_time` than the existing one. The minimum `logical_commit_time` is 1.
 
+Note that there is a maximum code snippet size limit of 500MB.
+
 Please read through the
 [UDF explainer](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_user_defined_functions.md#keyvalue-service-user-defined-functions-udfs)
 for more requirements and APIs.
@@ -65,6 +67,9 @@ Tools to generate UDF delta files and test them are in the `tools/udf` directory
     - `--udf_file_path` &mdash; path to the UDF JavaScript file
     - `--logical_commit_time` &mdash; logical commit time of the UDF config
     - `--code_snippet_version` &mdash; UDF version. For telemetry, should be > 1.
+    - `--wasm_binary_file_path` &mdash; WASM binary to load as a module. This is the recommended way
+      to load WASM alongside a Javscript UDF.
+    - `--data_loading_file_format` &mdash; Data loading file format. Either `riegeli` or `avro`.
 
     Example:
 

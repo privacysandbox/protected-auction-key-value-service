@@ -63,6 +63,18 @@ request_metadata {
 }
   )";
 
+std::string GetWasmByteString() {
+  // Taken from:
+  // https://github.com/v8/v8/blob/5fe0aa3bc79c0a9d3ad546b79211f07105f09585/samples/hello-world.cc#L69C6-L75C12
+  // Needs to be a valid wasm binary for Roma V8 to compile
+  std::vector<uint8_t> wasm_bin = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
+      0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07,
+      0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x0a, 0x09, 0x01,
+      0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b};
+  return std::string(wasm_bin.begin(), wasm_bin.end());
+}
+
 absl::StatusOr<std::unique_ptr<UdfClient>> CreateUdfClient() {
   Config<std::weak_ptr<RequestContext>> config;
   config.number_of_workers = 1;
@@ -120,14 +132,14 @@ class UdfClientTest : public ::testing::Test {
 
 TEST_F(UdfClientTest, UdfClient_Create_Success) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsCallSucceeds) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello = () => 'Hello world!';",
@@ -135,19 +147,57 @@ TEST_F(UdfClientTest, JsCallSucceeds) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("Hello world!")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, JsLoadWithWasmBinSuccess) {
+  auto udf_client = CreateUdfClient();
+  ASSERT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "var module = new WebAssembly.Module(wasm_array); hello = () => "
+            "'Hello world!';",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+      .wasm_bin = GetWasmByteString(),
+  });
+  ASSERT_TRUE(code_obj_status.ok());
+  absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
+      *request_context_factory_, {}, execution_metadata_);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(*result, R"("Hello world!")");
+
+  absl::Status stop = udf_client.value()->Stop();
+  ASSERT_TRUE(stop.ok());
+}
+
+TEST_F(UdfClientTest, JsLoadWithInvalidWasmBinFails) {
+  auto udf_client = CreateUdfClient();
+  ASSERT_TRUE(udf_client.ok());
+
+  absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
+      .js = "hello = () => 'Hello world!';",
+      .udf_handler_name = "hello",
+      .logical_commit_time = 1,
+      .version = 1,
+      .wasm_bin = "abc",
+  });
+  ASSERT_FALSE(code_obj_status.ok());
+  absl::Status stop = udf_client.value()->Stop();
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsExceptionReturnsStatus) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "function hello() { throw new Error('Oh no!'); }",
@@ -155,19 +205,19 @@ TEST_F(UdfClientTest, JsExceptionReturnsStatus) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, execution_metadata_);
-  EXPECT_FALSE(result.ok());
+  ASSERT_FALSE(result.ok());
   EXPECT_THAT(result.status().message(), HasSubstr("Oh no!"));
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, RepeatedJsCallsSucceed) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello = () => 'Hello world!';",
@@ -175,24 +225,24 @@ TEST_F(UdfClientTest, RepeatedJsCallsSucceed) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result1 = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, execution_metadata_);
-  EXPECT_TRUE(result1.ok());
+  ASSERT_TRUE(result1.ok());
   EXPECT_EQ(*result1, R"("Hello world!")");
 
   absl::StatusOr<std::string> result2 = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, execution_metadata_);
-  EXPECT_TRUE(result2.ok());
+  ASSERT_TRUE(result2.ok());
   EXPECT_EQ(*result2, R"("Hello world!")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsEchoCallSucceeds) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello = (input) => 'Hello world! ' + JSON.stringify(input);",
@@ -200,19 +250,19 @@ TEST_F(UdfClientTest, JsEchoCallSucceeds) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"("ECHO")"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("Hello world! \"ECHO\"")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello = (metadata, input) => 'Hello world! ' + "
@@ -221,7 +271,7 @@ TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
 
   google::protobuf::RepeatedPtrField<UDFArgument> args;
   args.Add([] {
@@ -231,16 +281,16 @@ TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string) {
   }());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, args, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("Hello world! \"ECHO\"")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string_tagged) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello = (metadata, input) => 'Hello world! ' + "
@@ -249,7 +299,7 @@ TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string_tagged) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
 
   google::protobuf::RepeatedPtrField<UDFArgument> args;
   args.Add([] {
@@ -260,16 +310,16 @@ TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string_tagged) {
   }());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, args, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result,
             R"("Hello world! {\"tags\":[\"tag1\"],\"data\":\"ECHO\"}")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string_tagged_list) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello = (metadata, input) => 'Hello world! ' + "
@@ -278,7 +328,7 @@ TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string_tagged_list) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
 
   google::protobuf::RepeatedPtrField<UDFArgument> args;
   args.Add([] {
@@ -291,18 +341,18 @@ TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_string_tagged_list) {
   }());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, args, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(
       *result,
       R"("Hello world! {\"tags\":[\"tag1\"],\"data\":[\"key1\",\"key2\"]}")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_struct) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello = (metadata, input) => 'Hello world! ' + "
@@ -311,7 +361,7 @@ TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_struct) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
 
   google::protobuf::RepeatedPtrField<UDFArgument> args;
   args.Add([] {
@@ -322,11 +372,11 @@ TEST_F(UdfClientTest, JsEchoCallSucceeds_SimpleUDFArg_struct) {
   }());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, args, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("Hello world! {\"key\":\"value\"}")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 static void udfCbEcho(
@@ -346,7 +396,7 @@ TEST_F(UdfClientTest, JsEchoHookCallSucceeds) {
   config.RegisterFunctionBinding(std::move(function_object));
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client =
       UdfClient::Create(std::move(config));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello = (input) => 'Hello world! ' + echo(input);",
@@ -354,14 +404,14 @@ TEST_F(UdfClientTest, JsEchoHookCallSucceeds) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"("I'm a key")"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("Hello world! Echo: I'm a key")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
@@ -383,7 +433,7 @@ TEST_F(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
       std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
                     .SetNumberOfWorkers(1)
                     .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
@@ -402,14 +452,14 @@ TEST_F(UdfClientTest, JsStringInWithGetValuesHookSucceeds) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"("key1")"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("Key: key1, Value: value1")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
@@ -431,7 +481,7 @@ TEST_F(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
       std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
                     .SetNumberOfWorkers(1)
                     .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
@@ -452,14 +502,14 @@ TEST_F(UdfClientTest, JsJSONObjectInWithGetValuesHookSucceeds) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("Key: key1, Value: value1")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
@@ -476,7 +526,7 @@ TEST_F(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
       std::move(config_builder.RegisterRunSetQueryStringHook(*run_query_hook)
                     .SetNumberOfWorkers(1)
                     .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
@@ -490,14 +540,14 @@ TEST_F(UdfClientTest, JsJSONObjectInWithRunQueryHookSucceeds) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"(["a"])");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
@@ -514,7 +564,7 @@ TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
       std::move(config_builder.RegisterRunSetQueryUInt32Hook(*run_query_hook)
                     .SetNumberOfWorkers(1)
                     .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
         function hello(input) {
@@ -530,13 +580,13 @@ TEST_F(UdfClientTest, VerifyJsRunSetQueryIntHookSucceeds) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
   ASSERT_TRUE(result.ok()) << result.status();
   EXPECT_EQ(*result, R"([1000,1001])");
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsCallsLogMessageAndConsoleLogConsentedSucceeds) {
@@ -546,7 +596,7 @@ TEST_F(UdfClientTest, JsCallsLogMessageAndConsoleLogConsentedSucceeds) {
                                       .RegisterConsoleLogHook()
                                       .SetNumberOfWorkers(1)
                                       .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
@@ -569,10 +619,10 @@ TEST_F(UdfClientTest, JsCallsLogMessageAndConsoleLogConsentedSucceeds) {
   privacy_sandbox::server_common::LogContext log_context;
   request_context_factory_->UpdateLogContext(log_context,
                                              consented_debug_configuration);
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
   auto output_log = consented_log_output_.str();
   EXPECT_THAT(output_log, ContainsRegex("first message"));
@@ -581,7 +631,7 @@ TEST_F(UdfClientTest, JsCallsLogMessageAndConsoleLogConsentedSucceeds) {
   EXPECT_THAT(output_log, ContainsRegex("error message"));
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest,
@@ -592,7 +642,7 @@ TEST_F(UdfClientTest,
                                       .RegisterConsoleLogHook()
                                       .SetNumberOfWorkers(1)
                                       .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
@@ -615,15 +665,15 @@ TEST_F(UdfClientTest,
   privacy_sandbox::server_common::LogContext log_context;
   request_context_factory_->UpdateLogContext(log_context,
                                              consented_debug_configuration);
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
   auto output_log = consented_log_output_.str();
   EXPECT_TRUE(output_log.empty());
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsCallsConsoleLogOnlyLogsAboveMinLogLevel) {
@@ -635,7 +685,7 @@ TEST_F(UdfClientTest, JsCallsConsoleLogOnlyLogsAboveMinLogLevel) {
                     .Config()),
       /*udf_timeout=*/absl::Seconds(5), /*udf_update_timeout=*/absl::Seconds(5),
       /*udf_min_log_level=*/1);
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
@@ -657,10 +707,10 @@ TEST_F(UdfClientTest, JsCallsConsoleLogOnlyLogsAboveMinLogLevel) {
   privacy_sandbox::server_common::LogContext log_context;
   request_context_factory_->UpdateLogContext(log_context,
                                              consented_debug_configuration);
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
   auto output_log = consented_log_output_.str();
   EXPECT_THAT(output_log, ContainsRegex("should print warning"));
@@ -668,12 +718,12 @@ TEST_F(UdfClientTest, JsCallsConsoleLogOnlyLogsAboveMinLogLevel) {
   EXPECT_THAT(output_log, testing::Not(ContainsRegex("should not print")));
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, UpdatesCodeObjectTwice) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   auto status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello1 = () => '1';",
@@ -682,26 +732,26 @@ TEST_F(UdfClientTest, UpdatesCodeObjectTwice) {
       .version = 1,
   });
 
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello2 = () => '2';",
       .udf_handler_name = "hello2",
       .logical_commit_time = 2,
       .version = 2,
   });
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("2")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, IgnoresCodeObjectWithSameCommitTime) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   auto status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello1 = () => '1';",
@@ -710,26 +760,26 @@ TEST_F(UdfClientTest, IgnoresCodeObjectWithSameCommitTime) {
       .version = 1,
   });
 
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello2 = () => '2';",
       .udf_handler_name = "hello2",
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("1")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, IgnoresCodeObjectWithSmallerCommitTime) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   auto status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello1 = () => '1';",
@@ -738,40 +788,40 @@ TEST_F(UdfClientTest, IgnoresCodeObjectWithSmallerCommitTime) {
       .version = 1,
   });
 
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello2 = () => '2';",
       .udf_handler_name = "hello2",
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(status.ok());
+  ASSERT_TRUE(status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("1")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, CodeObjectNotSetError) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {}, execution_metadata_);
-  EXPECT_FALSE(result.ok());
+  ASSERT_FALSE(result.ok());
   EXPECT_EQ(result.status().code(), absl::StatusCode::kInvalidArgument);
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, MetadataPassedSuccesfully) {
   UdfConfigBuilder config_builder;
   absl::StatusOr<std::unique_ptr<UdfClient>> udf_client = UdfClient::Create(
       std::move(config_builder.SetNumberOfWorkers(1).Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
         function hello(metadata) {
@@ -792,7 +842,7 @@ TEST_F(UdfClientTest, MetadataPassedSuccesfully) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   v2::GetValuesRequest req;
   auto* fields = req.mutable_metadata()->mutable_fields();
   (*fields)["is_pas"].set_string_value("true");
@@ -803,7 +853,7 @@ TEST_F(UdfClientTest, MetadataPassedSuccesfully) {
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, std::move(udf_metadata), args,
       execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("true")");
 
   UDFExecutionMetadata udf_metadata_non_pas;
@@ -811,10 +861,10 @@ TEST_F(UdfClientTest, MetadataPassedSuccesfully) {
   result = udf_client.value()->ExecuteCode(*request_context_factory_,
                                            std::move(udf_metadata_non_pas),
                                            args, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("false")");
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, DefaultUdfPASucceeds) {
@@ -835,14 +885,14 @@ TEST_F(UdfClientTest, DefaultUdfPASucceeds) {
       std::move(config_builder.RegisterStringGetValuesHook(*get_values_hook)
                     .SetNumberOfWorkers(1)
                     .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = kDefaultUdfCodeSnippet,
       .udf_handler_name = kDefaultUdfHandlerName,
       .logical_commit_time = kDefaultLogicalCommitTime,
       .version = kDefaultVersion,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   UDFExecutionMetadata udf_metadata;
   google::protobuf::RepeatedPtrField<UDFArgument> args;
   args.Add([] {
@@ -861,12 +911,12 @@ TEST_F(UdfClientTest, DefaultUdfPASucceeds) {
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, std::move(udf_metadata), args,
       execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(
       *result,
       R"({"keyGroupOutputs":[{"keyValues":{"key1":{"value":"value1"}}}],"udfOutputApiVersion":1})");
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, DefaultUdfPasKeyLookupFails) {
@@ -882,14 +932,14 @@ TEST_F(UdfClientTest, DefaultUdfPasKeyLookupFails) {
                     .RegisterLogMessageHook()
                     .SetNumberOfWorkers(1)
                     .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = kDefaultUdfCodeSnippet,
       .udf_handler_name = kDefaultUdfHandlerName,
       .logical_commit_time = kDefaultLogicalCommitTime,
       .version = kDefaultVersion,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   v2::GetValuesRequest req;
   (*(req.mutable_metadata()->mutable_fields()))["is_pas"].set_string_value(
       "true");
@@ -912,9 +962,9 @@ TEST_F(UdfClientTest, DefaultUdfPasKeyLookupFails) {
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, std::move(udf_metadata), args,
       execution_metadata_);
-  EXPECT_FALSE(result.ok());
+  ASSERT_FALSE(result.ok());
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, DefaultUdfPasSucceeds) {
@@ -935,14 +985,14 @@ TEST_F(UdfClientTest, DefaultUdfPasSucceeds) {
                     .RegisterLogMessageHook()
                     .SetNumberOfWorkers(1)
                     .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = kDefaultUdfCodeSnippet,
       .udf_handler_name = kDefaultUdfHandlerName,
       .logical_commit_time = kDefaultLogicalCommitTime,
       .version = kDefaultVersion,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   v2::GetValuesRequest req;
   (*(req.mutable_metadata()->mutable_fields()))["is_pas"].set_string_value(
       "true");
@@ -965,10 +1015,10 @@ TEST_F(UdfClientTest, DefaultUdfPasSucceeds) {
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, std::move(udf_metadata), args,
       execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"({"key1":{"value":"value1"}})");
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, VerifyJsRunSetQueryUInt64HookSucceeds) {
@@ -986,7 +1036,7 @@ TEST_F(UdfClientTest, VerifyJsRunSetQueryUInt64HookSucceeds) {
       std::move(config_builder.RegisterRunSetQueryUInt64Hook(*run_query_hook)
                     .SetNumberOfWorkers(1)
                     .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = R"(
         function hello(input) {
@@ -1003,13 +1053,13 @@ TEST_F(UdfClientTest, VerifyJsRunSetQueryUInt64HookSucceeds) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
   ASSERT_TRUE(result.ok()) << result.status();
   EXPECT_EQ(*result, "[\"18446744073709551614\",\"18446744073709551615\"]");
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, JsCallsLogCustomMetricSuccess) {
@@ -1019,7 +1069,7 @@ TEST_F(UdfClientTest, JsCallsLogCustomMetricSuccess) {
                                       .RegisterCustomMetricHook()
                                       .SetNumberOfWorkers(1)
                                       .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   // The metric name will need to match the name defined for custom metric in
   // the telemetry config proto
@@ -1061,13 +1111,13 @@ TEST_F(UdfClientTest, JsCallsLogCustomMetricSuccess) {
   privacy_sandbox::server_common::LogContext log_context;
   request_context_factory_->UpdateLogContext(log_context,
                                              consented_debug_configuration);
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
   auto metrics_logging_outcome = consented_log_output_.str();
   EXPECT_THAT(metrics_logging_outcome, ContainsRegex("Log metrics success"));
 }
@@ -1079,7 +1129,7 @@ TEST_F(UdfClientTest, JsCallsLogCustomMetricJsonParseError) {
                                       .RegisterCustomMetricHook()
                                       .SetNumberOfWorkers(1)
                                       .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   // The metric name will need to match the name defined for custom metric in
   // the telemetry config proto
@@ -1112,13 +1162,13 @@ TEST_F(UdfClientTest, JsCallsLogCustomMetricJsonParseError) {
   privacy_sandbox::server_common::LogContext log_context;
   request_context_factory_->UpdateLogContext(log_context,
                                              consented_debug_configuration);
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
   auto metrics_logging_outcome = consented_log_output_.str();
   EXPECT_THAT(metrics_logging_outcome,
               ContainsRegex("Failed to parse metrics in Json string"));
@@ -1131,7 +1181,7 @@ TEST_F(UdfClientTest, JsCallsLogCustomMetricFailedToLogError) {
                                       .RegisterCustomMetricHook()
                                       .SetNumberOfWorkers(1)
                                       .Config()));
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   // The metric name will need to match the name defined for custom metric in
   // the telemetry config proto
@@ -1164,20 +1214,20 @@ TEST_F(UdfClientTest, JsCallsLogCustomMetricFailedToLogError) {
   privacy_sandbox::server_common::LogContext log_context;
   request_context_factory_->UpdateLogContext(log_context,
                                              consented_debug_configuration);
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
   absl::StatusOr<std::string> result = udf_client.value()->ExecuteCode(
       *request_context_factory_, {R"({"keys":["key1"]})"}, execution_metadata_);
-  EXPECT_TRUE(result.ok());
+  ASSERT_TRUE(result.ok());
   EXPECT_EQ(*result, R"("")");
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
   auto metrics_logging_outcome = consented_log_output_.str();
   EXPECT_THAT(metrics_logging_outcome, ContainsRegex("Failed to log metrics"));
 }
 
 TEST_F(UdfClientTest, BatchExecuteCodeSuccess) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello = (metadata, data) => 'Hello world! ' + "
@@ -1186,7 +1236,7 @@ TEST_F(UdfClientTest, BatchExecuteCodeSuccess) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
 
   UDFExecutionMetadata udf_metadata;
   TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
@@ -1224,12 +1274,12 @@ TEST_F(UdfClientTest, BatchExecuteCodeSuccess) {
       R"("Hello world! {\"udfInterfaceVersion\":1,\"requestMetadata\":{\"hostname\":\"\"}}{\"tags\":[\"tag2\"],\"data\":\"key2\"}")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, BatchExecuteCodeIgnoresFailedPartition) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js =
@@ -1241,7 +1291,7 @@ TEST_F(UdfClientTest, BatchExecuteCodeIgnoresFailedPartition) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
 
   UDFExecutionMetadata udf_metadata;
   TextFormat::ParseFromString(kEmptyMetadata, &udf_metadata);
@@ -1274,12 +1324,12 @@ TEST_F(UdfClientTest, BatchExecuteCodeIgnoresFailedPartition) {
   EXPECT_EQ(udf_outputs[id1], R"("Hello world!")");
 
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 
 TEST_F(UdfClientTest, BatchExecuteCodeEmptyReturnsSuccess) {
   auto udf_client = CreateUdfClient();
-  EXPECT_TRUE(udf_client.ok());
+  ASSERT_TRUE(udf_client.ok());
 
   absl::Status code_obj_status = udf_client.value()->SetCodeObject(CodeConfig{
       .js = "hello = (metadata, data) => 'Hello world! ' + "
@@ -1288,7 +1338,7 @@ TEST_F(UdfClientTest, BatchExecuteCodeEmptyReturnsSuccess) {
       .logical_commit_time = 1,
       .version = 1,
   });
-  EXPECT_TRUE(code_obj_status.ok());
+  ASSERT_TRUE(code_obj_status.ok());
 
   absl::flat_hash_map<UniquePartitionIdTuple, UDFInput> input;
   auto result = udf_client.value()->BatchExecuteCode(
@@ -1296,7 +1346,7 @@ TEST_F(UdfClientTest, BatchExecuteCodeEmptyReturnsSuccess) {
   ASSERT_TRUE(result.ok());
   EXPECT_EQ(result->size(), 0);
   absl::Status stop = udf_client.value()->Stop();
-  EXPECT_TRUE(stop.ok());
+  ASSERT_TRUE(stop.ok());
 }
 }  // namespace
 }  // namespace kv_server

@@ -161,6 +161,24 @@ absl::Status ApplyDeleteMutation(
                    " has unsupported value type: ", record.value_type()));
 }
 
+CodeConfig BuildCodeConfig(
+    const UserDefinedFunctionsConfig& udf_config,
+    privacy_sandbox::server_common::log::PSLogContext& log_context) {
+  CodeConfig code_config{
+      .js = udf_config.code_snippet()->str(),
+      .udf_handler_name = udf_config.handler_name()->str(),
+      .logical_commit_time = udf_config.logical_commit_time(),
+      .version = udf_config.version(),
+  };
+  if (udf_config.wasm_bin() != nullptr &&
+      !udf_config.wasm_bin()->str().empty()) {
+    PS_VLOG(3, log_context) << "UDF config has WASM bin with size:  "
+                            << udf_config.wasm_bin()->str().size();
+    code_config.wasm_bin = udf_config.wasm_bin()->str();
+  }
+  return code_config;
+}
+
 bool ShouldProcessRecord(
     const KeyValueMutationRecord& record, int64_t num_shards,
     int64_t server_shard_num, const KeySharder& key_sharder,
@@ -245,14 +263,8 @@ absl::StatusOr<DataLoadingStats> LoadCacheWithData(
           << "Setting UDF code snippet for version: " << udf_config->version()
           << ", handler: " << udf_config->handler_name()->str()
           << ", code length: " << udf_config->code_snippet()->str().size();
-      return udf_client.SetCodeObject(
-          CodeConfig{
-              .js = udf_config->code_snippet()->str(),
-              .udf_handler_name = udf_config->handler_name()->str(),
-              .logical_commit_time = udf_config->logical_commit_time(),
-              .version = udf_config->version(),
-          },
-          log_context);
+      return udf_client.SetCodeObject(BuildCodeConfig(*udf_config, log_context),
+                                      log_context);
     }
     return StatusWithErrorTag(
         absl::InvalidArgumentError(

@@ -18,6 +18,7 @@
 #define COMPONENTS_UDF_CODE_CONFIG_H_
 
 #include <string>
+#include <vector>
 
 namespace kv_server {
 
@@ -30,6 +31,7 @@ struct CodeConfig {
   std::string udf_handler_name;
   int64_t logical_commit_time;
   int64_t version;
+  std::string wasm_bin;
 };
 
 bool operator==(const CodeConfig& lhs_config, const CodeConfig& rhs_config);

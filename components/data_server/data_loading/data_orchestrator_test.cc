@@ -404,6 +404,66 @@ TEST_F(DataOrchestratorTest, UpdateUdfCodeSuccess) {
   EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
 }
 
+TEST_F(DataOrchestratorTest, UpdateUdfCodeWithWasmBinSuccess) {
+  const std::vector<std::string> fnames({ToDeltaFileName(1).value()});
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::SNAPSHOT>()))))
+      .WillOnce(Return(std::vector<std::string>()));
+  EXPECT_CALL(
+      blob_client_,
+      ListBlobs(GetTestLocation(),
+                AllOf(Field(&BlobStorageClient::ListOptions::start_after, ""),
+                      Field(&BlobStorageClient::ListOptions::prefix,
+                            FilePrefix<FileType::DELTA>()))))
+      .WillOnce(Return(fnames));
+
+  KVFileMetadata metadata;
+  auto reader = std::make_unique<MockStreamRecordReader>();
+  EXPECT_CALL(*reader, GetKVFileMetadata).Times(1).WillOnce(Return(metadata));
+  EXPECT_CALL(*reader, ReadStreamRecords)
+      .WillOnce(
+          [](const std::function<absl::Status(std::string_view)>& callback) {
+            UserDefinedFunctionsConfigT udf_config_record = {
+                .language = UserDefinedFunctionsLanguage::Javascript,
+                .code_snippet = "function hello(){}",
+                .handler_name = "hello",
+                .logical_commit_time = 1,
+                .version = 1,
+                // This is not an accurate example of a
+                // byte string that should be in wasm_bin
+                .wasm_bin = "abc",
+            };
+            DataRecordT data_record =
+                GetNativeDataRecord(std::move(udf_config_record));
+            auto [fbs_buffer, serialized_string_view] = Serialize(data_record);
+            callback(serialized_string_view).IgnoreError();
+            return absl::OkStatus();
+          });
+  EXPECT_CALL(delta_stream_reader_factory_, CreateConcurrentReader)
+      .WillOnce(Return(ByMove(std::move(reader))));
+
+  EXPECT_CALL(udf_client_, SetCodeObject(CodeConfig{.js = "function hello(){}",
+                                                    .udf_handler_name = "hello",
+                                                    .logical_commit_time = 1,
+                                                    .version = 1,
+                                                    .wasm_bin = "abc"},
+                                         _))
+      .WillOnce(Return(absl::OkStatus()));
+  auto maybe_orchestrator = DataOrchestrator::TryCreate(options_);
+  ASSERT_TRUE(maybe_orchestrator.ok());
+
+  const std::string last_basename = ToDeltaFileName(1).value();
+  EXPECT_CALL(notifier_,
+              Start(_, GetTestLocation(),
+                    UnorderedElementsAre(Pair("", last_basename)), _))
+      .WillOnce(Return(absl::UnknownError("")));
+  EXPECT_FALSE((*maybe_orchestrator)->Start().ok());
+}
+
 TEST_F(DataOrchestratorTest, UpdateUdfCodeFails_OrchestratorContinues) {
   const std::vector<std::string> fnames({ToDeltaFileName(1).value()});
   EXPECT_CALL(

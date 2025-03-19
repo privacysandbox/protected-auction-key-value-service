@@ -57,6 +57,7 @@ using google::scp::roma::sandbox::roma_service::RomaService;
 // constants.
 constexpr char kCodeObjectId[] = "id";
 constexpr char kInvocationRequestId[] = "id";
+constexpr char kWasmModuleArrayName[] = "wasm_array";
 constexpr int kUdfInterfaceVersion = 1;
 
 class UdfClientImpl : public UdfClient {
@@ -248,9 +249,7 @@ class UdfClientImpl : public UdfClient {
     std::shared_ptr<absl::Notification> notification =
         std::make_shared<absl::Notification>();
     PS_VLOG(9, log_context) << "Setting UDF: " << code_config.js;
-    CodeObject code_object =
-        BuildCodeObject(std::move(code_config.js), std::move(code_config.wasm),
-                        code_config.version);
+    CodeObject code_object = BuildCodeObject(code_config);
     absl::Status load_status = roma_service_.LoadCodeObj(
         std::make_unique<CodeObject>(code_object),
         [notification, response_status](absl::StatusOr<ResponseObject> resp) {
@@ -313,12 +312,28 @@ class UdfClientImpl : public UdfClient {
             .metadata = request_context_factory.GetWeakCopy()};
   }
 
-  CodeObject BuildCodeObject(std::string js, std::string wasm,
-                             int64_t version) {
-    return {.id = kCodeObjectId,
-            .version_string = absl::StrCat("v", version),
-            .js = std::move(js),
-            .wasm = std::move(wasm)};
+  std::vector<uint8_t> WasmBinStringToVec(std::string_view wasm_bin) {
+    std::vector<uint8_t> wasm_bin_vec;
+    wasm_bin_vec.reserve(wasm_bin.size());
+    for (char byte : wasm_bin) {
+      wasm_bin_vec.push_back(static_cast<uint8_t>(byte));
+    }
+    return wasm_bin_vec;
+  }
+
+  CodeObject BuildCodeObject(CodeConfig& code_config) {
+    CodeObject code_object{
+        .id = kCodeObjectId,
+        .version_string = absl::StrCat("v", code_config.version),
+        .js = std::move(code_config.js),
+        .wasm = std::move(code_config.wasm)};
+    if (!code_config.wasm_bin.empty()) {
+      code_object.wasm_bin =
+          WasmBinStringToVec(std::move(code_config.wasm_bin));
+      code_object.tags = {{std::string(google::scp::roma::kWasmCodeArrayName),
+                           kWasmModuleArrayName}};
+    }
+    return code_object;
   }
 
   // Mutex for code_object_metadata_;

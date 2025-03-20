@@ -83,6 +83,10 @@
     External load balancer will send traffic to this port. Envoy will forward traffic to
     kv_service_port. Must match envoy.yaml. Ignored if `enable_external_traffic` is false.
 
+-   **existing_collector_endpoint**
+
+    Existing otel collector endpoint to connect. Example format name.domain:port
+
 -   **existing_service_mesh**
 
     Existing service mesh. This would only be used if use_existing_service_mesh is true.
@@ -258,6 +262,11 @@
     If true, use the Confidential space debug image. Else use the prod image, which does not allow
     SSH. The images containing the service logic will run on top of this image and have their own
     prod and debug builds.
+
+-   **use_existing_collector**
+
+    Whether to use existing otel collector or not. If true, resources for new otel collector will
+    not be deployed.
 
 -   **use_existing_service_mesh**
 

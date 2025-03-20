@@ -218,6 +218,17 @@ variable "use_external_metrics_collector_endpoint" {
   description = "Whether to connect to external metrics collector endpoint"
 }
 
+variable "use_existing_collector" {
+  description = "Whether to use existing otel collector or not. If true, resources for new otel collector will not be deployed."
+  type        = bool
+  default     = false
+}
+
+variable "existing_collector_endpoint" {
+  description = "Existing otel collector endpoint. Example: otel-collector.abc.com:4317"
+  type        = string
+}
+
 variable "collector_service_name" {
   description = "Metrics collector service name"
   type        = string

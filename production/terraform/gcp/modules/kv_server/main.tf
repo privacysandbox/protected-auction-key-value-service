@@ -63,6 +63,8 @@ module "autoscaling" {
 }
 
 module "metrics_collector_autoscaling" {
+  count = var.use_existing_collector ? 0 : 1
+
   source                          = "../../services/metrics_collector_autoscaling"
   environment                     = var.environment
   vpc_id                          = module.networking.network_id
@@ -78,11 +80,13 @@ module "metrics_collector_autoscaling" {
 }
 
 module "metrics_collector" {
+  count = var.use_existing_collector ? 0 : 1
+
   source                    = "../../services/metrics_collector"
   environment               = var.environment
   subnets                   = module.networking.subnets
   proxy_subnets             = module.networking.proxy_subnets
-  collector_instance_groups = module.metrics_collector_autoscaling.collector_instance_groups
+  collector_instance_groups = flatten(module.metrics_collector_autoscaling[*].collector_instance_groups)
   collector_service_name    = var.collector_service_name
   collector_service_port    = var.collector_service_port
   collector_dns_zone        = var.collector_dns_zone
@@ -97,8 +101,8 @@ module "service_mesh" {
   kv_server_address         = var.service_mesh_address
   project_id                = var.project_id
   instance_groups           = flatten(module.autoscaling[*].kv_server_instance_groups)
-  collector_forwarding_rule = module.metrics_collector.collector_forwarding_rule
-  collector_tcp_proxy       = module.metrics_collector.collector_tcp_proxy
+  collector_forwarding_rule = flatten(module.metrics_collector[*].collector_forwarding_rule)
+  collector_tcp_proxy       = flatten(module.metrics_collector[*].collector_tcp_proxy)
   use_existing_service_mesh = var.use_existing_service_mesh
   existing_service_mesh     = var.existing_service_mesh
   enable_external_traffic   = var.enable_external_traffic

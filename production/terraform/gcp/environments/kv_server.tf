@@ -68,12 +68,13 @@ module "kv_server" {
   existing_service_mesh                 = var.existing_service_mesh
   service_mesh_address                  = var.service_mesh_address
   enable_external_traffic               = var.enable_external_traffic
+  use_existing_collector                = var.use_existing_collector
 
   parameters = {
     data-bucket-id                               = var.data_bucket_id
     launch-hook                                  = "${local.kv_service}-${var.environment}-launch-hook"
     use-external-metrics-collector-endpoint      = var.use_external_metrics_collector_endpoint
-    metrics-collector-endpoint                   = "${var.environment}-${var.collector_service_name}.${var.collector_domain_name}:${var.collector_service_port}"
+    metrics-collector-endpoint                   = var.use_existing_collector ? var.existing_collector_endpoint : "${var.environment}-${var.collector_service_name}.${var.collector_domain_name}:${var.collector_service_port}"
     metrics-export-interval-millis               = var.metrics_export_interval_millis
     metrics-export-timeout-millis                = var.metrics_export_timeout_millis
     backup-poll-frequency-secs                   = var.backup_poll_frequency_secs

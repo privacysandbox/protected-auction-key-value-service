@@ -111,6 +111,12 @@ variable "parameters" {
   description = "Kv-server runtime parameters"
 }
 
+variable "use_existing_collector" {
+  description = "Whether to use existing otel collector or not. If true, resources for new otel collector will not be deployed."
+  type        = bool
+  default     = false
+}
+
 variable "collector_service_name" {
   description = "OpenTelemetry collector service name"
   type        = string

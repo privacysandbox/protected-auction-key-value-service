@@ -1,0 +1,68 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
+
+package(default_visibility = [
+    "//components/data_server:__subpackages__",
+])
+
+cc_library(
+    name = "partition_processor",
+    srcs = [
+        "multi_partition_processor.cc",
+        "partition_processor.cc",
+        "single_partition_processor.cc",
+    ],
+    hdrs = [
+        "multi_partition_processor.h",
+        "partition_processor.h",
+        "single_partition_processor.h",
+    ],
+    deps = [
+        "//components/data_server/request_handler/content_type:encoder",
+        "//components/udf:udf_client",
+        "//components/util:request_context",
+        "//public:api_schema_cc_proto",
+        "//public/query/v2:get_values_v2_cc_grpc",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
+    ],
+)
+
+cc_test(
+    name = "single_partition_processor_test",
+    size = "small",
+    srcs = [
+        "single_partition_processor_test.cc",
+    ],
+    deps = [
+        ":partition_processor",
+        "//components/udf:mocks",
+        "//components/udf:udf_client",
+        "//public/query/v2:get_values_v2_cc_grpc",
+        "//public/test_util:proto_matcher",
+        "//public/test_util:request_example",
+        "@com_google_absl//absl/log",
+        "@com_google_googletest//:gtest_main",
+        "@nlohmann_json//:lib",
+    ],
+)
+
+cc_test(
+    name = "multi_partition_processor_test",
+    size = "small",
+    srcs = [
+        "multi_partition_processor_test.cc",
+    ],
+    deps = [
+        ":partition_processor",
+        "//components/data_server/request_handler/content_type:mocks",
+        "//components/udf:mocks",
+        "//components/udf:udf_client",
+        "//public/query/v2:get_values_v2_cc_grpc",
+        "//public/test_util:proto_matcher",
+        "//public/test_util:request_example",
+        "@com_google_absl//absl/log",
+        "@com_google_googletest//:gtest_main",
+        "@nlohmann_json//:lib",
+    ],
+)

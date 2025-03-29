@@ -58,7 +58,6 @@ enum class ProtocolType {
   kObliviousHttp,
 };
 
-// TODO(b/355434272): Refactor
 struct TestingParameters {
   ProtocolType protocol_type;
   const std::string_view content_type;
@@ -451,58 +450,11 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(GetValuesHandlerTest, Success) {
   UDFExecutionMetadata udf_metadata;
-  TextFormat::ParseFromString(R"(
-request_metadata {
-  fields {
-    key: "hostname"
-    value {
-      string_value: "example.com"
-    }
-  }
-  fields {
-    key: "is_pas"
-    value {
-      string_value: "true"
-    }
-  }
-}
-  )",
-                              &udf_metadata);
-  UDFArgument arg1, arg2;
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "structured"
-  }
-  values {
-    string_value: "groupNames"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "hello"
-    }
-  }
-})",
-                              &arg1);
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "custom"
-  }
-  values {
-    string_value: "keys"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "key1"
-    }
-  }
-})",
-                              &arg2);
+  TextFormat::ParseFromString(kExampleV2RequestUdfMetadata, &udf_metadata);
+  UDFArgument udf_arg1, udf_arg2;
+  TextFormat::ParseFromString(kExampleV2RequestUdfArg1, &udf_arg1);
+  TextFormat::ParseFromString(kExampleV2RequestUdfArg2, &udf_arg2);
+
   nlohmann::json output = nlohmann::json::parse(R"(
 {
   "keyGroupOutputs": [
@@ -527,11 +479,11 @@ data {
   ]
 }
   )");
-  EXPECT_CALL(
-      mock_udf_client_,
-      ExecuteCode(_, EqualsProto(udf_metadata),
-                  testing::ElementsAre(EqualsProto(arg1), EqualsProto(arg2)),
-                  _))
+  EXPECT_CALL(mock_udf_client_,
+              ExecuteCode(_, EqualsProto(udf_metadata),
+                          testing::ElementsAre(EqualsProto(udf_arg1),
+                                               EqualsProto(udf_arg2)),
+                          _))
       .WillOnce(Return(output.dump()));
 
   std::string core_request_body = GetTestRequestBody();
@@ -666,69 +618,13 @@ TEST_P(GetValuesHandlerTest, UdfFailureForOnePartition) {
 
 TEST_P(GetValuesHandlerMultiplePartitionsTest, Success) {
   UDFExecutionMetadata udf_metadata;
-  TextFormat::ParseFromString(R"(
-request_metadata {
-  fields {
-    key: "hostname"
-    value {
-      string_value: "example.com"
-    }
-  }
-}
-  )",
+  TextFormat::ParseFromString(kExampleV2MultiPartitionUdfMetadata,
                               &udf_metadata);
+
   UDFArgument arg1, arg2, arg3;
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "structured"
-  }
-  values {
-    string_value: "groupNames"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "hello"
-    }
-  }
-})",
-                              &arg1);
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "custom"
-  }
-  values {
-    string_value: "keys"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "key1"
-    }
-  }
-})",
-                              &arg2);
-  TextFormat::ParseFromString(R"(
-tags {
-  values {
-    string_value: "custom"
-  }
-  values {
-    string_value: "keys"
-  }
-}
-data {
-  list_value {
-    values {
-      string_value: "key2"
-    }
-  }
-})",
-                              &arg3);
+  TextFormat::ParseFromString(kExampleV2MultiPartitionUdfArg1, &arg1);
+  TextFormat::ParseFromString(kExampleV2MultiPartitionUdfArg2, &arg2);
+  TextFormat::ParseFromString(kExampleV2MultiPartitionUdfArg3, &arg3);
   nlohmann::json output1 = nlohmann::json::parse(R"(
 {
   "keyGroupOutputs": [

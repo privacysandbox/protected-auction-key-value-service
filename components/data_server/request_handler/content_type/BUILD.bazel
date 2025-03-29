@@ -74,3 +74,14 @@ cc_test(
         "@com_google_googletest//:gtest_main",
     ],
 )
+
+cc_library(
+    name = "mocks",
+    testonly = 1,
+    hdrs = ["mocks.h"],
+    deps = [
+        ":encoder",
+        "@com_google_absl//absl/status",
+        "@com_google_googletest//:gtest",
+    ],
+)

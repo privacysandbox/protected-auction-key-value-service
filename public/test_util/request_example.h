@@ -388,6 +388,75 @@ constexpr std::string_view
 // Example consented debug token used in the unit tests
 constexpr std::string_view kExampleConsentedDebugToken = "debug_token";
 
+// The following are UDF inputs corresponding to the above
+// request examples.
+
+// UDFExecutionMetadata for kExample*V2RequestInJson
+constexpr std::string_view kExampleV2RequestUdfMetadata = R"pb(
+  request_metadata {
+    fields {
+      key: "hostname"
+      value { string_value: "example.com" }
+    }
+    fields {
+      key: "is_pas"
+      value { string_value: "true" }
+    }
+  })pb";
+
+// UDFArgument 1 for kExample*V2RequestInJson
+constexpr std::string_view kExampleV2RequestUdfArg1 = R"pb(
+  tags {
+    values { string_value: "structured" }
+    values { string_value: "groupNames" }
+  }
+  data { list_value { values { string_value: "hello" } } })pb";
+
+// UDFArgument 2 for kExample*V2RequestInJson
+constexpr std::string_view kExampleV2RequestUdfArg2 = R"pb(
+  tags {
+    values { string_value: "custom" }
+    values { string_value: "keys" }
+  }
+  data { list_value { values { string_value: "key1" } } })pb";
+
+// UDFExecutionMetadata for k*V2RequestMultiplePartitionsInJson
+constexpr std::string_view kExampleV2MultiPartitionUdfMetadata = R"pb(
+  request_metadata {
+    fields {
+      key: "hostname"
+      value { string_value: "example.com" }
+    }
+  }
+)pb";
+
+// UDFArgument 1 for k*V2RequestMultiplePartitionsInJson
+constexpr std::string_view kExampleV2MultiPartitionUdfArg1 = R"pb(
+  tags {
+    values { string_value: "structured" }
+    values { string_value: "groupNames" }
+  }
+  data { list_value { values { string_value: "hello" } } }
+)pb";
+
+// UDFArgument 2 for k*V2RequestMultiplePartitionsInJson
+constexpr std::string_view kExampleV2MultiPartitionUdfArg2 = R"pb(
+  tags {
+    values { string_value: "custom" }
+    values { string_value: "keys" }
+  }
+  data { list_value { values { string_value: "key1" } } }
+)pb";
+
+// UDFArgument 3 for k*V2RequestMultiplePartitionsInJson
+constexpr std::string_view kExampleV2MultiPartitionUdfArg3 = R"pb(
+  tags {
+    values { string_value: "custom" }
+    values { string_value: "keys" }
+  }
+  data { list_value { values { string_value: "key2" } } }
+)pb";
+
 }  // namespace kv_server
 
 #endif  // PUBLIC_TEST_UTIL_REQUEST_EXAMPLE_H_

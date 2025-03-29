@@ -213,14 +213,14 @@ class UdfClientImpl : public UdfClient {
       if (result.ok()) {
         results[id] = std::move(result.value());
       } else {
-        PS_LOG(ERROR, request_context_factory.Get().GetPSLogContext())
+        PS_VLOG(1, request_context_factory.Get().GetPSLogContext())
             << "UDF Execution failed for partition id " << std::get<0>(id)
             << " and compression_group_id " << std::get<1>(id) << ": "
             << result.status();
       }
     }
     if (results.empty()) {
-      return absl::InvalidArgumentError(
+      return absl::InternalError(
           "BatchExecuteCode failed for all UDF invocations.");
     }
     return results;

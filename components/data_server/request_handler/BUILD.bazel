@@ -83,6 +83,7 @@ cc_library(
         "//components/data_server/request_handler/compression",
         "//components/data_server/request_handler/content_type:encoder",
         "//components/data_server/request_handler/encryption:ohttp_server_encryptor",
+        "//components/data_server/request_handler/partitions:partition_processor",
         "//components/telemetry:server_definition",
         "//components/udf:udf_client",
         "//components/util:request_context",

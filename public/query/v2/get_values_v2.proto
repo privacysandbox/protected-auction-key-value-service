@@ -98,6 +98,29 @@ message GetValuesRequest {
   // Algorithm accepted by the browser for the response.
   // Must contain at least one of: none, gzip, brotli.
   repeated string accept_compression = 6;
+  // Per-partition metadata allows batching of metadata across partitions
+  // to reduce duplicate partition-level metadata.
+  // The server expects the Struct's `field` to be a map of
+  // metadata names (string) to a list of `google.protobuf.Struct`.
+  // Each `google.protobuf.Struct` contains a `value` field
+  // with the actual metadata value and an optional `ids` field
+  // containing a list of [compression group id, partition id]
+  // for which the metadata value applies.
+  // If no `ids` field is present, the given `value` will apply to
+  // all partitions.
+  // Equivalent JSON example (for simplicity):
+  // {
+  //   "perPartitionMetadata": {
+  //     "someMetadataName": [
+  //       {"value": "value string", "ids": [[0,0], [0,1]},
+  //       {"value": "value string 2", "ids": [[2,0]]}
+  //     ],
+  //     "someOtherMetadata": [
+  //       {"value": "a value that applies to all partitions"}
+  //     ]
+  //   }
+  // }
+  google.protobuf.Struct per_partition_metadata = 7;
 }
 
 message ResponsePartition {

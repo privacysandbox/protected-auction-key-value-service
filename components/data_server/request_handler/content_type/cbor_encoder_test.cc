@@ -359,5 +359,111 @@ TEST(CborEncoderTest, DecodeToV2GetValuesRequestSuccess) {
   EXPECT_THAT(expected, EqualsProto(*maybe_request));
 }
 
+TEST(CborEncoderTest,
+     DecodeToV2GetValuesRequestWithPerPartitionMetadataSuccess) {
+  v2::GetValuesRequest expected;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        per_partition_metadata {
+          fields {
+            key: "someMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 1 }
+                            }
+                          }
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 2 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              values { number_value: 1 }
+                              values { number_value: 1 }
+                            }
+                          }
+                          values {
+                            list_value {
+                              values { number_value: 1 }
+                              values { number_value: 2 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueB" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          fields {
+            key: "someOtherMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "value"
+                      value { string_value: "Applies to all partitions" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+        }
+      )pb",
+      &expected));
+
+  nlohmann::json json_message = R"(
+ {
+    "perPartitionMetadata": {
+      "someMetadata": [
+        {"value": "valueA", "ids": [[0,1], [0,2]]},
+        {"value": "valueB", "ids": [[1,1], [1,2]]}
+      ],
+      "someOtherMetadata": [{"value":"Applies to all partitions"}]
+    }
+ }
+)"_json;
+  std::vector<std::uint8_t> v = json::to_cbor(json_message);
+  std::string cbor_raw(v.begin(), v.end());
+  CborV2EncoderDecoder encoder;
+  const auto maybe_request = encoder.DecodeToV2GetValuesRequestProto(cbor_raw);
+  ASSERT_TRUE(maybe_request.ok()) << maybe_request.status();
+  EXPECT_THAT(expected, EqualsProto(*maybe_request));
+}
+
 }  // namespace
 }  // namespace kv_server

@@ -31,7 +31,8 @@ class MultiPartitionProcessor : public PartitionProcessor {
  public:
   MultiPartitionProcessor(const RequestContextFactory& request_context_factory,
                           const UdfClient& udf_client,
-                          const V2EncoderDecoder& v2_codec);
+                          const V2EncoderDecoder& v2_codec,
+                          bool enable_per_partition_metadata = false);
 
   // Passes input to UDF and populates GetValuesResponse.compression_groups
   absl::Status Process(const v2::GetValuesRequest& request,
@@ -42,6 +43,7 @@ class MultiPartitionProcessor : public PartitionProcessor {
   const RequestContextFactory& request_context_factory_;
   const UdfClient& udf_client_;
   const V2EncoderDecoder& v2_codec_;
+  bool enable_per_partition_metadata_;
 };
 
 }  // namespace kv_server

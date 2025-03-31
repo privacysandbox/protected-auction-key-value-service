@@ -53,28 +53,70 @@ BuildCompressionGroupToPartitionOutputMap(
   return compression_group_map;
 }
 
+absl::Status ProcessPerPartitionMetadata(
+    const v2::GetValuesRequest& request,
+    const RequestContextFactory& request_context_factory,
+    absl::flat_hash_map<UniquePartitionIdTuple, UDFExecutionMetadata>&
+        id_to_udf_metadata_map) {
+  // TODO(b/394101309): Implement
+  return absl::UnimplementedError("Not implemented");
+}
+
+absl::StatusOr<
+    absl::flat_hash_map<UniquePartitionIdTuple, UDFExecutionMetadata>>
+BuildUdfMetadataMap(const v2::GetValuesRequest& request,
+                    const RequestContextFactory& request_context_factory,
+                    bool enable_per_partition_metadata) {
+  absl::flat_hash_map<UniquePartitionIdTuple, UDFExecutionMetadata>
+      id_to_udf_metadata_map;
+  for (const auto& partition : request.partitions()) {
+    UniquePartitionIdTuple id{partition.id(), partition.compression_group_id()};
+    UDFExecutionMetadata udf_metadata;
+    if (request.has_metadata()) {
+      *udf_metadata.mutable_request_metadata() = request.metadata();
+    }
+    if (!partition.metadata().fields().empty()) {
+      *udf_metadata.mutable_partition_metadata() = partition.metadata();
+    }
+    id_to_udf_metadata_map.insert_or_assign(std::move(id),
+                                            std::move(udf_metadata));
+  }
+  if (enable_per_partition_metadata) {
+    PS_RETURN_IF_ERROR(ProcessPerPartitionMetadata(
+        request, request_context_factory, id_to_udf_metadata_map));
+  }
+  return id_to_udf_metadata_map;
+}
+
 }  // namespace
+
 MultiPartitionProcessor::MultiPartitionProcessor(
     const RequestContextFactory& request_context_factory,
-    const UdfClient& udf_client, const V2EncoderDecoder& v2_codec)
+    const UdfClient& udf_client, const V2EncoderDecoder& v2_codec,
+    bool enable_per_partition_metadata)
     : request_context_factory_(request_context_factory),
       udf_client_(udf_client),
-      v2_codec_(v2_codec) {}
+      v2_codec_(v2_codec),
+      enable_per_partition_metadata_(enable_per_partition_metadata) {}
 
 absl::Status MultiPartitionProcessor::Process(
     const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
     ExecutionMetadata& execution_metadata) const {
   absl::flat_hash_map<UniquePartitionIdTuple, UDFInput> udf_input_map;
+  PS_ASSIGN_OR_RETURN(auto id_to_udf_metadata_map,
+                      BuildUdfMetadataMap(request, request_context_factory_,
+                                          enable_per_partition_metadata_));
+
   for (const auto& partition : request.partitions()) {
+    UniquePartitionIdTuple id{partition.id(), partition.compression_group_id()};
     UDFExecutionMetadata udf_metadata;
-    *udf_metadata.mutable_request_metadata() = request.metadata();
-    if (!partition.metadata().fields().empty()) {
-      *udf_metadata.mutable_partition_metadata() = partition.metadata();
+    auto it = id_to_udf_metadata_map.find(id);
+    if (it != id_to_udf_metadata_map.end()) {
+      udf_metadata = std::move(it->second);
     }
     udf_input_map.insert_or_assign(
-        {partition.id(), partition.compression_group_id()},
-        UDFInput{.execution_metadata = std::move(udf_metadata),
-                 .arguments = partition.arguments()});
+        id, UDFInput{.execution_metadata = std::move(udf_metadata),
+                     .arguments = partition.arguments()});
   }
 
   PS_ASSIGN_OR_RETURN(

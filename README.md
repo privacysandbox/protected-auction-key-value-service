@@ -31,7 +31,7 @@ the service should be used as the ad retrieval server.
 It can be integrated with Chrome and Android with the
 [Privacy Sandbox unified origin trial](https://developer.chrome.com/blog/expanding-privacy-sandbox-testing/)
 and
-[Privacy Sandbox on Android Developer Preview](https://developer.android.com/design-for-safety/privacy-sandbox/program-overview).
+[Privacy Sandbox on Android Developer Preview](https://developers.google.com/privacy-sandbox/setup/android).
 
 ## Current features
 

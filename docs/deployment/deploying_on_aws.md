@@ -4,13 +4,13 @@
 # FLEDGE Key/Value server deployment on AWS
 
 This article is for adtech engineers who will set up the cloud infrastructure and run the Key/Value
-server for [FLEDGE](https://developer.chrome.com/docs/privacy-sandbox/fledge/) usage.
+server for [FLEDGE](https://privacysandbox.google.com/private-advertising/protected-audience) usage.
 
 To learn more about FLEDGE and the Key/Value server, take a look at the following documents:
 
 -   [FLEDGE Key/Value server explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md)
 -   [FLEDGE Key/Value server trust model](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_trust_model.md)
--   [FLEDGE explainer](https://developer.chrome.com/en/docs/privacy-sandbox/protected-audience/)
+-   [FLEDGE explainer](https://privacysandbox.google.com/private-advertising/protected-audience)
 -   [FLEDGE API developer guide](https://developer.chrome.com/blog/fledge-api/)
 
     > The instructions written in this document are for running a test Key/Value server that does

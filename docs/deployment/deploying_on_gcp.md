@@ -4,7 +4,8 @@
 # FLEDGE Key/Value server deployment on GCP
 
 This article is for adtech engineers who will set up the Google Cloud infrastructure and run the
-Key/Value server for [FLEDGE](https://privacysandbox.google.com/private-advertising/protected-audience) usage.
+Key/Value server for
+[FLEDGE](https://privacysandbox.google.com/private-advertising/protected-audience) usage.
 
 **Attention**: Currently, the GCP Key/Value server is intended to be called by the
 [B&A services](https://github.com/privacysandbox/fledge-docs/blob/main/bidding_auction_services_api.md).
@@ -397,3 +398,4 @@ gcloud compute instances delete ${ENVIRONMENT}-grpc-client --zone=us-east1-b
 ```
 
 <!-- TODO(b/306641269): Add viewing telemetry guide here-->
+

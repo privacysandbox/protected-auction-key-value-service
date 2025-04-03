@@ -398,4 +398,3 @@ gcloud compute instances delete ${ENVIRONMENT}-grpc-client --zone=us-east1-b
 ```
 
 <!-- TODO(b/306641269): Add viewing telemetry guide here-->
-

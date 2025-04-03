@@ -7,8 +7,8 @@ The server can be run locally with 2 differt compile time flags.
 
 ## OTLP
 
-When run with the otlp option, you will need to bring up the
-[Otel Collector](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/examples/demo/README.md).
+When run with the otlp option, you can follow this [quick start](https://opentelemetry.io/docs/collector/quick-start/) to bring up the
+Otel Collector.
 
 To bring up the collector and its dependencies you can run:
 `COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose up` from this directory.

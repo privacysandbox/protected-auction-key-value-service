@@ -36,7 +36,9 @@ enum class ErrorTag : int {
   kNoValueForPerPartitionMetadata = 2,
   kNotAListError = 3,
   kNoStringValueForPerPartitionMetadata = 4,
-  kDuplicateMetadataInPartitionMetadataAndPerPartitionMetadata = 5
+  kDuplicateMetadataInPartitionMetadataAndPerPartitionMetadata = 5,
+  kIdsNotTwoNumbers = 6,
+  kNotAListOrUnsetError = 7,
 };
 
 constexpr std::string_view kValue = "value";
@@ -73,10 +75,25 @@ BuildCompressionGroupToPartitionOutputMap(
   return compression_group_map;
 }
 
-absl::Status CheckIsListOrNotSetValue(std::string_view metadata_name,
+absl::Status CheckValueIsListOrNotSet(std::string_view metadata_name,
                                       const Value& field_value) {
   if (field_value.has_list_value() ||
       field_value.kind_case() == Value::KIND_NOT_SET) {
+    return absl::OkStatus();
+  }
+
+  return StatusWithErrorTag(
+      absl::InvalidArgumentError(
+          absl::StrCat("Each per_partition_metadata <k,v> entry requires v "
+                       "to be a list of value configurations as defined in "
+                       "public/get_values_v2.proto. Instead found k: ",
+                       metadata_name, " v: ", field_value)),
+      __FILE__, ErrorTag::kNotAListOrUnsetError);
+}
+
+absl::Status CheckValueIsList(std::string_view metadata_name,
+                              const Value& field_value) {
+  if (field_value.has_list_value()) {
     return absl::OkStatus();
   }
 
@@ -111,12 +128,12 @@ absl::StatusOr<Value> GetMetadataValue(
   return value_it->second;
 }
 
-// Try inserting into the map.
+// Try inserting into the struct.
 // Return error if there is a there is already an existing key with
 // metadata_name.
-absl::Status TryInsert(Struct& metadata_for_all_partitions,
-                       std::string_view metadata_name, Value metadata_value) {
-  if (metadata_for_all_partitions.fields().contains(metadata_name)) {
+absl::Status TryInsert(Struct& metadata, std::string_view metadata_name,
+                       Value metadata_value) {
+  if (metadata.fields().contains(metadata_name)) {
     return StatusWithErrorTag(
         absl::InvalidArgumentError(
             absl::StrCat("Duplicate entries found for key in "
@@ -124,26 +141,81 @@ absl::Status TryInsert(Struct& metadata_for_all_partitions,
                          metadata_name)),
         __FILE__, ErrorTag::kDuplicatePerPartitionMetadataForAllPartitions);
   }
-  (*metadata_for_all_partitions.mutable_fields())[std::string(metadata_name)] =
+  (*metadata.mutable_fields())[std::string(metadata_name)] =
       std::move(metadata_value);
   return absl::OkStatus();
+}
+
+// Try inserting into the map.
+// Return error if there is already an existing key with
+// metadata_name.
+absl::Status TryInsert(absl::flat_hash_map<UniquePartitionIdTuple, Struct>&
+                           id_to_per_partition_metadata,
+                       const std::vector<UniquePartitionIdTuple>& ids,
+                       std::string_view metadata_name,
+                       const Value& metadata_value) {
+  for (auto& id : ids) {
+    auto& metadata = id_to_per_partition_metadata[id];
+    RETURN_IF_ERROR(TryInsert(metadata, metadata_name, metadata_value));
+  }
+  return absl::OkStatus();
+}
+
+absl::StatusOr<std::vector<UniquePartitionIdTuple>> GetUniquePartitionIds(
+    std::string_view metadata_name, const Value& ids_value) {
+  RETURN_IF_ERROR(CheckValueIsList(metadata_name, ids_value));
+  std::vector<UniquePartitionIdTuple> unique_ids;
+  for (auto& ids : ids_value.list_value().values()) {
+    RETURN_IF_ERROR(CheckValueIsList(metadata_name, ids));
+    if (ids.list_value().values().size() != 2 ||
+        !ids.list_value().values(0).has_number_value() ||
+        !ids.list_value().values(1).has_number_value()) {
+      return StatusWithErrorTag(
+          absl::InvalidArgumentError(absl::StrCat(
+              "per_partition_metadata requires ids to be a list of "
+              "2 numbers, the compression group id and partition "
+              "id, e.g. [1, 0]. Found: ",
+              ids.list_value())),
+          __FILE__, ErrorTag::kIdsNotTwoNumbers);
+    }
+    auto compression_group_id = ids.list_value().values(0).number_value();
+    auto partition_id = ids.list_value().values(1).number_value();
+    unique_ids.emplace_back(partition_id, compression_group_id);
+  }
+  return unique_ids;
 }
 
 absl::Status CombinePartitionMetadata(
     absl::flat_hash_map<UniquePartitionIdTuple, UDFExecutionMetadata>&
         id_to_udf_metadata_map,
-    const Struct& metadata_for_all_partitions) {
+    const Struct& metadata_for_all_partitions,
+    const absl::flat_hash_map<UniquePartitionIdTuple, Struct>&
+        id_to_per_partition_metadata) {
   if (metadata_for_all_partitions.fields().empty()) {
     return absl::OkStatus();
   }
-  auto metadata_for_all_partitions_size =
+  auto per_partition_metadata_for_all_partitions_size =
       metadata_for_all_partitions.fields().size();
   for (auto& [id, udf_metadata] : id_to_udf_metadata_map) {
     Struct* partition_metadata = udf_metadata.mutable_partition_metadata();
     auto old_partition_metadata_size = partition_metadata->fields().size();
+
+    // Merge per partition metadata that applies to all partitions
     partition_metadata->MergeFrom(metadata_for_all_partitions);
+
+    // Merge per partition metadata is it exists for this id
+    size_t per_partition_metadata_size = 0;
+    auto it = id_to_per_partition_metadata.find(id);
+    if (it != id_to_per_partition_metadata.end()) {
+      per_partition_metadata_size = it->second.fields().size();
+      partition_metadata->MergeFrom(it->second);
+    }
+
+    // Check if the sizes add up. If not, there were duplicates.
     auto final_partition_metadata_size = partition_metadata->fields().size();
-    if (old_partition_metadata_size + metadata_for_all_partitions_size !=
+    if (old_partition_metadata_size +
+            per_partition_metadata_for_all_partitions_size +
+            per_partition_metadata_size !=
         final_partition_metadata_size) {
       return StatusWithErrorTag(
           absl::InvalidArgumentError(
@@ -162,11 +234,13 @@ absl::Status ProcessPerPartitionMetadata(
     const RequestContextFactory& request_context_factory,
     absl::flat_hash_map<UniquePartitionIdTuple, UDFExecutionMetadata>&
         id_to_udf_metadata_map) {
-  Struct metadata_for_all_partitions;
+  absl::flat_hash_map<UniquePartitionIdTuple, Struct>
+      id_to_per_partition_metadata;
+  Struct per_partition_metadata_for_all_partitions;
 
   for (auto&& [metadata_name, field_value] :
        request.per_partition_metadata().fields()) {
-    RETURN_IF_ERROR(CheckIsListOrNotSetValue(metadata_name, field_value));
+    RETURN_IF_ERROR(CheckValueIsListOrNotSet(metadata_name, field_value));
     // Iterate through each value for metadata name
     for (auto&& value_config_struct : field_value.list_value().values()) {
       const auto& value_config_fields =
@@ -176,20 +250,24 @@ absl::Status ProcessPerPartitionMetadata(
       auto ids_it = value_config_fields.find(kIds);
       if (ids_it == value_config_fields.end()) {
         // No "ids" field indicates that this value should apply to all
-        // partitions. Add it to `metadata_for_all_partitions` and add
-        // the "global" metadata to all partitions at the end for efficiency.
-        RETURN_IF_ERROR(TryInsert(metadata_for_all_partitions, metadata_name,
-                                  std::move(metadata_value)));
+        // partitions. Add it to `per_partition_metadata_for_all_partitions` and
+        // add the "global" metadata to all partitions at the end for
+        // efficiency.
+        RETURN_IF_ERROR(TryInsert(per_partition_metadata_for_all_partitions,
+                                  metadata_name, std::move(metadata_value)));
       } else {
         // If there is an "ids" field, then we need to add the metadata pair
         // to the listed partitions
-        // TODO(b/394101309): Implement
-        continue;
+        PS_ASSIGN_OR_RETURN(
+            auto ids, GetUniquePartitionIds(metadata_name, ids_it->second));
+        RETURN_IF_ERROR(TryInsert(id_to_per_partition_metadata, ids,
+                                  metadata_name, metadata_value));
       }
     }
   }
-  RETURN_IF_ERROR(CombinePartitionMetadata(id_to_udf_metadata_map,
-                                           metadata_for_all_partitions));
+  RETURN_IF_ERROR(CombinePartitionMetadata(
+      id_to_udf_metadata_map, per_partition_metadata_for_all_partitions,
+      id_to_per_partition_metadata));
   return absl::OkStatus();
 }
 

@@ -669,12 +669,68 @@ TEST_P(MultiPartitionProcessorTest, ProcessPerPartitionMetadata) {
               }
             }
           }
-
+          fields {
+            key: "someOtherMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 1 }
+                            }
+                          }
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 2 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              values { number_value: 1 }
+                              values { number_value: 1 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueB" }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
-        partitions { id: 0 compression_group_id: 0 }
+        partitions { id: 1 compression_group_id: 0 }
+        partitions { id: 2 compression_group_id: 0 }
+        partitions { id: 1 compression_group_id: 1 }
       )pb",
       &request));
-  UDFExecutionMetadata udf_metadata;
+  UDFExecutionMetadata udf_metadata_1;
   EXPECT_TRUE(TextFormat::ParseFromString(
       R"pb(
         partition_metadata {
@@ -682,26 +738,56 @@ TEST_P(MultiPartitionProcessorTest, ProcessPerPartitionMetadata) {
             key: "someMetadata"
             value { string_value: "Applies to all partitions" }
           }
+          fields {
+            key: "someOtherMetadata"
+            value { string_value: "valueA" }
+          }
         }
       )pb",
-      &udf_metadata));
+      &udf_metadata_1));
+  UDFExecutionMetadata udf_metadata_2;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        partition_metadata {
+          fields {
+            key: "someMetadata"
+            value { string_value: "Applies to all partitions" }
+          }
+          fields {
+            key: "someOtherMetadata"
+            value { string_value: "valueB" }
+          }
+        }
+      )pb",
+      &udf_metadata_2));
 
   UDFArgument arg;
 
   absl::flat_hash_map<UniquePartitionIdTuple, std::string>
-      batch_execute_output = {{{0, 0}, "udf_output_1"}};
+      batch_execute_output = {{{1, 0}, "udf_output_1"},
+                              {{2, 0}, "udf_output_2"},
+                              {{1, 1}, "udf_output_3"}};
 
-  EXPECT_CALL(mock_udf_client_,
-              BatchExecuteCode(_,
-                               testing::UnorderedElementsAre(testing::Pair(
-                                   UniquePartitionIdTuple({0, 0}),
-                                   testing::FieldsAre(EqualsProto(udf_metadata),
-                                                      testing::IsEmpty()))),
-                               _))
+  EXPECT_CALL(
+      mock_udf_client_,
+      BatchExecuteCode(
+          _,
+          testing::UnorderedElementsAre(
+              testing::Pair(UniquePartitionIdTuple({1, 0}),
+                            testing::FieldsAre(EqualsProto(udf_metadata_1),
+                                               testing::IsEmpty())),
+              testing::Pair(UniquePartitionIdTuple({2, 0}),
+                            testing::FieldsAre(EqualsProto(udf_metadata_1),
+                                               testing::IsEmpty())),
+              testing::Pair(UniquePartitionIdTuple({1, 1}),
+                            testing::FieldsAre(EqualsProto(udf_metadata_2),
+                                               testing::IsEmpty()))),
+          _))
       .WillOnce(Return(batch_execute_output));
 
   EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _))
-      .WillOnce(Return("compression_group_content"));
+      .Times(2)
+      .WillRepeatedly(Return("compression_group_content"));
 
   v2::GetValuesResponse response;
   ExecutionMetadata unused_execution_metadata;
@@ -710,16 +796,8 @@ TEST_P(MultiPartitionProcessorTest, ProcessPerPartitionMetadata) {
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_TRUE(status.ok()) << status;
-  v2::GetValuesResponse expected_response;
-  EXPECT_TRUE(TextFormat::ParseFromString(
-      R"pb(
-        compression_groups {
-          compression_group_id: 0
-          content: "compression_group_content"
-        })pb",
-      &expected_response));
-  EXPECT_THAT(response, EqualsProto(expected_response));
 }
+
 TEST_P(MultiPartitionProcessorTest,
        ProcessPerPartitionMetadataAndRequestMetadata) {
   v2::GetValuesRequest request;
@@ -747,12 +825,61 @@ TEST_P(MultiPartitionProcessorTest,
               }
             }
           }
+          fields {
+            key: "someOtherMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 0 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 1 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueB" }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
         partitions { id: 0 compression_group_id: 0 }
         partitions { id: 1 compression_group_id: 0 }
       )pb",
       &request));
-  UDFExecutionMetadata udf_metadata;
+  UDFExecutionMetadata udf_metadata_00;
   EXPECT_TRUE(TextFormat::ParseFromString(
       R"pb(request_metadata {
              fields {
@@ -765,9 +892,34 @@ TEST_P(MultiPartitionProcessorTest,
                key: "someMetadata"
                value { string_value: "Applies to all partitions" }
              }
+             fields {
+               key: "someOtherMetadata"
+               value { string_value: "valueA" }
+             }
            }
       )pb",
-      &udf_metadata));
+      &udf_metadata_00));
+  UDFExecutionMetadata udf_metadata_10;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(request_metadata {
+             fields {
+               key: "request_level_metadata"
+               value { string_value: "request_level_value" }
+             }
+           }
+           partition_metadata {
+             fields {
+               key: "someMetadata"
+               value { string_value: "Applies to all partitions" }
+             }
+             fields {
+               key: "someOtherMetadata"
+               value { string_value: "valueB" }
+             }
+
+           }
+      )pb",
+      &udf_metadata_10));
 
   UDFArgument arg;
 
@@ -781,10 +933,10 @@ TEST_P(MultiPartitionProcessorTest,
           _,
           testing::UnorderedElementsAre(
               testing::Pair(UniquePartitionIdTuple({0, 0}),
-                            testing::FieldsAre(EqualsProto(udf_metadata),
+                            testing::FieldsAre(EqualsProto(udf_metadata_00),
                                                testing::IsEmpty())),
               testing::Pair(UniquePartitionIdTuple({1, 0}),
-                            testing::FieldsAre(EqualsProto(udf_metadata),
+                            testing::FieldsAre(EqualsProto(udf_metadata_10),
                                                testing::IsEmpty()))),
           _))
       .WillOnce(Return(batch_execute_output));
@@ -831,6 +983,34 @@ TEST_P(MultiPartitionProcessorTest,
               }
             }
           }
+          fields {
+            key: "someOtherMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 0 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
         partitions {
           id: 0
@@ -856,7 +1036,10 @@ TEST_P(MultiPartitionProcessorTest,
             key: "partition_metadata"
             value { string_value: "partition_metadata_00_value" }
           }
-
+          fields {
+            key: "someOtherMetadata"
+            value { string_value: "valueA" }
+          }
         }
       )pb",
       &udf_metadata));
@@ -1159,7 +1342,319 @@ TEST_P(MultiPartitionProcessorTest,
 }
 
 TEST_P(MultiPartitionProcessorTest,
-       PerPartitionMetadataDuplicateMetadataWithPartitionMetadataFails) {
+       PerPartitionMetadataWithIdsStringValueFails) {
+  v2::GetValuesRequest request;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        per_partition_metadata {
+          fields {
+            key: "someOtherMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      # requires list_value of list_value of number_values
+                      value { string_value: "not a list" }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        partitions { id: 0 compression_group_id: 0 }
+      )pb",
+      &request));
+  UDFExecutionMetadata udf_metadata;
+  UDFArgument arg;
+
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _)).Times(0);
+
+  EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _)).Times(0);
+
+  v2::GetValuesResponse response;
+  ExecutionMetadata unused_execution_metadata;
+  MultiPartitionProcessor processor(*request_context_factory_, mock_udf_client_,
+                                    mock_v2_codec_, true);
+  const auto status =
+      processor.Process(request, response, unused_execution_metadata);
+  ASSERT_FALSE(status.ok()) << status;
+  v2::GetValuesResponse expected_response;
+  EXPECT_THAT(response, EqualsProto(expected_response));
+}
+
+TEST_P(MultiPartitionProcessorTest, PerPartitionMetadataWithIdsEmptyFails) {
+  v2::GetValuesRequest request;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        per_partition_metadata {
+          fields {
+            key: "someOtherMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      # requires list_value of list_value of number_values
+                      value {}
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        partitions { id: 0 compression_group_id: 0 }
+      )pb",
+      &request));
+  UDFExecutionMetadata udf_metadata;
+  UDFArgument arg;
+
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _)).Times(0);
+  EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _)).Times(0);
+
+  v2::GetValuesResponse response;
+  ExecutionMetadata unused_execution_metadata;
+  MultiPartitionProcessor processor(*request_context_factory_, mock_udf_client_,
+                                    mock_v2_codec_, true);
+  const auto status =
+      processor.Process(request, response, unused_execution_metadata);
+  ASSERT_FALSE(status.ok()) << status;
+  v2::GetValuesResponse expected_response;
+  EXPECT_THAT(response, EqualsProto(expected_response));
+}
+
+TEST_P(MultiPartitionProcessorTest,
+       PerPartitionMetadataWithIdsListStringFails) {
+  v2::GetValuesRequest request;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        per_partition_metadata {
+          fields {
+            key: "someOtherMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            # requires list_value of number_values
+                            string_value: "01"
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        partitions { id: 0 compression_group_id: 0 }
+      )pb",
+      &request));
+  UDFExecutionMetadata udf_metadata;
+  UDFArgument arg;
+
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _)).Times(0);
+
+  EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _)).Times(0);
+
+  v2::GetValuesResponse response;
+  ExecutionMetadata unused_execution_metadata;
+  MultiPartitionProcessor processor(*request_context_factory_, mock_udf_client_,
+                                    mock_v2_codec_, true);
+  const auto status =
+      processor.Process(request, response, unused_execution_metadata);
+  ASSERT_FALSE(status.ok()) << status;
+  v2::GetValuesResponse expected_response;
+  EXPECT_THAT(response, EqualsProto(expected_response));
+}
+
+TEST_P(MultiPartitionProcessorTest, PerPartitionMetadataWithIdsListEmptyFails) {
+  v2::GetValuesRequest request;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        per_partition_metadata {
+          fields {
+            key: "someOtherMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                              # requires list_value of number_values
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        partitions { id: 0 compression_group_id: 0 }
+      )pb",
+      &request));
+  UDFExecutionMetadata udf_metadata;
+  UDFArgument arg;
+
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _)).Times(0);
+
+  EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _)).Times(0);
+
+  v2::GetValuesResponse response;
+  ExecutionMetadata unused_execution_metadata;
+  MultiPartitionProcessor processor(*request_context_factory_, mock_udf_client_,
+                                    mock_v2_codec_, true);
+  const auto status =
+      processor.Process(request, response, unused_execution_metadata);
+  ASSERT_FALSE(status.ok()) << status;
+  v2::GetValuesResponse expected_response;
+  EXPECT_THAT(response, EqualsProto(expected_response));
+}
+
+TEST_P(MultiPartitionProcessorTest, PerPartitionMetadataWithStringValuesFails) {
+  v2::GetValuesRequest request;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        per_partition_metadata {
+          fields {
+            key: "someOtherMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              # requires 2 number values
+                              values { string_value: "1" }
+                              values { number_value: 2 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        partitions { id: 0 compression_group_id: 0 }
+      )pb",
+      &request));
+  UDFExecutionMetadata udf_metadata;
+  UDFArgument arg;
+
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _)).Times(0);
+
+  EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _)).Times(0);
+
+  v2::GetValuesResponse response;
+  ExecutionMetadata unused_execution_metadata;
+  MultiPartitionProcessor processor(*request_context_factory_, mock_udf_client_,
+                                    mock_v2_codec_, true);
+  const auto status =
+      processor.Process(request, response, unused_execution_metadata);
+  ASSERT_FALSE(status.ok()) << status;
+  v2::GetValuesResponse expected_response;
+  EXPECT_THAT(response, EqualsProto(expected_response));
+}
+
+TEST_P(MultiPartitionProcessorTest,
+       PerPartitionMetadataWithSingleIdValueFails) {
+  v2::GetValuesRequest request;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        per_partition_metadata {
+          fields {
+            key: "someOtherMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              # requires 2 number values
+                              values { number_value: 1 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        partitions { id: 0 compression_group_id: 0 }
+      )pb",
+      &request));
+  UDFExecutionMetadata udf_metadata;
+  UDFArgument arg;
+
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _)).Times(0);
+
+  EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _)).Times(0);
+
+  v2::GetValuesResponse response;
+  ExecutionMetadata unused_execution_metadata;
+  MultiPartitionProcessor processor(*request_context_factory_, mock_udf_client_,
+                                    mock_v2_codec_, true);
+  const auto status =
+      processor.Process(request, response, unused_execution_metadata);
+  ASSERT_FALSE(status.ok()) << status;
+  v2::GetValuesResponse expected_response;
+  EXPECT_THAT(response, EqualsProto(expected_response));
+}
+
+TEST_P(MultiPartitionProcessorTest,
+       PerPartitionGlobalMetadataDuplicateWithPartitionMetadataFails) {
   v2::GetValuesRequest request;
   EXPECT_TRUE(TextFormat::ParseFromString(
       R"pb(
@@ -1212,6 +1707,167 @@ TEST_P(MultiPartitionProcessorTest,
 
   EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _)).Times(0);
 
+  EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _)).Times(0);
+
+  v2::GetValuesResponse response;
+  ExecutionMetadata unused_execution_metadata;
+  MultiPartitionProcessor processor(*request_context_factory_, mock_udf_client_,
+                                    mock_v2_codec_, true);
+  const auto status =
+      processor.Process(request, response, unused_execution_metadata);
+  ASSERT_FALSE(status.ok()) << status;
+  v2::GetValuesResponse expected_response;
+  EXPECT_THAT(response, EqualsProto(expected_response));
+}
+
+TEST_P(MultiPartitionProcessorTest, PerPartitionMetadataDuplicateFails) {
+  v2::GetValuesRequest request;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        per_partition_metadata {
+          fields {
+            key: "duplicateMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 0 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "valueA" }
+                    }
+                  }
+                }
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 0 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "duplicate should fail" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        partitions { id: 0 compression_group_id: 0 }
+      )pb",
+      &request));
+  UDFExecutionMetadata udf_metadata;
+  UDFArgument arg;
+
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _)).Times(0);
+  EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _)).Times(0);
+
+  v2::GetValuesResponse response;
+  ExecutionMetadata unused_execution_metadata;
+  MultiPartitionProcessor processor(*request_context_factory_, mock_udf_client_,
+                                    mock_v2_codec_, true);
+  const auto status =
+      processor.Process(request, response, unused_execution_metadata);
+  ASSERT_FALSE(status.ok()) << status;
+  v2::GetValuesResponse expected_response;
+  EXPECT_THAT(response, EqualsProto(expected_response));
+}
+
+TEST_P(MultiPartitionProcessorTest,
+       PerPartitionMetadataDuplicateWithPartitionMetadataFails) {
+  v2::GetValuesRequest request;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        per_partition_metadata {
+          fields {
+            key: "someMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "value"
+                      value { string_value: "applies to all partitions" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          fields {
+            key: "duplicateMetadata"
+            value {
+              list_value {
+                values {
+                  struct_value {
+                    fields {
+                      key: "ids"
+                      value {
+                        list_value {
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 0 }
+                            }
+                          }
+                          values {
+                            list_value {
+                              values { number_value: 0 }
+                              values { number_value: 1 }
+                            }
+                          }
+                        }
+                      }
+                    }
+                    fields {
+                      key: "value"
+                      value { string_value: "duplicate for 00 should fail" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        partitions {
+          id: 0
+          compression_group_id: 0
+          metadata {
+            fields {
+              key: "duplicateMetadata"
+              value { string_value: "this should fail" }
+            }
+          }
+        }
+        partitions { id: 1 compression_group_id: 0 }
+      )pb",
+      &request));
+  UDFExecutionMetadata udf_metadata;
+  UDFArgument arg;
+
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _)).Times(0);
   EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _)).Times(0);
 
   v2::GetValuesResponse response;

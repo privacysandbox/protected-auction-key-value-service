@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "absl/flags/flag.h"
+#include "components/data_server/request_handler/status/status_tag.h"
 #include "src/util/status_macro/status_macros.h"
 
 ABSL_FLAG(bool, propagate_v2_error_status, false,
@@ -24,7 +25,8 @@ namespace kv_server {
 using privacy_sandbox::server_common::FromAbslStatus;
 
 grpc::Status GetExternalStatusForV2(const absl::Status& status) {
-  if (absl::GetFlag(FLAGS_propagate_v2_error_status)) {
+  if (IsV2RequestFormatError(status) ||
+      absl::GetFlag(FLAGS_propagate_v2_error_status)) {
     return FromAbslStatus(status);
   }
   return grpc::Status::OK;

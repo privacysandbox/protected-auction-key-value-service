@@ -22,6 +22,7 @@
 #include "absl/log/log.h"
 #include "absl/status/status.h"
 #include "components/data_server/request_handler/content_type/encoder.h"
+#include "components/data_server/request_handler/status/status_tag.h"
 #include "components/errors/error_tag.h"
 #include "components/udf/udf_client.h"
 #include "components/util/request_context.h"
@@ -47,6 +48,19 @@ constexpr std::string_view kIds = "ids";
 using google::protobuf::Map;
 using google::protobuf::Struct;
 using google::protobuf::Value;
+
+bool HasDuplicatePartitionAndCompressionGroupIds(
+    const v2::GetValuesRequest& request) {
+  absl::flat_hash_set<UniquePartitionIdTuple> unique_ids;
+  for (auto&& partition : request.partitions()) {
+    if (unique_ids.contains(
+            {partition.id(), partition.compression_group_id()})) {
+      return true;
+    }
+    unique_ids.insert({partition.id(), partition.compression_group_id()});
+  }
+  return false;
+}
 
 absl::flat_hash_map<int32_t, std::vector<std::pair<int32_t, std::string>>>
 BuildCompressionGroupToPartitionOutputMap(
@@ -234,6 +248,8 @@ absl::Status ProcessPerPartitionMetadata(
     const RequestContextFactory& request_context_factory,
     absl::flat_hash_map<UniquePartitionIdTuple, UDFExecutionMetadata>&
         id_to_udf_metadata_map) {
+  PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+      << "Processing per_partition_metadata";
   absl::flat_hash_map<UniquePartitionIdTuple, Struct>
       id_to_per_partition_metadata;
   Struct per_partition_metadata_for_all_partitions;
@@ -265,6 +281,9 @@ absl::Status ProcessPerPartitionMetadata(
       }
     }
   }
+  PS_VLOG(7, request_context_factory.Get().GetPSLogContext())
+      << "Built per_partition_metadata_for_all_partitions: "
+      << per_partition_metadata_for_all_partitions;
   RETURN_IF_ERROR(CombinePartitionMetadata(
       id_to_udf_metadata_map, per_partition_metadata_for_all_partitions,
       id_to_per_partition_metadata));
@@ -311,16 +330,26 @@ MultiPartitionProcessor::MultiPartitionProcessor(
 absl::Status MultiPartitionProcessor::Process(
     const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
     ExecutionMetadata& execution_metadata) const {
-  absl::flat_hash_map<UniquePartitionIdTuple, UDFInput> udf_input_map;
-  PS_ASSIGN_OR_RETURN(auto id_to_udf_metadata_map,
-                      BuildUdfMetadataMap(request, request_context_factory_,
-                                          enable_per_partition_metadata_));
+  if (HasDuplicatePartitionAndCompressionGroupIds(request)) {
+    return V2RequestFormatErrorAsExternalHttpError(absl::InvalidArgumentError(
+        "Each partition must have a unique <id, "
+        "compression_group_id> tuple, but duplicates were found."));
+  }
 
+  absl::flat_hash_map<UniquePartitionIdTuple, UDFInput> udf_input_map;
+  auto id_to_udf_metadata_map = BuildUdfMetadataMap(
+      request, request_context_factory_, enable_per_partition_metadata_);
+  if (!id_to_udf_metadata_map.ok()) {
+    PS_VLOG(1, request_context_factory_.Get().GetPSLogContext())
+        << "Error building partition metadata map";
+    return V2RequestFormatErrorAsExternalHttpError(
+        std::move(id_to_udf_metadata_map.status()));
+  }
   for (const auto& partition : request.partitions()) {
     UniquePartitionIdTuple id{partition.id(), partition.compression_group_id()};
     UDFExecutionMetadata udf_metadata;
-    auto it = id_to_udf_metadata_map.find(id);
-    if (it != id_to_udf_metadata_map.end()) {
+    auto it = id_to_udf_metadata_map->find(id);
+    if (it != id_to_udf_metadata_map->end()) {
       udf_metadata = std::move(it->second);
     }
     udf_input_map.insert_or_assign(

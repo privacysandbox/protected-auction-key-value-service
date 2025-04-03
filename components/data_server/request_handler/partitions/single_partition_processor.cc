@@ -18,6 +18,7 @@
 
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "components/data_server/request_handler/status/status_tag.h"
 #include "components/udf/udf_client.h"
 #include "components/util/request_context.h"
 #include "public/api_schema.pb.h"
@@ -35,14 +36,16 @@ absl::Status SinglePartitionProcessor::Process(
     const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
     ExecutionMetadata& execution_metadata) const {
   if (request.partitions().size() > 1) {
-    return absl::InvalidArgumentError(
+    return V2RequestFormatErrorAsExternalHttpError(absl::InvalidArgumentError(
         "This use case only accepts single partitions, but "
-        "multiple partitions were found.");
+        "multiple partitions were found."));
   }
   if (request.partitions().empty()) {
-    return absl::InvalidArgumentError("No partitions in request.");
+    return V2RequestFormatErrorAsExternalHttpError(
+        absl::InvalidArgumentError("No partitions in request."));
   }
 
+  // TODO(b/355434272): Return early on CBOR content type (not supported)
   const auto& req_partition = request.partitions(0);
   v2::ResponsePartition* resp_partition = response.mutable_single_partition();
   resp_partition->set_id(req_partition.id());

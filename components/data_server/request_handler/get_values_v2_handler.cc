@@ -27,8 +27,8 @@
 #include "absl/strings/ascii.h"
 #include "components/data/converters/cbor_converter.h"
 #include "components/data_server/request_handler/encryption/ohttp_server_encryptor.h"
-#include "components/data_server/request_handler/get_values_v2_status.h"
 #include "components/data_server/request_handler/partitions/partition_processor.h"
+#include "components/data_server/request_handler/status/get_values_v2_status.h"
 #include "components/telemetry/server_definition.h"
 #include "google/protobuf/util/json_util.h"
 #include "grpcpp/grpcpp.h"
@@ -53,19 +53,6 @@ using v2::GetValuesHttpRequest;
 using v2::ObliviousGetValuesRequest;
 
 constexpr std::string_view kIsPas = "is_pas";
-
-bool HasDuplicatePartitionAndCompressionGroupIds(
-    const v2::GetValuesRequest& request) {
-  absl::flat_hash_set<UniquePartitionIdTuple> unique_ids;
-  for (auto&& partition : request.partitions()) {
-    if (unique_ids.contains(
-            {partition.id(), partition.compression_group_id()})) {
-      return true;
-    }
-    unique_ids.insert({partition.id(), partition.compression_group_id()});
-  }
-  return false;
-}
 
 }  // namespace
 
@@ -175,33 +162,6 @@ grpc::Status GetValuesV2Handler::GetValues(
     return grpc::Status(StatusCode::INTERNAL,
                         "At least 1 partition is required");
   }
-  // Ideally, this would live in the PartitionProcessor class, but we want to
-  // return the actual error status in the response. The return status
-  // of PartitionProcessor is currently masked and will always return OK in
-  // prod.
-  // TODO(b/406838723): Use status property to allow passing non-OK status
-  if (single_partition_use_case) {
-    if (request.partitions().size() > 1) {
-      return grpc::Status(StatusCode::UNIMPLEMENTED,
-                          "This use case only accepts single partitions, but "
-                          "multiple partitions were found.");
-    }
-    // TODO(b/355434272): Return early on CBOR content type (not supported)
-  } else {
-    // Ideally, this would live in PartitionProcessor, but we want to
-    // return the actual error status in the response if the request has
-    // duplicate <partition_id, compression_group_id> tuples. The return status
-    // of PartitionProcessor is currently masked and will always return OK in
-    // prod.
-    // TODO(b/406838723): Use status property to allow passing non-OK status
-    if (HasDuplicatePartitionAndCompressionGroupIds(request)) {
-      return grpc::Status(
-          StatusCode::INVALID_ARGUMENT,
-          "Each partition must have a unique <id, "
-          "compression_group_id> tuple, but duplicates were found.");
-    }
-  }
-
   const auto partition_processor = PartitionProcessor::Create(
       single_partition_use_case, request_context_factory, udf_client_,
       v2_codec);

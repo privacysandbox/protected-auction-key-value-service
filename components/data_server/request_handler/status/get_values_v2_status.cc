@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "components/data_server/request_handler/get_values_v2_status.h"
+#include "components/data_server/request_handler/status/get_values_v2_status.h"
+
+#include "components/data_server/request_handler/status/status_tag.h"
+#include "src/util/status_macro/status_macros.h"
 
 namespace kv_server {
 
+using privacy_sandbox::server_common::FromAbslStatus;
+
 grpc::Status GetExternalStatusForV2(const absl::Status& status) {
-  // Return OK status regardless of UDF outcome
+  if (IsV2RequestFormatError(status)) {
+    return FromAbslStatus(status);
+  }
   return grpc::Status::OK;
 }
 

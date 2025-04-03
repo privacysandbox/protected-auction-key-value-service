@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_V2_STATUS_H_
-#define COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_V2_STATUS_H_
+#ifndef COMPONENTS_DATA_SERVER_REQUEST_HANDLER_STATUS_GET_VALUES_V2_STATUS_H_
+#define COMPONENTS_DATA_SERVER_REQUEST_HANDLER_STATUS_GET_VALUES_V2_STATUS_H_
 
 #include "absl/log/log.h"
 #include "grpcpp/grpcpp.h"
 
 namespace kv_server {
 
+// Checks if a status is marked as safe to propagate. If yes, propagate the
+// error status in the status code. Otherwise, return OK.
 grpc::Status GetExternalStatusForV2(const absl::Status& status);
 
 }  // namespace kv_server
 
-#endif  // COMPONENTS_DATA_SERVER_REQUEST_HANDLER_GET_VALUES_V2_STATUS_H_
+#endif  // COMPONENTS_DATA_SERVER_REQUEST_HANDLER_STATUS_GET_VALUES_V2_STATUS_H_

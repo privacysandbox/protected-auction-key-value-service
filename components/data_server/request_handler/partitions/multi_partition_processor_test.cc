@@ -21,6 +21,7 @@
 
 #include "absl/log/log.h"
 #include "components/data_server/request_handler/content_type/mocks.h"
+#include "components/data_server/request_handler/status/status_tag.h"
 #include "components/udf/mocks.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -213,6 +214,30 @@ TEST_P(MultiPartitionProcessorTest, Success) {
   }
 }
 
+TEST_P(MultiPartitionProcessorTest, DuplicatePartitionCompressionGroupIdsFail) {
+  v2::GetValuesRequest request;
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        partitions { id: 1 compression_group_id: 1 }
+        partitions { id: 1 compression_group_id: 1 }
+      )pb",
+      &request));
+  UDFExecutionMetadata udf_metadata;
+  UDFArgument arg;
+
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _)).Times(0);
+  EXPECT_CALL(mock_v2_codec_, EncodePartitionOutputs(_, _)).Times(0);
+
+  v2::GetValuesResponse response;
+  ExecutionMetadata unused_execution_metadata;
+  MultiPartitionProcessor processor(*request_context_factory_, mock_udf_client_,
+                                    mock_v2_codec_);
+  const auto status =
+      processor.Process(request, response, unused_execution_metadata);
+  ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
+}
+
 TEST_P(MultiPartitionProcessorTest, IgnoreFailedUdfCompressionGroup) {
   nlohmann::json output2 = nlohmann::json::parse(R"(
   {
@@ -363,6 +388,7 @@ TEST_P(MultiPartitionProcessorTest, ReturnErrorWhenAllUdfExecutionsFail) {
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_FALSE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -434,6 +460,7 @@ TEST_P(MultiPartitionProcessorTest,
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok());
+  EXPECT_FALSE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1201,6 +1228,7 @@ TEST_P(MultiPartitionProcessorTest, PerPartitionMetadataWithStringValueFails) {
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1294,6 +1322,7 @@ TEST_P(MultiPartitionProcessorTest,
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1337,6 +1366,7 @@ TEST_P(MultiPartitionProcessorTest,
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1385,6 +1415,7 @@ TEST_P(MultiPartitionProcessorTest,
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1431,6 +1462,7 @@ TEST_P(MultiPartitionProcessorTest, PerPartitionMetadataWithIdsEmptyFails) {
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1485,6 +1517,7 @@ TEST_P(MultiPartitionProcessorTest,
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1537,6 +1570,7 @@ TEST_P(MultiPartitionProcessorTest, PerPartitionMetadataWithIdsListEmptyFails) {
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1593,6 +1627,7 @@ TEST_P(MultiPartitionProcessorTest, PerPartitionMetadataWithStringValuesFails) {
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1649,6 +1684,7 @@ TEST_P(MultiPartitionProcessorTest,
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1716,6 +1752,7 @@ TEST_P(MultiPartitionProcessorTest,
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1791,6 +1828,7 @@ TEST_P(MultiPartitionProcessorTest, PerPartitionMetadataDuplicateFails) {
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }
@@ -1877,6 +1915,7 @@ TEST_P(MultiPartitionProcessorTest,
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   v2::GetValuesResponse expected_response;
   EXPECT_THAT(response, EqualsProto(expected_response));
 }

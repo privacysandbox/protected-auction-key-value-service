@@ -77,13 +77,13 @@ cc_library(
         "//tools/request_simulation:__subpackages__",
     ],
     deps = [
-        ":get_values_v2_status",
         "//components/data/converters:cbor_converter",
         "//components/data_server/cache",
         "//components/data_server/request_handler/compression",
         "//components/data_server/request_handler/content_type:encoder",
         "//components/data_server/request_handler/encryption:ohttp_server_encryptor",
         "//components/data_server/request_handler/partitions:partition_processor",
+        "//components/data_server/request_handler/status:get_values_v2_status",
         "//components/telemetry:server_definition",
         "//components/udf:udf_client",
         "//components/util:request_context",
@@ -185,27 +185,5 @@ cc_library(
     deps = [
         ":get_values_adapter",
         "@com_google_googletest//:gtest",
-    ],
-)
-
-cc_library(
-    name = "get_values_v2_status",
-    srcs = select({
-        "//:nonprod_mode": [
-            "get_values_v2_status_nonprod.cc",
-        ],
-        "//:prod_mode": [
-            "get_values_v2_status.cc",
-        ],
-        "//conditions:default": [
-            "get_values_v2_status.cc",
-        ],
-    }),
-    hdrs = ["get_values_v2_status.h"],
-    deps = [
-        "@com_github_grpc_grpc//:grpc++",
-        "@com_google_absl//absl/flags:flag",
-        "@com_google_absl//absl/status:statusor",
-        "@google_privacysandbox_servers_common//src/util/status_macro:status_macros",
     ],
 )

@@ -18,6 +18,7 @@ cc_library(
     ],
     deps = [
         "//components/data_server/request_handler/content_type:encoder",
+        "//components/data_server/request_handler/status:status_tag",
         "//components/udf:udf_client",
         "//components/util:request_context",
         "//public:api_schema_cc_proto",

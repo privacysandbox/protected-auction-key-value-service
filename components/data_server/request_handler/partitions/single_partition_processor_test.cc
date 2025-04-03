@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "absl/log/log.h"
+#include "components/data_server/request_handler/status/status_tag.h"
 #include "components/udf/mocks.h"
 #include "gmock/gmock.h"
 #include "google/protobuf/text_format.h"
@@ -135,6 +136,7 @@ TEST_P(SinglePartitionProcessorTest,
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok()) << status;
+  EXPECT_FALSE(IsV2RequestFormatError(status));
 
   v2::GetValuesResponse expected_response;
   auto* resp_status =
@@ -161,6 +163,7 @@ TEST_F(SinglePartitionProcessorTest,
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok());
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
 }
 
@@ -183,6 +186,7 @@ TEST_F(SinglePartitionProcessorTest, NoPartitionReturnsError) {
   const auto status =
       processor.Process(request, response, unused_execution_metadata);
   ASSERT_FALSE(status.ok());
+  EXPECT_TRUE(IsV2RequestFormatError(status));
   EXPECT_EQ(status.code(), absl::StatusCode::kInvalidArgument);
 }
 

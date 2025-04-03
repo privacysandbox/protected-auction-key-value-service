@@ -88,7 +88,6 @@ TEST(CborEncoderTest, EncodePartitionOutputsSuccess) {
               }
             },
             "tags": [
-              "custom",
               "keys"
             ]
           }
@@ -104,8 +103,7 @@ TEST(CborEncoderTest, EncodePartitionOutputsSuccess) {
               }
             },
             "tags": [
-              "custom",
-              "keys"
+              "renderURLs"
             ]
           }
         ]

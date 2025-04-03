@@ -58,11 +58,15 @@ BuildCompressionGroupToPartitionOutputMap(
     int32_t compression_group_id = partition.compression_group_id();
     auto it = id_to_output_map.find({partition.id(), compression_group_id});
     if (it != id_to_output_map.end()) {
+      PS_VLOG(9, request_context_factory.Get().GetPSLogContext())
+          << "UDF output for partition.id " << partition.id()
+          << " and compression_group_id " << compression_group_id << ": "
+          << it->second;
       compression_group_map[compression_group_id].emplace_back(
           partition.id(), std::move(it->second));
     } else {
       PS_VLOG(3, request_context_factory.Get().GetPSLogContext())
-          << "Failed to execute UDF for partition " << partition.id()
+          << "Failed to execute UDF for partition.id " << partition.id()
           << " and compression_group_id " << compression_group_id;
     }
   }

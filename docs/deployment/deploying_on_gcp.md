@@ -4,7 +4,8 @@
 # FLEDGE Key/Value server deployment on GCP
 
 This article is for adtech engineers who will set up the Google Cloud infrastructure and run the
-Key/Value server for [FLEDGE](https://developer.chrome.com/docs/privacy-sandbox/fledge/) usage.
+Key/Value server for
+[FLEDGE](https://privacysandbox.google.com/private-advertising/protected-audience) usage.
 
 **Attention**: Currently, the GCP Key/Value server is intended to be called by the
 [B&A services](https://github.com/privacysandbox/fledge-docs/blob/main/bidding_auction_services_api.md).
@@ -15,7 +16,7 @@ To learn more about FLEDGE and the Key/Value server, take a look at the followin
 
 -   [FLEDGE Key/Value server explainer](https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md)
 -   [FLEDGE Key/Value server trust model](https://github.com/privacysandbox/fledge-docs/blob/main/key_value_service_trust_model.md)
--   [FLEDGE explainer](https://developer.chrome.com/en/docs/privacy-sandbox/fledge/)
+-   [FLEDGE explainer](https://privacysandbox.google.com/private-advertising/protected-audience)
 -   [FLEDGE API developer guide](https://developer.chrome.com/blog/fledge-api/)
 
 The instructions written in this document are for running a test Key/Value server that does not yet

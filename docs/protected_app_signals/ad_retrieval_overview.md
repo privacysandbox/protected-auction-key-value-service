@@ -1,5 +1,5 @@
 !! This workflow works only for
-[Protected App Signals (PAS)](https://developers.google.com/privacy-sandbox/relevance/protected-audience/android/protected-app-signals).
+[Protected App Signals (PAS)](https://privacysandbox.google.com/private-advertising/protected-audience/android/protected-app-signals).
 It does not support Protected Audience (PA), since the UDF and Server API is different.!!
 
 ## Background

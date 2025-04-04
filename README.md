@@ -31,7 +31,7 @@ the service should be used as the ad retrieval server.
 It can be integrated with Chrome and Android with the
 [Privacy Sandbox unified origin trial](https://developer.chrome.com/blog/expanding-privacy-sandbox-testing/)
 and
-[Privacy Sandbox on Android Developer Preview](https://developer.android.com/design-for-safety/privacy-sandbox/program-overview).
+[Privacy Sandbox on Android Developer Preview](https://privacysandbox.google.com/private-advertising/setup/android).
 
 ## Current features
 
@@ -129,7 +129,7 @@ The Privacy-Sandbox-provided Key Value Server implementation can<ul>
 <p>
 Opt-in TEE mode will be available to the Adtechs. Opt-in guidance will be published in early Q4 2024.
    </td>
-   <td><a href="https://developers.google.com/privacy-sandbox/relevance/protected-audience-api/feature-status#feature_availability_timeline">No sooner than Q3 2025</a>
+   <td><a href="https://privacysandbox.google.com/private-advertising/protected-audience-api/feature-status#feature_availability_timeline">No sooner than Q3 2025</a>
    </td>
   </tr>
 </table>

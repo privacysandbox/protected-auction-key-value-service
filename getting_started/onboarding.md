@@ -169,7 +169,7 @@ Adtechs can file issues and feature requests on this Github project.
     https://github.com/privacysandbox/protected-auction-key-value-service/blob/9a60180f9d6f52a4ca805e5463ecc9e5e80e88f9/production/terraform/gcp/environments/kv_server_variables.tf#L193
 [12]:
     https://github.com/privacysandbox/protected-auction-key-value-service/blob/9a60180f9d6f52a4ca805e5463ecc9e5e80e88f9/production/terraform/aws/environments/kv_server_variables.tf#L216
-[13]: https://developers.google.com/privacy-sandbox/relevance/enrollment
+[13]: https://privacysandbox.google.com/private-advertising/enrollment
 [14]: #step-3-enroll-with-coordinators
 [15]: /docs/deployment/deploying_on_aws.md#set-up-your-aws-account
 [16]: /docs/deployment/deploying_on_gcp.md#set-up-your-gcp-project

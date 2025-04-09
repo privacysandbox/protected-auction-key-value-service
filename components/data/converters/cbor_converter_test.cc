@@ -271,14 +271,14 @@ TEST(CborConverterTest,
 
 TEST(CborConverterTest, V2GetValuesRequestProtoToCborEncodeSuccess) {
   v2::GetValuesRequest request;
-  TextFormat::ParseFromString(
-      R"pb(partitions {
-             id: 0
-             compression_group_id: 1
-             arguments { data { string_value: "hi" } }
-
-           })pb",
-      &request);
+  EXPECT_TRUE(TextFormat::ParseFromString(
+      R"pb(
+        partitions {
+          id: 0
+          compression_group_id: 1
+          arguments { data { list_value { values { string_value: "hi" } } } }
+        })pb",
+      &request));
   absl::StatusOr<std::string> cbor_encoded_request_maybe =
       V2GetValuesRequestProtoToCborEncode(request);
   ASSERT_TRUE(cbor_encoded_request_maybe.ok())
@@ -287,34 +287,34 @@ TEST(CborConverterTest, V2GetValuesRequestProtoToCborEncodeSuccess) {
 
 TEST(CborConverterTest, CborDecodeToNonBytesProtoSuccess) {
   v2::GetValuesRequest expected;
-  TextFormat::ParseFromString(R"pb(
-                                client_version: "version1"
-                                metadata {
-                                  fields {
-                                    key: "foo"
-                                    value { string_value: "bar1" }
-                                  }
-                                }
-                                partitions {
-                                  id: 1
-                                  compression_group_id: 1
-                                  metadata {
-                                    fields {
-                                      key: "partition_metadata"
-                                      value { string_value: "bar2" }
-                                    }
-                                  }
-                                  arguments {
-                                    tags {
-                                      values { string_value: "tag1" }
-                                      values { string_value: "tag2" }
-                                    }
-
-                                    data { string_value: "bar4" }
-                                  }
-                                }
-                              )pb",
-                              &expected);
+  TextFormat::ParseFromString(
+      R"pb(
+        client_version: "version1"
+        metadata {
+          fields {
+            key: "foo"
+            value { string_value: "bar1" }
+          }
+        }
+        partitions {
+          id: 1
+          compression_group_id: 1
+          metadata {
+            fields {
+              key: "partition_metadata"
+              value { string_value: "bar2" }
+            }
+          }
+          arguments {
+            tags {
+              values { string_value: "tag1" }
+              values { string_value: "tag2" }
+            }
+            data { list_value { values { string_value: "bar4" } } }
+          }
+        }
+      )pb",
+      &expected);
   nlohmann::json json_message = R"(
  {
     "clientVersion": "version1",
@@ -333,7 +333,7 @@ TEST(CborConverterTest, CborDecodeToNonBytesProtoSuccess) {
                     "tag1",
                     "tag2"
                 ],
-                "data": "bar4"
+                "data": ["bar4"]
             }
         }
     ]

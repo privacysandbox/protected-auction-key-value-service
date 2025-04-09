@@ -1034,15 +1034,16 @@ TEST_F(GetValuesHandlerTest,
   TextFormat::ParseFromString(
       R"pb(partitions {
              id: 9
-             arguments { data { string_value: "ECHO" } }
-             metadata {
-               fields {
-                 key: "partition_metadata_key"
-                 value: { string_value: "my_value" }
+             arguments {
+               data { list_value { values { string_value: "ECHO" } } }
+               metadata {
+                 fields {
+                   key: "partition_metadata_key"
+                   value: { string_value: "my_value" }
+                 }
                }
              }
-           }
-           consented_debug_config { is_consented: true token: "debug_token" }
+             consented_debug_config { is_consented: true token: "debug_token" }
       )pb",
       &req);
   EXPECT_CALL(

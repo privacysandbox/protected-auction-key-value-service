@@ -135,34 +135,43 @@ TEST(ProtoEncoderTest, DecodeToV2GetValuesRequestProtoEmptyStringFailure) {
 
 TEST(ProtoEncoderTest, DecodeToV2GetValuesRequestSuccess) {
   v2::GetValuesRequest expected;
-  TextFormat::ParseFromString(R"pb(
-                                client_version: "version1"
-                                metadata {
-                                  fields {
-                                    key: "foo"
-                                    value { string_value: "bar1" }
-                                  }
-                                }
-                                partitions {
-                                  id: 1
-                                  compression_group_id: 1
-                                  metadata {
-                                    fields {
-                                      key: "partition_metadata"
-                                      value { string_value: "bar2" }
-                                    }
-                                  }
-                                  arguments {
-                                    tags {
-                                      values { string_value: "tag1" }
-                                      values { string_value: "tag2" }
-                                    }
+  TextFormat::ParseFromString(
+      R"pb(
+        client_version: "version1"
+        metadata {
+          fields {
+            key: "foo"
+            value { string_value: "bar1" }
+          }
+        }
+        partitions {
+          id: 1
+          compression_group_id: 1
+          metadata {
+            fields {
+              key: "partition_metadata"
+              value { string_value: "bar2" }
+            }
+          }
+          arguments {
+            tags {
+              values { string_value: "tag1" }
+              values { string_value: "tag2" }
+            }
 
-                                    data { string_value: "bar4" }
-                                  }
-                                }
-                              )pb",
-                              &expected);
+            data { string_value: "bar4" }
+          }
+          arguments {
+            tags {
+              values { string_value: "tag3" }
+              values { string_value: "tag4" }
+            }
+
+            data { list_value { values { string_value: "bar5" } } }
+          }
+        }
+      )pb",
+      &expected);
   ProtoV2EncoderDecoder encoder;
   std::string serialized_request;
   expected.SerializeToString(&serialized_request);

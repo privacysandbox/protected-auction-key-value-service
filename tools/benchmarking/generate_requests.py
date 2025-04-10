@@ -34,7 +34,9 @@ For each N in a number-of-keys-list, it will
 """
 
 
-def _BuildRequest(data: list[str], metadata: dict[str, str]) -> dict[str, Any]:
+def _BuildRequest(
+    data: list[str], metadata: dict[str, str], encode_requests: bool
+) -> dict[str, Any]:
     """Build the HTTP body that contains the base64 encoded request body as data."""
     arguments = []
     argument = {"tags": ["custom", "keys"], "data": data}
@@ -44,6 +46,8 @@ def _BuildRequest(data: list[str], metadata: dict[str, str]) -> dict[str, Any]:
         "metadata": metadata,
         "partitions": [{"id": 0, "compressionGroupId": 0, "arguments": arguments}],
     }
+    if not encode_requests:
+        return json.dumps(body)
     body_base64_string = base64.b64encode(json.dumps(body).encode()).decode()
     http_body = {"raw_body": {"data": body_base64_string}}
     return json.dumps(http_body)
@@ -54,6 +58,7 @@ def WriteRequests(
     number_of_keys_list: list[int],
     output_dir: str,
     metadata: dict[str, str],
+    encode_requests: bool,
 ) -> None:
     """Writes the requests to JSON files.
 
@@ -70,11 +75,14 @@ def WriteRequests(
             )
             continue
 
-        request = _BuildRequest(keys[:n], metadata)
+        request = _BuildRequest(keys[:n], metadata, encode_requests)
         # Write to an output file at <output_dir>/n=<n>/request.json
         output_dir_n = os.path.join(output_dir, f"{n=}")
         Path(output_dir_n).mkdir(parents=True, exist_ok=True)
-        with open(os.path.join(output_dir_n, "request.json"), "w") as f:
+        output_file_name = "plaintext_request.json"
+        if encode_requests:
+            output_file_name = "encoded_request.json"
+        with open(os.path.join(output_dir_n, output_file_name), "w") as f:
             f.write(request)
 
 
@@ -173,6 +181,12 @@ def Main():
         type=str,
         help="Path to file with keys to use in request. If set, snapshot-csv-dir is ignored.",
     )
+    parser.add_argument(
+        "--encode-requests",
+        dest="encode_requests",
+        action="store_true",
+        help="Whether to encode the requests.",
+    )
     args = parser.parse_args()
     metadata = json.loads(args.metadata)
     if not isinstance(metadata, dict):
@@ -181,7 +195,9 @@ def Main():
         keys = ReadKeysFromFile(args.lookup_keys_file, max(args.number_of_keys_list))
         keys_filename = os.path.basename(args.lookup_keys_file)
         output_dir = os.path.join(args.output_dir, keys_filename)
-        WriteRequests(keys, args.number_of_keys_list, output_dir, metadata)
+        WriteRequests(
+            keys, args.number_of_keys_list, output_dir, metadata, args.encode_requests
+        )
         return
 
     for filename in os.listdir(args.snapshot_csv_dir):
@@ -190,7 +206,13 @@ def Main():
             snapshot_csv_file, max(args.number_of_keys_list), args.filter_by_sets
         )
         output_dir_for_snapshot = os.path.join(args.output_dir, filename)
-        WriteRequests(keys, args.number_of_keys_list, output_dir_for_snapshot, metadata)
+        WriteRequests(
+            keys,
+            args.number_of_keys_list,
+            output_dir_for_snapshot,
+            metadata,
+            args.encode_requests,
+        )
 
 
 if __name__ == "__main__":

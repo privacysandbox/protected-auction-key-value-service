@@ -51,6 +51,7 @@ cc_library(
         "//components/data_server:__subpackages__",
         "//components/tools:__subpackages__",
         "//infrastructure:__subpackages__",
+        "//tools/benchmarking:__subpackages__",
     ],
     deps = [
         ":cbor_converter_utils",

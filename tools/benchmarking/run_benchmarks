@@ -26,6 +26,7 @@ BASE_OUTPUT_DIR="${WORKSPACE}/dist/tools/benchmarking/output/${START}"
 NUMBER_OF_LOOKUP_KEYS="1 5 10"
 REQUEST_METADATA="{}"
 FILTER_BY_SETS=0
+ENCRYPT_REQUESTS=0
 FILTER_BY_SETS_JSON='{"filter_snapshot_by_sets": "false"}'
 BENCHMARK_DURATION="5s"
 
@@ -35,6 +36,10 @@ readonly DOCKER_OUTPUT_DIR
 DOCKER_SNAPSHOT_DIR="/tmp/benchmarking/snapshots"
 DOCKER_SNAPSHOT_CSV_DIR="/tmp/benchmarking/snapshot_csvs"
 DOCKER_LOOKUP_KEYS_DIR="/tmp/benchmarking/lookup_keys/"
+
+QUERY_ENCRYPTOR="//tools/benchmarking:query_encryptor"
+QUERY_ENCRYPTOR_BINARY_RELPATH="bazel-bin/tools/benchmarking/query_encryptor"
+QUERY_ENCRYPTOR_PATH="${WORKSPACE}/${QUERY_ENCRYPTOR_BINARY_RELPATH}"
 
 function usage() {
   local -r -i exitval=${1-1}
@@ -51,6 +56,7 @@ usage:
     [--ghz-tags]                      (Optional) Tags to include in the ghz run.
     [--request-metadata-json]         (Optional) Request metadata to set for all requests
     [--filter-snapshot-by-sets]       (Optional) Whether to filter snapshots by sets when creating requests.
+    [--encrypt-requests]              (Optional) Whether to encrypt the requests with hardcoded keys.
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}
@@ -74,6 +80,9 @@ function generate_requests_with_file() {
   if [[ ${FILTER_BY_SETS} -eq 1 ]]; then
     GENERATE_REQUESTS_ARGS+=(--filter-by-sets)
     FILTER_BY_SETS_JSON='{"filter_snapshot_by_sets": "true"}'
+  fi
+  if [[ ${ENCRYPT_REQUESTS} -eq 0 ]]; then
+    GENERATE_REQUESTS_ARGS+=(--encode-requests)
   fi
 
   # Mount the output dir to docker and write requests to output dir for each item in
@@ -104,6 +113,9 @@ function generate_requests_with_snapshots() {
     GENERATE_REQUESTS_ARGS+=(--filter-by-sets)
     FILTER_BY_SETS_JSON='{"filter_snapshot_by_sets": "true"}'
   fi
+  if [[ ${ENCRYPT_REQUESTS} -eq 0 ]]; then
+    GENERATE_REQUESTS_ARGS+=(--encode-requests)
+  fi
 
   # Mount the output dir to docker and write requests to output dir for each item in
   # `NUMBER_OF_LOOKUP_KEYS_LIST`.
@@ -119,10 +131,20 @@ function run_ghz_for_requests_from_file() {
   REQUEST_JSON_DOCKER_OUTPUT_DIR="${DOCKER_OUTPUT_DIR}/${FILENAME}"
   REQUEST_JSON_BASE_OUTPUT_DIR="${BASE_OUTPUT_DIR}/${FILENAME}"
 
+  local V2_ENDPOINT="GetValuesHttp"
+  local REQUEST_FILENAME="encoded_request.json"
+  if [[ ${ENCRYPT_REQUESTS} -eq 1 ]]; then
+      V2_ENDPOINT="ObliviousGetValues"
+      REQUEST_FILENAME="encrypted_request.json"
+  fi
   for N in "${NUMBER_OF_LOOKUP_KEYS_LIST[@]}"; do
     DIR="${REQUEST_JSON_DOCKER_OUTPUT_DIR}/n=${N}"
-    REQUEST_JSON_DOCKER="${DIR}"/request.json
-    REQUEST_JSON_BASE="${REQUEST_JSON_BASE_OUTPUT_DIR}/n=${N}"/request.json
+    REQUEST_JSON_DOCKER="${DIR}"/"${REQUEST_FILENAME}"
+    REQUEST_PLAIN_TEXT_JSON_BASE="${REQUEST_JSON_BASE_OUTPUT_DIR}/n=${N}"/plaintext_request.json
+    REQUEST_JSON_BASE="${REQUEST_JSON_BASE_OUTPUT_DIR}/n=${N}"/"${REQUEST_FILENAME}"
+    if [[ ${ENCRYPT_REQUESTS} -eq 1 ]]; then
+      run_encryption_tool_host "${REQUEST_PLAIN_TEXT_JSON_BASE}" "${REQUEST_JSON_BASE}"
+    fi
     if [[ ! -f "${REQUEST_JSON_BASE}" ]]; then
       continue
     fi
@@ -144,14 +166,70 @@ function run_ghz_for_requests_from_file() {
       --format=pretty \
       --tags "${TAGS}" \
       --output "${GHZ_OUTPUT_JSON_FILE}" \
-      --call kv_server.v2.KeyValueService/GetValuesHttp \
+      --call kv_server.v2.KeyValueService/${V2_ENDPOINT} \
       "${SERVER_ADDRESS}"
     # In case the server hangs from previous requests, wait before sending next batch
     sleep 30
   done
 }
 
+function build_encryption_tool() {
+  builders/tools/bazel-debian build \
+      --config=local_instance \
+      --config=gcp_platform \
+      --config=nonprod_mode \
+      "${QUERY_ENCRYPTOR}"
+  build_status=$?
+  if [[ ${build_status} -ne 0 ]]; then
+      echo "ERROR: Failed to build (${QUERY_ENCRYPTOR}). Exiting." >&2
+      exit 1
+  fi
+  # Verify the expected output binary exists
+  if [[ ! -x "${QUERY_ENCRYPTOR_PATH}" ]]; then
+      echo "ERROR: Build succeeded but encryptor binary not found or not executable at expected path: ${QUERY_ENCRYPTOR_PATH}" >&2
+      exit 1
+  fi
+  echo "query encryptor built successfully: ${QUERY_ENCRYPTOR_PATH}"
+}
+
+function run_encryption_tool_host() {
+  local -r plaintext_request_path_host="${1}"
+  local -r final_request_path_host="${2}"
+
+  echo "Encrypting request: ${plaintext_request_path_host} -> ${final_request_path_host}"
+
+  local -a ENCRYPT_ARGS=(
+    "--input_json_path=${plaintext_request_path_host}"
+    "--output_json_path=${final_request_path_host}"
+    "--stderrthreshold=0"
+  )
+
+  if [[ ! -x "${QUERY_ENCRYPTOR_PATH}" ]]; then
+      echo "ERROR: Encryptor binary not found or not executable at ${QUERY_ENCRYPTOR_PATH}" >&2
+      return 1
+  fi
+
+  "${QUERY_ENCRYPTOR_PATH}" "${ENCRYPT_ARGS[@]}"
+  local exit_code=$? # Capture exit code immediately
+
+  if [[ ${exit_code} -ne 0 ]]; then
+      echo "ERROR: Encryption tool execution failed with exit code ${exit_code}." >&2
+      return 1
+  fi
+
+  if [[ ! -f "${final_request_path_host}" ]]; then
+     echo "ERROR: Encryption command succeeded but output file ${final_request_path_host} not found." >&2
+     return 1
+  fi
+
+   echo "Encryption successful."
+   return 0
+}
+
 function run_ghz_for_requests() {
+  if [[ ${ENCRYPT_REQUESTS} -eq 1 ]]; then
+    build_encryption_tool
+  fi
   # Iterate through the generated request.json files and
   # call `ghz` to benchmark server at ${SERVER_ADDRESS}
   if [[ -f "${LOOKUP_KEYS_FILE}" ]]; then
@@ -199,6 +277,10 @@ while [[ $# -gt 0 ]]; do
     ;;
   --filter-snapshot-by-sets)
     FILTER_BY_SETS=1
+    shift
+    ;;
+  --encrypt-requests)
+    ENCRYPT_REQUESTS=1
     shift
     ;;
   -h | --help) usage 0 ;;

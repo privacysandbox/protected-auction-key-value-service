@@ -113,6 +113,13 @@ Flags:
     Whether to filter snapshot csvs using `value_type=string_set` only. This will create requests
     that only include keys of sets. Default is false.
 
+-   `--encrypt-requests` (Optional)
+
+    Whether to encrypt the requests with
+    [hardcoded keys](https://github.com/privacysandbox/data-plane-shared-libraries/blob/33be20c58e8accb37cfaabcf8a912e9dfb23664f/src/encryption/key_fetcher/fake_key_fetcher_manager.h#L27-L65).
+    Default is false. If enabled, the GCP/AWS Terraform deployment parameter `use_real_coordinators`
+    is required to be false.
+
 #### Example
 
 Start from the workspace root.
@@ -270,6 +277,13 @@ Flags:
 
     Whether to filter snapshot csvs using `value_type=string_set` only. This will create requests
     that only include keys of sets. Default is false.
+
+-   `--encrypt-requests` (Optional)
+
+    Whether to encrypt the requests with
+    [hardcoded keys](https://github.com/privacysandbox/data-plane-shared-libraries/blob/33be20c58e8accb37cfaabcf8a912e9dfb23664f/src/encryption/key_fetcher/fake_key_fetcher_manager.h#L27-L65).
+    Default is false. If enabled, the GCP/AWS Terraform deployment parameter `use_real_coordinators`
+    is required to be false.
 
 #### Example
 

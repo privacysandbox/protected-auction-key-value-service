@@ -1,3 +1,4 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
 load("@rules_python//python:defs.bzl", "py_binary")
 
 py_binary(
@@ -19,5 +20,29 @@ py_binary(
     srcs = ["merge_csvs.py"],
     deps = [
         "@latency_benchmark_pandas//:pkg",
+    ],
+)
+
+cc_binary(
+    name = "query_encryptor",
+    srcs = ["query_encryptor.cc"],
+    deps = [
+        "//components/data/converters:cbor_converter",
+        "//components/data_server/request_handler/encryption:ohttp_client_encryptor",
+        "//public:constants",
+        "//public/applications/pa:response_utils",
+        "//public/query/cpp:grpc_client",
+        "@com_google_absl//absl/flags:flag",
+        "@com_google_absl//absl/flags:parse",
+        "@com_google_absl//absl/log",
+        "@com_google_absl//absl/log:flags",
+        "@com_google_absl//absl/log:initialize",
+        "@com_google_absl//absl/random",
+        "@com_google_absl//absl/strings",
+        "@google_privacysandbox_servers_common//src/communication:encoding_utils",
+        "@google_privacysandbox_servers_common//src/communication:framing_utils",
+        "@google_privacysandbox_servers_common//src/encryption/key_fetcher:fake_key_fetcher_manager",
+        "@libcbor//:cbor",
+        "@nlohmann_json//:lib",
     ],
 )

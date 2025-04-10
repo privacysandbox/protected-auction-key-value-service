@@ -100,6 +100,7 @@ usage:
   [--ghz-tags]                        (Optional) Tags to include in the ghz run.
   [--cleanup-deployment]              (Optional) Whether to call terraform destroy once the tool exits.
   [--filter-snapshot-by-sets]         (Optional) Whether to filter snapshots by sets when creating requests.
+  [--encrypt-requests]                (Optional) Whether to encrypt the requests with hardcoded keys.
 USAGE
   # shellcheck disable=SC2086
   exit ${exitval}
@@ -148,6 +149,11 @@ function set_benchmark_args() {
   if [[ "${FILTER_BY_SETS}" = 1 ]]; then
     RUN_BENCHMARK_ARGS+=(
       --filter-snapshot-by-sets
+    )
+  fi
+  if [[ "${ENCRYPT_REQUESTS}" = 1 ]]; then
+    RUN_BENCHMARK_ARGS+=(
+      --encrypt-requests
     )
   fi
 }
@@ -355,6 +361,10 @@ while [[ $# -gt 0 ]]; do
     ;;
   --filter-snapshot-by-sets)
     FILTER_BY_SETS=1
+    shift
+    ;;
+  --encrypt-requests)
+    ENCRYPT_REQUESTS=1
     shift
     ;;
   -h | --help) usage 0 ;;

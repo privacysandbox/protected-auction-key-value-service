@@ -19,6 +19,7 @@ package(default_visibility = [
     "//components/data_server:__subpackages__",
     "//components/internal_server:__subpackages__",
     "//components/tools:__subpackages__",
+    "//tools/benchmarking:__subpackages__",
 ])
 
 cc_library(

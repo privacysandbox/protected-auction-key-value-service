@@ -72,6 +72,7 @@ resource "google_compute_global_forwarding_rule" "xlb_https" {
 resource "google_dns_record_set" "default" {
   name         = "${var.server_url}."
   managed_zone = var.server_dns_zone
+  project      = var.lb_dns_zones_project_id
   type         = "A"
   ttl          = 10
   rrdatas = [

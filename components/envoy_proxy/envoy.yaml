@@ -34,10 +34,6 @@ static_resources:
             virtual_hosts:
             - name: local_service
               domains: [ "*" ]
-              typed_per_filter_config:
-                envoy.filters.http.compression:
-                  "@type": type.googleapis.com/envoy.extensions.filters.http.compressor.v3.CompressorPerRoute
-                  disabled: true
               cors:
                 allow_origin_string_match:
                 - prefix: "*"
@@ -50,11 +46,6 @@ static_resources:
                 route: { cluster: "grpc_cluster", timeout: 60s }
               - match: { prefix: "/kv_server.v1.KeyValueService" }
                 route: { cluster: grpc_cluster, timeout: 60s }
-                typed_per_filter_config:
-                  envoy.filters.http.compression:
-                    "@type": type.googleapis.com/envoy.extensions.filters.http.compressor.v3.CompressorPerRoute
-                    overrides:
-                      response_direction_config:
               - match: { prefix: "/kv_server.v2.KeyValueService" }
                 route: { cluster: grpc_cluster, timeout: 60s }
               - match: { prefix: "/grpc.health.v1.Health" }
@@ -81,20 +72,6 @@ static_resources:
                 key: 'Access-Control-Allow-Origin'
                 value: '*'
           http_filters:
-          - name: envoy.filters.http.compressor
-            typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.http.compressor.v3.Compressor
-              response_direction_config:
-                common_config:
-              request_direction_config:
-                common_config:
-                  enabled:
-                    default_value: false
-                    runtime_key: request_compressor_enabled
-              compressor_library:
-                name: text_optimized
-                typed_config:
-                  "@type": type.googleapis.com/envoy.extensions.compression.gzip.compressor.v3.Gzip
           - name: envoy.filters.http.cors
             typed_config:
               "@type": type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors

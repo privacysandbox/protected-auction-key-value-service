@@ -32,9 +32,9 @@ def container_deps():
         # Used for deploying Envoy locally
         "envoy-distroless": {
             "arch_hashes": {
-                # v1.33.2
-                "amd64": "0d8c8b3fc3250b5f664dd93ac305738f9c4e6ff38fcb8499088cca1b827f787e",
-                "arm64": "2b56a5e43c7644cabc3e7c9702addfba09fe64ff7d9fee378bc167f9044f1fd8",
+                # v1.24.1
+                "amd64": "9f5d0d7c817c588cd4bd6ef4508ad544ef19cef6d217aa894315790da7662ba7",
+                "arm64": "94c9e77eaa85893daaf95a20fdd5dfb3141250a8c5d707d789265ee3abe49a1e",
             },
             "registry": "docker.io",
             "repository": "envoyproxy/envoy-distroless",
@@ -57,6 +57,6 @@ def container_deps():
         name = "envoy_binary",
         downloaded_file_path = "envoy",
         executable = True,
-        url = "https://github.com/envoyproxy/envoy/releases/download/v1.33.2/envoy-1.33.2-linux-x86_64",
-        sha256 = "bd2ff87c5efc95fd7880d710915f573c1aab4d9c55d8da886dcd91df43fad741",
+        url = "https://github.com/envoyproxy/envoy/releases/download/v1.24.1/envoy-1.24.1-linux-x86_64",
+        sha256 = "b4984647923c1506300995830f51b03008b18977e72326dc33cd414e21f5036e",
     )

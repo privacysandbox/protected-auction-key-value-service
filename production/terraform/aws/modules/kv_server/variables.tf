@@ -376,3 +376,9 @@ variable "coordinator_role_arns" {
   description = "ARNs for coordinator roles."
   type        = list(string)
 }
+
+variable "forced_availability_zones" {
+  description = "Only use those forced availability zones. Not all instances types are available in all zones"
+  type        = set(string)
+  default     = []
+}

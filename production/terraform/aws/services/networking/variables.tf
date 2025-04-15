@@ -42,3 +42,10 @@ variable "existing_vpc_environment" {
   description = "Environment of the existing VPC. Ingored if use_existing_vpc is false."
   type        = string
 }
+
+
+variable "forced_availability_zones" {
+  description = "Only use those forced availability zones."
+  type = set(string)
+  default     = []
+}

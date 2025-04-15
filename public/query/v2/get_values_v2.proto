@@ -26,13 +26,12 @@ import "src/logger/logger.proto";
 // Key Value Service API V2.
 // Spec:
 // https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#query-api-version-2
-// Note: V2 API is still in an experimental state. Please use the V1 API.
 service KeyValueService {
   // Plain text version of the V2 GetValues query API. This is intended to be
   // used for debugging and demoing purposes. The result is a JSON list
   // which contains the compression groups.
-  //
-  // TODO(b/263284614): Add more comments once the explainer is published.
+  // Example query:
+  // https://github.com/privacysandbox/protected-auction-key-value-service/blob/main/docs/testing_the_query_protocol.md#plaintext-query-getvalues
   rpc GetValuesHttp(GetValuesHttpRequest) returns (google.api.HttpBody) {
     option (google.api.http) = {
       put: "/v2/getvalues"

@@ -126,6 +126,10 @@ grpc::Status GetValuesV2Handler::ObliviousGetValues(
   }
   auto encoded_data_size = privacy_sandbox::server_common::GetEncodedDataSize(
       response.size(), kMinResponsePaddingBytes);
+  if (encoded_data_size > kMaxResponsePaddingBytes) {
+    return GetExternalStatusForV2(
+        absl::InternalError("Framed response exceeded maximum size of 2MB"));
+  }
   auto maybe_padded_response =
       privacy_sandbox::server_common::EncodeResponsePayload(
           privacy_sandbox::server_common::CompressionType::kUncompressed,

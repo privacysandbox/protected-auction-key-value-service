@@ -64,6 +64,71 @@ struct TestingParameters {
   const std::string_view core_request_body;
 };
 
+class OHTTPRequest;
+class OHTTPResponseUnwrapper {
+ public:
+  google::api::HttpBody& RawResponse() { return response_; }
+
+  std::string Unwrap() {
+    auto deframed_req =
+        privacy_sandbox::server_common::DecodeRequestPayload(UnwrapOhttp());
+    EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
+    return deframed_req->compressed_data;
+  }
+
+  std::string UnwrapOhttp() {
+    uint8_t key_id = 64;
+    auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
+        key_id, kKEMParameter, kKDFParameter, kAEADParameter);
+    EXPECT_TRUE(maybe_config.ok());
+    auto decrypted_response =
+        quiche::ObliviousHttpResponse::CreateClientObliviousResponse(
+            response_.data(), context_, kKVOhttpResponseLabel);
+    return decrypted_response->GetPlaintextData();
+  }
+
+ private:
+  explicit OHTTPResponseUnwrapper(quiche::ObliviousHttpRequest::Context context)
+      : context_(std::move(context)) {}
+
+  google::api::HttpBody response_;
+  quiche::ObliviousHttpRequest::Context context_;
+  const std::string public_key_ = absl::HexStringToBytes(kTestPublicKey);
+
+  friend class OHTTPRequest;
+};
+
+class OHTTPRequest {
+ public:
+  explicit OHTTPRequest(std::string raw_request)
+      : raw_request_(std::move(raw_request)) {}
+
+  std::pair<ObliviousGetValuesRequest, OHTTPResponseUnwrapper> Build() const {
+    // matches the test key pair, see common repo:
+    // ../encryption/key_fetcher/src/fake_key_fetcher_manager.h
+    uint8_t key_id = 64;
+    auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
+        key_id, kKEMParameter, kKDFParameter, kAEADParameter);
+    EXPECT_TRUE(maybe_config.ok());
+    auto encrypted_req =
+        quiche::ObliviousHttpRequest::CreateClientObliviousRequest(
+            raw_request_, public_key_, *std::move(maybe_config),
+            kKVOhttpRequestLabel);
+    EXPECT_TRUE(encrypted_req.ok());
+    auto serialized_encrypted_req = encrypted_req->EncapsulateAndSerialize();
+    ObliviousGetValuesRequest ohttp_req;
+    ohttp_req.mutable_raw_body()->set_data(serialized_encrypted_req);
+
+    OHTTPResponseUnwrapper response_unwrapper(
+        std::move(encrypted_req.value()).ReleaseContext());
+    return {std::move(ohttp_req), std::move(response_unwrapper)};
+  }
+
+ private:
+  const std::string public_key_ = absl::HexStringToBytes(kTestPublicKey);
+  std::string raw_request_;
+};
+
 class BaseTest : public ::testing::Test,
                  public ::testing::WithParamInterface<TestingParameters> {
  protected:
@@ -113,68 +178,6 @@ class BaseTest : public ::testing::Test,
 
    private:
     std::string plain_request_body_;
-  };
-
-  class OHTTPRequest;
-  class OHTTPResponseUnwrapper {
-   public:
-    google::api::HttpBody& RawResponse() { return response_; }
-
-    std::string Unwrap() {
-      uint8_t key_id = 64;
-      auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
-          key_id, kKEMParameter, kKDFParameter, kAEADParameter);
-      EXPECT_TRUE(maybe_config.ok());
-      auto decrypted_response =
-          quiche::ObliviousHttpResponse::CreateClientObliviousResponse(
-              response_.data(), context_, kKVOhttpResponseLabel);
-      auto deframed_req = privacy_sandbox::server_common::DecodeRequestPayload(
-          decrypted_response->GetPlaintextData());
-      EXPECT_TRUE(deframed_req.ok()) << deframed_req.status();
-      return deframed_req->compressed_data;
-    }
-
-   private:
-    explicit OHTTPResponseUnwrapper(
-        quiche::ObliviousHttpRequest::Context context)
-        : context_(std::move(context)) {}
-
-    google::api::HttpBody response_;
-    quiche::ObliviousHttpRequest::Context context_;
-    const std::string public_key_ = absl::HexStringToBytes(kTestPublicKey);
-
-    friend class OHTTPRequest;
-  };
-
-  class OHTTPRequest {
-   public:
-    explicit OHTTPRequest(std::string raw_request)
-        : raw_request_(std::move(raw_request)) {}
-
-    std::pair<ObliviousGetValuesRequest, OHTTPResponseUnwrapper> Build() const {
-      // matches the test key pair, see common repo:
-      // ../encryption/key_fetcher/src/fake_key_fetcher_manager.h
-      uint8_t key_id = 64;
-      auto maybe_config = quiche::ObliviousHttpHeaderKeyConfig::Create(
-          key_id, kKEMParameter, kKDFParameter, kAEADParameter);
-      EXPECT_TRUE(maybe_config.ok());
-      auto encrypted_req =
-          quiche::ObliviousHttpRequest::CreateClientObliviousRequest(
-              raw_request_, public_key_, *std::move(maybe_config),
-              kKVOhttpRequestLabel);
-      EXPECT_TRUE(encrypted_req.ok());
-      auto serialized_encrypted_req = encrypted_req->EncapsulateAndSerialize();
-      ObliviousGetValuesRequest ohttp_req;
-      ohttp_req.mutable_raw_body()->set_data(serialized_encrypted_req);
-
-      OHTTPResponseUnwrapper response_unwrapper(
-          std::move(encrypted_req.value()).ReleaseContext());
-      return {std::move(ohttp_req), std::move(response_unwrapper)};
-    }
-
-   private:
-    const std::string public_key_ = absl::HexStringToBytes(kTestPublicKey);
-    std::string raw_request_;
   };
 
   std::string GetContentTypeHeaderValue() {
@@ -1134,6 +1137,162 @@ TEST_F(GetValuesHandlerTest, IsSinglePartitonUseCaseNotIsPasReturnsFalse) {
         })pb",
       &req);
   EXPECT_FALSE(IsSinglePartitionUseCase(req));
+}
+
+TEST_F(GetValuesHandlerTest, ObliviousGetValuesTest_ResponseTooLarge) {
+  ExecutionMetadata execution_metadata;
+  std::multimap<grpc::string_ref, grpc::string_ref> headers = {
+      {std::string(kKVContentTypeHeader),
+       std::string(kContentEncodingCborHeaderValue)}};
+  std::string largeString = std::string(kMaxResponsePaddingBytes, 'a');
+  std::string largeOutput = absl::Substitute(R"json(
+    {
+      "keyGroupOutputs": [
+          {
+              "keyValues": {
+                  "hello": {
+                    "value": "$0"
+                  }
+              },
+              "tags": [
+                  "structured",
+                  "groupNames"
+              ]
+          }
+      ]
+    }
+      )json",
+                                             largeString);
+
+  absl::flat_hash_map<UniquePartitionIdTuple, std::string>
+      batch_execute_output = {{{0, 0}, largeOutput}};
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _))
+      .WillOnce(Return(batch_execute_output));
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+
+  nlohmann::json request_body_json = R"json({
+    "partitions": [
+        {
+            "id": 0
+        }
+    ]
+  })json"_json;
+  std::vector<uint8_t> cbor_vector = nlohmann::json::to_cbor(request_body_json);
+  std::string request_body =
+      std::string(cbor_vector.begin(), cbor_vector.end());
+  auto encoded_data_size = privacy_sandbox::server_common::GetEncodedDataSize(
+      request_body.size(), kMinResponsePaddingBytes);
+  auto maybe_padded_request =
+      privacy_sandbox::server_common::EncodeResponsePayload(
+          privacy_sandbox::server_common::CompressionType::kUncompressed,
+          request_body, encoded_data_size);
+  ASSERT_TRUE(maybe_padded_request.ok());
+  OHTTPRequest ohttp_request(*maybe_padded_request);
+  auto [request, response_unwrapper] = ohttp_request.Build();
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result = handler.ObliviousGetValues(
+      *request_context_factory, headers, request,
+      &response_unwrapper.RawResponse(), execution_metadata);
+  ASSERT_TRUE(result.ok());
+  EXPECT_TRUE(response_unwrapper.RawResponse().data().empty());
+}
+
+TEST_F(GetValuesHandlerTest, ObliviousGetValuesTest_PadsToTwoMB) {
+  ExecutionMetadata execution_metadata;
+  std::multimap<grpc::string_ref, grpc::string_ref> headers = {
+      {std::string(kKVContentTypeHeader),
+       std::string(kContentEncodingCborHeaderValue)}};
+  std::string largeString = std::string(1 * 1024 * 1024, 'a');  // 1MB
+  std::string output = absl::Substitute(R"json(
+    {
+      "keyGroupOutputs": [
+          {
+              "keyValues": {
+                  "hello": {
+                    "value": "$0"
+                  }
+              },
+              "tags": [
+                  "structured",
+                  "groupNames"
+              ]
+          }
+      ]
+    }
+      )json",
+                                        largeString);
+
+  absl::flat_hash_map<UniquePartitionIdTuple, std::string>
+      batch_execute_output = {{{0, 0}, output}};
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _))
+      .WillOnce(Return(batch_execute_output));
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+
+  nlohmann::json request_body_json = R"json({
+    "partitions": [
+        {
+            "id": 0
+        }
+    ]
+  })json"_json;
+  std::vector<uint8_t> cbor_vector = nlohmann::json::to_cbor(request_body_json);
+  std::string request_body =
+      std::string(cbor_vector.begin(), cbor_vector.end());
+  auto encoded_data_size = privacy_sandbox::server_common::GetEncodedDataSize(
+      request_body.size(), kMinResponsePaddingBytes);
+  auto maybe_padded_request =
+      privacy_sandbox::server_common::EncodeResponsePayload(
+          privacy_sandbox::server_common::CompressionType::kUncompressed,
+          request_body, encoded_data_size);
+  ASSERT_TRUE(maybe_padded_request.ok());
+  OHTTPRequest ohttp_request(*maybe_padded_request);
+  auto [request, response_unwrapper] = ohttp_request.Build();
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result = handler.ObliviousGetValues(
+      *request_context_factory, headers, request,
+      &response_unwrapper.RawResponse(), execution_metadata);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(response_unwrapper.UnwrapOhttp().size(), 2 * 1024 * 1024);
+}
+
+TEST_F(GetValuesHandlerTest, ObliviousGetValuesTest_PadsToMinPaddingSize) {
+  ExecutionMetadata execution_metadata;
+  std::multimap<grpc::string_ref, grpc::string_ref> headers = {
+      {std::string(kKVContentTypeHeader),
+       std::string(kContentEncodingCborHeaderValue)}};
+  std::string output =
+      R"json({"keyGroupOutputs":[{"keyValues":{"hello":{"value":"a"}}}]})json";
+  absl::flat_hash_map<UniquePartitionIdTuple, std::string>
+      batch_execute_output = {{{0, 0}, output}};
+  EXPECT_CALL(mock_udf_client_, BatchExecuteCode(_, _, _))
+      .WillOnce(Return(batch_execute_output));
+  GetValuesV2Handler handler(mock_udf_client_, fake_key_fetcher_manager_);
+
+  nlohmann::json request_body_json = R"json({
+    "partitions": [
+        {
+            "id": 0
+        }
+    ]
+  })json"_json;
+  std::vector<uint8_t> cbor_vector = nlohmann::json::to_cbor(request_body_json);
+  std::string request_body =
+      std::string(cbor_vector.begin(), cbor_vector.end());
+  auto encoded_data_size = privacy_sandbox::server_common::GetEncodedDataSize(
+      request_body.size(), kMinResponsePaddingBytes);
+  auto maybe_padded_request =
+      privacy_sandbox::server_common::EncodeResponsePayload(
+          privacy_sandbox::server_common::CompressionType::kUncompressed,
+          request_body, encoded_data_size);
+  ASSERT_TRUE(maybe_padded_request.ok());
+  OHTTPRequest ohttp_request(*maybe_padded_request);
+  auto [request, response_unwrapper] = ohttp_request.Build();
+  auto request_context_factory = std::make_unique<RequestContextFactory>();
+  const auto result = handler.ObliviousGetValues(
+      *request_context_factory, headers, request,
+      &response_unwrapper.RawResponse(), execution_metadata);
+  ASSERT_TRUE(result.ok());
+  EXPECT_EQ(response_unwrapper.UnwrapOhttp().size(), kMinResponsePaddingBytes);
 }
 
 }  // namespace

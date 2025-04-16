@@ -46,8 +46,15 @@ constexpr int kFileGroupFileIndexDigits = 5;
 // Number of digits used to represent the size of a file group.
 constexpr int kFileGroupSizeDigits = 6;
 
-// Minimum size of the returned response in bytes.
-constexpr int kMinResponsePaddingBytes = 0;
+// Minimum size of the returned response in bytes from
+// https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#padding
+// While minimum allowed size is 0, the framing bits make any successful
+// response nonempty. In practice, this means the minimum size is 128B.
+constexpr int kMinResponsePaddingBytes = 128;
+
+// Maximum size of the returned response in bytes from
+// https://github.com/WICG/turtledove/blob/main/FLEDGE_Key_Value_Server_API.md#padding
+constexpr int kMaxResponsePaddingBytes = 2 * 1024 * 1024;  // 2MB
 
 // "DELTA_\d{16}"
 // The first component represents the file type.

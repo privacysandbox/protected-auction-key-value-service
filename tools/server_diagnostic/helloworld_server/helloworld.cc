@@ -19,8 +19,7 @@
 #include "public/query/get_values.grpc.pb.h"
 #include "public/query/v2/get_values_v2.grpc.pb.h"
 
-ABSL_FLAG(uint16_t, port, 50051,
-          "Port the server is listening on. Defaults to 50051.");
+ABSL_FLAG(uint16_t, port, 50051, "Port the server is listening on.");
 
 // A simple helloworld grpc server serving KV V1 and V2 requests.
 // This server will be used to test in isolation any system dependency

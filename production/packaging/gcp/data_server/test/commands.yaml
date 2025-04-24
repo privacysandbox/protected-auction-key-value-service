@@ -28,5 +28,4 @@ commandTests:
         /server --port=50051
 
           Flags from components/data_server/server/server\.cc:
-            --port \(Port the server is listening on. Defaults to 50051\.\);
-              default: 50051;
+            --port \(Port the server is listening on\.\); default: 50051;

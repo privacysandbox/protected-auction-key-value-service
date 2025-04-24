@@ -57,8 +57,7 @@
 #include "src/telemetry/telemetry.h"
 #include "src/telemetry/telemetry_provider.h"
 
-ABSL_FLAG(uint16_t, port, 50051,
-          "Port the server is listening on. Defaults to 50051.");
+ABSL_FLAG(uint16_t, port, 50051, "Port the server is listening on.");
 
 namespace kv_server {
 namespace {

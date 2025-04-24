@@ -13,8 +13,8 @@
 # limitations under the License.
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "maybe")
-load("@google_privacysandbox_servers_common//third_party:container_deps.bzl", common_container_deps = "container_deps")
 load("@rules_oci//oci:pull.bzl", "oci_pull")
+load("//builders/bazel:container_deps.bzl", common_container_deps = "container_deps")
 
 def container_deps():
     common_container_deps()

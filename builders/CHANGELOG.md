@@ -2,6 +2,90 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## 1.0.0 (2025-04-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* Downgrades build system to ubuntu:20.04
+
+Bug: b/373923491
+Change-Id: I4460af9f3809e1ade93dbab6a35573da41ed5851
+
+* Revert^2 "fix: Revert to ubuntu:20"
+
+## 0.83.0 (2025-04-21)
+
+
+### Features
+
+* Add container-structure-test wrapper script
+
+
+### Bug Fixes
+
+* Remove unused gVisor deps
+
+## 0.82.1 (2025-04-16)
+
+### Features
+
+* Update build-debian image to Ubuntu 22.04 LTS
+
+## 0.82.0 (2025-03-27)
+
+
+### Features
+
+* Add tests for nitro-cli-linux6
+* Rename nitro-cli to nitro-cli-linux6
+
+## 0.81.0 (2025-03-26)
+
+
+### Features
+
+* Remove privileged docker container
+
+## 0.80.1 (2025-03-25)
+
+## 0.80.0 (2025-03-23)
+
+
+### Features
+
+* Remove spawn_strategy from bazel-debian
+
+## 0.79.3 (2025-03-19)
+
+
+### Bug Fixes
+
+* Add nitro-cli image using Linux 6.x kernel
+
+## 0.79.2 (2025-02-21)
+
+## 0.79.1 (2025-02-18)
+
+
+### Bug Fixes
+
+* Sandboxing strategy for privileged containers
+
+## 0.79.0 (2025-02-09)
+
+
+### Dependencies
+
+* **deps:** Upgrade Amazon Linux to AL2023.6
+
+## 0.78.0 (2025-01-31)
+
+
+### Features
+
+* Run bazel in privileged container
+
 ## 0.77.0 (2025-01-13)
 
 

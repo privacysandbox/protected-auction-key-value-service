@@ -44,6 +44,11 @@ repos:
   - id: script-must-not-have-extension
   - id: script-must-have-extension
   - id: require-ascii
+    exclude: |
+          (?x)^(
+              google_internal/.*.md|
+              CHANGELOG.md
+          )$
   - id: shellcheck
 
 - repo: https://github.com/pre-commit/mirrors-clang-format
@@ -99,6 +104,9 @@ repos:
     types_or:
     - dockerfile
     entry: tools/hadolint
+    exclude: (?x)^(
+                 images/nitro-cli-linux6/Dockerfile
+             )$
 
 - repo: https://github.com/pre-commit/mirrors-prettier
   rev: v3.0.0

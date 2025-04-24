@@ -59,7 +59,9 @@ function install_python() {
   /usr/bin/python3 -m pip --version
   /usr/bin/python3 -m pip install \
     "libclang~=${CLANG_VER}.0" \
-    "numpy~=1.25"
+    "numpy~=1.25" \
+    "keyring~=25.6.0" \
+    "keyrings.google-artifactregistry-auth~=1.1.2"
 }
 
 function install_misc() {
@@ -87,7 +89,8 @@ function install_misc() {
     unzip="6.0-*" \
     wget="1.20.*" \
     xz-utils="5.2.*" \
-    zip="3.0-*"
+    zip="3.0-*" \
+    graphviz=2.*
 
   if [[ -n ${INSTALL_LOCALE} ]]; then
     printf "\nSetting locale to: %s\n" "${INSTALL_LOCALE}"
@@ -137,19 +140,6 @@ function install_clang_tidy() {
   ln -s "${installed_clang_tidy}" "${installed_dir}"/clang-tidy
 }
 
-# Minimal list of dependencies for building gVisor runsc from source.
-# Derived from - https://github.com/google/gvisor/blob/4c89bb77d8bb65325288dc046ebd86122ebc6c05/images/default/Dockerfile
-function install_gvisor_deps() {
-  declare -r arch="$1"
-  apt-get --quiet install -y --no-install-recommends \
-    crossbuild-essential-amd64="12.8*" \
-    crossbuild-essential-arm64="12.8*" \
-    libbpf-dev="1:0.5.0-*"
-  if [[ ${arch} == amd64 ]]; then
-    apt-get install -y --no-install-recommends libc6-dev-i386="2.31-*"
-  fi
-}
-
 function cleanup() {
   apt-get --quiet autoremove -y
   apt-get autoclean
@@ -171,7 +161,6 @@ install_misc "${BUILD_ARCH}"
 install_clang
 install_clang_tidy
 install_golang "${BUILD_ARCH}"
-install_gvisor_deps "${BUILD_ARCH}"
 install_docker "${BUILD_ARCH}"
 install_python # should run after other install_*
 cleanup

@@ -77,6 +77,8 @@ USAGE
   cat &>/dev/stderr <<USAGE
     --sha-only     Emit only the SHA rather than the image name
     --verbose      Enable verbose output
+    --docker-network \`--network\` parameter used in docker build. Valid names:
+                     default, host, none
 
 environment variables (all optional):
     IMAGE_BUILD_VERBOSE   Capture docker build output if set
@@ -93,7 +95,7 @@ readonly IMAGES_DIR="${BUILDERS_DIR}"/images
 declare -i SHA_ONLY=0
 declare -i BUILD_IMAGE_IF_NEEDED=1
 declare -i VERBOSE=0
-declare -r -a DOCKER_BUILD_ARGS=(
+declare -a DOCKER_BUILD_ARGS=(
   --progress plain
 )
 
@@ -120,6 +122,12 @@ while [[ $# -gt 0 ]]; do
     --verbose)
       VERBOSE=1
       shift
+      ;;
+    --docker-network)
+      DOCKER_BUILD_ARGS+=(
+        "--network=$2"
+      )
+      shift 2 || usage
       ;;
     -h | --help) usage 0 ;;
     *)

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -o pipefail
+set -o errexit
+
+function install_go_profiler() {
+  /usr/local/go/bin/go install github.com/google/pprof@latest
+  PPROF="$(go env GOPATH)"/bin/pprof
+  ln -s "${PPROF}" /usr/bin/pprof
+}
+
+install_go_profiler

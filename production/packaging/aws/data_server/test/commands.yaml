@@ -22,3 +22,11 @@ commandTests:
     command: "/server"
     args: ["--help"]
     exitCode: 1
+    expectedOutput:
+      - |-
+        ^server: FLEDGE Key/Value Server\.  Sample usage:
+        /server --port=50051
+
+          Flags from components/data_server/server/server\.cc:
+            --port \(Port the server is listening on. Defaults to 50051\.\);
+              default: 50051;

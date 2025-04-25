@@ -48,6 +48,15 @@ pkg_files(
 )
 
 pkg_files(
+    name = "test_serving_data_generator",
+    srcs = [
+        "//tools/serving_data_generator:test_serving_data_generator",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/tools/serving_data_generator",
+)
+
+pkg_files(
     name = "udf_delta_file_tester",
     srcs = [
         "//tools/udf/udf_tester:udf_delta_file_tester",
@@ -65,14 +74,25 @@ pkg_files(
     prefix = "/tools/udf",
 )
 
+pkg_files(
+    name = "validator",
+    srcs = [
+        "//components/tools/sharding_correctness_validator:validator",
+    ],
+    attributes = pkg_attributes(mode = "0555"),
+    prefix = "/tools/validator",
+)
+
 pkg_filegroup(
     name = "tools_executables",
     srcs = [
         ":benchmarks",
         ":data_cli",
         ":realtime",
+        ":test_serving_data_generator",
         ":udf_delta_file_generator",
         ":udf_delta_file_tester",
+        ":validator",
     ],
     prefix = "/",
 )

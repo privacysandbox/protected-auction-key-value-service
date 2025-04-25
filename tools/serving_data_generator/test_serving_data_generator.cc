@@ -183,6 +183,8 @@ int main(int argc, char** argv) {
   const std::string output_dir = absl::GetFlag(FLAGS_output_dir);
   std::string output_filename = absl::GetFlag(FLAGS_output_filename);
 
+  LOG(INFO) << "Generating delta files";
+
   auto write_records = [](std::ostream* os) {
     const std::string key = absl::GetFlag(FLAGS_key);
     const int value_size = absl::GetFlag(FLAGS_value_size);

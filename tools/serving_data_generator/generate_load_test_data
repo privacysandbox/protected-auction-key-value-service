@@ -24,15 +24,20 @@ mkdir -p "${DELTAS_DIR}"
 # shellcheck disable=SC2034
 BAZEL_EXTRA_ARGS=
 
-"${TOOLS_DIR}"/bazel-debian build //tools/serving_data_generator:test_serving_data_generator
+"${TOOLS_DIR}"/bazel-debian run //production/packaging/tools:copy_to_dist --config=local_instance --config=local_platform
+docker load -i dist/tools_binaries_docker_image.tar
 
 declare -i nanosecond
 for _ in {1..3000}
 do
   nanosecond=$(date '+%s%N')
-  "${WORKSPACE}"/bazel-bin/tools/serving_data_generator/test_serving_data_generator \
+  docker run -it --rm \
+    --volume="${DELTAS_DIR}":/src/workspace/deltas \
+    --user "$(id -u "${USER}"):$(id -g "${USER}")" \
+    --entrypoint=/tools/serving_data_generator/test_serving_data_generator \
+    bazel/production/packaging/tools:tools_binaries_docker_image \
     --key="${nanosecond}" \
-    --num_records=100   \
+    --num_records=100 \
     --timestamp="${nanosecond}" \
-    --output_dir="${DELTAS_DIR}"
+    --output_dir="/src/workspace/deltas"
 done

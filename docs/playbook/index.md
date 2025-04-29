@@ -67,6 +67,11 @@ You should also monitor logs to make sure you don't see any errors in there.
 Beyond that, you can verify that you can [load data](../data_loading/loading_data.md) and then
 [read](../testing_the_query_protocol.md) it.
 
+In addition, increased logging verbosity level helps debugging but can introduce substantial latency
+during data loading because the server might log each key-value update. Set the logging verbosity
+value to a smaller value if you observe slowness in the data loading due to excessive logging
+messages.
+
 ### How do I know if my read latency is meeting my SLI?
 
 Please see [Read latency](read_latency_too_high.md).

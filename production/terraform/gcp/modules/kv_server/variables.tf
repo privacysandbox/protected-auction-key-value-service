@@ -208,3 +208,9 @@ variable "enable_external_traffic" {
   default     = true
   type        = bool
 }
+
+variable "lb_dns_zones_project_id" {
+  description = "The name of the Google Cloud project where DNS zones are managed."
+  type        = string
+  default     = null
+}

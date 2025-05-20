@@ -69,6 +69,7 @@ module "kv_server" {
   service_mesh_address                  = var.service_mesh_address
   enable_external_traffic               = var.enable_external_traffic
   use_existing_collector                = var.use_existing_collector
+  ttl_ms                                = var.ttl_ms
 
   parameters = {
     data-bucket-id                               = var.data_bucket_id
@@ -116,5 +117,6 @@ module "kv_server" {
     consented-debug-token                        = var.consented_debug_token
     enable-consented-log                         = var.enable_consented_log
     data-loading-file-format                     = var.data_loading_file_format
+    ttl-ms                                       = var.ttl_ms
   }
 }

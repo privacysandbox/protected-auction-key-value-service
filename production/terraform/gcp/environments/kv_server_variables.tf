@@ -410,3 +410,9 @@ variable "data_loading_file_format" {
   default     = "riegeli"
   type        = string
 }
+
+variable "ttl_ms" {
+  description = "The duration, in milliseconds, that client-side cached data remains valid. If positive non-zero value is specified, ttl_ms is passed in the response, If the value is zero or negative, it indicates the data should not be cached and no value will be passed."
+  default     = 0
+  type        = number
+}

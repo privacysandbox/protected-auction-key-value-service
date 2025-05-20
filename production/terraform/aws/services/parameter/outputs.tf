@@ -182,3 +182,7 @@ output "consented_debug_token_parameter_arn" {
 output "enable_consented_log_parameter_arn" {
   value = aws_ssm_parameter.enable_consented_log_parameter.arn
 }
+
+output "ttl_ms_parameter_arn" {
+  value = aws_ssm_parameter.ttl_ms_parameter.arn
+}

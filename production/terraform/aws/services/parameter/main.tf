@@ -311,3 +311,10 @@ resource "aws_ssm_parameter" "udf_enable_stacktrace_parameter" {
   value     = var.udf_enable_stacktrace_parameter_value
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "ttl_ms_parameter" {
+  name      = "${var.service}-${var.environment}-ttl-ms"
+  type      = "String"
+  value     = var.ttl_ms_parameter_value
+  overwrite = true
+}

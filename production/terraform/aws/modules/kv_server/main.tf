@@ -193,6 +193,7 @@ module "parameter" {
   consented_debug_token_parameter_value                      = var.consented_debug_token
   enable_consented_log_parameter_value                       = var.enable_consented_log
   udf_enable_stacktrace_parameter_value                      = var.udf_enable_stacktrace
+  ttl_ms_parameter_value                                     = var.ttl_ms
 
 
   data_loading_file_format_parameter_value                     = var.data_loading_file_format

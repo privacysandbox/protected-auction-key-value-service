@@ -83,6 +83,7 @@ module "kv_server" {
   s3client_max_range_bytes           = var.s3client_max_range_bytes
   data_loading_file_format           = var.data_loading_file_format
   data_loading_blob_prefix_allowlist = var.data_loading_blob_prefix_allowlist
+  ttl_ms                             = var.ttl_ms
 
   # Variables related to sharding.
   num_shards                  = var.num_shards

@@ -223,3 +223,8 @@ variable "enable_consented_log_parameter_value" {
   description = "Enable the logging of consented requests. If it is set to true, the consented debug token parameter value must not be an empty string."
   type        = bool
 }
+
+variable "ttl_ms_parameter_value" {
+  description = "The duration, in milliseconds, that client-side cached data remains valid. If positive non-zero value is specified, ttl_ms is passed in the response, If the value is zero or negative, it indicates the data should not be cached and no value will be passed."
+  type        = number
+}

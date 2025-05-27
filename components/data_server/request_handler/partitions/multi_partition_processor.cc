@@ -329,7 +329,8 @@ MultiPartitionProcessor::MultiPartitionProcessor(
 
 absl::Status MultiPartitionProcessor::Process(
     const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
-    ExecutionMetadata& execution_metadata) const {
+    ExecutionMetadata& execution_metadata,
+    std::optional<int32_t> ttl_ms) const {
   if (HasDuplicatePartitionAndCompressionGroupIds(request)) {
     return V2RequestFormatErrorAsExternalHttpError(absl::InvalidArgumentError(
         "Each partition must have a unique <id, "
@@ -381,6 +382,10 @@ absl::Status MultiPartitionProcessor::Process(
     auto* compression_group = response.add_compression_groups();
     compression_group->set_content(std::move(*maybe_content));
     compression_group->set_compression_group_id(group_id);
+    if (ttl_ms.has_value()) {
+      const int32_t ttl_ms_value = ttl_ms.value();
+      compression_group->set_ttl_ms(ttl_ms_value);
+    }
   }
   if (response.compression_groups().empty()) {
     return absl::InvalidArgumentError("All partitions failed.");

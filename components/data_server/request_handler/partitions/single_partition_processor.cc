@@ -34,7 +34,8 @@ SinglePartitionProcessor::SinglePartitionProcessor(
 
 absl::Status SinglePartitionProcessor::Process(
     const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
-    ExecutionMetadata& execution_metadata) const {
+    ExecutionMetadata& execution_metadata,
+    std::optional<int32_t> ttl_ms) const {
   if (request.partitions().size() > 1) {
     return V2RequestFormatErrorAsExternalHttpError(absl::InvalidArgumentError(
         "This use case only accepts single partitions, but "

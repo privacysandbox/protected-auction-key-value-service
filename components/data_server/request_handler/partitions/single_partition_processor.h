@@ -32,9 +32,10 @@ class SinglePartitionProcessor : public PartitionProcessor {
                            const UdfClient& udf_client);
 
   // Passes input to UDF and populates GetValuesResponse.single_partition_output
-  absl::Status Process(const v2::GetValuesRequest& request,
-                       v2::GetValuesResponse& response,
-                       ExecutionMetadata& execution_metadata) const override;
+  absl::Status Process(
+      const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
+      ExecutionMetadata& execution_metadata,
+      std::optional<int32_t> ttl_ms = std::nullopt) const override;
 
  private:
   const RequestContextFactory& request_context_factory_;

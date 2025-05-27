@@ -169,8 +169,8 @@ grpc::Status GetValuesV2Handler::GetValues(
   const auto partition_processor = PartitionProcessor::Create(
       single_partition_use_case, request_context_factory, udf_client_,
       v2_codec);
-  const auto response_status =
-      partition_processor->Process(request, *response, execution_metadata);
+  const auto response_status = partition_processor->Process(
+      request, *response, execution_metadata, ttl_ms_);
   return GetExternalStatusForV2(response_status);
 }
 

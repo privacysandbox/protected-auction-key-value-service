@@ -116,6 +116,7 @@ constexpr std::string_view kTelemetryConfigSuffix = "telemetry-config";
 constexpr std::string_view kConsentedDebugTokenSuffix = "consented-debug-token";
 constexpr std::string_view kEnableConsentedLogSuffix = "enable-consented-log";
 constexpr std::string_view kUdfEnableStacktraceSuffix = "udf-enable-stacktrace";
+constexpr absl::string_view kTtlMsParameterSuffix = "ttl-ms";
 
 opentelemetry::sdk::metrics::PeriodicExportingMetricReaderOptions
 GetMetricsOptions(const ParameterClient& parameter_client,
@@ -710,14 +711,20 @@ void Server::CreateGrpcServices(const ParameterFetcher& parameter_fetcher) {
       parameter_fetcher.GetBoolParameter(kAddMissingKeysV1Suffix);
   PS_LOG(INFO, server_safe_log_context_)
       << "Retrieved " << kRouteV1ToV2Suffix << " parameter: " << use_v2;
+  const int32_t ttl_parameter =
+      parameter_fetcher.GetInt32Parameter(kTtlMsParameterSuffix);
+
+  const std::optional<int32_t> ttl_ms =
+      (ttl_parameter >= 0) ? std::optional<int32_t>(ttl_parameter)
+                           : std::nullopt;
   get_values_adapter_ =
       GetValuesAdapter::Create(std::make_unique<GetValuesV2Handler>(
-          *udf_client_, *key_fetcher_manager_));
+          *udf_client_, *key_fetcher_manager_, ttl_ms));
   GetValuesHandler handler(*cache_, *get_values_adapter_, use_v2,
                            add_missing_keys_v1);
   grpc_services_.push_back(
       std::make_unique<KeyValueServiceImpl>(std::move(handler)));
-  GetValuesV2Handler v2handler(*udf_client_, *key_fetcher_manager_);
+  GetValuesV2Handler v2handler(*udf_client_, *key_fetcher_manager_, ttl_ms);
   grpc_services_.push_back(
       std::make_unique<KeyValueServiceV2Impl>(std::move(v2handler)));
 }

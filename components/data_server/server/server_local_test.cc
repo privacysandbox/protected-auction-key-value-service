@@ -161,6 +161,9 @@ TEST_F(ServerLocalTest, InitFailsWithNoDeltaDirectory) {
       GetParameter("kv-server-environment-data-loading-blob-prefix-allowlist",
                    ::testing::Eq("")))
       .WillOnce(::testing::Return(""));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-ttl-ms"))
+      .WillOnce(::testing::Return(5));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -239,6 +242,9 @@ TEST_F(ServerLocalTest, InitPassesWithDeltaDirectoryAndRealtimeDirectory) {
                    ::testing::Eq("")))
       .Times(2)
       .WillRepeatedly(::testing::Return(""));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-ttl-ms"))
+      .WillOnce(::testing::Return(5));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -316,6 +322,9 @@ TEST_F(ServerLocalTest, GracefulServerShutdown) {
                    ::testing::Eq("")))
       .Times(2)
       .WillRepeatedly(::testing::Return(""));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-ttl-ms"))
+      .WillOnce(::testing::Return(5));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),
@@ -396,6 +405,9 @@ TEST_F(ServerLocalTest, ForceServerShutdown) {
                    ::testing::Eq("")))
       .Times(2)
       .WillRepeatedly(::testing::Return(""));
+  EXPECT_CALL(*parameter_client,
+              GetInt32Parameter("kv-server-environment-ttl-ms"))
+      .WillOnce(::testing::Return(5));
   kv_server::Server server;
   absl::Status status =
       server.Init(std::move(parameter_client), std::move(instance_client),

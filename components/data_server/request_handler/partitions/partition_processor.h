@@ -34,9 +34,10 @@ class PartitionProcessor {
 
   // Handles building input for UdfClient and processes the UDF output
   // to populate the v2::GetValuesResponse
-  virtual absl::Status Process(const v2::GetValuesRequest& request,
-                               v2::GetValuesResponse& response,
-                               ExecutionMetadata& execution_metadata) const = 0;
+  virtual absl::Status Process(
+      const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
+      ExecutionMetadata& execution_metadata,
+      std::optional<int32_t> ttl_ms = std::nullopt) const = 0;
 
   static std::unique_ptr<PartitionProcessor> Create(
       bool single_partition_use_case,

@@ -214,6 +214,141 @@ TEST_P(MultiPartitionProcessorTest, Success) {
   }
 }
 
+TEST_P(MultiPartitionProcessorTest, SuccessWithTtlMs) {
+  UDFExecutionMetadata udf_metadata;
+  TextFormat::ParseFromString(kExampleV2MultiPartitionUdfMetadata,
+                              &udf_metadata);
+
+  UDFArgument arg1, arg2, arg3;
+  TextFormat::ParseFromString(kExampleV2MultiPartitionUdfArg1, &arg1);
+  TextFormat::ParseFromString(kExampleV2MultiPartitionUdfArg2, &arg2);
+  TextFormat::ParseFromString(kExampleV2MultiPartitionUdfArg3, &arg3);
+  nlohmann::json output1 = nlohmann::json::parse(R"(
+  {
+    "keyGroupOutputs": [
+        {
+            "keyValues": {
+                "hello": {
+                  "value": "world"
+                }
+            },
+            "tags": [
+                "structured",
+                "groupNames"
+            ]
+        }
+    ]
+  }
+    )");
+  nlohmann::json output2 = nlohmann::json::parse(R"(
+  {
+    "keyGroupOutputs": [
+        {
+            "keyValues": {
+                "key1": {
+                  "value": "value1"
+                }
+            },
+            "tags": [
+                "custom",
+                "keys"
+            ]
+        }
+    ]
+  }
+    )");
+  nlohmann::json output3 = nlohmann::json::parse(R"(
+  {
+    "keyGroupOutputs": [
+        {
+             "keyValues": {
+                "key2": {
+                  "value": "value2"
+                }
+            },
+            "tags": [
+                "custom",
+                "keys"
+            ]
+        }
+    ]
+  }
+    )");
+  absl::flat_hash_map<UniquePartitionIdTuple, std::string>
+      batch_execute_output = {{{0, 0}, output1.dump()},
+                              {{0, 1}, output2.dump()},
+                              {{2, 0}, output3.dump()}};
+
+  EXPECT_CALL(
+      mock_udf_client_,
+      BatchExecuteCode(
+          _,
+          testing::UnorderedElementsAre(
+              testing::Pair(
+                  UniquePartitionIdTuple({0, 0}),
+                  testing::FieldsAre(EqualsProto(udf_metadata),
+                                     testing::ElementsAre(EqualsProto(arg1)))),
+              testing::Pair(
+                  UniquePartitionIdTuple({0, 1}),
+                  testing::FieldsAre(EqualsProto(udf_metadata),
+                                     testing::ElementsAre(EqualsProto(arg2)))),
+              testing::Pair(
+                  UniquePartitionIdTuple({2, 0}),
+                  testing::FieldsAre(EqualsProto(udf_metadata),
+                                     testing::ElementsAre(EqualsProto(arg3))))),
+          _))
+      .WillOnce(Return(batch_execute_output));
+
+  EXPECT_CALL(mock_v2_codec_,
+              EncodePartitionOutputs(testing::UnorderedElementsAre(
+                                         testing::Pair(0, output1.dump()),
+                                         testing::Pair(2, output3.dump())),
+                                     _))
+      .WillOnce(Return("compression_group_0_content"));
+
+  EXPECT_CALL(
+      mock_v2_codec_,
+      EncodePartitionOutputs(
+          testing::UnorderedElementsAre(testing::Pair(0, output2.dump())), _))
+      .WillOnce(Return("compression_group_1_content"));
+
+  const auto request = GetTestRequestBody();
+  v2::GetValuesResponse response;
+  ExecutionMetadata unused_execution_metadata;
+  std::optional<int32_t> ttl_ms = 5000;
+  MultiPartitionProcessor processor(*request_context_factory_, mock_udf_client_,
+                                    mock_v2_codec_);
+  const auto status =
+      processor.Process(request, response, unused_execution_metadata, ttl_ms);
+  ASSERT_TRUE(status.ok()) << status;
+
+  v2::GetValuesResponse expected_response;
+  EXPECT_TRUE(
+      TextFormat::ParseFromString(R"pb(
+                                    compression_groups {
+                                      compression_group_id: 0
+                                      ttl_ms: 5000
+                                      content: "compression_group_0_content"
+                                    }
+                                    compression_groups {
+                                      compression_group_id: 1
+                                      ttl_ms: 5000
+                                      content: "compression_group_1_content"
+                                    }
+                                  )pb",
+                                  &expected_response));
+  std::vector<v2::CompressionGroup> expected_compression_groups(
+      expected_response.compression_groups().begin(),
+      expected_response.compression_groups().end());
+  std::vector<v2::CompressionGroup> actual_compression_groups(
+      response.compression_groups().begin(),
+      response.compression_groups().end());
+  for (const auto& expected_compression_group : expected_compression_groups) {
+    EXPECT_THAT(actual_compression_groups,
+                testing::Contains(EqualsProto(expected_compression_group)));
+  }
+}
+
 TEST_P(MultiPartitionProcessorTest, DuplicatePartitionCompressionGroupIdsFail) {
   v2::GetValuesRequest request;
   EXPECT_TRUE(TextFormat::ParseFromString(

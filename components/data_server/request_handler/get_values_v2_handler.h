@@ -54,12 +54,14 @@ class GetValuesV2Handler {
       const UdfClient& udf_client,
       privacy_sandbox::server_common::KeyFetcherManagerInterface&
           key_fetcher_manager,
+      std::optional<int32_t> ttl_ms = std::nullopt,
       std::function<CompressionGroupConcatenator::FactoryFunctionType>
           create_compression_group_concatenator =
               &CompressionGroupConcatenator::Create)
       : udf_client_(udf_client),
         create_compression_group_concatenator_(
             std::move(create_compression_group_concatenator)),
+        ttl_ms_(ttl_ms),
         key_fetcher_manager_(key_fetcher_manager) {}
 
   grpc::Status GetValuesHttp(
@@ -122,6 +124,7 @@ class GetValuesV2Handler {
   const UdfClient& udf_client_;
   std::function<CompressionGroupConcatenator::FactoryFunctionType>
       create_compression_group_concatenator_;
+  const std::optional<int32_t> ttl_ms_;
   privacy_sandbox::server_common::KeyFetcherManagerInterface&
       key_fetcher_manager_;
 };

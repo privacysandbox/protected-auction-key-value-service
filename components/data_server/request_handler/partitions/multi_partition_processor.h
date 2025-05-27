@@ -35,9 +35,10 @@ class MultiPartitionProcessor : public PartitionProcessor {
                           bool enable_per_partition_metadata = false);
 
   // Passes input to UDF and populates GetValuesResponse.compression_groups
-  absl::Status Process(const v2::GetValuesRequest& request,
-                       v2::GetValuesResponse& response,
-                       ExecutionMetadata& execution_metadata) const override;
+  absl::Status Process(
+      const v2::GetValuesRequest& request, v2::GetValuesResponse& response,
+      ExecutionMetadata& execution_metadata,
+      std::optional<int32_t> ttl_ms = std::nullopt) const override;
 
  private:
   const RequestContextFactory& request_context_factory_;

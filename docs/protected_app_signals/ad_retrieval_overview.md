@@ -114,8 +114,7 @@ will be used, such as periodic batch files, constant streaming files or pub/sub:
 
 For privacy reasons, the service loads data into its RAM and serves requests from there.
 
-For details, see
-"[Loading data into the key value server](https://team.git.corp.google.com/kiwi-air-force-eng-team/kv-server/+/refs/heads/main/docs/loading_data.md)".
+For details, see "[Loading data into the key value server](/docs/data_loading/loading_data.md)".
 
 #### Data model
 

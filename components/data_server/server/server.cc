@@ -215,7 +215,9 @@ void Server::InitLogger(::opentelemetry::sdk::resource::Resource server_info,
                                                              collector_endpoint)
           .release();
   privacy_sandbox::server_common::log::logger_private =
-      log_provider->GetLogger(kServiceName.data()).get();
+      log_provider->GetLogger(kServiceName.data(), "")
+          .get();  // More info on passing in an empty string:
+                   // https://github.com/open-telemetry/opentelemetry-cpp/pull/2398/files
   UpdateLoggingVerbosity(verbosity_level);
   parameter_client_->UpdateLogContext(server_safe_log_context_);
   instance_client_->UpdateLogContext(server_safe_log_context_);

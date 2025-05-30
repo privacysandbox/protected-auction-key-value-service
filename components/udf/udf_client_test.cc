@@ -123,7 +123,7 @@ class UdfClientTest : public ::testing::Test {
                     consented_log_output_)))
             .release();
     privacy_sandbox::server_common::log::logger_private =
-        logger_provider->GetLogger("test").get();
+        logger_provider->GetLogger("test", "").get();
   }
   std::stringstream consented_log_output_;
   std::unique_ptr<RequestContextFactory> request_context_factory_;

@@ -85,7 +85,7 @@ void InitializeTelemetry() {
                   std::cout)))
           .release();
   privacy_sandbox::server_common::log::logger_private =
-      logger_provider->GetLogger("test").get();
+      logger_provider->GetLogger("test", "").get();
 }
 
 class ServerLocalTest : public ::testing::Test {

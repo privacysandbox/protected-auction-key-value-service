@@ -39,7 +39,9 @@ inline void ConfigureTelemetryForTools() {
                   std::cerr)))
           .release();
   privacy_sandbox::server_common::log::logger_private =
-      logger_provider->GetLogger("default").get();
+      logger_provider->GetLogger("default", "")
+          .get();  // More info on passing in an empty string:
+                   // https://github.com/open-telemetry/opentelemetry-cpp/pull/2398/files
   // Turn on all logging
   privacy_sandbox::server_common::log::AlwaysLogOtel(true);
 }

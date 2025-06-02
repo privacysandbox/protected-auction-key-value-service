@@ -62,9 +62,9 @@ The data server provides the read API for the KV service.
            it)
         1. Add a target in the WORKSPACE file:
 
-            - [local_repository](https://bazel.build/reference/be/workspace#local_repository) if the
-              directory tree has WORKSPACE and BUILD files
-            - [new_local_repository](https://bazel.build/reference/be/workspace#new_local_repository)
+            - [local_repository](https://bazel.build/versions/8.2.0/reference/be/workspace#local_repository)
+              if the directory tree has WORKSPACE and BUILD files
+            - [new_local_repository](https://bazel.build/versions/8.2.0/reference/be/workspace#new_local_repository)
               otherwise.
 
             Example (note, it must be added to the WORKSPACE file itself):

@@ -244,6 +244,12 @@
     PROD(noised metrics), mode: EXPERIMENT(raw metrics), mode: COMPARE(both raw and noised metrics),
     mode: OFF(no metrics)
 
+-   **ttl_ms**
+
+    The duration, in milliseconds, that client-side cached data remains valid. If positive non-zero
+    value is specified, ttl_ms is passed in the response, If the value is zero or negative, it
+    indicates the data should not be cached and no value will be passed.
+
 -   **udf_enable_stacktrace**
 
     Whether to enable stacktraces from the UDF. The stacktraces will also be included in the V2

@@ -22,9 +22,9 @@
 #include "absl/status/status.h"
 #include "components/data_server/request_handler/encryption/ohttp_server_encryptor.h"
 #include "components/internal_server/lookup.h"
-#include "components/internal_server/string_padder.h"
 #include "google/protobuf/message.h"
 #include "grpcpp/grpcpp.h"
+#include "src/communication/string_padder.h"
 
 namespace kv_server {
 
@@ -96,7 +96,7 @@ grpc::Status LookupServiceImpl::SecureLookup(
 
   PS_VLOG(9, request_context.GetPSLogContext()) << "SecureLookup decrypted";
   auto serialized_request_maybe =
-      kv_server::Unpad(*padded_serialized_request_maybe);
+      privacy_sandbox::server_common::Unpad(*padded_serialized_request_maybe);
   if (!serialized_request_maybe.ok()) {
     return ToInternalGrpcStatus(
         request_context.GetInternalLookupMetricsContext(),

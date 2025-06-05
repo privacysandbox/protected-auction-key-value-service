@@ -33,13 +33,13 @@ cc_library(
     deps = [
         ":internal_lookup_cc_grpc",
         ":lookup",
-        ":string_padder",
         "//components/data_server/request_handler/encryption:ohttp_server_encryptor",
         "//components/query:driver",
         "//components/query:scanner",
         "@com_github_grpc_grpc//:grpc++",
         "@com_google_absl//absl/functional:any_invocable",
         "@com_google_protobuf//:protobuf",
+        "@google_privacysandbox_servers_common//src/communication:string_padder",
         "@google_privacysandbox_servers_common//src/telemetry",
     ],
 )
@@ -207,7 +207,6 @@ cc_library(
     deps = [
         ":constants",
         ":internal_lookup_cc_grpc",
-        ":string_padder",
         "//components/data_server/request_handler/encryption:ohttp_client_encryptor",
         "//components/util:request_context",
         "@com_github_grpc_grpc//:grpc++",
@@ -215,35 +214,7 @@ cc_library(
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
         "@com_google_absl//absl/strings",
-    ],
-)
-
-cc_library(
-    name = "string_padder",
-    srcs = [
-        "string_padder.cc",
-    ],
-    hdrs = [
-        "string_padder.h",
-    ],
-    deps = [
-        "@com_github_google_quiche//quiche:quiche_unstable_api",
-        "@com_google_absl//absl/log",
-        "@com_google_absl//absl/status",
-        "@com_google_absl//absl/status:statusor",
-        "@com_google_absl//absl/strings",
-    ],
-)
-
-cc_test(
-    name = "string_padder_test",
-    size = "small",
-    srcs = [
-        "string_padder_test.cc",
-    ],
-    deps = [
-        ":string_padder",
-        "@com_google_googletest//:gtest_main",
+        "@google_privacysandbox_servers_common//src/communication:string_padder",
     ],
 )
 

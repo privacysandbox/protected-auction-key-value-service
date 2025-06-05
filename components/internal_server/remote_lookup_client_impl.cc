@@ -22,8 +22,8 @@
 #include "components/internal_server/constants.h"
 #include "components/internal_server/lookup.grpc.pb.h"
 #include "components/internal_server/remote_lookup_client.h"
-#include "components/internal_server/string_padder.h"
 #include "grpcpp/grpcpp.h"
+#include "src/communication/string_padder.h"
 
 namespace kv_server {
 namespace {
@@ -66,9 +66,9 @@ class RemoteLookupClientImpl : public RemoteLookupClient {
       return absl::InternalError(error);
     }
     OhttpClientEncryptor encryptor(maybe_public_key.value());
-    auto encrypted_padded_serialized_request_maybe =
-        encryptor.EncryptRequest(Pad(serialized_message, padding_length),
-                                 request_context.GetPSLogContext());
+    auto encrypted_padded_serialized_request_maybe = encryptor.EncryptRequest(
+        privacy_sandbox::server_common::Pad(serialized_message, padding_length),
+        request_context.GetPSLogContext());
     if (!encrypted_padded_serialized_request_maybe.ok()) {
       LogUdfRequestErrorMetric(request_context.GetUdfRequestMetricsContext(),
                                kRemoteRequestEncryptionFailure);

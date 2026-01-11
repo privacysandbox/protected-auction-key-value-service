@@ -380,3 +380,9 @@ variable "with_existing_kv" {
   default     = false
   type        = bool
 }
+
+variable "forced_availability_zones" {
+  description = "Only use those forced availability zones. Not all instances types are available in all zones"
+  type        = set(string)
+  default     = []
+}

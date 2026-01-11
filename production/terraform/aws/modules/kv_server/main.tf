@@ -36,13 +36,14 @@ module "data_storage" {
 }
 
 module "networking" {
-  source                   = "../../services/networking"
-  service                  = local.service
-  environment              = var.environment
-  vpc_cidr_block           = var.vpc_cidr_block
-  use_existing_vpc         = var.use_existing_vpc
-  existing_vpc_operator    = var.existing_vpc_operator
-  existing_vpc_environment = var.existing_vpc_environment
+  source                    = "../../services/networking"
+  service                   = local.service
+  environment               = var.environment
+  vpc_cidr_block            = var.vpc_cidr_block
+  use_existing_vpc          = var.use_existing_vpc
+  existing_vpc_operator     = var.existing_vpc_operator
+  existing_vpc_environment  = var.existing_vpc_environment
+  forced_availability_zones = var.forced_availability_zones
 }
 
 module "security_groups" {

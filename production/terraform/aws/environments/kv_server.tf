@@ -22,15 +22,16 @@ module "kv_server" {
   region      = var.region
 
   # Variables related to network, dns and certs configuration.
-  vpc_cidr_block           = var.vpc_cidr_block
-  root_domain              = var.root_domain
-  root_domain_zone_id      = var.root_domain_zone_id
-  certificate_arn          = var.certificate_arn
-  use_existing_vpc         = var.use_existing_vpc
-  existing_vpc_operator    = var.existing_vpc_operator
-  existing_vpc_environment = var.existing_vpc_environment
-  enable_external_traffic  = var.enable_external_traffic
-  with_existing_kv         = var.with_existing_kv
+  vpc_cidr_block            = var.vpc_cidr_block
+  root_domain               = var.root_domain
+  root_domain_zone_id       = var.root_domain_zone_id
+  certificate_arn           = var.certificate_arn
+  use_existing_vpc          = var.use_existing_vpc
+  existing_vpc_operator     = var.existing_vpc_operator
+  existing_vpc_environment  = var.existing_vpc_environment
+  enable_external_traffic   = var.enable_external_traffic
+  with_existing_kv          = var.with_existing_kv
+  forced_availability_zones = var.forced_availability_zones
 
   # Variables related to EC2 instances.
   instance_type   = var.instance_type

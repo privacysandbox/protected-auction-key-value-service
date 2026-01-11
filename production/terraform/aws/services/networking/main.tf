@@ -97,6 +97,14 @@ resource "aws_vpc" "vpc" {
 # Get information about available AZs.
 data "aws_availability_zones" "azs" {
   state = "available"
+  dynamic "filter" {
+  for_each = length(var.forced_availability_zones) > 0 ? [1] : []
+
+    content {
+      name   = "zone-name"
+      values = var.forced_availability_zones
+    }
+  }
 }
 
 # Create public subnets used to connect to instances in private subnets.
